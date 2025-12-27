@@ -1,0 +1,22 @@
+# CODEOWNERS file for AD-SDLC project
+# Each line defines the owner(s) for files matching the pattern
+
+# Default owners for everything in the repo
+* @kcenon
+
+# CI/CD configuration
+.github/ @kcenon
+
+# Core source code
+src/ @kcenon
+
+# Documentation
+docs/ @kcenon
+*.md @kcenon
+
+# Configuration files
+.ad-sdlc/ @kcenon
+.claude/ @kcenon
+
+# Agent definitions
+.claude/agents/ @kcenon

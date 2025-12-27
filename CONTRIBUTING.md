@@ -1,0 +1,192 @@
+# Contributing to AD-SDLC
+
+Thank you for your interest in contributing to AD-SDLC! This document provides guidelines and instructions for contributing.
+
+## Code of Conduct
+
+Please read and follow our [Code of Conduct](CODE_OF_CONDUCT.md) to maintain a welcoming environment for all contributors.
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js 18+
+- Git 2.30+
+- GitHub CLI (`gh`) 2.0+
+- Claude Code CLI
+
+### Development Setup
+
+1. Fork the repository
+2. Clone your fork:
+   ```bash
+   git clone https://github.com/YOUR_USERNAME/claude_code_agent.git
+   cd claude_code_agent
+   ```
+3. Install dependencies:
+   ```bash
+   npm install
+   ```
+4. Create a feature branch:
+   ```bash
+   git checkout -b feature/your-feature-name
+   ```
+
+## Development Workflow
+
+### Branch Naming
+
+Use descriptive branch names following this pattern:
+
+- `feature/description` - New features
+- `fix/description` - Bug fixes
+- `docs/description` - Documentation updates
+- `refactor/description` - Code refactoring
+- `test/description` - Test additions or updates
+
+### Commit Messages
+
+We use [Conventional Commits](https://www.conventionalcommits.org/). Each commit message should follow this format:
+
+```
+type(scope): description
+
+[optional body]
+
+[optional footer(s)]
+```
+
+#### Types
+
+- `feat`: A new feature
+- `fix`: A bug fix
+- `docs`: Documentation only changes
+- `style`: Changes that don't affect the meaning of the code
+- `refactor`: Code change that neither fixes a bug nor adds a feature
+- `perf`: Performance improvement
+- `test`: Adding or updating tests
+- `chore`: Changes to build process or auxiliary tools
+- `ci`: Changes to CI configuration
+
+#### Examples
+
+```
+feat(agent): add token usage tracking to collector
+
+fix(workflow): resolve race condition in parallel worker execution
+
+docs(readme): add CI/CD section with workflow descriptions
+```
+
+### Code Style
+
+- Run linter before committing: `npm run lint`
+- Run formatter: `npm run format`
+- Ensure all tests pass: `npm test`
+
+### Testing
+
+- Write tests for new features
+- Update tests when modifying existing functionality
+- Aim for 80%+ code coverage
+
+```bash
+# Run all tests
+npm test
+
+# Run tests with coverage
+npm test -- --coverage
+
+# Run specific test file
+npm test -- path/to/test.spec.ts
+```
+
+## Pull Request Process
+
+### Before Submitting
+
+1. Ensure your code follows the style guidelines
+2. Update documentation if needed
+3. Add or update tests as appropriate
+4. Run the full test suite locally
+5. Rebase on the latest `main` branch
+
+### Submitting a PR
+
+1. Push your changes to your fork
+2. Create a Pull Request using the [PR template](.github/pull_request_template.md)
+3. Fill out all sections of the template
+4. Link related issues using `Closes #issue-number`
+5. Request review from maintainers
+
+### Review Process
+
+1. Automated checks must pass (lint, test, build)
+2. At least one maintainer approval required
+3. Address review feedback promptly
+4. Squash commits if requested
+
+## Issue Guidelines
+
+### Reporting Bugs
+
+Use the [Bug Report template](.github/ISSUE_TEMPLATE/bug_report.yml) and include:
+
+- Clear description of the bug
+- Steps to reproduce
+- Expected vs actual behavior
+- Environment details
+- Relevant logs or screenshots
+
+### Requesting Features
+
+Use the [Feature Request template](.github/ISSUE_TEMPLATE/feature_request.yml) and include:
+
+- Problem statement
+- Proposed solution
+- Alternatives considered
+- Priority assessment
+
+## Project Structure
+
+```
+claude_code_agent/
+├── .github/                 # GitHub configuration
+│   ├── workflows/           # CI/CD workflows
+│   ├── ISSUE_TEMPLATE/      # Issue templates
+│   ├── CODEOWNERS           # Code ownership
+│   └── pull_request_template.md
+├── .claude/                 # Claude agent definitions
+│   └── agents/
+├── .ad-sdlc/                # AD-SDLC configuration
+├── docs/                    # Documentation
+├── src/                     # Source code
+└── tests/                   # Test files
+```
+
+## Release Process
+
+Releases are automated via GitHub Actions:
+
+1. Maintainer creates a version tag: `git tag v1.2.3`
+2. Push the tag: `git push origin v1.2.3`
+3. Release workflow builds, tests, and publishes
+4. GitHub Release is created with auto-generated notes
+
+### Version Numbering
+
+We follow [Semantic Versioning](https://semver.org/):
+
+- **MAJOR**: Breaking changes
+- **MINOR**: New features (backward compatible)
+- **PATCH**: Bug fixes (backward compatible)
+
+## Questions?
+
+If you have questions, feel free to:
+
+- Open a [Discussion](https://github.com/kcenon/claude_code_agent/discussions)
+- Check existing [Issues](https://github.com/kcenon/claude_code_agent/issues)
+- Review the [Documentation](docs/)
+
+Thank you for contributing!

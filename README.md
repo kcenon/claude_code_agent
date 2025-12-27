@@ -119,6 +119,40 @@ Each agent is defined in `.claude/agents/` with:
 English versions (`.md`) are used by Claude during execution.
 Korean versions (`.kr.md`) are provided for developer reference.
 
+## CI/CD
+
+This project uses GitHub Actions for continuous integration and deployment:
+
+| Workflow | Trigger | Purpose |
+|----------|---------|---------|
+| **CI** | Push/PR to main | Lint, test, build, and security scan |
+| **Release** | Tag `v*` | Build, publish to NPM, create GitHub release |
+
+### Status Badges
+
+<!-- Add badges after repository setup -->
+<!-- ![CI](https://github.com/kcenon/claude_code_agent/workflows/CI/badge.svg) -->
+<!-- ![Release](https://github.com/kcenon/claude_code_agent/workflows/Release/badge.svg) -->
+
+### Branch Protection
+
+- `main` branch requires passing CI checks and code review before merge
+- All PRs trigger lint, test, and security scans
+- Integration tests run on main branch merges
+- E2E tests run on release branches
+
+## Contributing
+
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
+
+### Quick Start for Contributors
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes using conventional commits
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
 ## License
 
 MIT License

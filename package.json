@@ -1,0 +1,48 @@
+{
+  "name": "ad-sdlc",
+  "version": "0.0.1",
+  "description": "Agent-Driven Software Development Lifecycle system built with Claude Agent SDK",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "ad-sdlc": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "echo 'Build not yet configured'",
+    "test": "echo 'Tests not yet configured' && exit 0",
+    "test:integration": "echo 'Integration tests not yet configured' && exit 0",
+    "test:e2e": "echo 'E2E tests not yet configured' && exit 0",
+    "lint": "echo 'Linting not yet configured' && exit 0",
+    "format": "echo 'Formatting not yet configured'",
+    "format:check": "echo 'Format check not yet configured' && exit 0",
+    "prepare": "echo 'Prepare script'"
+  },
+  "keywords": [
+    "claude",
+    "agent",
+    "sdlc",
+    "ai",
+    "automation",
+    "software-development"
+  ],
+  "author": "kcenon",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kcenon/claude_code_agent.git"
+  },
+  "bugs": {
+    "url": "https://github.com/kcenon/claude_code_agent/issues"
+  },
+  "homepage": "https://github.com/kcenon/claude_code_agent#readme",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "devDependencies": {},
+  "dependencies": {}
+}
