@@ -96,6 +96,18 @@ User Input → Collector → PRD Writer → SRS Writer → SDS Writer
    claude "Start implementation with Controller"
    ```
 
+## Issue Generator
+
+The project includes an issue generator module for transforming SDS documents into GitHub issues:
+
+- **SDSParser** - Parse SDS markdown documents and extract components
+- **EffortEstimator** - Estimate implementation effort (XS/S/M/L/XL sizing)
+- **DependencyGraph** - Build dependency graphs and calculate execution order
+- **IssueTransformer** - Transform components into structured GitHub issues
+- **IssueGenerator** - Main orchestration class for full workflow
+
+See [Issue Generator Documentation](docs/issue-generator.md) for detailed usage.
+
 ## Security
 
 The project includes a comprehensive security module with:
@@ -110,6 +122,7 @@ See [Security Documentation](docs/security.md) for detailed usage.
 
 ## Documentation
 
+- [Issue Generator Module](docs/issue-generator.md)
 - [Security Module](docs/security.md)
 - [PRD-001: Agent-Driven SDLC](docs/PRD-001-agent-driven-sdlc.md)
 - [SRS-001: Agent-Driven SDLC](docs/SRS-001-agent-driven-sdlc.md)
