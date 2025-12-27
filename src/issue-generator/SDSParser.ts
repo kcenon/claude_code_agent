@@ -52,8 +52,7 @@ const PATTERNS = {
   /** Technology stack row */
   techStackRow: /^\|\s*([^|]+)\s*\|\s*([^|]+)\s*\|\s*([^|]+)\s*\|\s*([^|]+)\s*\|$/,
   /** Traceability matrix row */
-  traceabilityRow:
-    /^\|\s*(CMP-\d{3})\s*\|\s*(SF-\d{3})\s*\|\s*([^|]+)\s*\|\s*(FR-\d{3})\s*\|$/,
+  traceabilityRow: /^\|\s*(CMP-\d{3})\s*\|\s*(SF-\d{3})\s*\|\s*([^|]+)\s*\|\s*(FR-\d{3})\s*\|$/,
   /** Dependencies list item */
   dependencyItem: /^-\s*(CMP-\d{3}|[^-\s].*)/,
   /** Section header */
@@ -106,8 +105,7 @@ export class SDSParser {
       if (match) {
         const [, key, value] = match;
         if (key !== undefined && key !== '' && value !== undefined && value !== '') {
-          metadata[key.trim().toLowerCase().replace(/\s+/g, '_')] =
-            value.trim();
+          metadata[key.trim().toLowerCase().replace(/\s+/g, '_')] = value.trim();
         }
       }
       // Stop after the metadata table
@@ -226,9 +224,7 @@ export class SDSParser {
         const normalizedValue = value?.trim() ?? '';
 
         if (normalizedKey === 'source feature' && normalizedValue !== '') {
-          parsingState.sourceFeature = PATTERNS.sourceFeature.test(
-            normalizedValue
-          )
+          parsingState.sourceFeature = PATTERNS.sourceFeature.test(normalizedValue)
             ? normalizedValue
             : null;
         } else if (normalizedKey === 'priority' && normalizedValue !== '') {
@@ -308,9 +304,7 @@ export class SDSParser {
     dependencies: string[],
     interfaceBuffer: string[]
   ): SDSComponent {
-    const interfaces = this.options.extractInterfaces
-      ? this.parseInterfaces(interfaceBuffer)
-      : [];
+    const interfaces = this.options.extractInterfaces ? this.parseInterfaces(interfaceBuffer) : [];
 
     return {
       id: state.id,
@@ -379,9 +373,7 @@ export class SDSParser {
   /**
    * Extract component IDs from dependency list
    */
-  private extractComponentDependencies(
-    dependencies: readonly string[]
-  ): readonly string[] {
+  private extractComponentDependencies(dependencies: readonly string[]): readonly string[] {
     return dependencies
       .map((dep) => {
         const match = /CMP-\d{3}/.exec(dep);
@@ -409,9 +401,7 @@ export class SDSParser {
   /**
    * Parse technology stack from Section 2.3
    */
-  private parseTechnologyStack(
-    lines: readonly string[]
-  ): readonly TechnologyEntry[] {
+  private parseTechnologyStack(lines: readonly string[]): readonly TechnologyEntry[] {
     const stack: TechnologyEntry[] = [];
     let inTechSection = false;
     let headerSkipped = false;
@@ -441,10 +431,14 @@ export class SDSParser {
           const version = match[3];
           const rationale = match[4];
           if (
-            layer !== undefined && layer !== '' &&
-            technology !== undefined && technology !== '' &&
-            version !== undefined && version !== '' &&
-            rationale !== undefined && rationale !== ''
+            layer !== undefined &&
+            layer !== '' &&
+            technology !== undefined &&
+            technology !== '' &&
+            version !== undefined &&
+            version !== '' &&
+            rationale !== undefined &&
+            rationale !== ''
           ) {
             stack.push({
               layer: layer.trim(),
@@ -463,9 +457,7 @@ export class SDSParser {
   /**
    * Parse traceability matrix from Section 9
    */
-  private parseTraceabilityMatrix(
-    lines: readonly string[]
-  ): readonly TraceabilityEntry[] {
+  private parseTraceabilityMatrix(lines: readonly string[]): readonly TraceabilityEntry[] {
     const matrix: TraceabilityEntry[] = [];
     let inMatrixSection = false;
     let headerSkipped = false;
@@ -495,10 +487,14 @@ export class SDSParser {
           const useCases = match[3];
           const prdRequirement = match[4];
           if (
-            componentId !== undefined && componentId !== '' &&
-            srsFeature !== undefined && srsFeature !== '' &&
-            useCases !== undefined && useCases !== '' &&
-            prdRequirement !== undefined && prdRequirement !== ''
+            componentId !== undefined &&
+            componentId !== '' &&
+            srsFeature !== undefined &&
+            srsFeature !== '' &&
+            useCases !== undefined &&
+            useCases !== '' &&
+            prdRequirement !== undefined &&
+            prdRequirement !== ''
           ) {
             matrix.push({
               componentId,
@@ -552,9 +548,7 @@ export class SDSParser {
     for (const component of sds.components) {
       for (const dep of component.dependencies) {
         if (!componentIds.has(dep)) {
-          errors.push(
-            `Component ${component.id} references unknown dependency: ${dep}`
-          );
+          errors.push(`Component ${component.id} references unknown dependency: ${dep}`);
         }
       }
     }

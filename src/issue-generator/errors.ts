@@ -25,10 +25,8 @@ export class SDSParseError extends IssueGeneratorError {
   public readonly section: string | undefined;
 
   constructor(message: string, lineNumber?: number, section?: string) {
-    const locationInfo =
-      lineNumber !== undefined ? ` at line ${String(lineNumber)}` : '';
-    const sectionInfo =
-      section !== undefined && section !== '' ? ` in section "${section}"` : '';
+    const locationInfo = lineNumber !== undefined ? ` at line ${String(lineNumber)}` : '';
+    const sectionInfo = section !== undefined && section !== '' ? ` in section "${section}"` : '';
     super(`SDS parse error${locationInfo}${sectionInfo}: ${message}`);
     this.name = 'SDSParseError';
     this.lineNumber = lineNumber;

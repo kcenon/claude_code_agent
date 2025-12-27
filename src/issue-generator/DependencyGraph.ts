@@ -152,9 +152,7 @@ export class DependencyGraphBuilder {
    */
   private calculateDepths(): void {
     // Find root nodes (no dependencies)
-    const roots = Array.from(this.nodes.values()).filter(
-      (n) => n.dependencies.size === 0
-    );
+    const roots = Array.from(this.nodes.values()).filter((n) => n.dependencies.size === 0);
 
     // BFS to calculate depths
     const queue: InternalNode[] = [...roots];

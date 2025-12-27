@@ -73,10 +73,7 @@ export class IssueGenerator {
     this.config = { ...DEFAULT_CONFIG, ...config };
     this.parser = new SDSParser(this.config.parser);
     this.estimator = new EffortEstimator(this.config.estimator);
-    this.transformer = new IssueTransformer(
-      this.config.generator,
-      this.estimator
-    );
+    this.transformer = new IssueTransformer(this.config.generator, this.estimator);
     this.graphBuilder = new DependencyGraphBuilder();
   }
 
@@ -129,10 +126,7 @@ export class IssueGenerator {
 
     // Build dependency graph
     const componentToIssue = this.transformer.getComponentToIssueMap(issues);
-    const dependencyGraph = this.graphBuilder.build(
-      parsedSDS.components,
-      componentToIssue
-    );
+    const dependencyGraph = this.graphBuilder.build(parsedSDS.components, componentToIssue);
 
     // Resolve dependencies (replace component IDs with issue IDs)
     const resolvedIssues = this.resolveDependencies(issues, componentToIssue);
@@ -166,10 +160,7 @@ export class IssueGenerator {
 
     // Build dependency graph
     const componentToIssue = this.transformer.getComponentToIssueMap(issues);
-    const dependencyGraph = this.graphBuilder.build(
-      sds.components,
-      componentToIssue
-    );
+    const dependencyGraph = this.graphBuilder.build(sds.components, componentToIssue);
 
     // Resolve dependencies
     const resolvedIssues = this.resolveDependencies(issues, componentToIssue);
@@ -233,10 +224,7 @@ export class IssueGenerator {
   /**
    * Build generation summary
    */
-  private buildSummary(
-    issues: readonly GeneratedIssue[],
-    sds: ParsedSDS
-  ): GenerationSummary {
+  private buildSummary(issues: readonly GeneratedIssue[], sds: ParsedSDS): GenerationSummary {
     const byPriority: Record<Priority, number> = {
       P0: 0,
       P1: 0,
@@ -271,9 +259,7 @@ export class IssueGenerator {
 
       // Check for potential issues
       if (issue.estimation.size === 'XL') {
-        warnings.push(
-          `Issue ${issue.issueId} is XL size - consider splitting`
-        );
+        warnings.push(`Issue ${issue.issueId} is XL size - consider splitting`);
       }
       if (issue.dependencies.blockedBy.length > 3) {
         warnings.push(
@@ -297,10 +283,7 @@ export class IssueGenerator {
   /**
    * Save results to output files
    */
-  private async saveResults(
-    result: IssueGenerationResult,
-    projectId: string
-  ): Promise<void> {
+  private async saveResults(result: IssueGenerationResult, projectId: string): Promise<void> {
     const outputDir = path.join(this.config.outputPath, projectId);
 
     // Create directory if needed
@@ -308,27 +291,24 @@ export class IssueGenerator {
 
     // Save issue list
     const issueListPath = path.join(outputDir, 'issue_list.json');
-    await fs.promises.writeFile(
-      issueListPath,
-      JSON.stringify(result.issues, null, 2),
-      { encoding: 'utf-8', mode: 0o600 }
-    );
+    await fs.promises.writeFile(issueListPath, JSON.stringify(result.issues, null, 2), {
+      encoding: 'utf-8',
+      mode: 0o600,
+    });
 
     // Save dependency graph
     const graphPath = path.join(outputDir, 'dependency_graph.json');
-    await fs.promises.writeFile(
-      graphPath,
-      JSON.stringify(result.dependencyGraph, null, 2),
-      { encoding: 'utf-8', mode: 0o600 }
-    );
+    await fs.promises.writeFile(graphPath, JSON.stringify(result.dependencyGraph, null, 2), {
+      encoding: 'utf-8',
+      mode: 0o600,
+    });
 
     // Save summary
     const summaryPath = path.join(outputDir, 'generation_summary.json');
-    await fs.promises.writeFile(
-      summaryPath,
-      JSON.stringify(result.summary, null, 2),
-      { encoding: 'utf-8', mode: 0o600 }
-    );
+    await fs.promises.writeFile(summaryPath, JSON.stringify(result.summary, null, 2), {
+      encoding: 'utf-8',
+      mode: 0o600,
+    });
   }
 
   /**
@@ -371,12 +351,8 @@ export class IssueGenerator {
       totalNodes: graph.nodes.length,
       totalEdges: graph.edges.length,
       maxDepth: Math.max(...graph.nodes.map((n) => n.depth), 0),
-      rootNodes: graph.nodes.filter(
-        (n) => !graph.edges.some((e) => e.from === n.id)
-      ).length,
-      leafNodes: graph.nodes.filter(
-        (n) => !graph.edges.some((e) => e.to === n.id)
-      ).length,
+      rootNodes: graph.nodes.filter((n) => !graph.edges.some((e) => e.from === n.id)).length,
+      leafNodes: graph.nodes.filter((n) => !graph.edges.some((e) => e.to === n.id)).length,
     };
   }
 }
@@ -385,9 +361,7 @@ export class IssueGenerator {
  * Get the global IssueGenerator instance
  * Creates a new instance with default config if none exists
  */
-export function getIssueGenerator(
-  config?: IssueGeneratorConfig
-): IssueGenerator {
+export function getIssueGenerator(config?: IssueGeneratorConfig): IssueGenerator {
   if (!globalInstance) {
     globalInstance = new IssueGenerator(config);
   }

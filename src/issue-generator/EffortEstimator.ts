@@ -5,12 +5,7 @@
  * using complexity analysis and configurable factors.
  */
 
-import type {
-  SDSComponent,
-  EffortSize,
-  IssueEstimation,
-  EstimationFactors,
-} from './types.js';
+import type { SDSComponent, EffortSize, IssueEstimation, EstimationFactors } from './types.js';
 import { EstimationError } from './errors.js';
 
 /**
@@ -111,10 +106,7 @@ export class EffortEstimator {
       this.weights.methods;
 
     if (Math.abs(sum - 1) > 0.01) {
-      throw new EstimationError(
-        'config',
-        `Weights must sum to 1, got ${sum.toFixed(2)}`
-      );
+      throw new EstimationError('config', `Weights must sum to 1, got ${sum.toFixed(2)}`);
     }
   }
 
@@ -140,9 +132,7 @@ export class EffortEstimator {
    * @param components - Array of SDS components
    * @returns Map of component ID to estimation
    */
-  public estimateAll(
-    components: readonly SDSComponent[]
-  ): Map<string, IssueEstimation> {
+  public estimateAll(components: readonly SDSComponent[]): Map<string, IssueEstimation> {
     const results = new Map<string, IssueEstimation>();
 
     for (const component of components) {
@@ -211,20 +201,14 @@ export class EffortEstimator {
     score += priorityBonus[component.priority] ?? 0;
 
     // Clamp to valid range
-    return Math.min(
-      this.maxComplexity,
-      Math.max(this.minComplexity, Math.round(score))
-    );
+    return Math.min(this.maxComplexity, Math.max(this.minComplexity, Math.round(score)));
   }
 
   /**
    * Count total methods across all interfaces
    */
   private countMethods(component: SDSComponent): number {
-    return component.interfaces.reduce(
-      (sum, iface) => sum + iface.methods.length,
-      0
-    );
+    return component.interfaces.reduce((sum, iface) => sum + iface.methods.length, 0);
   }
 
   /**
@@ -275,10 +259,7 @@ export class EffortEstimator {
   /**
    * Check if a component should be decomposed based on size
    */
-  public shouldDecompose(
-    component: SDSComponent,
-    maxSize: EffortSize = 'L'
-  ): boolean {
+  public shouldDecompose(component: SDSComponent, maxSize: EffortSize = 'L'): boolean {
     const estimation = this.estimate(component);
     const sizeOrder: Record<EffortSize, number> = {
       XS: 0,
@@ -296,9 +277,7 @@ export class EffortEstimator {
    * @param component - The component to analyze
    * @returns Suggested sub-tasks if decomposition is needed
    */
-  public suggestDecomposition(
-    component: SDSComponent
-  ): readonly string[] | null {
+  public suggestDecomposition(component: SDSComponent): readonly string[] | null {
     if (!this.shouldDecompose(component)) {
       return null;
     }
