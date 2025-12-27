@@ -51,7 +51,7 @@ export class DependencyGraphBuilder {
     // Create nodes for each component
     for (const component of components) {
       const issueId = componentToIssueId.get(component.id);
-      if (!issueId) {
+      if (issueId === undefined) {
         throw new ComponentNotFoundError(component.id);
       }
 
@@ -69,14 +69,14 @@ export class DependencyGraphBuilder {
     // Build edges from component dependencies
     for (const component of components) {
       const issueId = componentToIssueId.get(component.id);
-      if (!issueId) continue;
+      if (issueId === undefined) continue;
 
       const node = this.nodes.get(issueId);
       if (!node) continue;
 
       for (const depComponentId of component.dependencies) {
         const depIssueId = componentToIssueId.get(depComponentId);
-        if (depIssueId) {
+        if (depIssueId !== undefined) {
           node.dependencies.add(depIssueId);
 
           const depNode = this.nodes.get(depIssueId);
@@ -251,7 +251,7 @@ export class DependencyGraphBuilder {
       });
 
       const nodeId = queue.shift();
-      if (!nodeId) continue;
+      if (nodeId === undefined) continue;
 
       result.push(nodeId);
 
@@ -319,7 +319,7 @@ export class DependencyGraphBuilder {
 
     while (queue.length > 0) {
       const current = queue.shift();
-      if (!current || visited.has(current)) continue;
+      if (current === undefined || visited.has(current)) continue;
 
       visited.add(current);
 
@@ -349,7 +349,7 @@ export class DependencyGraphBuilder {
 
     while (queue.length > 0) {
       const current = queue.shift();
-      if (!current) continue;
+      if (current === undefined) continue;
 
       const node = this.nodes.get(current);
       if (!node) continue;

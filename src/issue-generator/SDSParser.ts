@@ -105,7 +105,7 @@ export class SDSParser {
       const match = PATTERNS.metadataRow.exec(line);
       if (match) {
         const [, key, value] = match;
-        if (key && value) {
+        if (key !== undefined && key !== '' && value !== undefined && value !== '') {
           metadata[key.trim().toLowerCase().replace(/\s+/g, '_')] =
             value.trim();
         }
@@ -170,7 +170,7 @@ export class SDSParser {
       // Check for next major section (end of Component Design)
       if (inComponentSection && line.match(/^##\s+4\./)) {
         // Save current component if exists
-        if (parsingState?.id) {
+        if (parsingState !== null && parsingState.id !== '') {
           components.push(
             this.finalizeComponent(
               parsingState,
@@ -191,7 +191,7 @@ export class SDSParser {
       const headerMatch = PATTERNS.componentHeader.exec(line);
       if (headerMatch) {
         // Save previous component
-        if (parsingState?.id) {
+        if (parsingState !== null && parsingState.id !== '') {
           components.push(
             this.finalizeComponent(
               parsingState,
@@ -222,16 +222,16 @@ export class SDSParser {
       const attrMatch = PATTERNS.attributeRow.exec(line);
       if (attrMatch) {
         const [, key, value] = attrMatch;
-        const normalizedKey = key?.trim().toLowerCase();
-        const normalizedValue = value?.trim();
+        const normalizedKey = key?.trim().toLowerCase() ?? '';
+        const normalizedValue = value?.trim() ?? '';
 
-        if (normalizedKey === 'source feature' && normalizedValue) {
+        if (normalizedKey === 'source feature' && normalizedValue !== '') {
           parsingState.sourceFeature = PATTERNS.sourceFeature.test(
             normalizedValue
           )
             ? normalizedValue
             : null;
-        } else if (normalizedKey === 'priority' && normalizedValue) {
+        } else if (normalizedKey === 'priority' && normalizedValue !== '') {
           parsingState.priority = this.parsePriority(normalizedValue);
         }
         continue;
@@ -275,14 +275,15 @@ export class SDSParser {
         implNotesLines.push(line);
       } else if (currentSection === 'dependencies') {
         const depMatch = PATTERNS.dependencyItem.exec(line);
-        if (depMatch?.[1]) {
-          dependencies.push(depMatch[1].trim());
+        const depValue = depMatch?.[1];
+        if (depValue !== undefined && depValue !== '') {
+          dependencies.push(depValue.trim());
         }
       }
     }
 
     // Don't forget the last component
-    if (parsingState?.id) {
+    if (parsingState !== null && parsingState.id !== '') {
       components.push(
         this.finalizeComponent(
           parsingState,
@@ -359,11 +360,13 @@ export class SDSParser {
     for (const line of lines) {
       const match = PATTERNS.methodSignature.exec(line);
       if (match) {
-        const [fullMatch, name, returnType] = match;
-        if (name && returnType) {
+        const fullMatch = match[0];
+        const name = match[1];
+        const returnType = match[2];
+        if (name !== undefined && name !== '' && returnType !== undefined && returnType !== '') {
           methods.push({
             name: name.trim(),
-            signature: fullMatch?.trim() ?? '',
+            signature: fullMatch.trim(),
             returnType: returnType.trim(),
           });
         }
@@ -397,7 +400,10 @@ export class SDSParser {
     }
     // Try to extract from longer string (e.g., "P0 / P1 / P2 / P3")
     const match = /P[0-3]/.exec(normalized);
-    return (match?.[0] as Priority) ?? 'P1';
+    if (match !== null) {
+      return match[0] as Priority;
+    }
+    return 'P1';
   }
 
   /**
@@ -430,8 +436,16 @@ export class SDSParser {
       if (headerSkipped) {
         const match = PATTERNS.techStackRow.exec(line);
         if (match) {
-          const [, layer, technology, version, rationale] = match;
-          if (layer && technology && version && rationale) {
+          const layer = match[1];
+          const technology = match[2];
+          const version = match[3];
+          const rationale = match[4];
+          if (
+            layer !== undefined && layer !== '' &&
+            technology !== undefined && technology !== '' &&
+            version !== undefined && version !== '' &&
+            rationale !== undefined && rationale !== ''
+          ) {
             stack.push({
               layer: layer.trim(),
               technology: technology.trim(),
@@ -476,8 +490,16 @@ export class SDSParser {
       if (headerSkipped) {
         const match = PATTERNS.traceabilityRow.exec(line);
         if (match) {
-          const [, componentId, srsFeature, useCases, prdRequirement] = match;
-          if (componentId && srsFeature && useCases && prdRequirement) {
+          const componentId = match[1];
+          const srsFeature = match[2];
+          const useCases = match[3];
+          const prdRequirement = match[4];
+          if (
+            componentId !== undefined && componentId !== '' &&
+            srsFeature !== undefined && srsFeature !== '' &&
+            useCases !== undefined && useCases !== '' &&
+            prdRequirement !== undefined && prdRequirement !== ''
+          ) {
             matrix.push({
               componentId,
               srsFeature,

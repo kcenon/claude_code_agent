@@ -277,7 +277,7 @@ export class IssueGenerator {
       }
       if (issue.dependencies.blockedBy.length > 3) {
         warnings.push(
-          `Issue ${issue.issueId} has ${issue.dependencies.blockedBy.length} dependencies`
+          `Issue ${issue.issueId} has ${String(issue.dependencies.blockedBy.length)} dependencies`
         );
       }
     }
