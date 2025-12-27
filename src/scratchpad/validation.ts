@@ -156,7 +156,9 @@ export function validateWorkOrder(data: unknown): ValidationResult<WorkOrder> {
  * @param data - Data to validate
  * @returns Validation result
  */
-export function validateImplementationResult(data: unknown): ValidationResult<ImplementationResult> {
+export function validateImplementationResult(
+  data: unknown
+): ValidationResult<ImplementationResult> {
   return validate(ImplementationResultSchema, data);
 }
 

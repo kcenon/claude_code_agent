@@ -116,7 +116,4 @@ export {
   SchemaValidationError,
 } from './validation.js';
 
-export type {
-  FieldError,
-  ValidationResult as SchemaValidationResult,
-} from './validation.js';
+export type { FieldError, ValidationResult as SchemaValidationResult } from './validation.js';

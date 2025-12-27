@@ -104,7 +104,14 @@ export type FunctionalRequirement = z.infer<typeof FunctionalRequirementSchema>;
 
 export const NonFunctionalRequirementSchema = z.object({
   id: z.string().regex(/^NFR-\d{3}$/, 'Must be in format NFR-XXX'),
-  category: z.enum(['performance', 'security', 'scalability', 'usability', 'reliability', 'maintainability']),
+  category: z.enum([
+    'performance',
+    'security',
+    'scalability',
+    'usability',
+    'reliability',
+    'maintainability',
+  ]),
   title: z.string().min(1, 'Title is required'),
   description: z.string().min(1, 'Description is required'),
   metric: z.string().optional(),
