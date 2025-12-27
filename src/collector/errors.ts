@@ -119,9 +119,7 @@ export class SessionStateError extends CollectorError {
   public readonly expectedState: string;
 
   constructor(currentState: string, expectedState: string, action: string) {
-    super(
-      `Cannot ${action}: session is in "${currentState}" state, expected "${expectedState}"`
-    );
+    super(`Cannot ${action}: session is in "${currentState}" state, expected "${expectedState}"`);
     this.name = 'SessionStateError';
     this.currentState = currentState;
     this.expectedState = expectedState;
@@ -138,9 +136,7 @@ export class UnsupportedFileTypeError extends CollectorError {
   public readonly supportedTypes: readonly string[];
 
   constructor(extension: string, supportedTypes: readonly string[]) {
-    super(
-      `Unsupported file type ".${extension}". Supported types: ${supportedTypes.join(', ')}`
-    );
+    super(`Unsupported file type ".${extension}". Supported types: ${supportedTypes.join(', ')}`);
     this.name = 'UnsupportedFileTypeError';
     this.extension = extension;
     this.supportedTypes = supportedTypes;

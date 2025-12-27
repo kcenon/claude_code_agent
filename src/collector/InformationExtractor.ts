@@ -31,7 +31,16 @@ const PRIORITY_KEYWORDS: Record<Priority, readonly string[]> = {
  * NFR category keywords
  */
 const NFR_KEYWORDS: Record<string, readonly string[]> = {
-  performance: ['fast', 'speed', 'latency', 'response time', 'throughput', 'performance', 'ms', 'seconds'],
+  performance: [
+    'fast',
+    'speed',
+    'latency',
+    'response time',
+    'throughput',
+    'performance',
+    'ms',
+    'seconds',
+  ],
   security: ['secure', 'security', 'auth', 'encrypt', 'protect', 'access control', 'permission'],
   scalability: ['scale', 'scalable', 'concurrent', 'users', 'load', 'capacity', 'horizontal'],
   usability: ['easy', 'intuitive', 'user-friendly', 'accessible', 'ux', 'ui', 'interface'],
@@ -112,7 +121,10 @@ export class InformationExtractor {
       const projectInfo = this.extractProjectInfo(content);
 
       // Extract requirements
-      const { functional, nonFunctional } = this.extractRequirements(content, input.sources[0]?.reference ?? 'input');
+      const { functional, nonFunctional } = this.extractRequirements(
+        content,
+        input.sources[0]?.reference ?? 'input'
+      );
 
       // Extract constraints
       const constraints = this.extractConstraints(content, input.sources[0]?.reference ?? 'input');
@@ -121,7 +133,10 @@ export class InformationExtractor {
       const assumptions = this.extractAssumptions(content, input.sources[0]?.reference ?? 'input');
 
       // Extract dependencies
-      const dependencies = this.extractDependencies(content, input.sources[0]?.reference ?? 'input');
+      const dependencies = this.extractDependencies(
+        content,
+        input.sources[0]?.reference ?? 'input'
+      );
 
       // Generate clarification questions
       const clarificationQuestions = this.generateClarificationQuestions({
@@ -136,13 +151,16 @@ export class InformationExtractor {
 
       // Calculate overall confidence
       const allExtractions = [...functional, ...nonFunctional, ...constraints, ...assumptions];
-      const overallConfidence = allExtractions.length > 0
-        ? allExtractions.reduce((sum, e) => sum + e.confidence, 0) / allExtractions.length
-        : 0.5;
+      const overallConfidence =
+        allExtractions.length > 0
+          ? allExtractions.reduce((sum, e) => sum + e.confidence, 0) / allExtractions.length
+          : 0.5;
 
       // Add warnings for low extraction counts
       if (functional.length === 0) {
-        warnings.push('No functional requirements detected - consider providing more specific feature descriptions');
+        warnings.push(
+          'No functional requirements detected - consider providing more specific feature descriptions'
+        );
       }
       if (projectInfo.name === undefined) {
         warnings.push('Project name not detected - will need to be provided');
@@ -222,7 +240,10 @@ export class InformationExtractor {
   /**
    * Extract project name and description from content
    */
-  private extractProjectInfo(content: string): { name?: string | undefined; description?: string | undefined } {
+  private extractProjectInfo(content: string): {
+    name?: string | undefined;
+    description?: string | undefined;
+  } {
     let name: string | undefined;
     let description: string | undefined;
 
@@ -349,18 +370,22 @@ export class InformationExtractor {
     const segments = this.splitIntoSegments(content);
 
     const assumptionIndicators = [
-      'assume', 'assuming', 'assumption',
-      'expect', 'expecting', 'expectation',
-      'presume', 'presuming',
-      'given that', 'considering that',
+      'assume',
+      'assuming',
+      'assumption',
+      'expect',
+      'expecting',
+      'expectation',
+      'presume',
+      'presuming',
+      'given that',
+      'considering that',
     ];
 
     for (const segment of segments) {
       const normalized = segment.toLowerCase();
 
-      const isAssumption = assumptionIndicators.some((indicator) =>
-        normalized.includes(indicator)
-      );
+      const isAssumption = assumptionIndicators.some((indicator) => normalized.includes(indicator));
 
       if (!isAssumption) continue;
 
@@ -457,7 +482,9 @@ export class InformationExtractor {
 
     // Check for missing NFRs
     const nfrCategories = new Set(info.nonFunctionalRequirements.map((r) => r.nfrCategory));
-    const missingNfrCategories = ['performance', 'security'].filter((c) => !nfrCategories.has(c as never));
+    const missingNfrCategories = ['performance', 'security'].filter(
+      (c) => !nfrCategories.has(c as never)
+    );
 
     for (const category of missingNfrCategories) {
       questions.push({
@@ -510,9 +537,7 @@ export class InformationExtractor {
     }
 
     // Split remaining content by sentences
-    const remaining = content
-      .replace(bulletPattern, '')
-      .replace(numberedPattern, '');
+    const remaining = content.replace(bulletPattern, '').replace(numberedPattern, '');
 
     const sentences = remaining.split(/(?<=[.!?])\s+/);
     for (const sentence of sentences) {
@@ -530,10 +555,21 @@ export class InformationExtractor {
    */
   private isRequirementLike(text: string): boolean {
     const indicators = [
-      'must', 'should', 'shall', 'need', 'require',
-      'want', 'will', 'can', 'able to',
-      'feature', 'function', 'capability',
-      'user', 'system', 'application',
+      'must',
+      'should',
+      'shall',
+      'need',
+      'require',
+      'want',
+      'will',
+      'can',
+      'able to',
+      'feature',
+      'function',
+      'capability',
+      'user',
+      'system',
+      'application',
     ];
 
     return indicators.some((indicator) => text.includes(indicator));
@@ -544,10 +580,23 @@ export class InformationExtractor {
    */
   private detectNfrCategory(
     text: string
-  ): 'performance' | 'security' | 'scalability' | 'usability' | 'reliability' | 'maintainability' | undefined {
+  ):
+    | 'performance'
+    | 'security'
+    | 'scalability'
+    | 'usability'
+    | 'reliability'
+    | 'maintainability'
+    | undefined {
     for (const [category, keywords] of Object.entries(NFR_KEYWORDS)) {
       if (keywords.some((keyword) => text.includes(keyword))) {
-        return category as 'performance' | 'security' | 'scalability' | 'usability' | 'reliability' | 'maintainability';
+        return category as
+          | 'performance'
+          | 'security'
+          | 'scalability'
+          | 'usability'
+          | 'reliability'
+          | 'maintainability';
       }
     }
     return undefined;
@@ -568,7 +617,9 @@ export class InformationExtractor {
   /**
    * Detect constraint type from text
    */
-  private detectConstraintType(text: string): 'technical' | 'business' | 'regulatory' | 'resource' | undefined {
+  private detectConstraintType(
+    text: string
+  ): 'technical' | 'business' | 'regulatory' | 'resource' | undefined {
     for (const [type, keywords] of Object.entries(CONSTRAINT_KEYWORDS)) {
       if (keywords.some((keyword) => text.includes(keyword))) {
         return type as 'technical' | 'business' | 'regulatory' | 'resource';

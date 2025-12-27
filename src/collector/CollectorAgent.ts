@@ -20,11 +20,7 @@ import type {
   ClarificationAnswer,
   ExtractionResult,
 } from './types.js';
-import {
-  ProjectInitError,
-  MissingInformationError,
-  SessionStateError,
-} from './errors.js';
+import { ProjectInitError, MissingInformationError, SessionStateError } from './errors.js';
 
 /**
  * Default configuration for CollectorAgent
@@ -288,12 +284,14 @@ export class CollectorAgent {
     const extraction = currentSession.extraction;
 
     // Determine final project name and description
-    const finalName = projectName ??
+    const finalName =
+      projectName ??
       extraction.projectName ??
       this.getAnsweredValue('project name') ??
       `Project-${currentSession.projectId}`;
 
-    const finalDescription = projectDescription ??
+    const finalDescription =
+      projectDescription ??
       extraction.projectDescription ??
       this.getAnsweredValue('project description') ??
       'Project collected by Collector Agent';

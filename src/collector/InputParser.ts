@@ -261,7 +261,7 @@ export class InputParser {
           redirect: this.options.followRedirects ? 'follow' : 'manual',
           headers: {
             'User-Agent': 'AD-SDLC-Collector/1.0',
-            'Accept': 'text/html,text/plain,application/json,*/*',
+            Accept: 'text/html,text/plain,application/json,*/*',
           },
         });
 
@@ -452,9 +452,7 @@ export class InputParser {
    * @returns Word count
    */
   private countWords(text: string): number {
-    return text
-      .split(/\s+/)
-      .filter((word) => word.length > 0).length;
+    return text.split(/\s+/).filter((word) => word.length > 0).length;
   }
 
   /**

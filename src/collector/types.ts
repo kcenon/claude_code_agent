@@ -19,7 +19,12 @@ export type SupportedFileType = 'md' | 'txt' | 'pdf' | 'docx' | 'json' | 'yaml';
 /**
  * Clarification question categories
  */
-export type ClarificationCategory = 'requirement' | 'constraint' | 'assumption' | 'priority' | 'scope';
+export type ClarificationCategory =
+  | 'requirement'
+  | 'constraint'
+  | 'assumption'
+  | 'priority'
+  | 'scope';
 
 /**
  * Input source metadata
@@ -72,7 +77,13 @@ export interface ExtractedRequirement {
   /** Whether this is a functional requirement */
   readonly isFunctional: boolean;
   /** Category for non-functional requirements */
-  readonly nfrCategory?: 'performance' | 'security' | 'scalability' | 'usability' | 'reliability' | 'maintainability';
+  readonly nfrCategory?:
+    | 'performance'
+    | 'security'
+    | 'scalability'
+    | 'usability'
+    | 'reliability'
+    | 'maintainability';
 }
 
 /**
