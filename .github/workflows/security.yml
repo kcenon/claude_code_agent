@@ -83,6 +83,7 @@ jobs:
         uses: github/codeql-action/analyze@v3
         with:
           category: '/language:javascript-typescript'
+          upload: ${{ github.event_name == 'push' }}
 
       - name: Skip message
         if: steps.check-src.outputs.has_source != 'true'

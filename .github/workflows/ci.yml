@@ -187,6 +187,8 @@ jobs:
       - name: Perform CodeQL Analysis
         if: steps.check-src.outputs.has_source == 'true'
         uses: github/codeql-action/analyze@v3
+        with:
+          upload: ${{ github.event_name == 'push' }}
 
       - name: Skip message
         if: steps.check-src.outputs.has_source != 'true'
