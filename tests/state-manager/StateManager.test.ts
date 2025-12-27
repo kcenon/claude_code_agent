@@ -10,6 +10,11 @@ import {
   StateNotFoundError,
   ProjectNotFoundError,
   ProjectExistsError,
+  StateValidationError,
+  LockAcquisitionError,
+  HistoryError,
+  WatchError,
+  StateManagerError,
 } from '../../src/state-manager/index.js';
 import type { ProjectState, StateChangeEvent } from '../../src/state-manager/index.js';
 
@@ -143,6 +148,28 @@ describe('StateManager', () => {
       const result2 = await stateManager.getState('info', '001');
 
       expect(result2!.version).toBeGreaterThan(result1!.version);
+    });
+
+    it('should handle issues section', async () => {
+      const issueData = { issueList: ['issue-1', 'issue-2'] };
+
+      await stateManager.setState('issues', '001', issueData);
+      const result = await stateManager.getState<typeof issueData>('issues', '001');
+
+      expect(result).not.toBeNull();
+      expect(result!.value).toEqual(issueData);
+      expect(result!.section).toBe('issues');
+    });
+
+    it('should handle progress section', async () => {
+      const progressData = { currentPhase: 'development', completion: 50 };
+
+      await stateManager.setState('progress', '001', progressData);
+      const result = await stateManager.getState<typeof progressData>('progress', '001');
+
+      expect(result).not.toBeNull();
+      expect(result!.value).toEqual(progressData);
+      expect(result!.section).toBe('progress');
     });
   });
 
@@ -475,5 +502,106 @@ describe('StateManager Error Classes', () => {
     expect(error.name).toBe('ProjectExistsError');
     expect(error.code).toBe('PROJECT_EXISTS');
     expect(error.projectId).toBe('001');
+  });
+
+  it('should create StateValidationError with correct properties', () => {
+    const validationErrors = [
+      { path: 'name', message: 'Name is required', code: 'REQUIRED' },
+      { path: 'status', message: 'Invalid status value', code: 'INVALID_VALUE' },
+    ];
+    const error = new StateValidationError(validationErrors, '001');
+
+    expect(error.name).toBe('StateValidationError');
+    expect(error.code).toBe('VALIDATION_FAILED');
+    expect(error.projectId).toBe('001');
+    expect(error.errors).toEqual(validationErrors);
+    expect(error.message).toContain('name');
+    expect(error.message).toContain('status');
+  });
+
+  it('should format StateValidationError errors correctly', () => {
+    const validationErrors = [
+      { path: 'field1', message: 'Error 1', code: 'CODE1' },
+      { path: 'field2', message: 'Error 2', code: 'CODE2' },
+    ];
+    const error = new StateValidationError(validationErrors);
+
+    const formatted = error.formatErrors();
+
+    expect(formatted).toContain('[CODE1]');
+    expect(formatted).toContain('field1');
+    expect(formatted).toContain('Error 1');
+    expect(formatted).toContain('[CODE2]');
+    expect(formatted).toContain('field2');
+    expect(formatted).toContain('Error 2');
+  });
+
+  it('should create LockAcquisitionError with correct properties', () => {
+    const error = new LockAcquisitionError('/path/to/file.json', '001');
+
+    expect(error.name).toBe('LockAcquisitionError');
+    expect(error.code).toBe('LOCK_FAILED');
+    expect(error.projectId).toBe('001');
+    expect(error.filePath).toBe('/path/to/file.json');
+    expect(error.message).toContain('/path/to/file.json');
+  });
+
+  it('should create LockAcquisitionError without projectId', () => {
+    const error = new LockAcquisitionError('/path/to/file.json');
+
+    expect(error.name).toBe('LockAcquisitionError');
+    expect(error.code).toBe('LOCK_FAILED');
+    expect(error.projectId).toBeUndefined();
+  });
+
+  it('should create HistoryError with correct properties', () => {
+    const error = new HistoryError('History operation failed', '001');
+
+    expect(error.name).toBe('HistoryError');
+    expect(error.code).toBe('HISTORY_ERROR');
+    expect(error.projectId).toBe('001');
+    expect(error.message).toBe('History operation failed');
+  });
+
+  it('should create HistoryError without projectId', () => {
+    const error = new HistoryError('History operation failed');
+
+    expect(error.name).toBe('HistoryError');
+    expect(error.code).toBe('HISTORY_ERROR');
+    expect(error.projectId).toBeUndefined();
+  });
+
+  it('should create WatchError with correct properties', () => {
+    const error = new WatchError('Watch operation failed', '001');
+
+    expect(error.name).toBe('WatchError');
+    expect(error.code).toBe('WATCH_ERROR');
+    expect(error.projectId).toBe('001');
+    expect(error.message).toBe('Watch operation failed');
+  });
+
+  it('should create WatchError without projectId', () => {
+    const error = new WatchError('Watch operation failed');
+
+    expect(error.name).toBe('WatchError');
+    expect(error.code).toBe('WATCH_ERROR');
+    expect(error.projectId).toBeUndefined();
+  });
+
+  it('should create base StateManagerError with correct properties', () => {
+    const error = new StateManagerError('Base error message', 'CUSTOM_CODE', '001');
+
+    expect(error.name).toBe('StateManagerError');
+    expect(error.code).toBe('CUSTOM_CODE');
+    expect(error.projectId).toBe('001');
+    expect(error.message).toBe('Base error message');
+  });
+
+  it('should create StateManagerError without projectId', () => {
+    const error = new StateManagerError('Base error message', 'CUSTOM_CODE');
+
+    expect(error.name).toBe('StateManagerError');
+    expect(error.code).toBe('CUSTOM_CODE');
+    expect(error.projectId).toBeUndefined();
   });
 });
