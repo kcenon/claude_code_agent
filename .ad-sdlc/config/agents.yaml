@@ -1,0 +1,348 @@
+# AD-SDLC Agent Registry
+# Centralized agent configuration and metadata
+
+version: "1.0.0"
+
+# =============================================================================
+# Agent Definitions
+# =============================================================================
+agents:
+  # ---------------------------------------------------------------------------
+  # Document Pipeline Agents
+  # ---------------------------------------------------------------------------
+  collector:
+    id: "collector"
+    name: "Collector Agent"
+    korean_name: "정보 수집 에이전트"
+    description: "Collects and structures user requirements from various sources"
+    definition_file: ".claude/agents/collector.md"
+    category: "document_pipeline"
+    order: 1
+
+    capabilities:
+      - "multi_source_input"
+      - "information_extraction"
+      - "clarification_loop"
+      - "structured_output"
+
+    io:
+      inputs:
+        - user_message
+        - files
+        - urls
+      outputs:
+        - collected_info.yaml
+
+    metrics:
+      avg_duration_seconds: 120
+      success_rate: 0.95
+
+  prd-writer:
+    id: "prd-writer"
+    name: "PRD Writer Agent"
+    korean_name: "PRD 작성 에이전트"
+    description: "Generates PRD documents from collected information"
+    definition_file: ".claude/agents/prd-writer.md"
+    category: "document_pipeline"
+    order: 2
+
+    capabilities:
+      - "template_based_generation"
+      - "gap_analysis"
+      - "consistency_check"
+      - "priority_assignment"
+
+    io:
+      inputs:
+        - collected_info.yaml
+      outputs:
+        - prd.md
+
+    metrics:
+      avg_duration_seconds: 180
+      success_rate: 0.92
+
+  srs-writer:
+    id: "srs-writer"
+    name: "SRS Writer Agent"
+    korean_name: "SRS 작성 에이전트"
+    description: "Generates SRS documents from PRD"
+    definition_file: ".claude/agents/srs-writer.md"
+    category: "document_pipeline"
+    order: 3
+
+    capabilities:
+      - "requirement_decomposition"
+      - "use_case_generation"
+      - "interface_definition"
+      - "traceability_matrix"
+
+    io:
+      inputs:
+        - prd.md
+      outputs:
+        - srs.md
+
+    metrics:
+      avg_duration_seconds: 240
+      success_rate: 0.90
+
+  sds-writer:
+    id: "sds-writer"
+    name: "SDS Writer Agent"
+    korean_name: "SDS 작성 에이전트"
+    description: "Generates SDS documents from SRS"
+    definition_file: ".claude/agents/sds-writer.md"
+    category: "document_pipeline"
+    order: 4
+
+    capabilities:
+      - "architecture_design"
+      - "component_definition"
+      - "api_design"
+      - "database_schema"
+
+    io:
+      inputs:
+        - srs.md
+      outputs:
+        - sds.md
+
+    metrics:
+      avg_duration_seconds: 300
+      success_rate: 0.88
+
+  # ---------------------------------------------------------------------------
+  # Issue Management Agents
+  # ---------------------------------------------------------------------------
+  issue-generator:
+    id: "issue-generator"
+    name: "Issue Generator Agent"
+    korean_name: "이슈 생성 에이전트"
+    description: "Generates GitHub issues from SDS components"
+    definition_file: ".claude/agents/issue-generator.md"
+    category: "issue_management"
+    order: 5
+
+    capabilities:
+      - "work_breakdown"
+      - "issue_templating"
+      - "dependency_mapping"
+      - "label_assignment"
+
+    io:
+      inputs:
+        - sds.md
+      outputs:
+        - issue_list.json
+        - dependency_graph.json
+
+    metrics:
+      avg_duration_seconds: 120
+      success_rate: 0.95
+      avg_issues_per_project: 15
+
+  controller:
+    id: "controller"
+    name: "Controller Agent"
+    korean_name: "관제 에이전트"
+    description: "Orchestrates work distribution and monitors progress"
+    definition_file: ".claude/agents/controller.md"
+    category: "issue_management"
+    order: 6
+
+    capabilities:
+      - "issue_prioritization"
+      - "worker_management"
+      - "progress_tracking"
+      - "bottleneck_detection"
+
+    io:
+      inputs:
+        - issue_list.json
+        - dependency_graph.json
+        - worker_status.yaml
+      outputs:
+        - controller_state.yaml
+        - work_orders/*.yaml
+        - progress_report.md
+
+    metrics:
+      avg_duration_seconds: 30  # Per scheduling cycle
+      success_rate: 0.98
+
+  # ---------------------------------------------------------------------------
+  # Execution Agents
+  # ---------------------------------------------------------------------------
+  worker:
+    id: "worker"
+    name: "Worker Agent"
+    korean_name: "작업 에이전트"
+    description: "Implements assigned issues with code generation"
+    definition_file: ".claude/agents/worker.md"
+    category: "execution"
+    order: 7
+
+    capabilities:
+      - "code_generation"
+      - "test_writing"
+      - "codebase_integration"
+      - "self_verification"
+
+    io:
+      inputs:
+        - work_order.yaml
+      outputs:
+        - implementation_result.yaml
+        - source_files
+        - test_files
+
+    parallelizable: true
+    max_instances: 5
+
+    metrics:
+      avg_duration_seconds: 600
+      success_rate: 0.85
+      retry_rate: 0.15
+
+  pr-reviewer:
+    id: "pr-reviewer"
+    name: "PR Review Agent"
+    korean_name: "PR 리뷰 에이전트"
+    description: "Creates and reviews pull requests"
+    definition_file: ".claude/agents/pr-reviewer.md"
+    category: "execution"
+    order: 8
+
+    capabilities:
+      - "pr_creation"
+      - "code_review"
+      - "quality_gate"
+      - "feedback_loop"
+
+    io:
+      inputs:
+        - implementation_result.yaml
+      outputs:
+        - pr_review_result.yaml
+
+    metrics:
+      avg_duration_seconds: 180
+      success_rate: 0.90
+      approval_rate: 0.80
+
+# =============================================================================
+# Agent Categories
+# =============================================================================
+categories:
+  document_pipeline:
+    name: "Document Pipeline"
+    description: "Agents that generate documentation (PRD, SRS, SDS)"
+    agents:
+      - collector
+      - prd-writer
+      - srs-writer
+      - sds-writer
+    execution_mode: "sequential"
+
+  issue_management:
+    name: "Issue Management"
+    description: "Agents that manage GitHub issues and work distribution"
+    agents:
+      - issue-generator
+      - controller
+    execution_mode: "sequential"
+
+  execution:
+    name: "Execution"
+    description: "Agents that implement code and review PRs"
+    agents:
+      - worker
+      - pr-reviewer
+    execution_mode: "parallel"
+
+# =============================================================================
+# Agent Relationships
+# =============================================================================
+relationships:
+  dependencies:
+    prd-writer:
+      requires: [collector]
+    srs-writer:
+      requires: [prd-writer]
+    sds-writer:
+      requires: [srs-writer]
+    issue-generator:
+      requires: [sds-writer]
+    controller:
+      requires: [issue-generator]
+    worker:
+      requires: [controller]
+    pr-reviewer:
+      requires: [worker]
+
+  data_flow:
+    - from: collector
+      to: prd-writer
+      data: collected_info.yaml
+
+    - from: prd-writer
+      to: srs-writer
+      data: prd.md
+
+    - from: srs-writer
+      to: sds-writer
+      data: srs.md
+
+    - from: sds-writer
+      to: issue-generator
+      data: sds.md
+
+    - from: issue-generator
+      to: controller
+      data: [issue_list.json, dependency_graph.json]
+
+    - from: controller
+      to: worker
+      data: work_order.yaml
+
+    - from: worker
+      to: pr-reviewer
+      data: implementation_result.yaml
+
+# =============================================================================
+# Model Configurations
+# =============================================================================
+models:
+  sonnet:
+    id: "claude-sonnet-4-20250514"
+    context_window: 200000
+    max_output: 64000
+    cost_per_1k_input: 0.003
+    cost_per_1k_output: 0.015
+    best_for:
+      - "document_generation"
+      - "code_generation"
+      - "analysis"
+
+  opus:
+    id: "claude-opus-4-20250514"
+    context_window: 200000
+    max_output: 32000
+    cost_per_1k_input: 0.015
+    cost_per_1k_output: 0.075
+    best_for:
+      - "complex_reasoning"
+      - "architecture_decisions"
+      - "critical_reviews"
+
+  haiku:
+    id: "claude-haiku-3-20240307"
+    context_window: 200000
+    max_output: 4096
+    cost_per_1k_input: 0.00025
+    cost_per_1k_output: 0.00125
+    best_for:
+      - "quick_searches"
+      - "simple_transformations"
+      - "status_checks"

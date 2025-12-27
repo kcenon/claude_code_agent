@@ -1,0 +1,353 @@
+# AD-SDLC Workflow Configuration
+# Agent-Driven Software Development Lifecycle System
+
+version: "1.0.0"
+name: "AD-SDLC Workflow"
+
+# =============================================================================
+# Global Settings
+# =============================================================================
+global:
+  project_root: "${PWD}"
+  scratchpad_dir: ".ad-sdlc/scratchpad"
+  output_docs_dir: "docs"
+  log_level: "INFO"  # DEBUG, INFO, WARN, ERROR
+
+  # Human-in-the-loop approval gates
+  approval_gates:
+    after_collection: true
+    after_prd: true
+    after_srs: true
+    after_sds: true
+    after_issues: true
+    before_merge: false  # Auto-merge if all checks pass
+
+  # Retry policy for agents
+  retry_policy:
+    max_attempts: 3
+    backoff: "exponential"
+    base_delay_seconds: 5
+    max_delay_seconds: 60
+
+  # Timeout settings
+  timeouts:
+    document_generation: 300  # 5 minutes
+    issue_creation: 60
+    implementation: 1800  # 30 minutes
+    pr_review: 300
+
+# =============================================================================
+# Pipeline Stages
+# =============================================================================
+pipeline:
+  stages:
+    - name: "collection"
+      agent: "collector"
+      description: "Collect and structure user requirements"
+      inputs:
+        - type: "user_message"
+        - type: "files"
+        - type: "urls"
+      outputs:
+        - "${scratchpad_dir}/info/${project_id}/collected_info.yaml"
+      next: "prd_generation"
+      approval_required: true
+
+    - name: "prd_generation"
+      agent: "prd-writer"
+      description: "Generate PRD from collected information"
+      inputs:
+        - "${scratchpad_dir}/info/${project_id}/collected_info.yaml"
+      outputs:
+        - "${scratchpad_dir}/documents/${project_id}/prd.md"
+        - "${output_docs_dir}/prd/PRD-${project_id}.md"
+      next: "srs_generation"
+      approval_required: true
+
+    - name: "srs_generation"
+      agent: "srs-writer"
+      description: "Generate SRS from PRD"
+      inputs:
+        - "${scratchpad_dir}/documents/${project_id}/prd.md"
+      outputs:
+        - "${scratchpad_dir}/documents/${project_id}/srs.md"
+        - "${output_docs_dir}/srs/SRS-${project_id}.md"
+      next: "sds_generation"
+      approval_required: true
+
+    - name: "sds_generation"
+      agent: "sds-writer"
+      description: "Generate SDS from SRS"
+      inputs:
+        - "${scratchpad_dir}/documents/${project_id}/srs.md"
+      outputs:
+        - "${scratchpad_dir}/documents/${project_id}/sds.md"
+        - "${output_docs_dir}/sds/SDS-${project_id}.md"
+      next: "issue_generation"
+      approval_required: true
+
+    - name: "issue_generation"
+      agent: "issue-generator"
+      description: "Generate GitHub issues from SDS"
+      inputs:
+        - "${scratchpad_dir}/documents/${project_id}/sds.md"
+      outputs:
+        - "${scratchpad_dir}/issues/${project_id}/issue_list.json"
+        - "${scratchpad_dir}/issues/${project_id}/dependency_graph.json"
+      next: "orchestration"
+      approval_required: true
+
+    - name: "orchestration"
+      agent: "controller"
+      description: "Orchestrate work distribution"
+      inputs:
+        - "${scratchpad_dir}/issues/${project_id}/issue_list.json"
+        - "${scratchpad_dir}/issues/${project_id}/dependency_graph.json"
+      outputs:
+        - "${scratchpad_dir}/progress/${project_id}/controller_state.yaml"
+        - "${scratchpad_dir}/progress/${project_id}/work_orders/*.yaml"
+      next: "implementation"
+      approval_required: false
+
+    - name: "implementation"
+      agent: "worker"
+      description: "Implement assigned issues"
+      parallel: true
+      max_parallel: 5
+      inputs:
+        - "${scratchpad_dir}/progress/${project_id}/work_orders/*.yaml"
+      outputs:
+        - "${scratchpad_dir}/progress/${project_id}/results/*.yaml"
+        - "src/**/*"
+      next: "review"
+      approval_required: false
+
+    - name: "review"
+      agent: "pr-reviewer"
+      description: "Create and review PRs"
+      inputs:
+        - "${scratchpad_dir}/progress/${project_id}/results/*.yaml"
+      outputs:
+        - "${scratchpad_dir}/progress/${project_id}/reviews/*.yaml"
+      next: null  # End of pipeline
+      approval_required: false
+
+# =============================================================================
+# Agent Configurations
+# =============================================================================
+agents:
+  collector:
+    model: "sonnet"
+    tools:
+      - Read
+      - WebFetch
+      - WebSearch
+      - Grep
+      - Glob
+      - Write
+    max_questions: 5  # Max clarifying questions before proceeding
+
+  prd-writer:
+    model: "sonnet"
+    tools:
+      - Read
+      - Write
+      - Edit
+      - Glob
+      - Grep
+    template: ".ad-sdlc/templates/prd-template.md"
+
+  srs-writer:
+    model: "sonnet"
+    tools:
+      - Read
+      - Write
+      - Edit
+      - Glob
+      - Grep
+    template: ".ad-sdlc/templates/srs-template.md"
+
+  sds-writer:
+    model: "sonnet"
+    tools:
+      - Read
+      - Write
+      - Edit
+      - Glob
+      - Grep
+    template: ".ad-sdlc/templates/sds-template.md"
+
+  issue-generator:
+    model: "sonnet"
+    tools:
+      - Read
+      - Write
+      - Bash
+      - Glob
+      - Grep
+    template: ".ad-sdlc/templates/issue-template.md"
+    github:
+      labels_prefix: "ad-sdlc"
+      auto_assign: false
+
+  controller:
+    model: "sonnet"
+    tools:
+      - Read
+      - Write
+      - Edit
+      - Bash
+      - Glob
+      - Grep
+    scheduling:
+      algorithm: "priority_dependency"  # priority_only, dependency_only, priority_dependency
+      max_workers: 5
+      check_interval_seconds: 30
+
+  worker:
+    model: "sonnet"
+    tools:
+      - Read
+      - Write
+      - Edit
+      - Bash
+      - Glob
+      - Grep
+    coding:
+      language: "typescript"  # Adjust per project
+      test_framework: "jest"
+      lint_command: "npm run lint"
+      test_command: "npm test"
+      build_command: "npm run build"
+    verification:
+      run_tests: true
+      run_lint: true
+      run_build: true
+      coverage_threshold: 80
+
+  pr-reviewer:
+    model: "sonnet"
+    tools:
+      - Read
+      - Write
+      - Edit
+      - Bash
+      - Glob
+      - Grep
+    review:
+      auto_merge: false
+      require_all_checks: true
+      coverage_threshold: 80
+      max_complexity: 10
+    github:
+      merge_strategy: "squash"  # merge, squash, rebase
+      delete_branch_after_merge: true
+
+# =============================================================================
+# Quality Gates
+# =============================================================================
+quality_gates:
+  document_quality:
+    prd:
+      required_sections:
+        - executive_summary
+        - problem_statement
+        - functional_requirements
+        - non_functional_requirements
+      min_requirements: 3
+
+    srs:
+      required_sections:
+        - system_features
+        - use_cases
+        - traceability_matrix
+      min_features: 1
+      min_use_cases_per_feature: 1
+
+    sds:
+      required_sections:
+        - system_architecture
+        - component_design
+        - api_specification
+      min_components: 1
+
+  code_quality:
+    coverage_threshold: 80
+    max_complexity: 10
+    max_line_length: 100
+    no_todos_in_code: false
+    no_console_logs: true
+
+  security:
+    no_hardcoded_secrets: true
+    require_input_validation: true
+    require_authentication: true
+
+# =============================================================================
+# Notifications
+# =============================================================================
+notifications:
+  enabled: false  # Set to true to enable
+  channels:
+    - type: "slack"
+      webhook: "${SLACK_WEBHOOK_URL}"
+      events:
+        - stage_complete
+        - approval_required
+        - error
+
+    - type: "email"
+      recipients:
+        - "${NOTIFICATION_EMAIL}"
+      events:
+        - approval_required
+        - pipeline_complete
+
+  templates:
+    stage_complete: "Stage '${stage}' completed successfully."
+    approval_required: "Approval required for stage '${stage}'. Review: ${url}"
+    error: "Error in stage '${stage}': ${error_message}"
+
+# =============================================================================
+# GitHub Integration
+# =============================================================================
+github:
+  repo: "${GITHUB_REPO}"  # owner/repo format
+  default_branch: "main"
+  issue_labels:
+    - "ad-sdlc:auto-generated"
+  pr_labels:
+    - "ad-sdlc:auto-generated"
+  milestone_prefix: "AD-SDLC"
+
+# =============================================================================
+# Logging & Monitoring
+# =============================================================================
+logging:
+  level: "INFO"
+  format: "json"
+  output:
+    - type: "file"
+      path: ".ad-sdlc/logs/ad-sdlc.log"
+      rotate: true
+      max_size: "10MB"
+      max_files: 5
+
+    - type: "console"
+      format: "pretty"
+
+  include:
+    - agent_name
+    - stage
+    - timestamp
+    - duration
+    - status
+
+monitoring:
+  enabled: false
+  metrics:
+    - stage_duration
+    - agent_invocations
+    - success_rate
+    - issues_created
+    - prs_merged
