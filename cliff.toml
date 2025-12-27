@@ -1,0 +1,79 @@
+# git-cliff configuration for changelog generation
+# https://git-cliff.org/docs/configuration
+
+[changelog]
+# Header template
+header = """
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+"""
+
+# Template for each release
+body = """
+{% if version %}\
+    ## [{{ version | trim_start_matches(pat="v") }}] - {{ timestamp | date(format="%Y-%m-%d") }}
+{% else %}\
+    ## [Unreleased]
+{% endif %}\
+{% for group, commits in commits | group_by(attribute="group") %}
+    ### {{ group | striptags | trim | upper_first }}
+    {% for commit in commits %}
+        - {% if commit.scope %}**{{ commit.scope }}:** {% endif %}\
+            {{ commit.message | upper_first }}\
+            {% if commit.github.username %} by @{{ commit.github.username }}{%- endif %}\
+    {% endfor %}
+{% endfor %}\n
+"""
+
+# Footer template
+footer = """
+---
+"""
+
+# Remove leading and trailing whitespace
+trim = true
+
+[git]
+# Parse conventional commits
+conventional_commits = true
+
+# Filter out unconventional commits
+filter_unconventional = true
+
+# Process each line of a commit as an individual commit
+split_commits = false
+
+# Commit message regex pattern for parsing
+commit_parsers = [
+    { message = "^feat", group = "Features" },
+    { message = "^fix", group = "Bug Fixes" },
+    { message = "^doc", group = "Documentation" },
+    { message = "^perf", group = "Performance" },
+    { message = "^refactor", group = "Refactor" },
+    { message = "^style", group = "Styling" },
+    { message = "^test", group = "Testing" },
+    { message = "^chore\\(release\\)", skip = true },
+    { message = "^chore\\(deps.*\\)", skip = true },
+    { message = "^chore\\(pr\\)", skip = true },
+    { message = "^chore\\(pull\\)", skip = true },
+    { message = "^chore|^ci", group = "Miscellaneous Tasks" },
+    { body = ".*security", group = "Security" },
+    { message = "^revert", group = "Revert" },
+]
+
+# Protect breaking changes
+protect_breaking_commits = false
+
+# Filter out commits by pattern
+filter_commits = false
+
+# Tag pattern for version detection
+tag_pattern = "v[0-9].*"
+
+# Sort order for commits within each group
+sort_commits = "oldest"
+
+# Limit number of commits per group
+# commit_limit_per_group = 0
