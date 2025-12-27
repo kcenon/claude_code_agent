@@ -111,12 +111,14 @@ function loadAgentRegistry(registryPath: string): Map<string, string> {
   }
 
   const content = fs.readFileSync(registryPath, 'utf-8');
-  const data = yaml.load(content) as { agents?: Record<string, { definition_file?: string }> };
+  const data = yaml.load(content) as Record<string, unknown> | null | undefined;
 
-  if (data?.agents) {
-    for (const [id, agent] of Object.entries(data.agents)) {
-      if (agent.definition_file) {
-        registry.set(id, agent.definition_file);
+  const agents = data?.agents as Record<string, { definition_file?: string }> | undefined;
+  if (agents !== undefined) {
+    for (const [id, agent] of Object.entries(agents)) {
+      const definitionFile = agent.definition_file;
+      if (definitionFile !== undefined && definitionFile !== '') {
+        registry.set(id, definitionFile);
       }
     }
   }
@@ -144,10 +146,14 @@ function checkRegistryConsistency(
   }
 
   const registeredPath = registry.get(agentName);
-  const normalizedFilePath = filePath.replace(/\\/g, '/');
-  const normalizedRegisteredPath = registeredPath?.replace(/\\/g, '/');
+  if (registeredPath === undefined) {
+    return errors;
+  }
 
-  if (normalizedRegisteredPath && !normalizedFilePath.endsWith(normalizedRegisteredPath)) {
+  const normalizedFilePath = filePath.replace(/\\/g, '/');
+  const normalizedRegisteredPath = registeredPath.replace(/\\/g, '/');
+
+  if (!normalizedFilePath.endsWith(normalizedRegisteredPath)) {
     errors.push({
       field: 'definition_file',
       message: `File path mismatch: registered as "${registeredPath}" but found at "${filePath}"`,
@@ -201,9 +207,10 @@ export function validateAgentFile(filePath: string, options: ValidateAgentOption
 
     // Check registry consistency
     if (options.checkRegistry !== false) {
-      const registryPath = options.registryPath
-        ? path.resolve(options.registryPath)
-        : path.resolve(process.cwd(), DEFAULT_REGISTRY_PATH);
+      const registryPath =
+        options.registryPath !== undefined && options.registryPath !== ''
+          ? path.resolve(options.registryPath)
+          : path.resolve(process.cwd(), DEFAULT_REGISTRY_PATH);
 
       const registry = loadAgentRegistry(registryPath);
       const registryErrors = checkRegistryConsistency(validatedFrontmatter.name, filePath, registry);
@@ -247,9 +254,10 @@ export function validateAgentFile(filePath: string, options: ValidateAgentOption
  * Validate all agent definition files in a directory
  */
 export function validateAllAgents(options: ValidateAgentOptions = {}): AgentValidationReport {
-  const agentsDir = options.agentsDir
-    ? path.resolve(options.agentsDir)
-    : path.resolve(process.cwd(), DEFAULT_AGENTS_DIR);
+  const agentsDir =
+    options.agentsDir !== undefined && options.agentsDir !== ''
+      ? path.resolve(options.agentsDir)
+      : path.resolve(process.cwd(), DEFAULT_AGENTS_DIR);
 
   const results: AgentValidationResult[] = [];
   let validCount = 0;
@@ -308,10 +316,10 @@ export function formatValidationReport(report: AgentValidationReport): string {
   lines.push(`Timestamp: ${report.timestamp}`);
   lines.push(`Schema Version: ${AGENT_SCHEMA_VERSION}`);
   lines.push('');
-  lines.push(`Total Files: ${report.totalFiles}`);
-  lines.push(`Valid: ${report.validCount}`);
-  lines.push(`Invalid: ${report.invalidCount}`);
-  lines.push(`Warnings: ${report.warningCount}`);
+  lines.push(`Total Files: ${String(report.totalFiles)}`);
+  lines.push(`Valid: ${String(report.validCount)}`);
+  lines.push(`Invalid: ${String(report.invalidCount)}`);
+  lines.push(`Warnings: ${String(report.warningCount)}`);
   lines.push('');
 
   for (const result of report.results) {
