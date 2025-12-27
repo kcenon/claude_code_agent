@@ -125,10 +125,7 @@ export class CollectorAgent {
     this.ensureSession('collecting');
 
     const source = this.inputParser.parseText(text, description);
-    this.addSource(source);
-
-    // Return the updated session (addSource updates this.session)
-    return this.session;
+    return this.addSource(source);
   }
 
   /**
@@ -141,10 +138,7 @@ export class CollectorAgent {
     this.ensureSession('collecting');
 
     const source = await this.inputParser.parseFile(filePath);
-    this.addSource(source);
-
-    // Return the updated session (addSource updates this.session)
-    return this.session;
+    return this.addSource(source);
   }
 
   /**
@@ -157,26 +151,23 @@ export class CollectorAgent {
     this.ensureSession('collecting');
 
     const source = await this.inputParser.parseUrl(url);
-    this.addSource(source);
-
-    // Return the updated session (addSource updates this.session)
-    return this.session;
+    return this.addSource(source);
   }
 
   /**
    * Add an input source to the session
    *
    * @param source - Input source to add
+   * @returns The updated session
    */
-  private addSource(source: InputSource): void {
-    if (this.session === null) {
-      return;
-    }
+  private addSource(source: InputSource): CollectionSession {
+    const session = this.ensureSession('collecting');
     this.session = {
-      ...this.session,
-      sources: [...this.session.sources, source],
+      ...session,
+      sources: [...session.sources, source],
       updatedAt: new Date().toISOString(),
     };
+    return this.session;
   }
 
   /**
