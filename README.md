@@ -67,12 +67,63 @@ User Input → Collector → PRD Writer → SRS Writer → SDS Writer
 
 ### Prerequisites
 
-- Claude Code CLI (Claude Agent SDK)
+- Node.js 18+
 - Git 2.30+
-- GitHub CLI (`gh`) 2.0+
-- Node.js 18+ (optional, for JS/TS projects)
+- GitHub CLI (`gh`) 2.0+ (optional, for issue/PR management)
+- Claude API Key (set `CLAUDE_API_KEY` or `ANTHROPIC_API_KEY`)
 
-### Usage
+### Installation
+
+```bash
+npm install -g ad-sdlc
+```
+
+Or use directly with npx:
+
+```bash
+npx ad-sdlc init
+```
+
+### Project Initialization
+
+Initialize a new AD-SDLC project with the interactive wizard:
+
+```bash
+# Interactive mode - guides you through configuration
+npx ad-sdlc init
+
+# Quick setup with defaults
+npx ad-sdlc init my-project --quick
+
+# With specific options
+npx ad-sdlc init my-project \
+  --tech-stack typescript \
+  --template standard \
+  --github-repo https://github.com/user/my-project
+```
+
+#### Template Options
+
+| Template | Workers | Coverage | Features |
+|----------|---------|----------|----------|
+| **minimal** | 2 | 50% | Basic structure |
+| **standard** | 3 | 70% | Token tracking, dashboard |
+| **enterprise** | 5 | 80% | Audit logging, security scanning |
+
+### CLI Commands
+
+```bash
+# Initialize new project
+ad-sdlc init [project-name]
+
+# Validate configuration
+ad-sdlc validate
+
+# Check pipeline status
+ad-sdlc status
+```
+
+### Usage with Claude
 
 1. Start with requirements collection:
    ```
@@ -122,6 +173,7 @@ See [Security Documentation](docs/security.md) for detailed usage.
 
 ## Documentation
 
+- [Project Initialization](docs/init.md)
 - [Issue Generator Module](docs/issue-generator.md)
 - [Security Module](docs/security.md)
 - [PRD-001: Agent-Driven SDLC](docs/PRD-001-agent-driven-sdlc.md)
