@@ -7,7 +7,11 @@
 import { exec } from 'child_process';
 import { promisify } from 'util';
 
-import type { PrerequisiteCheck, PrerequisiteResult, PrerequisiteValidationResult } from './types.js';
+import type {
+  PrerequisiteCheck,
+  PrerequisiteResult,
+  PrerequisiteValidationResult,
+} from './types.js';
 
 const execAsync = promisify(exec);
 
@@ -104,8 +108,9 @@ export class PrerequisiteValidator {
   private checkClaudeApiKey(): Promise<boolean> {
     const claudeKey = process.env['CLAUDE_API_KEY'];
     const anthropicKey = process.env['ANTHROPIC_API_KEY'];
-    const hasKey = (typeof claudeKey === 'string' && claudeKey.length > 0) ||
-                   (typeof anthropicKey === 'string' && anthropicKey.length > 0);
+    const hasKey =
+      (typeof claudeKey === 'string' && claudeKey.length > 0) ||
+      (typeof anthropicKey === 'string' && anthropicKey.length > 0);
     return Promise.resolve(hasKey);
   }
 

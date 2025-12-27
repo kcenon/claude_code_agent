@@ -9,7 +9,11 @@
 import chalk from 'chalk';
 import { Command } from 'commander';
 
-import { createInteractiveWizard, createProjectInitializer, getPrerequisiteValidator } from './init/index.js';
+import {
+  createInteractiveWizard,
+  createProjectInitializer,
+  getPrerequisiteValidator,
+} from './init/index.js';
 import type { InitOptions, TechStack, TemplateType } from './init/types.js';
 
 const program = new Command();
@@ -26,7 +30,10 @@ program
   .command('init [project-name]')
   .description('Initialize a new AD-SDLC project')
   .option('-g, --github-repo <url>', 'GitHub repository URL')
-  .option('-t, --tech-stack <stack>', 'Primary technology stack (typescript, python, java, go, rust, other)')
+  .option(
+    '-t, --tech-stack <stack>',
+    'Primary technology stack (typescript, python, java, go, rust, other)'
+  )
   .option('-T, --template <template>', 'Project template (minimal, standard, enterprise)')
   .option('-q, --quick', 'Quick setup with defaults (skip interactive prompts)')
   .option('--skip-validation', 'Skip prerequisite validation')
@@ -37,14 +44,22 @@ program
       let options: InitOptions;
 
       const isQuickMode = cmdOptions['quick'] === true;
-      const hasTemplate = typeof cmdOptions['template'] === 'string' && cmdOptions['template'].length > 0;
+      const hasTemplate =
+        typeof cmdOptions['template'] === 'string' && cmdOptions['template'].length > 0;
       const hasProjectName = typeof projectName === 'string' && projectName.length > 0;
 
       if (isQuickMode || (hasProjectName && hasTemplate)) {
         // Non-interactive mode with command-line options
-        const githubRepo = typeof cmdOptions['githubRepo'] === 'string' ? cmdOptions['githubRepo'] : undefined;
-        const techStack = typeof cmdOptions['techStack'] === 'string' ? (cmdOptions['techStack'] as TechStack) : 'typescript';
-        const template = typeof cmdOptions['template'] === 'string' ? (cmdOptions['template'] as TemplateType) : 'standard';
+        const githubRepo =
+          typeof cmdOptions['githubRepo'] === 'string' ? cmdOptions['githubRepo'] : undefined;
+        const techStack =
+          typeof cmdOptions['techStack'] === 'string'
+            ? (cmdOptions['techStack'] as TechStack)
+            : 'typescript';
+        const template =
+          typeof cmdOptions['template'] === 'string'
+            ? (cmdOptions['template'] as TemplateType)
+            : 'standard';
         const skipValidation = cmdOptions['skipValidation'] === true;
 
         options = {
@@ -95,12 +110,20 @@ program
         }
 
         if (!validation.valid) {
-          console.log(chalk.red('\n❌ Prerequisite validation failed. Please fix the required issues above.\n'));
+          console.log(
+            chalk.red(
+              '\n❌ Prerequisite validation failed. Please fix the required issues above.\n'
+            )
+          );
           process.exit(1);
         }
 
         if (validation.warnings > 0) {
-          console.log(chalk.yellow(`\n⚠️  ${String(validation.warnings)} optional check(s) failed. Continuing anyway...\n`));
+          console.log(
+            chalk.yellow(
+              `\n⚠️  ${String(validation.warnings)} optional check(s) failed. Continuing anyway...\n`
+            )
+          );
         } else {
           console.log(chalk.green('\n✓ All prerequisites validated.\n'));
         }
@@ -123,7 +146,9 @@ program
 
         console.log(chalk.blue('\n📖 Next steps:\n'));
         console.log(`  1. ${chalk.cyan(`cd ${options.projectName}`)}`);
-        console.log(`  2. Set up your Claude API key: ${chalk.cyan('export CLAUDE_API_KEY="your-key"')}`);
+        console.log(
+          `  2. Set up your Claude API key: ${chalk.cyan('export CLAUDE_API_KEY="your-key"')}`
+        );
         console.log(`  3. Run AD-SDLC: ${chalk.cyan('npx ad-sdlc run "Your requirements"')}`);
         console.log('');
       } else {
@@ -131,7 +156,10 @@ program
         process.exit(1);
       }
     } catch (error) {
-      console.error(chalk.red('\n❌ Error:'), error instanceof Error ? error.message : String(error));
+      console.error(
+        chalk.red('\n❌ Error:'),
+        error instanceof Error ? error.message : String(error)
+      );
       process.exit(1);
     }
   });

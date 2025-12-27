@@ -40,7 +40,10 @@ export class ProjectInitializer {
   async initialize(): Promise<InitResult> {
     const createdFiles: string[] = [];
     const warnings: string[] = [];
-    const projectPath = path.resolve(this.options.targetDir ?? process.cwd(), this.options.projectName);
+    const projectPath = path.resolve(
+      this.options.targetDir ?? process.cwd(),
+      this.options.projectName
+    );
 
     try {
       // Validate prerequisites unless skipped
@@ -51,7 +54,9 @@ export class ProjectInitializer {
         if (!validationResult.valid) {
           const failed = validationResult.checks
             .filter((c) => !c.passed && c.required)
-            .map((c) => `${c.name}: ${c.fix !== undefined && c.fix.length > 0 ? c.fix : 'Unknown fix'}`);
+            .map(
+              (c) => `${c.name}: ${c.fix !== undefined && c.fix.length > 0 ? c.fix : 'Unknown fix'}`
+            );
           return {
             success: false,
             projectPath,
@@ -200,7 +205,10 @@ export class ProjectInitializer {
   /**
    * Generate workflow configuration
    */
-  private generateWorkflowConfig(templateConfig: TemplateConfig, qualityGates: QualityGateConfig): WorkflowConfig {
+  private generateWorkflowConfig(
+    templateConfig: TemplateConfig,
+    qualityGates: QualityGateConfig
+  ): WorkflowConfig {
     return {
       version: '1.0.0',
       pipeline: {
@@ -352,14 +360,7 @@ export class ProjectInitializer {
    */
   private async updateGitignore(projectPath: string): Promise<boolean> {
     const gitignorePath = path.join(projectPath, '.gitignore');
-    const entries = [
-      '',
-      '# AD-SDLC',
-      '.ad-sdlc/scratchpad/',
-      '.ad-sdlc/logs/',
-      '*.log',
-      '',
-    ];
+    const entries = ['', '# AD-SDLC', '.ad-sdlc/scratchpad/', '.ad-sdlc/logs/', '*.log', ''];
 
     let content = '';
     if (fs.existsSync(gitignorePath)) {
