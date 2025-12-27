@@ -51,6 +51,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",
+    "@types/js-yaml": "^4.0.9",
     "@types/node": "^20.10.0",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
@@ -63,6 +64,7 @@
     "vitest": "^4.0.16"
   },
   "dependencies": {
-    "dotenv": "^16.3.0"
+    "dotenv": "^16.3.0",
+    "js-yaml": "^4.1.1"
   }
 }
