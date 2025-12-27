@@ -17,6 +17,12 @@ import {
   DirectoryStructureGenerator,
   SRSNotFoundError,
   SRSValidationError,
+  ArchitectureGeneratorError,
+  ArchitectureAnalysisError,
+  DiagramGenerationError,
+  TechnologyStackError,
+  DirectoryStructureError,
+  OutputWriteError,
   getArchitectureGenerator,
   resetArchitectureGenerator,
 } from '../../src/architecture-generator/index.js';
@@ -129,6 +135,76 @@ const MINIMAL_SRS_CONTENT = `# SRS: Minimal Product
 **Priority**: P2
 
 A basic feature for testing.
+`;
+
+const PIPELINE_SRS_CONTENT = `# SRS: Data Pipeline System
+
+| Field | Value |
+|-------|-------|
+| **Document ID** | SRS-PIPE |
+| **Source PRD** | PRD-PIPE |
+| **Version** | 1.0.0 |
+| **Status** | Draft |
+
+## System Features
+
+### SF-001: Data Pipeline
+
+**Priority**: P0
+
+This feature implements a sequential data processing pipeline with multiple transform stages.
+
+#### UC-001: Process Pipeline
+
+**Actor**: System
+**Main Flow**:
+1. Input stage receives data
+2. Transform stage processes data
+3. Output stage delivers results
+
+## Non-Functional Requirements
+
+### NFR-001: Performance
+
+**Priority**: P0
+**Target**: Process 1000 records/second
+
+The pipeline must maintain high throughput.
+`;
+
+const EVENT_DRIVEN_SRS_CONTENT = `# SRS: Event System
+
+| Field | Value |
+|-------|-------|
+| **Document ID** | SRS-EVENT |
+| **Source PRD** | PRD-EVENT |
+| **Version** | 1.0.0 |
+| **Status** | Draft |
+
+## System Features
+
+### SF-001: Event Publishing
+
+**Priority**: P0
+
+This feature publishes events to subscribers via message broker with reactive event notification.
+
+#### UC-001: Publish Event
+
+**Actor**: Producer
+**Main Flow**:
+1. Producer creates event
+2. Event is published to broker
+3. Subscribers receive notification
+
+## Non-Functional Requirements
+
+### NFR-001: Scalability
+
+**Priority**: P0
+**Target**: Handle 100000 events/second
+
+The system must scale to handle high event volumes.
 `;
 
 const AGENT_SRS_CONTENT = `# SRS: Multi-Agent System
@@ -281,6 +357,39 @@ describe('SRSParser', () => {
       expect(() => parser.parseFile('/nonexistent/file.md')).toThrow(SRSNotFoundError);
     });
   });
+
+  describe('strict mode', () => {
+    it('should throw SRSValidationError in strict mode when features missing', () => {
+      const strictParser = new SRSParser({ strict: true });
+      const noFeaturesContent = `# SRS: No Features
+
+| Field | Value |
+|-------|-------|
+| **Document ID** | SRS-EMPTY |
+`;
+      expect(() => strictParser.parse(noFeaturesContent)).toThrow(SRSValidationError);
+    });
+
+    it('should not throw in non-strict mode with missing sections', () => {
+      const result = parser.parse('# SRS: Empty\n\n');
+      expect(result.features).toHaveLength(0);
+      expect(result.nfrs).toHaveLength(0);
+    });
+
+    it('should disable use case extraction when option is false', () => {
+      const noUCParser = new SRSParser({ extractUseCases: false });
+      const result = noUCParser.parse(SAMPLE_SRS_CONTENT);
+
+      expect(result.features[0]?.useCases).toHaveLength(0);
+    });
+
+    it('should disable NFR parsing when option is false', () => {
+      const noNFRParser = new SRSParser({ parseNFRs: false });
+      const result = noNFRParser.parse(SAMPLE_SRS_CONTENT);
+
+      expect(result.nfrs).toHaveLength(0);
+    });
+  });
 });
 
 // ============================================================
@@ -346,6 +455,37 @@ describe('ArchitectureAnalyzer', () => {
       expect(result.supportingPatterns.length).toBeLessThanOrEqual(2);
       expect(result.supportingPatterns).not.toContain(result.primaryPattern);
     });
+
+    it('should detect pipeline pattern for sequential processing systems', () => {
+      const srs = parser.parse(PIPELINE_SRS_CONTENT);
+      const result = analyzer.analyze(srs);
+
+      expect(result.primaryPattern).toBe('pipeline');
+    });
+
+    it('should detect event-driven pattern for event systems', () => {
+      const srs = parser.parse(EVENT_DRIVEN_SRS_CONTENT);
+      const result = analyzer.analyze(srs);
+
+      expect(result.primaryPattern).toBe('event-driven');
+    });
+
+    it('should use default pattern for minimal SRS', () => {
+      const srs = parser.parse(MINIMAL_SRS_CONTENT);
+      const result = analyzer.analyze(srs);
+
+      expect(result.primaryPattern).toBeDefined();
+      expect(result.rationale).toContain('features');
+    });
+
+    it('should add concern for missing critical NFR categories', () => {
+      const srs = parser.parse(MINIMAL_SRS_CONTENT);
+      const result = analyzer.analyze(srs);
+
+      // Should have concerns for missing security, reliability, or performance
+      const missingConcerns = result.concerns.filter((c) => c.description.includes('No explicit'));
+      expect(missingConcerns.length).toBeGreaterThan(0);
+    });
   });
 });
 
@@ -402,6 +542,39 @@ describe('DiagramGenerator', () => {
 
       const overview = diagrams.find((d) => d.type === 'architecture-overview');
       expect(overview?.code).toContain('Orchestrator');
+    });
+
+    it('should generate diagrams for pipeline pattern', () => {
+      const srs = parser.parse(PIPELINE_SRS_CONTENT);
+      const analysis = analyzer.analyze(srs);
+      const diagrams = generator.generate(srs, analysis);
+
+      const overview = diagrams.find((d) => d.type === 'architecture-overview');
+      expect(overview).toBeDefined();
+      expect(overview?.code).toContain('Stage');
+    });
+
+    it('should generate diagrams for event-driven pattern', () => {
+      const srs = parser.parse(EVENT_DRIVEN_SRS_CONTENT);
+      const analysis = analyzer.analyze(srs);
+      const diagrams = generator.generate(srs, analysis);
+
+      const overview = diagrams.find((d) => d.type === 'architecture-overview');
+      expect(overview).toBeDefined();
+      expect(overview?.code).toContain('Broker');
+    });
+
+    it('should include deployment and data-flow diagrams when all types enabled', () => {
+      const fullGenerator = new DiagramGenerator(true);
+      const srs = parser.parse(SAMPLE_SRS_CONTENT);
+      const analysis = analyzer.analyze(srs);
+      const diagrams = fullGenerator.generate(srs, analysis);
+
+      const deployment = diagrams.find((d) => d.type === 'deployment');
+      const dataFlow = diagrams.find((d) => d.type === 'data-flow');
+
+      expect(deployment).toBeDefined();
+      expect(dataFlow).toBeDefined();
     });
   });
 });
@@ -466,6 +639,31 @@ describe('TechnologyStackGenerator', () => {
       const stack = generator.generate(srs, analysis);
 
       expect(stack.compatibilityNotes).toBeDefined();
+    });
+
+    it('should generate stack without alternatives when disabled', () => {
+      const noAltGenerator = new TechnologyStackGenerator(false);
+      const srs = parser.parse(SAMPLE_SRS_CONTENT);
+      const analysis = analyzer.analyze(srs);
+      const stack = noAltGenerator.generate(srs, analysis);
+
+      const runtime = stack.layers.find((l) => l.layer === 'runtime');
+      expect(runtime?.alternatives).toHaveLength(0);
+    });
+
+    it('should generate different frameworks based on pattern', () => {
+      const srs1 = parser.parse(SAMPLE_SRS_CONTENT);
+      const srs2 = parser.parse(AGENT_SRS_CONTENT);
+
+      const analysis1 = analyzer.analyze(srs1);
+      const analysis2 = analyzer.analyze(srs2);
+
+      const stack1 = generator.generate(srs1, analysis1);
+      const stack2 = generator.generate(srs2, analysis2);
+
+      // Both should have valid stacks
+      expect(stack1.layers.length).toBe(8);
+      expect(stack2.layers.length).toBe(8);
     });
   });
 });
@@ -615,6 +813,125 @@ describe('ArchitectureGenerator', () => {
       const instance2 = getArchitectureGenerator();
 
       expect(instance1).not.toBe(instance2);
+    });
+  });
+
+  describe('verbose mode', () => {
+    it('should work in verbose mode without errors', () => {
+      const verboseGenerator = new ArchitectureGenerator({
+        defaultOptions: { verbose: true },
+      });
+
+      const design = verboseGenerator.generateFromContent(SAMPLE_SRS_CONTENT);
+
+      expect(design.analysis).toBeDefined();
+      expect(design.technologyStack).toBeDefined();
+    });
+  });
+
+  describe('configuration', () => {
+    it('should use custom output directory', () => {
+      const customGenerator = new ArchitectureGenerator({
+        outputDir: 'custom/output',
+      });
+
+      const design = customGenerator.generateFromContent(SAMPLE_SRS_CONTENT);
+      expect(design).toBeDefined();
+    });
+
+    it('should use custom default pattern', () => {
+      const customGenerator = new ArchitectureGenerator({
+        defaultOptions: { defaultPattern: 'microservices' },
+      });
+
+      const design = customGenerator.generateFromContent(MINIMAL_SRS_CONTENT);
+      // The minimal SRS should still trigger pattern detection
+      expect(design.analysis.primaryPattern).toBeDefined();
+    });
+
+    it('should generate all diagram types when option is set', () => {
+      const customGenerator = new ArchitectureGenerator({
+        defaultOptions: { generateAllDiagrams: true },
+      });
+
+      const design = customGenerator.generateFromContent(SAMPLE_SRS_CONTENT);
+      expect(design.diagrams.length).toBeGreaterThanOrEqual(4);
+    });
+  });
+});
+
+// ============================================================
+// Error Classes Tests
+// ============================================================
+
+describe('Error Classes', () => {
+  describe('ArchitectureGeneratorError', () => {
+    it('should create base error with message', () => {
+      const error = new ArchitectureGeneratorError('Test error');
+      expect(error.message).toBe('Test error');
+      expect(error.name).toBe('ArchitectureGeneratorError');
+      expect(error).toBeInstanceOf(Error);
+    });
+  });
+
+  describe('SRSNotFoundError', () => {
+    it('should include file path in message', () => {
+      const error = new SRSNotFoundError('/path/to/file.md');
+      expect(error.message).toContain('/path/to/file.md');
+      expect(error.path).toBe('/path/to/file.md');
+      expect(error).toBeInstanceOf(ArchitectureGeneratorError);
+    });
+  });
+
+  describe('SRSValidationError', () => {
+    it('should include validation errors in message', () => {
+      const errors = ['Missing features', 'Invalid format'];
+      const error = new SRSValidationError(errors);
+      expect(error.message).toContain('Missing features');
+      expect(error.message).toContain('Invalid format');
+      expect(error.errors).toEqual(errors);
+    });
+  });
+
+  describe('ArchitectureAnalysisError', () => {
+    it('should include phase and details', () => {
+      const error = new ArchitectureAnalysisError('pattern-detection', 'No patterns found');
+      expect(error.message).toContain('pattern-detection');
+      expect(error.message).toContain('No patterns found');
+      expect(error.phase).toBe('pattern-detection');
+    });
+  });
+
+  describe('DiagramGenerationError', () => {
+    it('should include diagram type and details', () => {
+      const error = new DiagramGenerationError('architecture-overview', 'Invalid components');
+      expect(error.message).toContain('architecture-overview');
+      expect(error.diagramType).toBe('architecture-overview');
+    });
+  });
+
+  describe('TechnologyStackError', () => {
+    it('should include layer and details', () => {
+      const error = new TechnologyStackError('runtime', 'No compatible technology');
+      expect(error.message).toContain('runtime');
+      expect(error.layer).toBe('runtime');
+    });
+  });
+
+  describe('DirectoryStructureError', () => {
+    it('should include pattern and details', () => {
+      const error = new DirectoryStructureError('microservices', 'Template not found');
+      expect(error.message).toContain('microservices');
+      expect(error.pattern).toBe('microservices');
+    });
+  });
+
+  describe('OutputWriteError', () => {
+    it('should include path and details', () => {
+      const error = new OutputWriteError('/output/file.md', 'Permission denied');
+      expect(error.message).toContain('/output/file.md');
+      expect(error.message).toContain('Permission denied');
+      expect(error.path).toBe('/output/file.md');
     });
   });
 });
