@@ -13,6 +13,7 @@ The Scratchpad module implements the Scratchpad pattern, enabling agents to comm
 - **Atomic Writes**: Write to temp file, then rename to prevent partial writes
 - **File Locking**: Concurrent access safety with auto-release timers
 - **Format Helpers**: Read/write for YAML, JSON, and Markdown
+- **Schema Validation**: Zod-based runtime validation for all data entities
 
 ## Usage
 
@@ -119,6 +120,48 @@ const result = await scratchpad.withLock(filePath, async () => {
   return data.counter;
 });
 ```
+
+### Schema Validation
+
+```typescript
+import {
+  validateCollectedInfo,
+  assertCollectedInfo,
+  SchemaValidationError,
+  getSchemaVersion,
+} from './scratchpad';
+
+// Validate with result object
+const result = validateCollectedInfo(data);
+if (result.success) {
+  console.log('Valid data:', result.data);
+} else {
+  console.error('Validation errors:', result.errors);
+}
+
+// Assert with exception on failure
+try {
+  const validated = assertCollectedInfo(data);
+  // Use validated data
+} catch (error) {
+  if (error instanceof SchemaValidationError) {
+    console.error(error.formatErrors());
+  }
+}
+
+// Check schema version compatibility
+const version = getSchemaVersion(); // '1.0.0'
+```
+
+#### Available Validators
+
+- `validateCollectedInfo(data)` - Validate collected requirements
+- `validateWorkOrder(data)` - Validate work orders
+- `validateImplementationResult(data)` - Validate implementation results
+- `validatePRReviewResult(data)` - Validate PR review results
+- `validateControllerState(data)` - Validate controller state
+
+Each has a corresponding `assert*` function that throws on invalid data.
 
 ## Directory Structure
 
