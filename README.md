@@ -2,7 +2,7 @@
 
 > **Automate your software development from requirements to deployment using Claude-powered agents.**
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: BSD-3-Clause](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 [![Node.js](https://img.shields.io/badge/Node.js-18%2B-green.svg)](https://nodejs.org/)
 
 ## Quick Start
@@ -242,7 +242,7 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
+BSD 3-Clause License - see [LICENSE](LICENSE) for details.
 
 ---
 
