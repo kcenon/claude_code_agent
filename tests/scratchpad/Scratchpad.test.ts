@@ -435,4 +435,181 @@ describe('Scratchpad File Locking', () => {
 
     await scratchpad.releaseLock(filePath, 'holder-2');
   });
+
+  it('should throw error when releasing lock with wrong holder ID', async () => {
+    const filePath = path.join(testBasePath, 'wrong-holder.txt');
+    await scratchpad.ensureDir(testBasePath);
+
+    await scratchpad.acquireLock(filePath, 'holder-1');
+
+    await expect(scratchpad.releaseLock(filePath, 'wrong-holder')).rejects.toThrow(
+      'Cannot release lock: holder ID mismatch'
+    );
+
+    // Clean up
+    await scratchpad.releaseLock(filePath, 'holder-1');
+  });
+
+  it('should handle releasing non-existent lock gracefully', async () => {
+    const filePath = path.join(testBasePath, 'no-lock.txt');
+    await scratchpad.ensureDir(testBasePath);
+
+    // Should not throw
+    await expect(scratchpad.releaseLock(filePath)).resolves.toBeUndefined();
+  });
+
+  it('should acquire lock after expired lock', async () => {
+    const shortTimeoutScratchpad = new Scratchpad({
+      basePath: testBasePath,
+      enableLocking: true,
+      lockTimeout: 100, // 100ms timeout
+    });
+
+    const filePath = path.join(testBasePath, 'expired-lock.txt');
+    await shortTimeoutScratchpad.ensureDir(testBasePath);
+
+    // Acquire first lock
+    const first = await shortTimeoutScratchpad.acquireLock(filePath, 'holder-1');
+    expect(first).toBe(true);
+
+    // Wait for lock to expire
+    await new Promise((resolve) => setTimeout(resolve, 150));
+
+    // Should be able to acquire after expiration
+    const second = await shortTimeoutScratchpad.acquireLock(filePath, 'holder-2');
+    expect(second).toBe(true);
+
+    await shortTimeoutScratchpad.cleanup();
+  });
+
+  it('should fail to acquire lock when withLock fails', async () => {
+    // Create another scratchpad to hold the lock
+    const holder = new Scratchpad({ basePath: testBasePath, enableLocking: true });
+    const filePath = path.join(testBasePath, 'blocked-withlock.txt');
+    await holder.ensureDir(testBasePath);
+
+    // Hold the lock
+    await holder.acquireLock(filePath, 'blocker');
+
+    // Try to execute with lock - should fail
+    await expect(
+      scratchpad.withLock(filePath, async () => {
+        return 'should not reach';
+      })
+    ).rejects.toThrow('Failed to acquire lock');
+
+    await holder.cleanup();
+  });
+});
+
+describe('Scratchpad with Locking Disabled', () => {
+  let scratchpad: Scratchpad;
+  let testBasePath: string;
+
+  beforeEach(() => {
+    resetScratchpad();
+    testBasePath = path.join(os.tmpdir(), `scratchpad-nolock-test-${Date.now()}`);
+    scratchpad = new Scratchpad({ basePath: testBasePath, enableLocking: false });
+  });
+
+  afterEach(async () => {
+    await scratchpad.cleanup();
+    resetScratchpad();
+    try {
+      fs.rmSync(testBasePath, { recursive: true, force: true });
+    } catch {
+      // Ignore cleanup errors
+    }
+  });
+
+  it('should always return true for acquireLock when locking disabled', async () => {
+    const filePath = path.join(testBasePath, 'no-lock.txt');
+    const acquired = await scratchpad.acquireLock(filePath);
+    expect(acquired).toBe(true);
+  });
+
+  it('should do nothing for releaseLock when locking disabled', async () => {
+    const filePath = path.join(testBasePath, 'no-lock.txt');
+    await expect(scratchpad.releaseLock(filePath)).resolves.toBeUndefined();
+  });
+});
+
+describe('Scratchpad Error Handling', () => {
+  let scratchpad: Scratchpad;
+  let testBasePath: string;
+
+  beforeEach(() => {
+    resetScratchpad();
+    testBasePath = path.join(os.tmpdir(), `scratchpad-error-test-${Date.now()}`);
+    scratchpad = new Scratchpad({ basePath: testBasePath, enableLocking: false });
+  });
+
+  afterEach(async () => {
+    await scratchpad.cleanup();
+    resetScratchpad();
+    try {
+      fs.rmSync(testBasePath, { recursive: true, force: true });
+    } catch {
+      // Ignore cleanup errors
+    }
+  });
+
+  it('should throw on invalid YAML', async () => {
+    const filePath = path.join(testBasePath, 'invalid.yaml');
+    await scratchpad.ensureDir(testBasePath);
+    fs.writeFileSync(filePath, '{ invalid yaml ::: }}}');
+
+    await expect(scratchpad.readYaml(filePath)).rejects.toThrow();
+  });
+
+  it('should throw on invalid JSON', async () => {
+    const filePath = path.join(testBasePath, 'invalid.json');
+    await scratchpad.ensureDir(testBasePath);
+    fs.writeFileSync(filePath, '{ invalid json }');
+
+    await expect(scratchpad.readJson(filePath)).rejects.toThrow();
+  });
+
+  it('should throw on missing YAML file without allowMissing', async () => {
+    await expect(scratchpad.readYaml('/nonexistent.yaml')).rejects.toThrow();
+  });
+
+  it('should throw on missing JSON file without allowMissing', async () => {
+    await expect(scratchpad.readJson('/nonexistent.json')).rejects.toThrow();
+  });
+
+  it('should throw on missing Markdown file without allowMissing', async () => {
+    await expect(scratchpad.readMarkdown('/nonexistent.md')).rejects.toThrow();
+  });
+
+  it('should return null for missing YAML (sync) with allowMissing', () => {
+    const result = scratchpad.readYamlSync('/nonexistent.yaml', { allowMissing: true });
+    expect(result).toBeNull();
+  });
+
+  it('should return null for missing JSON (sync) with allowMissing', () => {
+    const result = scratchpad.readJsonSync('/nonexistent.json', { allowMissing: true });
+    expect(result).toBeNull();
+  });
+
+  it('should return null for missing Markdown (sync) with allowMissing', () => {
+    const result = scratchpad.readMarkdownSync('/nonexistent.md', { allowMissing: true });
+    expect(result).toBeNull();
+  });
+
+  it('should throw on invalid YAML (sync)', () => {
+    const filePath = path.join(testBasePath, 'invalid-sync.yaml');
+    scratchpad.ensureDirSync(testBasePath);
+    fs.writeFileSync(filePath, '{ invalid yaml ::: }}}');
+
+    expect(() => scratchpad.readYamlSync(filePath)).toThrow();
+  });
+
+  it('should throw on invalid JSON (sync)', () => {
+    const filePath = path.join(testBasePath, 'invalid-sync.json');
+    scratchpad.ensureDirSync(testBasePath);
+    fs.writeFileSync(filePath, '{ invalid json }');
+
+    expect(() => scratchpad.readJsonSync(filePath)).toThrow();
+  });
 });
