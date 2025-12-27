@@ -87,7 +87,8 @@ export class AuditLogger {
    */
   private rotateOldFiles(): void {
     try {
-      const files = fs.readdirSync(this.logDir)
+      const files = fs
+        .readdirSync(this.logDir)
         .filter((f) => f.startsWith('audit-') && f.endsWith('.jsonl'))
         .map((f) => ({
           name: f,

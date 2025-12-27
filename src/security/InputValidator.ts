@@ -69,8 +69,7 @@ export class InputValidator {
 
     // Check if the resolved path is within the base path
     const relativePath = path.relative(this.basePath, resolved);
-    const isOutsideBasePath =
-      relativePath.startsWith('..') || path.isAbsolute(relativePath);
+    const isOutsideBasePath = relativePath.startsWith('..') || path.isAbsolute(relativePath);
 
     if (isOutsideBasePath) {
       throw new PathTraversalError(inputPath);
@@ -166,7 +165,10 @@ export class InputValidator {
   public sanitizeUserInput(input: string): string {
     // Check length first
     if (input.length > this.maxInputLength) {
-      throw new ValidationError('input', `exceeds maximum length of ${String(this.maxInputLength)}`);
+      throw new ValidationError(
+        'input',
+        `exceeds maximum length of ${String(this.maxInputLength)}`
+      );
     }
 
     // Remove control characters (except newline, carriage return, tab)
@@ -202,7 +204,8 @@ export class InputValidator {
    */
   public isValidEmail(email: string): boolean {
     // RFC 5322 simplified email regex
-    const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+    const emailRegex =
+      /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
     return email.length <= 254 && emailRegex.test(email);
   }
 
@@ -252,7 +255,8 @@ export class InputValidator {
    * @returns True if the version is valid semver
    */
   public isValidSemver(version: string): boolean {
-    const semverRegex = /^v?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/;
+    const semverRegex =
+      /^v?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/;
     return semverRegex.test(version);
   }
 
@@ -283,11 +287,11 @@ export class InputValidator {
     // eslint-disable-next-line no-control-regex
     const controlCharRegex = /[\u0000-\u001F\u007F]/;
     const invalidPatterns = [
-      /\.\./,                 // consecutive dots
-      /\/\//,                 // consecutive slashes
-      /@\{/,                  // @{
-      controlCharRegex,       // control characters including DEL
-      /[ ~^:?*[\]\\]/,        // space and special chars ([ and ] in char class)
+      /\.\./, // consecutive dots
+      /\/\//, // consecutive slashes
+      /@\{/, // @{
+      controlCharRegex, // control characters including DEL
+      /[ ~^:?*[\]\\]/, // space and special chars ([ and ] in char class)
     ];
 
     return !invalidPatterns.some((pattern) => pattern.test(branchName));

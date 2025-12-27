@@ -80,9 +80,7 @@ export class SecureFileHandler {
    * @returns Path to the created temporary directory
    */
   public async createTempDir(): Promise<string> {
-    const tempDir = await fs.promises.mkdtemp(
-      path.join(os.tmpdir(), this.tempPrefix)
-    );
+    const tempDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), this.tempPrefix));
 
     // Set restrictive permissions
     await fs.promises.chmod(tempDir, DEFAULT_DIR_MODE);

@@ -30,11 +30,7 @@ export {
 } from './errors.js';
 
 // SecretManager
-export {
-  SecretManager,
-  getSecretManager,
-  resetSecretManager,
-} from './SecretManager.js';
+export { SecretManager, getSecretManager, resetSecretManager } from './SecretManager.js';
 
 // InputValidator
 export { InputValidator } from './InputValidator.js';

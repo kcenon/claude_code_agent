@@ -158,9 +158,7 @@ export class SecretManager {
    * @param logger - The logger function to wrap
    * @returns A wrapped logger that masks secrets
    */
-  public createSafeLogger(
-    logger: (message: string) => void
-  ): (message: string) => void {
+  public createSafeLogger(logger: (message: string) => void): (message: string) => void {
     return (message: string): void => {
       logger(this.mask(message));
     };
