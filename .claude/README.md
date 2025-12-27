@@ -62,8 +62,77 @@ Description of the agent's role...
 Step-by-step workflow...
 ```
 
+## Creating New Agents
+
+Use the template at `.ad-sdlc/templates/agent-template.md` as a starting point for new agents.
+
+### Required Frontmatter Fields
+
+| Field | Type | Description | Example |
+|-------|------|-------------|---------|
+| `name` | string | Lowercase with hyphens | `my-agent` |
+| `description` | string | Agent purpose (min 10 chars) | `Processes user input...` |
+| `tools` | array | List of allowed tools | `[Read, Write, Bash]` |
+| `model` | string | Model to use | `sonnet` or `opus` |
+
+### Valid Tools
+
+- `Read` - Read file contents
+- `Write` - Write files
+- `Edit` - Edit existing files
+- `Bash` - Execute shell commands
+- `Glob` - Find files by pattern
+- `Grep` - Search file contents
+- `WebFetch` - Fetch URL content
+- `WebSearch` - Search the web
+- `LSP` - Language Server Protocol
+- `Task` - Spawn sub-agents
+- `TodoWrite` - Manage todo lists
+- `NotebookEdit` - Edit Jupyter notebooks
+
+### Recommended Sections
+
+For complete agent definitions, include:
+
+1. `## Role` - Agent's primary purpose
+2. `## Primary Responsibilities` - List of duties
+3. `## Workflow` - Step-by-step process
+4. `## File Locations` - Input/output paths
+
+## Validation
+
+Validate agent definitions using the built-in validator:
+
+```typescript
+import { validateAllAgents, formatValidationReport } from 'ad-sdlc';
+
+const report = validateAllAgents();
+console.log(formatValidationReport(report));
+```
+
+Or validate a single file:
+
+```typescript
+import { validateAgentFile } from 'ad-sdlc';
+
+const result = validateAgentFile('.claude/agents/my-agent.md');
+if (!result.valid) {
+  console.error('Validation errors:', result.errors);
+}
+```
+
+## Agent Registry
+
+All agents are registered in `.ad-sdlc/config/agents.yaml`. This file contains:
+
+- Agent metadata and capabilities
+- Input/output specifications
+- Dependencies between agents
+- Execution pipelines
+
 ## Notes
 
 - Agent definitions follow the Claude Agent SDK specification
 - Tools are explicitly listed to control agent capabilities
 - Model selection (sonnet/opus) affects cost and capability
+- Run validation before committing new agent definitions
