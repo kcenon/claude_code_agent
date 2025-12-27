@@ -213,7 +213,7 @@ export class InterfaceGenerator {
     // Extract resource from use case name
     const words = useCase.name.toLowerCase().split(/\s+/);
     const lastWord = words[words.length - 1];
-    if (lastWord && lastWord.length > 2) {
+    if (lastWord !== undefined && lastWord !== '' && lastWord.length > 2) {
       return lastWord.endsWith('s') ? lastWord : `${lastWord}s`;
     }
 
@@ -520,7 +520,8 @@ export class InterfaceGenerator {
    * Check if use case requires authentication
    */
   private requiresAuthentication(useCase: SRSUseCase): boolean {
-    const text = `${useCase.name} ${useCase.description} ${useCase.preconditions.join(' ')}`.toLowerCase();
+    const text =
+      `${useCase.name} ${useCase.description} ${useCase.preconditions.join(' ')}`.toLowerCase();
 
     // Public endpoints
     if (text.includes('public') || text.includes('guest') || text.includes('anonymous')) {

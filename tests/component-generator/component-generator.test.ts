@@ -181,14 +181,20 @@ describe('ComponentGenerator', () => {
       expect(() => generator.generate(emptySRS)).toThrow(InvalidSRSError);
     });
 
-    it('should throw InvalidSRSError for missing metadata', () => {
-      const invalidSRS = {
-        metadata: {},
+    it('should throw InvalidSRSError for empty document ID', () => {
+      const invalidSRS: ParsedSRS = {
+        metadata: {
+          documentId: '',
+          sourcePRD: 'PRD-TEST',
+          version: '1.0.0',
+          status: 'Draft',
+          productName: 'Test Product',
+        },
         features: mockSRS.features,
         nfrs: [],
         constraints: [],
         assumptions: [],
-      } as unknown as ParsedSRS;
+      };
 
       expect(() => generator.generate(invalidSRS)).toThrow(InvalidSRSError);
     });

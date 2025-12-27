@@ -409,10 +409,9 @@ export class APISpecificationGenerator {
    * Derive interface name from endpoint
    */
   private deriveInterfaceName(endpoint: APIEndpoint, suffix: string): string {
-    const parts = endpoint.endpoint.split('/').filter((p) => p && !p.startsWith('{'));
+    const parts = endpoint.endpoint.split('/').filter((p) => p !== '' && !p.startsWith('{'));
     const resourcePart = parts[parts.length - 1] ?? 'Resource';
-    const resource =
-      resourcePart.charAt(0).toUpperCase() + resourcePart.slice(1).replace(/s$/, '');
+    const resource = resourcePart.charAt(0).toUpperCase() + resourcePart.slice(1).replace(/s$/, '');
     const method = endpoint.method.charAt(0) + endpoint.method.slice(1).toLowerCase();
 
     return `${method}${resource}${suffix}`;
@@ -470,9 +469,9 @@ export class APISpecificationGenerator {
       case 'null':
         return 'null';
       case 'array':
-        if (arrayItems) {
+        if (arrayItems !== undefined) {
           if (typeof arrayItems === 'string') {
-            return `${this.dataTypeToTypeScript(arrayItems as DataType)}[]`;
+            return `${this.dataTypeToTypeScript(arrayItems)}[]`;
           }
           return 'unknown[]';
         }

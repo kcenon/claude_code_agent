@@ -115,9 +115,10 @@ export class ComponentGenerator {
     }
 
     // Extract API endpoints
-    const apiSpecification = mergedOptions.generateAPISpecs
-      ? this.apiSpecGenerator.extractAPIEndpoints(components)
-      : [];
+    const apiSpecification =
+      mergedOptions.generateAPISpecs === true
+        ? this.apiSpecGenerator.extractAPIEndpoints(components)
+        : [];
 
     if (mergedOptions.verbose === true) {
       this.log(`Extracted ${String(apiSpecification.length)} API endpoint(s)`);
@@ -156,7 +157,10 @@ export class ComponentGenerator {
   /**
    * Generate components from SRS features
    */
-  private generateComponents(srs: ParsedSRS, options: ComponentGeneratorOptions): ComponentDefinition[] {
+  private generateComponents(
+    srs: ParsedSRS,
+    options: ComponentGeneratorOptions
+  ): ComponentDefinition[] {
     const components: ComponentDefinition[] = [];
 
     for (const feature of srs.features) {
@@ -190,9 +194,8 @@ export class ComponentGenerator {
     const layer = this.determineLayer(feature, options.defaultLayer ?? 'application');
     const interfaces = this.interfaceGenerator.generateInterfaces(feature.useCases);
     const dependencies = this.extractDependencies(feature, srs);
-    const implementationNotes = options.includeNotes
-      ? this.generateImplementationNotes(feature, layer)
-      : '';
+    const implementationNotes =
+      options.includeNotes === true ? this.generateImplementationNotes(feature, layer) : '';
 
     return {
       id,
@@ -212,7 +215,9 @@ export class ComponentGenerator {
   private deriveComponentName(feature: SRSFeature): string {
     // Convert feature name to PascalCase component name
     const words = feature.name.split(/[\s-_]+/);
-    const pascalCase = words.map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join('');
+    const pascalCase = words
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join('');
 
     // Add appropriate suffix based on feature context
     if (this.isServiceComponent(feature)) {
@@ -326,7 +331,10 @@ export class ComponentGenerator {
    * Check if feature references another feature's use cases
    */
   private hasUseCaseReference(feature: SRSFeature, otherFeature: SRSFeature): boolean {
-    const featureText = feature.useCases.map((uc) => `${uc.description} ${uc.mainFlow.join(' ')}`).join(' ').toLowerCase();
+    const featureText = feature.useCases
+      .map((uc) => `${uc.description} ${uc.mainFlow.join(' ')}`)
+      .join(' ')
+      .toLowerCase();
 
     for (const uc of otherFeature.useCases) {
       if (featureText.includes(uc.name.toLowerCase())) {
@@ -436,11 +444,11 @@ export class ComponentGenerator {
   private validateSRS(srs: ParsedSRS): void {
     const errors: string[] = [];
 
-    if (!srs.features || srs.features.length === 0) {
+    if (srs.features.length === 0) {
       errors.push('SRS must contain at least one feature');
     }
 
-    if (!srs.metadata || !srs.metadata.documentId) {
+    if (srs.metadata.documentId === '') {
       errors.push('SRS must have valid metadata with document ID');
     }
 
