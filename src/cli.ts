@@ -183,7 +183,7 @@ function formatFileResult(result: FileValidationResult): void {
   if (!result.valid && result.errors.length > 0) {
     for (const error of result.errors) {
       console.log(chalk.red(`    ❌ ${error.path}: ${error.message}`));
-      if (error.suggestion) {
+      if (error.suggestion !== undefined && error.suggestion !== '') {
         console.log(chalk.yellow(`       Suggestion: ${error.suggestion}`));
       }
     }

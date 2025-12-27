@@ -45,7 +45,7 @@ export class ConfigValidationError extends Error {
     }
     return this.errors
       .map((e) => {
-        const suggestion = e.suggestion ? `\n     Suggestion: ${e.suggestion}` : '';
+        const suggestion = e.suggestion !== undefined && e.suggestion !== '' ? `\n     Suggestion: ${e.suggestion}` : '';
         return `  - ${e.path}: ${e.message}${suggestion}`;
       })
       .join('\n');

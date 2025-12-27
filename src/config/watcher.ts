@@ -209,7 +209,9 @@ export function watchConfigFiles(
 ): () => void {
   const watcher = new ConfigWatcher(options?.baseDir);
   watcher.watch(callback, options);
-  return () => watcher.close();
+  return () => {
+    watcher.close();
+  };
 }
 
 /**
@@ -235,5 +237,7 @@ export function watchConfigWithLogging(
       }
     }
   );
-  return () => watcher.close();
+  return () => {
+    watcher.close();
+  };
 }
