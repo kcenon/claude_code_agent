@@ -306,7 +306,7 @@ export class WorkerPoolManager {
    * @throws WorkerNotAvailableError if worker is not idle
    * @throws WorkerAssignmentError if assignment fails
    */
-  public async assignWork(workerId: string, workOrder: WorkOrder): Promise<void> {
+  public assignWork(workerId: string, workOrder: WorkOrder): void {
     const worker = this.workers.get(workerId);
     if (worker === undefined) {
       throw new WorkerNotFoundError(workerId);

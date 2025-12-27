@@ -118,7 +118,7 @@ describe('WorkerPoolManager', () => {
         const slot = manager.getAvailableSlot();
         if (slot !== null) {
           const order = await manager.createWorkOrder(createIssueNode(issueId));
-          await manager.assignWork(slot, order);
+          manager.assignWork(slot, order);
         }
       }
 
@@ -215,7 +215,7 @@ describe('WorkerPoolManager', () => {
   describe('assignWork', () => {
     it('should assign work to idle worker', async () => {
       const order = await manager.createWorkOrder(createIssueNode('ISS-001'));
-      await manager.assignWork('worker-1', order);
+      manager.assignWork('worker-1', order);
 
       const worker = manager.getWorker('worker-1');
       expect(worker.status).toBe('working');
@@ -226,7 +226,7 @@ describe('WorkerPoolManager', () => {
     it('should throw WorkerNotFoundError for invalid worker', async () => {
       const order = await manager.createWorkOrder(createIssueNode('ISS-001'));
 
-      await expect(manager.assignWork('worker-999', order)).rejects.toThrow(
+      expect(() => manager.assignWork('worker-999', order)).toThrow(
         WorkerNotFoundError
       );
     });
@@ -235,16 +235,16 @@ describe('WorkerPoolManager', () => {
       const order1 = await manager.createWorkOrder(createIssueNode('ISS-001'));
       const order2 = await manager.createWorkOrder(createIssueNode('ISS-002'));
 
-      await manager.assignWork('worker-1', order1);
+      manager.assignWork('worker-1', order1);
 
-      await expect(manager.assignWork('worker-1', order2)).rejects.toThrow(
+      expect(() => manager.assignWork('worker-1', order2)).toThrow(
         WorkerNotAvailableError
       );
     });
 
     it('should update pool status after assignment', async () => {
       const order = await manager.createWorkOrder(createIssueNode('ISS-001'));
-      await manager.assignWork('worker-1', order);
+      manager.assignWork('worker-1', order);
 
       const status = manager.getStatus();
       expect(status.idleWorkers).toBe(2);
@@ -253,7 +253,7 @@ describe('WorkerPoolManager', () => {
 
     it('should track active work orders', async () => {
       const order = await manager.createWorkOrder(createIssueNode('ISS-001'));
-      await manager.assignWork('worker-1', order);
+      manager.assignWork('worker-1', order);
 
       const status = manager.getStatus();
       expect(status.activeWorkOrders).toContain('WO-001');
@@ -276,7 +276,7 @@ describe('WorkerPoolManager', () => {
   describe('completeWork', () => {
     it('should mark work as completed successfully', async () => {
       const order = await manager.createWorkOrder(createIssueNode('ISS-001'));
-      await manager.assignWork('worker-1', order);
+      manager.assignWork('worker-1', order);
 
       const result: WorkOrderResult = {
         orderId: 'WO-001',
@@ -295,7 +295,7 @@ describe('WorkerPoolManager', () => {
 
     it('should track completed orders', async () => {
       const order = await manager.createWorkOrder(createIssueNode('ISS-001'));
-      await manager.assignWork('worker-1', order);
+      manager.assignWork('worker-1', order);
 
       await manager.completeWork('worker-1', {
         orderId: 'WO-001',
@@ -309,7 +309,7 @@ describe('WorkerPoolManager', () => {
 
     it('should track failed orders', async () => {
       const order = await manager.createWorkOrder(createIssueNode('ISS-001'));
-      await manager.assignWork('worker-1', order);
+      manager.assignWork('worker-1', order);
 
       await manager.completeWork('worker-1', {
         orderId: 'WO-001',
@@ -327,7 +327,7 @@ describe('WorkerPoolManager', () => {
       manager.onCompletion(callback);
 
       const order = await manager.createWorkOrder(createIssueNode('ISS-001'));
-      await manager.assignWork('worker-1', order);
+      manager.assignWork('worker-1', order);
 
       const result: WorkOrderResult = {
         orderId: 'WO-001',
@@ -345,7 +345,7 @@ describe('WorkerPoolManager', () => {
   describe('failWork', () => {
     it('should mark worker as error state', async () => {
       const order = await manager.createWorkOrder(createIssueNode('ISS-001'));
-      await manager.assignWork('worker-1', order);
+      manager.assignWork('worker-1', order);
 
       await manager.failWork('worker-1', 'WO-001', new Error('Test error'));
 
@@ -356,7 +356,7 @@ describe('WorkerPoolManager', () => {
 
     it('should track failed orders', async () => {
       const order = await manager.createWorkOrder(createIssueNode('ISS-001'));
-      await manager.assignWork('worker-1', order);
+      manager.assignWork('worker-1', order);
 
       await manager.failWork('worker-1', 'WO-001', new Error('Test error'));
 
@@ -368,7 +368,7 @@ describe('WorkerPoolManager', () => {
       manager.onFailure(callback);
 
       const order = await manager.createWorkOrder(createIssueNode('ISS-001'));
-      await manager.assignWork('worker-1', order);
+      manager.assignWork('worker-1', order);
 
       const error = new Error('Test error');
       await manager.failWork('worker-1', 'WO-001', error);
@@ -380,7 +380,7 @@ describe('WorkerPoolManager', () => {
   describe('releaseWorker', () => {
     it('should release worker back to idle', async () => {
       const order = await manager.createWorkOrder(createIssueNode('ISS-001'));
-      await manager.assignWork('worker-1', order);
+      manager.assignWork('worker-1', order);
 
       manager.releaseWorker('worker-1');
 
@@ -397,7 +397,7 @@ describe('WorkerPoolManager', () => {
   describe('resetWorker', () => {
     it('should reset worker from error state', async () => {
       const order = await manager.createWorkOrder(createIssueNode('ISS-001'));
-      await manager.assignWork('worker-1', order);
+      manager.assignWork('worker-1', order);
       await manager.failWork('worker-1', 'WO-001', new Error('Test'));
 
       manager.resetWorker('worker-1');
@@ -448,7 +448,7 @@ describe('WorkerPoolManager', () => {
   describe('isInProgress', () => {
     it('should return true for assigned issue', async () => {
       const order = await manager.createWorkOrder(createIssueNode('ISS-001'));
-      await manager.assignWork('worker-1', order);
+      manager.assignWork('worker-1', order);
 
       expect(manager.isInProgress('ISS-001')).toBe(true);
     });
@@ -461,7 +461,7 @@ describe('WorkerPoolManager', () => {
   describe('state persistence', () => {
     it('should save state to disk', async () => {
       const order = await manager.createWorkOrder(createIssueNode('ISS-001'));
-      await manager.assignWork('worker-1', order);
+      manager.assignWork('worker-1', order);
       manager.enqueue('ISS-002', 75);
 
       await manager.saveState('test-project');
@@ -472,7 +472,7 @@ describe('WorkerPoolManager', () => {
 
     it('should load state from disk', async () => {
       const order = await manager.createWorkOrder(createIssueNode('ISS-001'));
-      await manager.assignWork('worker-1', order);
+      manager.assignWork('worker-1', order);
       manager.enqueue('ISS-002', 75);
 
       await manager.saveState('test-project');
@@ -509,7 +509,7 @@ describe('WorkerPoolManager', () => {
   describe('reset', () => {
     it('should reset all state', async () => {
       const order = await manager.createWorkOrder(createIssueNode('ISS-001'));
-      await manager.assignWork('worker-1', order);
+      manager.assignWork('worker-1', order);
       manager.enqueue('ISS-002', 75);
 
       await manager.completeWork('worker-1', {
@@ -530,7 +530,7 @@ describe('WorkerPoolManager', () => {
 
     it('should reset worker completed task counts', async () => {
       const order = await manager.createWorkOrder(createIssueNode('ISS-001'));
-      await manager.assignWork('worker-1', order);
+      manager.assignWork('worker-1', order);
       await manager.completeWork('worker-1', {
         orderId: 'WO-001',
         success: true,
@@ -550,8 +550,8 @@ describe('WorkerPoolManager', () => {
       const order1 = await manager.createWorkOrder(createIssueNode('ISS-001'));
       const order2 = await manager.createWorkOrder(createIssueNode('ISS-002'));
 
-      await manager.assignWork('worker-1', order1);
-      await manager.assignWork('worker-2', order2);
+      manager.assignWork('worker-1', order1);
+      manager.assignWork('worker-2', order2);
       await manager.failWork('worker-2', 'WO-002', new Error('Test'));
 
       const status = manager.getStatus();
