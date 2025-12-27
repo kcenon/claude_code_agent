@@ -51,6 +51,8 @@ jobs:
   codeql-analysis:
     name: CodeQL Analysis
     runs-on: ubuntu-latest
+    # Only run on push/schedule events - PR analysis blocked by GitHub API restrictions
+    if: github.event_name == 'push' || github.event_name == 'schedule'
     permissions:
       security-events: write
       contents: read
@@ -83,7 +85,6 @@ jobs:
         uses: github/codeql-action/analyze@v3
         with:
           category: '/language:javascript-typescript'
-          upload: ${{ github.event_name == 'push' }}
 
       - name: Skip message
         if: steps.check-src.outputs.has_source != 'true'

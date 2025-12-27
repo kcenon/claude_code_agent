@@ -156,8 +156,8 @@ jobs:
   codeql:
     name: CodeQL Analysis
     runs-on: ubuntu-latest
-    # Only run when src directory has TypeScript/JavaScript files
-    if: github.event_name == 'push' || github.event_name == 'pull_request'
+    # Only run on push events - PR analysis blocked by GitHub API restrictions
+    if: github.event_name == 'push'
     permissions:
       security-events: write
       contents: read
@@ -187,8 +187,6 @@ jobs:
       - name: Perform CodeQL Analysis
         if: steps.check-src.outputs.has_source == 'true'
         uses: github/codeql-action/analyze@v3
-        with:
-          upload: ${{ github.event_name == 'push' }}
 
       - name: Skip message
         if: steps.check-src.outputs.has_source != 'true'
