@@ -790,15 +790,6 @@ export class WorkerAgent {
       }
       return value;
     }
-    if (typeof value === 'bigint') {
-      return value.toString();
-    }
-    if (typeof value === 'symbol') {
-      return value.toString();
-    }
-    if (typeof value === 'function') {
-      return '[function]';
-    }
     // Handle objects by serializing to JSON (arrays are also objects)
     return JSON.stringify(value);
   }
