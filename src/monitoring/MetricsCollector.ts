@@ -169,7 +169,10 @@ export class MetricsCollector {
     this.agentDurations.set(agent, durations);
 
     // Update counter metrics
-    this.incrementCounter('agent_invocation_total', 1, { agent, status: success ? 'success' : 'failure' });
+    this.incrementCounter('agent_invocation_total', 1, {
+      agent,
+      status: success ? 'success' : 'failure',
+    });
     this.recordHistogram('agent_duration_seconds', duration / 1000, { agent });
   }
 
@@ -216,7 +219,10 @@ export class MetricsCollector {
     });
 
     this.recordHistogram('pipeline_stage_duration_seconds', durationMs / 1000, { stage });
-    this.incrementCounter('pipeline_stage_completion_total', 1, { stage, status: success ? 'success' : 'failure' });
+    this.incrementCounter('pipeline_stage_completion_total', 1, {
+      stage,
+      status: success ? 'success' : 'failure',
+    });
   }
 
   /**
@@ -250,7 +256,8 @@ export class MetricsCollector {
     buckets: number[] = DEFAULT_DURATION_BUCKETS
   ): void {
     const key = this.getLabelsKey(labels);
-    const histogramMap = this.histograms.get(name) ?? new Map<string, { buckets: number[]; values: number[] }>();
+    const histogramMap =
+      this.histograms.get(name) ?? new Map<string, { buckets: number[]; values: number[] }>();
     const data = histogramMap.get(key) ?? { buckets, values: [] as number[] };
     data.values.push(value);
     histogramMap.set(key, data);
@@ -275,9 +282,10 @@ export class MetricsCollector {
       invocations: counts.success + counts.failure,
       successes: counts.success,
       failures: counts.failure,
-      avgDurationMs: sortedDurations.length > 0
-        ? sortedDurations.reduce((a, b) => a + b, 0) / sortedDurations.length
-        : 0,
+      avgDurationMs:
+        sortedDurations.length > 0
+          ? sortedDurations.reduce((a, b) => a + b, 0) / sortedDurations.length
+          : 0,
       p95DurationMs: sortedDurations[p95Index] ?? 0,
       inputTokens: tokens?.input ?? 0,
       outputTokens: tokens?.output ?? 0,

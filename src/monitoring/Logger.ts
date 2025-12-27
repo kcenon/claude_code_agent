@@ -134,7 +134,12 @@ export class Logger {
   /**
    * Create a log entry
    */
-  private createEntry(level: LogLevel, message: string, context?: Record<string, unknown>, error?: Error): LogEntry {
+  private createEntry(
+    level: LogLevel,
+    message: string,
+    context?: Record<string, unknown>,
+    error?: Error
+  ): LogEntry {
     const entry: LogEntry = {
       timestamp: new Date().toISOString(),
       level,
@@ -416,7 +421,9 @@ export class Logger {
    * Get entries filtered by level
    */
   public getEntriesByLevel(level: LogLevel, limit = 100): LogEntry[] {
-    return this.getRecentEntries(limit * 4).filter((e) => e.level === level).slice(0, limit);
+    return this.getRecentEntries(limit * 4)
+      .filter((e) => e.level === level)
+      .slice(0, limit);
   }
 
   /**

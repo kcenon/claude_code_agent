@@ -124,14 +124,10 @@ export class DashboardDataProvider {
     const tableData = agentMetrics.map((m) => ({
       agent: m.agent,
       invocations: m.invocations,
-      successRate: m.invocations > 0
-        ? Math.round((m.successes / m.invocations) * 100)
-        : 0,
+      successRate: m.invocations > 0 ? Math.round((m.successes / m.invocations) * 100) : 0,
       avgDuration: Math.round(m.avgDurationMs),
       p95Duration: Math.round(m.p95DurationMs),
-      errorRate: m.invocations > 0
-        ? Math.round((m.failures / m.invocations) * 100)
-        : 0,
+      errorRate: m.invocations > 0 ? Math.round((m.failures / m.invocations) * 100) : 0,
     }));
 
     this.cachedData.set('agent_performance', {
@@ -377,7 +373,9 @@ let globalDashboardDataProvider: DashboardDataProvider | null = null;
 /**
  * Get or create the global DashboardDataProvider instance
  */
-export function getDashboardDataProvider(options?: DashboardDataProviderOptions): DashboardDataProvider {
+export function getDashboardDataProvider(
+  options?: DashboardDataProviderOptions
+): DashboardDataProvider {
   if (globalDashboardDataProvider === null) {
     globalDashboardDataProvider = new DashboardDataProvider(options);
   }

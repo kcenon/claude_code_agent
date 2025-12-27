@@ -44,7 +44,11 @@ export {
 export { Logger, getLogger, resetLogger } from './Logger.js';
 
 // MetricsCollector
-export { MetricsCollector, getMetricsCollector, resetMetricsCollector } from './MetricsCollector.js';
+export {
+  MetricsCollector,
+  getMetricsCollector,
+  resetMetricsCollector,
+} from './MetricsCollector.js';
 
 // AlertManager
 export {
