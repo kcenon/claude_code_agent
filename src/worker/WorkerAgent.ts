@@ -125,13 +125,13 @@ export class WorkerAgent {
         await this.generateCode(executionContext);
 
         // 4. Generate tests (if not skipped)
-        if (!options.skipTests) {
+        if (options.skipTests !== true) {
           await this.generateTests(executionContext);
         }
 
         // 5. Run verification (if not skipped)
         let verification: VerificationResult;
-        if (!options.skipVerification) {
+        if (options.skipVerification !== true) {
           verification = await this.runVerification();
 
           if (!verification.testsPassed || !verification.lintPassed || !verification.buildPassed) {
@@ -149,7 +149,7 @@ export class WorkerAgent {
         }
 
         // 6. Commit changes (if not dry run)
-        if (!options.dryRun) {
+        if (options.dryRun !== true) {
           await this.commitChanges(workOrder);
         }
 
@@ -217,7 +217,8 @@ export class WorkerAgent {
             });
           } catch (error) {
             // Log but continue - some files may be inaccessible
-            console.warn(`Could not read file ${file.path}: ${error}`);
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            console.warn(`Could not read file ${file.path}: ${errorMessage}`);
           }
         }
       }
@@ -808,7 +809,17 @@ export class WorkerAgent {
       }
       return value;
     }
-    return String(value);
+    if (typeof value === 'bigint') {
+      return value.toString();
+    }
+    if (typeof value === 'symbol') {
+      return value.toString();
+    }
+    if (typeof value === 'function') {
+      return '[function]';
+    }
+    // Handle objects by serializing to JSON (arrays are also objects)
+    return JSON.stringify(value);
   }
 
   /**

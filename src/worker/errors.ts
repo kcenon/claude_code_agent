@@ -207,7 +207,7 @@ export class MaxRetriesExceededError extends WorkerError {
 
   constructor(issueId: string, attempts: number, lastError?: Error) {
     const lastErrorMessage = lastError !== undefined ? `: ${lastError.message}` : '';
-    super(`Max retries (${attempts}) exceeded for issue ${issueId}${lastErrorMessage}`);
+    super(`Max retries (${String(attempts)}) exceeded for issue ${issueId}${lastErrorMessage}`);
     this.name = 'MaxRetriesExceededError';
     this.issueId = issueId;
     this.attempts = attempts;
@@ -285,7 +285,7 @@ export class CommandExecutionError extends WorkerError {
   public readonly cause: Error | undefined;
 
   constructor(command: string, exitCode: number | undefined, stderr: string, cause?: Error) {
-    const exitCodeMessage = exitCode !== undefined ? ` (exit code: ${exitCode})` : '';
+    const exitCodeMessage = exitCode !== undefined ? ` (exit code: ${String(exitCode)})` : '';
     super(`Command failed: ${command}${exitCodeMessage}`);
     this.name = 'CommandExecutionError';
     this.command = command;
