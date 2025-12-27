@@ -512,11 +512,7 @@ export class Scratchpad {
    * @param holderId - Lock holder ID
    * @returns Result of function
    */
-  public async withLock<T>(
-    filePath: string,
-    fn: () => Promise<T>,
-    holderId?: string
-  ): Promise<T> {
+  public async withLock<T>(filePath: string, fn: () => Promise<T>, holderId?: string): Promise<T> {
     const lockId = holderId ?? randomUUID();
     const acquired = await this.acquireLock(filePath, lockId);
 
