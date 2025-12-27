@@ -7,6 +7,7 @@ The worker module provides code generation, test writing, and self-verification 
 The module includes:
 
 - **WorkerAgent** - Main class that processes Work Orders to implement code changes
+- **TestGenerator** - Generates comprehensive unit tests from source code
 - **Context Analysis** - Analyzes related files and detects code patterns
 - **Branch Management** - Creates feature branches with automatic prefix detection
 - **Verification** - Runs tests, lint, and build to verify implementation
@@ -19,9 +20,11 @@ The worker module is included in the main `ad-sdlc` package:
 ```typescript
 import {
   WorkerAgent,
+  TestGenerator,
   DEFAULT_WORKER_AGENT_CONFIG,
   DEFAULT_CODE_PATTERNS,
   DEFAULT_RETRY_POLICY,
+  DEFAULT_TEST_GENERATOR_CONFIG,
 } from 'ad-sdlc';
 ```
 
@@ -336,7 +339,9 @@ try {
 | `analyzeContext(workOrder)` | Analyze code context from work order |
 | `createBranch(workOrder)` | Create feature branch |
 | `generateCode(context)` | Generate code (placeholder) |
-| `generateTests(context)` | Generate tests (placeholder) |
+| `generateTests(context)` | Generate tests using TestGenerator |
+| `getTestGenerator()` | Get the TestGenerator instance |
+| `getLastTestGenerationResult()` | Get the last test generation result |
 | `runVerification()` | Run tests, lint, and build |
 | `commitChanges(workOrder)` | Commit staged changes |
 | `createResult(...)` | Create implementation result |
@@ -344,3 +349,174 @@ try {
 | `recordFileChange(change)` | Record a file change |
 | `recordTestFile(path, count)` | Record a test file |
 | `getConfig()` | Get current configuration |
+
+## TestGenerator
+
+The TestGenerator class analyzes source code and generates comprehensive unit tests following best practices.
+
+### Basic Usage
+
+```typescript
+import { TestGenerator, DEFAULT_CODE_PATTERNS } from 'ad-sdlc';
+
+// Create generator with default configuration
+const generator = new TestGenerator();
+
+// Generate tests for a source file
+const suite = generator.generateTests(
+  'src/Calculator.ts',
+  sourceContent,
+  DEFAULT_CODE_PATTERNS
+);
+
+console.log(`Test file: ${suite.testFile}`);
+console.log(`Total tests: ${suite.totalTests}`);
+console.log(`Estimated coverage: ${suite.estimatedCoverage}%`);
+```
+
+### Custom Configuration
+
+```typescript
+const generator = new TestGenerator({
+  coverageTarget: 90,           // Target coverage percentage
+  namingConvention: 'should_when', // Test naming convention
+  includeEdgeCases: true,       // Include edge case tests
+  includeErrorHandling: true,   // Include error handling tests
+  includeIntegration: true,     // Include integration tests
+  mockStrategy: 'comprehensive', // Mock generation strategy
+  testFilePattern: 'test',      // Test file suffix (.test.ts)
+});
+```
+
+### Configuration Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `coverageTarget` | `number` | `80` | Target coverage percentage |
+| `namingConvention` | `'should_when' \| 'it_does' \| 'test_case'` | `'should_when'` | Test naming convention |
+| `includeEdgeCases` | `boolean` | `true` | Generate edge case tests |
+| `includeErrorHandling` | `boolean` | `true` | Generate error handling tests |
+| `includeIntegration` | `boolean` | `true` | Generate integration tests |
+| `mockStrategy` | `'minimal' \| 'comprehensive'` | `'comprehensive'` | Mock generation strategy |
+| `testFilePattern` | `'test' \| 'spec'` | `'test'` | Test file suffix pattern |
+
+### Naming Conventions
+
+| Convention | Example Test Name |
+|------------|-------------------|
+| `should_when` | `should_return_result_when_valid_input` |
+| `it_does` | `returns result with valid input` |
+| `test_case` | `test_return_result_valid_input` |
+
+### Code Analysis
+
+The generator analyzes source code to extract testable elements:
+
+```typescript
+const analysis = generator.analyzeCode(sourceContent);
+
+console.log(`Classes: ${analysis.classes.length}`);
+console.log(`Functions: ${analysis.functions.length}`);
+console.log(`Dependencies: ${analysis.dependencies.length}`);
+console.log(`Exports: ${analysis.exports.length}`);
+```
+
+### Generating Tests for Multiple Files
+
+```typescript
+import type { FileContext } from 'ad-sdlc';
+
+const files: FileContext[] = [
+  { path: 'src/ServiceA.ts', content: '...', reason: 'Main service' },
+  { path: 'src/ServiceB.ts', content: '...', reason: 'Helper service' },
+];
+
+const result = generator.generateTestsForFiles(files, patterns);
+
+console.log(`Test suites: ${result.testSuites.length}`);
+console.log(`Total tests: ${result.totalTests}`);
+console.log(`Coverage by category:`, result.coverageByCategory);
+console.log(`Warnings: ${result.warnings.length}`);
+```
+
+### Test Structure (AAA Pattern)
+
+Generated tests follow the Arrange-Act-Assert pattern:
+
+```typescript
+describe('Calculator', () => {
+  describe('add', () => {
+    it('should_return_sum_when_valid_numbers', async () => {
+      // Arrange
+      const calculator = new Calculator();
+      const a = 5;
+      const b = 3;
+
+      // Act
+      const result = calculator.add(a, b);
+
+      // Assert
+      expect(result).toBe(8);
+    });
+  });
+});
+```
+
+### Test Categories
+
+| Category | Description | Priority |
+|----------|-------------|----------|
+| `happy_path` | Normal successful execution | Critical |
+| `edge_case` | Boundary conditions and empty inputs | Medium |
+| `error_handling` | Invalid input and error scenarios | High |
+| `integration` | Integration with dependencies | Low |
+
+### Mock Generation
+
+The generator creates mock specifications for external dependencies:
+
+```typescript
+interface MockDependency {
+  name: string;                              // Dependency name
+  type: 'class' | 'function' | 'module' | 'external';
+  strategy: 'spy' | 'stub' | 'mock' | 'fake';
+  behavior: string;                          // Mock behavior description
+}
+```
+
+### Generating Test File Content
+
+```typescript
+const content = generator.generateTestFileContent(suite, patterns);
+
+// Write to file
+await fs.writeFile(suite.testFile, content, 'utf-8');
+```
+
+### TestGenerator Methods
+
+| Method | Description |
+|--------|-------------|
+| `generateTests(sourceFile, content, patterns)` | Generate test suite for a file |
+| `generateTestsForFiles(files, patterns)` | Generate tests for multiple files |
+| `analyzeCode(content)` | Analyze source code structure |
+| `generateTestFileContent(suite, patterns)` | Generate test file content |
+| `getConfig()` | Get current configuration |
+
+### Integration with WorkerAgent
+
+The TestGenerator is integrated with WorkerAgent for automated test generation:
+
+```typescript
+const agent = new WorkerAgent(
+  { projectRoot: '/path/to/project' },
+  { coverageTarget: 85, includeEdgeCases: true }  // TestGenerator config
+);
+
+// Tests are automatically generated during implement()
+const result = await agent.implement(workOrder);
+
+// Access test generation result
+const testResult = agent.getLastTestGenerationResult();
+console.log(`Generated ${testResult?.totalTests} tests`);
+```

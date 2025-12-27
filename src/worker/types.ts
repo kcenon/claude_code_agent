@@ -286,5 +286,264 @@ export interface ExecutionContext {
   readonly attemptNumber: number;
 }
 
+// ============================================================================
+// Test Generation Types
+// ============================================================================
+
+/**
+ * Test case category
+ */
+export type TestCategory = 'happy_path' | 'edge_case' | 'error_handling' | 'integration';
+
+/**
+ * Test case priority
+ */
+export type TestPriority = 'critical' | 'high' | 'medium' | 'low';
+
+/**
+ * Individual test case specification
+ */
+export interface TestCase {
+  /** Test case name following should_[expected]_when_[condition] convention */
+  readonly name: string;
+  /** Test category */
+  readonly category: TestCategory;
+  /** Test priority */
+  readonly priority: TestPriority;
+  /** Description of what the test verifies */
+  readonly description: string;
+  /** Setup/Arrange phase description */
+  readonly arrange: string;
+  /** Action/Act phase description */
+  readonly act: string;
+  /** Verification/Assert phase description */
+  readonly assert: string;
+  /** Mock dependencies required */
+  readonly mocks: readonly MockDependency[];
+  /** Expected coverage contribution */
+  readonly coversBranches: readonly string[];
+}
+
+/**
+ * Mock dependency specification
+ */
+export interface MockDependency {
+  /** Dependency name/identifier */
+  readonly name: string;
+  /** Type of dependency (class, function, module) */
+  readonly type: 'class' | 'function' | 'module' | 'external';
+  /** Mock implementation strategy */
+  readonly strategy: 'spy' | 'stub' | 'mock' | 'fake';
+  /** Return value or behavior description */
+  readonly behavior: string;
+}
+
+/**
+ * Test suite specification for a source file
+ */
+export interface TestSuite {
+  /** Source file being tested */
+  readonly sourceFile: string;
+  /** Test file path */
+  readonly testFile: string;
+  /** Test framework to use */
+  readonly framework: 'jest' | 'vitest' | 'mocha';
+  /** Test suites (describe blocks) */
+  readonly suites: readonly TestSuiteBlock[];
+  /** Total test count */
+  readonly totalTests: number;
+  /** Estimated coverage */
+  readonly estimatedCoverage: number;
+}
+
+/**
+ * Test suite block (describe block)
+ */
+export interface TestSuiteBlock {
+  /** Suite name (typically class/function name) */
+  readonly name: string;
+  /** Nested suites for method grouping */
+  readonly nestedSuites: readonly TestSuiteBlock[];
+  /** Test cases in this suite */
+  readonly testCases: readonly TestCase[];
+  /** Setup function (beforeEach) */
+  readonly setup?: string;
+  /** Teardown function (afterEach) */
+  readonly teardown?: string;
+}
+
+/**
+ * Test generation configuration
+ */
+export interface TestGeneratorConfig {
+  /** Minimum coverage target (default: 80) */
+  readonly coverageTarget?: number;
+  /** Test naming convention */
+  readonly namingConvention?: 'should_when' | 'it_does' | 'test_case';
+  /** Include edge case tests */
+  readonly includeEdgeCases?: boolean;
+  /** Include error handling tests */
+  readonly includeErrorHandling?: boolean;
+  /** Include integration tests */
+  readonly includeIntegration?: boolean;
+  /** Mock generation strategy */
+  readonly mockStrategy?: 'minimal' | 'comprehensive';
+  /** Test file naming pattern */
+  readonly testFilePattern?: 'test' | 'spec';
+}
+
+/**
+ * Default test generator configuration
+ */
+export const DEFAULT_TEST_GENERATOR_CONFIG: Required<TestGeneratorConfig> = {
+  coverageTarget: 80,
+  namingConvention: 'should_when',
+  includeEdgeCases: true,
+  includeErrorHandling: true,
+  includeIntegration: true,
+  mockStrategy: 'comprehensive',
+  testFilePattern: 'test',
+} as const;
+
+/**
+ * Code analysis result for test generation
+ */
+export interface CodeAnalysis {
+  /** Classes found in the source */
+  readonly classes: readonly ClassInfo[];
+  /** Standalone functions found */
+  readonly functions: readonly FunctionInfo[];
+  /** Imports and dependencies */
+  readonly dependencies: readonly DependencyInfo[];
+  /** Export statements */
+  readonly exports: readonly ExportInfo[];
+}
+
+/**
+ * Class information for test generation
+ */
+export interface ClassInfo {
+  /** Class name */
+  readonly name: string;
+  /** Constructor parameters */
+  readonly constructorParams: readonly ParameterInfo[];
+  /** Public methods */
+  readonly methods: readonly MethodInfo[];
+  /** Public properties */
+  readonly properties: readonly PropertyInfo[];
+  /** Whether it's exported */
+  readonly isExported: boolean;
+  /** Line number in source */
+  readonly lineNumber: number;
+}
+
+/**
+ * Method information
+ */
+export interface MethodInfo {
+  /** Method name */
+  readonly name: string;
+  /** Parameters */
+  readonly params: readonly ParameterInfo[];
+  /** Return type */
+  readonly returnType: string;
+  /** Whether it's async */
+  readonly isAsync: boolean;
+  /** Visibility */
+  readonly visibility: 'public' | 'private' | 'protected';
+  /** Complexity estimate */
+  readonly complexity: number;
+  /** Line number in source */
+  readonly lineNumber: number;
+}
+
+/**
+ * Function information for test generation
+ */
+export interface FunctionInfo {
+  /** Function name */
+  readonly name: string;
+  /** Parameters */
+  readonly params: readonly ParameterInfo[];
+  /** Return type */
+  readonly returnType: string;
+  /** Whether it's async */
+  readonly isAsync: boolean;
+  /** Whether it's exported */
+  readonly isExported: boolean;
+  /** Complexity estimate */
+  readonly complexity: number;
+  /** Line number in source */
+  readonly lineNumber: number;
+}
+
+/**
+ * Parameter information
+ */
+export interface ParameterInfo {
+  /** Parameter name */
+  readonly name: string;
+  /** Parameter type */
+  readonly type: string;
+  /** Whether it's optional */
+  readonly isOptional: boolean;
+  /** Default value if any */
+  readonly defaultValue?: string;
+}
+
+/**
+ * Property information
+ */
+export interface PropertyInfo {
+  /** Property name */
+  readonly name: string;
+  /** Property type */
+  readonly type: string;
+  /** Whether it's readonly */
+  readonly isReadonly: boolean;
+}
+
+/**
+ * Dependency information
+ */
+export interface DependencyInfo {
+  /** Module/package name */
+  readonly module: string;
+  /** Imported names */
+  readonly imports: readonly string[];
+  /** Whether it's a type-only import */
+  readonly isTypeOnly: boolean;
+  /** Whether it's external (node_modules) */
+  readonly isExternal: boolean;
+}
+
+/**
+ * Export information
+ */
+export interface ExportInfo {
+  /** Exported name */
+  readonly name: string;
+  /** Type of export */
+  readonly type: 'class' | 'function' | 'const' | 'type' | 'interface';
+  /** Whether it's a default export */
+  readonly isDefault: boolean;
+}
+
+/**
+ * Test generation result
+ */
+export interface TestGenerationResult {
+  /** Generated test suites */
+  readonly testSuites: readonly TestSuite[];
+  /** Total tests generated */
+  readonly totalTests: number;
+  /** Estimated coverage */
+  readonly estimatedCoverage: number;
+  /** Coverage breakdown by category */
+  readonly coverageByCategory: Record<TestCategory, number>;
+  /** Warnings during generation */
+  readonly warnings: readonly string[];
+}
+
 // Re-export types from controller for convenience
 export type { WorkOrder, WorkOrderContext, RelatedFile };

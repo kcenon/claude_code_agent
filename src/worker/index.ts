@@ -8,6 +8,7 @@
  */
 
 export { WorkerAgent } from './WorkerAgent.js';
+export { TestGenerator } from './TestGenerator.js';
 
 export type {
   // Configuration
@@ -36,12 +37,30 @@ export type {
   WorkOrder,
   WorkOrderContext,
   RelatedFile,
+  // Test generation types
+  TestGeneratorConfig,
+  TestGenerationResult,
+  TestSuite,
+  TestSuiteBlock,
+  TestCase,
+  TestCategory,
+  TestPriority,
+  MockDependency,
+  CodeAnalysis,
+  ClassInfo,
+  FunctionInfo,
+  MethodInfo,
+  ParameterInfo,
+  PropertyInfo,
+  DependencyInfo,
+  ExportInfo,
 } from './types.js';
 
 export {
   DEFAULT_WORKER_AGENT_CONFIG,
   DEFAULT_CODE_PATTERNS,
   DEFAULT_RETRY_POLICY,
+  DEFAULT_TEST_GENERATOR_CONFIG,
 } from './types.js';
 
 export {

@@ -29,8 +29,11 @@ import type {
   BranchPrefix,
   CommitType,
   WorkOrder,
+  TestGeneratorConfig,
+  TestGenerationResult,
 } from './types.js';
 import { DEFAULT_WORKER_AGENT_CONFIG, DEFAULT_RETRY_POLICY } from './types.js';
+import { TestGenerator } from './TestGenerator.js';
 import {
   ContextAnalysisError,
   BranchCreationError,
@@ -64,8 +67,10 @@ export class WorkerAgent {
   private readonly fileChanges: Map<string, FileChange>;
   private readonly testsCreated: Map<string, number>;
   private readonly commits: CommitInfo[];
+  private readonly testGenerator: TestGenerator;
+  private lastTestGenerationResult: TestGenerationResult | null;
 
-  constructor(config: WorkerAgentConfig = {}) {
+  constructor(config: WorkerAgentConfig = {}, testGeneratorConfig?: TestGeneratorConfig) {
     this.config = {
       projectRoot: config.projectRoot ?? DEFAULT_WORKER_AGENT_CONFIG.projectRoot,
       resultsPath: config.resultsPath ?? DEFAULT_WORKER_AGENT_CONFIG.resultsPath,
@@ -80,6 +85,8 @@ export class WorkerAgent {
     this.fileChanges = new Map();
     this.testsCreated = new Map();
     this.commits = [];
+    this.testGenerator = new TestGenerator(testGeneratorConfig);
+    this.lastTestGenerationResult = null;
   }
 
   /**
@@ -372,11 +379,62 @@ export class WorkerAgent {
 
   /**
    * Generate tests for the implemented code
-   * This is a placeholder that demonstrates the structure
+   * Analyzes source files and generates comprehensive test suites
    */
-  public async generateTests(_context: ExecutionContext): Promise<void> {
-    // This method would be overridden or enhanced with actual test generation logic
-    // For now, it serves as a structural placeholder
+  public async generateTests(context: ExecutionContext): Promise<TestGenerationResult> {
+    const { codeContext } = context;
+
+    // Generate tests for all source files in context
+    const result = this.testGenerator.generateTestsForFiles(
+      codeContext.relatedFiles,
+      codeContext.patterns
+    );
+
+    // Write test files to disk
+    for (const suite of result.testSuites) {
+      const testFilePath = join(this.config.projectRoot, suite.testFile);
+      const testDir = join(this.config.projectRoot, suite.testFile.replace(/\/[^/]+$/, ''));
+
+      // Ensure test directory exists
+      if (!existsSync(testDir)) {
+        await mkdir(testDir, { recursive: true });
+      }
+
+      // Generate test file content
+      const content = this.testGenerator.generateTestFileContent(suite, codeContext.patterns);
+
+      // Write test file
+      await writeFile(testFilePath, content, 'utf-8');
+
+      // Record the test file creation
+      this.recordTestFile(suite.testFile, suite.totalTests);
+      this.recordFileChange({
+        filePath: suite.testFile,
+        changeType: 'create',
+        description: `Generated test suite for ${suite.sourceFile}`,
+        linesAdded: content.split('\n').length,
+        linesRemoved: 0,
+      });
+    }
+
+    // Store result for later access
+    this.lastTestGenerationResult = result;
+
+    return result;
+  }
+
+  /**
+   * Get the last test generation result
+   */
+  public getLastTestGenerationResult(): TestGenerationResult | null {
+    return this.lastTestGenerationResult;
+  }
+
+  /**
+   * Get the test generator instance
+   */
+  public getTestGenerator(): TestGenerator {
+    return this.testGenerator;
   }
 
   /**
@@ -801,6 +859,7 @@ export class WorkerAgent {
     this.fileChanges.clear();
     this.testsCreated.clear();
     this.commits.length = 0;
+    this.lastTestGenerationResult = null;
   }
 
   /**
