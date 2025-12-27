@@ -206,7 +206,8 @@ export class TestGenerator {
     const lines = content.split('\n');
 
     // Pattern to match class declarations
-    const classPattern = /^(?:export\s+)?class\s+(\w+)(?:\s+extends\s+\w+)?(?:\s+implements\s+[\w,\s]+)?\s*\{/;
+    const classPattern =
+      /^(?:export\s+)?class\s+(\w+)(?:\s+extends\s+\w+)?(?:\s+implements\s+[\w,\s]+)?\s*\{/;
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
@@ -332,7 +333,8 @@ export class TestGenerator {
         const defaultImport = match[2];
         const module = match[3] ?? '';
 
-        const imports = defaultImport !== undefined ? [defaultImport, ...namedImports] : namedImports;
+        const imports =
+          defaultImport !== undefined ? [defaultImport, ...namedImports] : namedImports;
 
         dependencies.push({
           module,
@@ -463,7 +465,9 @@ export class TestGenerator {
       if (match !== null && match[3] !== undefined && match[3] !== 'constructor') {
         const visibilityMatch = match[1];
         const visibility: 'public' | 'private' | 'protected' =
-          visibilityMatch === 'public' || visibilityMatch === 'private' || visibilityMatch === 'protected'
+          visibilityMatch === 'public' ||
+          visibilityMatch === 'private' ||
+          visibilityMatch === 'protected'
             ? visibilityMatch
             : 'public';
         const isAsync = match[2] === 'async';
@@ -766,7 +770,9 @@ export class TestGenerator {
       priority: 'critical',
       description: `${method.name} should complete successfully with valid input`,
       arrange: `Set up ${className} instance and valid input data`,
-      act: method.isAsync ? `await instance.${method.name}(validInput)` : `instance.${method.name}(validInput)`,
+      act: method.isAsync
+        ? `await instance.${method.name}(validInput)`
+        : `instance.${method.name}(validInput)`,
       assert: 'Verify expected result is returned',
       mocks,
       coversBranches: ['happy_path'],
@@ -796,7 +802,9 @@ export class TestGenerator {
         priority: 'medium',
         description: `${method.name} should handle boundary values correctly`,
         arrange: 'Set up instance with boundary value input',
-        act: method.isAsync ? `await instance.${method.name}(boundaryInput)` : `instance.${method.name}(boundaryInput)`,
+        act: method.isAsync
+          ? `await instance.${method.name}(boundaryInput)`
+          : `instance.${method.name}(boundaryInput)`,
         assert: 'Verify boundary handling',
         mocks,
         coversBranches: ['boundary_handling'],
@@ -839,7 +847,10 @@ export class TestGenerator {
 
     // Happy path
     testCases.push({
-      name: this.formatTestName(`return_${this.inferFunctionReturnDescription(func)}`, 'valid_input'),
+      name: this.formatTestName(
+        `return_${this.inferFunctionReturnDescription(func)}`,
+        'valid_input'
+      ),
       category: 'happy_path',
       priority: 'critical',
       description: `${func.name} should complete successfully with valid input`,
@@ -1073,9 +1084,13 @@ export class TestGenerator {
 
     // Framework imports
     if (framework === 'vitest') {
-      lines.push(`import { describe, it, expect, beforeEach, afterEach, vi } from ${quote}vitest${quote}${semi}`);
+      lines.push(
+        `import { describe, it, expect, beforeEach, afterEach, vi } from ${quote}vitest${quote}${semi}`
+      );
     } else if (framework === 'jest') {
-      lines.push(`import { describe, it, expect, beforeEach, afterEach } from ${quote}@jest/globals${quote}${semi}`);
+      lines.push(
+        `import { describe, it, expect, beforeEach, afterEach } from ${quote}@jest/globals${quote}${semi}`
+      );
     }
 
     // Source imports
