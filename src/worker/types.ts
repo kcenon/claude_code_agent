@@ -230,15 +230,7 @@ export type BranchPrefix = 'feature' | 'fix' | 'docs' | 'test' | 'refactor';
 /**
  * Commit type for conventional commits
  */
-export type CommitType =
-  | 'feat'
-  | 'fix'
-  | 'docs'
-  | 'test'
-  | 'refactor'
-  | 'style'
-  | 'chore'
-  | 'perf';
+export type CommitType = 'feat' | 'fix' | 'docs' | 'test' | 'refactor' | 'style' | 'chore' | 'perf';
 
 /**
  * Retry policy configuration

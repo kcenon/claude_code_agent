@@ -30,10 +30,7 @@ import type {
   CommitType,
   WorkOrder,
 } from './types.js';
-import {
-  DEFAULT_WORKER_AGENT_CONFIG,
-  DEFAULT_RETRY_POLICY,
-} from './types.js';
+import { DEFAULT_WORKER_AGENT_CONFIG, DEFAULT_RETRY_POLICY } from './types.js';
 import {
   ContextAnalysisError,
   BranchCreationError,
@@ -136,11 +133,7 @@ export class WorkerAgent {
 
           if (!verification.testsPassed || !verification.lintPassed || !verification.buildPassed) {
             throw new VerificationError(
-              !verification.testsPassed
-                ? 'test'
-                : !verification.lintPassed
-                  ? 'lint'
-                  : 'build',
+              !verification.testsPassed ? 'test' : !verification.lintPassed ? 'lint' : 'build',
               verification.testsOutput || verification.lintOutput || verification.buildOutput
             );
           }
@@ -232,10 +225,7 @@ export class WorkerAgent {
         workOrder,
       };
     } catch (error) {
-      throw new ContextAnalysisError(
-        workOrder.issueId,
-        error instanceof Error ? error : undefined
-      );
+      throw new ContextAnalysisError(workOrder.issueId, error instanceof Error ? error : undefined);
     }
   }
 
@@ -251,9 +241,7 @@ export class WorkerAgent {
     let trailingComma: 'none' | 'es5' | 'all' = 'es5';
     let testFramework: 'jest' | 'vitest' | 'mocha' | 'other' | undefined;
 
-    const tsFiles = files.filter(
-      (f) => f.path.endsWith('.ts') || f.path.endsWith('.tsx')
-    );
+    const tsFiles = files.filter((f) => f.path.endsWith('.ts') || f.path.endsWith('.tsx'));
 
     if (tsFiles.length > 0 && tsFiles[0] !== undefined) {
       // Analyze first TypeScript file
@@ -344,10 +332,7 @@ export class WorkerAgent {
       await this.execGit(`checkout -b ${branchName}`);
       return branchName;
     } catch (error) {
-      throw new BranchCreationError(
-        branchName,
-        error instanceof Error ? error : undefined
-      );
+      throw new BranchCreationError(branchName, error instanceof Error ? error : undefined);
     }
   }
 
@@ -381,7 +366,6 @@ export class WorkerAgent {
   public async generateCode(_context: ExecutionContext): Promise<void> {
     // This method would be overridden or enhanced with actual code generation logic
     // For now, it serves as a structural placeholder
-
     // Record that we attempted code generation
     // Actual file changes would be tracked here
   }
@@ -633,10 +617,7 @@ export class WorkerAgent {
       });
       return { stdout, stderr };
     } catch (error) {
-      throw new GitOperationError(
-        command,
-        error instanceof Error ? error : undefined
-      );
+      throw new GitOperationError(command, error instanceof Error ? error : undefined);
     }
   }
 
