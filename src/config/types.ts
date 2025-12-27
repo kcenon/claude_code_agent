@@ -72,10 +72,7 @@ export interface LoadConfigOptions {
 /**
  * Callback for file change events
  */
-export type FileChangeCallback = (
-  filePath: string,
-  result: FileValidationResult
-) => void;
+export type FileChangeCallback = (filePath: string, result: FileValidationResult) => void;
 
 /**
  * Options for configuration watcher

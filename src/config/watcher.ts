@@ -90,10 +90,7 @@ export class ConfigWatcher {
     const configDir = getConfigDir(this.baseDir);
 
     if (!existsSync(configDir)) {
-      throw new ConfigWatchError(
-        `Configuration directory not found: ${configDir}`,
-        configDir
-      );
+      throw new ConfigWatchError(`Configuration directory not found: ${configDir}`, configDir);
     }
 
     const paths = getAllConfigFilePaths(this.baseDir);
@@ -136,13 +133,7 @@ export class ConfigWatcher {
         });
 
         watcher.on('error', (error) => {
-          onError(
-            new ConfigWatchError(
-              `Watch error for ${filePath}`,
-              filePath,
-              error
-            )
-          );
+          onError(new ConfigWatchError(`Watch error for ${filePath}`, filePath, error));
         });
 
         this.watchers.push(watcher);
@@ -228,15 +219,13 @@ export function watchConfigWithLogging(
   onInvalid?: (filePath: string, errors: readonly { path: string; message: string }[]) => void
 ): () => void {
   const watcher = new ConfigWatcher(baseDir);
-  watcher.watch(
-    (filePath, result) => {
-      if (result.valid) {
-        onValid?.(filePath);
-      } else if (result.errors.length > 0) {
-        onInvalid?.(filePath, result.errors);
-      }
+  watcher.watch((filePath, result) => {
+    if (result.valid) {
+      onValid?.(filePath);
+    } else if (result.errors.length > 0) {
+      onInvalid?.(filePath, result.errors);
     }
-  );
+  });
   return () => {
     watcher.close();
   };

@@ -222,13 +222,15 @@ program
       const exists = configFilesExist();
       if (!exists.workflow && !exists.agents) {
         if (isJson) {
-          console.log(JSON.stringify({
-            valid: false,
-            error: 'No configuration files found. Run "ad-sdlc init" first.',
-            files: [],
-            totalErrors: 1,
-            timestamp: new Date().toISOString(),
-          }));
+          console.log(
+            JSON.stringify({
+              valid: false,
+              error: 'No configuration files found. Run "ad-sdlc init" first.',
+              files: [],
+              totalErrors: 1,
+              timestamp: new Date().toISOString(),
+            })
+          );
         } else {
           console.log(chalk.yellow('⚠️  No configuration files found.'));
           console.log(chalk.dim('Run "ad-sdlc init" to create a new project.\n'));
@@ -241,12 +243,18 @@ program
         const result = await validateConfigFile(filePath);
 
         if (isJson) {
-          console.log(JSON.stringify({
-            valid: result.valid,
-            files: [result],
-            totalErrors: result.errors.length,
-            timestamp: new Date().toISOString(),
-          }, null, 2));
+          console.log(
+            JSON.stringify(
+              {
+                valid: result.valid,
+                files: [result],
+                totalErrors: result.errors.length,
+                timestamp: new Date().toISOString(),
+              },
+              null,
+              2
+            )
+          );
         } else {
           formatFileResult(result);
           console.log('');
@@ -269,7 +277,11 @@ program
           if (report.valid) {
             console.log(chalk.green('✅ All configuration files are valid.\n'));
           } else {
-            console.log(chalk.red(`❌ Found ${String(report.totalErrors)} error(s). Fix these issues and try again.\n`));
+            console.log(
+              chalk.red(
+                `❌ Found ${String(report.totalErrors)} error(s). Fix these issues and try again.\n`
+              )
+            );
           }
         }
 
@@ -288,14 +300,27 @@ program
           undefined,
           (changedPath) => {
             if (isJson) {
-              console.log(JSON.stringify({ event: 'valid', filePath: changedPath, timestamp: new Date().toISOString() }));
+              console.log(
+                JSON.stringify({
+                  event: 'valid',
+                  filePath: changedPath,
+                  timestamp: new Date().toISOString(),
+                })
+              );
             } else {
               console.log(chalk.green(`✓ ${changedPath} - Valid`));
             }
           },
           (changedPath, errors) => {
             if (isJson) {
-              console.log(JSON.stringify({ event: 'invalid', filePath: changedPath, errors, timestamp: new Date().toISOString() }));
+              console.log(
+                JSON.stringify({
+                  event: 'invalid',
+                  filePath: changedPath,
+                  errors,
+                  timestamp: new Date().toISOString(),
+                })
+              );
             } else {
               console.log(chalk.red(`✗ ${changedPath} - Invalid`));
               for (const error of errors) {
@@ -319,15 +344,20 @@ program
       }
     } catch (error) {
       if (isJson) {
-        console.log(JSON.stringify({
-          valid: false,
-          error: error instanceof Error ? error.message : String(error),
-          files: [],
-          totalErrors: 1,
-          timestamp: new Date().toISOString(),
-        }));
+        console.log(
+          JSON.stringify({
+            valid: false,
+            error: error instanceof Error ? error.message : String(error),
+            files: [],
+            totalErrors: 1,
+            timestamp: new Date().toISOString(),
+          })
+        );
       } else {
-        console.error(chalk.red('\n❌ Error:'), error instanceof Error ? error.message : String(error));
+        console.error(
+          chalk.red('\n❌ Error:'),
+          error instanceof Error ? error.message : String(error)
+        );
       }
       process.exit(1);
     }

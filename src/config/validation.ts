@@ -8,11 +8,7 @@
  */
 
 import { z, ZodError } from 'zod';
-import {
-  CONFIG_SCHEMA_VERSION,
-  WorkflowConfigSchema,
-  AgentsConfigSchema,
-} from './schemas.js';
+import { CONFIG_SCHEMA_VERSION, WorkflowConfigSchema, AgentsConfigSchema } from './schemas.js';
 import { ConfigValidationError } from './errors.js';
 import type { FieldError, ValidationResult, WorkflowConfig, AgentsConfig } from './types.js';
 

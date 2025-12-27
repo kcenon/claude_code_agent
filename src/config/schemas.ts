@@ -232,11 +232,13 @@ const SecurityQualitySchema = z.object({
  * Quality gates configuration
  */
 const QualityGatesSchema = z.object({
-  document_quality: z.object({
-    prd: DocumentQualitySchema.optional(),
-    srs: DocumentQualitySchema.optional(),
-    sds: DocumentQualitySchema.optional(),
-  }).optional(),
+  document_quality: z
+    .object({
+      prd: DocumentQualitySchema.optional(),
+      srs: DocumentQualitySchema.optional(),
+      sds: DocumentQualitySchema.optional(),
+    })
+    .optional(),
   code_quality: CodeQualitySchema.optional(),
   security: SecurityQualitySchema.optional(),
 });
@@ -248,7 +250,9 @@ const NotificationChannelSchema = z.object({
   type: z.enum(['slack', 'email']),
   webhook: z.string().optional(),
   recipients: z.array(z.string()).optional(),
-  events: z.array(z.enum(['stage_complete', 'approval_required', 'error', 'pipeline_complete'])).optional(),
+  events: z
+    .array(z.enum(['stage_complete', 'approval_required', 'error', 'pipeline_complete']))
+    .optional(),
 });
 
 /**

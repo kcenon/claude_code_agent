@@ -172,9 +172,7 @@ export async function loadAllConfigs(
  * @param filePath - Path to the configuration file
  * @returns Validation result
  */
-export async function validateConfigFile(
-  filePath: string
-): Promise<FileValidationResult> {
+export async function validateConfigFile(filePath: string): Promise<FileValidationResult> {
   try {
     const data = await parseYamlFile(filePath);
 
