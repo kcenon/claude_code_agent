@@ -409,9 +409,7 @@ export class TechnologyStackGenerator {
    * Get reason why alternative wasn't selected
    */
   private getAlternativeReason(alternative: TechnologyOption, selected: TechnologyOption): string {
-    const missingStrengths = alternative.strengths.filter(
-      (s) => !selected.strengths.includes(s)
-    );
+    const missingStrengths = alternative.strengths.filter((s) => !selected.strengths.includes(s));
 
     if (missingStrengths.length > 0) {
       return `Offers ${missingStrengths.join(', ')} but less aligned with selected pattern`;
@@ -436,9 +434,7 @@ export class TechnologyStackGenerator {
     ];
 
     if (analysis.supportingPatterns.length > 0) {
-      parts.push(
-        `The stack also supports ${analysis.supportingPatterns.join(' and ')} patterns.`
-      );
+      parts.push(`The stack also supports ${analysis.supportingPatterns.join(' and ')} patterns.`);
     }
 
     return parts.join(' ');

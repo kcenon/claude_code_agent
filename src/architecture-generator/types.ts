@@ -158,12 +158,7 @@ export interface Constraint {
 /**
  * Constraint type categories
  */
-export type ConstraintType =
-  | 'technical'
-  | 'business'
-  | 'regulatory'
-  | 'resource'
-  | 'timeline';
+export type ConstraintType = 'technical' | 'business' | 'regulatory' | 'resource' | 'timeline';
 
 /**
  * Architecture analysis result

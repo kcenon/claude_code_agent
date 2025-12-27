@@ -291,7 +291,9 @@ export class ArchitectureGenerator {
     lines.push('| Layer | Technology | Version | Rationale |');
     lines.push('|-------|------------|---------|-----------|');
     for (const layer of design.technologyStack.layers) {
-      lines.push(`| ${layer.layer} | ${layer.technology} | ${layer.version} | ${layer.rationale} |`);
+      lines.push(
+        `| ${layer.layer} | ${layer.technology} | ${layer.version} | ${layer.rationale} |`
+      );
     }
     lines.push('');
 

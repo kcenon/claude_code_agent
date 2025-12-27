@@ -138,7 +138,12 @@ const PATTERN_TEMPLATES: Record<ArchitecturePattern, DirectoryTemplate> = {
         description: 'Configuration files',
         children: [
           { name: 'agents.yaml', type: 'file', description: 'Agent definitions', children: [] },
-          { name: 'default.yaml', type: 'file', description: 'Default configuration', children: [] },
+          {
+            name: 'default.yaml',
+            type: 'file',
+            description: 'Default configuration',
+            children: [],
+          },
         ],
       },
       {
@@ -146,7 +151,12 @@ const PATTERN_TEMPLATES: Record<ArchitecturePattern, DirectoryTemplate> = {
         type: 'directory',
         description: 'Documentation',
         children: [
-          { name: 'architecture.md', type: 'file', description: 'Architecture guide', children: [] },
+          {
+            name: 'architecture.md',
+            type: 'file',
+            description: 'Architecture guide',
+            children: [],
+          },
           { name: 'agents.md', type: 'file', description: 'Agent documentation', children: [] },
         ],
       },
@@ -236,7 +246,12 @@ const PATTERN_TEMPLATES: Record<ArchitecturePattern, DirectoryTemplate> = {
             description: 'Event definitions and bus',
             children: [
               { name: 'index.ts', type: 'file', description: 'Event exports', children: [] },
-              { name: 'EventBus.ts', type: 'file', description: 'Event bus implementation', children: [] },
+              {
+                name: 'EventBus.ts',
+                type: 'file',
+                description: 'Event bus implementation',
+                children: [],
+              },
               { name: 'events.ts', type: 'file', description: 'Event definitions', children: [] },
               { name: 'types.ts', type: 'file', description: 'Event types', children: [] },
             ],
@@ -282,7 +297,12 @@ const PATTERN_TEMPLATES: Record<ArchitecturePattern, DirectoryTemplate> = {
             description: 'API Gateway service',
             children: [
               { name: 'src', type: 'directory', description: 'Source code', children: [] },
-              { name: 'Dockerfile', type: 'file', description: 'Docker configuration', children: [] },
+              {
+                name: 'Dockerfile',
+                type: 'file',
+                description: 'Docker configuration',
+                children: [],
+              },
               { name: 'package.json', type: 'file', description: 'Dependencies', children: [] },
             ],
           },
@@ -292,7 +312,12 @@ const PATTERN_TEMPLATES: Record<ArchitecturePattern, DirectoryTemplate> = {
             description: 'Service A',
             children: [
               { name: 'src', type: 'directory', description: 'Source code', children: [] },
-              { name: 'Dockerfile', type: 'file', description: 'Docker configuration', children: [] },
+              {
+                name: 'Dockerfile',
+                type: 'file',
+                description: 'Docker configuration',
+                children: [],
+              },
               { name: 'package.json', type: 'file', description: 'Dependencies', children: [] },
             ],
           },
@@ -302,7 +327,12 @@ const PATTERN_TEMPLATES: Record<ArchitecturePattern, DirectoryTemplate> = {
             description: 'Service B',
             children: [
               { name: 'src', type: 'directory', description: 'Source code', children: [] },
-              { name: 'Dockerfile', type: 'file', description: 'Docker configuration', children: [] },
+              {
+                name: 'Dockerfile',
+                type: 'file',
+                description: 'Docker configuration',
+                children: [],
+              },
               { name: 'package.json', type: 'file', description: 'Dependencies', children: [] },
             ],
           },
@@ -343,8 +373,18 @@ const PATTERN_TEMPLATES: Record<ArchitecturePattern, DirectoryTemplate> = {
             type: 'directory',
             description: 'Presentation layer (controllers, views)',
             children: [
-              { name: 'controllers', type: 'directory', description: 'HTTP controllers', children: [] },
-              { name: 'middleware', type: 'directory', description: 'HTTP middleware', children: [] },
+              {
+                name: 'controllers',
+                type: 'directory',
+                description: 'HTTP controllers',
+                children: [],
+              },
+              {
+                name: 'middleware',
+                type: 'directory',
+                description: 'HTTP middleware',
+                children: [],
+              },
               { name: 'routes', type: 'directory', description: 'Route definitions', children: [] },
             ],
           },
@@ -353,8 +393,18 @@ const PATTERN_TEMPLATES: Record<ArchitecturePattern, DirectoryTemplate> = {
             type: 'directory',
             description: 'Business logic layer',
             children: [
-              { name: 'services', type: 'directory', description: 'Business services', children: [] },
-              { name: 'validators', type: 'directory', description: 'Input validators', children: [] },
+              {
+                name: 'services',
+                type: 'directory',
+                description: 'Business services',
+                children: [],
+              },
+              {
+                name: 'validators',
+                type: 'directory',
+                description: 'Input validators',
+                children: [],
+              },
             ],
           },
           {
@@ -362,9 +412,19 @@ const PATTERN_TEMPLATES: Record<ArchitecturePattern, DirectoryTemplate> = {
             type: 'directory',
             description: 'Data access layer',
             children: [
-              { name: 'repositories', type: 'directory', description: 'Data repositories', children: [] },
+              {
+                name: 'repositories',
+                type: 'directory',
+                description: 'Data repositories',
+                children: [],
+              },
               { name: 'models', type: 'directory', description: 'Data models', children: [] },
-              { name: 'migrations', type: 'directory', description: 'Database migrations', children: [] },
+              {
+                name: 'migrations',
+                type: 'directory',
+                description: 'Database migrations',
+                children: [],
+              },
             ],
           },
           { name: 'index.ts', type: 'file', description: 'Main entry point', children: [] },
@@ -391,7 +451,12 @@ const PATTERN_TEMPLATES: Record<ArchitecturePattern, DirectoryTemplate> = {
             children: [
               { name: 'domain', type: 'directory', description: 'Domain entities', children: [] },
               { name: 'ports', type: 'directory', description: 'Port interfaces', children: [] },
-              { name: 'usecases', type: 'directory', description: 'Use case implementations', children: [] },
+              {
+                name: 'usecases',
+                type: 'directory',
+                description: 'Use case implementations',
+                children: [],
+              },
             ],
           },
           {
@@ -399,8 +464,18 @@ const PATTERN_TEMPLATES: Record<ArchitecturePattern, DirectoryTemplate> = {
             type: 'directory',
             description: 'Adapters for external systems',
             children: [
-              { name: 'inbound', type: 'directory', description: 'Inbound adapters (HTTP, CLI)', children: [] },
-              { name: 'outbound', type: 'directory', description: 'Outbound adapters (DB, API)', children: [] },
+              {
+                name: 'inbound',
+                type: 'directory',
+                description: 'Inbound adapters (HTTP, CLI)',
+                children: [],
+              },
+              {
+                name: 'outbound',
+                type: 'directory',
+                description: 'Outbound adapters (DB, API)',
+                children: [],
+              },
             ],
           },
           {
@@ -430,8 +505,18 @@ const PATTERN_TEMPLATES: Record<ArchitecturePattern, DirectoryTemplate> = {
             type: 'directory',
             description: 'Command side',
             children: [
-              { name: 'handlers', type: 'directory', description: 'Command handlers', children: [] },
-              { name: 'commands', type: 'directory', description: 'Command definitions', children: [] },
+              {
+                name: 'handlers',
+                type: 'directory',
+                description: 'Command handlers',
+                children: [],
+              },
+              {
+                name: 'commands',
+                type: 'directory',
+                description: 'Command definitions',
+                children: [],
+              },
             ],
           },
           {
@@ -440,7 +525,12 @@ const PATTERN_TEMPLATES: Record<ArchitecturePattern, DirectoryTemplate> = {
             description: 'Query side',
             children: [
               { name: 'handlers', type: 'directory', description: 'Query handlers', children: [] },
-              { name: 'queries', type: 'directory', description: 'Query definitions', children: [] },
+              {
+                name: 'queries',
+                type: 'directory',
+                description: 'Query definitions',
+                children: [],
+              },
             ],
           },
           {
@@ -477,7 +567,12 @@ const PATTERN_TEMPLATES: Record<ArchitecturePattern, DirectoryTemplate> = {
             description: 'Scratchpad implementation',
             children: [
               { name: 'index.ts', type: 'file', description: 'Scratchpad exports', children: [] },
-              { name: 'Scratchpad.ts', type: 'file', description: 'Scratchpad class', children: [] },
+              {
+                name: 'Scratchpad.ts',
+                type: 'file',
+                description: 'Scratchpad class',
+                children: [],
+              },
               { name: 'FileStore.ts', type: 'file', description: 'File storage', children: [] },
             ],
           },
@@ -557,26 +652,81 @@ export class DirectoryStructureGenerator {
     const configFiles: DirectoryEntry[] = [];
 
     if (runtime === 'Node.js') {
-      configFiles.push({ name: 'package.json', type: 'file', description: 'Node.js package manifest', children: [] });
-      configFiles.push({ name: 'tsconfig.json', type: 'file', description: 'TypeScript configuration', children: [] });
-      configFiles.push({ name: '.eslintrc.js', type: 'file', description: 'ESLint configuration', children: [] });
+      configFiles.push({
+        name: 'package.json',
+        type: 'file',
+        description: 'Node.js package manifest',
+        children: [],
+      });
+      configFiles.push({
+        name: 'tsconfig.json',
+        type: 'file',
+        description: 'TypeScript configuration',
+        children: [],
+      });
+      configFiles.push({
+        name: '.eslintrc.js',
+        type: 'file',
+        description: 'ESLint configuration',
+        children: [],
+      });
     } else if (runtime === 'Python') {
-      configFiles.push({ name: 'pyproject.toml', type: 'file', description: 'Python project configuration', children: [] });
-      configFiles.push({ name: 'requirements.txt', type: 'file', description: 'Python dependencies', children: [] });
+      configFiles.push({
+        name: 'pyproject.toml',
+        type: 'file',
+        description: 'Python project configuration',
+        children: [],
+      });
+      configFiles.push({
+        name: 'requirements.txt',
+        type: 'file',
+        description: 'Python dependencies',
+        children: [],
+      });
     } else if (runtime === 'Go') {
-      configFiles.push({ name: 'go.mod', type: 'file', description: 'Go module definition', children: [] });
-      configFiles.push({ name: 'go.sum', type: 'file', description: 'Go dependency checksums', children: [] });
+      configFiles.push({
+        name: 'go.mod',
+        type: 'file',
+        description: 'Go module definition',
+        children: [],
+      });
+      configFiles.push({
+        name: 'go.sum',
+        type: 'file',
+        description: 'Go dependency checksums',
+        children: [],
+      });
     }
 
     if (testing === 'Vitest') {
-      configFiles.push({ name: 'vitest.config.ts', type: 'file', description: 'Vitest configuration', children: [] });
+      configFiles.push({
+        name: 'vitest.config.ts',
+        type: 'file',
+        description: 'Vitest configuration',
+        children: [],
+      });
     } else if (testing === 'Jest') {
-      configFiles.push({ name: 'jest.config.js', type: 'file', description: 'Jest configuration', children: [] });
+      configFiles.push({
+        name: 'jest.config.js',
+        type: 'file',
+        description: 'Jest configuration',
+        children: [],
+      });
     }
 
     // Add common files
-    configFiles.push({ name: 'README.md', type: 'file', description: 'Project documentation', children: [] });
-    configFiles.push({ name: '.gitignore', type: 'file', description: 'Git ignore patterns', children: [] });
+    configFiles.push({
+      name: 'README.md',
+      type: 'file',
+      description: 'Project documentation',
+      children: [],
+    });
+    configFiles.push({
+      name: '.gitignore',
+      type: 'file',
+      description: 'Git ignore patterns',
+      children: [],
+    });
     configFiles.push({ name: 'LICENSE', type: 'file', description: 'License file', children: [] });
 
     return {
@@ -658,7 +808,11 @@ export class DirectoryStructureGenerator {
   /**
    * Recursively build ASCII tree
    */
-  private static buildTree(entries: readonly DirectoryEntry[], prefix: string, lines: string[]): void {
+  private static buildTree(
+    entries: readonly DirectoryEntry[],
+    prefix: string,
+    lines: string[]
+  ): void {
     for (let i = 0; i < entries.length; i++) {
       const entry = entries[i];
       if (!entry) continue;

@@ -380,9 +380,7 @@ export class SRSParser {
     const name = headerMatch[2]?.trim() ?? '';
     const description = this.extractDescription(block);
     const architectureImpact =
-      this.extractField(block, 'Architecture Impact') ??
-      this.extractField(block, 'Impact') ??
-      '';
+      this.extractField(block, 'Architecture Impact') ?? this.extractField(block, 'Impact') ?? '';
     const type = this.inferConstraintType(name, description);
 
     return {

@@ -443,15 +443,13 @@ export class ArchitectureAnalyzer {
         'Implement caching, optimize critical paths, consider async processing for heavy operations',
       scalability:
         'Design for horizontal scaling, use stateless components, implement load balancing',
-      reliability:
-        'Implement retry mechanisms, circuit breakers, and comprehensive error handling',
+      reliability: 'Implement retry mechanisms, circuit breakers, and comprehensive error handling',
       security:
         'Apply defense in depth, implement authentication/authorization, encrypt sensitive data',
       maintainability:
         'Follow SOLID principles, maintain clear module boundaries, document architecture decisions',
       usability: 'Design intuitive interfaces, provide clear feedback, minimize user effort',
-      availability:
-        'Implement redundancy, health checks, and automated failover mechanisms',
+      availability: 'Implement redundancy, health checks, and automated failover mechanisms',
     };
 
     return mitigations[category];
