@@ -7,7 +7,7 @@
  * @module scratchpad/validation
  */
 
-import { ZodError, ZodSchema } from 'zod';
+import { z, ZodError } from 'zod';
 import {
   SCHEMA_VERSION,
   CollectedInfoSchema,
@@ -82,7 +82,7 @@ function formatZodError(error: ZodError): FieldError[] {
  * @param data - Data to validate
  * @returns Validation result with data or errors
  */
-function validate<T>(schema: ZodSchema<T>, data: unknown): ValidationResult<T> {
+function validate<T>(schema: z.ZodType<T>, data: unknown): ValidationResult<T> {
   const result = schema.safeParse(data);
 
   if (result.success) {
@@ -214,14 +214,14 @@ export class SchemaValidationError extends Error {
  */
 export function assertCollectedInfo(data: unknown): CollectedInfo {
   const result = validateCollectedInfo(data);
-  if (!result.success) {
-    throw new SchemaValidationError(
-      'Invalid CollectedInfo data',
-      result.errors!,
-      result.schemaVersion
-    );
+  if (result.success && result.data !== undefined) {
+    return result.data;
   }
-  return result.data!;
+  throw new SchemaValidationError(
+    'Invalid CollectedInfo data',
+    result.errors ?? [],
+    result.schemaVersion
+  );
 }
 
 /**
@@ -233,14 +233,14 @@ export function assertCollectedInfo(data: unknown): CollectedInfo {
  */
 export function assertWorkOrder(data: unknown): WorkOrder {
   const result = validateWorkOrder(data);
-  if (!result.success) {
-    throw new SchemaValidationError(
-      'Invalid WorkOrder data',
-      result.errors!,
-      result.schemaVersion
-    );
+  if (result.success && result.data !== undefined) {
+    return result.data;
   }
-  return result.data!;
+  throw new SchemaValidationError(
+    'Invalid WorkOrder data',
+    result.errors ?? [],
+    result.schemaVersion
+  );
 }
 
 /**
@@ -252,14 +252,14 @@ export function assertWorkOrder(data: unknown): WorkOrder {
  */
 export function assertImplementationResult(data: unknown): ImplementationResult {
   const result = validateImplementationResult(data);
-  if (!result.success) {
-    throw new SchemaValidationError(
-      'Invalid ImplementationResult data',
-      result.errors!,
-      result.schemaVersion
-    );
+  if (result.success && result.data !== undefined) {
+    return result.data;
   }
-  return result.data!;
+  throw new SchemaValidationError(
+    'Invalid ImplementationResult data',
+    result.errors ?? [],
+    result.schemaVersion
+  );
 }
 
 /**
@@ -271,14 +271,14 @@ export function assertImplementationResult(data: unknown): ImplementationResult 
  */
 export function assertPRReviewResult(data: unknown): PRReviewResult {
   const result = validatePRReviewResult(data);
-  if (!result.success) {
-    throw new SchemaValidationError(
-      'Invalid PRReviewResult data',
-      result.errors!,
-      result.schemaVersion
-    );
+  if (result.success && result.data !== undefined) {
+    return result.data;
   }
-  return result.data!;
+  throw new SchemaValidationError(
+    'Invalid PRReviewResult data',
+    result.errors ?? [],
+    result.schemaVersion
+  );
 }
 
 /**
@@ -290,14 +290,14 @@ export function assertPRReviewResult(data: unknown): PRReviewResult {
  */
 export function assertControllerState(data: unknown): ControllerState {
   const result = validateControllerState(data);
-  if (!result.success) {
-    throw new SchemaValidationError(
-      'Invalid ControllerState data',
-      result.errors!,
-      result.schemaVersion
-    );
+  if (result.success && result.data !== undefined) {
+    return result.data;
   }
-  return result.data!;
+  throw new SchemaValidationError(
+    'Invalid ControllerState data',
+    result.errors ?? [],
+    result.schemaVersion
+  );
 }
 
 // ============================================================

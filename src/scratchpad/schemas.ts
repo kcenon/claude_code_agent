@@ -159,7 +159,7 @@ export const ClarificationSchema = z.object({
   category: z.enum(['requirement', 'constraint', 'assumption', 'priority']),
   question: z.string().min(1, 'Question is required'),
   answer: z.string().optional(),
-  timestamp: z.string().datetime().optional(),
+  timestamp: z.iso.datetime().optional(),
   required: z.boolean().optional().default(false),
 });
 export type Clarification = z.infer<typeof ClarificationSchema>;
@@ -171,7 +171,7 @@ export type Clarification = z.infer<typeof ClarificationSchema>;
 export const SourceReferenceSchema = z.object({
   type: z.enum(['file', 'url', 'conversation', 'document']),
   reference: z.string().min(1, 'Reference is required'),
-  extractedAt: z.string().datetime().optional(),
+  extractedAt: z.iso.datetime().optional(),
   summary: z.string().optional(),
 });
 export type SourceReference = z.infer<typeof SourceReferenceSchema>;
@@ -197,9 +197,9 @@ export const CollectedInfoSchema = z.object({
   dependencies: z.array(DependencySchema).optional().default([]),
   clarifications: z.array(ClarificationSchema).optional().default([]),
   sources: z.array(SourceReferenceSchema).optional().default([]),
-  createdAt: z.string().datetime(),
-  updatedAt: z.string().datetime(),
-  completedAt: z.string().datetime().optional(),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
+  completedAt: z.iso.datetime().optional(),
 });
 export type CollectedInfo = z.infer<typeof CollectedInfoSchema>;
 
@@ -244,8 +244,8 @@ export const WorkOrderSchema = z.object({
   schemaVersion: z.string().default(SCHEMA_VERSION),
   orderId: z.string().min(1, 'Order ID is required'),
   issueId: z.string().min(1, 'Issue ID is required'),
-  issueUrl: z.string().url('Must be a valid URL'),
-  createdAt: z.string().datetime(),
+  issueUrl: z.url('Must be a valid URL'),
+  createdAt: z.iso.datetime(),
   priority: z.number().int().min(0).max(3),
   context: WorkOrderContextSchema,
   acceptanceCriteria: z.array(z.string()).min(1, 'At least one acceptance criterion is required'),
@@ -288,7 +288,7 @@ export const ImplementationResultSchema = z.object({
   branchName: z.string().min(1, 'Branch name is required'),
   changes: z.array(FileChangeSchema).optional().default([]),
   testsAdded: z.array(TestInfoSchema).optional().default([]),
-  completedAt: z.string().datetime(),
+  completedAt: z.iso.datetime(),
   errorMessage: z.string().optional(),
   commitHash: z.string().optional(),
 });
@@ -328,14 +328,14 @@ export const PRReviewResultSchema = z.object({
   schemaVersion: z.string().default(SCHEMA_VERSION),
   reviewId: z.string().min(1, 'Review ID is required'),
   prNumber: z.number().int().min(1, 'PR number is required'),
-  prUrl: z.string().url('Must be a valid URL'),
+  prUrl: z.url('Must be a valid URL'),
   orderId: z.string().min(1, 'Order ID is required'),
   issueId: z.string().min(1, 'Issue ID is required'),
   decision: ReviewDecisionSchema,
   comments: z.array(ReviewCommentSchema).optional().default([]),
   qualityMetrics: QualityMetricsSchema.optional(),
-  reviewedAt: z.string().datetime(),
-  mergedAt: z.string().datetime().optional(),
+  reviewedAt: z.iso.datetime(),
+  mergedAt: z.iso.datetime().optional(),
   reviewerNotes: z.string().optional(),
 });
 export type PRReviewResult = z.infer<typeof PRReviewResultSchema>;
@@ -360,7 +360,7 @@ export const WorkerStatusSchema = z.object({
   id: z.string().min(1, 'Worker ID is required'),
   status: WorkerStatusValueSchema,
   currentIssue: z.string().nullable(),
-  startedAt: z.string().datetime().nullable(),
+  startedAt: z.iso.datetime().nullable(),
   completedTasks: z.number().int().min(0),
 });
 export type WorkerStatus = z.infer<typeof WorkerStatusSchema>;
@@ -374,8 +374,8 @@ export const ControllerStateSchema = z.object({
   sessionId: z.string().min(1, 'Session ID is required'),
   projectId: z.string().min(1, 'Project ID is required'),
   currentPhase: z.string().min(1, 'Current phase is required'),
-  startedAt: z.string().datetime(),
-  updatedAt: z.string().datetime(),
+  startedAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
   queue: IssueQueueSchema,
   workers: z.array(WorkerStatusSchema).optional().default([]),
   totalIssues: z.number().int().min(0),
