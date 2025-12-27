@@ -22,19 +22,34 @@ This project implements an automated software development pipeline using 8 speci
 ```
 claude_code_agent/
 ├── .claude/
-│   └── agents/           # Agent definitions
-│       ├── *.md          # English versions (used by Claude)
-│       └── *.kr.md       # Korean versions (for reference)
+│   └── agents/              # Agent definitions
+│       ├── *.md             # English versions (used by Claude)
+│       └── *.kr.md          # Korean versions (for reference)
 ├── .ad-sdlc/
-│   ├── templates/        # Document templates
-│   └── scratchpad/       # Runtime state and documents
-│       ├── info/         # Collected information
-│       ├── documents/    # Generated documents (PRD, SRS, SDS)
-│       ├── issues/       # Issue lists and dependency graphs
-│       └── progress/     # Work orders and results
+│   ├── config/              # Configuration files
+│   │   ├── agents.yaml      # Agent registry
+│   │   └── workflow.yaml    # Pipeline configuration
+│   ├── logs/                # Audit logs
+│   │   └── agent-logs/      # Per-agent logs
+│   ├── templates/           # Document templates
+│   │   ├── prd-template.md
+│   │   ├── srs-template.md
+│   │   ├── sds-template.md
+│   │   └── issue-template.md
+│   └── scratchpad/          # Inter-agent state (Scratchpad pattern)
+│       ├── info/            # Collected information
+│       ├── documents/       # Generated documents (PRD, SRS, SDS)
+│       ├── issues/          # Issue lists and dependency graphs
+│       └── progress/        # Work orders and results
 ├── docs/
-│   ├── reference/        # Reference documentation
-│   └── guides/           # User guides
+│   ├── prd/                 # Published PRD documents
+│   ├── srs/                 # Published SRS documents
+│   ├── sds/                 # Published SDS documents
+│   ├── reference/           # Reference documentation
+│   └── guides/              # User guides
+├── scripts/
+│   └── init-project.sh      # Project initialization script
+├── src/                     # Generated source code
 └── README.md
 ```
 
