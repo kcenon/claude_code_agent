@@ -118,8 +118,10 @@ describe('GapAnalyzer', () => {
               title: 'User Authentication',
               description: 'System must support user authentication',
               priority: 'P0',
+              status: 'Proposed',
               acceptanceCriteria: [],
               dependencies: [],
+              userStories: [],
             },
           ],
           nonFunctional: [],
@@ -145,9 +147,12 @@ describe('GapAnalyzer', () => {
               title: 'Test',
               description: 'Test requirement',
               priority: 'P0',
+              status: 'Proposed',
               acceptanceCriteria: [
                 { id: 'AC-001', description: 'Works', testable: true },
               ],
+              dependencies: [],
+              userStories: [],
             },
           ],
           nonFunctional: [
@@ -180,9 +185,12 @@ describe('GapAnalyzer', () => {
               title: 'Test',
               description: 'Test requirement',
               priority: 'P0',
+              status: 'Proposed',
               acceptanceCriteria: [
                 { id: 'AC-001', description: 'Works', testable: true },
               ],
+              dependencies: [],
+              userStories: [],
             },
           ],
           nonFunctional: [
@@ -215,27 +223,36 @@ describe('GapAnalyzer', () => {
               title: 'Authentication',
               description: 'User must be able to log in',
               priority: 'P0',
+              status: 'Proposed',
               acceptanceCriteria: [
                 { id: 'AC-001', description: 'Login works', testable: true },
               ],
+              dependencies: [],
+              userStories: [],
             },
             {
               id: 'FR-002',
               title: 'Profile',
               description: 'User must be able to view profile',
               priority: 'P1',
+              status: 'Proposed',
               acceptanceCriteria: [
                 { id: 'AC-002', description: 'Profile loads', testable: true },
               ],
+              dependencies: [],
+              userStories: [],
             },
             {
               id: 'FR-003',
               title: 'Settings',
               description: 'User must be able to change settings',
               priority: 'P2',
+              status: 'Proposed',
               acceptanceCriteria: [
                 { id: 'AC-003', description: 'Settings save', testable: true },
               ],
+              dependencies: [],
+              userStories: [],
             },
           ],
           nonFunctional: [

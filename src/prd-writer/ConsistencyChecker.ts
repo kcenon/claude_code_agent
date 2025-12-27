@@ -5,6 +5,8 @@
  * in the collected requirements.
  */
 
+/* eslint-disable @typescript-eslint/no-unnecessary-condition */
+
 import type { CollectedInfo } from '../scratchpad/index.js';
 import type {
   ConsistencyIssue,
@@ -150,10 +152,10 @@ export class ConsistencyChecker {
 
     if (p0Percentage > this.options.maxP0Percentage) {
       isBalanced = false;
-      recommendation = `Too many P0 requirements (${Math.round(p0Percentage)}%). Consider demoting some to P1.`;
+      recommendation = `Too many P0 requirements (${String(Math.round(p0Percentage))}%). Consider demoting some to P1.`;
     } else if (lowPriorityPercentage < this.options.minLowPriorityPercentage && total >= 3) {
       isBalanced = false;
-      recommendation = `Not enough P2/P3 requirements (${Math.round(lowPriorityPercentage)}%). Consider adding lower priority nice-to-haves.`;
+      recommendation = `Not enough P2/P3 requirements (${String(Math.round(lowPriorityPercentage))}%). Consider adding lower priority nice-to-haves.`;
     }
 
     const result: PriorityDistribution = {
@@ -199,7 +201,7 @@ export class ConsistencyChecker {
             this.createIssue(
               'duplicate_requirement',
               'major',
-              `Potential duplicate: ${req1.id} and ${req2.id} are ${Math.round(Math.max(titleSimilarity, descSimilarity) * 100)}% similar`,
+              `Potential duplicate: ${req1.id} and ${req2.id} are ${String(Math.round(Math.max(titleSimilarity, descSimilarity) * 100))}% similar`,
               [req1.id, req2.id],
               'Merge or differentiate these requirements'
             )

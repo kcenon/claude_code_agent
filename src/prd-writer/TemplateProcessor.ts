@@ -5,6 +5,8 @@
  * actual values from collected information.
  */
 
+/* eslint-disable @typescript-eslint/no-unnecessary-condition */
+
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { CollectedInfo } from '../scratchpad/index.js';
@@ -139,8 +141,8 @@ export class TemplateProcessor {
     lines.push(`| **Document ID** | ${metadata.documentId} |`);
     lines.push(`| **Version** | ${metadata.version} |`);
     lines.push(`| **Status** | ${metadata.status} |`);
-    lines.push(`| **Created** | ${metadata.createdAt.split('T')[0]} |`);
-    lines.push(`| **Last Updated** | ${metadata.updatedAt.split('T')[0]} |`);
+    lines.push(`| **Created** | ${metadata.createdAt.split('T')[0] ?? metadata.createdAt} |`);
+    lines.push(`| **Last Updated** | ${metadata.updatedAt.split('T')[0] ?? metadata.updatedAt} |`);
     lines.push('');
     lines.push('---');
     lines.push('');
@@ -310,7 +312,7 @@ export class TemplateProcessor {
     lines.push('| Version | Date | Author | Changes |');
     lines.push('|---------|------|--------|---------|');
     lines.push(
-      `| 1.0.0 | ${metadata.createdAt.split('T')[0]} | ${this.options.defaultAuthor} | Initial draft |`
+      `| 1.0.0 | ${metadata.createdAt.split('T')[0] ?? metadata.createdAt} | ${this.options.defaultAuthor} | Initial draft |`
     );
     lines.push('');
     lines.push('---');

@@ -5,6 +5,8 @@
  * incomplete PRD sections and suggests remediation actions.
  */
 
+/* eslint-disable @typescript-eslint/no-unnecessary-condition */
+
 import type { CollectedInfo } from '../scratchpad/index.js';
 import type {
   GapItem,
@@ -357,7 +359,7 @@ export class GapAnalyzer {
     section: PRDSection,
     description: string,
     suggestion: string,
-    relatedId?: string | undefined
+    relatedId?: string
   ): GapItem {
     this.gapIdCounter++;
     const gap: GapItem = {

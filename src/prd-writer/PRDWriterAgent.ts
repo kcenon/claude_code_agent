@@ -6,6 +6,8 @@
  * consistency checking, and template-based generation.
  */
 
+/* eslint-disable @typescript-eslint/no-unnecessary-condition */
+
 import { randomUUID } from 'node:crypto';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -244,7 +246,10 @@ export class PRDWriterAgent {
     let generatedPRD: GeneratedPRD;
     if (session.status !== 'completed' || session.generatedPRD === undefined) {
       generatedPRD = this.generate();
-      session = this.session!;
+      if (this.session === null) {
+        throw new SessionStateError('no session', 'active', 'finalize after generation');
+      }
+      session = this.session;
     } else {
       generatedPRD = session.generatedPRD;
     }
@@ -345,7 +350,10 @@ export class PRDWriterAgent {
     const processingTimeMs = Date.now() - startTime;
 
     // Calculate stats
-    const stats = this.calculateStats(this.session!, generatedPRD, processingTimeMs);
+    if (this.session === null) {
+      throw new SessionStateError('no session', 'active', 'calculate stats');
+    }
+    const stats = this.calculateStats(this.session, generatedPRD, processingTimeMs);
 
     return {
       success: true,
@@ -420,9 +428,9 @@ export class PRDWriterAgent {
       );
     }
 
-    // Allow any of the expected states
+    // Allow any of the expected states - currentStatus is narrowed after 'failed' check
     const currentStatus = this.session.status;
-    if (!expectedStates.includes(currentStatus as 'pending' | 'analyzing' | 'generating' | 'completed')) {
+    if (!expectedStates.includes(currentStatus)) {
       throw new SessionStateError(currentStatus, expectedStates.join(' or '), 'perform this action');
     }
 
