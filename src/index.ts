@@ -140,3 +140,37 @@ export type {
   PriorityAnalyzerConfig,
   Priority as ControllerPriority,
 } from './controller/index.js';
+
+// Re-export state-manager module
+export {
+  StateManager,
+  getStateManager,
+  resetStateManager,
+  StateManagerError,
+  InvalidTransitionError,
+  StateNotFoundError,
+  ProjectNotFoundError,
+  ProjectExistsError,
+  StateValidationError,
+  LockAcquisitionError,
+  HistoryError,
+  WatchError,
+} from './state-manager/index.js';
+
+export type {
+  ProjectState,
+  StateManagerOptions,
+  StateChangeEvent,
+  StateChangeCallback,
+  StateWatcher,
+  StateHistoryEntry,
+  StateHistory,
+  StateTransition,
+  TransitionResult,
+  ProjectStateSummary,
+  ValidationResult,
+  ValidationError as StateValidationErrorDetail,
+  UpdateOptions,
+  ReadStateOptions,
+  StateWithMetadata,
+} from './state-manager/index.js';
