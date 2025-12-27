@@ -244,9 +244,7 @@ export class DependenciesNotResolvedError extends ControllerError {
   public readonly unresolvedDependencies: readonly string[];
 
   constructor(issueId: string, unresolvedDependencies: readonly string[]) {
-    super(
-      `Issue ${issueId} has unresolved dependencies: ${unresolvedDependencies.join(', ')}`
-    );
+    super(`Issue ${issueId} has unresolved dependencies: ${unresolvedDependencies.join(', ')}`);
     this.name = 'DependenciesNotResolvedError';
     this.issueId = issueId;
     this.unresolvedDependencies = unresolvedDependencies;

@@ -215,7 +215,7 @@ export class WorkerPoolManager {
             issueId: depId,
             status: 'completed' as const,
           }))
-        : context.dependenciesStatus ?? [];
+        : (context.dependenciesStatus ?? []);
 
     // Build context with proper optional property handling
     const workOrderContext: WorkOrderContext = {
@@ -240,17 +240,14 @@ export class WorkerPoolManager {
       issueId: issueNode.id,
       createdAt: new Date().toISOString(),
       priority:
-        analyzed !== undefined
-          ? analyzed.priorityScore
-          : this.getPriorityValue(issueNode.priority),
+        analyzed !== undefined ? analyzed.priorityScore : this.getPriorityValue(issueNode.priority),
       context: workOrderContext,
       acceptanceCriteria: [] as readonly string[],
     };
 
     // Add optional issueUrl if present
-    const workOrder: WorkOrder = issueNode.url !== undefined
-      ? { ...baseWorkOrder, issueUrl: issueNode.url }
-      : baseWorkOrder;
+    const workOrder: WorkOrder =
+      issueNode.url !== undefined ? { ...baseWorkOrder, issueUrl: issueNode.url } : baseWorkOrder;
 
     this.workOrders.set(orderId, workOrder);
 
@@ -258,10 +255,7 @@ export class WorkerPoolManager {
       await this.persistWorkOrder(workOrder);
     } catch (error) {
       this.workOrders.delete(orderId);
-      throw new WorkOrderCreationError(
-        issueNode.id,
-        error instanceof Error ? error : undefined
-      );
+      throw new WorkOrderCreationError(issueNode.id, error instanceof Error ? error : undefined);
     }
 
     return workOrder;
@@ -353,10 +347,7 @@ export class WorkerPoolManager {
   /**
    * Mark a worker as completed
    */
-  public async completeWork(
-    workerId: string,
-    result: WorkOrderResult
-  ): Promise<void> {
+  public async completeWork(workerId: string, result: WorkOrderResult): Promise<void> {
     const worker = this.workers.get(workerId);
     if (worker === undefined) {
       throw new WorkerNotFoundError(workerId);
@@ -387,11 +378,7 @@ export class WorkerPoolManager {
   /**
    * Mark a worker as failed
    */
-  public async failWork(
-    workerId: string,
-    orderId: string,
-    error: Error
-  ): Promise<void> {
+  public async failWork(workerId: string, orderId: string, error: Error): Promise<void> {
     const worker = this.workers.get(workerId);
     if (worker === undefined) {
       throw new WorkerNotFoundError(workerId);
@@ -479,9 +466,7 @@ export class WorkerPoolManager {
    * Get the work queue entries
    */
   public getQueue(): readonly WorkQueueEntry[] {
-    return Array.from(this.workQueue.values()).sort(
-      (a, b) => b.priorityScore - a.priorityScore
-    );
+    return Array.from(this.workQueue.values()).sort((a, b) => b.priorityScore - a.priorityScore);
   }
 
   /**
@@ -560,10 +545,7 @@ export class WorkerPoolManager {
       }
       await writeFile(statePath, JSON.stringify(state, null, 2), 'utf-8');
     } catch (error) {
-      throw new ControllerStatePersistenceError(
-        'save',
-        error instanceof Error ? error : undefined
-      );
+      throw new ControllerStatePersistenceError('save', error instanceof Error ? error : undefined);
     }
   }
 
@@ -590,10 +572,7 @@ export class WorkerPoolManager {
 
       return state;
     } catch (error) {
-      throw new ControllerStatePersistenceError(
-        'load',
-        error instanceof Error ? error : undefined
-      );
+      throw new ControllerStatePersistenceError('load', error instanceof Error ? error : undefined);
     }
   }
 
