@@ -461,7 +461,11 @@ export class TestGenerator {
 
       const match = line.match(methodPattern);
       if (match !== null && match[3] !== undefined && match[3] !== 'constructor') {
-        const visibility = (match[1] as 'public' | 'private' | 'protected') ?? 'public';
+        const visibilityMatch = match[1];
+        const visibility: 'public' | 'private' | 'protected' =
+          visibilityMatch === 'public' || visibilityMatch === 'private' || visibilityMatch === 'protected'
+            ? visibilityMatch
+            : 'public';
         const isAsync = match[2] === 'async';
         const name = match[3];
         const params = this.parseParameters(match[4] ?? '');
