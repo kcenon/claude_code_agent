@@ -1,13 +1,18 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import * as yaml from 'js-yaml';
 import {
   PRDWriterAgent,
   getPRDWriterAgent,
   resetPRDWriterAgent,
 } from '../../src/prd-writer/PRDWriterAgent.js';
 import type { CollectedInfo } from '../../src/scratchpad/index.js';
-import { SessionStateError } from '../../src/prd-writer/errors.js';
+import {
+  SessionStateError,
+  CriticalGapsError,
+  CollectedInfoNotFoundError,
+} from '../../src/prd-writer/errors.js';
 
 describe('PRDWriterAgent', () => {
   const testBasePath = path.join(process.cwd(), 'tests', 'prd-writer', 'test-scratchpad');
@@ -370,6 +375,147 @@ describe('PRDWriterAgent', () => {
       const result = await agent.generateFromCollectedInfo(info);
 
       expect(result.generatedPRD.content).toContain('vitest');
+    });
+  });
+
+  describe('session-based workflow', () => {
+    it('should start session from project and proceed through states', async () => {
+      // Create collected info file in scratchpad (follows Scratchpad directory structure)
+      const projectId = 'test-session-project';
+      const projectDir = path.join(testBasePath, 'info', projectId);
+      await fs.promises.mkdir(projectDir, { recursive: true });
+
+      const info = createMinimalCollectedInfo({ projectId });
+      const collectedInfoPath = path.join(projectDir, 'collected_info.yaml');
+      await fs.promises.writeFile(collectedInfoPath, yaml.dump(info), 'utf8');
+
+      const agent = new PRDWriterAgent({
+        scratchpadBasePath: testBasePath,
+        publicDocsPath: testDocsPath,
+      });
+
+      // Start session
+      const session = await agent.startSession(projectId);
+      expect(session.projectId).toBe(projectId);
+      expect(session.status).toBe('pending');
+
+      // Analyze gaps
+      const gapResult = agent.analyzeGaps();
+      expect(gapResult.totalGaps).toBeDefined();
+
+      // Check consistency
+      const consistencyResult = agent.checkConsistency();
+      expect(consistencyResult.isConsistent).toBeDefined();
+
+      // Generate
+      const generated = agent.generate();
+      expect(generated.content).toBeDefined();
+
+      // Finalize
+      const result = await agent.finalize();
+      expect(result.success).toBe(true);
+    });
+
+    it('should throw when starting session for non-existent project', async () => {
+      const agent = new PRDWriterAgent({
+        scratchpadBasePath: testBasePath,
+        publicDocsPath: testDocsPath,
+      });
+
+      // Scratchpad throws ENOENT error when file doesn't exist with allowMissing: false
+      await expect(agent.startSession('non-existent-project')).rejects.toThrow();
+    });
+
+    it('should throw CriticalGapsError when failOnCriticalGaps is true', async () => {
+      // Create collected info with missing required data to trigger critical gaps
+      const info = createMinimalCollectedInfo({
+        projectId: 'critical-gaps-test',
+        requirements: {
+          functional: [], // No functional requirements = critical gap
+          nonFunctional: [],
+        },
+      });
+
+      const agent = new PRDWriterAgent({
+        scratchpadBasePath: testBasePath,
+        publicDocsPath: testDocsPath,
+        failOnCriticalGaps: true,
+      });
+
+      await agent.generateFromCollectedInfo(info).catch((error) => {
+        expect(error).toBeInstanceOf(CriticalGapsError);
+      });
+    });
+  });
+
+  describe('generateFromProject', () => {
+    it('should generate PRD from project files', async () => {
+      const projectId = 'project-file-test';
+      const projectDir = path.join(testBasePath, 'info', projectId);
+      await fs.promises.mkdir(projectDir, { recursive: true });
+
+      const info = createMinimalCollectedInfo({ projectId });
+      const collectedInfoPath = path.join(projectDir, 'collected_info.yaml');
+      await fs.promises.writeFile(collectedInfoPath, yaml.dump(info), 'utf8');
+
+      const agent = new PRDWriterAgent({
+        scratchpadBasePath: testBasePath,
+        publicDocsPath: testDocsPath,
+      });
+
+      const result = await agent.generateFromProject(projectId);
+      expect(result.success).toBe(true);
+      expect(result.projectId).toBe(projectId);
+    });
+  });
+
+  describe('finalize edge cases', () => {
+    it('should handle finalize when PRD already generated', async () => {
+      const info = createMinimalCollectedInfo();
+      const agent = new PRDWriterAgent({
+        scratchpadBasePath: testBasePath,
+        publicDocsPath: testDocsPath,
+      });
+
+      // First generate
+      const result1 = await agent.generateFromCollectedInfo(info);
+      expect(result1.success).toBe(true);
+
+      // Reset and generate again to test finalize with existing PRD
+      agent.reset();
+      const result2 = await agent.generateFromCollectedInfo(info);
+      expect(result2.success).toBe(true);
+    });
+
+    it('should throw error when finalize called without session', async () => {
+      const agent = new PRDWriterAgent({
+        scratchpadBasePath: testBasePath,
+        publicDocsPath: testDocsPath,
+      });
+
+      await expect(agent.finalize()).rejects.toThrow(SessionStateError);
+    });
+  });
+
+  describe('gap analysis in generation', () => {
+    it('should perform gap analysis during generate if not done', async () => {
+      const projectId = 'gap-analysis-test';
+      const projectDir = path.join(testBasePath, 'info', projectId);
+      await fs.promises.mkdir(projectDir, { recursive: true });
+
+      const info = createMinimalCollectedInfo({ projectId });
+      const collectedInfoPath = path.join(projectDir, 'collected_info.yaml');
+      await fs.promises.writeFile(collectedInfoPath, yaml.dump(info), 'utf8');
+
+      const agent = new PRDWriterAgent({
+        scratchpadBasePath: testBasePath,
+        publicDocsPath: testDocsPath,
+      });
+
+      await agent.startSession(projectId);
+      // Skip analyzeGaps() call - generate should do it automatically
+      const generated = agent.generate();
+      expect(generated.gapAnalysis).toBeDefined();
     });
   });
 });

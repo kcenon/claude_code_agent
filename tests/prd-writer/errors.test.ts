@@ -3,11 +3,13 @@ import {
   PRDWriterError,
   CollectedInfoNotFoundError,
   TemplateNotFoundError,
+  TemplateProcessingError,
   CriticalGapsError,
   ConsistencyError,
   GenerationError,
   FileWriteError,
   SessionStateError,
+  ValidationError,
 } from '../../src/prd-writer/errors.js';
 
 describe('PRDWriterError', () => {
@@ -39,6 +41,50 @@ describe('TemplateNotFoundError', () => {
   });
 });
 
+describe('TemplateProcessingError', () => {
+  it('should create error without missing variables', () => {
+    const error = new TemplateProcessingError('parsing', 'Invalid syntax');
+    expect(error.message).toContain('parsing');
+    expect(error.message).toContain('Invalid syntax');
+    expect(error.name).toBe('TemplateProcessingError');
+    expect(error.phase).toBe('parsing');
+    expect(error.missingVariables).toBeUndefined();
+  });
+
+  it('should create error with missing variables', () => {
+    const missingVars = ['project_name', 'description'];
+    const error = new TemplateProcessingError('substitution', 'Variables not found', missingVars);
+    expect(error.message).toContain('substitution');
+    expect(error.message).toContain('project_name');
+    expect(error.message).toContain('description');
+    expect(error.name).toBe('TemplateProcessingError');
+    expect(error.phase).toBe('substitution');
+    expect(error.missingVariables).toEqual(missingVars);
+  });
+
+  it('should handle empty missing variables array', () => {
+    const error = new TemplateProcessingError('processing', 'Error', []);
+    expect(error.phase).toBe('processing');
+    expect(error.missingVariables).toEqual([]);
+  });
+});
+
+describe('ValidationError', () => {
+  it('should create error with validation errors', () => {
+    const errors = ['Missing project name', 'Invalid ID format'];
+    const error = new ValidationError(errors);
+    expect(error.message).toContain('Missing project name');
+    expect(error.message).toContain('Invalid ID format');
+    expect(error.name).toBe('ValidationError');
+    expect(error.errors).toEqual(errors);
+  });
+
+  it('should handle single validation error', () => {
+    const error = new ValidationError(['Schema validation failed']);
+    expect(error.errors.length).toBe(1);
+  });
+});
+
 describe('CriticalGapsError', () => {
   it('should create error with gap count and descriptions', () => {
     const gaps = ['Missing FR', 'Missing description'];
@@ -54,6 +100,15 @@ describe('CriticalGapsError', () => {
     expect(error.criticalGapCount).toBe(0);
     expect(error.gapDescriptions).toEqual([]);
   });
+
+  it('should truncate descriptions when more than 3', () => {
+    const gaps = ['Gap 1', 'Gap 2', 'Gap 3', 'Gap 4', 'Gap 5'];
+    const error = new CriticalGapsError(5, gaps);
+    expect(error.message).toContain('5');
+    expect(error.message).toContain('...');
+    expect(error.criticalGapCount).toBe(5);
+    expect(error.gapDescriptions).toEqual(gaps);
+  });
 });
 
 describe('ConsistencyError', () => {
@@ -64,6 +119,14 @@ describe('ConsistencyError', () => {
     expect(error.name).toBe('ConsistencyError');
     expect(error.issueCount).toBe(2);
     expect(error.issueDescriptions).toEqual(issues);
+  });
+
+  it('should truncate descriptions when more than 3', () => {
+    const issues = ['Issue 1', 'Issue 2', 'Issue 3', 'Issue 4'];
+    const error = new ConsistencyError(4, issues);
+    expect(error.message).toContain('4');
+    expect(error.message).toContain('...');
+    expect(error.issueCount).toBe(4);
   });
 });
 
