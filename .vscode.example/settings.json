@@ -1,0 +1,9 @@
+{
+  "yaml.schemas": {
+    "./schemas/workflow.schema.json": ".ad-sdlc/config/workflow.yaml",
+    "./schemas/agents.schema.json": ".ad-sdlc/config/agents.yaml"
+  },
+  "yaml.validate": true,
+  "yaml.completion": true,
+  "yaml.hover": true
+}

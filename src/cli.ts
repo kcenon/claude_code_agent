@@ -15,6 +15,15 @@ import {
   getPrerequisiteValidator,
 } from './init/index.js';
 import type { InitOptions, TechStack, TemplateType } from './init/types.js';
+import {
+  validateAllConfigs,
+  validateConfigFile,
+  watchConfigWithLogging,
+  configFilesExist,
+  CONFIG_SCHEMA_VERSION,
+  type ValidationReport,
+  type FileValidationResult,
+} from './config/index.js';
 
 const program = new Command();
 
@@ -165,25 +174,193 @@ program
   });
 
 /**
+ * Format validation result for CLI output
+ */
+function formatFileResult(result: FileValidationResult): void {
+  const statusIcon = result.valid ? chalk.green('✓') : chalk.red('✗');
+  console.log(`${statusIcon} ${result.filePath}`);
+
+  if (!result.valid && result.errors.length > 0) {
+    for (const error of result.errors) {
+      console.log(chalk.red(`    ❌ ${error.path}: ${error.message}`));
+      if (error.suggestion !== undefined && error.suggestion !== '') {
+        console.log(chalk.yellow(`       Suggestion: ${error.suggestion}`));
+      }
+    }
+  }
+}
+
+/**
+ * Format validation report as JSON
+ */
+function formatReportAsJson(report: ValidationReport): void {
+  console.log(JSON.stringify(report, null, 2));
+}
+
+/**
  * Validate command - Validate configuration files
  */
 program
   .command('validate')
   .description('Validate AD-SDLC configuration files')
   .option('-f, --file <path>', 'Validate a specific file')
-  .action((cmdOptions: Record<string, unknown>) => {
-    console.log(chalk.blue('\n🔍 Validating configuration...\n'));
-
+  .option('-w, --watch', 'Watch for file changes')
+  .option('--format <format>', 'Output format (text, json)', 'text')
+  .action(async (cmdOptions: Record<string, unknown>) => {
     const filePath = typeof cmdOptions['file'] === 'string' ? cmdOptions['file'] : null;
-    if (filePath !== null && filePath.length > 0) {
-      console.log(chalk.dim(`Validating: ${filePath}`));
-    } else {
-      console.log(chalk.dim('Validating all configuration files...'));
+    const watchMode = cmdOptions['watch'] === true;
+    const format = typeof cmdOptions['format'] === 'string' ? cmdOptions['format'] : 'text';
+    const isJson = format === 'json';
+
+    if (!isJson) {
+      console.log(chalk.blue('\n🔍 Validating configuration...\n'));
+      console.log(chalk.dim(`Schema version: ${CONFIG_SCHEMA_VERSION}\n`));
     }
 
-    // TODO: Implement configuration validation (Issue #68)
-    console.log(chalk.yellow('\n⚠️  Configuration validation not yet implemented.\n'));
-    console.log(chalk.dim('This feature will be available after Issue #68 is completed.\n'));
+    try {
+      // Check if config files exist
+      const exists = configFilesExist();
+      if (!exists.workflow && !exists.agents) {
+        if (isJson) {
+          console.log(
+            JSON.stringify({
+              valid: false,
+              error: 'No configuration files found. Run "ad-sdlc init" first.',
+              files: [],
+              totalErrors: 1,
+              timestamp: new Date().toISOString(),
+            })
+          );
+        } else {
+          console.log(chalk.yellow('⚠️  No configuration files found.'));
+          console.log(chalk.dim('Run "ad-sdlc init" to create a new project.\n'));
+        }
+        process.exit(1);
+      }
+
+      // Validate specific file or all files
+      if (filePath !== null && filePath.length > 0) {
+        const result = await validateConfigFile(filePath);
+
+        if (isJson) {
+          console.log(
+            JSON.stringify(
+              {
+                valid: result.valid,
+                files: [result],
+                totalErrors: result.errors.length,
+                timestamp: new Date().toISOString(),
+              },
+              null,
+              2
+            )
+          );
+        } else {
+          formatFileResult(result);
+          console.log('');
+        }
+
+        if (!result.valid) {
+          process.exit(1);
+        }
+      } else {
+        const report = await validateAllConfigs();
+
+        if (isJson) {
+          formatReportAsJson(report);
+        } else {
+          for (const result of report.files) {
+            formatFileResult(result);
+          }
+
+          console.log('');
+          if (report.valid) {
+            console.log(chalk.green('✅ All configuration files are valid.\n'));
+          } else {
+            console.log(
+              chalk.red(
+                `❌ Found ${String(report.totalErrors)} error(s). Fix these issues and try again.\n`
+              )
+            );
+          }
+        }
+
+        if (!report.valid && !watchMode) {
+          process.exit(1);
+        }
+      }
+
+      // Watch mode
+      if (watchMode) {
+        if (!isJson) {
+          console.log(chalk.blue('👀 Watching for changes... (Press Ctrl+C to stop)\n'));
+        }
+
+        const cleanup = watchConfigWithLogging(
+          undefined,
+          (changedPath) => {
+            if (isJson) {
+              console.log(
+                JSON.stringify({
+                  event: 'valid',
+                  filePath: changedPath,
+                  timestamp: new Date().toISOString(),
+                })
+              );
+            } else {
+              console.log(chalk.green(`✓ ${changedPath} - Valid`));
+            }
+          },
+          (changedPath, errors) => {
+            if (isJson) {
+              console.log(
+                JSON.stringify({
+                  event: 'invalid',
+                  filePath: changedPath,
+                  errors,
+                  timestamp: new Date().toISOString(),
+                })
+              );
+            } else {
+              console.log(chalk.red(`✗ ${changedPath} - Invalid`));
+              for (const error of errors) {
+                console.log(chalk.red(`    ❌ ${error.path}: ${error.message}`));
+              }
+            }
+          }
+        );
+
+        // Handle Ctrl+C
+        process.on('SIGINT', () => {
+          cleanup();
+          if (!isJson) {
+            console.log(chalk.dim('\n\nStopped watching.\n'));
+          }
+          process.exit(0);
+        });
+
+        // Keep the process running
+        await new Promise(() => {});
+      }
+    } catch (error) {
+      if (isJson) {
+        console.log(
+          JSON.stringify({
+            valid: false,
+            error: error instanceof Error ? error.message : String(error),
+            files: [],
+            totalErrors: 1,
+            timestamp: new Date().toISOString(),
+          })
+        );
+      } else {
+        console.error(
+          chalk.red('\n❌ Error:'),
+          error instanceof Error ? error.message : String(error)
+        );
+      }
+      process.exit(1);
+    }
   });
 
 /**

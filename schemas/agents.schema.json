@@ -1,0 +1,239 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/kcenon/claude_code_agent/schemas/agents.schema.json",
+  "title": "AD-SDLC Agents Configuration",
+  "description": "Schema for agents.yaml configuration file",
+  "type": "object",
+  "required": ["version", "agents"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Configuration schema version (semver format)"
+    },
+    "agents": {
+      "type": "object",
+      "description": "Agent definitions",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["id", "name"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Unique agent identifier"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Human-readable agent name"
+          },
+          "korean_name": {
+            "type": "string",
+            "description": "Korean name for the agent"
+          },
+          "description": {
+            "type": "string",
+            "description": "Agent description"
+          },
+          "definition_file": {
+            "type": "string",
+            "description": "Path to agent definition markdown file"
+          },
+          "category": {
+            "type": "string",
+            "enum": ["document_pipeline", "issue_management", "execution"],
+            "description": "Agent category"
+          },
+          "order": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Execution order within category"
+          },
+          "capabilities": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "List of agent capabilities"
+          },
+          "io": {
+            "type": "object",
+            "description": "Input/output configuration",
+            "properties": {
+              "inputs": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Input file patterns or types"
+              },
+              "outputs": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Output file patterns or types"
+              }
+            }
+          },
+          "parallelizable": {
+            "type": "boolean",
+            "description": "Whether agent can run in parallel instances"
+          },
+          "max_instances": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10,
+            "description": "Maximum parallel instances"
+          },
+          "metrics": {
+            "type": "object",
+            "description": "Agent performance metrics",
+            "properties": {
+              "avg_duration_seconds": {
+                "type": "number",
+                "minimum": 0,
+                "description": "Average execution duration in seconds"
+              },
+              "success_rate": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1,
+                "description": "Success rate (0-1)"
+              },
+              "retry_rate": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1,
+                "description": "Retry rate (0-1)"
+              },
+              "approval_rate": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1,
+                "description": "Approval rate (0-1)"
+              },
+              "avg_issues_per_project": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Average issues generated per project"
+              }
+            }
+          }
+        }
+      }
+    },
+    "categories": {
+      "type": "object",
+      "description": "Agent category definitions",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["name", "agents"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Category name"
+          },
+          "description": {
+            "type": "string",
+            "description": "Category description"
+          },
+          "agents": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "List of agent IDs in this category"
+          },
+          "execution_mode": {
+            "type": "string",
+            "enum": ["sequential", "parallel"],
+            "default": "sequential",
+            "description": "How agents in this category execute"
+          }
+        }
+      }
+    },
+    "relationships": {
+      "type": "object",
+      "description": "Agent relationships and dependencies",
+      "properties": {
+        "dependencies": {
+          "type": "object",
+          "description": "Agent dependency definitions",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "requires": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Required agents that must complete first"
+              }
+            }
+          }
+        },
+        "data_flow": {
+          "type": "array",
+          "description": "Data flow between agents",
+          "items": {
+            "type": "object",
+            "required": ["from", "to", "data"],
+            "properties": {
+              "from": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Source agent ID"
+              },
+              "to": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Target agent ID"
+              },
+              "data": {
+                "oneOf": [
+                  { "type": "string" },
+                  { "type": "array", "items": { "type": "string" } }
+                ],
+                "description": "Data files passed between agents"
+              }
+            }
+          }
+        }
+      }
+    },
+    "models": {
+      "type": "object",
+      "description": "Claude model configurations",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["id"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Model identifier"
+          },
+          "context_window": {
+            "type": "integer",
+            "minimum": 1000,
+            "description": "Maximum context window size"
+          },
+          "max_output": {
+            "type": "integer",
+            "minimum": 100,
+            "description": "Maximum output tokens"
+          },
+          "cost_per_1k_input": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Cost per 1000 input tokens (USD)"
+          },
+          "cost_per_1k_output": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Cost per 1000 output tokens (USD)"
+          },
+          "best_for": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Use cases this model is best suited for"
+          }
+        }
+      }
+    }
+  }
+}
