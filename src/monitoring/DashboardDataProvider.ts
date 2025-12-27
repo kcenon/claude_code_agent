@@ -312,7 +312,10 @@ export class DashboardDataProvider {
     if (panel === null) {
       this.updateSystemHealthPanel();
       const updatedPanel = this.getPanel('system_health');
-      return (updatedPanel?.data as { score: number })?.score ?? 100;
+      if (updatedPanel === null) {
+        return 100;
+      }
+      return (updatedPanel.data as { score: number }).score;
     }
     return (panel.data as { score: number }).score;
   }

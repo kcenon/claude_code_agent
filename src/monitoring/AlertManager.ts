@@ -318,7 +318,8 @@ export class AlertManager {
    * Log alert to console
    */
   private logToConsole(event: AlertEvent): void {
-    const icon = event.resolved
+    const isResolved = event.resolved === true;
+    const icon = isResolved
       ? '\u2713'
       : event.severity === 'critical'
         ? '\u26A0'
@@ -326,12 +327,12 @@ export class AlertManager {
           ? '\u26A0'
           : '\u2139';
 
-    const severityLabel = event.resolved ? 'RESOLVED' : event.severity.toUpperCase();
+    const severityLabel = isResolved ? 'RESOLVED' : event.severity.toUpperCase();
     const message = `[ALERT] ${icon} [${severityLabel}] ${event.name}: ${event.message}`;
 
-    if (event.severity === 'critical' && !event.resolved) {
+    if (event.severity === 'critical' && !isResolved) {
       console.error(message);
-    } else if (event.severity === 'warning' && !event.resolved) {
+    } else if (event.severity === 'warning' && !isResolved) {
       console.warn(message);
     } else {
       console.log(message);
@@ -364,7 +365,7 @@ export class AlertManager {
    */
   public getAlertsBySeverity(severity: AlertSeverity, limit = 50): AlertEvent[] {
     return this.history
-      .filter((e) => e.severity === severity && !e.resolved)
+      .filter((e) => e.severity === severity && e.resolved !== true)
       .reverse()
       .slice(0, limit);
   }
@@ -376,7 +377,7 @@ export class AlertManager {
     const active: Map<string, AlertEvent> = new Map();
 
     for (const event of this.history) {
-      if (event.resolved) {
+      if (event.resolved === true) {
         active.delete(event.name);
       } else {
         active.set(event.name, event);

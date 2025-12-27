@@ -224,7 +224,7 @@ export class MetricsCollector {
    */
   public incrementCounter(name: string, value: number, labels?: Record<string, string>): void {
     const key = this.getLabelsKey(labels);
-    const counterMap = this.counters.get(name) ?? new Map();
+    const counterMap = this.counters.get(name) ?? new Map<string, number>();
     const current = counterMap.get(key) ?? 0;
     counterMap.set(key, current + value);
     this.counters.set(name, counterMap);
@@ -235,7 +235,7 @@ export class MetricsCollector {
    */
   public setGauge(name: string, value: number, labels?: Record<string, string>): void {
     const key = this.getLabelsKey(labels);
-    const gaugeMap = this.gauges.get(name) ?? new Map();
+    const gaugeMap = this.gauges.get(name) ?? new Map<string, number>();
     gaugeMap.set(key, value);
     this.gauges.set(name, gaugeMap);
   }
@@ -250,8 +250,8 @@ export class MetricsCollector {
     buckets: number[] = DEFAULT_DURATION_BUCKETS
   ): void {
     const key = this.getLabelsKey(labels);
-    const histogramMap = this.histograms.get(name) ?? new Map();
-    const data = histogramMap.get(key) ?? { buckets, values: [] };
+    const histogramMap = this.histograms.get(name) ?? new Map<string, { buckets: number[]; values: number[] }>();
+    const data = histogramMap.get(key) ?? { buckets, values: [] as number[] };
     data.values.push(value);
     histogramMap.set(key, data);
     this.histograms.set(name, histogramMap);
