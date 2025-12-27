@@ -166,12 +166,14 @@ export class InputValidator {
   public sanitizeUserInput(input: string): string {
     // Check length first
     if (input.length > this.maxInputLength) {
-      throw new ValidationError('input', `exceeds maximum length of ${this.maxInputLength}`);
+      throw new ValidationError('input', `exceeds maximum length of ${String(this.maxInputLength)}`);
     }
 
     // Remove control characters (except newline, carriage return, tab)
+    // Intentionally matching control characters for security sanitization
     // eslint-disable-next-line no-control-regex
-    return input.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+    const controlCharRegex = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g;
+    return input.replace(controlCharRegex, '');
   }
 
   /**
@@ -229,7 +231,12 @@ export class InputValidator {
       if (pathMatch === null) {
         throw new ValidationError('repository', 'invalid GitHub repository path');
       }
-      return `${pathMatch[1]}/${pathMatch[2]}`;
+      const owner = pathMatch[1];
+      const repo = pathMatch[2];
+      if (owner === undefined || repo === undefined) {
+        throw new ValidationError('repository', 'invalid GitHub repository path');
+      }
+      return `${owner}/${repo}`;
     } catch (error) {
       if (error instanceof ValidationError) {
         throw error;
@@ -272,13 +279,15 @@ export class InputValidator {
     }
 
     // Cannot contain certain characters
+    // Intentionally matching control characters for git branch validation
+    // eslint-disable-next-line no-control-regex
+    const controlCharRegex = /[\u0000-\u001F\u007F]/;
     const invalidPatterns = [
-      /\.\./,          // consecutive dots
-      /\/\//,          // consecutive slashes
-      /@\{/,           // @{
-      /[\x00-\x1F]/,   // control characters
-      /[\x7F]/,        // DEL
-      /[ ~^:?*\[\\]/,  // space and special chars
+      /\.\./,                 // consecutive dots
+      /\/\//,                 // consecutive slashes
+      /@\{/,                  // @{
+      controlCharRegex,       // control characters including DEL
+      /[ ~^:?*[\]\\]/,        // space and special chars ([ and ] in char class)
     ];
 
     return !invalidPatterns.some((pattern) => pattern.test(branchName));

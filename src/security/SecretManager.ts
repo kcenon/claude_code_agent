@@ -41,7 +41,7 @@ export class SecretManager {
   /**
    * Initialize the secret manager by loading secrets from environment
    */
-  public async load(): Promise<void> {
+  public load(): void {
     if (this.initialized) {
       return;
     }

@@ -83,7 +83,7 @@ export class RateLimitExceededError extends SecurityError {
   public readonly retryAfterMs: number;
 
   constructor(retryAfterMs: number) {
-    super(`Rate limit exceeded. Retry after ${retryAfterMs}ms`, 'RATE_LIMIT_EXCEEDED');
+    super(`Rate limit exceeded. Retry after ${String(retryAfterMs)}ms`, 'RATE_LIMIT_EXCEEDED');
     this.name = 'RateLimitExceededError';
     this.retryAfterMs = retryAfterMs;
     Object.setPrototypeOf(this, RateLimitExceededError.prototype);

@@ -193,7 +193,7 @@ export class AuditLogger {
     this.log({
       type: 'github_issue_created',
       actor,
-      resource: `${repo}#${issueNumber}`,
+      resource: `${repo}#${String(issueNumber)}`,
       action: 'create',
       result: 'success',
     });
@@ -206,7 +206,7 @@ export class AuditLogger {
     this.log({
       type: 'github_pr_created',
       actor,
-      resource: `${repo}#${prNumber}`,
+      resource: `${repo}#${String(prNumber)}`,
       action: 'create',
       result: 'success',
     });
@@ -219,7 +219,7 @@ export class AuditLogger {
     this.log({
       type: 'github_pr_merged',
       actor,
-      resource: `${repo}#${prNumber}`,
+      resource: `${repo}#${String(prNumber)}`,
       action: 'merge',
       result: 'success',
     });
