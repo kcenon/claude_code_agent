@@ -307,7 +307,9 @@ export class PRDWriterAgent {
    * @param collectedInfo - The collected information
    * @returns PRD generation result
    */
-  public async generateFromCollectedInfo(collectedInfo: CollectedInfo): Promise<PRDGenerationResult> {
+  public async generateFromCollectedInfo(
+    collectedInfo: CollectedInfo
+  ): Promise<PRDGenerationResult> {
     const startTime = Date.now();
     const now = new Date().toISOString();
 
@@ -417,7 +419,11 @@ export class PRDWriterAgent {
     expectedStates: readonly ('pending' | 'analyzing' | 'generating' | 'completed')[]
   ): PRDGenerationSession {
     if (this.session === null) {
-      throw new SessionStateError('no session', expectedStates[0] ?? 'active', 'perform this action');
+      throw new SessionStateError(
+        'no session',
+        expectedStates[0] ?? 'active',
+        'perform this action'
+      );
     }
 
     if (this.session.status === 'failed') {
@@ -431,7 +437,11 @@ export class PRDWriterAgent {
     // Allow any of the expected states - currentStatus is narrowed after 'failed' check
     const currentStatus = this.session.status;
     if (!expectedStates.includes(currentStatus)) {
-      throw new SessionStateError(currentStatus, expectedStates.join(' or '), 'perform this action');
+      throw new SessionStateError(
+        currentStatus,
+        expectedStates.join(' or '),
+        'perform this action'
+      );
     }
 
     return this.session;

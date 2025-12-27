@@ -176,7 +176,9 @@ export class TemplateProcessor {
     lines.push('');
     lines.push('### 2.3 Target State');
     lines.push('');
-    lines.push('*The system will address the identified pain points through the requirements outlined below.*');
+    lines.push(
+      '*The system will address the identified pain points through the requirements outlined below.*'
+    );
     lines.push('');
     lines.push('---');
     lines.push('');
@@ -347,10 +349,7 @@ export class TemplateProcessor {
   /**
    * Generate functional requirements section
    */
-  private generateFunctionalRequirementsSection(
-    content: string,
-    info: CollectedInfo
-  ): string {
+  private generateFunctionalRequirementsSection(content: string, info: CollectedInfo): string {
     const marker = '<!-- Repeat FR-XXX section for each functional requirement -->';
     const frLines = this.generateFunctionalRequirements(info);
     return content.replace(marker, frLines.join('\n'));
@@ -359,10 +358,7 @@ export class TemplateProcessor {
   /**
    * Generate non-functional requirements section
    */
-  private generateNonFunctionalRequirementsSection(
-    content: string,
-    info: CollectedInfo
-  ): string {
+  private generateNonFunctionalRequirementsSection(content: string, info: CollectedInfo): string {
     const nfrLines = this.generateNonFunctionalRequirements(info);
     // Replace the NFR template section
     const nfrPattern = /### NFR-001:[\s\S]*?(?=---\n\n## 7|$)/;
@@ -691,7 +687,9 @@ export class TemplateProcessor {
         }
       }
     } else {
-      lines.push('| R-001 | Requirements may change | Medium | Medium | Regular stakeholder reviews |');
+      lines.push(
+        '| R-001 | Requirements may change | Medium | Medium | Regular stakeholder reviews |'
+      );
       lines.push('| R-002 | Technical constraints discovered | Low | High | Prototype early |');
     }
 
@@ -710,7 +708,9 @@ export class TemplateProcessor {
         if (source.type === 'url') {
           lines.push(`- [${source.summary ?? source.reference}](${source.reference})`);
         } else {
-          lines.push(`- ${source.reference}${source.summary !== undefined ? `: ${source.summary}` : ''}`);
+          lines.push(
+            `- ${source.reference}${source.summary !== undefined ? `: ${source.summary}` : ''}`
+          );
         }
       }
     } else {

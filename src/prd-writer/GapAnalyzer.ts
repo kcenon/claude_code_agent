@@ -8,13 +8,7 @@
 /* eslint-disable @typescript-eslint/no-unnecessary-condition */
 
 import type { CollectedInfo } from '../scratchpad/index.js';
-import type {
-  GapItem,
-  GapAnalysisResult,
-  GapCategory,
-  GapSeverity,
-  PRDSection,
-} from './types.js';
+import type { GapItem, GapAnalysisResult, GapCategory, GapSeverity, PRDSection } from './types.js';
 
 /**
  * Configuration for gap analysis
@@ -226,7 +220,10 @@ export class GapAnalyzer {
     // Check each NFR for metrics
     if (this.options.requireNFRMetrics) {
       for (const nfr of nfrs) {
-        if ((nfr.metric === undefined || nfr.metric === '') && (nfr.target === undefined || nfr.target === '')) {
+        if (
+          (nfr.metric === undefined || nfr.metric === '') &&
+          (nfr.target === undefined || nfr.target === '')
+        ) {
           gaps.push(
             this.createGap(
               'missing_metric',

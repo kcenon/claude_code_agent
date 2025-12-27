@@ -55,7 +55,7 @@ export class TemplateProcessingError extends PRDWriterError {
   /** Missing variables if any */
   public readonly missingVariables: readonly string[] | undefined;
 
-  constructor(phase: string, reason: string, missingVariables?: readonly string[]  ) {
+  constructor(phase: string, reason: string, missingVariables?: readonly string[]) {
     const varInfo =
       missingVariables !== undefined && missingVariables.length > 0
         ? ` Missing variables: ${missingVariables.join(', ')}`

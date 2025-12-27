@@ -114,8 +114,8 @@ export class ConsistencyChecker {
     }
 
     return {
-      isConsistent: issues.filter((i) => i.severity === 'critical' || i.severity === 'major')
-        .length === 0,
+      isConsistent:
+        issues.filter((i) => i.severity === 'critical' || i.severity === 'major').length === 0,
       issues,
       priorityDistribution,
       dependencyAnalysis,
@@ -439,12 +439,8 @@ export class ConsistencyChecker {
       'may',
     ]);
 
-    const words1 = new Set(
-      text1.split(/\s+/).filter((w) => w.length > 2 && !trivialWords.has(w))
-    );
-    const words2 = new Set(
-      text2.split(/\s+/).filter((w) => w.length > 2 && !trivialWords.has(w))
-    );
+    const words1 = new Set(text1.split(/\s+/).filter((w) => w.length > 2 && !trivialWords.has(w)));
+    const words2 = new Set(text2.split(/\s+/).filter((w) => w.length > 2 && !trivialWords.has(w)));
 
     return [...words1].filter((w) => words2.has(w));
   }
