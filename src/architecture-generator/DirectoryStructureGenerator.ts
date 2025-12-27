@@ -512,10 +512,6 @@ const PATTERN_TEMPLATES: Record<ArchitecturePattern, DirectoryTemplate> = {
  * Generates directory structure based on architecture pattern
  */
 export class DirectoryStructureGenerator {
-  constructor(_customTemplate?: string) {
-    // Reserved for future custom template support
-  }
-
   /**
    * Generate directory structure
    */
@@ -540,11 +536,7 @@ export class DirectoryStructureGenerator {
    * Get template for pattern
    */
   private getTemplate(pattern: ArchitecturePattern): DirectoryTemplate {
-    const template = PATTERN_TEMPLATES[pattern];
-    if (!template) {
-      return PATTERN_TEMPLATES['layered'];
-    }
-    return template;
+    return PATTERN_TEMPLATES[pattern];
   }
 
   /**

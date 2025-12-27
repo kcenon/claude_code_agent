@@ -84,7 +84,7 @@ export class DiagramGenerator {
       type: 'architecture-overview',
       title: 'System Architecture Overview',
       code: this.wrapInCodeBlock(code),
-      description: `High-level architecture diagram showing ${analysis.primaryPattern} pattern with ${components.length} components.`,
+      description: `High-level architecture diagram showing ${analysis.primaryPattern} pattern with ${String(components.length)} components.`,
     };
   }
 
@@ -120,7 +120,7 @@ export class DiagramGenerator {
       type: 'component-interaction',
       title: 'Component Interaction Diagram',
       code: this.wrapInCodeBlock(code),
-      description: `Shows interactions between ${components.length} components and their communication patterns.`,
+      description: `Shows interactions between ${String(components.length)} components and their communication patterns.`,
     };
   }
 
@@ -459,7 +459,7 @@ export class DiagramGenerator {
       ],
     };
 
-    return patterns[pattern] ?? patterns['layered'];
+    return patterns[pattern];
   }
 
   /**
@@ -577,7 +577,7 @@ export class DiagramGenerator {
       external: { open: '[[', close: ']]' },
     };
 
-    return shapes[type] ?? shapes.service;
+    return shapes[type];
   }
 
   /**
@@ -712,7 +712,7 @@ export class DiagramGenerator {
     ];
 
     const processors: { id: string; name: string }[] = srs.features.slice(0, 3).map((f, i) => ({
-      id: `PROC${i + 1}`,
+      id: `PROC${String(i + 1)}`,
       name: this.truncateName(f.name, 15),
     }));
 
@@ -727,8 +727,8 @@ export class DiagramGenerator {
 
     for (let i = 0; i < processors.length - 1; i++) {
       flows.push({
-        from: processors[i]?.id ?? `PROC${i + 1}`,
-        to: processors[i + 1]?.id ?? `PROC${i + 2}`,
+        from: processors[i]?.id ?? `PROC${String(i + 1)}`,
+        to: processors[i + 1]?.id ?? `PROC${String(i + 2)}`,
         label: 'process',
       });
     }

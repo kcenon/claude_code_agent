@@ -171,7 +171,7 @@ export class SRSParser {
    */
   private extractDocumentId(content: string): string | undefined {
     const match = content.match(/SRS-(\w+)/);
-    return match ? `SRS-${match[1]}` : undefined;
+    return match !== null && match[1] !== undefined ? `SRS-${match[1]}` : undefined;
   }
 
   /**
@@ -189,7 +189,7 @@ export class SRSParser {
     const features: SRSFeature[] = [];
     const featureSection = this.extractSection(content, '## System Features', '## ');
 
-    if (!featureSection) {
+    if (featureSection === undefined) {
       if (this.options.strict) {
         errors.push('System Features section not found');
       }
@@ -217,7 +217,7 @@ export class SRSParser {
       return null;
     }
 
-    const id = `SF-${headerMatch[1]}`;
+    const id = `SF-${headerMatch[1] ?? '000'}`;
     const name = headerMatch[2]?.trim() ?? '';
     const description = this.extractDescription(block);
     const priority = this.extractPriority(block);
@@ -260,7 +260,7 @@ export class SRSParser {
       return null;
     }
 
-    const id = `UC-${headerMatch[1]}`;
+    const id = `UC-${headerMatch[1] ?? '000'}`;
     const name = headerMatch[2]?.trim() ?? '';
     const description = this.extractDescription(block);
     const actor = this.extractField(block, 'Actor') ?? 'User';
@@ -288,7 +288,7 @@ export class SRSParser {
     const nfrs: NonFunctionalRequirement[] = [];
     const nfrSection = this.extractSection(content, '## Non-Functional Requirements', '## ');
 
-    if (!nfrSection) {
+    if (nfrSection === undefined) {
       return nfrs;
     }
 
@@ -313,7 +313,7 @@ export class SRSParser {
       return null;
     }
 
-    const id = `NFR-${headerMatch[1]}`;
+    const id = `NFR-${headerMatch[1] ?? '000'}`;
     const name = headerMatch[2]?.trim() ?? '';
     const description = this.extractDescription(block);
     const target = this.extractField(block, 'Target') ?? this.extractField(block, 'Metric') ?? '';
@@ -351,7 +351,7 @@ export class SRSParser {
     const constraints: Constraint[] = [];
     const constraintSection = this.extractSection(content, '## Constraints', '## ');
 
-    if (!constraintSection) {
+    if (constraintSection === undefined) {
       return constraints;
     }
 
@@ -376,7 +376,7 @@ export class SRSParser {
       return null;
     }
 
-    const id = `CON-${headerMatch[1]}`;
+    const id = `CON-${headerMatch[1] ?? '000'}`;
     const name = headerMatch[2]?.trim() ?? '';
     const description = this.extractDescription(block);
     const architectureImpact =
@@ -414,7 +414,7 @@ export class SRSParser {
   private parseAssumptions(content: string): string[] {
     const assumptionSection = this.extractSection(content, '## Assumptions', '## ');
 
-    if (!assumptionSection) {
+    if (assumptionSection === undefined) {
       return [];
     }
 
@@ -510,7 +510,7 @@ export class SRSParser {
    */
   private extractPriority(block: string): 'P0' | 'P1' | 'P2' | 'P3' {
     const match = block.match(PRIORITY_REGEX);
-    if (match && match[1]) {
+    if (match !== null && match[1] !== undefined && match[1] !== '') {
       return match[1] as 'P0' | 'P1' | 'P2' | 'P3';
     }
     return 'P2';
@@ -532,7 +532,7 @@ export class SRSParser {
     const regex = new RegExp(`\\*\\*${headerName}\\*\\*[:\\s]*([\\s\\S]*?)(?=\\*\\*|$)`, 'i');
     const match = block.match(regex);
 
-    if (!match || !match[1]) {
+    if (match === null || match[1] === undefined || match[1] === '') {
       return [];
     }
 

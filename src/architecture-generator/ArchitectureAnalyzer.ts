@@ -166,7 +166,7 @@ export class ArchitectureAnalyzer {
       const count = (allText.match(new RegExp(keyword, 'gi')) ?? []).length;
       if (count > 0) {
         total += Math.min(count * 2, indicators.weight);
-        reasons.push(`Found keyword "${keyword}" ${count} time(s)`);
+        reasons.push(`Found keyword "${keyword}" ${String(count)} time(s)`);
       }
     }
 
@@ -175,7 +175,7 @@ export class ArchitectureAnalyzer {
       const matchingNFRs = srs.nfrs.filter((nfr) => nfr.category === category);
       if (matchingNFRs.length > 0) {
         total += matchingNFRs.length * 5;
-        reasons.push(`Matches ${matchingNFRs.length} ${category} NFR(s)`);
+        reasons.push(`Matches ${String(matchingNFRs.length)} ${category} NFR(s)`);
       }
     }
 
@@ -308,7 +308,7 @@ export class ArchitectureAnalyzer {
       ],
     };
 
-    return drawbacks[pattern] ?? [];
+    return drawbacks[pattern];
   }
 
   /**
@@ -352,7 +352,7 @@ export class ArchitectureAnalyzer {
       scratchpad: ['pipeline', 'hierarchical-multi-agent', 'layered'],
     };
 
-    return compatibility[pattern] ?? [];
+    return compatibility[pattern];
   }
 
   /**
@@ -369,7 +369,7 @@ export class ArchitectureAnalyzer {
     }
 
     const parts: string[] = [
-      `The "${pattern}" pattern is recommended based on analysis of ${srs.features.length} features and ${srs.nfrs.length} non-functional requirements.`,
+      `The "${pattern}" pattern is recommended based on analysis of ${String(srs.features.length)} features and ${String(srs.nfrs.length)} non-functional requirements.`,
     ];
 
     if (topPattern.reasons.length > 0) {
@@ -454,6 +454,6 @@ export class ArchitectureAnalyzer {
         'Implement redundancy, health checks, and automated failover mechanisms',
     };
 
-    return mitigations[category] ?? 'Address this requirement with appropriate architectural patterns';
+    return mitigations[category];
   }
 }

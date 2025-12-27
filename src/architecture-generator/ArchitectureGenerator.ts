@@ -96,9 +96,7 @@ export class ArchitectureGenerator {
     this.techStackGenerator = new TechnologyStackGenerator(
       this.config.defaultOptions.includeAlternatives ?? true
     );
-    this.directoryGenerator = new DirectoryStructureGenerator(
-      this.config.defaultOptions.directoryTemplate
-    );
+    this.directoryGenerator = new DirectoryStructureGenerator();
   }
 
   /**
@@ -140,15 +138,15 @@ export class ArchitectureGenerator {
   ): ArchitectureDesign {
     const mergedOptions = { ...this.config.defaultOptions, ...options };
 
-    if (mergedOptions.verbose) {
+    if (mergedOptions.verbose === true) {
       this.log('Starting architecture generation...');
-      this.log(`Features: ${srs.features.length}, NFRs: ${srs.nfrs.length}`);
+      this.log(`Features: ${String(srs.features.length)}, NFRs: ${String(srs.nfrs.length)}`);
     }
 
     // Analyze architecture
     const analysis = this.analyzer.analyze(srs);
 
-    if (mergedOptions.verbose) {
+    if (mergedOptions.verbose === true) {
       this.log(`Primary pattern: ${analysis.primaryPattern}`);
       this.log(`Supporting patterns: ${analysis.supportingPatterns.join(', ')}`);
     }
@@ -156,7 +154,7 @@ export class ArchitectureGenerator {
     // Generate technology stack
     const technologyStack = this.techStackGenerator.generate(srs, analysis);
 
-    if (mergedOptions.verbose) {
+    if (mergedOptions.verbose === true) {
       const tech = technologyStack.layers.map((l) => `${l.layer}: ${l.technology}`).join(', ');
       this.log(`Technology stack: ${tech}`);
     }
@@ -164,14 +162,14 @@ export class ArchitectureGenerator {
     // Generate diagrams
     const diagrams = this.diagramGenerator.generate(srs, analysis);
 
-    if (mergedOptions.verbose) {
-      this.log(`Generated ${diagrams.length} diagram(s)`);
+    if (mergedOptions.verbose === true) {
+      this.log(`Generated ${String(diagrams.length)} diagram(s)`);
     }
 
     // Generate directory structure
     const directoryStructure = this.directoryGenerator.generate(srs, analysis, technologyStack);
 
-    if (mergedOptions.verbose) {
+    if (mergedOptions.verbose === true) {
       this.log(`Directory structure generated for ${analysis.primaryPattern}`);
     }
 
@@ -278,7 +276,7 @@ export class ArchitectureGenerator {
     lines.push('|---------|-------|-------------|');
     for (const rec of design.analysis.recommendations) {
       const reasons = rec.reasons.slice(0, 2).join('; ');
-      lines.push(`| ${rec.pattern} | ${rec.score}% | ${reasons} |`);
+      lines.push(`| ${rec.pattern} | ${String(rec.score)}% | ${reasons} |`);
     }
     lines.push('');
 

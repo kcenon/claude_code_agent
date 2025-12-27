@@ -270,7 +270,7 @@ export const DirectoryStructureSchema = z.object({
  */
 export const ArchitectureMetadataSchema = z.object({
   sourceSRS: z.string().min(1),
-  generatedAt: z.string().datetime(),
+  generatedAt: z.iso.datetime(),
   version: z.string().regex(/^\d+\.\d+\.\d+$/),
 });
 
