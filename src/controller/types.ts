@@ -203,3 +203,192 @@ export const DEFAULT_ANALYZER_CONFIG: Required<PriorityAnalyzerConfig> = {
   quickWinBonus: 15,
   quickWinThreshold: 4,
 } as const;
+
+// ============================================================================
+// Worker Pool Types
+// ============================================================================
+
+/**
+ * Worker status states
+ */
+export type WorkerStatus = 'idle' | 'working' | 'error';
+
+/**
+ * Information about a single worker
+ */
+export interface WorkerInfo {
+  /** Unique worker identifier */
+  readonly id: string;
+  /** Current worker status */
+  readonly status: WorkerStatus;
+  /** Currently assigned issue ID (null if idle) */
+  readonly currentIssue: string | null;
+  /** Timestamp when work started (null if idle) */
+  readonly startedAt: string | null;
+  /** Total number of completed tasks */
+  readonly completedTasks: number;
+  /** Last error message (if status is error) */
+  readonly lastError?: string;
+}
+
+/**
+ * Worker pool configuration
+ */
+export interface WorkerPoolConfig {
+  /** Maximum number of concurrent workers (default: 5) */
+  readonly maxWorkers?: number;
+  /** Worker timeout in milliseconds (default: 600000 = 10 minutes) */
+  readonly workerTimeout?: number;
+  /** Path to store work orders (default: '.ad-sdlc/scratchpad/progress') */
+  readonly workOrdersPath?: string;
+}
+
+/**
+ * Default worker pool configuration
+ */
+export const DEFAULT_WORKER_POOL_CONFIG: Required<WorkerPoolConfig> = {
+  maxWorkers: 5,
+  workerTimeout: 600000, // 10 minutes
+  workOrdersPath: '.ad-sdlc/scratchpad/progress',
+} as const;
+
+/**
+ * Dependency status in a work order
+ */
+export interface DependencyStatus {
+  /** Issue ID of the dependency */
+  readonly issueId: string;
+  /** Status of the dependency */
+  readonly status: 'completed' | 'in_progress' | 'pending';
+}
+
+/**
+ * Related file reference in a work order
+ */
+export interface RelatedFile {
+  /** File path relative to project root */
+  readonly path: string;
+  /** Reason for including this file */
+  readonly reason: string;
+}
+
+/**
+ * Work order context information
+ */
+export interface WorkOrderContext {
+  /** SDS component ID reference */
+  readonly sdsComponent?: string;
+  /** SRS feature ID reference */
+  readonly srsFeature?: string;
+  /** PRD requirement ID reference */
+  readonly prdRequirement?: string;
+  /** Related files for this work */
+  readonly relatedFiles: readonly RelatedFile[];
+  /** Status of dependencies */
+  readonly dependenciesStatus: readonly DependencyStatus[];
+}
+
+/**
+ * Work order for a worker assignment
+ */
+export interface WorkOrder {
+  /** Unique work order ID */
+  readonly orderId: string;
+  /** Assigned issue ID */
+  readonly issueId: string;
+  /** GitHub issue URL (if available) */
+  readonly issueUrl?: string;
+  /** When the work order was created */
+  readonly createdAt: string;
+  /** Priority level of the work */
+  readonly priority: number;
+  /** Context information for the worker */
+  readonly context: WorkOrderContext;
+  /** Acceptance criteria to satisfy */
+  readonly acceptanceCriteria: readonly string[];
+}
+
+/**
+ * Work order completion result
+ */
+export interface WorkOrderResult {
+  /** Work order ID */
+  readonly orderId: string;
+  /** Whether work was completed successfully */
+  readonly success: boolean;
+  /** Completion timestamp */
+  readonly completedAt: string;
+  /** Files created or modified */
+  readonly filesModified: readonly string[];
+  /** Error message if failed */
+  readonly error?: string;
+  /** Output artifacts (e.g., test results, lint output) */
+  readonly artifacts?: Record<string, unknown>;
+}
+
+/**
+ * Worker pool status snapshot
+ */
+export interface WorkerPoolStatus {
+  /** Total number of workers */
+  readonly totalWorkers: number;
+  /** Number of idle workers */
+  readonly idleWorkers: number;
+  /** Number of working workers */
+  readonly workingWorkers: number;
+  /** Number of workers in error state */
+  readonly errorWorkers: number;
+  /** List of all workers and their status */
+  readonly workers: readonly WorkerInfo[];
+  /** Currently processing work orders */
+  readonly activeWorkOrders: readonly string[];
+}
+
+/**
+ * Work queue entry
+ */
+export interface WorkQueueEntry {
+  /** Issue ID */
+  readonly issueId: string;
+  /** Issue priority score */
+  readonly priorityScore: number;
+  /** Timestamp when added to queue */
+  readonly queuedAt: string;
+  /** Number of times this has been attempted */
+  readonly attempts: number;
+}
+
+/**
+ * Controller state for persistence
+ */
+export interface ControllerState {
+  /** Project ID */
+  readonly projectId: string;
+  /** Timestamp of last update */
+  readonly lastUpdated: string;
+  /** Worker pool status */
+  readonly workerPool: WorkerPoolStatus;
+  /** Work queue */
+  readonly workQueue: readonly WorkQueueEntry[];
+  /** Completed work orders */
+  readonly completedOrders: readonly string[];
+  /** Failed work orders */
+  readonly failedOrders: readonly string[];
+}
+
+/**
+ * Worker completion callback
+ */
+export type WorkerCompletionCallback = (
+  workerId: string,
+  result: WorkOrderResult
+) => void | Promise<void>;
+
+/**
+ * Worker failure callback
+ */
+export type WorkerFailureCallback = (
+  workerId: string,
+  orderId: string,
+  error: Error
+) => void | Promise<void>;

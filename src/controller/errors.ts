@@ -117,3 +117,138 @@ export class EmptyGraphError extends ControllerError {
     this.name = 'EmptyGraphError';
   }
 }
+
+// ============================================================================
+// Worker Pool Errors
+// ============================================================================
+
+/**
+ * Error thrown when no worker is available
+ */
+export class NoAvailableWorkerError extends ControllerError {
+  constructor() {
+    super('No available worker in the pool');
+    this.name = 'NoAvailableWorkerError';
+  }
+}
+
+/**
+ * Error thrown when a worker is not found
+ */
+export class WorkerNotFoundError extends ControllerError {
+  /** The worker ID that was not found */
+  public readonly workerId: string;
+
+  constructor(workerId: string) {
+    super(`Worker not found: ${workerId}`);
+    this.name = 'WorkerNotFoundError';
+    this.workerId = workerId;
+  }
+}
+
+/**
+ * Error thrown when a worker is not available for assignment
+ */
+export class WorkerNotAvailableError extends ControllerError {
+  /** The worker ID that is not available */
+  public readonly workerId: string;
+  /** The current status of the worker */
+  public readonly currentStatus: string;
+
+  constructor(workerId: string, currentStatus: string) {
+    super(`Worker ${workerId} is not available (current status: ${currentStatus})`);
+    this.name = 'WorkerNotAvailableError';
+    this.workerId = workerId;
+    this.currentStatus = currentStatus;
+  }
+}
+
+/**
+ * Error thrown when a work order is not found
+ */
+export class WorkOrderNotFoundError extends ControllerError {
+  /** The work order ID that was not found */
+  public readonly orderId: string;
+
+  constructor(orderId: string) {
+    super(`Work order not found: ${orderId}`);
+    this.name = 'WorkOrderNotFoundError';
+    this.orderId = orderId;
+  }
+}
+
+/**
+ * Error thrown when work order creation fails
+ */
+export class WorkOrderCreationError extends ControllerError {
+  /** The issue ID for which work order creation failed */
+  public readonly issueId: string;
+  /** The underlying error */
+  public readonly cause: Error | undefined;
+
+  constructor(issueId: string, cause?: Error) {
+    const causeMessage = cause !== undefined ? `: ${cause.message}` : '';
+    super(`Failed to create work order for issue ${issueId}${causeMessage}`);
+    this.name = 'WorkOrderCreationError';
+    this.issueId = issueId;
+    this.cause = cause;
+  }
+}
+
+/**
+ * Error thrown when worker assignment fails
+ */
+export class WorkerAssignmentError extends ControllerError {
+  /** The worker ID involved in the failed assignment */
+  public readonly workerId: string;
+  /** The issue ID that failed to be assigned */
+  public readonly issueId: string;
+  /** The underlying error */
+  public readonly cause: Error | undefined;
+
+  constructor(workerId: string, issueId: string, cause?: Error) {
+    const causeMessage = cause !== undefined ? `: ${cause.message}` : '';
+    super(`Failed to assign issue ${issueId} to worker ${workerId}${causeMessage}`);
+    this.name = 'WorkerAssignmentError';
+    this.workerId = workerId;
+    this.issueId = issueId;
+    this.cause = cause;
+  }
+}
+
+/**
+ * Error thrown when worker pool state persistence fails
+ */
+export class ControllerStatePersistenceError extends ControllerError {
+  /** The operation that failed */
+  public readonly operation: 'save' | 'load';
+  /** The underlying error */
+  public readonly cause: Error | undefined;
+
+  constructor(operation: 'save' | 'load', cause?: Error) {
+    const causeMessage = cause !== undefined ? `: ${cause.message}` : '';
+    super(`Failed to ${operation} controller state${causeMessage}`);
+    this.name = 'ControllerStatePersistenceError';
+    this.operation = operation;
+    this.cause = cause;
+  }
+}
+
+/**
+ * Error thrown when dependencies are not resolved
+ */
+export class DependenciesNotResolvedError extends ControllerError {
+  /** The issue ID with unresolved dependencies */
+  public readonly issueId: string;
+  /** The unresolved dependency issue IDs */
+  public readonly unresolvedDependencies: readonly string[];
+
+  constructor(issueId: string, unresolvedDependencies: readonly string[]) {
+    super(
+      `Issue ${issueId} has unresolved dependencies: ${unresolvedDependencies.join(', ')}`
+    );
+    this.name = 'DependenciesNotResolvedError';
+    this.issueId = issueId;
+    this.unresolvedDependencies = unresolvedDependencies;
+  }
+}
