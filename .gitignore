@@ -67,3 +67,15 @@ venv/
 # Uncomment below if you want to ignore scratchpad runtime data
 # .ad-sdlc/scratchpad/info/*/
 # .ad-sdlc/scratchpad/progress/*/
+
+# AD-SDLC log files
+.ad-sdlc/logs/*.log
+.ad-sdlc/logs/agent-logs/*.log
+
+# Keep .gitkeep files
+!.gitkeep
+
+# Generated source code (optional - uncomment to ignore)
+# src/*
+# !src/.gitkeep
+# !src/README.md
