@@ -364,9 +364,10 @@ export class StateManager {
       const previousValue = currentState;
 
       // Merge or replace based on options
-      const newState = options.merge !== false && currentState !== null
-        ? { ...currentState, ...updates }
-        : (updates as T);
+      const newState =
+        options.merge !== false && currentState !== null
+          ? { ...currentState, ...updates }
+          : (updates as T);
 
       // Write merged state
       await this.scratchpad.writeYaml(statePath, newState);
@@ -439,10 +440,15 @@ export class StateManager {
 
       // Record transition in history
       if (this.options.enableHistory) {
-        await this.addHistoryEntry('progress', projectId, {
-          transition: { from: fromState, to: toState },
-          timestamp,
-        }, `State transition: ${fromState} → ${toState}`);
+        await this.addHistoryEntry(
+          'progress',
+          projectId,
+          {
+            transition: { from: fromState, to: toState },
+            timestamp,
+          },
+          `State transition: ${fromState} → ${toState}`
+        );
       }
 
       return {
@@ -524,9 +530,14 @@ export class StateManager {
    * @param projectId - Project identifier
    * @returns State history or null if not found
    */
-  async getHistory<T>(section: ScratchpadSection, projectId: string): Promise<StateHistory<T> | null> {
+  async getHistory<T>(
+    section: ScratchpadSection,
+    projectId: string
+  ): Promise<StateHistory<T> | null> {
     const historyPath = this.getHistoryPath(section, projectId);
-    const storage = await this.scratchpad.readJson<HistoryStorage<T>>(historyPath, { allowMissing: true });
+    const storage = await this.scratchpad.readJson<HistoryStorage<T>>(historyPath, {
+      allowMissing: true,
+    });
 
     if (storage === null) {
       return null;
@@ -581,7 +592,9 @@ export class StateManager {
     description?: string
   ): Promise<void> {
     const historyPath = this.getHistoryPath(section, projectId);
-    const storage = await this.scratchpad.readJson<HistoryStorage<T>>(historyPath, { allowMissing: true });
+    const storage = await this.scratchpad.readJson<HistoryStorage<T>>(historyPath, {
+      allowMissing: true,
+    });
 
     const entryId = randomUUID();
     const now = new Date().toISOString();
@@ -642,8 +655,18 @@ export class StateManager {
 
     try {
       const fsWatcher = fs.watch(watchPath, { recursive: true }, (eventType, filename) => {
-        if (filename !== null && filename !== '' && !filename.startsWith('_') && eventType === 'change') {
-          void this.handleFileChange(projectId, section ?? 'progress', filename, callback as StateChangeCallback);
+        if (
+          filename !== null &&
+          filename !== '' &&
+          !filename.startsWith('_') &&
+          eventType === 'change'
+        ) {
+          void this.handleFileChange(
+            projectId,
+            section ?? 'progress',
+            filename,
+            callback as StateChangeCallback
+          );
         }
       });
 
@@ -720,7 +743,10 @@ export class StateManager {
     };
 
     for (const [watcherId, watcher] of this.watchers) {
-      if (watcher.projectId === projectId && (watcher.section === null || watcher.section === section)) {
+      if (
+        watcher.projectId === projectId &&
+        (watcher.section === null || watcher.section === section)
+      ) {
         const callback = this.watcherCallbacks.get(watcherId);
         if (callback) {
           try {
@@ -748,10 +774,7 @@ export class StateManager {
    * Get history file path
    */
   private getHistoryPath(section: ScratchpadSection, projectId: string): string {
-    return path.join(
-      this.scratchpad.getProjectPath(section, projectId),
-      STATE_HISTORY_FILE
-    );
+    return path.join(this.scratchpad.getProjectPath(section, projectId), STATE_HISTORY_FILE);
   }
 
   /**
