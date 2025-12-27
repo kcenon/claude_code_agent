@@ -248,15 +248,27 @@ export class PriorityAnalyzer {
    * Create an IssueNode from validated data
    */
   private createIssueNode(data: Record<string, unknown>): IssueNode {
-    return {
+    const base = {
       id: data['id'] as string,
       title: data['title'] as string,
       priority: data['priority'] as Priority,
       effort: data['effort'] as number,
       status: data['status'] as IssueStatus,
-      url: data['url'] as string | undefined,
-      componentId: data['componentId'] as string | undefined,
     };
+
+    // Build node with optional properties only if they exist
+    const url = typeof data['url'] === 'string' ? data['url'] : undefined;
+    const componentId = typeof data['componentId'] === 'string' ? data['componentId'] : undefined;
+
+    if (url !== undefined && componentId !== undefined) {
+      return { ...base, url, componentId };
+    } else if (url !== undefined) {
+      return { ...base, url };
+    } else if (componentId !== undefined) {
+      return { ...base, componentId };
+    }
+
+    return base;
   }
 
   /**
@@ -436,6 +448,8 @@ export class PriorityAnalyzer {
 
     for (let i = topoOrder.length - 1; i >= 0; i--) {
       const nodeId = topoOrder[i];
+      if (nodeId === undefined) continue;
+
       const node = this.nodes.get(nodeId);
       if (node === undefined) continue;
 
@@ -731,7 +745,8 @@ export class PriorityAnalyzer {
       )
       .sort((a, b) => b.priorityScore - a.priorityScore);
 
-    return ready.length > 0 ? ready[0].id : null;
+    const first = ready[0];
+    return first !== undefined ? first.id : null;
   }
 
   /**

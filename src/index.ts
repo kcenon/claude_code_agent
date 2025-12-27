@@ -109,3 +109,34 @@ export * from './issue-generator/index.js';
 
 // Re-export init module
 export * from './init/index.js';
+
+// Re-export controller module (with explicit handling of conflicts)
+export {
+  PriorityAnalyzer,
+  DEFAULT_PRIORITY_WEIGHTS as CONTROLLER_PRIORITY_WEIGHTS,
+  DEFAULT_ANALYZER_CONFIG,
+  ControllerError,
+  GraphNotFoundError,
+  GraphParseError,
+  GraphValidationError,
+  CircularDependencyError as ControllerCircularDependencyError,
+  IssueNotFoundError,
+  PriorityAnalysisError,
+  EmptyGraphError,
+} from './controller/index.js';
+
+export type {
+  IssueStatus,
+  PriorityWeights,
+  IssueNode,
+  DependencyEdge as ControllerDependencyEdge,
+  RawDependencyGraph,
+  AnalyzedIssue,
+  ParallelGroup as ControllerParallelGroup,
+  CriticalPath,
+  PrioritizedQueue,
+  GraphAnalysisResult,
+  GraphStatistics,
+  PriorityAnalyzerConfig,
+  Priority as ControllerPriority,
+} from './controller/index.js';
