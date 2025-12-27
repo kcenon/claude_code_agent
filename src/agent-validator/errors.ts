@@ -40,7 +40,11 @@ export class FrontmatterParseError extends AgentValidationException {
   readonly parseError: string;
 
   constructor(filePath: string, parseError: string) {
-    super(`Failed to parse frontmatter in ${filePath}: ${parseError}`, 'FRONTMATTER_PARSE_ERROR', filePath);
+    super(
+      `Failed to parse frontmatter in ${filePath}: ${parseError}`,
+      'FRONTMATTER_PARSE_ERROR',
+      filePath
+    );
     this.name = 'FrontmatterParseError';
     this.parseError = parseError;
     Object.setPrototypeOf(this, FrontmatterParseError.prototype);
@@ -55,7 +59,11 @@ export class FrontmatterValidationError extends AgentValidationException {
 
   constructor(filePath: string, errors: AgentValidationError[]) {
     const errorMessages = errors.map((e) => `  - ${e.field}: ${e.message}`).join('\n');
-    super(`Frontmatter validation failed in ${filePath}:\n${errorMessages}`, 'FRONTMATTER_VALIDATION_ERROR', filePath);
+    super(
+      `Frontmatter validation failed in ${filePath}:\n${errorMessages}`,
+      'FRONTMATTER_VALIDATION_ERROR',
+      filePath
+    );
     this.name = 'FrontmatterValidationError';
     this.errors = errors;
     Object.setPrototypeOf(this, FrontmatterValidationError.prototype);
@@ -69,7 +77,11 @@ export class AgentNotRegisteredError extends AgentValidationException {
   readonly agentName: string;
 
   constructor(filePath: string, agentName: string) {
-    super(`Agent "${agentName}" in ${filePath} is not registered in agents.yaml`, 'AGENT_NOT_REGISTERED', filePath);
+    super(
+      `Agent "${agentName}" in ${filePath} is not registered in agents.yaml`,
+      'AGENT_NOT_REGISTERED',
+      filePath
+    );
     this.name = 'AgentNotRegisteredError';
     this.agentName = agentName;
     Object.setPrototypeOf(this, AgentNotRegisteredError.prototype);

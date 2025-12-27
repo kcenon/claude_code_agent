@@ -12,7 +12,15 @@
 // ============================================================
 
 // Schemas
-export { AGENT_SCHEMA_VERSION, VALID_TOOLS, VALID_MODELS, AgentFrontmatterSchema, AgentToolSchema, AgentModelSchema, RECOMMENDED_SECTIONS } from './schemas.js';
+export {
+  AGENT_SCHEMA_VERSION,
+  VALID_TOOLS,
+  VALID_MODELS,
+  AgentFrontmatterSchema,
+  AgentToolSchema,
+  AgentModelSchema,
+  RECOMMENDED_SECTIONS,
+} from './schemas.js';
 
 // Types
 export type {

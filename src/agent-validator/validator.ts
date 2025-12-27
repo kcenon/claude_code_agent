@@ -36,10 +36,16 @@ const FRONTMATTER_REGEX = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/;
 /**
  * Parse frontmatter from markdown content
  */
-function parseFrontmatter(content: string, filePath: string): { frontmatter: unknown; body: string } {
+function parseFrontmatter(
+  content: string,
+  filePath: string
+): { frontmatter: unknown; body: string } {
   const match = content.match(FRONTMATTER_REGEX);
   if (!match) {
-    throw new FrontmatterParseError(filePath, 'No valid frontmatter found. Expected ---\\n...\\n---');
+    throw new FrontmatterParseError(
+      filePath,
+      'No valid frontmatter found. Expected ---\\n...\\n---'
+    );
   }
 
   const frontmatterYaml = match[1] ?? '';
@@ -171,7 +177,10 @@ function checkRegistryConsistency(
 /**
  * Validate a single agent definition file
  */
-export function validateAgentFile(filePath: string, options: ValidateAgentOptions = {}): AgentValidationResult {
+export function validateAgentFile(
+  filePath: string,
+  options: ValidateAgentOptions = {}
+): AgentValidationResult {
   const result: AgentValidationResult = {
     filePath,
     valid: true,
@@ -213,7 +222,11 @@ export function validateAgentFile(filePath: string, options: ValidateAgentOption
           : path.resolve(process.cwd(), DEFAULT_REGISTRY_PATH);
 
       const registry = loadAgentRegistry(registryPath);
-      const registryErrors = checkRegistryConsistency(validatedFrontmatter.name, filePath, registry);
+      const registryErrors = checkRegistryConsistency(
+        validatedFrontmatter.name,
+        filePath,
+        registry
+      );
       result.errors.push(...registryErrors);
     }
 
