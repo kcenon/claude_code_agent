@@ -1,0 +1,173 @@
+name: Security Scan
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 0 * * *' # Daily at midnight
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+  security-events: write
+
+jobs:
+  dependency-audit:
+    name: Dependency Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run npm audit
+        run: npm audit --audit-level=high
+        continue-on-error: true
+
+      - name: Run npm audit (JSON output)
+        run: npm audit --json > audit-results.json || true
+
+      - name: Upload audit results
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-audit-results
+          path: audit-results.json
+          retention-days: 30
+
+  codeql-analysis:
+    name: CodeQL Analysis
+    runs-on: ubuntu-latest
+    # Only run on push/schedule events - PR analysis blocked by GitHub API restrictions
+    if: github.event_name == 'push' || github.event_name == 'schedule'
+    permissions:
+      security-events: write
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check for source files
+        id: check-src
+        run: |
+          if find src -name "*.ts" -o -name "*.js" 2>/dev/null | grep -q .; then
+            echo "has_source=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_source=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Initialize CodeQL
+        if: steps.check-src.outputs.has_source == 'true'
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+          queries: security-and-quality
+
+      - name: Autobuild
+        if: steps.check-src.outputs.has_source == 'true'
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL Analysis
+        if: steps.check-src.outputs.has_source == 'true'
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: '/language:javascript-typescript'
+
+      - name: Skip message
+        if: steps.check-src.outputs.has_source != 'true'
+        run: echo "Skipping CodeQL analysis - no source files found"
+
+  secret-scanning:
+    name: Secret Scanning
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+        continue-on-error: true
+
+  license-check:
+    name: License Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check licenses
+        run: npx license-checker --production --failOn "GPL;LGPL;AGPL"
+        continue-on-error: true
+
+  security-headers-check:
+    name: Security Best Practices Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check for security anti-patterns
+        run: |
+          echo "Checking for potential security issues..."
+
+          # Check for eval usage
+          if grep -r "eval(" src/ 2>/dev/null; then
+            echo "::warning::Found eval() usage - consider alternatives"
+          fi
+
+          # Check for hardcoded secrets patterns
+          if grep -rE "(password|secret|api_key|apikey)\s*=\s*['\"][^'\"]+['\"]" src/ 2>/dev/null; then
+            echo "::warning::Found potential hardcoded secrets"
+          fi
+
+          # Check for unsafe regex
+          if grep -rE "\.\*\+" src/ 2>/dev/null; then
+            echo "::warning::Found potentially unsafe regex patterns"
+          fi
+
+          echo "Security check complete"
+
+  summary:
+    name: Security Summary
+    runs-on: ubuntu-latest
+    needs: [dependency-audit, codeql-analysis, secret-scanning, license-check, security-headers-check]
+    if: always()
+    steps:
+      - name: Check results
+        run: |
+          echo "## Security Scan Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Dependency Audit | ${{ needs.dependency-audit.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| CodeQL Analysis | ${{ needs.codeql-analysis.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Secret Scanning | ${{ needs.secret-scanning.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| License Check | ${{ needs.license-check.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Security Best Practices | ${{ needs.security-headers-check.result }} |" >> $GITHUB_STEP_SUMMARY

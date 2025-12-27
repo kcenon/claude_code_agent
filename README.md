@@ -96,8 +96,21 @@ User Input → Collector → PRD Writer → SRS Writer → SDS Writer
    claude "Start implementation with Controller"
    ```
 
+## Security
+
+The project includes a comprehensive security module with:
+
+- **SecretManager** - Secure API key management with automatic masking
+- **InputValidator** - Path traversal prevention, URL validation, input sanitization
+- **AuditLogger** - Security audit logging with correlation tracking
+- **SecureFileHandler** - Secure temporary file handling with auto-cleanup
+- **RateLimiter** - API rate limiting to prevent abuse
+
+See [Security Documentation](docs/security.md) for detailed usage.
+
 ## Documentation
 
+- [Security Module](docs/security.md)
 - [PRD-001: Agent-Driven SDLC](docs/PRD-001-agent-driven-sdlc.md)
 - [SRS-001: Agent-Driven SDLC](docs/SRS-001-agent-driven-sdlc.md)
 - [SDS-001: Agent-Driven SDLC](docs/SDS-001-agent-driven-sdlc.md)
@@ -126,6 +139,7 @@ This project uses GitHub Actions for continuous integration and deployment:
 | Workflow | Trigger | Purpose |
 |----------|---------|---------|
 | **CI** | Push/PR to main | Lint, test, build, and security scan |
+| **Security** | Push/PR/Daily | Dependency audit, CodeQL, secret scanning |
 | **Release** | Tag `v*` | Build, publish to NPM, create GitHub release |
 
 ### Status Badges
