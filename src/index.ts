@@ -322,3 +322,45 @@ export type {
   ComponentGeneratorOptions,
   TypeScriptGeneratorOptions,
 } from './component-generator/index.js';
+
+// Re-export collector module
+export {
+  CollectorAgent,
+  getCollectorAgent,
+  resetCollectorAgent,
+  InputParser,
+  InformationExtractor,
+  CollectorError,
+  InputParseError,
+  FileParseError,
+  UrlFetchError,
+  ExtractionError,
+  MissingInformationError,
+  ValidationError as CollectorValidationError,
+  SessionStateError,
+  UnsupportedFileTypeError,
+  ProjectInitError,
+} from './collector/index.js';
+
+export type {
+  InputSourceType,
+  SupportedFileType,
+  InputSource,
+  ParsedInput,
+  FileParseResult,
+  UrlFetchResult,
+  ExtractedRequirement,
+  ExtractedConstraint,
+  ExtractedAssumption,
+  ExtractedDependency,
+  ExtractionResult,
+  ClarificationCategory,
+  ClarificationQuestion,
+  ClarificationAnswer,
+  CollectionSession,
+  CollectorAgentConfig,
+  CollectionResult,
+  CollectionStats,
+  InputParserOptions,
+  InformationExtractorOptions,
+} from './collector/index.js';
