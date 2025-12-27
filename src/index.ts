@@ -12,3 +12,6 @@ export * from './scratchpad/index.js';
 
 // Re-export issue-generator module
 export * from './issue-generator/index.js';
+
+// Re-export init module
+export * from './init/index.js';
