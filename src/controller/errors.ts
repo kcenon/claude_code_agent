@@ -1,0 +1,119 @@
+/**
+ * Controller module error definitions
+ *
+ * Custom error classes for dependency graph analysis and prioritization operations.
+ */
+
+/**
+ * Base error class for controller errors
+ */
+export class ControllerError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ControllerError';
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}
+
+/**
+ * Error thrown when dependency graph file is not found
+ */
+export class GraphNotFoundError extends ControllerError {
+  /** The path that was not found */
+  public readonly path: string;
+
+  constructor(path: string) {
+    super(`Dependency graph file not found: ${path}`);
+    this.name = 'GraphNotFoundError';
+    this.path = path;
+  }
+}
+
+/**
+ * Error thrown when dependency graph parsing fails
+ */
+export class GraphParseError extends ControllerError {
+  /** The path of the file that failed to parse */
+  public readonly path: string;
+  /** The underlying parse error */
+  public readonly cause: Error | undefined;
+
+  constructor(path: string, cause?: Error) {
+    const causeMessage = cause !== undefined ? `: ${cause.message}` : '';
+    super(`Failed to parse dependency graph at ${path}${causeMessage}`);
+    this.name = 'GraphParseError';
+    this.path = path;
+    this.cause = cause;
+  }
+}
+
+/**
+ * Error thrown when dependency graph validation fails
+ */
+export class GraphValidationError extends ControllerError {
+  /** Validation errors */
+  public readonly errors: readonly string[];
+
+  constructor(errors: readonly string[]) {
+    super(`Dependency graph validation failed: ${errors.join('; ')}`);
+    this.name = 'GraphValidationError';
+    this.errors = errors;
+  }
+}
+
+/**
+ * Error thrown when circular dependencies are detected
+ */
+export class CircularDependencyError extends ControllerError {
+  /** The cycle path */
+  public readonly cycle: readonly string[];
+
+  constructor(cycle: readonly string[]) {
+    super(`Circular dependency detected: ${cycle.join(' -> ')}`);
+    this.name = 'CircularDependencyError';
+    this.cycle = cycle;
+  }
+}
+
+/**
+ * Error thrown when a referenced issue is not found
+ */
+export class IssueNotFoundError extends ControllerError {
+  /** The issue ID that was not found */
+  public readonly issueId: string;
+  /** Context where the issue was referenced */
+  public readonly context: string | undefined;
+
+  constructor(issueId: string, context?: string) {
+    const contextMessage = context !== undefined ? ` (referenced in ${context})` : '';
+    super(`Issue not found: ${issueId}${contextMessage}`);
+    this.name = 'IssueNotFoundError';
+    this.issueId = issueId;
+    this.context = context;
+  }
+}
+
+/**
+ * Error thrown when priority analysis fails
+ */
+export class PriorityAnalysisError extends ControllerError {
+  /** The issue ID that caused the failure */
+  public readonly issueId: string | undefined;
+
+  constructor(message: string, issueId?: string) {
+    const issueMessage = issueId !== undefined ? ` for issue ${issueId}` : '';
+    super(`Priority analysis failed${issueMessage}: ${message}`);
+    this.name = 'PriorityAnalysisError';
+    this.issueId = issueId;
+  }
+}
+
+/**
+ * Error thrown when there are no issues to process
+ */
+export class EmptyGraphError extends ControllerError {
+  constructor() {
+    super('Dependency graph contains no issues');
+    this.name = 'EmptyGraphError';
+  }
+}
