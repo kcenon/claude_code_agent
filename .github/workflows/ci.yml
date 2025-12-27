@@ -148,13 +148,41 @@ jobs:
         run: npm audit --audit-level=high
         continue-on-error: true
 
-      - name: Run CodeQL Analysis
+  codeql:
+    name: CodeQL Analysis
+    runs-on: ubuntu-latest
+    # Only run when src directory has TypeScript/JavaScript files
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
+    permissions:
+      security-events: write
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check for source files
+        id: check-src
+        run: |
+          if find src -name "*.ts" -o -name "*.js" -o -name "*.tsx" -o -name "*.jsx" 2>/dev/null | grep -q .; then
+            echo "has_source=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_source=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Initialize CodeQL
+        if: steps.check-src.outputs.has_source == 'true'
         uses: github/codeql-action/init@v3
         with:
           languages: javascript-typescript
 
       - name: Autobuild
+        if: steps.check-src.outputs.has_source == 'true'
         uses: github/codeql-action/autobuild@v3
 
       - name: Perform CodeQL Analysis
+        if: steps.check-src.outputs.has_source == 'true'
         uses: github/codeql-action/analyze@v3
+
+      - name: Skip message
+        if: steps.check-src.outputs.has_source != 'true'
+        run: echo "Skipping CodeQL analysis - no source files found in src directory"
