@@ -194,7 +194,7 @@ export class InputParser {
         return content;
 
       case 'json': {
-        const parsed = JSON.parse(content);
+        const parsed: unknown = JSON.parse(content);
         return JSON.stringify(parsed, null, 2);
       }
 
@@ -322,7 +322,7 @@ export class InputParser {
   private processUrlContent(content: string, contentType: string): string {
     if (contentType.includes('application/json')) {
       try {
-        const parsed = JSON.parse(content);
+        const parsed: unknown = JSON.parse(content);
         return JSON.stringify(parsed, null, 2);
       } catch {
         return content;

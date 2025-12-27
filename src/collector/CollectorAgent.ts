@@ -127,7 +127,8 @@ export class CollectorAgent {
     const source = this.inputParser.parseText(text, description);
     this.addSource(source);
 
-    return this.session!;
+    // Return the updated session (addSource updates this.session)
+    return this.session;
   }
 
   /**
@@ -142,7 +143,8 @@ export class CollectorAgent {
     const source = await this.inputParser.parseFile(filePath);
     this.addSource(source);
 
-    return this.session!;
+    // Return the updated session (addSource updates this.session)
+    return this.session;
   }
 
   /**
@@ -157,7 +159,8 @@ export class CollectorAgent {
     const source = await this.inputParser.parseUrl(url);
     this.addSource(source);
 
-    return this.session!;
+    // Return the updated session (addSource updates this.session)
+    return this.session;
   }
 
   /**
@@ -166,9 +169,12 @@ export class CollectorAgent {
    * @param source - Input source to add
    */
   private addSource(source: InputSource): void {
+    if (this.session === null) {
+      return;
+    }
     this.session = {
-      ...this.session!,
-      sources: [...this.session!.sources, source],
+      ...this.session,
+      sources: [...this.session.sources, source],
       updatedAt: new Date().toISOString(),
     };
   }
@@ -179,18 +185,18 @@ export class CollectorAgent {
    * @returns ExtractionResult with all extracted information
    */
   public processInputs(): ExtractionResult {
-    this.ensureSession('collecting');
+    const session = this.ensureSession('collecting');
 
-    if (this.session!.sources.length === 0) {
+    if (session.sources.length === 0) {
       throw new MissingInformationError(['No input sources provided']);
     }
 
-    const parsed = this.inputParser.combineInputs(this.session!.sources);
+    const parsed = this.inputParser.combineInputs(session.sources);
     const extraction = this.extractor.extract(parsed);
 
     // Update session with extraction results
     this.session = {
-      ...this.session!,
+      ...session,
       extraction,
       pendingQuestions: extraction.clarificationQuestions,
       status: extraction.clarificationQuestions.length > 0 ? 'clarifying' : 'completed',
@@ -220,9 +226,9 @@ export class CollectorAgent {
    * @returns Updated session
    */
   public answerQuestion(questionId: string, answer: string): CollectionSession {
-    this.ensureSession('clarifying');
+    const session = this.ensureSession('clarifying');
 
-    const question = this.session!.pendingQuestions.find((q) => q.id === questionId);
+    const question = session.pendingQuestions.find((q) => q.id === questionId);
     if (question === undefined) {
       throw new Error(`Question not found: ${questionId}`);
     }
@@ -233,12 +239,12 @@ export class CollectorAgent {
       answeredAt: new Date().toISOString(),
     };
 
-    const remainingQuestions = this.session!.pendingQuestions.filter((q) => q.id !== questionId);
+    const remainingQuestions = session.pendingQuestions.filter((q) => q.id !== questionId);
 
     this.session = {
-      ...this.session!,
+      ...session,
       pendingQuestions: remainingQuestions,
-      answeredQuestions: [...this.session!.answeredQuestions, clarificationAnswer],
+      answeredQuestions: [...session.answeredQuestions, clarificationAnswer],
       status: remainingQuestions.length > 0 ? 'clarifying' : 'completed',
       updatedAt: new Date().toISOString(),
     };
@@ -252,10 +258,10 @@ export class CollectorAgent {
    * @returns Updated session
    */
   public skipClarification(): CollectionSession {
-    this.ensureSession('clarifying');
+    const session = this.ensureSession('clarifying');
 
     this.session = {
-      ...this.session!,
+      ...session,
       pendingQuestions: [],
       status: 'completed',
       updatedAt: new Date().toISOString(),
@@ -279,18 +285,22 @@ export class CollectorAgent {
       throw new SessionStateError('no session', 'active', 'finalize');
     }
 
-    if (this.session.status === 'collecting' && this.session.sources.length > 0) {
+    let currentSession = this.session;
+
+    if (currentSession.status === 'collecting' && currentSession.sources.length > 0) {
       this.processInputs();
+      // Re-read session after processInputs call since it updates this.session
+      currentSession = this.session;
     }
 
     const startTime = Date.now();
-    const extraction = this.session.extraction;
+    const extraction = currentSession.extraction;
 
     // Determine final project name and description
     const finalName = projectName ??
       extraction.projectName ??
       this.getAnsweredValue('project name') ??
-      `Project-${this.session.projectId}`;
+      `Project-${currentSession.projectId}`;
 
     const finalDescription = projectDescription ??
       extraction.projectDescription ??
@@ -298,34 +308,34 @@ export class CollectorAgent {
       'Project collected by Collector Agent';
 
     // Build CollectedInfo
-    const collectedInfo = this.buildCollectedInfo(finalName, finalDescription);
+    const collectedInfo = this.buildCollectedInfo(currentSession, finalName, finalDescription);
 
     // Write to scratchpad
     const scratchpad = getScratchpad({ basePath: this.config.scratchpadBasePath });
-    const outputPath = scratchpad.getCollectedInfoPath(this.session.projectId);
+    const outputPath = scratchpad.getCollectedInfoPath(currentSession.projectId);
     await scratchpad.writeYaml(outputPath, collectedInfo);
 
     const processingTimeMs = Date.now() - startTime;
 
     // Calculate stats
     const stats: CollectionStats = {
-      sourcesProcessed: this.session.sources.length,
+      sourcesProcessed: currentSession.sources.length,
       functionalRequirements: extraction.functionalRequirements.length,
       nonFunctionalRequirements: extraction.nonFunctionalRequirements.length,
       constraints: extraction.constraints.length,
       assumptions: extraction.assumptions.length,
       dependencies: extraction.dependencies.length,
       questionsAsked: extraction.clarificationQuestions.length,
-      questionsAnswered: this.session.answeredQuestions.length,
+      questionsAnswered: currentSession.answeredQuestions.length,
       processingTimeMs,
     };
 
     return {
       success: true,
-      projectId: this.session.projectId,
+      projectId: currentSession.projectId,
       outputPath,
       collectedInfo,
-      remainingQuestions: this.session.pendingQuestions,
+      remainingQuestions: currentSession.pendingQuestions,
       stats,
     };
   }
@@ -338,21 +348,29 @@ export class CollectorAgent {
       const question = this.session?.extraction.clarificationQuestions.find(
         (q) => q.id === a.questionId
       );
-      return question?.question.toLowerCase().includes(searchText);
+      return question !== undefined && question.question.toLowerCase().includes(searchText);
     });
     return answer?.answer;
   }
 
   /**
    * Build CollectedInfo from session data
+   *
+   * @param session - The current session
+   * @param name - Project name
+   * @param description - Project description
    */
-  private buildCollectedInfo(name: string, description: string): CollectedInfo {
+  private buildCollectedInfo(
+    session: CollectionSession,
+    name: string,
+    description: string
+  ): CollectedInfo {
     const now = new Date().toISOString();
-    const extraction = this.session!.extraction;
+    const extraction = session.extraction;
 
     return {
       schemaVersion: '1.0.0',
-      projectId: this.session!.projectId,
+      projectId: session.projectId,
       status: 'completed',
       project: {
         name,
@@ -396,29 +414,30 @@ export class CollectorAgent {
         purpose: d.purpose,
         required: d.required,
       })),
-      clarifications: this.session!.answeredQuestions.map((a) => {
-        const question = this.session!.extraction.clarificationQuestions.find(
+      clarifications: session.answeredQuestions.map((a) => {
+        const question = session.extraction.clarificationQuestions.find(
           (q) => q.id === a.questionId
         );
         // Filter to match schema category (exclude 'scope')
         const category = question?.category ?? 'requirement';
-        const validCategory = category === 'scope' ? 'requirement' : category;
+        const validCategory: 'requirement' | 'constraint' | 'assumption' | 'priority' =
+          category === 'scope' ? 'requirement' : category;
         return {
           id: a.questionId,
-          category: validCategory as 'requirement' | 'constraint' | 'assumption' | 'priority',
+          category: validCategory,
           question: question?.question ?? '',
           required: question?.required ?? false,
           answer: a.answer,
           timestamp: a.answeredAt,
         };
       }),
-      sources: this.session!.sources.map((s) => ({
+      sources: session.sources.map((s) => ({
         type: s.type === 'text' ? 'conversation' : s.type,
         reference: s.reference,
         extractedAt: s.extractedAt,
         summary: s.summary,
       })),
-      createdAt: this.session!.startedAt,
+      createdAt: session.startedAt,
       updatedAt: now,
       completedAt: now,
     };
@@ -426,8 +445,10 @@ export class CollectorAgent {
 
   /**
    * Ensure there is an active session in the expected state
+   *
+   * @returns The current session
    */
-  private ensureSession(expectedState: 'collecting' | 'clarifying'): void {
+  private ensureSession(expectedState: 'collecting' | 'clarifying'): CollectionSession {
     if (this.session === null) {
       throw new SessionStateError('no session', expectedState, 'perform this action');
     }
@@ -439,6 +460,8 @@ export class CollectorAgent {
     if (expectedState === 'clarifying' && this.session.status !== 'clarifying') {
       throw new SessionStateError(this.session.status, expectedState, 'answer questions');
     }
+
+    return this.session;
   }
 
   /**
@@ -461,12 +484,12 @@ export class CollectorAgent {
   ): Promise<CollectionResult> {
     await this.startSession(options?.projectName);
     this.addTextInput(text);
-    this.processInputs();
+    const extraction = this.processInputs();
 
     // Skip clarification if confidence is high enough
     if (
       this.config.skipClarificationIfConfident &&
-      this.session!.extraction.overallConfidence >= this.config.confidenceThreshold
+      extraction.overallConfidence >= this.config.confidenceThreshold
     ) {
       this.skipClarification();
     }
@@ -487,11 +510,11 @@ export class CollectorAgent {
   ): Promise<CollectionResult> {
     await this.startSession(options?.projectName);
     await this.addFileInput(filePath);
-    this.processInputs();
+    const extraction = this.processInputs();
 
     if (
       this.config.skipClarificationIfConfident &&
-      this.session!.extraction.overallConfidence >= this.config.confidenceThreshold
+      extraction.overallConfidence >= this.config.confidenceThreshold
     ) {
       this.skipClarification();
     }
