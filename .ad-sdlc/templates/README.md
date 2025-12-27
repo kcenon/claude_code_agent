@@ -6,6 +6,7 @@ This directory contains document templates used by the document generation agent
 
 | Template | Used By | Description |
 |----------|---------|-------------|
+| `agent-template.md` | Agent Development | Template for creating new agent definitions |
 | `prd-template.md` | PRD Writer (CMP-002) | Product Requirements Document template |
 | `srs-template.md` | SRS Writer (CMP-003) | Software Requirements Specification template |
 | `sds-template.md` | SDS Writer (CMP-004) | Software Design Specification template |

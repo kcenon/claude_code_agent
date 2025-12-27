@@ -174,3 +174,33 @@ export type {
   ReadStateOptions,
   StateWithMetadata,
 } from './state-manager/index.js';
+
+// Re-export agent-validator module
+export {
+  AGENT_SCHEMA_VERSION,
+  VALID_TOOLS,
+  VALID_MODELS,
+  AgentFrontmatterSchema,
+  AgentToolSchema,
+  AgentModelSchema,
+  RECOMMENDED_SECTIONS,
+  AgentValidationException,
+  AgentNotFoundError,
+  FrontmatterParseError,
+  FrontmatterValidationError,
+  AgentNotRegisteredError,
+  validateAgentFile,
+  validateAllAgents,
+  formatValidationReport,
+} from './agent-validator/index.js';
+
+export type {
+  AgentTool,
+  AgentModel,
+  AgentFrontmatter,
+  AgentDefinition,
+  AgentValidationError,
+  AgentValidationResult,
+  AgentValidationReport,
+  ValidateAgentOptions,
+} from './agent-validator/index.js';
