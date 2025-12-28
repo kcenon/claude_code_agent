@@ -72,7 +72,7 @@ export class StatusService {
     const targetProjectId = projectId ?? this.options.projectId;
     const timestamp = new Date().toISOString();
 
-    if (targetProjectId !== '' && targetProjectId !== undefined) {
+    if (targetProjectId !== '') {
       // Get status for specific project
       const projectStatus = await this.getProjectStatus(targetProjectId);
       return {
