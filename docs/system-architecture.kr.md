@@ -31,6 +31,13 @@ flowchart TB
         PR[PR Review Agent]
     end
 
+    subgraph EnhancementPipeline["Enhancement Pipeline"]
+        direction LR
+        DOCREAD[Document Reader Agent]
+        CODEBASE[Codebase Analyzer Agent]
+        IMPACT[Impact Analyzer Agent]
+    end
+
     subgraph Output["Output Layer"]
         DOCS[Generated Documents]
         ISSUES[GitHub Issues]
@@ -65,6 +72,13 @@ flowchart TB
     WORKER2 -.-> CODE
     WORKERN -.-> CODE
     PR -.-> PRS
+
+    %% Enhancement Pipeline connections
+    DOCS --> DOCREAD
+    CODE --> CODEBASE
+    DOCREAD --> IMPACT
+    CODEBASE --> IMPACT
+    IMPACT -.-> CTRL
 ```
 
 ## 2. Agent Communication Pattern
@@ -84,6 +98,9 @@ flowchart TB
         A6[Controller]
         A7[Worker]
         A8[PR Reviewer]
+        A9[Document Reader]
+        A10[Codebase Analyzer]
+        A11[Impact Analyzer]
     end
 
     subgraph Scratchpad["File-based State (Scratchpad)"]
@@ -93,6 +110,10 @@ flowchart TB
         S4[docs/sds/*.md]
         S5[issues/*.json]
         S6[progress/*.yaml]
+        S7[state/current_state.yaml]
+        S8[analysis/architecture_overview.yaml]
+        S9[analysis/dependency_graph.json]
+        S10[impact/impact_report.yaml]
     end
 
     MAIN -->|spawn| A1
@@ -103,6 +124,9 @@ flowchart TB
     MAIN -->|spawn| A6
     MAIN -->|spawn| A7
     MAIN -->|spawn| A8
+    MAIN -->|spawn| A9
+    MAIN -->|spawn| A10
+    MAIN -->|spawn| A11
 
     A1 -->|write| S1
     A2 -->|read| S1
@@ -119,6 +143,18 @@ flowchart TB
     A7 -->|read| S6
     A8 -->|read| S6
 
+    %% Enhancement Pipeline file access
+    A9 -->|read| S2
+    A9 -->|read| S3
+    A9 -->|read| S4
+    A9 -->|write| S7
+    A10 -->|write| S8
+    A10 -->|write| S9
+    A11 -->|read| S7
+    A11 -->|read| S8
+    A11 -->|read| S9
+    A11 -->|write| S10
+
     A1 -.->|result| MAIN
     A2 -.->|result| MAIN
     A3 -.->|result| MAIN
@@ -127,6 +163,9 @@ flowchart TB
     A6 -.->|result| MAIN
     A7 -.->|result| MAIN
     A8 -.->|result| MAIN
+    A9 -.->|result| MAIN
+    A10 -.->|result| MAIN
+    A11 -.->|result| MAIN
 ```
 
 ## 3. Document Traceability Flow
@@ -335,7 +374,10 @@ claude_code_agent/
 │       ├── issue-generator.md     # 이슈 생성 에이전트
 │       ├── controller.md          # 관제 에이전트
 │       ├── worker.md              # 작업 에이전트
-│       └── pr-reviewer.md         # PR 리뷰 에이전트
+│       ├── pr-reviewer.md         # PR 리뷰 에이전트
+│       ├── document-reader.md     # 문서 리더 에이전트
+│       ├── codebase-analyzer.md   # 코드베이스 분석 에이전트
+│       └── impact-analyzer.md     # 영향 분석 에이전트
 │
 ├── .ad-sdlc/
 │   ├── scratchpad/               # Inter-agent State

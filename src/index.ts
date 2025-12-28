@@ -707,3 +707,70 @@ export type {
   FileInfo,
   ImportInfo,
 } from './codebase-analyzer/index.js';
+
+// Re-export impact-analyzer module (with explicit handling of conflicts)
+export {
+  ImpactAnalyzerAgent,
+  getImpactAnalyzerAgent,
+  resetImpactAnalyzerAgent,
+  ImpactAnalyzerError,
+  InputNotFoundError,
+  NoInputsAvailableError,
+  ChangeRequestParseError,
+  InvalidChangeRequestError,
+  DependencyResolutionError,
+  TraceabilityGapError,
+  NoActiveSessionError as ImpactNoActiveSessionError,
+  InvalidSessionStateError as ImpactInvalidSessionStateError,
+  OutputWriteError as ImpactOutputWriteError,
+  InputParseError as ImpactInputParseError,
+  FileReadError as ImpactFileReadError,
+  RiskCalculationError,
+  MaxDependencyDepthExceededError,
+  DEFAULT_IMPACT_ANALYZER_CONFIG,
+} from './impact-analyzer/index.js';
+
+export type {
+  // Change types
+  ChangeType,
+  ChangeSize,
+  ChangeRequest,
+  ChangeScope,
+  // Impact types
+  ImpactType,
+  ImpactLevel,
+  ImpactPropagation,
+  AffectedComponent,
+  AffectedFile,
+  AffectedRequirement,
+  DependencyChainEntry,
+  // Risk types
+  RiskLevel,
+  RiskFactor,
+  RiskAssessment,
+  RegressionRisk,
+  // Recommendation types
+  RecommendationType,
+  Recommendation,
+  // Input types (with aliases for conflicts)
+  CurrentState as ImpactCurrentState,
+  ArchitectureOverview as ImpactArchitectureOverview,
+  DependencyGraph as ImpactDependencyGraph,
+  DependencyNode as ImpactDependencyNode,
+  DependencyEdge as ImpactDependencyEdge,
+  AvailableInputs,
+  // Output types
+  ImpactAnalysis,
+  AnalysisStatistics as ImpactAnalysisStatistics,
+  ImpactAnalysisResult,
+  // Session types
+  ImpactAnalysisSession,
+  AnalysisSessionStatus as ImpactAnalysisSessionStatus,
+  // Configuration types
+  ImpactAnalyzerConfig,
+  // Other types
+  FileChangeType,
+  RequirementImpact,
+  RequirementType,
+  ComponentSource,
+} from './impact-analyzer/index.js';
