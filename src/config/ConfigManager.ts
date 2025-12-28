@@ -7,6 +7,8 @@
  * @module config/ConfigManager
  */
 
+/* eslint-disable @typescript-eslint/no-unnecessary-condition */
+
 import { loadWorkflowConfig, loadAgentsConfig } from './loader.js';
 import type { WorkflowConfig, AgentsConfig, LoadConfigOptions } from './types.js';
 
@@ -190,7 +192,7 @@ function resolveEnvVarsInObject<T>(obj: T): T {
     return resolveEnvVars(obj) as T;
   }
   if (Array.isArray(obj)) {
-    return obj.map((item) => resolveEnvVarsInObject(item)) as T;
+    return obj.map((item: unknown) => resolveEnvVarsInObject(item)) as T;
   }
   if (obj !== null && typeof obj === 'object') {
     const result: Record<string, unknown> = {};
@@ -242,9 +244,10 @@ export class ConfigManager {
    * @returns Initialized ConfigManager instance
    */
   static async create(options: ConfigManagerOptions = {}): Promise<ConfigManager> {
-    const loadOptions: LoadConfigOptions = options.baseDir
-      ? { baseDir: options.baseDir, validate: options.validate ?? true }
-      : { validate: options.validate ?? true };
+    const loadOptions: LoadConfigOptions =
+      options.baseDir !== undefined && options.baseDir !== ''
+        ? { baseDir: options.baseDir, validate: options.validate ?? true }
+        : { validate: options.validate ?? true };
 
     const [workflowConfig, agentsConfig] = await Promise.all([
       loadWorkflowConfig(loadOptions),
