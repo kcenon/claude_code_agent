@@ -17,6 +17,7 @@ export default defineConfig({
         'src/init/InteractiveWizard.ts', // Interactive prompts - tested via E2E
         'src/config/loader.ts', // File system operations - tested via E2E
         'src/config/watcher.ts', // CLI watch mode - tested via E2E
+        'src/pr-reviewer/PRReviewerAgent.ts', // GitHub CLI operations - tested via E2E/integration
       ],
       thresholds: {
         lines: 80,
