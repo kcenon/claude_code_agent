@@ -52,12 +52,15 @@ export class SelfVerificationAgent {
       testCommand: config.testCommand ?? DEFAULT_SELF_VERIFICATION_CONFIG.testCommand,
       lintCommand: config.lintCommand ?? DEFAULT_SELF_VERIFICATION_CONFIG.lintCommand,
       buildCommand: config.buildCommand ?? DEFAULT_SELF_VERIFICATION_CONFIG.buildCommand,
-      typecheckCommand: config.typecheckCommand ?? DEFAULT_SELF_VERIFICATION_CONFIG.typecheckCommand,
-      maxFixIterations: config.maxFixIterations ?? DEFAULT_SELF_VERIFICATION_CONFIG.maxFixIterations,
+      typecheckCommand:
+        config.typecheckCommand ?? DEFAULT_SELF_VERIFICATION_CONFIG.typecheckCommand,
+      maxFixIterations:
+        config.maxFixIterations ?? DEFAULT_SELF_VERIFICATION_CONFIG.maxFixIterations,
       autoFixLint: config.autoFixLint ?? DEFAULT_SELF_VERIFICATION_CONFIG.autoFixLint,
       stepsToRun: config.stepsToRun ?? DEFAULT_SELF_VERIFICATION_CONFIG.stepsToRun,
       commandTimeout: config.commandTimeout ?? DEFAULT_SELF_VERIFICATION_CONFIG.commandTimeout,
-      continueOnFailure: config.continueOnFailure ?? DEFAULT_SELF_VERIFICATION_CONFIG.continueOnFailure,
+      continueOnFailure:
+        config.continueOnFailure ?? DEFAULT_SELF_VERIFICATION_CONFIG.continueOnFailure,
     };
 
     this.fixAttempts = [];
@@ -155,7 +158,10 @@ export class SelfVerificationAgent {
     const result = await this.runCommand(command);
     const durationMs = Date.now() - startTime;
 
-    const { errorCount, warningCount } = this.parseOutputCounts(step, result.stdout + result.stderr);
+    const { errorCount, warningCount } = this.parseOutputCounts(
+      step,
+      result.stdout + result.stderr
+    );
 
     return {
       step,
@@ -486,7 +492,12 @@ export class SelfVerificationAgent {
       return { stdout, stderr, exitCode: 0 };
     } catch (error: unknown) {
       // Check for timeout
-      const errorObj = error as { killed?: boolean; code?: string | number; stdout?: string; stderr?: string };
+      const errorObj = error as {
+        killed?: boolean;
+        code?: string | number;
+        stdout?: string;
+        stderr?: string;
+      };
       if (errorObj.killed === true || errorObj.code === 'ETIMEDOUT') {
         throw new CommandTimeoutError(command, this.config.commandTimeout);
       }
@@ -596,9 +607,7 @@ export class SelfVerificationAgent {
 
     // Add lint summary if lint was run
     if (lintResult !== null) {
-      const autoFixedAttempts = this.fixAttempts.filter(
-        (f) => f.step === 'lint' && f.success
-      );
+      const autoFixedAttempts = this.fixAttempts.filter((f) => f.step === 'lint' && f.success);
 
       (report as { lintSummary: VerificationReport['lintSummary'] }).lintSummary = {
         errors: lintResult.errorCount,
