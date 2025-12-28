@@ -149,9 +149,7 @@ export class MergeDecision {
    */
   public async checkBlockingReviews(prNumber: number): Promise<readonly BlockingReview[]> {
     try {
-      const result = await this.executeCommand(
-        `gh pr view ${String(prNumber)} --json reviews`
-      );
+      const result = await this.executeCommand(`gh pr view ${String(prNumber)} --json reviews`);
 
       if (result.exitCode !== 0) {
         return [];
@@ -207,17 +205,98 @@ export class MergeDecision {
     const recommendations: string[] = [];
 
     // Build gate results from required gates
-    gates.push(this.buildGateResult('Tests Pass', checks.testsPassed, 'pass', checks.testsPassed ? 'pass' : 'fail', 'status', true));
-    gates.push(this.buildGateResult('Build Pass', checks.buildPassed, 'pass', checks.buildPassed ? 'pass' : 'fail', 'status', true));
-    gates.push(this.buildGateResult('Lint Pass', checks.lintPassed, 'pass', checks.lintPassed ? 'pass' : 'fail', 'status', true));
-    gates.push(this.buildGateResult('Code Coverage', metrics.codeCoverage >= 80, '≥80', metrics.codeCoverage, 'percentage', true));
-    gates.push(this.buildGateResult('Security (Critical)', metrics.securityIssues.critical === 0, '0', metrics.securityIssues.critical, 'count', true));
-    gates.push(this.buildGateResult('Security (High)', metrics.securityIssues.high === 0, '0', metrics.securityIssues.high, 'count', true));
+    gates.push(
+      this.buildGateResult(
+        'Tests Pass',
+        checks.testsPassed,
+        'pass',
+        checks.testsPassed ? 'pass' : 'fail',
+        'status',
+        true
+      )
+    );
+    gates.push(
+      this.buildGateResult(
+        'Build Pass',
+        checks.buildPassed,
+        'pass',
+        checks.buildPassed ? 'pass' : 'fail',
+        'status',
+        true
+      )
+    );
+    gates.push(
+      this.buildGateResult(
+        'Lint Pass',
+        checks.lintPassed,
+        'pass',
+        checks.lintPassed ? 'pass' : 'fail',
+        'status',
+        true
+      )
+    );
+    gates.push(
+      this.buildGateResult(
+        'Code Coverage',
+        metrics.codeCoverage >= 80,
+        '≥80',
+        metrics.codeCoverage,
+        'percentage',
+        true
+      )
+    );
+    gates.push(
+      this.buildGateResult(
+        'Security (Critical)',
+        metrics.securityIssues.critical === 0,
+        '0',
+        metrics.securityIssues.critical,
+        'count',
+        true
+      )
+    );
+    gates.push(
+      this.buildGateResult(
+        'Security (High)',
+        metrics.securityIssues.high === 0,
+        '0',
+        metrics.securityIssues.high,
+        'count',
+        true
+      )
+    );
 
     // Build gate results from recommended gates
-    gates.push(this.buildGateResult('New Lines Coverage', metrics.newLinesCoverage >= 90, '≥90', metrics.newLinesCoverage, 'percentage', false));
-    gates.push(this.buildGateResult('Complexity', metrics.complexityScore <= 10, '≤10', metrics.complexityScore, 'number', false));
-    gates.push(this.buildGateResult('Style Violations', metrics.styleViolations === 0, '0', metrics.styleViolations, 'count', false));
+    gates.push(
+      this.buildGateResult(
+        'New Lines Coverage',
+        metrics.newLinesCoverage >= 90,
+        '≥90',
+        metrics.newLinesCoverage,
+        'percentage',
+        false
+      )
+    );
+    gates.push(
+      this.buildGateResult(
+        'Complexity',
+        metrics.complexityScore <= 10,
+        '≤10',
+        metrics.complexityScore,
+        'number',
+        false
+      )
+    );
+    gates.push(
+      this.buildGateResult(
+        'Style Violations',
+        metrics.styleViolations === 0,
+        '0',
+        metrics.styleViolations,
+        'count',
+        false
+      )
+    );
 
     // Generate required actions from failures
     for (const gate of gates) {
@@ -276,7 +355,12 @@ export class MergeDecision {
       this.checkBlockingReviews(prNumber),
     ]);
 
-    const detailedReport = this.generateDetailedReport(prNumber, qualityGateResult, metrics, checks);
+    const detailedReport = this.generateDetailedReport(
+      prNumber,
+      qualityGateResult,
+      metrics,
+      checks
+    );
 
     // Collect blocking reasons
     const blockingReasons: string[] = [];
@@ -286,11 +370,15 @@ export class MergeDecision {
     }
 
     if (conflicts.hasConflicts) {
-      blockingReasons.push(`Merge conflicts detected in ${String(conflicts.conflictingFiles.length)} file(s)`);
+      blockingReasons.push(
+        `Merge conflicts detected in ${String(conflicts.conflictingFiles.length)} file(s)`
+      );
     }
 
     if (blockingReviews.length > 0) {
-      blockingReasons.push(`${String(blockingReviews.length)} blocking review(s) requesting changes`);
+      blockingReasons.push(
+        `${String(blockingReviews.length)} blocking review(s) requesting changes`
+      );
     }
 
     if (!checks.ciPassed) {
@@ -486,7 +574,9 @@ export class MergeDecision {
 
     for (const gate of gates) {
       const status = gate.passed ? '✅ PASSED' : gate.blocking ? '❌ FAILED' : '⚠️ WARNING';
-      lines.push(`| ${gate.gate} | ${String(gate.threshold)} | ${String(gate.actual)} | ${status} |`);
+      lines.push(
+        `| ${gate.gate} | ${String(gate.threshold)} | ${String(gate.actual)} | ${status} |`
+      );
     }
 
     lines.push('');
@@ -520,9 +610,7 @@ export class MergeDecision {
   /**
    * Map GitHub mergeable state to our enum
    */
-  private mapMergeableState(
-    state?: string
-  ): 'clean' | 'dirty' | 'blocked' | 'behind' | 'unknown' {
+  private mapMergeableState(state?: string): 'clean' | 'dirty' | 'blocked' | 'behind' | 'unknown' {
     switch (state?.toUpperCase()) {
       case 'CLEAN':
         return 'clean';
