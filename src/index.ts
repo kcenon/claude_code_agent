@@ -364,3 +364,117 @@ export type {
   InputParserOptions,
   InformationExtractorOptions,
 } from './collector/index.js';
+
+// Re-export prd-writer module
+export * from './prd-writer/index.js';
+
+// Re-export srs-writer module
+export * from './srs-writer/index.js';
+
+// Re-export sds-writer module (with explicit handling of conflicts)
+export {
+  SDSWriterAgent,
+  getSDSWriterAgent,
+  resetSDSWriterAgent,
+  SRSParser as SDSSRSParser,
+  ComponentDesigner,
+  APISpecifier,
+  DataDesigner,
+  TraceabilityMapper,
+  SDSWriterError,
+  SRSNotFoundError as SDSSRSNotFoundError,
+  SRSParseError as SDSSRSParseError,
+  TemplateNotFoundError as SDSTemplateNotFoundError,
+  TemplateProcessingError as SDSTemplateProcessingError,
+  ComponentDesignError,
+  APISpecificationError as SDSAPISpecificationError,
+  DataModelDesignError,
+  SecuritySpecificationError,
+  LowCoverageError as SDSLowCoverageError,
+  SessionStateError as SDSSessionStateError,
+  ValidationError as SDSValidationError,
+  GenerationError as SDSGenerationError,
+  FileWriteError as SDSFileWriteError,
+  CircularDependencyError as SDSCircularDependencyError,
+  InterfaceGenerationError as SDSInterfaceGenerationError,
+} from './sds-writer/index.js';
+
+export type {
+  // Generation status and config
+  SDSGenerationStatus,
+  SDSWriterAgentConfig,
+  SDSGenerationSession,
+  SDSGenerationResult,
+  SDSGenerationStats,
+  Priority as SDSPriority,
+  DocumentStatus,
+  HttpMethod as SDSHttpMethod,
+  DataTypeCategory,
+  SecurityLevel,
+
+  // SRS input types
+  ParsedSRS as SDSParsedSRS,
+  SRSDocumentMetadata,
+  ParsedSRSFeature,
+  ParsedNFR as SDSParsedNFR,
+  ParsedConstraint as SDSParsedConstraint,
+  ParsedUseCase as SDSParsedUseCase,
+  AlternativeScenario,
+
+  // SDS output types
+  SDSMetadata,
+  SDSComponent,
+  SDSInterface,
+  SDSMethod,
+  MethodParameter,
+  GeneratedSDS,
+
+  // Technology stack
+  TechnologyEntry,
+
+  // API types
+  APIEndpoint as SDSAPIEndpoint,
+  APIParameter as SDSAPIParameter,
+  DataSchema,
+  DataProperty,
+  ErrorResponse as SDSErrorResponse,
+
+  // Data model types
+  DataModel,
+  DataRelationship,
+  DataIndex,
+
+  // Security types
+  SecuritySpec,
+  AuthenticationSpec,
+  AuthorizationSpec,
+  RoleDefinition,
+  PermissionRule,
+  DataProtectionMeasure,
+
+  // Deployment types
+  DeploymentSpec,
+  EnvironmentSpec,
+  ScalingSpec,
+
+  // Traceability types
+  TraceabilityEntry as SDSTraceabilityEntry,
+  TraceabilityMatrix as SDSTraceabilityMatrix,
+
+  // Design input types
+  ComponentDesignInput,
+  APIDesignInput,
+  DataModelDesignInput,
+
+  // Options types
+  SRSParserOptions as SDSSRSParserOptions,
+  ComponentDesignerOptions,
+  ComponentDesignResult,
+  APISpecifierOptions,
+  APISpecificationResult,
+  DataDesignerOptions,
+  DataDesignResult,
+  TraceabilityMapperOptions,
+  TraceabilityAnalysis,
+  TraceabilityStats,
+} from './sds-writer/index.js';
