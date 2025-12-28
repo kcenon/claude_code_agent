@@ -101,6 +101,9 @@ export class SDSWriterAgent {
    * @returns The new session
    */
   public async startSession(projectId: string): Promise<SDSGenerationSession> {
+    // Ensure async function has await expression
+    await Promise.resolve();
+
     // Load SRS document
     const srsPath = path.join(
       this.config.scratchpadBasePath,
@@ -638,7 +641,7 @@ export class SDSWriterAgent {
           lines.push('**Relationships:**');
           lines.push('');
           for (const rel of model.relationships) {
-            lines.push(`- ${rel.type} with ${rel.target}${rel.foreignKey ? ` (FK: ${rel.foreignKey})` : ''}`);
+            lines.push(`- ${rel.type} with ${rel.target}${rel.foreignKey != null && rel.foreignKey !== '' ? ` (FK: ${rel.foreignKey})` : ''}`);
           }
           lines.push('');
         }
@@ -678,7 +681,7 @@ export class SDSWriterAgent {
       lines.push('### 6.1 Authentication');
       lines.push('');
       lines.push(`**Type:** ${security.authentication.type.toUpperCase()}`);
-      if (security.authentication.tokenExpiry) {
+      if (security.authentication.tokenExpiry != null && security.authentication.tokenExpiry !== '') {
         lines.push(`**Token Expiry:** ${security.authentication.tokenExpiry}`);
       }
       lines.push('');
@@ -721,8 +724,8 @@ export class SDSWriterAgent {
         lines.push('### 7.2 Scaling Strategy');
         lines.push('');
         lines.push(`- **Type:** ${deployment.scaling.type}`);
-        lines.push(`- **Min Instances:** ${deployment.scaling.minInstances ?? 'N/A'}`);
-        lines.push(`- **Max Instances:** ${deployment.scaling.maxInstances ?? 'N/A'}`);
+        lines.push(`- **Min Instances:** ${String(deployment.scaling.minInstances ?? 'N/A')}`);
+        lines.push(`- **Max Instances:** ${String(deployment.scaling.maxInstances ?? 'N/A')}`);
         lines.push('');
       }
     }
@@ -760,6 +763,9 @@ export class SDSWriterAgent {
     projectId: string,
     sds: GeneratedSDS
   ): Promise<{ scratchpadPath: string; publicPath: string }> {
+    // Ensure async function has await expression
+    await Promise.resolve();
+
     // Scratchpad path
     const scratchpadDir = path.join(
       this.config.scratchpadBasePath,

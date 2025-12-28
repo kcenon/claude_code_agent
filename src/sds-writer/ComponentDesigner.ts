@@ -500,7 +500,7 @@ export class ComponentDesigner {
     let noun = '';
 
     for (const word of words) {
-      if (verbMappings[word]) {
+      if (verbMappings[word] != null) {
         verb = verbMappings[word];
       } else if (word.length > 3 && !noun) {
         noun = word.charAt(0).toUpperCase() + word.slice(1);
@@ -660,7 +660,7 @@ export class ComponentDesigner {
     );
 
     for (const nfr of relevantNfrs.slice(0, 3)) {
-      if (nfr.metric) {
+      if (nfr.metric != null) {
         notes.push(`${nfr.category}: ${nfr.metric}`);
       } else {
         notes.push(`${nfr.category}: ${nfr.description.slice(0, 100)}`);

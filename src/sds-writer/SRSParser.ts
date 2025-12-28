@@ -238,7 +238,7 @@ export class SRSParser {
       // Check for next major section (end of Features)
       if (inFeaturesSection && line.match(/^##\s+\d+\./) && !line.match(/Features/i)) {
         // Save current feature if exists
-        if (currentFeature?.id) {
+        if (currentFeature != null && currentFeature.id !== '') {
           features.push(
             this.finalizeFeature(currentFeature, descriptionLines, acceptanceCriteria)
           );
@@ -253,7 +253,7 @@ export class SRSParser {
       const headerMatch = PATTERNS.featureHeader.exec(line);
       if (headerMatch) {
         // Save previous feature
-        if (currentFeature?.id) {
+        if (currentFeature != null && currentFeature.id !== '') {
           features.push(
             this.finalizeFeature(currentFeature, descriptionLines, acceptanceCriteria)
           );
@@ -318,14 +318,14 @@ export class SRSParser {
         descriptionLines.push(line.trim());
       } else if (currentSection === 'acceptance') {
         const listMatch = PATTERNS.listItem.exec(line) ?? PATTERNS.numberedListItem.exec(line);
-        if (listMatch?.[1]) {
+        if (listMatch != null && listMatch[1] != null && listMatch[1] !== '') {
           acceptanceCriteria.push(listMatch[1].trim());
         }
       }
     }
 
     // Don't forget the last feature
-    if (currentFeature?.id) {
+    if (currentFeature != null && currentFeature.id !== '') {
       features.push(this.finalizeFeature(currentFeature, descriptionLines, acceptanceCriteria));
     }
 
@@ -376,8 +376,8 @@ export class SRSParser {
       // Check for next major section
       if (inUseCasesSection && line.match(/^##\s+\d+\./) && !line.match(/Use Cases/i)) {
         // Save current use case
-        if (currentUseCase?.id) {
-          if (currentAltScenario?.name && currentAltSteps.length > 0) {
+        if (currentUseCase != null && currentUseCase.id !== '') {
+          if (currentAltScenario != null && currentAltScenario.name !== '' && currentAltSteps.length > 0) {
             alternativeScenarios.push({ name: currentAltScenario.name, steps: currentAltSteps });
           }
           useCases.push(
@@ -400,8 +400,8 @@ export class SRSParser {
       const headerMatch = PATTERNS.useCaseHeader.exec(line);
       if (headerMatch) {
         // Save previous use case
-        if (currentUseCase?.id) {
-          if (currentAltScenario?.name && currentAltSteps.length > 0) {
+        if (currentUseCase != null && currentUseCase.id !== '') {
+          if (currentAltScenario != null && currentAltScenario.name !== '' && currentAltSteps.length > 0) {
             alternativeScenarios.push({ name: currentAltScenario.name, steps: currentAltSteps });
           }
           useCases.push(
@@ -477,7 +477,7 @@ export class SRSParser {
         continue;
       } else if (line.match(/^#####\s+(.+)$/) && currentSection === 'alternative') {
         // New alternative scenario
-        if (currentAltScenario?.name && currentAltSteps.length > 0) {
+        if (currentAltScenario != null && currentAltScenario.name !== '' && currentAltSteps.length > 0) {
           alternativeScenarios.push({ name: currentAltScenario.name, steps: currentAltSteps });
         }
         const altMatch = /^#####\s+(.+)$/.exec(line);
@@ -488,7 +488,7 @@ export class SRSParser {
 
       // Collect content based on section
       const listMatch = PATTERNS.listItem.exec(line) ?? PATTERNS.numberedListItem.exec(line);
-      if (listMatch?.[1]) {
+      if (listMatch != null && listMatch[1] != null && listMatch[1] !== '') {
         const item = listMatch[1].trim();
         switch (currentSection) {
           case 'preconditions':
@@ -514,8 +514,8 @@ export class SRSParser {
     }
 
     // Don't forget the last use case
-    if (currentUseCase?.id) {
-      if (currentAltScenario?.name && currentAltSteps.length > 0) {
+    if (currentUseCase != null && currentUseCase.id !== '') {
+      if (currentAltScenario != null && currentAltScenario.name !== '' && currentAltSteps.length > 0) {
         alternativeScenarios.push({ name: currentAltScenario.name, steps: currentAltSteps });
       }
       useCases.push(
@@ -572,7 +572,7 @@ export class SRSParser {
 
       // Check for next major section
       if (inNFRSection && line.match(/^##\s+\d+\./) && !line.match(/Non-?Functional/i)) {
-        if (currentNFR?.id) {
+        if (currentNFR != null && currentNFR.id !== '') {
           nfrs.push(this.finalizeNFR(currentNFR, descriptionLines));
           currentNFR = null; // Prevent double-push at end of function
         }
@@ -584,7 +584,7 @@ export class SRSParser {
       // Check for NFR header
       const headerMatch = PATTERNS.nfrHeader.exec(line);
       if (headerMatch) {
-        if (currentNFR?.id) {
+        if (currentNFR != null && currentNFR.id !== '') {
           nfrs.push(this.finalizeNFR(currentNFR, descriptionLines));
         }
 
@@ -623,7 +623,7 @@ export class SRSParser {
     }
 
     // Don't forget the last NFR
-    if (currentNFR?.id) {
+    if (currentNFR != null && currentNFR.id !== '') {
       nfrs.push(this.finalizeNFR(currentNFR, descriptionLines));
     }
 
@@ -681,7 +681,7 @@ export class SRSParser {
 
       // Check for next major section
       if (inConstraintsSection && line.match(/^##\s+\d+\./) && !line.match(/Constraints?/i)) {
-        if (currentConstraint?.id) {
+        if (currentConstraint != null && currentConstraint.id !== '') {
           constraints.push(this.finalizeConstraint(currentConstraint, descriptionLines));
           currentConstraint = null; // Prevent double-push at end of function
         }
@@ -693,7 +693,7 @@ export class SRSParser {
       // Check for constraint header
       const headerMatch = PATTERNS.constraintHeader.exec(line);
       if (headerMatch) {
-        if (currentConstraint?.id) {
+        if (currentConstraint != null && currentConstraint.id !== '') {
           constraints.push(this.finalizeConstraint(currentConstraint, descriptionLines));
         }
 
@@ -727,7 +727,7 @@ export class SRSParser {
     }
 
     // Don't forget the last constraint
-    if (currentConstraint?.id) {
+    if (currentConstraint != null && currentConstraint.id !== '') {
       constraints.push(this.finalizeConstraint(currentConstraint, descriptionLines));
     }
 
@@ -784,7 +784,7 @@ export class SRSParser {
 
       // Collect list items
       const listMatch = PATTERNS.listItem.exec(line) ?? PATTERNS.numberedListItem.exec(line);
-      if (listMatch?.[1]) {
+      if (listMatch != null && listMatch[1] != null && listMatch[1] !== '') {
         assumptions.push(listMatch[1].trim());
       }
     }

@@ -196,7 +196,7 @@ export class TraceabilityMapper {
 
     if (forwardCoverage < this.options.coverageThreshold) {
       warnings.push(
-        `Forward coverage ${forwardCoverage}% is below threshold ${this.options.coverageThreshold}%`
+        `Forward coverage ${String(forwardCoverage)}% is below threshold ${String(this.options.coverageThreshold)}%`
       );
     }
 
@@ -228,7 +228,7 @@ export class TraceabilityMapper {
 
     // Summary
     lines.push('');
-    lines.push(`**Coverage:** ${matrix.forwardCoverage}%`);
+    lines.push(`**Coverage:** ${String(matrix.forwardCoverage)}%`);
 
     if (matrix.uncoveredFeatures.length > 0) {
       lines.push('');
@@ -260,19 +260,19 @@ export class TraceabilityMapper {
     // Check for components without feature
     if (matrix.orphanComponents.length > 0) {
       errors.push(
-        `${matrix.orphanComponents.length} component(s) have no valid feature reference`
+        `${String(matrix.orphanComponents.length)} component(s) have no valid feature reference`
       );
     }
 
     // Check for uncovered features
     if (matrix.uncoveredFeatures.length > 0) {
-      errors.push(`${matrix.uncoveredFeatures.length} feature(s) have no SDS component`);
+      errors.push(`${String(matrix.uncoveredFeatures.length)} feature(s) have no SDS component`);
     }
 
     // Check coverage
     if (matrix.forwardCoverage < this.options.coverageThreshold) {
       errors.push(
-        `Coverage ${matrix.forwardCoverage}% is below threshold ${this.options.coverageThreshold}%`
+        `Coverage ${String(matrix.forwardCoverage)}% is below threshold ${String(this.options.coverageThreshold)}%`
       );
     }
 
@@ -294,9 +294,9 @@ export class TraceabilityMapper {
       '',
       '| Metric | Value |',
       '|--------|-------|',
-      `| SRS Features | ${stats.coveredFeatures}/${stats.totalFeatures} (${stats.forwardCoverage}%) |`,
-      `| SDS Components | ${stats.tracedComponents}/${stats.totalComponents} (${stats.backwardCoverage}%) |`,
-      `| Use Cases Linked | ${stats.linkedUseCases}/${stats.totalUseCases} |`,
+      `| SRS Features | ${String(stats.coveredFeatures)}/${String(stats.totalFeatures)} (${String(stats.forwardCoverage)}%) |`,
+      `| SDS Components | ${String(stats.tracedComponents)}/${String(stats.totalComponents)} (${String(stats.backwardCoverage)}%) |`,
+      `| Use Cases Linked | ${String(stats.linkedUseCases)}/${String(stats.totalUseCases)} |`,
       '',
     ];
 

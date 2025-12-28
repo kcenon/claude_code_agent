@@ -376,7 +376,7 @@ export class APISpecifier {
 
     while ((match = paramPattern.exec(path)) !== null) {
       const paramName = match[1];
-      if (paramName) {
+      if (paramName !== undefined && paramName !== '') {
         parameters.push({
           name: paramName,
           type: 'string',
@@ -575,9 +575,9 @@ export class APISpecifier {
 
     // Add main scenario summary
     if (useCase.mainScenario.length > 0) {
-      parts.push(`\n\nSteps:\n${useCase.mainScenario.slice(0, 3).map((s, i) => `${i + 1}. ${s}`).join('\n')}`);
+      parts.push(`\n\nSteps:\n${useCase.mainScenario.slice(0, 3).map((s, i) => `${String(i + 1)}. ${s}`).join('\n')}`);
       if (useCase.mainScenario.length > 3) {
-        parts.push(`... and ${useCase.mainScenario.length - 3} more steps`);
+        parts.push(`... and ${String(useCase.mainScenario.length - 3)} more steps`);
       }
     }
 
