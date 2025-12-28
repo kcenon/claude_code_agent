@@ -1,0 +1,561 @@
+/**
+ * Feature Decomposer for SRS Writer Agent
+ *
+ * Decomposes PRD requirements into detailed SRS features.
+ * Creates atomic, testable specifications with traceability.
+ */
+
+import type { SRSFeature, SRSUseCase } from '../architecture-generator/types.js';
+import type {
+  ParsedPRD,
+  ParsedPRDRequirement,
+  FeatureDecompositionResult,
+  Priority,
+} from './types.js';
+import { FeatureDecompositionError } from './errors.js';
+
+/**
+ * Feature decomposer options
+ */
+export interface FeatureDecomposerOptions {
+  /** Maximum features per requirement */
+  readonly maxFeaturesPerRequirement?: number;
+  /** Minimum features per requirement */
+  readonly minFeaturesPerRequirement?: number;
+  /** Generate sub-features for complex requirements */
+  readonly generateSubFeatures?: boolean;
+}
+
+/**
+ * Default decomposer options
+ */
+const DEFAULT_OPTIONS: Required<FeatureDecomposerOptions> = {
+  maxFeaturesPerRequirement: 5,
+  minFeaturesPerRequirement: 1,
+  generateSubFeatures: true,
+};
+
+/**
+ * Feature Decomposer class
+ */
+export class FeatureDecomposer {
+  private readonly options: Required<FeatureDecomposerOptions>;
+  private featureCounter: number = 0;
+  private useCaseCounter: number = 0;
+
+  constructor(options: FeatureDecomposerOptions = {}) {
+    this.options = { ...DEFAULT_OPTIONS, ...options };
+  }
+
+  /**
+   * Decompose PRD requirements into SRS features
+   *
+   * @param parsedPRD - Parsed PRD document
+   * @returns Feature decomposition result
+   */
+  public decompose(parsedPRD: ParsedPRD): FeatureDecompositionResult {
+    this.featureCounter = 0;
+    this.useCaseCounter = 0;
+
+    const features: SRSFeature[] = [];
+    const traceabilityMap = new Map<string, string[]>();
+    const unmappedRequirements: string[] = [];
+
+    // Get available actors from personas
+    const actors = this.extractActors(parsedPRD);
+
+    for (const requirement of parsedPRD.functionalRequirements) {
+      try {
+        const decomposedFeatures = this.decomposeRequirement(requirement, actors);
+
+        if (decomposedFeatures.length === 0) {
+          unmappedRequirements.push(requirement.id);
+          continue;
+        }
+
+        features.push(...decomposedFeatures);
+
+        // Build traceability
+        const featureIds = decomposedFeatures.map((f) => f.id);
+        traceabilityMap.set(requirement.id, featureIds);
+      } catch (error) {
+        if (error instanceof FeatureDecompositionError) {
+          throw error;
+        }
+        throw new FeatureDecompositionError(
+          requirement.id,
+          error instanceof Error ? error.message : String(error)
+        );
+      }
+    }
+
+    // Calculate coverage
+    const totalRequirements = parsedPRD.functionalRequirements.length;
+    const mappedRequirements = totalRequirements - unmappedRequirements.length;
+    const coverage = totalRequirements > 0 ? (mappedRequirements / totalRequirements) * 100 : 100;
+
+    return {
+      features,
+      traceabilityMap,
+      coverage,
+      unmappedRequirements,
+    };
+  }
+
+  /**
+   * Extract actor names from user personas
+   */
+  private extractActors(parsedPRD: ParsedPRD): string[] {
+    const actors = parsedPRD.userPersonas.map((p) => p.role || p.name);
+
+    // Add default actors if none defined
+    if (actors.length === 0) {
+      actors.push('User', 'Administrator', 'System');
+    }
+
+    return actors;
+  }
+
+  /**
+   * Decompose a single requirement into features
+   */
+  private decomposeRequirement(
+    requirement: ParsedPRDRequirement,
+    actors: readonly string[]
+  ): SRSFeature[] {
+    const features: SRSFeature[] = [];
+
+    // Analyze requirement complexity
+    const complexity = this.analyzeComplexity(requirement);
+
+    if (complexity === 'simple' || !this.options.generateSubFeatures) {
+      // Single feature for simple requirements
+      const feature = this.createFeature(requirement, actors);
+      features.push(feature);
+    } else {
+      // Multiple features for complex requirements
+      const subFeatures = this.createSubFeatures(requirement, actors, complexity);
+      features.push(...subFeatures);
+    }
+
+    return features;
+  }
+
+  /**
+   * Analyze requirement complexity
+   */
+  private analyzeComplexity(
+    requirement: ParsedPRDRequirement
+  ): 'simple' | 'moderate' | 'complex' {
+    let score = 0;
+
+    // Check description length
+    if (requirement.description.length > 200) score += 1;
+    if (requirement.description.length > 400) score += 1;
+
+    // Check number of acceptance criteria
+    if (requirement.acceptanceCriteria.length > 3) score += 1;
+    if (requirement.acceptanceCriteria.length > 6) score += 1;
+
+    // Check for multiple actions in description
+    const actionWords = (
+      requirement.description.match(/\b(and|also|additionally|must|should|shall)\b/gi) ?? []
+    ).length;
+    if (actionWords > 2) score += 1;
+
+    // Check for dependencies
+    if (requirement.dependencies.length > 0) score += 1;
+
+    if (score <= 1) return 'simple';
+    if (score <= 3) return 'moderate';
+    return 'complex';
+  }
+
+  /**
+   * Create a single feature from a requirement
+   */
+  private createFeature(
+    requirement: ParsedPRDRequirement,
+    actors: readonly string[]
+  ): SRSFeature {
+    this.featureCounter++;
+    const featureId = `SF-${String(this.featureCounter).padStart(3, '0')}`;
+
+    // Generate use cases from acceptance criteria
+    const useCases = this.generateUseCases(requirement, featureId, actors);
+
+    // Extract NFR references from description
+    const nfrs = this.extractNFRReferences(requirement.description);
+
+    return {
+      id: featureId,
+      name: requirement.title,
+      description: this.enhanceDescription(requirement),
+      priority: requirement.priority,
+      useCases,
+      nfrs,
+    };
+  }
+
+  /**
+   * Create multiple sub-features from a complex requirement
+   */
+  private createSubFeatures(
+    requirement: ParsedPRDRequirement,
+    actors: readonly string[],
+    complexity: 'moderate' | 'complex'
+  ): SRSFeature[] {
+    const features: SRSFeature[] = [];
+
+    // Split based on acceptance criteria or description sections
+    const segments = this.segmentRequirement(requirement, complexity);
+
+    for (const segment of segments) {
+      this.featureCounter++;
+      const featureId = `SF-${String(this.featureCounter).padStart(3, '0')}`;
+
+      const useCases = this.generateUseCasesFromSegment(segment, featureId, actors);
+      const nfrs = this.extractNFRReferences(segment.description);
+
+      features.push({
+        id: featureId,
+        name: segment.name,
+        description: segment.description,
+        priority: requirement.priority,
+        useCases,
+        nfrs,
+      });
+    }
+
+    return features;
+  }
+
+  /**
+   * Segment a complex requirement into smaller parts
+   */
+  private segmentRequirement(
+    requirement: ParsedPRDRequirement,
+    complexity: 'moderate' | 'complex'
+  ): Array<{ name: string; description: string; criteria: string[] }> {
+    const segments: Array<{ name: string; description: string; criteria: string[] }> = [];
+
+    if (requirement.acceptanceCriteria.length >= 3) {
+      // Group acceptance criteria into segments
+      const criteriaPerSegment = complexity === 'complex' ? 2 : 3;
+      const criteriaGroups = this.chunkArray(
+        requirement.acceptanceCriteria,
+        criteriaPerSegment
+      );
+
+      criteriaGroups.forEach((criteria, index) => {
+        segments.push({
+          name: `${requirement.title} - Part ${index + 1}`,
+          description: `${requirement.description}\n\nFocus: ${criteria.join('; ')}`,
+          criteria,
+        });
+      });
+    } else {
+      // Split by logical sections in description
+      const parts = requirement.description.split(/(?:\.\s+|\n\n+)/).filter(Boolean);
+
+      if (parts.length >= 2) {
+        parts.slice(0, this.options.maxFeaturesPerRequirement).forEach((part, index) => {
+          segments.push({
+            name: `${requirement.title} - ${this.getPartLabel(index)}`,
+            description: part.trim(),
+            criteria: [],
+          });
+        });
+      } else {
+        // Cannot split further, return as single segment
+        segments.push({
+          name: requirement.title,
+          description: requirement.description,
+          criteria: [...requirement.acceptanceCriteria],
+        });
+      }
+    }
+
+    return segments;
+  }
+
+  /**
+   * Get a label for a part index
+   */
+  private getPartLabel(index: number): string {
+    const labels = ['Core Functionality', 'Validation', 'User Feedback', 'Integration', 'Cleanup'];
+    return labels[index] ?? `Part ${index + 1}`;
+  }
+
+  /**
+   * Generate use cases from a requirement
+   */
+  private generateUseCases(
+    requirement: ParsedPRDRequirement,
+    featureId: string,
+    actors: readonly string[]
+  ): SRSUseCase[] {
+    const useCases: SRSUseCase[] = [];
+
+    // Primary use case for main flow
+    this.useCaseCounter++;
+    const primaryUC = this.createPrimaryUseCase(
+      requirement,
+      featureId,
+      actors[0] ?? 'User'
+    );
+    useCases.push(primaryUC);
+
+    // Additional use cases from acceptance criteria
+    if (requirement.acceptanceCriteria.length > 0) {
+      const additionalUCs = this.createUseCasesFromCriteria(
+        requirement.acceptanceCriteria,
+        featureId,
+        actors[0] ?? 'User'
+      );
+      useCases.push(...additionalUCs);
+    }
+
+    return useCases;
+  }
+
+  /**
+   * Create primary use case for a requirement
+   */
+  private createPrimaryUseCase(
+    requirement: ParsedPRDRequirement,
+    featureId: string,
+    actor: string
+  ): SRSUseCase {
+    const ucId = `UC-${String(this.useCaseCounter).padStart(3, '0')}`;
+
+    // Generate main flow from description
+    const mainFlow = this.generateMainFlow(requirement);
+
+    // Generate preconditions
+    const preconditions = this.generatePreconditions(requirement);
+
+    // Generate postconditions
+    const postconditions = this.generatePostconditions(requirement);
+
+    // Generate alternative flows
+    const alternativeFlows = this.generateAlternativeFlows(requirement);
+
+    return {
+      id: ucId,
+      name: this.generateUseCaseName(requirement.title),
+      description: requirement.description,
+      actor,
+      preconditions,
+      mainFlow,
+      alternativeFlows,
+      postconditions,
+    };
+  }
+
+  /**
+   * Create use cases from acceptance criteria
+   */
+  private createUseCasesFromCriteria(
+    criteria: readonly string[],
+    featureId: string,
+    actor: string
+  ): SRSUseCase[] {
+    const useCases: SRSUseCase[] = [];
+
+    // Only create additional use cases for significant criteria
+    const significantCriteria = criteria.filter(
+      (c) => c.length > 30 && /\b(when|if|should|must|can)\b/i.test(c)
+    );
+
+    for (const criterion of significantCriteria.slice(0, 2)) {
+      this.useCaseCounter++;
+      const ucId = `UC-${String(this.useCaseCounter).padStart(3, '0')}`;
+
+      useCases.push({
+        id: ucId,
+        name: this.extractUseCaseNameFromCriterion(criterion),
+        description: criterion,
+        actor,
+        preconditions: ['System is operational'],
+        mainFlow: [this.criterionToFlowStep(criterion)],
+        alternativeFlows: [],
+        postconditions: ['Criterion is satisfied'],
+      });
+    }
+
+    return useCases;
+  }
+
+  /**
+   * Generate use cases from a segment
+   */
+  private generateUseCasesFromSegment(
+    segment: { name: string; description: string; criteria: string[] },
+    featureId: string,
+    actors: readonly string[]
+  ): SRSUseCase[] {
+    this.useCaseCounter++;
+    const ucId = `UC-${String(this.useCaseCounter).padStart(3, '0')}`;
+
+    const mainFlow = segment.criteria.length > 0
+      ? segment.criteria.map((c, i) => `${i + 1}. ${c}`)
+      : [segment.description];
+
+    return [
+      {
+        id: ucId,
+        name: this.generateUseCaseName(segment.name),
+        description: segment.description,
+        actor: actors[0] ?? 'User',
+        preconditions: ['System is operational'],
+        mainFlow,
+        alternativeFlows: [],
+        postconditions: ['Operation completes successfully'],
+      },
+    ];
+  }
+
+  /**
+   * Generate main flow steps from requirement
+   */
+  private generateMainFlow(requirement: ParsedPRDRequirement): string[] {
+    const flow: string[] = [];
+
+    // If user story exists, parse it
+    if (requirement.userStory !== undefined) {
+      flow.push(`User initiates: ${requirement.title}`);
+      flow.push('System validates the request');
+      flow.push('System processes the request');
+      flow.push('System returns the result');
+    } else {
+      // Generate from description
+      flow.push('User initiates the operation');
+      flow.push(`System: ${requirement.description.split('.')[0]}`);
+      flow.push('System validates and processes');
+      flow.push('System confirms completion');
+    }
+
+    return flow;
+  }
+
+  /**
+   * Generate preconditions from requirement
+   */
+  private generatePreconditions(requirement: ParsedPRDRequirement): string[] {
+    const preconditions: string[] = ['User is authenticated', 'System is available'];
+
+    // Add dependency-based preconditions
+    for (const dep of requirement.dependencies) {
+      preconditions.push(`${dep} functionality is available`);
+    }
+
+    return preconditions;
+  }
+
+  /**
+   * Generate postconditions from requirement
+   */
+  private generatePostconditions(requirement: ParsedPRDRequirement): string[] {
+    const postconditions: string[] = [];
+
+    // Derive from acceptance criteria
+    if (requirement.acceptanceCriteria.length > 0) {
+      postconditions.push(requirement.acceptanceCriteria[0]);
+    } else {
+      postconditions.push(`${requirement.title} is completed successfully`);
+    }
+
+    return postconditions;
+  }
+
+  /**
+   * Generate alternative flows from requirement
+   */
+  private generateAlternativeFlows(requirement: ParsedPRDRequirement): string[] {
+    const flows: string[] = [];
+
+    // Check for alternative patterns in acceptance criteria
+    for (const criterion of requirement.acceptanceCriteria) {
+      if (/\b(if|when|unless|alternatively)\b/i.test(criterion)) {
+        flows.push(`Alternative: ${criterion}`);
+      }
+    }
+
+    return flows;
+  }
+
+  /**
+   * Generate use case name from requirement title
+   */
+  private generateUseCaseName(title: string): string {
+    // Convert to action format
+    let name = title.trim();
+
+    // Remove common prefixes
+    name = name.replace(/^(?:the\s+|a\s+|an\s+)/i, '');
+
+    // Capitalize first letter
+    return name.charAt(0).toUpperCase() + name.slice(1);
+  }
+
+  /**
+   * Extract use case name from criterion
+   */
+  private extractUseCaseNameFromCriterion(criterion: string): string {
+    // Extract key action from criterion
+    const match = criterion.match(
+      /(?:user\s+)?(?:can|should|must)\s+(.+?)(?:\.|,|when|if|$)/i
+    );
+    if (match !== null) {
+      return this.generateUseCaseName(match[1]);
+    }
+    return criterion.slice(0, 50).trim();
+  }
+
+  /**
+   * Convert criterion to flow step
+   */
+  private criterionToFlowStep(criterion: string): string {
+    return `System ensures: ${criterion}`;
+  }
+
+  /**
+   * Enhance description with additional context
+   */
+  private enhanceDescription(requirement: ParsedPRDRequirement): string {
+    let description = requirement.description;
+
+    // Add source reference
+    description += `\n\n**Source**: ${requirement.id}`;
+
+    // Add priority context
+    description += `\n**Priority**: ${requirement.priority}`;
+
+    return description;
+  }
+
+  /**
+   * Extract NFR references from text
+   */
+  private extractNFRReferences(text: string): string[] {
+    const refs: string[] = [];
+    const pattern = /NFR-\d{3}/g;
+    let match: RegExpExecArray | null;
+    while ((match = pattern.exec(text)) !== null) {
+      refs.push(match[0]);
+    }
+    return [...new Set(refs)];
+  }
+
+  /**
+   * Chunk array into smaller arrays
+   */
+  private chunkArray<T>(array: readonly T[], size: number): T[][] {
+    const chunks: T[][] = [];
+    for (let i = 0; i < array.length; i += size) {
+      chunks.push([...array.slice(i, i + size)]);
+    }
+    return chunks;
+  }
+}
