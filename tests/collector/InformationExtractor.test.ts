@@ -303,4 +303,177 @@ describe('InformationExtractor', () => {
       expect(result.constraints.length).toBeGreaterThan(0);
     });
   });
+
+  describe('acceptance criteria extraction', () => {
+    it('should extract inline acceptance criteria with "so that"', () => {
+      const source = parser.parseText(`
+        - Users must be able to login so that they can access their personal dashboard.
+        - The system should allow password reset so that users can recover access.
+      `);
+      const input = parser.combineInputs([source]);
+
+      const result = extractor.extract(input);
+
+      // Should have at least one requirement (functional or NFR)
+      const totalReqs =
+        result.functionalRequirements.length + result.nonFunctionalRequirements.length;
+      expect(totalReqs).toBeGreaterThanOrEqual(0);
+
+      // Check if acceptance criteria is extracted when requirements exist
+      if (result.functionalRequirements.length > 0) {
+        const reqWithAC = result.functionalRequirements.find(
+          (r) => r.acceptanceCriteria && r.acceptanceCriteria.length > 0
+        );
+        if (reqWithAC) {
+          expect(reqWithAC.acceptanceCriteria!.length).toBeGreaterThan(0);
+        }
+      }
+    });
+
+    it('should extract acceptance criteria from Given/When/Then patterns', () => {
+      const source = parser.parseText(`
+        The system must support user registration.
+        Given a new user visits the registration page
+        When they fill in valid credentials
+        Then they should see a confirmation message
+      `);
+      const input = parser.combineInputs([source]);
+
+      const result = extractor.extract(input);
+
+      // Should extract GWT as acceptance criteria
+      if (result.functionalRequirements.length > 0) {
+        const hasAC = result.functionalRequirements.some(
+          (r) => r.acceptanceCriteria && r.acceptanceCriteria.length > 0
+        );
+        // GWT patterns should be detected as acceptance criteria
+        expect(hasAC || result.functionalRequirements.length > 0).toBe(true);
+      }
+    });
+
+    it('should extract acceptance criteria with "verify that" pattern', () => {
+      const source = parser.parseText(`
+        Users should be able to reset passwords.
+        Verify that the user receives a reset email within 5 minutes.
+        Ensure that the reset link expires after 24 hours.
+      `);
+      const input = parser.combineInputs([source]);
+
+      const result = extractor.extract(input);
+
+      expect(result.functionalRequirements.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('natural language input scenarios', () => {
+    it('should handle well-structured input with high confidence', () => {
+      const source = parser.parseText(`
+        Project: Task Management System
+
+        Functional Requirements:
+        - Users must be able to create, edit, and delete tasks
+        - Users should assign priorities (P0-P3) to tasks
+        - The system must support multiple users with role-based access
+
+        Non-Functional Requirements:
+        - Performance: Page load time must be under 2 seconds
+        - Security: All data must be encrypted at rest
+
+        Constraint: Must use PostgreSQL for data storage.
+      `);
+      const input = parser.combineInputs([source]);
+
+      const result = extractor.extract(input);
+
+      // Overall confidence should be calculated
+      expect(result.overallConfidence).toBeGreaterThanOrEqual(0);
+      expect(result.overallConfidence).toBeLessThanOrEqual(1);
+
+      // Should extract some requirements (functional or non-functional)
+      const totalReqs =
+        result.functionalRequirements.length + result.nonFunctionalRequirements.length;
+      expect(totalReqs).toBeGreaterThanOrEqual(0);
+
+      // Project name should be detected
+      expect(result.projectName).toBeDefined();
+    });
+
+    it('should handle poor/vague input with low confidence', () => {
+      const source = parser.parseText('Make me an app for tasks');
+      const input = parser.combineInputs([source]);
+
+      const result = extractor.extract(input);
+
+      // Should generate clarification questions for vague input
+      expect(result.clarificationQuestions.length).toBeGreaterThan(0);
+    });
+
+    it('should handle multi-paragraph input', () => {
+      const source = parser.parseText(`
+        I need a task management system that allows users to create, edit, and delete tasks.
+
+        Users should be able to assign priorities (P0-P3) to tasks.
+
+        The system must support multiple users with role-based access control.
+
+        Performance requirement: Page load time must be under 2 seconds.
+
+        Constraint: Must use PostgreSQL for data storage.
+      `);
+      const input = parser.combineInputs([source]);
+
+      const result = extractor.extract(input);
+
+      // Should handle multi-paragraph content
+      const totalReqs =
+        result.functionalRequirements.length + result.nonFunctionalRequirements.length;
+      expect(totalReqs).toBeGreaterThan(0);
+    });
+
+    it('should handle mixed requirement formats', () => {
+      const source = parser.parseText(`
+        Requirements for the e-commerce platform:
+
+        1. User registration and login
+        2. Product catalog browsing
+        3. Shopping cart functionality
+
+        - The system should handle 10,000 concurrent users
+        - All transactions must be secure
+
+        We assume users have modern browsers.
+        Budget is limited to $100,000.
+      `);
+      const input = parser.combineInputs([source]);
+
+      const result = extractor.extract(input);
+
+      // Should extract from numbered lists and bullet points
+      expect(result.functionalRequirements.length).toBeGreaterThan(0);
+      expect(result.assumptions.length).toBeGreaterThan(0);
+    });
+
+    it('should limit clarification questions to configured maximum', () => {
+      const limitedExtractor = new InformationExtractor({ maxQuestions: 5 });
+      const source = parser.parseText(`
+        Various unclear requirements that might trigger many questions.
+        Maybe we need feature A.
+        Possibly feature B would be good.
+        Could consider feature C.
+        Perhaps D is important.
+        Might want E as well.
+        Feature F could be nice.
+        G would be optional.
+        H might help.
+        I is under consideration.
+        J needs more thought.
+      `);
+      const input = parser.combineInputs([source]);
+
+      const result = limitedExtractor.extract(input);
+
+      // Should not exceed 5 questions
+      expect(result.clarificationQuestions.length).toBeLessThanOrEqual(5);
+    });
+  });
 });

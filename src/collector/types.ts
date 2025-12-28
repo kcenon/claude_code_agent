@@ -84,6 +84,8 @@ export interface ExtractedRequirement {
     | 'usability'
     | 'reliability'
     | 'maintainability';
+  /** Extracted acceptance criteria for this requirement */
+  readonly acceptanceCriteria?: readonly string[];
 }
 
 /**

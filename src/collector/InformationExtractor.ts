@@ -81,12 +81,31 @@ export interface InformationExtractorOptions {
 }
 
 /**
+ * Acceptance criteria indicator patterns
+ */
+const AC_INDICATORS: readonly string[] = [
+  'given',
+  'when',
+  'then',
+  'should be able to',
+  'must result in',
+  'verify that',
+  'ensure that',
+  'acceptance criteria',
+  'success criteria',
+  'done when',
+  'complete when',
+  'validated by',
+  'confirmed by',
+];
+
+/**
  * Default options for InformationExtractor
  */
 const DEFAULT_OPTIONS: Required<InformationExtractorOptions> = {
   defaultPriority: 'P2',
   minConfidence: 0.3,
-  maxQuestions: 10,
+  maxQuestions: 5,
 };
 
 /**
@@ -292,7 +311,8 @@ export class InformationExtractor {
     // Split content into sentences/bullet points
     const segments = this.splitIntoSegments(content);
 
-    for (const segment of segments) {
+    for (let i = 0; i < segments.length; i++) {
+      const segment = segments[i];
       const normalized = segment.toLowerCase();
 
       // Check if this is a requirement
@@ -306,6 +326,9 @@ export class InformationExtractor {
 
       if (confidence < this.options.minConfidence) continue;
 
+      // Extract acceptance criteria from surrounding segments
+      const acceptanceCriteria = this.extractAcceptanceCriteria(segments, i);
+
       if (nfrCategory !== undefined) {
         nonFunctional.push({
           id: this.nextNfrId(),
@@ -316,6 +339,7 @@ export class InformationExtractor {
           confidence,
           isFunctional: false,
           nfrCategory,
+          acceptanceCriteria: acceptanceCriteria.length > 0 ? acceptanceCriteria : undefined,
         });
       } else {
         functional.push({
@@ -326,11 +350,63 @@ export class InformationExtractor {
           source,
           confidence,
           isFunctional: true,
+          acceptanceCriteria: acceptanceCriteria.length > 0 ? acceptanceCriteria : undefined,
         });
       }
     }
 
     return { functional, nonFunctional };
+  }
+
+  /**
+   * Extract acceptance criteria from segments following a requirement
+   *
+   * @param segments - All segments from the content
+   * @param reqIndex - Index of the requirement segment
+   * @returns Array of acceptance criteria strings
+   */
+  private extractAcceptanceCriteria(segments: string[], reqIndex: number): string[] {
+    const criteria: string[] = [];
+
+    // Look at the following segments for acceptance criteria patterns
+    for (let i = reqIndex + 1; i < segments.length && i <= reqIndex + 5; i++) {
+      const segment = segments[i];
+      const normalized = segment.toLowerCase();
+
+      // Check if this segment looks like acceptance criteria
+      const isAC = AC_INDICATORS.some((indicator) => normalized.includes(indicator));
+
+      if (isAC) {
+        // Clean up and add the criterion
+        const cleaned = segment.trim();
+        if (cleaned.length > 10 && cleaned.length < 500) {
+          criteria.push(cleaned);
+        }
+      } else if (this.isRequirementLike(normalized)) {
+        // Stop if we hit another requirement
+        break;
+      }
+    }
+
+    // Also check for inline acceptance criteria (e.g., "The system must X so that Y")
+    const reqSegment = segments[reqIndex];
+    const inlinePatterns = [
+      /so\s+that\s+(.+?)(?:\.|$)/i,
+      /in\s+order\s+to\s+(.+?)(?:\.|$)/i,
+      /which\s+(?:will|should)\s+(.+?)(?:\.|$)/i,
+    ];
+
+    for (const pattern of inlinePatterns) {
+      const match = reqSegment.match(pattern);
+      if (match?.[1] !== undefined) {
+        const criterion = match[1].trim();
+        if (criterion.length > 10 && criterion.length < 300) {
+          criteria.push(`Expected outcome: ${criterion}`);
+        }
+      }
+    }
+
+    return criteria;
   }
 
   /**
