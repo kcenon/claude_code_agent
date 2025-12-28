@@ -24,6 +24,11 @@ import {
   type ValidationReport,
   type FileValidationResult,
 } from './config/index.js';
+import {
+  getAnalysisOrchestratorAgent,
+  resetAnalysisOrchestratorAgent,
+} from './analysis-orchestrator/index.js';
+import type { AnalysisScope } from './analysis-orchestrator/types.js';
 
 const program = new Command();
 
@@ -375,6 +380,273 @@ program
     // TODO: Implement status display
     console.log(chalk.yellow('⚠️  Status display not yet implemented.\n'));
   });
+
+/**
+ * Analyze command - Run the analysis pipeline
+ */
+program
+  .command('analyze')
+  .description('Analyze a project to detect documentation-code gaps')
+  .option('-p, --project <path>', 'Project root path', '.')
+  .option(
+    '-s, --scope <scope>',
+    'Analysis scope (full, documents_only, code_only, comparison)',
+    'full'
+  )
+  .option('-g, --generate-issues', 'Generate GitHub issues from detected gaps')
+  .option('-i, --project-id <id>', 'Custom project ID')
+  .option('-r, --resume <analysisId>', 'Resume a failed analysis')
+  .option('--status <analysisId>', 'Check status of an analysis')
+  .option('--no-parallel', 'Disable parallel execution of stages')
+  .option('--no-continue-on-error', 'Stop on first stage failure')
+  .option('-o, --output-format <format>', 'Output format (yaml, json)', 'yaml')
+  .action(async (cmdOptions: Record<string, unknown>) => {
+    try {
+      const projectPath = typeof cmdOptions['project'] === 'string' ? cmdOptions['project'] : '.';
+      const scopeInput = typeof cmdOptions['scope'] === 'string' ? cmdOptions['scope'] : 'full';
+      const generateIssues = cmdOptions['generateIssues'] === true;
+      const projectId =
+        typeof cmdOptions['projectId'] === 'string' ? cmdOptions['projectId'] : undefined;
+      const resumeId =
+        typeof cmdOptions['resume'] === 'string' ? cmdOptions['resume'] : undefined;
+      const statusId =
+        typeof cmdOptions['status'] === 'string' ? cmdOptions['status'] : undefined;
+      const parallel = cmdOptions['parallel'] !== false;
+      const continueOnError = cmdOptions['continueOnError'] !== false;
+      const outputFormat =
+        typeof cmdOptions['outputFormat'] === 'string' ? cmdOptions['outputFormat'] : 'yaml';
+
+      // Validate scope
+      const validScopes = ['full', 'documents_only', 'code_only', 'comparison'];
+      if (!validScopes.includes(scopeInput)) {
+        console.error(chalk.red(`\n❌ Invalid scope: ${scopeInput}`));
+        console.log(chalk.dim(`Valid scopes: ${validScopes.join(', ')}\n`));
+        process.exit(1);
+      }
+      const scope = scopeInput as AnalysisScope;
+
+      // Get or create agent
+      const agent = getAnalysisOrchestratorAgent({
+        parallelExecution: parallel,
+        continueOnError,
+        outputFormat: outputFormat === 'json' ? 'json' : 'yaml',
+      });
+
+      // Handle status check
+      if (statusId !== undefined) {
+        console.log(chalk.blue(`\n📊 Analysis Status: ${statusId}\n`));
+        try {
+          const state = await agent.getStatus(statusId, projectPath);
+          console.log(chalk.white('Analysis ID:'), state.analysisId);
+          console.log(chalk.white('Project ID:'), state.projectId);
+          console.log(chalk.white('Status:'), formatStatus(state.overallStatus));
+          console.log(chalk.white('Scope:'), state.scope);
+          console.log(chalk.white('Started:'), state.startedAt);
+          console.log(chalk.white('Updated:'), state.updatedAt);
+
+          console.log(chalk.blue('\nStages:'));
+          for (const stage of state.stages) {
+            const statusIcon = getStatusIcon(stage.status);
+            console.log(`  ${statusIcon} ${stage.name}: ${stage.status}`);
+            if (stage.error !== null) {
+              console.log(chalk.red(`      Error: ${stage.error}`));
+            }
+          }
+
+          console.log(chalk.blue('\nStatistics:'));
+          console.log(`  Total stages: ${String(state.statistics.totalStages)}`);
+          console.log(`  Completed: ${String(state.statistics.completedStages)}`);
+          console.log(`  Failed: ${String(state.statistics.failedStages)}`);
+          console.log(`  Duration: ${String(state.statistics.totalDurationMs)}ms`);
+          console.log('');
+        } catch (error) {
+          console.error(
+            chalk.red('\n❌ Error:'),
+            error instanceof Error ? error.message : String(error)
+          );
+          process.exit(1);
+        }
+        return;
+      }
+
+      // Handle resume
+      if (resumeId !== undefined) {
+        console.log(chalk.blue(`\n🔄 Resuming Analysis: ${resumeId}\n`));
+        try {
+          await agent.resume(resumeId, projectPath, true);
+          console.log(chalk.green('✓ Session restored\n'));
+        } catch (error) {
+          console.error(
+            chalk.red('\n❌ Error:'),
+            error instanceof Error ? error.message : String(error)
+          );
+          process.exit(1);
+        }
+      } else {
+        // Start new analysis
+        console.log(chalk.blue('\n🔍 AD-SDLC Analysis Pipeline\n'));
+        console.log(chalk.dim(`Project: ${projectPath}`));
+        console.log(chalk.dim(`Scope: ${scope}`));
+        console.log(chalk.dim(`Generate Issues: ${generateIssues ? 'Yes' : 'No'}`));
+        console.log(chalk.dim(`Parallel Execution: ${parallel ? 'Yes' : 'No'}`));
+        console.log('');
+
+        try {
+          const analysisInput = {
+            projectPath,
+            scope,
+            generateIssues,
+            ...(projectId !== undefined && { projectId }),
+          };
+          const session = await agent.startAnalysis(analysisInput);
+          console.log(chalk.green(`✓ Analysis session started: ${session.analysisId}\n`));
+        } catch (error) {
+          console.error(
+            chalk.red('\n❌ Error:'),
+            error instanceof Error ? error.message : String(error)
+          );
+          process.exit(1);
+        }
+      }
+
+      // Execute the analysis
+      console.log(chalk.blue('🚀 Executing analysis pipeline...\n'));
+
+      try {
+        const result = await agent.execute();
+
+        // Display results
+        console.log(chalk.green('\n✅ Analysis Complete\n'));
+        console.log(chalk.white('Analysis ID:'), result.analysisId);
+        console.log(chalk.white('Project ID:'), result.projectId);
+        console.log(chalk.white('Status:'), formatResultStatus(result.report.overallStatus));
+
+        console.log(chalk.blue('\nResults:'));
+        if (result.report.documentAnalysis.available) {
+          console.log(chalk.green('  ✓ Document Analysis:'), result.report.documentAnalysis.summary);
+        }
+        if (result.report.codeAnalysis.available) {
+          console.log(chalk.green('  ✓ Code Analysis:'), result.report.codeAnalysis.summary);
+        }
+        if (result.report.comparison.available) {
+          console.log(
+            chalk.green('  ✓ Comparison:'),
+            `${String(result.report.comparison.totalGaps)} gaps found (${String(result.report.comparison.criticalGaps)} critical)`
+          );
+        }
+        if (result.report.issues.generated) {
+          console.log(
+            chalk.green('  ✓ Issues Generated:'),
+            `${String(result.report.issues.totalIssues)} issues`
+          );
+        }
+
+        console.log(chalk.blue('\nOutput Files:'));
+        console.log(`  Pipeline State: ${result.outputPaths.pipelineState}`);
+        console.log(`  Analysis Report: ${result.outputPaths.analysisReport}`);
+        if (result.outputPaths.documentInventory !== undefined) {
+          console.log(`  Document Inventory: ${result.outputPaths.documentInventory}`);
+        }
+        if (result.outputPaths.codeInventory !== undefined) {
+          console.log(`  Code Inventory: ${result.outputPaths.codeInventory}`);
+        }
+        if (result.outputPaths.comparisonResult !== undefined) {
+          console.log(`  Comparison Result: ${result.outputPaths.comparisonResult}`);
+        }
+        if (result.outputPaths.generatedIssues !== undefined) {
+          console.log(`  Generated Issues: ${result.outputPaths.generatedIssues}`);
+        }
+
+        if (result.report.recommendations.length > 0) {
+          console.log(chalk.blue('\nRecommendations:'));
+          for (const rec of result.report.recommendations) {
+            const icon =
+              rec.priority === 1
+                ? chalk.red('!')
+                : rec.priority === 2
+                  ? chalk.yellow('⚠')
+                  : chalk.dim('ℹ');
+            console.log(`  ${icon} ${rec.message}`);
+            console.log(chalk.dim(`     Action: ${rec.action}`));
+          }
+        }
+
+        if (result.warnings.length > 0) {
+          console.log(chalk.yellow('\nWarnings:'));
+          for (const warning of result.warnings) {
+            console.log(chalk.yellow(`  ⚠ ${warning}`));
+          }
+        }
+
+        console.log(chalk.dim(`\nTotal duration: ${String(result.report.totalDurationMs)}ms\n`));
+
+        // Reset agent after completion
+        resetAnalysisOrchestratorAgent();
+
+        if (!result.success) {
+          process.exit(1);
+        }
+      } catch (error) {
+        console.error(
+          chalk.red('\n❌ Analysis failed:'),
+          error instanceof Error ? error.message : String(error)
+        );
+        resetAnalysisOrchestratorAgent();
+        process.exit(1);
+      }
+    } catch (error) {
+      console.error(
+        chalk.red('\n❌ Error:'),
+        error instanceof Error ? error.message : String(error)
+      );
+      process.exit(1);
+    }
+  });
+
+/**
+ * Helper functions for status display
+ */
+function getStatusIcon(status: string): string {
+  switch (status) {
+    case 'completed':
+      return chalk.green('✓');
+    case 'running':
+      return chalk.blue('⟳');
+    case 'failed':
+      return chalk.red('✗');
+    case 'skipped':
+      return chalk.dim('○');
+    case 'pending':
+    default:
+      return chalk.dim('○');
+  }
+}
+
+function formatStatus(status: string): string {
+  switch (status) {
+    case 'completed':
+      return chalk.green(status);
+    case 'running':
+      return chalk.blue(status);
+    case 'failed':
+      return chalk.red(status);
+    default:
+      return chalk.dim(status);
+  }
+}
+
+function formatResultStatus(status: string): string {
+  switch (status) {
+    case 'success':
+      return chalk.green(status);
+    case 'partial':
+      return chalk.yellow(status);
+    case 'failed':
+      return chalk.red(status);
+    default:
+      return chalk.dim(status);
+  }
+}
 
 // Parse command line arguments
 program.parse();

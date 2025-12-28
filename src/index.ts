@@ -774,3 +774,61 @@ export type {
   RequirementType,
   ComponentSource,
 } from './impact-analyzer/index.js';
+
+// Re-export analysis-orchestrator module (with explicit handling of conflicts)
+export {
+  AnalysisOrchestratorAgent,
+  getAnalysisOrchestratorAgent,
+  resetAnalysisOrchestratorAgent,
+  AnalysisOrchestratorError,
+  NoActiveSessionError as OrchestratorNoActiveSessionError,
+  AnalysisInProgressError,
+  InvalidProjectPathError,
+  InvalidProjectStructureError,
+  StageExecutionError,
+  StageTimeoutError,
+  InvalidPipelineStateError,
+  StageDependencyError,
+  OutputWriteError as OrchestratorOutputWriteError,
+  StateReadError,
+  ResumeError,
+  AnalysisNotFoundError,
+  PipelineFailedError,
+  InvalidConfigurationError,
+  SubAgentSpawnError,
+  DEFAULT_ORCHESTRATOR_CONFIG,
+} from './analysis-orchestrator/index.js';
+
+export type {
+  // Scope and status types
+  AnalysisScope,
+  PipelineStageName,
+  PipelineStageStatus,
+  PipelineStatus,
+  AnalysisResultStatus,
+  OutputFormat,
+  // Stage types
+  PipelineStage,
+  PipelineStatistics,
+  PipelineState,
+  // Summary types
+  DocumentAnalysisSummary,
+  CodeAnalysisSummary,
+  ComparisonSummary,
+  IssuesSummary,
+  AnalysisRecommendation,
+  // Report types
+  AnalysisReport,
+  // Configuration types
+  AnalysisOrchestratorConfig,
+  // Input types
+  AnalysisInput,
+  // Session types
+  AnalysisSession,
+  // Result types
+  AnalysisResult,
+  StageResult,
+  StageExecutor,
+  // Resume types
+  ResumeOptions,
+} from './analysis-orchestrator/index.js';
