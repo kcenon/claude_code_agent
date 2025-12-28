@@ -128,10 +128,93 @@ class PRReviewerAgent {
   // Review from file path
   reviewFromFile(resultPath: string, options?: PRReviewOptions): Promise<PRReviewResult>;
 
+  // Create PR only (UC-014)
+  createPROnly(workOrderId: string): Promise<PRCreateResult>;
+
+  // Create PR from file
+  createPRFromFile(resultPath: string): Promise<PRCreateResult>;
+
+  // Get PRCreator instance
+  getPRCreator(): PRCreator;
+
   // Get configuration
   getConfig(): Required<PRReviewerAgentConfig>;
 }
 ```
+
+### PRCreator (UC-014)
+
+The PRCreator class handles PR creation from Worker Agent implementation results with:
+- Branch naming convention validation
+- Automatic label inference from changes
+- Draft PR support for incomplete work
+- Comprehensive PR description generation
+
+```typescript
+class PRCreator {
+  constructor(config?: PRCreatorConfig);
+
+  // Create PR from implementation result
+  createFromImplementationResult(implResult: ImplementationResult): Promise<PRCreateResult>;
+
+  // Validate branch naming convention
+  validateBranchNaming(branchName: string): BranchValidationResult;
+
+  // Infer labels from changes
+  inferLabels(changes: FileChange[], branchName: string): LabelInferenceResult;
+
+  // Check if PR should be draft
+  shouldBeDraft(implResult: ImplementationResult): boolean;
+
+  // Generate PR content
+  generatePRContent(implResult: ImplementationResult, labels: string[], isDraft: boolean): PRCreateOptions;
+
+  // Get configuration
+  getConfig(): Required<PRCreatorConfig>;
+}
+```
+
+### PRCreatorConfig
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `projectRoot` | string | `process.cwd()` | Project root directory |
+| `baseBranch` | string | `'main'` | Base branch for PRs |
+| `enableDraftPR` | boolean | `true` | Enable draft PR creation |
+| `draftThreshold` | number | `70` | Coverage threshold for draft |
+| `autoAssignLabels` | boolean | `true` | Auto-assign labels |
+| `labelMapping` | Record | See below | Label mapping for prefixes |
+| `prTemplate` | string \| null | `null` | Custom PR template path |
+
+### Branch Naming Convention
+
+Valid branch prefixes:
+- `feature/` - New features (`enhancement` label)
+- `fix/` - Bug fixes (`bug` label)
+- `docs/` - Documentation (`documentation` label)
+- `test/` - Test additions (`testing` label)
+- `refactor/` - Refactoring (`refactoring` label)
+- `chore/` - Maintenance
+- `hotfix/` - Critical fixes (`bug` label)
+
+Expected format: `{prefix}/{issue-number}-{description}`
+
+Examples:
+```
+feature/ISS-001-implement-login
+fix/123-null-pointer-exception
+refactor/CMP-005-extract-utils
+docs/update-readme
+```
+
+### Draft PR Creation
+
+PRs are automatically created as drafts when:
+- Coverage is below threshold (default: 70%)
+- Tests are failing
+- Lint errors exist
+- Build is failing
+- Implementation is blocked
 
 ### PRReviewOptions
 
