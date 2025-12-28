@@ -939,7 +939,9 @@ export class ReviewChecks {
           name: 'Cyclomatic complexity',
           passed: !hasHighComplexity,
           description: `All functions have complexity ≤${String(this.maxComplexity)}`,
-          details: hasHighComplexity ? `High complexity: ${complexityDetails.join(', ')}` : undefined,
+          details: hasHighComplexity
+            ? `High complexity: ${complexityDetails.join(', ')}`
+            : undefined,
         },
       ],
     };
@@ -1231,7 +1233,9 @@ export class ReviewChecks {
         name: 'No magic numbers',
         passed: !hasMagicNumbers,
         description: 'Check for unexplained numeric literals',
-        details: hasMagicNumbers ? 'Magic numbers found - consider using named constants' : undefined,
+        details: hasMagicNumbers
+          ? 'Magic numbers found - consider using named constants'
+          : undefined,
       },
       comments,
     };
