@@ -243,11 +243,13 @@ export class CodebaseAnalyzerAgent {
         warnings,
       };
     } catch (error) {
+      // session is guaranteed to exist here since ensureSession() was called at the start
+      const currentSession = this.session ?? session;
       this.session = {
-        ...this.session!,
+        ...currentSession,
         status: 'failed',
         errors: [
-          ...this.session!.errors,
+          ...currentSession.errors,
           error instanceof Error ? error.message : String(error),
         ],
         updatedAt: new Date().toISOString(),
@@ -323,7 +325,7 @@ export class CodebaseAnalyzerAgent {
         if (err.code !== 'EACCES' && err.code !== 'ENOENT') {
           throw new DirectoryScanError(
             currentPath,
-            err.message ?? 'Unknown error'
+            err.message || 'Unknown error'
           );
         }
         // Skip permission denied and not found errors
@@ -444,7 +446,7 @@ export class CodebaseAnalyzerAgent {
       {
         file: 'package.json',
         type: 'npm',
-        scripts: (content) => {
+        scripts: (content): string[] => {
           try {
             const pkg = JSON.parse(content) as {
               scripts?: Record<string, string>;
@@ -454,7 +456,7 @@ export class CodebaseAnalyzerAgent {
             return [];
           }
         },
-        version: (content) => {
+        version: (content): string | undefined => {
           try {
             const pkg = JSON.parse(content) as { version?: string };
             return pkg.version;
@@ -498,7 +500,7 @@ export class CodebaseAnalyzerAgent {
           unknown: [],
         };
 
-        for (const lockFile of lockFiles[check.type] ?? []) {
+        for (const lockFile of lockFiles[check.type]) {
           try {
             await fs.access(path.join(rootPath, lockFile));
             hasLockFile = true;
@@ -751,7 +753,7 @@ export class CodebaseAnalyzerAgent {
                 usedBy: [nodeId],
               });
             }
-          } else if (imp.resolvedPath) {
+          } else if (imp.resolvedPath !== null) {
             // Internal dependency
             const targetId = this.getModuleId(imp.resolvedPath);
 
@@ -910,7 +912,7 @@ export class CodebaseAnalyzerAgent {
       other: [],
     };
 
-    const patterns = importPatterns[language] ?? [];
+    const patterns = importPatterns[language];
 
     for (let lineNum = 0; lineNum < lines.length; lineNum++) {
       const line = lines[lineNum] ?? '';
@@ -1136,7 +1138,7 @@ export class CodebaseAnalyzerAgent {
           locations: [
             {
               path: 'packages/ or services/',
-              description: `${packageCount} packages/services detected`,
+              description: `${String(packageCount)} packages/services detected`,
             },
           ],
           confidence,
@@ -1325,7 +1327,7 @@ export class CodebaseAnalyzerAgent {
    * Detect naming style of an identifier
    */
   private detectNamingStyle(name: string): NamingConvention {
-    if (/^[a-z][a-zA-Z0-9]*$/.test(name) && name.includes('_') === false) {
+    if (/^[a-z][a-zA-Z0-9]*$/.test(name) && !name.includes('_')) {
       return 'camelCase';
     }
     if (/^[a-z][a-z0-9_]*$/.test(name)) {
@@ -1375,7 +1377,7 @@ export class CodebaseAnalyzerAgent {
     let framework: string | undefined;
     for (const file of testFiles) {
       const detected = this.detectTestFramework(file.path);
-      if (detected) {
+      if (detected !== undefined) {
         framework = detected;
         break;
       }
@@ -1604,7 +1606,13 @@ export class CodebaseAnalyzerAgent {
         await loadYaml();
       }
 
-      await fs.writeFile(outputPath, yaml!.dump(yamlContent), 'utf-8');
+      // yaml is guaranteed to be non-null after loadYaml() call
+      const yamlModule = yaml;
+      if (yamlModule === null) {
+        throw new Error('Failed to load YAML module');
+      }
+
+      await fs.writeFile(outputPath, yamlModule.dump(yamlContent), 'utf-8');
       return outputPath;
     } catch (error) {
       throw new OutputWriteError(
