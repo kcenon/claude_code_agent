@@ -120,7 +120,12 @@ export class ImpactAnalyzerAgent {
     const basePath = path.join(rootPath, this.config.scratchpadBasePath);
 
     const currentStatePath = path.join(basePath, 'state', projectId, 'current_state.yaml');
-    const architecturePath = path.join(basePath, 'analysis', projectId, 'architecture_overview.yaml');
+    const architecturePath = path.join(
+      basePath,
+      'analysis',
+      projectId,
+      'architecture_overview.yaml'
+    );
     const dependencyPath = path.join(basePath, 'analysis', projectId, 'dependency_graph.json');
 
     const [hasCurrentState, hasArchitectureOverview, hasDependencyGraph] = await Promise.all([
@@ -159,7 +164,11 @@ export class ImpactAnalyzerAgent {
 
       // Step 1: Check and load available inputs
       const inputs = await this.checkAvailableInputs(session.projectId, rootPath);
-      if (!inputs.hasCurrentState && !inputs.hasArchitectureOverview && !inputs.hasDependencyGraph) {
+      if (
+        !inputs.hasCurrentState &&
+        !inputs.hasArchitectureOverview &&
+        !inputs.hasDependencyGraph
+      ) {
         throw new NoInputsAvailableError(session.projectId, [
           inputs.paths.currentState ?? 'current_state.yaml',
           inputs.paths.architectureOverview ?? 'architecture_overview.yaml',
@@ -227,10 +236,7 @@ export class ImpactAnalyzerAgent {
       );
 
       // Step 7: Build dependency chain
-      const dependencyChain = this.buildDependencyChain(
-        affectedComponents,
-        dependencyGraph
-      );
+      const dependencyChain = this.buildDependencyChain(affectedComponents, dependencyGraph);
 
       // Step 8: Assess risks
       const riskAssessment = this.assessRisks(
@@ -405,10 +411,7 @@ export class ImpactAnalyzerAgent {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
         throw new FileReadError(filePath, 'File not found');
       }
-      throw new InputParseError(
-        filePath,
-        error instanceof Error ? error.message : String(error)
-      );
+      throw new InputParseError(filePath, error instanceof Error ? error.message : String(error));
     }
   }
 
@@ -426,10 +429,7 @@ export class ImpactAnalyzerAgent {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
         throw new FileReadError(filePath, 'File not found');
       }
-      throw new InputParseError(
-        filePath,
-        error instanceof Error ? error.message : String(error)
-      );
+      throw new InputParseError(filePath, error instanceof Error ? error.message : String(error));
     }
   }
 
@@ -441,10 +441,7 @@ export class ImpactAnalyzerAgent {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
         throw new FileReadError(filePath, 'File not found');
       }
-      throw new InputParseError(
-        filePath,
-        error instanceof Error ? error.message : String(error)
-      );
+      throw new InputParseError(filePath, error instanceof Error ? error.message : String(error));
     }
   }
 
@@ -457,24 +454,66 @@ export class ImpactAnalyzerAgent {
     let type: ChangeType = 'feature_modify';
     let typeConfidence = 0.5;
 
-    if (this.matchesPatterns(description, ['document', 'readme', 'comment', 'docs', 'docstring', 'jsdoc', 'javadoc'])) {
+    if (
+      this.matchesPatterns(description, [
+        'document',
+        'readme',
+        'comment',
+        'docs',
+        'docstring',
+        'jsdoc',
+        'javadoc',
+      ])
+    ) {
       // Documentation changes checked first - adding docs is documentation, not feature_add
       type = 'documentation';
       typeConfidence = 0.9;
-    } else if (this.matchesPatterns(description, ['config', 'build', 'ci', 'deploy', 'infrastructure', 'pipeline', 'devops'])) {
+    } else if (
+      this.matchesPatterns(description, [
+        'config',
+        'build',
+        'ci',
+        'deploy',
+        'infrastructure',
+        'pipeline',
+        'devops',
+      ])
+    ) {
       // Infrastructure changes checked early
       type = 'infrastructure';
       typeConfidence = 0.85;
-    } else if (this.matchesPatterns(description, ['fix', 'bug', 'issue', 'error', 'crash', 'resolve', 'patch'])) {
+    } else if (
+      this.matchesPatterns(description, [
+        'fix',
+        'bug',
+        'issue',
+        'error',
+        'crash',
+        'resolve',
+        'patch',
+      ])
+    ) {
       type = 'bug_fix';
       typeConfidence = 0.85;
-    } else if (this.matchesPatterns(description, ['refactor', 'clean', 'reorganize', 'restructure', 'simplify'])) {
+    } else if (
+      this.matchesPatterns(description, [
+        'refactor',
+        'clean',
+        'reorganize',
+        'restructure',
+        'simplify',
+      ])
+    ) {
       type = 'refactor';
       typeConfidence = 0.8;
-    } else if (this.matchesPatterns(description, ['add', 'new', 'create', 'implement', 'introduce'])) {
+    } else if (
+      this.matchesPatterns(description, ['add', 'new', 'create', 'implement', 'introduce'])
+    ) {
       type = 'feature_add';
       typeConfidence = 0.8;
-    } else if (this.matchesPatterns(description, ['update', 'change', 'modify', 'enhance', 'improve'])) {
+    } else if (
+      this.matchesPatterns(description, ['update', 'change', 'modify', 'enhance', 'improve'])
+    ) {
       type = 'feature_modify';
       typeConfidence = 0.7;
     }
@@ -499,7 +538,15 @@ export class ImpactAnalyzerAgent {
     if (this.matchesPatterns(description, ['minor', 'small', 'simple', 'quick', 'trivial'])) {
       estimatedSize = 'small';
       sizeConfidence = Math.max(sizeConfidence, 0.75);
-    } else if (this.matchesPatterns(description, ['major', 'large', 'complex', 'comprehensive', 'significant'])) {
+    } else if (
+      this.matchesPatterns(description, [
+        'major',
+        'large',
+        'complex',
+        'comprehensive',
+        'significant',
+      ])
+    ) {
       estimatedSize = 'large';
       sizeConfidence = Math.max(sizeConfidence, 0.75);
     }
@@ -652,8 +699,8 @@ export class ImpactAnalyzerAgent {
     for (const { pattern, componentName } of componentPatterns) {
       if (description.includes(pattern)) {
         // Check if this matches something in current state
-        const existingComp = currentState?.components?.find(
-          (c) => c.name.toLowerCase().includes(pattern)
+        const existingComp = currentState?.components?.find((c) =>
+          c.name.toLowerCase().includes(pattern)
         );
 
         components.push({
@@ -761,10 +808,7 @@ export class ImpactAnalyzerAgent {
         const desc = (req.description ?? '').toLowerCase();
 
         // Check if requirement is related to change
-        if (
-          this.textsAreRelated(description, title) ||
-          this.textsAreRelated(description, desc)
-        ) {
+        if (this.textsAreRelated(description, title) || this.textsAreRelated(description, desc)) {
           requirements.push({
             requirementId: req.id,
             type: 'functional',
@@ -888,9 +932,10 @@ export class ImpactAnalyzerAgent {
       name: 'Complexity',
       level: this.scoreToRiskLevel(complexityScore),
       description: `Change affects ${String(components.length)} components with ${changeScope.estimatedSize} scope`,
-      mitigation: components.length > 5
-        ? 'Consider breaking down into smaller, incremental changes'
-        : 'Proceed with standard review process',
+      mitigation:
+        components.length > 5
+          ? 'Consider breaking down into smaller, incremental changes'
+          : 'Proceed with standard review process',
     });
 
     // Coupling risk
@@ -899,9 +944,10 @@ export class ImpactAnalyzerAgent {
       name: 'Coupling',
       level: this.scoreToRiskLevel(couplingScore),
       description: `${String(dependencyChain.length)} dependency relationships affected`,
-      mitigation: couplingScore > 0.5
-        ? 'Carefully review all dependent components'
-        : 'Standard dependency verification sufficient',
+      mitigation:
+        couplingScore > 0.5
+          ? 'Carefully review all dependent components'
+          : 'Standard dependency verification sufficient',
     });
 
     // Scope risk
@@ -910,9 +956,10 @@ export class ImpactAnalyzerAgent {
       name: 'Scope',
       level: this.scoreToRiskLevel(scopeScore),
       description: `${changeScope.type} change with ${changeScope.estimatedSize} estimated size`,
-      mitigation: scopeScore > 0.5
-        ? 'Implement in phases with intermediate validation'
-        : 'Direct implementation appropriate',
+      mitigation:
+        scopeScore > 0.5
+          ? 'Implement in phases with intermediate validation'
+          : 'Direct implementation appropriate',
     });
 
     // Architecture risk
@@ -1204,20 +1251,12 @@ export class ImpactAnalyzerAgent {
     analysis: ImpactAnalysis,
     rootPath: string
   ): Promise<string> {
-    const outputDir = path.join(
-      rootPath,
-      this.config.scratchpadBasePath,
-      'impact',
-      projectId
-    );
+    const outputDir = path.join(rootPath, this.config.scratchpadBasePath, 'impact', projectId);
 
     try {
       await fs.mkdir(outputDir, { recursive: true });
     } catch (error) {
-      throw new OutputWriteError(
-        outputDir,
-        error instanceof Error ? error.message : String(error)
-      );
+      throw new OutputWriteError(outputDir, error instanceof Error ? error.message : String(error));
     }
 
     const outputPath = path.join(outputDir, 'impact_report.yaml');
@@ -1328,9 +1367,7 @@ let agentInstance: ImpactAnalyzerAgent | null = null;
 /**
  * Get singleton instance of ImpactAnalyzerAgent
  */
-export function getImpactAnalyzerAgent(
-  config?: ImpactAnalyzerConfig
-): ImpactAnalyzerAgent {
+export function getImpactAnalyzerAgent(config?: ImpactAnalyzerConfig): ImpactAnalyzerAgent {
   if (agentInstance === null) {
     agentInstance = new ImpactAnalyzerAgent(config);
   }

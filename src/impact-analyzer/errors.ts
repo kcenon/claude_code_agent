@@ -38,9 +38,7 @@ export class NoInputsAvailableError extends ImpactAnalyzerError {
   public readonly checkedPaths: readonly string[];
 
   constructor(projectId: string, checkedPaths: readonly string[]) {
-    super(
-      `No inputs available for project ${projectId}. Checked: ${checkedPaths.join(', ')}`
-    );
+    super(`No inputs available for project ${projectId}. Checked: ${checkedPaths.join(', ')}`);
     this.name = 'NoInputsAvailableError';
     this.projectId = projectId;
     this.checkedPaths = checkedPaths;
