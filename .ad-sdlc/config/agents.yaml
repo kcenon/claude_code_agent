@@ -231,6 +231,36 @@ agents:
       success_rate: 0.90
       approval_rate: 0.80
 
+  # ---------------------------------------------------------------------------
+  # Analysis Pipeline Agents
+  # ---------------------------------------------------------------------------
+  code-reader:
+    id: "code-reader"
+    name: "Code Reader Agent"
+    korean_name: "코드 분석 에이전트"
+    description: "Analyzes source code structure, modules, and implementations for gap detection"
+    definition_file: ".claude/agents/code-reader.md"
+    category: "analysis_pipeline"
+    order: 9
+
+    capabilities:
+      - "ast_parsing"
+      - "module_discovery"
+      - "class_extraction"
+      - "function_extraction"
+      - "interface_extraction"
+      - "dependency_analysis"
+
+    io:
+      inputs:
+        - source_root
+      outputs:
+        - code_inventory.yaml
+
+    metrics:
+      avg_duration_seconds: 60
+      success_rate: 0.95
+
 # =============================================================================
 # Agent Categories
 # =============================================================================
@@ -259,6 +289,15 @@ categories:
     agents:
       - worker
       - pr-reviewer
+    execution_mode: "parallel"
+
+  analysis_pipeline:
+    name: "Analysis Pipeline"
+    description: "Agents that analyze existing code and documents for gap detection"
+    agents:
+      - code-reader
+      - document-reader
+      - doc-code-comparator
     execution_mode: "parallel"
 
 # =============================================================================
