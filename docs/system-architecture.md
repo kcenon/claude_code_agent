@@ -33,8 +33,10 @@ flowchart TB
 
     subgraph EnhancementPipeline["Enhancement Pipeline"]
         direction LR
+        ORCH[Analysis Orchestrator Agent]
         DOCREAD[Document Reader Agent]
         CODEBASE[Codebase Analyzer Agent]
+        COMP[Comparator Agent]
         IMPACT[Impact Analyzer Agent]
     end
 
@@ -73,11 +75,14 @@ flowchart TB
     WORKERN -.-> CODE
     PR -.-> PRS
 
-    %% Enhancement Pipeline connections
-    DOCS --> DOCREAD
-    CODE --> CODEBASE
-    DOCREAD --> IMPACT
-    CODEBASE --> IMPACT
+    %% Enhancement Pipeline connections (Analysis Orchestrator coordinates sub-agents)
+    DOCS --> ORCH
+    CODE --> ORCH
+    ORCH --> DOCREAD
+    ORCH --> CODEBASE
+    DOCREAD --> COMP
+    CODEBASE --> COMP
+    COMP --> IMPACT
     IMPACT -.-> CTRL
 ```
 
@@ -101,6 +106,8 @@ flowchart TB
         A9[Document Reader]
         A10[Codebase Analyzer]
         A11[Impact Analyzer]
+        A12[Analysis Orchestrator]
+        A13[Comparator]
     end
 
     subgraph Scratchpad["File-based State (Scratchpad)"]
@@ -114,6 +121,9 @@ flowchart TB
         S8[analysis/architecture_overview.yaml]
         S9[analysis/dependency_graph.json]
         S10[impact/impact_report.yaml]
+        S11[analysis/pipeline_state.yaml]
+        S12[analysis/analysis_report.yaml]
+        S13[analysis/comparison_result.yaml]
     end
 
     MAIN -->|spawn| A1
@@ -127,6 +137,8 @@ flowchart TB
     MAIN -->|spawn| A9
     MAIN -->|spawn| A10
     MAIN -->|spawn| A11
+    MAIN -->|spawn| A12
+    MAIN -->|spawn| A13
 
     A1 -->|write| S1
     A2 -->|read| S1
@@ -155,6 +167,18 @@ flowchart TB
     A11 -->|read| S9
     A11 -->|write| S10
 
+    %% Analysis Orchestrator coordinates pipeline
+    A12 -->|write| S11
+    A12 -->|write| S12
+    A12 -->|read| S7
+    A12 -->|read| S8
+    A12 -->|read| S13
+
+    %% Comparator compares documents and code
+    A13 -->|read| S7
+    A13 -->|read| S8
+    A13 -->|write| S13
+
     A1 -.->|result| MAIN
     A2 -.->|result| MAIN
     A3 -.->|result| MAIN
@@ -166,6 +190,8 @@ flowchart TB
     A9 -.->|result| MAIN
     A10 -.->|result| MAIN
     A11 -.->|result| MAIN
+    A12 -.->|result| MAIN
+    A13 -.->|result| MAIN
 ```
 
 ## 3. Document Traceability Flow
@@ -377,7 +403,9 @@ claude_code_agent/
 │       ├── pr-reviewer.md         # PR Reviewer Agent
 │       ├── document-reader.md     # Document Reader Agent
 │       ├── codebase-analyzer.md   # Codebase Analyzer Agent
-│       └── impact-analyzer.md     # Impact Analyzer Agent
+│       ├── impact-analyzer.md     # Impact Analyzer Agent
+│       ├── analysis-orchestrator.md  # Analysis Orchestrator Agent
+│       └── comparator.md          # Comparator Agent
 │
 ├── .ad-sdlc/
 │   ├── scratchpad/               # Inter-agent State
