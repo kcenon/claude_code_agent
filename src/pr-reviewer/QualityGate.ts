@@ -208,13 +208,8 @@ export class QualityGate {
   /**
    * Count comments by severity
    */
-  private countBySeverity(
-    comments: readonly ReviewComment[],
-    severity: CommentSeverity
-  ): number {
-    return comments.filter(
-      (c) => c.severity === severity && !c.resolved
-    ).length;
+  private countBySeverity(comments: readonly ReviewComment[], severity: CommentSeverity): number {
+    return comments.filter((c) => c.severity === severity && !c.resolved).length;
   }
 
   /**

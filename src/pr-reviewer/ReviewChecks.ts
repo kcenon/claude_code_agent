@@ -69,9 +69,7 @@ export class ReviewChecks {
   /**
    * Run all review checks on changed files
    */
-  public async runAllChecks(
-    changes: readonly FileChange[]
-  ): Promise<{
+  public async runAllChecks(changes: readonly FileChange[]): Promise<{
     comments: ReviewComment[];
     checklist: ReviewChecklist;
     metrics: QualityMetrics;
@@ -182,7 +180,8 @@ export class ReviewChecks {
               comments.push({
                 file: change.filePath,
                 line: i + 1,
-                comment: 'Potential hardcoded secret detected. Consider using environment variables.',
+                comment:
+                  'Potential hardcoded secret detected. Consider using environment variables.',
                 severity: 'critical',
                 resolved: false,
               });
@@ -332,11 +331,7 @@ export class ReviewChecks {
   ): Promise<{ item: SecurityCheckItem; comments: ReviewComment[] }> {
     const comments: ReviewComment[] = [];
     // This is a simplified check - in practice, this would be more sophisticated
-    const inputPatterns = [
-      /req\.body\./gi,
-      /req\.query\./gi,
-      /req\.params\./gi,
-    ];
+    const inputPatterns = [/req\.body\./gi, /req\.query\./gi, /req\.params\./gi];
 
     let hasInputValidation = true;
 
@@ -353,7 +348,8 @@ export class ReviewChecks {
         for (const pattern of inputPatterns) {
           if (pattern.test(content)) {
             // Check if there's validation nearby (simplified check)
-            const hasValidation = content.includes('validate') ||
+            const hasValidation =
+              content.includes('validate') ||
               content.includes('schema') ||
               content.includes('zod') ||
               content.includes('joi') ||
@@ -442,7 +438,8 @@ export class ReviewChecks {
           comments.push({
             file: change.filePath,
             line: 1,
-            comment: 'Large class detected. Consider breaking into smaller classes (Single Responsibility).',
+            comment:
+              'Large class detected. Consider breaking into smaller classes (Single Responsibility).',
             severity: 'minor',
             resolved: false,
           });
@@ -453,7 +450,7 @@ export class ReviewChecks {
         for (const match of functionMatches) {
           const paramsStr = match[1];
           if (paramsStr === undefined) continue;
-          const params = paramsStr.split(',').filter(p => p.trim());
+          const params = paramsStr.split(',').filter((p) => p.trim());
           if (params.length > 5) {
             violationsFound = true;
           }
@@ -477,9 +474,10 @@ export class ReviewChecks {
   /**
    * Check for code duplication
    */
-  private checkCodeDuplication(
-    _changes: readonly FileChange[]
-  ): { item: SecurityCheckItem; comments: ReviewComment[] } {
+  private checkCodeDuplication(_changes: readonly FileChange[]): {
+    item: SecurityCheckItem;
+    comments: ReviewComment[];
+  } {
     // Simplified duplication check
     return {
       item: {
@@ -634,13 +632,16 @@ export class ReviewChecks {
         for (let i = 0; i < lines.length; i++) {
           const currentLine = lines[i];
           if (currentLine === undefined) continue;
-          if (currentLine.match(/\.forEach\s*\(\s*async/i) ||
-              currentLine.match(/\.map\s*\(\s*async.*await/i)) {
+          if (
+            currentLine.match(/\.forEach\s*\(\s*async/i) ||
+            currentLine.match(/\.map\s*\(\s*async.*await/i)
+          ) {
             hasPerformanceIssues = true;
             comments.push({
               file: change.filePath,
               line: i + 1,
-              comment: 'Potential N+1 query pattern. Consider using Promise.all or batch operations.',
+              comment:
+                'Potential N+1 query pattern. Consider using Promise.all or batch operations.',
               severity: 'minor',
               resolved: false,
             });

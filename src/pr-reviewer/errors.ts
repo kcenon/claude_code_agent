@@ -70,11 +70,7 @@ export class PRCreationError extends PRReviewerError {
   public readonly branch: string;
 
   constructor(branch: string, cause?: Error) {
-    super(
-      `Failed to create pull request for branch: ${branch}`,
-      'PR_CREATION_ERROR',
-      cause
-    );
+    super(`Failed to create pull request for branch: ${branch}`, 'PR_CREATION_ERROR', cause);
     this.name = 'PRCreationError';
     this.branch = branch;
   }
@@ -105,10 +101,7 @@ export class PRNotFoundError extends PRReviewerError {
   public readonly prNumber: number;
 
   constructor(prNumber: number) {
-    super(
-      `Pull request #${String(prNumber)} not found`,
-      'PR_NOT_FOUND'
-    );
+    super(`Pull request #${String(prNumber)} not found`, 'PR_NOT_FOUND');
     this.name = 'PRNotFoundError';
     this.prNumber = prNumber;
   }
@@ -121,11 +114,7 @@ export class PRMergeError extends PRReviewerError {
   public readonly prNumber: number;
 
   constructor(prNumber: number, reason: string, cause?: Error) {
-    super(
-      `Failed to merge PR #${String(prNumber)}: ${reason}`,
-      'PR_MERGE_ERROR',
-      cause
-    );
+    super(`Failed to merge PR #${String(prNumber)}: ${reason}`, 'PR_MERGE_ERROR', cause);
     this.name = 'PRMergeError';
     this.prNumber = prNumber;
   }
@@ -138,11 +127,7 @@ export class PRCloseError extends PRReviewerError {
   public readonly prNumber: number;
 
   constructor(prNumber: number, cause?: Error) {
-    super(
-      `Failed to close PR #${String(prNumber)}`,
-      'PR_CLOSE_ERROR',
-      cause
-    );
+    super(`Failed to close PR #${String(prNumber)}`, 'PR_CLOSE_ERROR', cause);
     this.name = 'PRCloseError';
     this.prNumber = prNumber;
   }
@@ -159,11 +144,7 @@ export class ReviewSubmissionError extends PRReviewerError {
   public readonly prNumber: number;
 
   constructor(prNumber: number, cause?: Error) {
-    super(
-      `Failed to submit review for PR #${String(prNumber)}`,
-      'REVIEW_SUBMISSION_ERROR',
-      cause
-    );
+    super(`Failed to submit review for PR #${String(prNumber)}`, 'REVIEW_SUBMISSION_ERROR', cause);
     this.name = 'ReviewSubmissionError';
     this.prNumber = prNumber;
   }
@@ -299,11 +280,7 @@ export class GitOperationError extends PRReviewerError {
   public readonly operation: string;
 
   constructor(operation: string, cause?: Error) {
-    super(
-      `Git operation failed: ${operation}`,
-      'GIT_OPERATION_ERROR',
-      cause
-    );
+    super(`Git operation failed: ${operation}`, 'GIT_OPERATION_ERROR', cause);
     this.name = 'GitOperationError';
     this.operation = operation;
   }
@@ -316,10 +293,7 @@ export class BranchNotFoundError extends PRReviewerError {
   public readonly branch: string;
 
   constructor(branch: string) {
-    super(
-      `Branch not found: ${branch}`,
-      'BRANCH_NOT_FOUND'
-    );
+    super(`Branch not found: ${branch}`, 'BRANCH_NOT_FOUND');
     this.name = 'BranchNotFoundError';
     this.branch = branch;
   }
@@ -360,11 +334,7 @@ export class ResultPersistenceError extends PRReviewerError {
   public readonly resultPath: string;
 
   constructor(resultPath: string, cause?: Error) {
-    super(
-      `Failed to persist review result to: ${resultPath}`,
-      'RESULT_PERSISTENCE_ERROR',
-      cause
-    );
+    super(`Failed to persist review result to: ${resultPath}`, 'RESULT_PERSISTENCE_ERROR', cause);
     this.name = 'ResultPersistenceError';
     this.resultPath = resultPath;
   }

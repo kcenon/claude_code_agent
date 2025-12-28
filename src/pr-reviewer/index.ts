@@ -92,7 +92,4 @@ export type {
 } from './types.js';
 
 // Default configurations
-export {
-  DEFAULT_PR_REVIEWER_CONFIG,
-  DEFAULT_QUALITY_GATE_CONFIG,
-} from './types.js';
+export { DEFAULT_PR_REVIEWER_CONFIG, DEFAULT_QUALITY_GATE_CONFIG } from './types.js';
