@@ -5,7 +5,6 @@
  * and feedback loop functionality.
  */
 
-import type { ImplementationResult } from '../worker/types.js';
 
 // ============================================================================
 // Status and Severity Types
@@ -427,5 +426,5 @@ export interface GitHubPRInfo {
   }[];
 }
 
-// Re-export ImplementationResult for convenience
-export type { ImplementationResult };
+// Re-export types from worker for convenience
+export type { ImplementationResult, FileChange } from '../worker/types.js';

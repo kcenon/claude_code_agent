@@ -16,10 +16,8 @@ import type {
   ReviewChecklist,
   SecurityCheckItem,
   QualityMetrics,
-  SecurityIssues,
   FileChange,
 } from './types.js';
-import { CommandExecutionError } from './errors.js';
 
 const execAsync = promisify(exec);
 
@@ -405,7 +403,7 @@ export class ReviewChecks {
     comments.push(...solidCheck.comments);
 
     // Check for code duplication
-    const duplicationCheck = await this.checkCodeDuplication(changes);
+    const duplicationCheck = this.checkCodeDuplication(changes);
     items.push(duplicationCheck.item);
     comments.push(...duplicationCheck.comments);
 
@@ -477,9 +475,9 @@ export class ReviewChecks {
   /**
    * Check for code duplication
    */
-  private async checkCodeDuplication(
-    changes: readonly FileChange[]
-  ): Promise<{ item: SecurityCheckItem; comments: ReviewComment[] }> {
+  private checkCodeDuplication(
+    _changes: readonly FileChange[]
+  ): { item: SecurityCheckItem; comments: ReviewComment[] } {
     // Simplified duplication check
     return {
       item: {
@@ -526,12 +524,10 @@ export class ReviewChecks {
         }
 
         // Check for async functions without try-catch
-        const asyncMatches = content.matchAll(/async\s+(?:function\s+)?(\w+)/gi);
-        for (const match of asyncMatches) {
+        const asyncMatches = [...content.matchAll(/async\s+(?:function\s+)?(\w+)/gi)];
+        if (asyncMatches.length > 0 && !content.includes('try') && !content.includes('.catch(')) {
           // Simplified check - just flag if no try-catch visible
-          if (!content.includes('try') && !content.includes('.catch(')) {
-            hasProperErrorHandling = false;
-          }
+          hasProperErrorHandling = false;
         }
       } catch {
         // File read failed, skip
@@ -688,8 +684,8 @@ export class ReviewChecks {
         // Check for exported functions/classes without JSDoc
         const exportMatches = content.matchAll(/export\s+(?:class|function|const)\s+(\w+)/gi);
         for (const match of exportMatches) {
-          const name = match[1];
-          const position = match.index || 0;
+          const name = match[1] !== undefined ? match[1] : 'unknown';
+          const position = match.index;
 
           // Look for JSDoc comment before the export
           const beforeExport = content.substring(Math.max(0, position - 200), position);
@@ -790,12 +786,12 @@ export class ReviewChecks {
 
       return { stdout, stderr, exitCode: 0 };
     } catch (error: unknown) {
-      if (error && typeof error === 'object' && 'code' in error) {
+      if (error !== null && typeof error === 'object' && 'code' in error) {
         const execError = error as { stdout?: string; stderr?: string; code?: number };
         return {
-          stdout: execError.stdout || '',
-          stderr: execError.stderr || '',
-          exitCode: execError.code || 1,
+          stdout: execError.stdout ?? '',
+          stderr: execError.stderr ?? '',
+          exitCode: execError.code ?? 1,
         };
       }
       throw error;

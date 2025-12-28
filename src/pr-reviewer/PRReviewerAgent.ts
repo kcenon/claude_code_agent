@@ -11,7 +11,7 @@ import { exec } from 'node:child_process';
 import { promisify } from 'node:util';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-import { join, dirname } from 'node:path';
+import { join } from 'node:path';
 import yaml from 'js-yaml';
 
 import type {
@@ -25,7 +25,6 @@ import type {
   ReviewDecision,
   Decision,
   WorkerFeedback,
-  QualityMetrics,
   CheckResults,
   QualityGateResult,
   ImplementationResult,
@@ -39,7 +38,6 @@ import {
   ImplementationResultNotFoundError,
   ImplementationResultParseError,
   PRCreationError,
-  PRAlreadyExistsError,
   PRMergeError,
   PRCloseError,
   ReviewSubmissionError,
@@ -57,6 +55,21 @@ interface CommandResult {
   stdout: string;
   stderr: string;
   exitCode: number;
+}
+
+/**
+ * GitHub PR data from gh CLI
+ */
+interface GitHubPRData {
+  number: number;
+  url: string;
+  title: string;
+  headRefName: string;
+  baseRefName: string;
+  createdAt: string;
+  state: string;
+  statusCheckRollup?: Array<{ status: string }>;
+  reviews?: unknown[];
 }
 
 /**
@@ -121,12 +134,12 @@ export class PRReviewerAgent {
     const pullRequest = await this.createPullRequest(implResult, options);
 
     // 3. Wait for CI (unless skipped)
-    if (!options.skipCIWait) {
+    if (options.skipCIWait !== true) {
       await this.waitForCI(pullRequest.number);
     }
 
     // 4. Perform code review
-    const { comments, checklist, metrics } = await this.reviewChecks.runAllChecks(
+    const { comments, metrics } = await this.reviewChecks.runAllChecks(
       implResult.changes
     );
 
@@ -138,7 +151,7 @@ export class PRReviewerAgent {
 
     // 7. Make decision
     const reviewStatus = this.determineReviewStatus(qualityGateResult, comments, options);
-    const decision = await this.makeDecision(
+    const decision = this.makeDecision(
       pullRequest,
       reviewStatus,
       qualityGateResult,
@@ -147,12 +160,12 @@ export class PRReviewerAgent {
     );
 
     // 8. Submit review
-    if (!options.dryRun) {
+    if (options.dryRun !== true) {
       await this.submitReview(pullRequest.number, reviewStatus, comments);
     }
 
     // 9. Execute decision
-    if (!options.dryRun) {
+    if (options.dryRun !== true) {
       await this.executeDecision(pullRequest, decision, options);
     }
 
@@ -187,7 +200,7 @@ export class PRReviewerAgent {
     };
 
     // 13. Persist result
-    if (!options.dryRun) {
+    if (options.dryRun !== true) {
       await this.persistResult(result);
     }
 
@@ -210,7 +223,7 @@ export class PRReviewerAgent {
     const pullRequest = await this.createPullRequest(implResult, options);
 
     // Wait for CI (unless skipped)
-    if (!options.skipCIWait) {
+    if (options.skipCIWait !== true) {
       await this.waitForCI(pullRequest.number);
     }
 
@@ -227,7 +240,7 @@ export class PRReviewerAgent {
 
     // Make decision
     const reviewStatus = this.determineReviewStatus(qualityGateResult, comments, options);
-    const decision = await this.makeDecision(
+    const decision = this.makeDecision(
       pullRequest,
       reviewStatus,
       qualityGateResult,
@@ -236,7 +249,7 @@ export class PRReviewerAgent {
     );
 
     // Submit review and execute decision
-    if (!options.dryRun) {
+    if (options.dryRun !== true) {
       await this.submitReview(pullRequest.number, reviewStatus, comments);
       await this.executeDecision(pullRequest, decision, options);
     }
@@ -272,7 +285,7 @@ export class PRReviewerAgent {
     };
 
     // Persist result
-    if (!options.dryRun) {
+    if (options.dryRun !== true) {
       await this.persistResult(result);
     }
 
@@ -317,7 +330,7 @@ export class PRReviewerAgent {
    */
   private async createPullRequest(
     implResult: ImplementationResult,
-    options: PRReviewOptions
+    _options: PRReviewOptions
   ): Promise<PullRequest> {
     const branchName = implResult.branch.name;
 
@@ -335,7 +348,7 @@ export class PRReviewerAgent {
       const result = await this.executeCommand(
         `gh pr create --title "${this.escapeShell(prOptions.title)}" ` +
         `--body "${this.escapeShell(prOptions.body)}" ` +
-        `--base "${prOptions.base || 'main'}" ` +
+        `--base "${prOptions.base ?? 'main'}" ` +
         `--head "${prOptions.head}" ` +
         `--json number,url,title,headRefName,baseRefName,createdAt,state`
       );
@@ -344,7 +357,7 @@ export class PRReviewerAgent {
         throw new PRCreationError(branchName, new Error(result.stderr));
       }
 
-      const prData = JSON.parse(result.stdout);
+      const prData = JSON.parse(result.stdout) as GitHubPRData;
       return {
         number: prData.number,
         url: prData.url,
@@ -376,7 +389,7 @@ export class PRReviewerAgent {
         return null;
       }
 
-      const prs = JSON.parse(result.stdout);
+      const prs = JSON.parse(result.stdout) as GitHubPRData[];
       if (prs.length === 0) {
         return null;
       }
@@ -400,7 +413,9 @@ export class PRReviewerAgent {
    * Generate PR title and body from implementation result
    */
   private generatePRContent(implResult: ImplementationResult): PRCreateOptions {
-    const issueRef = implResult.githubIssue ? `#${implResult.githubIssue}` : implResult.issueId;
+    const issueRef = implResult.githubIssue !== undefined
+      ? `#${String(implResult.githubIssue)}`
+      : implResult.issueId;
 
     const title = `feat(${this.extractScope(implResult.issueId)}): Implement ${implResult.issueId}`;
 
@@ -415,9 +430,9 @@ Implements ${issueRef}
 ${changesDescription}
 
 ## Testing
-- Tests created: ${implResult.tests.filesCreated.length} files
-- Total tests: ${implResult.tests.totalTests}
-- Coverage: ${implResult.tests.coveragePercentage}%
+- Tests created: ${String(implResult.tests.filesCreated.length)} files
+- Total tests: ${String(implResult.tests.totalTests)}
+- Coverage: ${String(implResult.tests.coveragePercentage)}%
 
 ## Verification
 - Tests: ${implResult.verification.testsPassed ? '✅ Passed' : '❌ Failed'}
@@ -480,19 +495,19 @@ _Auto-generated by AD-SDLC PR Review Agent_`;
    */
   private async getPRInfo(prNumber: number): Promise<GitHubPRInfo> {
     const result = await this.executeCommand(
-      `gh pr view ${prNumber} --json number,state,statusCheckRollup,reviews`
+      `gh pr view ${String(prNumber)} --json number,state,statusCheckRollup,reviews`
     );
 
     if (result.exitCode !== 0) {
       throw new GitOperationError(`Failed to get PR info: ${result.stderr}`);
     }
 
-    const data = JSON.parse(result.stdout);
+    const data = JSON.parse(result.stdout) as GitHubPRData;
     return {
       number: data.number,
       state: data.state.toLowerCase(),
-      statusCheckRollup: data.statusCheckRollup || [],
-      reviews: data.reviews || [],
+      statusCheckRollup: data.statusCheckRollup ?? [],
+      reviews: data.reviews ?? [],
     };
   }
 
@@ -519,7 +534,7 @@ _Auto-generated by AD-SDLC PR Review Agent_`;
     comments: readonly ReviewComment[],
     options: PRReviewOptions
   ): ReviewStatus {
-    if (options.forceApprove) {
+    if (options.forceApprove === true) {
       return 'approved';
     }
 
@@ -546,13 +561,13 @@ _Auto-generated by AD-SDLC PR Review Agent_`;
   /**
    * Make final decision based on review
    */
-  private async makeDecision(
-    pullRequest: PullRequest,
+  private makeDecision(
+    _pullRequest: PullRequest,
     reviewStatus: ReviewStatus,
     qualityGateResult: QualityGateResult,
-    comments: readonly ReviewComment[],
-    options: PRReviewOptions
-  ): Promise<Decision> {
+    _comments: readonly ReviewComment[],
+    _options: PRReviewOptions
+  ): Decision {
     let action: ReviewDecision;
     let reason: string;
 
@@ -581,12 +596,10 @@ _Auto-generated by AD-SDLC PR Review Agent_`;
         reason = 'Review incomplete.';
     }
 
-    const decision: Decision = {
+    return {
       action,
       reason,
     };
-
-    return decision;
   }
 
   /**
@@ -619,7 +632,7 @@ _Auto-generated by AD-SDLC PR Review Agent_`;
     try {
       // Submit the main review
       const result = await this.executeCommand(
-        `gh pr review ${prNumber} ${event} --body "${this.escapeShell(body)}"`
+        `gh pr review ${String(prNumber)} ${event} --body "${this.escapeShell(body)}"`
       );
 
       if (result.exitCode !== 0) {
@@ -649,12 +662,12 @@ _Auto-generated by AD-SDLC PR Review Agent_`;
     try {
       const severityEmoji = this.getSeverityEmoji(comment.severity);
       const body = `${severityEmoji} **${comment.severity.toUpperCase()}**: ${comment.comment}` +
-        (comment.suggestedFix ? `\n\n💡 Suggested fix: ${comment.suggestedFix}` : '');
+        (comment.suggestedFix !== undefined ? `\n\n💡 Suggested fix: ${comment.suggestedFix}` : '');
 
       // Note: gh pr comment doesn't support line-level comments directly
       // In practice, we'd use the GitHub API for this
       await this.executeCommand(
-        `gh pr comment ${prNumber} --body "${this.escapeShell(`**${comment.file}:${comment.line}**\n${body}`)}"`
+        `gh pr comment ${String(prNumber)} --body "${this.escapeShell(`**${comment.file}:${String(comment.line)}**\n${body}`)}"`
       );
     } catch {
       // Ignore comment failures - non-critical
@@ -682,17 +695,17 @@ _Auto-generated by AD-SDLC PR Review Agent_`;
     decision: Decision,
     options: PRReviewOptions
   ): Promise<Decision> {
-    if (options.dryRun) {
+    if (options.dryRun === true) {
       return decision;
     }
 
     switch (decision.action) {
       case 'merge':
-        if (this.config.autoMerge || options.forceApprove) {
+        if (this.config.autoMerge || options.forceApprove === true) {
           try {
             const mergeFlags = this.getMergeFlags();
             const result = await this.executeCommand(
-              `gh pr merge ${pullRequest.number} ${mergeFlags}`
+              `gh pr merge ${String(pullRequest.number)} ${mergeFlags}`
             );
 
             if (result.exitCode === 0) {
@@ -715,7 +728,7 @@ _Auto-generated by AD-SDLC PR Review Agent_`;
       case 'reject':
         try {
           await this.executeCommand(
-            `gh pr close ${pullRequest.number} --comment "Closing due to critical issues."`
+            `gh pr close ${String(pullRequest.number)} --comment "Closing due to critical issues."`
           );
         } catch (error) {
           throw new PRCloseError(
@@ -787,7 +800,7 @@ _Auto-generated by AD-SDLC PR Review Agent_`;
     // Add improvements based on comments
     for (const comment of comments.filter(c => !c.resolved)) {
       if (comment.severity === 'critical' || comment.severity === 'major') {
-        improvements.push(`${comment.file}:${comment.line} - ${comment.comment}`);
+        improvements.push(`${comment.file}:${String(comment.line)} - ${comment.comment}`);
       }
     }
 
@@ -817,7 +830,7 @@ _Auto-generated by AD-SDLC PR Review Agent_`;
         await mkdir(reviewsDir, { recursive: true });
       }
 
-      const resultPath = join(reviewsDir, `PR-${result.pullRequest.number}-review.yaml`);
+      const resultPath = join(reviewsDir, `PR-${String(result.pullRequest.number)}-review.yaml`);
       const yamlContent = yaml.dump(result, { indent: 2 });
       await writeFile(resultPath, yamlContent, 'utf-8');
     } catch (error) {
@@ -841,12 +854,12 @@ _Auto-generated by AD-SDLC PR Review Agent_`;
 
       return { stdout, stderr, exitCode: 0 };
     } catch (error: unknown) {
-      if (error && typeof error === 'object' && 'code' in error) {
+      if (error !== null && typeof error === 'object' && 'code' in error) {
         const execError = error as { stdout?: string; stderr?: string; code?: number };
         return {
-          stdout: execError.stdout || '',
-          stderr: execError.stderr || '',
-          exitCode: execError.code || 1,
+          stdout: execError.stdout ?? '',
+          stderr: execError.stderr ?? '',
+          exitCode: execError.code ?? 1,
         };
       }
       throw error;

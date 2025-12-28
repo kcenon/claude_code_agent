@@ -125,7 +125,7 @@ export class QualityGate {
       const passed = metrics.securityIssues.critical === 0;
       gates.set('no_critical_security', passed);
       if (!passed) {
-        failures.push(`Critical security issues found: ${metrics.securityIssues.critical}`);
+        failures.push(`Critical security issues found: ${String(metrics.securityIssues.critical)}`);
       }
     }
 
@@ -135,7 +135,7 @@ export class QualityGate {
       const passed = criticalComments === 0;
       gates.set('no_critical_issues', passed);
       if (!passed) {
-        failures.push(`Critical review issues found: ${criticalComments}`);
+        failures.push(`Critical review issues found: ${String(criticalComments)}`);
       }
     }
 
@@ -145,7 +145,7 @@ export class QualityGate {
       gates.set('code_coverage', passed);
       if (!passed) {
         failures.push(
-          `Code coverage ${metrics.codeCoverage}% is below required ${required.codeCoverage}%`
+          `Code coverage ${String(metrics.codeCoverage)}% is below required ${String(required.codeCoverage)}%`
         );
       }
     }
@@ -169,7 +169,7 @@ export class QualityGate {
       const passed = majorComments === 0;
       gates.set('no_major_issues', passed);
       if (!passed) {
-        warnings.push(`Major review issues found: ${majorComments}`);
+        warnings.push(`Major review issues found: ${String(majorComments)}`);
       }
     }
 
@@ -179,7 +179,7 @@ export class QualityGate {
       gates.set('new_lines_coverage', passed);
       if (!passed) {
         warnings.push(
-          `New lines coverage ${metrics.newLinesCoverage}% is below recommended ${recommended.newLinesCoverage}%`
+          `New lines coverage ${String(metrics.newLinesCoverage)}% is below recommended ${String(recommended.newLinesCoverage)}%`
         );
       }
     }
@@ -190,7 +190,7 @@ export class QualityGate {
       gates.set('max_complexity', passed);
       if (!passed) {
         warnings.push(
-          `Complexity score ${metrics.complexityScore} exceeds recommended max ${recommended.maxComplexity}`
+          `Complexity score ${String(metrics.complexityScore)} exceeds recommended max ${String(recommended.maxComplexity)}`
         );
       }
     }
@@ -200,7 +200,7 @@ export class QualityGate {
       const passed = metrics.styleViolations === 0;
       gates.set('no_style_violations', passed);
       if (!passed) {
-        warnings.push(`Style violations found: ${metrics.styleViolations}`);
+        warnings.push(`Style violations found: ${String(metrics.styleViolations)}`);
       }
     }
   }

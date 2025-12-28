@@ -87,7 +87,7 @@ export class PRAlreadyExistsError extends PRReviewerError {
 
   constructor(branch: string, existingPRNumber: number) {
     super(
-      `Pull request already exists for branch "${branch}": PR #${existingPRNumber}`,
+      `Pull request already exists for branch "${branch}": PR #${String(existingPRNumber)}`,
       'PR_ALREADY_EXISTS'
     );
     this.name = 'PRAlreadyExistsError';
@@ -104,7 +104,7 @@ export class PRNotFoundError extends PRReviewerError {
 
   constructor(prNumber: number) {
     super(
-      `Pull request #${prNumber} not found`,
+      `Pull request #${String(prNumber)} not found`,
       'PR_NOT_FOUND'
     );
     this.name = 'PRNotFoundError';
@@ -120,7 +120,7 @@ export class PRMergeError extends PRReviewerError {
 
   constructor(prNumber: number, reason: string, cause?: Error) {
     super(
-      `Failed to merge PR #${prNumber}: ${reason}`,
+      `Failed to merge PR #${String(prNumber)}: ${reason}`,
       'PR_MERGE_ERROR',
       cause
     );
@@ -137,7 +137,7 @@ export class PRCloseError extends PRReviewerError {
 
   constructor(prNumber: number, cause?: Error) {
     super(
-      `Failed to close PR #${prNumber}`,
+      `Failed to close PR #${String(prNumber)}`,
       'PR_CLOSE_ERROR',
       cause
     );
@@ -158,7 +158,7 @@ export class ReviewSubmissionError extends PRReviewerError {
 
   constructor(prNumber: number, cause?: Error) {
     super(
-      `Failed to submit review for PR #${prNumber}`,
+      `Failed to submit review for PR #${String(prNumber)}`,
       'REVIEW_SUBMISSION_ERROR',
       cause
     );
@@ -177,7 +177,7 @@ export class ReviewCommentError extends PRReviewerError {
 
   constructor(prNumber: number, file: string, line: number, cause?: Error) {
     super(
-      `Failed to add review comment on PR #${prNumber} at ${file}:${line}`,
+      `Failed to add review comment on PR #${String(prNumber)} at ${file}:${String(line)}`,
       'REVIEW_COMMENT_ERROR',
       cause
     );
@@ -201,7 +201,7 @@ export class CITimeoutError extends PRReviewerError {
 
   constructor(prNumber: number, timeoutMs: number) {
     super(
-      `CI checks timed out for PR #${prNumber} after ${timeoutMs}ms`,
+      `CI checks timed out for PR #${String(prNumber)} after ${String(timeoutMs)}ms`,
       'CI_TIMEOUT'
     );
     this.name = 'CITimeoutError';
@@ -219,7 +219,7 @@ export class CICheckFailedError extends PRReviewerError {
 
   constructor(prNumber: number, failedChecks: readonly string[]) {
     super(
-      `CI checks failed for PR #${prNumber}: ${failedChecks.join(', ')}`,
+      `CI checks failed for PR #${String(prNumber)}: ${failedChecks.join(', ')}`,
       'CI_CHECK_FAILED'
     );
     this.name = 'CICheckFailedError';
@@ -241,7 +241,7 @@ export class QualityGateFailedError extends PRReviewerError {
 
   constructor(prNumber: number, failedGates: readonly string[]) {
     super(
-      `Quality gates failed for PR #${prNumber}: ${failedGates.join(', ')}`,
+      `Quality gates failed for PR #${String(prNumber)}: ${failedGates.join(', ')}`,
       'QUALITY_GATE_FAILED'
     );
     this.name = 'QualityGateFailedError';
@@ -259,7 +259,7 @@ export class CoverageBelowThresholdError extends PRReviewerError {
 
   constructor(actual: number, required: number) {
     super(
-      `Code coverage ${actual}% is below required threshold ${required}%`,
+      `Code coverage ${String(actual)}% is below required threshold ${String(required)}%`,
       'COVERAGE_BELOW_THRESHOLD'
     );
     this.name = 'CoverageBelowThresholdError';
@@ -277,7 +277,7 @@ export class SecurityVulnerabilityError extends PRReviewerError {
 
   constructor(criticalCount: number, highCount: number) {
     super(
-      `Security vulnerabilities found: ${criticalCount} critical, ${highCount} high`,
+      `Security vulnerabilities found: ${String(criticalCount)} critical, ${String(highCount)} high`,
       'SECURITY_VULNERABILITY'
     );
     this.name = 'SecurityVulnerabilityError';
@@ -337,7 +337,7 @@ export class CommandExecutionError extends PRReviewerError {
 
   constructor(command: string, exitCode: number, stderr: string) {
     super(
-      `Command failed with exit code ${exitCode}: ${command}`,
+      `Command failed with exit code ${String(exitCode)}: ${command}`,
       'COMMAND_EXECUTION_ERROR'
     );
     this.name = 'CommandExecutionError';
