@@ -37,10 +37,10 @@ import {
 } from './errors.js';
 
 // YAML import with dynamic loading for compatibility
-let yaml: { dump: (obj: unknown) => string };
+let yaml: { dump: (obj: unknown) => string } | null = null;
 
 async function loadYaml(): Promise<void> {
-  if (!yaml) {
+  if (yaml === null) {
     const jsYaml = await import('js-yaml');
     yaml = { dump: jsYaml.dump };
   }
@@ -207,12 +207,15 @@ export class DocumentReaderAgent {
         warnings,
       };
     } catch (error) {
-      this.session = {
-        ...this.session!,
-        status: 'failed',
-        errors: [...this.session!.errors, error instanceof Error ? error.message : String(error)],
-        updatedAt: new Date().toISOString(),
-      };
+      const currentSession = this.session;
+      if (currentSession !== null) {
+        this.session = {
+          ...currentSession,
+          status: 'failed',
+          errors: [...currentSession.errors, error instanceof Error ? error.message : String(error)],
+          updatedAt: new Date().toISOString(),
+        };
+      }
       throw error;
     }
   }
@@ -263,14 +266,16 @@ export class DocumentReaderAgent {
         parsedDocs.push(doc);
       } catch (error) {
         // Log warning but continue with other documents
-        const session = this.session!;
-        this.session = {
-          ...session,
-          warnings: [
-            ...session.warnings,
-            `Failed to parse ${filePath}: ${error instanceof Error ? error.message : String(error)}`,
-          ],
-        };
+        const currentSession = this.session;
+        if (currentSession !== null) {
+          this.session = {
+            ...currentSession,
+            warnings: [
+              ...currentSession.warnings,
+              `Failed to parse ${filePath}: ${error instanceof Error ? error.message : String(error)}`,
+            ],
+          };
+        }
       }
     }
 
@@ -339,31 +344,31 @@ export class DocumentReaderAgent {
         const titleMatch = frontmatter.match(/title:\s*["']?([^"'\n]+)["']?/i);
         const idMatch = frontmatter.match(/id:\s*["']?([^"'\n]+)["']?/i);
 
-        if (versionMatch?.[1]) version = versionMatch[1].trim();
-        if (statusMatch?.[1]) status = statusMatch[1].trim();
-        if (titleMatch?.[1]) title = titleMatch[1].trim();
-        if (idMatch?.[1]) id = idMatch[1].trim();
+        if (versionMatch?.[1] !== undefined) version = versionMatch[1].trim();
+        if (statusMatch?.[1] !== undefined) status = statusMatch[1].trim();
+        if (titleMatch?.[1] !== undefined) title = titleMatch[1].trim();
+        if (idMatch?.[1] !== undefined) id = idMatch[1].trim();
       }
     }
 
     // Try to extract from first heading (always prefer heading over filename)
     const headingMatch = content.match(/^#\s+(.+?)(?:\s*\n|$)/m);
-    if (headingMatch?.[1]) {
+    if (headingMatch?.[1] !== undefined) {
       title = headingMatch[1].trim();
     }
 
     // Try to extract from metadata table
     const tableMatch = content.match(
-      /\|\s*(?:Version|버전)\s*\|\s*([^\|]+)\|/i
+      /\|\s*(?:Version|버전)\s*\|\s*([^|]+)\|/i
     );
-    if (tableMatch?.[1] && !version) {
+    if (tableMatch?.[1] !== undefined && version === undefined) {
       version = tableMatch[1].trim();
     }
 
     const docIdMatch = content.match(
-      /\|\s*(?:Document ID|문서 ID)\s*\|\s*([^\|]+)\|/i
+      /\|\s*(?:Document ID|문서 ID)\s*\|\s*([^|]+)\|/i
     );
-    if (docIdMatch?.[1] && !id) {
+    if (docIdMatch?.[1] !== undefined && id === undefined) {
       id = docIdMatch[1].trim();
     }
 
@@ -386,7 +391,7 @@ export class DocumentReaderAgent {
       const line = lines[i] ?? '';
       const headingMatch = line.match(/^(#{1,6})\s+(.+)$/);
 
-      if (headingMatch?.[1] && headingMatch[2]) {
+      if (headingMatch?.[1] !== undefined && headingMatch[2] !== undefined) {
         // Save current content to previous section
         if (sectionStack.length > 0 && currentContent.length > 0) {
           const lastEntry = sectionStack[sectionStack.length - 1];
@@ -456,7 +461,7 @@ export class DocumentReaderAgent {
         const titleMatch = match[2] ?? '';
         const title = titleMatch.trim();
 
-        if (!id || !title) continue;
+        if (id === '' || title === '') continue;
 
         // Find the section content for this requirement
         const sectionStart = match.index;
@@ -484,7 +489,7 @@ export class DocumentReaderAgent {
           ...(userStory !== undefined && { userStory }),
           ...(acceptanceCriteria.length > 0 && { acceptanceCriteria }),
           ...(dependencies.length > 0 && { dependencies }),
-          sourceLocation: `${doc.path}:${lineNumber}`,
+          sourceLocation: `${doc.path}:${String(lineNumber)}`,
         });
       }
     }
@@ -504,7 +509,7 @@ export class DocumentReaderAgent {
         const titleMatch = match[2] ?? '';
         const title = titleMatch.trim();
 
-        if (!id || !title) continue;
+        if (id === '' || title === '') continue;
 
         const sectionStart = match.index;
         const nextSection = doc.rawContent.slice(sectionStart).match(/\n###\s/);
@@ -528,7 +533,7 @@ export class DocumentReaderAgent {
           ...(targetMetric !== undefined && { targetMetric }),
           priority,
           status: 'active',
-          sourceLocation: `${doc.path}:${lineNumber}`,
+          sourceLocation: `${doc.path}:${String(lineNumber)}`,
         });
       }
     }
@@ -548,7 +553,7 @@ export class DocumentReaderAgent {
         const nameMatch = match[2] ?? '';
         const name = nameMatch.trim();
 
-        if (!id || !name) continue;
+        if (id === '' || name === '') continue;
 
         const sectionStart = match.index;
         const nextSection = doc.rawContent.slice(sectionStart).match(/\n###\s/);
@@ -570,7 +575,7 @@ export class DocumentReaderAgent {
           useCases,
           sourceRequirements,
           status: 'active',
-          sourceLocation: `${doc.path}:${lineNumber}`,
+          sourceLocation: `${doc.path}:${String(lineNumber)}`,
         });
       }
     }
@@ -590,7 +595,7 @@ export class DocumentReaderAgent {
         const nameMatch = match[2] ?? '';
         const name = nameMatch.trim();
 
-        if (!id || !name) continue;
+        if (id === '' || name === '') continue;
 
         const sectionStart = match.index;
         const nextSection = doc.rawContent.slice(sectionStart).match(/\n###\s/);
@@ -615,7 +620,7 @@ export class DocumentReaderAgent {
           ...(mainFlow.length > 0 && { mainFlow }),
           ...(alternativeFlows.length > 0 && { alternativeFlows }),
           ...(postconditions.length > 0 && { postconditions }),
-          sourceLocation: `${doc.path}:${lineNumber}`,
+          sourceLocation: `${doc.path}:${String(lineNumber)}`,
         });
       }
     }
@@ -635,7 +640,7 @@ export class DocumentReaderAgent {
         const nameMatch = match[2] ?? '';
         const name = nameMatch.trim();
 
-        if (!id || !name) continue;
+        if (id === '' || name === '') continue;
 
         const sectionStart = match.index;
         const nextSection = doc.rawContent.slice(sectionStart).match(/\n###\s/);
@@ -660,7 +665,7 @@ export class DocumentReaderAgent {
           responsibilities,
           dependencies,
           sourceFeatures,
-          sourceLocation: `${doc.path}:${lineNumber}`,
+          sourceLocation: `${doc.path}:${String(lineNumber)}`,
         });
       }
     }
@@ -677,7 +682,7 @@ export class DocumentReaderAgent {
 
     for (const pattern of patterns) {
       const match = content.match(pattern);
-      if (match?.[1]) {
+      if (match?.[1] !== undefined) {
         return match[1].trim();
       }
     }
@@ -695,14 +700,14 @@ export class DocumentReaderAgent {
     );
     const sectionMatch = content.match(sectionPattern);
 
-    if (sectionMatch?.[1]) {
+    if (sectionMatch?.[1] !== undefined) {
       const listContent = sectionMatch[1];
       // Match list items (- or * or numbered)
       const itemPattern = /^\s*(?:[-*]|\d+\.)\s+\[?\s*[xX ]?\s*\]?\s*(.+)$/gm;
       let itemMatch;
       while ((itemMatch = itemPattern.exec(listContent)) !== null) {
         const item = itemMatch[1];
-        if (item) {
+        if (item !== undefined) {
           items.push(item.trim());
         }
       }
@@ -713,7 +718,7 @@ export class DocumentReaderAgent {
 
   private extractPriority(content: string): RequirementPriority {
     const priorityMatch = content.match(/\*\*Priority\*\*:\s*(P[0-3])/i);
-    if (priorityMatch?.[1]) {
+    if (priorityMatch?.[1] !== undefined) {
       return priorityMatch[1].toUpperCase() as RequirementPriority;
     }
     return 'P2'; // Default priority
@@ -726,7 +731,7 @@ export class DocumentReaderAgent {
     const categoryMatch = content.match(
       /\*\*Category\*\*:\s*(performance|security|scalability|usability|reliability|maintainability)/i
     );
-    if (categoryMatch?.[1]) {
+    if (categoryMatch?.[1] !== undefined) {
       return categoryMatch[1].toLowerCase() as NFRCategoryType;
     }
     return 'performance'; // Default category
@@ -744,7 +749,7 @@ export class DocumentReaderAgent {
   }
 
   private parseComponentType(typeStr: string | undefined): 'service' | 'library' | 'module' | 'api' {
-    if (!typeStr) return 'module';
+    if (typeStr === undefined || typeStr === '') return 'module';
     const lower = typeStr.toLowerCase();
     if (lower.includes('service')) return 'service';
     if (lower.includes('library')) return 'library';
@@ -859,7 +864,7 @@ export class DocumentReaderAgent {
     for (const doc of docs) {
       // Try to extract from title like "PRD: Project Name"
       const titleMatch = doc.metadata.title.match(/(?:PRD|SRS|SDS):\s*(.+)/i);
-      if (titleMatch?.[1]) {
+      if (titleMatch?.[1] !== undefined) {
         return titleMatch[1].trim();
       }
     }
@@ -868,7 +873,7 @@ export class DocumentReaderAgent {
 
   private extractProjectVersion(docs: ParsedDocument[]): string | undefined {
     for (const doc of docs) {
-      if (doc.metadata.version) {
+      if (doc.metadata.version !== undefined) {
         return doc.metadata.version;
       }
     }
@@ -882,8 +887,18 @@ export class DocumentReaderAgent {
     try {
       await fs.mkdir(outputDir, { recursive: true });
 
+      // Ensure yaml is loaded
+      if (yaml === null) {
+        await loadYaml();
+      }
+      // At this point yaml is guaranteed to be non-null
+      const yamlModule = yaml;
+      if (yamlModule === null) {
+        throw new Error('YAML module failed to load');
+      }
+
       // Convert to YAML-friendly format
-      const yamlContent = yaml.dump({
+      const yamlContent = yamlModule.dump({
         current_state: {
           project: currentState.project,
           documents: currentState.documents,

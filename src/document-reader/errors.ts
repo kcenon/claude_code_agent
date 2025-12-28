@@ -39,7 +39,7 @@ export class DocumentParseError extends DocumentReaderError {
   public readonly reason: string;
 
   constructor(path: string, reason: string, line?: number) {
-    const lineInfo = line !== undefined ? ` at line ${line}` : '';
+    const lineInfo = line !== undefined ? ` at line ${String(line)}` : '';
     super(`Failed to parse document ${path}${lineInfo}: ${reason}`);
     this.name = 'DocumentParseError';
     this.path = path;
