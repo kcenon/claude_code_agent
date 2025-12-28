@@ -364,3 +364,224 @@ export type {
   InputParserOptions,
   InformationExtractorOptions,
 } from './collector/index.js';
+
+// Re-export prd-writer module (with explicit handling of conflicts)
+export {
+  PRDWriterAgent,
+  getPRDWriterAgent,
+  resetPRDWriterAgent,
+  GapAnalyzer,
+  ConsistencyChecker,
+  TemplateProcessor,
+  // Error classes with aliases for conflicting names
+  PRDWriterError,
+  CollectedInfoNotFoundError,
+  TemplateNotFoundError as PRDTemplateNotFoundError,
+  TemplateProcessingError as PRDTemplateProcessingError,
+  CriticalGapsError,
+  ConsistencyError,
+  SessionStateError as PRDSessionStateError,
+  ValidationError as PRDValidationError,
+  GenerationError as PRDGenerationError,
+  FileWriteError as PRDFileWriteError,
+} from './prd-writer/index.js';
+
+export type {
+  GapAnalyzerOptions,
+  ConsistencyCheckerOptions,
+  TemplateProcessorOptions,
+  // Status types
+  PRDGenerationStatus,
+  GapSeverity,
+  GapCategory,
+  ConsistencyIssueType,
+  PRDSection,
+  // Gap analysis types
+  GapItem,
+  GapAnalysisResult,
+  // Consistency types
+  ConsistencyIssue,
+  ConsistencyCheckResult,
+  PriorityDistribution,
+  DependencyAnalysis,
+  // PRD types
+  PRDMetadata,
+  GeneratedPRD,
+  // Session types
+  PRDWriterAgentConfig,
+  PRDGenerationSession,
+  PRDGenerationResult,
+  PRDGenerationStats,
+  // Template types with aliases
+  TemplateVariable as PRDTemplateVariable,
+  TemplateProcessingResult as PRDTemplateProcessingResult,
+} from './prd-writer/index.js';
+
+// Re-export srs-writer module (with explicit handling of conflicts)
+export {
+  SRSWriterAgent,
+  getSRSWriterAgent,
+  resetSRSWriterAgent,
+  PRDParser,
+  FeatureDecomposer,
+  TraceabilityBuilder,
+  // Error classes with aliases for conflicting names
+  SRSWriterError,
+  PRDNotFoundError,
+  PRDParseError,
+  TemplateNotFoundError as SRSTemplateNotFoundError,
+  TemplateProcessingError as SRSTemplateProcessingError,
+  FeatureDecompositionError,
+  UseCaseGenerationError,
+  LowCoverageError,
+  SessionStateError as SRSSessionStateError,
+  ValidationError as SRSWriterValidationError,
+  GenerationError as SRSGenerationError,
+  FileWriteError as SRSFileWriteError,
+} from './srs-writer/index.js';
+
+export type {
+  PRDParserOptions,
+  FeatureDecomposerOptions,
+  TraceabilityBuilderOptions,
+  TraceabilityValidationResult,
+  TraceabilityIssue,
+  // Generation status and priority
+  SRSGenerationStatus,
+  Priority as SRSPriority,
+  // PRD parsing types
+  ParsedPRD,
+  ParsedPRDRequirement,
+  ParsedNFR,
+  ParsedConstraint,
+  PRDDocumentMetadata,
+  UserPersona,
+  Goal,
+  // Decomposition types
+  FeatureDecompositionResult,
+  UseCaseInput,
+  GeneratedUseCase,
+  // Traceability types (with alias to avoid conflict with component-generator)
+  TraceabilityEntry as SRSTraceabilityEntry,
+  TraceabilityMatrix as SRSWriterTraceabilityMatrix,
+  // Configuration types
+  SRSWriterAgentConfig,
+  // Session and result types
+  SRSGenerationSession,
+  GeneratedSRS as SRSWriterGeneratedSRS,
+  SRSGenerationResult,
+  SRSGenerationStats,
+  // Template types with aliases
+  TemplateVariable as SRSTemplateVariable,
+  TemplateProcessingResult as SRSTemplateProcessingResult,
+  // Note: SRSFeature, SRSUseCase, SRSMetadata are already exported from architecture-generator
+  // Note: NonFunctionalRequirement and Constraint are re-exported from architecture-generator types
+} from './srs-writer/index.js';
+
+// Re-export sds-writer module (with explicit handling of conflicts)
+export {
+  SDSWriterAgent,
+  getSDSWriterAgent,
+  resetSDSWriterAgent,
+  SRSParser as SDSSRSParser,
+  ComponentDesigner,
+  APISpecifier,
+  DataDesigner,
+  TraceabilityMapper,
+  SDSWriterError,
+  SRSNotFoundError as SDSSRSNotFoundError,
+  SRSParseError as SDSSRSParseError,
+  TemplateNotFoundError as SDSTemplateNotFoundError,
+  TemplateProcessingError as SDSTemplateProcessingError,
+  ComponentDesignError,
+  APISpecificationError as SDSAPISpecificationError,
+  DataModelDesignError,
+  SecuritySpecificationError,
+  LowCoverageError as SDSLowCoverageError,
+  SessionStateError as SDSSessionStateError,
+  ValidationError as SDSValidationError,
+  GenerationError as SDSGenerationError,
+  FileWriteError as SDSFileWriteError,
+  CircularDependencyError as SDSCircularDependencyError,
+  InterfaceGenerationError as SDSInterfaceGenerationError,
+} from './sds-writer/index.js';
+
+export type {
+  // Generation status and config
+  SDSGenerationStatus,
+  SDSWriterAgentConfig,
+  SDSGenerationSession,
+  SDSGenerationResult,
+  SDSGenerationStats,
+  Priority as SDSPriority,
+  DocumentStatus,
+  HttpMethod as SDSHttpMethod,
+  DataTypeCategory,
+  SecurityLevel,
+
+  // SRS input types
+  ParsedSRS as SDSParsedSRS,
+  SRSDocumentMetadata,
+  ParsedSRSFeature,
+  ParsedNFR as SDSParsedNFR,
+  ParsedConstraint as SDSParsedConstraint,
+  ParsedUseCase as SDSParsedUseCase,
+  AlternativeScenario,
+
+  // SDS output types
+  SDSMetadata,
+  SDSComponent,
+  SDSInterface,
+  SDSMethod,
+  MethodParameter,
+  GeneratedSDS,
+
+  // Technology stack
+  TechnologyEntry,
+
+  // API types
+  APIEndpoint as SDSAPIEndpoint,
+  APIParameter as SDSAPIParameter,
+  DataSchema,
+  DataProperty,
+  ErrorResponse as SDSErrorResponse,
+
+  // Data model types
+  DataModel,
+  DataRelationship,
+  DataIndex,
+
+  // Security types
+  SecuritySpec,
+  AuthenticationSpec,
+  AuthorizationSpec,
+  RoleDefinition,
+  PermissionRule,
+  DataProtectionMeasure,
+
+  // Deployment types
+  DeploymentSpec,
+  EnvironmentSpec,
+  ScalingSpec,
+
+  // Traceability types
+  TraceabilityEntry as SDSTraceabilityEntry,
+  TraceabilityMatrix as SDSTraceabilityMatrix,
+
+  // Design input types
+  ComponentDesignInput,
+  APIDesignInput,
+  DataModelDesignInput,
+
+  // Options types
+  SRSParserOptions as SDSSRSParserOptions,
+  ComponentDesignerOptions,
+  ComponentDesignResult,
+  APISpecifierOptions,
+  APISpecificationResult,
+  DataDesignerOptions,
+  DataDesignResult,
+  TraceabilityMapperOptions,
+  TraceabilityAnalysis,
+  TraceabilityStats,
+} from './sds-writer/index.js';
