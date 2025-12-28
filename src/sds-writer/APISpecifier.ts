@@ -332,16 +332,46 @@ export class APISpecifier {
       { pattern: /status/i, name: 'status', type: 'string', description: 'Current status' },
       { pattern: /type/i, name: 'type', type: 'string', description: 'Type classification' },
       { pattern: /date/i, name: 'date', type: 'string', description: 'Date value' },
-      { pattern: /amount|price|cost/i, name: 'amount', type: 'number', description: 'Monetary amount' },
+      {
+        pattern: /amount|price|cost/i,
+        name: 'amount',
+        type: 'number',
+        description: 'Monetary amount',
+      },
       { pattern: /quantity|count/i, name: 'quantity', type: 'number', description: 'Quantity' },
-      { pattern: /active|enabled|visible/i, name: 'isActive', type: 'boolean', description: 'Active status' },
-      { pattern: /file|document|attachment/i, name: 'fileUrl', type: 'string', description: 'File URL' },
-      { pattern: /image|photo|avatar/i, name: 'imageUrl', type: 'string', description: 'Image URL' },
+      {
+        pattern: /active|enabled|visible/i,
+        name: 'isActive',
+        type: 'boolean',
+        description: 'Active status',
+      },
+      {
+        pattern: /file|document|attachment/i,
+        name: 'fileUrl',
+        type: 'string',
+        description: 'File URL',
+      },
+      {
+        pattern: /image|photo|avatar/i,
+        name: 'imageUrl',
+        type: 'string',
+        description: 'Image URL',
+      },
       { pattern: /address/i, name: 'address', type: 'string', description: 'Address' },
       { pattern: /phone/i, name: 'phone', type: 'string', description: 'Phone number' },
       { pattern: /url|link/i, name: 'url', type: 'string', description: 'URL' },
-      { pattern: /tag|label|category/i, name: 'tags', type: 'array', description: 'Tags or labels' },
-      { pattern: /comment|note|message/i, name: 'message', type: 'string', description: 'Message content' },
+      {
+        pattern: /tag|label|category/i,
+        name: 'tags',
+        type: 'array',
+        description: 'Tags or labels',
+      },
+      {
+        pattern: /comment|note|message/i,
+        name: 'message',
+        type: 'string',
+        description: 'Message content',
+      },
     ];
 
     for (const { pattern, name, type, description } of patterns) {
@@ -358,9 +388,12 @@ export class APISpecifier {
 
     // If no properties found, add generic ones
     if (properties.length === 0) {
-      properties.push(
-        { name: 'data', type: 'object', required: true, description: 'Request data' }
-      );
+      properties.push({
+        name: 'data',
+        type: 'object',
+        required: true,
+        description: 'Request data',
+      });
     }
 
     return properties;
@@ -413,8 +446,18 @@ export class APISpecifier {
     // Check for list/search operations
     if (fullText.includes('list') || fullText.includes('search') || fullText.includes('filter')) {
       parameters.push(
-        { name: 'page', type: 'integer', required: false, description: 'Page number for pagination' },
-        { name: 'limit', type: 'integer', required: false, description: 'Number of items per page' },
+        {
+          name: 'page',
+          type: 'integer',
+          required: false,
+          description: 'Page number for pagination',
+        },
+        {
+          name: 'limit',
+          type: 'integer',
+          required: false,
+          description: 'Number of items per page',
+        },
         { name: 'sort', type: 'string', required: false, description: 'Sort field and direction' }
       );
 
@@ -461,7 +504,7 @@ export class APISpecifier {
       fullText.includes('public') ||
       fullText.includes('guest') ||
       fullText.includes('anonymous') ||
-      fullText.includes('view') && (fullText.includes('public') || !fullText.includes('user'))
+      (fullText.includes('view') && (fullText.includes('public') || !fullText.includes('user')))
     ) {
       return 'public';
     }
@@ -510,7 +553,11 @@ export class APISpecifier {
           message: 'Validation failed for the request data',
         });
       }
-      if (fullText.includes('duplicate') || fullText.includes('exists') || fullText.includes('unique')) {
+      if (
+        fullText.includes('duplicate') ||
+        fullText.includes('exists') ||
+        fullText.includes('unique')
+      ) {
         errors.push({
           statusCode: 409,
           code: 'CONFLICT',
@@ -575,7 +622,12 @@ export class APISpecifier {
 
     // Add main scenario summary
     if (useCase.mainScenario.length > 0) {
-      parts.push(`\n\nSteps:\n${useCase.mainScenario.slice(0, 3).map((s, i) => `${String(i + 1)}. ${s}`).join('\n')}`);
+      parts.push(
+        `\n\nSteps:\n${useCase.mainScenario
+          .slice(0, 3)
+          .map((s, i) => `${String(i + 1)}. ${s}`)
+          .join('\n')}`
+      );
       if (useCase.mainScenario.length > 3) {
         parts.push(`... and ${String(useCase.mainScenario.length - 3)} more steps`);
       }

@@ -8,33 +8,20 @@
  */
 
 // Main agent class (singleton + constructor)
-export {
-  SDSWriterAgent,
-  getSDSWriterAgent,
-  resetSDSWriterAgent,
-} from './SDSWriterAgent.js';
+export { SDSWriterAgent, getSDSWriterAgent, resetSDSWriterAgent } from './SDSWriterAgent.js';
 
 // Component classes
 export { SRSParser } from './SRSParser.js';
 export type { SRSParserOptions } from './SRSParser.js';
 
 export { ComponentDesigner } from './ComponentDesigner.js';
-export type {
-  ComponentDesignerOptions,
-  ComponentDesignResult,
-} from './ComponentDesigner.js';
+export type { ComponentDesignerOptions, ComponentDesignResult } from './ComponentDesigner.js';
 
 export { APISpecifier } from './APISpecifier.js';
-export type {
-  APISpecifierOptions,
-  APISpecificationResult,
-} from './APISpecifier.js';
+export type { APISpecifierOptions, APISpecificationResult } from './APISpecifier.js';
 
 export { DataDesigner } from './DataDesigner.js';
-export type {
-  DataDesignerOptions,
-  DataDesignResult,
-} from './DataDesigner.js';
+export type { DataDesignerOptions, DataDesignResult } from './DataDesigner.js';
 
 export { TraceabilityMapper } from './TraceabilityMapper.js';
 export type {

@@ -433,13 +433,34 @@ export class DataDesigner {
       { pattern: /description/i, name: 'description', type: 'text', description: 'Description' },
       { pattern: /status/i, name: 'status', type: 'string', description: 'Current status' },
       { pattern: /type/i, name: 'type', type: 'string', description: 'Type classification' },
-      { pattern: /amount|price|cost/i, name: 'amount', type: 'decimal', description: 'Monetary amount' },
+      {
+        pattern: /amount|price|cost/i,
+        name: 'amount',
+        type: 'decimal',
+        description: 'Monetary amount',
+      },
       { pattern: /quantity|count/i, name: 'quantity', type: 'integer', description: 'Quantity' },
-      { pattern: /active|enabled/i, name: 'isActive', type: 'boolean', description: 'Active status' },
-      { pattern: /url|link/i, name: 'url', type: 'string', description: 'URL', validation: ['url'] },
+      {
+        pattern: /active|enabled/i,
+        name: 'isActive',
+        type: 'boolean',
+        description: 'Active status',
+      },
+      {
+        pattern: /url|link/i,
+        name: 'url',
+        type: 'string',
+        description: 'URL',
+        validation: ['url'],
+      },
       { pattern: /phone/i, name: 'phone', type: 'string', description: 'Phone number' },
       { pattern: /address/i, name: 'address', type: 'text', description: 'Address' },
-      { pattern: /image|photo|avatar/i, name: 'imageUrl', type: 'string', description: 'Image URL' },
+      {
+        pattern: /image|photo|avatar/i,
+        name: 'imageUrl',
+        type: 'string',
+        description: 'Image URL',
+      },
       { pattern: /content|body|text/i, name: 'content', type: 'text', description: 'Content' },
       { pattern: /metadata/i, name: 'metadata', type: 'json', description: 'Additional metadata' },
     ];
@@ -505,10 +526,7 @@ export class DataDesigner {
   /**
    * Generate indexes for a model
    */
-  private generateIndexes(
-    modelName: string,
-    properties: readonly DataProperty[]
-  ): DataIndex[] {
+  private generateIndexes(modelName: string, properties: readonly DataProperty[]): DataIndex[] {
     const indexes: DataIndex[] = [];
 
     // Primary key index

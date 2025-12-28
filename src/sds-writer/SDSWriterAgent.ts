@@ -54,11 +54,36 @@ const DEFAULT_CONFIG: Required<SDSWriterAgentConfig> = {
   coverageThreshold: 80,
   includeTraceability: true,
   defaultTechnologyStack: [
-    { layer: 'Runtime', technology: 'Node.js', version: '20.x', rationale: 'LTS version with modern features' },
-    { layer: 'Language', technology: 'TypeScript', version: '5.x', rationale: 'Type safety and developer experience' },
-    { layer: 'Framework', technology: 'Express.js', version: '4.x', rationale: 'Mature and widely adopted' },
-    { layer: 'Database', technology: 'PostgreSQL', version: '15.x', rationale: 'Reliable RDBMS with JSON support' },
-    { layer: 'Testing', technology: 'Vitest', version: '1.x', rationale: 'Fast and compatible with TypeScript' },
+    {
+      layer: 'Runtime',
+      technology: 'Node.js',
+      version: '20.x',
+      rationale: 'LTS version with modern features',
+    },
+    {
+      layer: 'Language',
+      technology: 'TypeScript',
+      version: '5.x',
+      rationale: 'Type safety and developer experience',
+    },
+    {
+      layer: 'Framework',
+      technology: 'Express.js',
+      version: '4.x',
+      rationale: 'Mature and widely adopted',
+    },
+    {
+      layer: 'Database',
+      technology: 'PostgreSQL',
+      version: '15.x',
+      rationale: 'Reliable RDBMS with JSON support',
+    },
+    {
+      layer: 'Testing',
+      technology: 'Vitest',
+      version: '1.x',
+      rationale: 'Fast and compatible with TypeScript',
+    },
   ],
 };
 
@@ -105,12 +130,7 @@ export class SDSWriterAgent {
     await Promise.resolve();
 
     // Load SRS document
-    const srsPath = path.join(
-      this.config.scratchpadBasePath,
-      'documents',
-      projectId,
-      'srs.md'
-    );
+    const srsPath = path.join(this.config.scratchpadBasePath, 'documents', projectId, 'srs.md');
 
     if (!fs.existsSync(srsPath)) {
       throw new SRSNotFoundError(projectId, srsPath);
@@ -185,15 +205,15 @@ export class SDSWriterAgent {
       // Design data models
       let dataModels: readonly DataModel[] = [];
       if (this.config.generateDataModels) {
-        const dataResult = this.dataDesigner.design(
-          componentResult.components,
-          parsedSRS.features
-        );
+        const dataResult = this.dataDesigner.design(componentResult.components, parsedSRS.features);
         dataModels = dataResult.models;
       }
 
       // Build traceability matrix
-      const traceabilityAnalysis = this.traceabilityMapper.build(parsedSRS, componentResult.components);
+      const traceabilityAnalysis = this.traceabilityMapper.build(
+        parsedSRS,
+        componentResult.components
+      );
 
       // Update session with intermediate results
       this.updateSession({
@@ -521,7 +541,9 @@ export class SDSWriterAgent {
     lines.push(
       `This Software Design Specification (SDS) describes the detailed design for ${srs.productName}.`
     );
-    lines.push('It provides the technical blueprint for implementing the system as specified in the SRS.');
+    lines.push(
+      'It provides the technical blueprint for implementing the system as specified in the SRS.'
+    );
     lines.push('');
     lines.push('### 1.2 Scope');
     lines.push('');
@@ -641,7 +663,9 @@ export class SDSWriterAgent {
           lines.push('**Relationships:**');
           lines.push('');
           for (const rel of model.relationships) {
-            lines.push(`- ${rel.type} with ${rel.target}${rel.foreignKey != null && rel.foreignKey !== '' ? ` (FK: ${rel.foreignKey})` : ''}`);
+            lines.push(
+              `- ${rel.type} with ${rel.target}${rel.foreignKey != null && rel.foreignKey !== '' ? ` (FK: ${rel.foreignKey})` : ''}`
+            );
           }
           lines.push('');
         }
@@ -681,7 +705,10 @@ export class SDSWriterAgent {
       lines.push('### 6.1 Authentication');
       lines.push('');
       lines.push(`**Type:** ${security.authentication.type.toUpperCase()}`);
-      if (security.authentication.tokenExpiry != null && security.authentication.tokenExpiry !== '') {
+      if (
+        security.authentication.tokenExpiry != null &&
+        security.authentication.tokenExpiry !== ''
+      ) {
         lines.push(`**Token Expiry:** ${security.authentication.tokenExpiry}`);
       }
       lines.push('');
@@ -702,7 +729,9 @@ export class SDSWriterAgent {
       lines.push('### 6.3 Data Protection');
       lines.push('');
       for (const measure of security.dataProtection) {
-        lines.push(`- **${measure.type}**: ${measure.appliesTo.join(', ')} using ${measure.method}`);
+        lines.push(
+          `- **${measure.type}**: ${measure.appliesTo.join(', ')} using ${measure.method}`
+        );
       }
       lines.push('');
     }
@@ -733,7 +762,9 @@ export class SDSWriterAgent {
     // Section 8: Error Handling
     lines.push('## 8. Error Handling');
     lines.push('');
-    lines.push('Standard error handling patterns apply as defined in the error handling guidelines.');
+    lines.push(
+      'Standard error handling patterns apply as defined in the error handling guidelines.'
+    );
     lines.push('');
 
     // Section 9: Traceability Matrix
@@ -767,11 +798,7 @@ export class SDSWriterAgent {
     await Promise.resolve();
 
     // Scratchpad path
-    const scratchpadDir = path.join(
-      this.config.scratchpadBasePath,
-      'documents',
-      projectId
-    );
+    const scratchpadDir = path.join(this.config.scratchpadBasePath, 'documents', projectId);
     const scratchpadPath = path.join(scratchpadDir, 'sds.md');
 
     // Public path

@@ -201,9 +201,7 @@ export class SRSParser {
     if (!productName) {
       for (const line of lines) {
         if (line.startsWith('# ')) {
-          const titleMatch = /^#\s+(.+?)\s*(SRS|Software Requirements|Specification)?$/i.exec(
-            line
-          );
+          const titleMatch = /^#\s+(.+?)\s*(SRS|Software Requirements|Specification)?$/i.exec(line);
           if (titleMatch) {
             productName = titleMatch[1]?.trim() ?? '';
             break;
@@ -239,9 +237,7 @@ export class SRSParser {
       if (inFeaturesSection && line.match(/^##\s+\d+\./) && !line.match(/Features/i)) {
         // Save current feature if exists
         if (currentFeature != null && currentFeature.id !== '') {
-          features.push(
-            this.finalizeFeature(currentFeature, descriptionLines, acceptanceCriteria)
-          );
+          features.push(this.finalizeFeature(currentFeature, descriptionLines, acceptanceCriteria));
           currentFeature = null; // Prevent double-push at end of function
         }
         break;
@@ -254,9 +250,7 @@ export class SRSParser {
       if (headerMatch) {
         // Save previous feature
         if (currentFeature != null && currentFeature.id !== '') {
-          features.push(
-            this.finalizeFeature(currentFeature, descriptionLines, acceptanceCriteria)
-          );
+          features.push(this.finalizeFeature(currentFeature, descriptionLines, acceptanceCriteria));
         }
 
         // Start new feature
@@ -377,7 +371,11 @@ export class SRSParser {
       if (inUseCasesSection && line.match(/^##\s+\d+\./) && !line.match(/Use Cases/i)) {
         // Save current use case
         if (currentUseCase != null && currentUseCase.id !== '') {
-          if (currentAltScenario != null && currentAltScenario.name !== '' && currentAltSteps.length > 0) {
+          if (
+            currentAltScenario != null &&
+            currentAltScenario.name !== '' &&
+            currentAltSteps.length > 0
+          ) {
             alternativeScenarios.push({ name: currentAltScenario.name, steps: currentAltSteps });
           }
           useCases.push(
@@ -401,7 +399,11 @@ export class SRSParser {
       if (headerMatch) {
         // Save previous use case
         if (currentUseCase != null && currentUseCase.id !== '') {
-          if (currentAltScenario != null && currentAltScenario.name !== '' && currentAltSteps.length > 0) {
+          if (
+            currentAltScenario != null &&
+            currentAltScenario.name !== '' &&
+            currentAltSteps.length > 0
+          ) {
             alternativeScenarios.push({ name: currentAltScenario.name, steps: currentAltSteps });
           }
           useCases.push(
@@ -477,7 +479,11 @@ export class SRSParser {
         continue;
       } else if (line.match(/^#####\s+(.+)$/) && currentSection === 'alternative') {
         // New alternative scenario
-        if (currentAltScenario != null && currentAltScenario.name !== '' && currentAltSteps.length > 0) {
+        if (
+          currentAltScenario != null &&
+          currentAltScenario.name !== '' &&
+          currentAltSteps.length > 0
+        ) {
           alternativeScenarios.push({ name: currentAltScenario.name, steps: currentAltSteps });
         }
         const altMatch = /^#####\s+(.+)$/.exec(line);
@@ -515,7 +521,11 @@ export class SRSParser {
 
     // Don't forget the last use case
     if (currentUseCase != null && currentUseCase.id !== '') {
-      if (currentAltScenario != null && currentAltScenario.name !== '' && currentAltSteps.length > 0) {
+      if (
+        currentAltScenario != null &&
+        currentAltScenario.name !== '' &&
+        currentAltSteps.length > 0
+      ) {
         alternativeScenarios.push({ name: currentAltScenario.name, steps: currentAltSteps });
       }
       useCases.push(

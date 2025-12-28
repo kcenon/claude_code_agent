@@ -131,9 +131,7 @@ export class TraceabilityMapper {
       }
 
       // Get PRD requirements
-      const prdRequirements = this.options.tracePRDRequirements
-        ? feature.sourceRequirements
-        : [];
+      const prdRequirements = this.options.tracePRDRequirements ? feature.sourceRequirements : [];
 
       entries.push({
         componentId: component.id,
@@ -191,7 +189,11 @@ export class TraceabilityMapper {
 
     // Check coverage threshold
     if (this.options.failOnLowCoverage && forwardCoverage < this.options.coverageThreshold) {
-      throw new LowCoverageError(forwardCoverage, this.options.coverageThreshold, uncoveredFeatures);
+      throw new LowCoverageError(
+        forwardCoverage,
+        this.options.coverageThreshold,
+        uncoveredFeatures
+      );
     }
 
     if (forwardCoverage < this.options.coverageThreshold) {

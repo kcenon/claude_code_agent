@@ -167,9 +167,7 @@ export class ComponentDesigner {
   /**
    * Group use cases by their source feature ID
    */
-  private groupUseCasesByFeature(
-    useCases: readonly ParsedUseCase[]
-  ): Map<string, ParsedUseCase[]> {
+  private groupUseCasesByFeature(useCases: readonly ParsedUseCase[]): Map<string, ParsedUseCase[]> {
     const map = new Map<string, ParsedUseCase[]>();
 
     for (const useCase of useCases) {
@@ -553,10 +551,18 @@ export class ComponentDesigner {
   private inferReturnType(action: string): string {
     const lowerAction = action.toLowerCase();
 
-    if (lowerAction.includes('list') || lowerAction.includes('all') || lowerAction.includes('multiple')) {
+    if (
+      lowerAction.includes('list') ||
+      lowerAction.includes('all') ||
+      lowerAction.includes('multiple')
+    ) {
       return 'Promise<Array<unknown>>';
     }
-    if (lowerAction.includes('get') || lowerAction.includes('find') || lowerAction.includes('retrieve')) {
+    if (
+      lowerAction.includes('get') ||
+      lowerAction.includes('find') ||
+      lowerAction.includes('retrieve')
+    ) {
       return 'Promise<unknown | null>';
     }
     if (lowerAction.includes('create') || lowerAction.includes('add')) {
@@ -568,7 +574,11 @@ export class ComponentDesigner {
     if (lowerAction.includes('delete') || lowerAction.includes('remove')) {
       return 'Promise<boolean>';
     }
-    if (lowerAction.includes('validate') || lowerAction.includes('check') || lowerAction.includes('verify')) {
+    if (
+      lowerAction.includes('validate') ||
+      lowerAction.includes('check') ||
+      lowerAction.includes('verify')
+    ) {
       return 'Promise<boolean>';
     }
     if (lowerAction.includes('count') || lowerAction.includes('total')) {
@@ -582,18 +592,14 @@ export class ComponentDesigner {
    * Generate default CRUD methods for a feature
    */
   private generateDefaultMethods(featureName: string): SDSMethod[] {
-    const entityName = featureName
-      .replace(/\s+/g, '')
-      .replace(/^(.)/, (c) => c.toUpperCase());
+    const entityName = featureName.replace(/\s+/g, '').replace(/^(.)/, (c) => c.toUpperCase());
 
     return [
       {
         name: `create${entityName}`,
         signature: `create${entityName}(data: Create${entityName}Input): Promise<${entityName}>`,
         returnType: `Promise<${entityName}>`,
-        parameters: [
-          { name: 'data', type: `Create${entityName}Input`, optional: false },
-        ],
+        parameters: [{ name: 'data', type: `Create${entityName}Input`, optional: false }],
       },
       {
         name: `get${entityName}ById`,
@@ -629,9 +635,7 @@ export class ComponentDesigner {
    * Generate TypeScript interface code
    */
   private generateInterfaceCode(name: string, methods: readonly SDSMethod[]): string {
-    const methodLines = methods
-      .map((m) => `  ${m.signature};`)
-      .join('\n');
+    const methodLines = methods.map((m) => `  ${m.signature};`).join('\n');
 
     return `interface ${name} {\n${methodLines}\n}`;
   }
