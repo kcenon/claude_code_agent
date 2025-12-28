@@ -57,18 +57,12 @@ interface CommandResult {
  */
 export class ReviewChecks {
   private readonly projectRoot: string;
-  private readonly enableSecurityScan: boolean;
-  private readonly enableComplexityAnalysis: boolean;
   private readonly enableTestingChecks: boolean;
-  private readonly lintCommand: string;
   private readonly testCommand: string;
 
   constructor(options: ReviewChecksOptions = {}) {
     this.projectRoot = options.projectRoot ?? process.cwd();
-    this.enableSecurityScan = options.enableSecurityScan ?? true;
-    this.enableComplexityAnalysis = options.enableComplexityAnalysis ?? true;
     this.enableTestingChecks = options.enableTestingChecks ?? true;
-    this.lintCommand = options.lintCommand ?? 'npm run lint';
     this.testCommand = options.testCommand ?? 'npm test';
   }
 
@@ -180,8 +174,10 @@ export class ReviewChecks {
         const lines = content.split('\n');
 
         for (let i = 0; i < lines.length; i++) {
+          const currentLine = lines[i];
+          if (currentLine === undefined) continue;
           for (const pattern of secretPatterns) {
-            if (pattern.test(lines[i])) {
+            if (pattern.test(currentLine)) {
               foundSecrets = true;
               comments.push({
                 file: change.filePath,
@@ -236,8 +232,10 @@ export class ReviewChecks {
         const lines = content.split('\n');
 
         for (let i = 0; i < lines.length; i++) {
+          const currentLine = lines[i];
+          if (currentLine === undefined) continue;
           for (const pattern of sqlInjectionPatterns) {
-            if (pattern.test(lines[i])) {
+            if (pattern.test(currentLine)) {
               foundVulnerability = true;
               comments.push({
                 file: change.filePath,
@@ -294,8 +292,10 @@ export class ReviewChecks {
         const lines = content.split('\n');
 
         for (let i = 0; i < lines.length; i++) {
+          const currentLine = lines[i];
+          if (currentLine === undefined) continue;
           for (const pattern of xssPatterns) {
-            if (pattern.test(lines[i])) {
+            if (pattern.test(currentLine)) {
               foundVulnerability = true;
               comments.push({
                 file: change.filePath,
@@ -451,7 +451,9 @@ export class ReviewChecks {
         // Check for too many parameters (> 5)
         const functionMatches = content.matchAll(/(?:function|method)\s*\w*\s*\(([^)]*)\)/gi);
         for (const match of functionMatches) {
-          const params = match[1].split(',').filter(p => p.trim());
+          const paramsStr = match[1];
+          if (paramsStr === undefined) continue;
+          const params = paramsStr.split(',').filter(p => p.trim());
           if (params.length > 5) {
             violationsFound = true;
           }
@@ -511,7 +513,9 @@ export class ReviewChecks {
 
         // Check for empty catch blocks
         for (let i = 0; i < lines.length; i++) {
-          if (lines[i].match(/catch\s*\([^)]*\)\s*\{\s*\}/)) {
+          const currentLine = lines[i];
+          if (currentLine === undefined) continue;
+          if (currentLine.match(/catch\s*\([^)]*\)\s*\{\s*\}/)) {
             hasProperErrorHandling = false;
             comments.push({
               file: change.filePath,
@@ -582,7 +586,7 @@ export class ReviewChecks {
 
         // Try to parse coverage from output
         const coverageMatch = result.stdout.match(/All files[^|]*\|\s*([\d.]+)/);
-        if (coverageMatch) {
+        if (coverageMatch !== null && coverageMatch[1] !== undefined) {
           coverage = parseFloat(coverageMatch[1]);
         }
       } else {
@@ -628,8 +632,10 @@ export class ReviewChecks {
 
         // Check for N+1 query patterns
         for (let i = 0; i < lines.length; i++) {
-          if (lines[i].match(/\.forEach\s*\(\s*async/i) ||
-              lines[i].match(/\.map\s*\(\s*async.*await/i)) {
+          const currentLine = lines[i];
+          if (currentLine === undefined) continue;
+          if (currentLine.match(/\.forEach\s*\(\s*async/i) ||
+              currentLine.match(/\.map\s*\(\s*async.*await/i)) {
             hasPerformanceIssues = true;
             comments.push({
               file: change.filePath,

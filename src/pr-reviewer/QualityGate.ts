@@ -156,7 +156,7 @@ export class QualityGate {
    */
   private evaluateRecommendedGates(
     metrics: QualityMetrics,
-    checks: CheckResults,
+    _checks: CheckResults,
     comments: readonly ReviewComment[],
     gates: Map<string, boolean>,
     warnings: string[]

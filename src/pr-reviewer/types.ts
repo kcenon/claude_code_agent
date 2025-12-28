@@ -322,7 +322,7 @@ export interface PRReviewResult {
   /** Issue ID reference */
   readonly issueId: string;
   /** GitHub issue number */
-  readonly githubIssue?: number;
+  readonly githubIssue?: number | undefined;
   /** Pull request information */
   readonly pullRequest: PullRequest;
   /** Review details */
@@ -374,7 +374,7 @@ export interface SecurityCheckItem {
   /** Description of what was checked */
   readonly description: string;
   /** Details if failed */
-  readonly details?: string;
+  readonly details?: string | undefined;
 }
 
 /**

@@ -9,13 +9,15 @@
  */
 export class PRReviewerError extends Error {
   public readonly code: string;
-  public readonly cause?: Error;
+  public override readonly cause?: Error | undefined;
 
   constructor(message: string, code: string, cause?: Error) {
     super(message);
     this.name = 'PRReviewerError';
     this.code = code;
-    this.cause = cause;
+    if (cause !== undefined) {
+      this.cause = cause;
+    }
     Object.setPrototypeOf(this, new.target.prototype);
   }
 }
