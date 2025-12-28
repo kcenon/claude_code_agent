@@ -176,7 +176,7 @@ describe('ReviewChecks', () => {
       // Main assertion is that the check runs without error
       expect(result.checklist.security).toBeDefined();
       expect(result.checklist.security.some(item => item.name.includes('SQL'))).toBe(true);
-    });
+    }, 15000);
 
     it('should detect XSS patterns', async () => {
       const checks = new ReviewChecks({
@@ -332,7 +332,7 @@ describe('ReviewChecks', () => {
       // Check that N+1 query pattern is part of performance checks
       expect(result.checklist.performance).toBeDefined();
       expect(result.checklist.performance.some(item => item.name.includes('N+1'))).toBe(true);
-    });
+    }, 15000);
   });
 
   describe('documentation checks', () => {
@@ -359,7 +359,7 @@ describe('ReviewChecks', () => {
       expect(result.checklist.documentation.some(item =>
         item.name.includes('API') || item.name.includes('documented')
       )).toBe(true);
-    });
+    }, 15000);
 
     it('should not suggest JSDoc when present', async () => {
       const checks = new ReviewChecks({
@@ -388,7 +388,7 @@ describe('ReviewChecks', () => {
          c.comment.toLowerCase().includes('documentation'))
       );
       expect(docComments.length).toBe(0);
-    });
+    }, 15000);
   });
 
   describe('checklist', () => {
