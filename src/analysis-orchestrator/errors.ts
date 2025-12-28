@@ -34,7 +34,9 @@ export class AnalysisInProgressError extends AnalysisOrchestratorError {
   public readonly analysisId: string;
 
   constructor(analysisId: string) {
-    super(`Analysis already in progress: ${analysisId}. Complete or cancel before starting a new one.`);
+    super(
+      `Analysis already in progress: ${analysisId}. Complete or cancel before starting a new one.`
+    );
     this.name = 'AnalysisInProgressError';
     this.analysisId = analysisId;
   }
@@ -110,7 +112,11 @@ export class InvalidPipelineStateError extends AnalysisOrchestratorError {
   public readonly expectedStatus: PipelineStageStatus;
   public readonly operation: string;
 
-  constructor(operation: string, currentStatus: PipelineStageStatus, expectedStatus: PipelineStageStatus) {
+  constructor(
+    operation: string,
+    currentStatus: PipelineStageStatus,
+    expectedStatus: PipelineStageStatus
+  ) {
     super(
       `Cannot perform "${operation}": stage status is "${currentStatus}", expected "${expectedStatus}"`
     );
@@ -134,9 +140,7 @@ export class StageDependencyError extends AnalysisOrchestratorError {
     requiredStages: readonly PipelineStageName[],
     failedStages: readonly PipelineStageName[]
   ) {
-    super(
-      `Cannot execute stage "${stage}": required stages failed: ${failedStages.join(', ')}`
-    );
+    super(`Cannot execute stage "${stage}": required stages failed: ${failedStages.join(', ')}`);
     this.name = 'StageDependencyError';
     this.stage = stage;
     this.requiredStages = requiredStages;
@@ -210,7 +214,9 @@ export class PipelineFailedError extends AnalysisOrchestratorError {
   public readonly failedStages: readonly PipelineStageName[];
 
   constructor(analysisId: string, failedStages: readonly PipelineStageName[]) {
-    super(`Pipeline failed for analysis "${analysisId}". Failed stages: ${failedStages.join(', ')}`);
+    super(
+      `Pipeline failed for analysis "${analysisId}". Failed stages: ${failedStages.join(', ')}`
+    );
     this.name = 'PipelineFailedError';
     this.analysisId = analysisId;
     this.failedStages = failedStages;

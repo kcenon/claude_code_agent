@@ -477,9 +477,7 @@ export class AnalysisOrchestratorAgent {
     // Execute parallel stages
     if (parallelStages.length > 0) {
       const parallelResults = await Promise.all(
-        parallelStages.map((stageName) =>
-          this.executeStage(stageName, pipelineState, results)
-        )
+        parallelStages.map((stageName) => this.executeStage(stageName, pipelineState, results))
       );
       results.push(...parallelResults);
     }
@@ -808,7 +806,10 @@ export class AnalysisOrchestratorAgent {
     };
   }
 
-  private determineOverallStatus(results: StageResult[], scope: AnalysisScope): AnalysisResultStatus {
+  private determineOverallStatus(
+    results: StageResult[],
+    scope: AnalysisScope
+  ): AnalysisResultStatus {
     const requiredResults = results.filter((r) => this.isRequiredStage(r.stage, scope));
     const successCount = requiredResults.filter((r) => r.success).length;
 
@@ -911,7 +912,10 @@ export class AnalysisOrchestratorAgent {
       }
       await fs.writeFile(outputPath, yamlString, 'utf-8');
     } catch (error) {
-      throw new OutputWriteError(outputPath, error instanceof Error ? error.message : String(error));
+      throw new OutputWriteError(
+        outputPath,
+        error instanceof Error ? error.message : String(error)
+      );
     }
   }
 
@@ -1013,9 +1017,7 @@ export class AnalysisOrchestratorAgent {
       warnings: Array.isArray(parsed['warnings'])
         ? parsed['warnings'].map((w) => toSafeString(w))
         : [],
-      errors: Array.isArray(parsed['errors'])
-        ? parsed['errors'].map((e) => toSafeString(e))
-        : [],
+      errors: Array.isArray(parsed['errors']) ? parsed['errors'].map((e) => toSafeString(e)) : [],
     };
   }
 
@@ -1032,8 +1034,7 @@ export class AnalysisOrchestratorAgent {
       return {
         name: toSafeString(stage['name']) as PipelineStageName,
         status: toSafeString(stage['status'], 'pending') as PipelineStage['status'],
-        startedAt:
-          startedAt !== null && startedAt !== undefined ? toSafeString(startedAt) : null,
+        startedAt: startedAt !== null && startedAt !== undefined ? toSafeString(startedAt) : null,
         completedAt:
           completedAt !== null && completedAt !== undefined ? toSafeString(completedAt) : null,
         outputPath:

@@ -407,10 +407,8 @@ program
       const generateIssues = cmdOptions['generateIssues'] === true;
       const projectId =
         typeof cmdOptions['projectId'] === 'string' ? cmdOptions['projectId'] : undefined;
-      const resumeId =
-        typeof cmdOptions['resume'] === 'string' ? cmdOptions['resume'] : undefined;
-      const statusId =
-        typeof cmdOptions['status'] === 'string' ? cmdOptions['status'] : undefined;
+      const resumeId = typeof cmdOptions['resume'] === 'string' ? cmdOptions['resume'] : undefined;
+      const statusId = typeof cmdOptions['status'] === 'string' ? cmdOptions['status'] : undefined;
       const parallel = cmdOptions['parallel'] !== false;
       const continueOnError = cmdOptions['continueOnError'] !== false;
       const outputFormat =
@@ -523,7 +521,10 @@ program
 
         console.log(chalk.blue('\nResults:'));
         if (result.report.documentAnalysis.available) {
-          console.log(chalk.green('  ✓ Document Analysis:'), result.report.documentAnalysis.summary);
+          console.log(
+            chalk.green('  ✓ Document Analysis:'),
+            result.report.documentAnalysis.summary
+          );
         }
         if (result.report.codeAnalysis.available) {
           console.log(chalk.green('  ✓ Code Analysis:'), result.report.codeAnalysis.summary);
