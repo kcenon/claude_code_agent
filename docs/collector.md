@@ -202,7 +202,32 @@ interface ExtractedRequirement {
   confidence: number;   // 0.0 - 1.0
   isFunctional: boolean;
   nfrCategory?: 'performance' | 'security' | 'scalability' | 'usability' | 'reliability' | 'maintainability';
+  acceptanceCriteria?: string[];  // Extracted acceptance criteria
 }
+```
+
+#### Acceptance Criteria Extraction
+
+The extractor automatically detects acceptance criteria from:
+
+- **Inline patterns**: "so that", "in order to", "which will/should"
+- **Following segment patterns**: Given/When/Then, "verify that", "ensure that"
+- **Explicit markers**: "acceptance criteria", "success criteria"
+
+Example:
+
+```typescript
+const source = parser.parseText(`
+  - Users must be able to login so that they can access their dashboard.
+  - The system should support password reset.
+    Given a user requests password reset
+    When they provide a valid email
+    Then they receive a reset link
+`);
+
+const result = extractor.extract(parser.combineInputs([source]));
+// result.functionalRequirements[0].acceptanceCriteria contains:
+// ["Expected outcome: they can access their dashboard"]
 ```
 
 #### Constraints
@@ -236,7 +261,7 @@ interface ExtractedAssumption {
 const extractor = new InformationExtractor({
   defaultPriority: 'P2',     // Default priority for unclassified requirements
   minConfidence: 0.3,        // Minimum confidence to include extractions
-  maxQuestions: 10,          // Max clarification questions to generate
+  maxQuestions: 5,           // Max clarification questions to generate (default: 5)
 });
 ```
 
