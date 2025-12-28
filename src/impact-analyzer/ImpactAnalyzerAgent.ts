@@ -452,24 +452,28 @@ export class ImpactAnalyzerAgent {
     const description = request.description.toLowerCase();
 
     // Classify type
+    // Note: Order matters! Documentation and infrastructure patterns are checked first
+    // because they are more specific (e.g., "add comments" should be documentation, not feature_add)
     let type: ChangeType = 'feature_modify';
     let typeConfidence = 0.5;
 
-    if (this.matchesPatterns(description, ['add', 'new', 'create', 'implement', 'introduce'])) {
-      type = 'feature_add';
-      typeConfidence = 0.8;
-    } else if (this.matchesPatterns(description, ['fix', 'bug', 'issue', 'error', 'crash', 'resolve'])) {
+    if (this.matchesPatterns(description, ['document', 'readme', 'comment', 'docs', 'docstring', 'jsdoc', 'javadoc'])) {
+      // Documentation changes checked first - adding docs is documentation, not feature_add
+      type = 'documentation';
+      typeConfidence = 0.9;
+    } else if (this.matchesPatterns(description, ['config', 'build', 'ci', 'deploy', 'infrastructure', 'pipeline', 'devops'])) {
+      // Infrastructure changes checked early
+      type = 'infrastructure';
+      typeConfidence = 0.85;
+    } else if (this.matchesPatterns(description, ['fix', 'bug', 'issue', 'error', 'crash', 'resolve', 'patch'])) {
       type = 'bug_fix';
       typeConfidence = 0.85;
     } else if (this.matchesPatterns(description, ['refactor', 'clean', 'reorganize', 'restructure', 'simplify'])) {
       type = 'refactor';
       typeConfidence = 0.8;
-    } else if (this.matchesPatterns(description, ['document', 'readme', 'comment', 'docs', 'docstring'])) {
-      type = 'documentation';
-      typeConfidence = 0.9;
-    } else if (this.matchesPatterns(description, ['config', 'build', 'ci', 'deploy', 'infrastructure', 'pipeline'])) {
-      type = 'infrastructure';
-      typeConfidence = 0.85;
+    } else if (this.matchesPatterns(description, ['add', 'new', 'create', 'implement', 'introduce'])) {
+      type = 'feature_add';
+      typeConfidence = 0.8;
     } else if (this.matchesPatterns(description, ['update', 'change', 'modify', 'enhance', 'improve'])) {
       type = 'feature_modify';
       typeConfidence = 0.7;
