@@ -638,3 +638,72 @@ export type {
   CurrentState,
   SessionStatus,
 } from './document-reader/index.js';
+
+// Re-export codebase-analyzer module (with explicit handling of conflicts)
+export {
+  CodebaseAnalyzerAgent,
+  getCodebaseAnalyzerAgent,
+  resetCodebaseAnalyzerAgent,
+  CodebaseAnalyzerError,
+  ProjectNotFoundError as CodebaseProjectNotFoundError,
+  NoSourceFilesError,
+  UnsupportedLanguageError,
+  BuildSystemNotDetectedError,
+  CircularDependencyError as CodebaseCircularDependencyError,
+  ImportParseError,
+  FileSizeLimitError as CodebaseFileSizeLimitError,
+  NoActiveSessionError as CodebaseNoActiveSessionError,
+  InvalidSessionStateError as CodebaseInvalidSessionStateError,
+  OutputWriteError as CodebaseOutputWriteError,
+  FileReadError,
+  DirectoryScanError,
+  MaxFilesExceededError,
+  DEFAULT_CODEBASE_ANALYZER_CONFIG,
+} from './codebase-analyzer/index.js';
+
+export type {
+  // Architecture types
+  ArchitectureType,
+  ArchitectureOverview,
+  DetectedPattern,
+  PatternLocation,
+  PatternType,
+  // Structure types
+  DirectoryStructure as CodebaseDirectoryStructure,
+  SourceDirectory,
+  TestDirectory,
+  ConfigDirectory,
+  BuildFile,
+  BuildSystemInfo,
+  BuildSystemType,
+  // Dependency types
+  DependencyGraph,
+  DependencyNode,
+  DependencyEdge as CodebaseDependencyEdge,
+  DependencyType as CodebaseDependencyType,
+  NodeType,
+  DependencyGraphStats,
+  ExternalDependency,
+  PackageDependencyType,
+  // Convention types
+  CodingConventions,
+  NamingConventions,
+  NamingConvention,
+  FileStructurePattern,
+  TestPattern,
+  // Metrics types
+  CodeMetrics,
+  LanguageStats,
+  // Language types
+  ProgrammingLanguage,
+  // Session and result types
+  CodebaseAnalysisSession,
+  CodebaseAnalysisResult,
+  CodebaseAnalysisStats,
+  AnalysisSessionStatus,
+  // Configuration types
+  CodebaseAnalyzerConfig,
+  // File types
+  FileInfo,
+  ImportInfo,
+} from './codebase-analyzer/index.js';
