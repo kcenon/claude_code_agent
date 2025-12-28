@@ -359,4 +359,142 @@ This is not a proper list format
       expect(result.functionalRequirements.length).toBeGreaterThanOrEqual(1);
     });
   });
+
+  describe('goals parsing', () => {
+    it('should parse goals with metric patterns', () => {
+      const parser = new PRDParser({ parseGoals: true });
+      const prdWithGoals = `
+# Test Product
+
+## Goals and Metrics
+
+- Reduce deployment time: 50% reduction
+- Improve user satisfaction – greater than 90%
+- Increase performance - response under 200ms
+
+## Functional Requirements
+
+### FR-001: Basic Feature
+**Description**: A basic feature
+**Priority**: P1
+`;
+      const result = parser.parse(prdWithGoals, '008');
+
+      expect(result.goals.length).toBe(3);
+      expect(result.goals[0].description).toContain('Reduce deployment');
+      expect(result.goals[0].metric).toBeDefined();
+    });
+
+    it('should parse goals without metric patterns', () => {
+      const parser = new PRDParser({ parseGoals: true });
+      const prdWithSimpleGoals = `
+# Test Product
+
+## Goals and Metrics
+
+- Simple goal without any metric separator
+- Another simple goal statement
+* Yet another goal using asterisk
+
+## Functional Requirements
+
+### FR-001: Basic Feature
+**Description**: A basic feature
+**Priority**: P1
+`;
+      const result = parser.parse(prdWithSimpleGoals, '009');
+
+      expect(result.goals.length).toBe(3);
+      // Goals without metrics should still have descriptions
+      expect(result.goals.every((g) => g.description.length > 0)).toBe(true);
+    });
+
+    it('should handle empty goals section', () => {
+      const parser = new PRDParser({ parseGoals: true });
+      const prdWithoutGoals = `
+# Test Product
+
+## Functional Requirements
+
+### FR-001: Basic Feature
+**Description**: A basic feature
+**Priority**: P1
+`;
+      const result = parser.parse(prdWithoutGoals, '010');
+
+      expect(result.goals.length).toBe(0);
+    });
+
+    it('should parse goals with different section header formats', () => {
+      const parser = new PRDParser({ parseGoals: true });
+      const prdWithAlternateHeader = `
+# Test Product
+
+## Success Metrics
+
+- User engagement: 80% retention
+- Revenue growth: 20% YoY
+
+## Functional Requirements
+
+### FR-001: Basic Feature
+**Description**: A basic feature
+**Priority**: P1
+`;
+      const result = parser.parse(prdWithAlternateHeader, '011');
+
+      expect(result.goals.length).toBe(2);
+    });
+  });
+
+  describe('user personas edge cases', () => {
+    it('should handle personas without explicit role', () => {
+      const parser = new PRDParser({ parsePersonas: true });
+      const prdWithSimplePersona = `
+# Test Product
+
+## User Personas
+
+### Developer
+**Description**: A software developer
+
+## Functional Requirements
+
+### FR-001: Basic Feature
+**Description**: A basic feature
+**Priority**: P1
+`;
+      const result = parser.parse(prdWithSimplePersona, '012');
+
+      expect(result.userPersonas.length).toBe(1);
+      // Role should default to name
+      expect(result.userPersonas[0].role).toBe('Developer');
+    });
+
+    it('should handle personas with goals list', () => {
+      const parser = new PRDParser({ parsePersonas: true });
+      const prdWithPersonaGoals = `
+# Test Product
+
+## User Personas
+
+### Project Manager
+**Role**: PM
+**Description**: Manages projects
+**Goals**:
+- Track project progress
+- Manage team resources
+
+## Functional Requirements
+
+### FR-001: Basic Feature
+**Description**: A basic feature
+**Priority**: P1
+`;
+      const result = parser.parse(prdWithPersonaGoals, '013');
+
+      expect(result.userPersonas.length).toBe(1);
+      expect(result.userPersonas[0].goals.length).toBe(2);
+    });
+  });
 });

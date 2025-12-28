@@ -10,6 +10,7 @@ import {
   SessionStateError,
   PRDNotFoundError,
   LowCoverageError,
+  GenerationError,
 } from '../../src/srs-writer/errors.js';
 
 describe('SRSWriterAgent', () => {
@@ -445,6 +446,136 @@ This is a test product for automated SRS generation.
           expect(error.actualCoverage).toBeLessThan(100);
         }
       }
+    });
+  });
+
+  describe('error handling', () => {
+    it('should throw SessionStateError when decompose called in wrong state', async () => {
+      await setupPRDFile('021', createSamplePRD());
+
+      const agent = new SRSWriterAgent({
+        scratchpadBasePath: testBasePath,
+        publicDocsPath: testDocsPath,
+      });
+
+      await agent.startSession('021');
+      agent.decompose();
+      agent.buildTraceability();
+      agent.generate(); // Now status is 'completed'
+
+      // Trying to decompose again when status is 'completed' should throw
+      expect(() => agent.decompose()).toThrow(SessionStateError);
+    });
+
+    it('should throw SessionStateError when buildTraceability called after completion', async () => {
+      await setupPRDFile('022', createSamplePRD());
+
+      const agent = new SRSWriterAgent({
+        scratchpadBasePath: testBasePath,
+        publicDocsPath: testDocsPath,
+      });
+
+      await agent.startSession('022');
+      agent.generate(); // This sets status to 'completed'
+
+      // Trying to build traceability when status is 'completed' should throw
+      expect(() => agent.buildTraceability()).toThrow(SessionStateError);
+    });
+
+    it('should throw SessionStateError when generate called after completion', async () => {
+      await setupPRDFile('023', createSamplePRD());
+
+      const agent = new SRSWriterAgent({
+        scratchpadBasePath: testBasePath,
+        publicDocsPath: testDocsPath,
+      });
+
+      await agent.startSession('023');
+      agent.generate(); // This sets status to 'completed'
+
+      // Trying to generate again when status is 'completed' should throw
+      expect(() => agent.generate()).toThrow(SessionStateError);
+    });
+
+    it('should auto-decompose when buildTraceability called without explicit decompose', async () => {
+      await setupPRDFile('025', createSamplePRD());
+
+      const agent = new SRSWriterAgent({
+        scratchpadBasePath: testBasePath,
+        publicDocsPath: testDocsPath,
+      });
+
+      await agent.startSession('025');
+      // Directly call buildTraceability without decompose - should auto-decompose
+      const matrix = agent.buildTraceability();
+
+      expect(matrix.entries.length).toBeGreaterThan(0);
+    });
+
+    it('should auto-decompose and auto-build-traceability when generate called directly', async () => {
+      await setupPRDFile('026', createSamplePRD());
+
+      const agent = new SRSWriterAgent({
+        scratchpadBasePath: testBasePath,
+        publicDocsPath: testDocsPath,
+      });
+
+      await agent.startSession('026');
+      // Directly call generate without decompose or buildTraceability
+      const srs = agent.generate();
+
+      expect(srs.features.length).toBeGreaterThan(0);
+      expect(srs.traceabilityMatrix).toBeDefined();
+    });
+  });
+
+  describe('NFR references in features', () => {
+    it('should include related NFRs in generated SRS when features reference NFRs', async () => {
+      const prdWithNFRReferences = `
+# PRD: NFR Reference Test
+
+| Document ID | PRD-024 |
+
+## User Personas
+
+### Developer
+**Role**: Engineer
+
+## Functional Requirements
+
+### FR-001: High Performance API
+**Priority**: P0
+**Description**: The API must meet NFR-001 performance requirements. Also comply with NFR-002 security standards.
+
+**Acceptance Criteria**:
+- [ ] Response time under 200ms (NFR-001)
+- [ ] All data encrypted (NFR-002)
+
+## Non-Functional Requirements
+
+### NFR-001: Performance
+**Category**: Performance
+**Description**: Response time under 200ms
+**Priority**: P0
+
+### NFR-002: Security
+**Category**: Security
+**Description**: All data must be encrypted
+**Priority**: P0
+`;
+      await setupPRDFile('024', prdWithNFRReferences);
+
+      const agent = new SRSWriterAgent({
+        scratchpadBasePath: testBasePath,
+        publicDocsPath: testDocsPath,
+      });
+
+      await agent.startSession('024');
+      const srs = agent.generate();
+
+      // Check that NFR references are extracted and included
+      expect(srs.content).toContain('NFR-001');
+      expect(srs.content).toContain('NFR-002');
     });
   });
 

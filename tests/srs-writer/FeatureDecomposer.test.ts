@@ -300,6 +300,124 @@ describe('FeatureDecomposer', () => {
     });
   });
 
+  describe('alternative flows', () => {
+    it('should generate alternative flows from conditional acceptance criteria', () => {
+      const decomposer = new FeatureDecomposer();
+      const parsedPRD = createMinimalParsedPRD([
+        createRequirement('FR-001', 'Conditional Feature', {
+          acceptanceCriteria: [
+            'User should be able to login',
+            'If user is admin, show admin panel',
+            'When session expires, redirect to login',
+            'Unless user is banned, allow access',
+            'Alternatively, use SSO',
+          ],
+        }),
+      ]);
+
+      const result = decomposer.decompose(parsedPRD);
+      const useCase = result.features[0].useCases[0];
+
+      // Alternative flows should be generated for conditional criteria
+      expect(useCase.alternativeFlows.length).toBeGreaterThanOrEqual(1);
+    });
+  });
+
+  describe('use case name extraction', () => {
+    it('should extract use case name from criterion with can/should/must patterns', () => {
+      const decomposer = new FeatureDecomposer();
+      const parsedPRD = createMinimalParsedPRD([
+        createRequirement('FR-001', 'User Actions', {
+          acceptanceCriteria: [
+            'User can create a new account when visiting the registration page',
+            'User should be able to update their profile settings. Additional info here.',
+            'User must verify email before accessing premium features, if applicable',
+          ],
+        }),
+      ]);
+
+      const result = decomposer.decompose(parsedPRD);
+      // Use cases should be generated from criteria matching the pattern
+      expect(result.features[0].useCases.length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('should use criterion substring when pattern does not match', () => {
+      const decomposer = new FeatureDecomposer();
+      const parsedPRD = createMinimalParsedPRD([
+        createRequirement('FR-001', 'Unusual Format', {
+          acceptanceCriteria: [
+            'This is a very long acceptance criterion that does not contain the expected pattern for extraction and should be truncated appropriately',
+          ],
+        }),
+      ]);
+
+      const result = decomposer.decompose(parsedPRD);
+      expect(result.features[0].useCases.length).toBeGreaterThanOrEqual(1);
+    });
+  });
+
+  describe('user personas', () => {
+    it('should use default actors when no personas defined', () => {
+      const decomposer = new FeatureDecomposer();
+      const parsedPRD: ParsedPRD = {
+        metadata: {
+          documentId: 'PRD-001',
+          version: '1.0.0',
+          status: 'Draft',
+          projectId: '001',
+        },
+        productName: 'Test Product',
+        productDescription: 'A test product',
+        functionalRequirements: [createRequirement('FR-001', 'Test Feature')],
+        nonFunctionalRequirements: [],
+        constraints: [],
+        assumptions: [],
+        userPersonas: [], // Empty personas
+        goals: [],
+      };
+
+      const result = decomposer.decompose(parsedPRD);
+      const useCase = result.features[0].useCases[0];
+
+      // Should use default actor like 'User'
+      expect(useCase.actor).toBeDefined();
+      expect(useCase.actor.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('user story handling', () => {
+    it('should handle requirements with user story', () => {
+      const decomposer = new FeatureDecomposer();
+      const parsedPRD = createMinimalParsedPRD([
+        createRequirement('FR-001', 'User Story Feature', {
+          userStory: 'As a developer, I want to test features so that I can ensure quality',
+        }),
+      ]);
+
+      const result = decomposer.decompose(parsedPRD);
+      const useCase = result.features[0].useCases[0];
+
+      // Main flow should be generated from user story
+      expect(useCase.mainFlow.length).toBeGreaterThan(0);
+      expect(useCase.mainFlow.some((step) => step.includes('initiates'))).toBe(true);
+    });
+
+    it('should handle requirements without user story', () => {
+      const decomposer = new FeatureDecomposer();
+      const parsedPRD = createMinimalParsedPRD([
+        createRequirement('FR-001', 'No Story Feature', {
+          description: 'A feature with detailed description. More details here.',
+        }),
+      ]);
+
+      const result = decomposer.decompose(parsedPRD);
+      const useCase = result.features[0].useCases[0];
+
+      // Main flow should still be generated
+      expect(useCase.mainFlow.length).toBeGreaterThan(0);
+    });
+  });
+
   describe('edge cases', () => {
     it('should handle empty requirements list', () => {
       const decomposer = new FeatureDecomposer();
