@@ -6,11 +6,7 @@
  */
 
 import type { SRSFeature, SRSUseCase } from '../architecture-generator/types.js';
-import type {
-  ParsedPRD,
-  ParsedPRDRequirement,
-  FeatureDecompositionResult,
-} from './types.js';
+import type { ParsedPRD, ParsedPRDRequirement, FeatureDecompositionResult } from './types.js';
 import { FeatureDecompositionError } from './errors.js';
 
 /**
@@ -143,9 +139,7 @@ export class FeatureDecomposer {
   /**
    * Analyze requirement complexity
    */
-  private analyzeComplexity(
-    requirement: ParsedPRDRequirement
-  ): 'simple' | 'moderate' | 'complex' {
+  private analyzeComplexity(requirement: ParsedPRDRequirement): 'simple' | 'moderate' | 'complex' {
     let score = 0;
 
     // Check description length
@@ -173,10 +167,7 @@ export class FeatureDecomposer {
   /**
    * Create a single feature from a requirement
    */
-  private createFeature(
-    requirement: ParsedPRDRequirement,
-    actors: readonly string[]
-  ): SRSFeature {
+  private createFeature(requirement: ParsedPRDRequirement, actors: readonly string[]): SRSFeature {
     this.featureCounter++;
     const featureId = `SF-${String(this.featureCounter).padStart(3, '0')}`;
 
@@ -241,14 +232,11 @@ export class FeatureDecomposer {
     if (requirement.acceptanceCriteria.length >= 3) {
       // Group acceptance criteria into segments
       const criteriaPerSegment = complexity === 'complex' ? 2 : 3;
-      const criteriaGroups = this.chunkArray(
-        requirement.acceptanceCriteria,
-        criteriaPerSegment
-      );
+      const criteriaGroups = this.chunkArray(requirement.acceptanceCriteria, criteriaPerSegment);
 
       criteriaGroups.forEach((criteria, index) => {
         segments.push({
-          name: `${requirement.title} - Part ${index + 1}`,
+          name: `${requirement.title} - Part ${String(index + 1)}`,
           description: `${requirement.description}\n\nFocus: ${criteria.join('; ')}`,
           criteria,
         });
@@ -283,7 +271,7 @@ export class FeatureDecomposer {
    */
   private getPartLabel(index: number): string {
     const labels = ['Core Functionality', 'Validation', 'User Feedback', 'Integration', 'Cleanup'];
-    return labels[index] ?? `Part ${index + 1}`;
+    return labels[index] ?? `Part ${String(index + 1)}`;
   }
 
   /**
@@ -298,11 +286,7 @@ export class FeatureDecomposer {
 
     // Primary use case for main flow
     this.useCaseCounter++;
-    const primaryUC = this.createPrimaryUseCase(
-      requirement,
-      featureId,
-      actors[0] ?? 'User'
-    );
+    const primaryUC = this.createPrimaryUseCase(requirement, featureId, actors[0] ?? 'User');
     useCases.push(primaryUC);
 
     // Additional use cases from acceptance criteria
@@ -397,9 +381,10 @@ export class FeatureDecomposer {
     this.useCaseCounter++;
     const ucId = `UC-${String(this.useCaseCounter).padStart(3, '0')}`;
 
-    const mainFlow = segment.criteria.length > 0
-      ? segment.criteria.map((c, i) => `${i + 1}. ${c}`)
-      : [segment.description];
+    const mainFlow =
+      segment.criteria.length > 0
+        ? segment.criteria.map((c, i) => `${String(i + 1)}. ${c}`)
+        : [segment.description];
 
     return [
       {
@@ -430,7 +415,7 @@ export class FeatureDecomposer {
     } else {
       // Generate from description
       flow.push('User initiates the operation');
-      flow.push(`System: ${requirement.description.split('.')[0]}`);
+      flow.push(`System: ${requirement.description.split('.')[0] ?? ''}`);
       flow.push('System validates and processes');
       flow.push('System confirms completion');
     }
@@ -504,9 +489,7 @@ export class FeatureDecomposer {
    */
   private extractUseCaseNameFromCriterion(criterion: string): string {
     // Extract key action from criterion
-    const match = criterion.match(
-      /(?:user\s+)?(?:can|should|must)\s+(.+?)(?:\.|,|when|if|$)/i
-    );
+    const match = criterion.match(/(?:user\s+)?(?:can|should|must)\s+(.+?)(?:\.|,|when|if|$)/i);
     if (match !== null && match[1] !== undefined) {
       return this.generateUseCaseName(match[1]);
     }

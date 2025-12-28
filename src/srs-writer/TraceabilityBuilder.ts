@@ -128,10 +128,7 @@ export class TraceabilityBuilder {
   /**
    * Find NFRs related to a requirement
    */
-  private findRelatedNFRs(
-    requirement: ParsedPRDRequirement,
-    parsedPRD: ParsedPRD
-  ): string[] {
+  private findRelatedNFRs(requirement: ParsedPRDRequirement, parsedPRD: ParsedPRD): string[] {
     const relatedNFRs: string[] = [];
 
     // Check for explicit NFR references in description
@@ -246,7 +243,7 @@ export class TraceabilityBuilder {
       issues.push({
         type: 'low_coverage',
         severity: 'error',
-        message: `Coverage ${String(matrix.forwardCoverage.toFixed(1))}% is below 100%`,
+        message: `Coverage ${matrix.forwardCoverage.toFixed(1)}% is below 100%`,
         affectedIds: [...matrix.uncoveredRequirements],
       });
     }
@@ -284,9 +281,7 @@ export class TraceabilityBuilder {
 
     if (matrix.uncoveredRequirements.length > 0) {
       lines.push('');
-      lines.push(
-        `**Uncovered Requirements**: ${matrix.uncoveredRequirements.join(', ')}`
-      );
+      lines.push(`**Uncovered Requirements**: ${matrix.uncoveredRequirements.join(', ')}`);
     }
 
     if (matrix.orphanFeatures.length > 0) {
@@ -300,9 +295,7 @@ export class TraceabilityBuilder {
   /**
    * Generate reverse traceability (feature to requirements)
    */
-  public buildReverseTraceability(
-    matrix: TraceabilityMatrix
-  ): Map<string, string[]> {
+  public buildReverseTraceability(matrix: TraceabilityMatrix): Map<string, string[]> {
     const reverseMap = new Map<string, string[]>();
 
     for (const entry of matrix.entries) {

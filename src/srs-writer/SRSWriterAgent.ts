@@ -10,13 +10,14 @@ import { randomUUID } from 'node:crypto';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { getScratchpad } from '../scratchpad/index.js';
-import type { SRSMetadata, NonFunctionalRequirement, Constraint } from '../architecture-generator/types.js';
+import type {
+  SRSMetadata,
+  NonFunctionalRequirement,
+  Constraint,
+} from '../architecture-generator/types.js';
 import { PRDParser, type PRDParserOptions } from './PRDParser.js';
 import { FeatureDecomposer, type FeatureDecomposerOptions } from './FeatureDecomposer.js';
-import {
-  TraceabilityBuilder,
-  type TraceabilityBuilderOptions,
-} from './TraceabilityBuilder.js';
+import { TraceabilityBuilder, type TraceabilityBuilderOptions } from './TraceabilityBuilder.js';
 import type {
   SRSWriterAgentConfig,
   SRSGenerationSession,
@@ -151,7 +152,7 @@ export class SRSWriterAgent {
       this.session = {
         ...session,
         status: 'failed',
-        errorMessage: `Coverage ${String(decompositionResult.coverage.toFixed(1))}% is below threshold ${String(this.config.coverageThreshold)}%`,
+        errorMessage: `Coverage ${decompositionResult.coverage.toFixed(1)}% is below threshold ${String(this.config.coverageThreshold)}%`,
         updatedAt: new Date().toISOString(),
       };
       throw new LowCoverageError(
@@ -390,9 +391,6 @@ export class SRSWriterAgent {
 
     const processingTimeMs = Date.now() - startTime;
 
-    if (this.session === null) {
-      throw new SessionStateError('no session', 'active', 'calculate stats');
-    }
     const stats = this.calculateStats(this.session, generatedSRS, processingTimeMs);
 
     return {
@@ -443,7 +441,14 @@ export class SRSWriterAgent {
    */
   private normalizeNFRCategory(
     category: string
-  ): 'performance' | 'scalability' | 'reliability' | 'security' | 'maintainability' | 'usability' | 'availability' {
+  ):
+    | 'performance'
+    | 'scalability'
+    | 'reliability'
+    | 'security'
+    | 'maintainability'
+    | 'usability'
+    | 'availability' {
     const lower = category.toLowerCase();
     if (lower.includes('perform')) return 'performance';
     if (lower.includes('scal')) return 'scalability';
@@ -575,7 +580,7 @@ export class SRSWriterAgent {
           lines.push('');
           lines.push('**Main Flow**:');
           uc.mainFlow.forEach((step, idx) => {
-            lines.push(`  ${idx + 1}. ${step}`);
+            lines.push(`  ${String(idx + 1)}. ${step}`);
           });
           lines.push('');
           if (uc.alternativeFlows.length > 0) {
@@ -613,7 +618,9 @@ export class SRSWriterAgent {
     }
 
     for (const [category, categoryNfrs] of nfrsByCategory) {
-      lines.push(`### 3.${this.getCategoryNumber(category)} ${this.capitalize(category)} Requirements`);
+      lines.push(
+        `### 3.${String(this.getCategoryNumber(category))} ${this.capitalize(category)} Requirements`
+      );
       lines.push('');
       lines.push('| ID | Description | Target | Priority |');
       lines.push('|----|-------------|--------|----------|');
@@ -693,10 +700,7 @@ export class SRSWriterAgent {
     generatedSRS: GeneratedSRS,
     processingTimeMs: number
   ): SRSGenerationStats {
-    const totalUseCases = generatedSRS.features.reduce(
-      (sum, f) => sum + f.useCases.length,
-      0
-    );
+    const totalUseCases = generatedSRS.features.reduce((sum, f) => sum + f.useCases.length, 0);
 
     return {
       prdRequirementsCount: session.parsedPRD.functionalRequirements.length,
@@ -716,7 +720,11 @@ export class SRSWriterAgent {
     expectedStates: readonly ('pending' | 'parsing' | 'decomposing' | 'generating' | 'completed')[]
   ): SRSGenerationSession {
     if (this.session === null) {
-      throw new SessionStateError('no session', expectedStates[0] ?? 'active', 'perform this action');
+      throw new SessionStateError(
+        'no session',
+        expectedStates[0] ?? 'active',
+        'perform this action'
+      );
     }
 
     if (this.session.status === 'failed') {

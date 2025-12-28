@@ -126,7 +126,7 @@ export class LowCoverageError extends SRSWriterError {
 
   constructor(actualCoverage: number, threshold: number, uncoveredRequirements: readonly string[]) {
     super(
-      `Traceability coverage ${String(actualCoverage.toFixed(1))}% is below threshold ${String(threshold)}%. ` +
+      `Traceability coverage ${actualCoverage.toFixed(1)}% is below threshold ${String(threshold)}%. ` +
         `Uncovered: ${uncoveredRequirements.slice(0, 5).join(', ')}${uncoveredRequirements.length > 5 ? '...' : ''}`
     );
     this.name = 'LowCoverageError';

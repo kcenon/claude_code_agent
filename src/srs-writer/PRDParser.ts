@@ -191,7 +191,7 @@ export class PRDParser {
     const priority = this.normalizePriority(priorityMatch?.[1] ?? 'P2');
 
     // Extract description
-    const descMatch = body.match(/\*?\*?Description\*?\*?[:\s]+([^\n]+(?:\n(?![*#\-])[^\n]+)*)/i);
+    const descMatch = body.match(/\*?\*?Description\*?\*?[:\s]+([^\n]+(?:\n(?![*#-])[^\n]+)*)/i);
     const firstLine = body.trim().split('\n')[0];
     const description = descMatch?.[1]?.trim() ?? firstLine ?? '';
 
@@ -203,7 +203,7 @@ export class PRDParser {
 
     // Extract user story
     const userStoryMatch = body.match(
-      /\*?\*?User\s*Story\*?\*?[:\s]+(As\s+a[^\n]+(?:\n(?![\*#\-])[^\n]+)*)/i
+      /\*?\*?User\s*Story\*?\*?[:\s]+(As\s+a[^\n]+(?:\n(?![*#-])[^\n]+)*)/i
     );
     const userStoryValue = userStoryMatch?.[1]?.trim();
 
@@ -299,7 +299,8 @@ export class PRDParser {
     }
 
     // Parse numbered or bulleted items
-    const itemPattern = /(?:^|\n)(?:[-*]|\d+\.)\s+\*?\*?([^:\n]+)\*?\*?[:\s]*([^\n]*(?:\n(?![-*]|\d+\.).*)*)/g;
+    const itemPattern =
+      /(?:^|\n)(?:[-*]|\d+\.)\s+\*?\*?([^:\n]+)\*?\*?[:\s]*([^\n]*(?:\n(?![-*]|\d+\.).*)*)/g;
     let counter = 1;
 
     let itemMatch: RegExpExecArray | null;
@@ -418,7 +419,10 @@ export class PRDParser {
         if (item !== undefined) {
           nfrs.push({
             id: `NFR-${String(counter).padStart(3, '0')}`,
-            category: category.trim().toLowerCase().replace(/\s+requirements?/i, ''),
+            category: category
+              .trim()
+              .toLowerCase()
+              .replace(/\s+requirements?/i, ''),
             description: item.trim(),
             priority: 'P2',
           });
