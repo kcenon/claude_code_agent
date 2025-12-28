@@ -212,7 +212,10 @@ export class DocumentReaderAgent {
         this.session = {
           ...currentSession,
           status: 'failed',
-          errors: [...currentSession.errors, error instanceof Error ? error.message : String(error)],
+          errors: [
+            ...currentSession.errors,
+            error instanceof Error ? error.message : String(error),
+          ],
           updatedAt: new Date().toISOString(),
         };
       }
@@ -358,16 +361,12 @@ export class DocumentReaderAgent {
     }
 
     // Try to extract from metadata table
-    const tableMatch = content.match(
-      /\|\s*(?:Version|버전)\s*\|\s*([^|]+)\|/i
-    );
+    const tableMatch = content.match(/\|\s*(?:Version|버전)\s*\|\s*([^|]+)\|/i);
     if (tableMatch?.[1] !== undefined && version === undefined) {
       version = tableMatch[1].trim();
     }
 
-    const docIdMatch = content.match(
-      /\|\s*(?:Document ID|문서 ID)\s*\|\s*([^|]+)\|/i
-    );
+    const docIdMatch = content.match(/\|\s*(?:Document ID|문서 ID)\s*\|\s*([^|]+)\|/i);
     if (docIdMatch?.[1] !== undefined && id === undefined) {
       id = docIdMatch[1].trim();
     }
@@ -466,9 +465,10 @@ export class DocumentReaderAgent {
         // Find the section content for this requirement
         const sectionStart = match.index;
         const nextSection = doc.rawContent.slice(sectionStart).match(/\n###\s/);
-        const sectionEnd = nextSection?.index !== undefined
-          ? sectionStart + nextSection.index
-          : doc.rawContent.length;
+        const sectionEnd =
+          nextSection?.index !== undefined
+            ? sectionStart + nextSection.index
+            : doc.rawContent.length;
         const sectionContent = doc.rawContent.slice(sectionStart, sectionEnd);
 
         // Extract details
@@ -513,9 +513,10 @@ export class DocumentReaderAgent {
 
         const sectionStart = match.index;
         const nextSection = doc.rawContent.slice(sectionStart).match(/\n###\s/);
-        const sectionEnd = nextSection?.index !== undefined
-          ? sectionStart + nextSection.index
-          : doc.rawContent.length;
+        const sectionEnd =
+          nextSection?.index !== undefined
+            ? sectionStart + nextSection.index
+            : doc.rawContent.length;
         const sectionContent = doc.rawContent.slice(sectionStart, sectionEnd);
 
         const description = this.extractField(sectionContent, 'Description');
@@ -557,9 +558,10 @@ export class DocumentReaderAgent {
 
         const sectionStart = match.index;
         const nextSection = doc.rawContent.slice(sectionStart).match(/\n###\s/);
-        const sectionEnd = nextSection?.index !== undefined
-          ? sectionStart + nextSection.index
-          : doc.rawContent.length;
+        const sectionEnd =
+          nextSection?.index !== undefined
+            ? sectionStart + nextSection.index
+            : doc.rawContent.length;
         const sectionContent = doc.rawContent.slice(sectionStart, sectionEnd);
 
         const description = this.extractField(sectionContent, 'Description');
@@ -599,9 +601,10 @@ export class DocumentReaderAgent {
 
         const sectionStart = match.index;
         const nextSection = doc.rawContent.slice(sectionStart).match(/\n###\s/);
-        const sectionEnd = nextSection?.index !== undefined
-          ? sectionStart + nextSection.index
-          : doc.rawContent.length;
+        const sectionEnd =
+          nextSection?.index !== undefined
+            ? sectionStart + nextSection.index
+            : doc.rawContent.length;
         const sectionContent = doc.rawContent.slice(sectionStart, sectionEnd);
 
         const primaryActor = this.extractField(sectionContent, 'Primary Actor');
@@ -644,9 +647,10 @@ export class DocumentReaderAgent {
 
         const sectionStart = match.index;
         const nextSection = doc.rawContent.slice(sectionStart).match(/\n###\s/);
-        const sectionEnd = nextSection?.index !== undefined
-          ? sectionStart + nextSection.index
-          : doc.rawContent.length;
+        const sectionEnd =
+          nextSection?.index !== undefined
+            ? sectionStart + nextSection.index
+            : doc.rawContent.length;
         const sectionContent = doc.rawContent.slice(sectionStart, sectionEnd);
 
         const description = this.extractField(sectionContent, 'Description');
@@ -727,7 +731,13 @@ export class DocumentReaderAgent {
   private extractNFRCategory(
     content: string
   ): 'performance' | 'security' | 'scalability' | 'usability' | 'reliability' | 'maintainability' {
-    type NFRCategoryType = 'performance' | 'security' | 'scalability' | 'usability' | 'reliability' | 'maintainability';
+    type NFRCategoryType =
+      | 'performance'
+      | 'security'
+      | 'scalability'
+      | 'usability'
+      | 'reliability'
+      | 'maintainability';
     const categoryMatch = content.match(
       /\*\*Category\*\*:\s*(performance|security|scalability|usability|reliability|maintainability)/i
     );
@@ -748,7 +758,9 @@ export class DocumentReaderAgent {
     return ids;
   }
 
-  private parseComponentType(typeStr: string | undefined): 'service' | 'library' | 'module' | 'api' {
+  private parseComponentType(
+    typeStr: string | undefined
+  ): 'service' | 'library' | 'module' | 'api' {
     if (typeStr === undefined || typeStr === '') return 'module';
     const lower = typeStr.toLowerCase();
     if (lower.includes('service')) return 'service';
@@ -764,10 +776,7 @@ export class DocumentReaderAgent {
   ): PRDToSRSTrace[] {
     const traces: PRDToSRSTrace[] = [];
 
-    const allReqIds = [
-      ...functionalReqs.map((r) => r.id),
-      ...nonFunctionalReqs.map((r) => r.id),
-    ];
+    const allReqIds = [...functionalReqs.map((r) => r.id), ...nonFunctionalReqs.map((r) => r.id)];
 
     for (const reqId of allReqIds) {
       const linkedFeatures = features
@@ -815,10 +824,8 @@ export class DocumentReaderAgent {
     _totalComponents: number
   ): { coveragePrdToSrs: number; coverageSrsToSds: number } {
     // Note: _totalComponents is available for future use in coverage metrics
-    const coveragePrdToSrs =
-      totalRequirements > 0 ? prdToSrs.length / totalRequirements : 0;
-    const coverageSrsToSds =
-      totalFeatures > 0 ? srsToSds.length / totalFeatures : 0;
+    const coveragePrdToSrs = totalRequirements > 0 ? prdToSrs.length / totalRequirements : 0;
+    const coverageSrsToSds = totalFeatures > 0 ? srsToSds.length / totalFeatures : 0;
 
     return {
       coveragePrdToSrs: Math.round(coveragePrdToSrs * 100) / 100,
