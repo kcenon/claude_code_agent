@@ -29,6 +29,8 @@ import {
   resetAnalysisOrchestratorAgent,
 } from './analysis-orchestrator/index.js';
 import type { AnalysisScope } from './analysis-orchestrator/types.js';
+import { StatusService } from './status/index.js';
+import type { OutputFormat } from './status/types.js';
 
 const program = new Command();
 
@@ -374,11 +376,30 @@ program
 program
   .command('status')
   .description('Show current pipeline status')
-  .action(() => {
-    console.log(chalk.blue('\n📊 Pipeline Status\n'));
+  .option('-p, --project <id>', 'Show status for specific project')
+  .option('--format <format>', 'Output format (text, json)', 'text')
+  .option('-v, --verbose', 'Show verbose output with more details')
+  .action(async (cmdOptions: Record<string, unknown>) => {
+    const projectId = typeof cmdOptions['project'] === 'string' ? cmdOptions['project'] : undefined;
+    const formatInput = typeof cmdOptions['format'] === 'string' ? cmdOptions['format'] : 'text';
+    const verbose = cmdOptions['verbose'] === true;
 
-    // TODO: Implement status display
-    console.log(chalk.yellow('⚠️  Status display not yet implemented.\n'));
+    // Validate format
+    const validFormats = ['text', 'json'];
+    if (!validFormats.includes(formatInput)) {
+      console.error(chalk.red(`\n❌ Invalid format: ${formatInput}`));
+      console.log(chalk.dim(`Valid formats: ${validFormats.join(', ')}\n`));
+      process.exit(1);
+    }
+    const format = formatInput as OutputFormat;
+
+    const statusService = new StatusService({ format, verbose });
+    const displayOptions = projectId !== undefined ? { projectId } : {};
+    const result = await statusService.displayStatus(displayOptions);
+
+    if (!result.success) {
+      process.exit(1);
+    }
   });
 
 /**
