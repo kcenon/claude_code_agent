@@ -8,6 +8,7 @@ The module includes:
 
 - **WorkerAgent** - Main class that processes Work Orders to implement code changes
 - **TestGenerator** - Generates comprehensive unit tests from source code
+- **SelfVerificationAgent** - Self-verification loop with automatic fix attempts (UC-013)
 - **Context Analysis** - Analyzes related files and detects code patterns
 - **Branch Management** - Creates feature branches with automatic prefix detection
 - **Verification** - Runs tests, lint, and build to verify implementation
@@ -21,10 +22,12 @@ The worker module is included in the main `ad-sdlc` package:
 import {
   WorkerAgent,
   TestGenerator,
+  SelfVerificationAgent,
   DEFAULT_WORKER_AGENT_CONFIG,
   DEFAULT_CODE_PATTERNS,
   DEFAULT_RETRY_POLICY,
   DEFAULT_TEST_GENERATOR_CONFIG,
+  DEFAULT_SELF_VERIFICATION_CONFIG,
 } from 'ad-sdlc';
 ```
 
@@ -519,4 +522,252 @@ const result = await agent.implement(workOrder);
 // Access test generation result
 const testResult = agent.getLastTestGenerationResult();
 console.log(`Generated ${testResult?.totalTests} tests`);
+```
+
+## SelfVerificationAgent
+
+The SelfVerificationAgent implements the self-verification loop (UC-013) that automatically runs verification steps (tests, lint, build, typecheck) with automatic fix attempts and escalation when necessary.
+
+### Basic Usage
+
+```typescript
+import { SelfVerificationAgent } from 'ad-sdlc';
+
+// Create agent with default configuration
+const agent = new SelfVerificationAgent();
+
+// Run verification pipeline
+const report = await agent.runVerificationPipeline('task-001');
+
+console.log(`Status: ${report.finalStatus}`);
+console.log(`Duration: ${report.totalDurationMs}ms`);
+```
+
+### Custom Configuration
+
+```typescript
+const agent = new SelfVerificationAgent({
+  projectRoot: '/path/to/project',
+  testCommand: 'npm test',
+  lintCommand: 'npm run lint',
+  buildCommand: 'npm run build',
+  typecheckCommand: 'npx tsc --noEmit',
+  maxFixIterations: 3,
+  autoFixLint: true,
+  stepsToRun: ['test', 'lint', 'build', 'typecheck'],
+  commandTimeout: 300000, // 5 minutes
+  continueOnFailure: false,
+});
+```
+
+### Configuration Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `projectRoot` | `string` | `process.cwd()` | Project root directory |
+| `testCommand` | `string` | `npm test` | Command to run tests |
+| `lintCommand` | `string` | `npm run lint` | Command to run linter |
+| `buildCommand` | `string` | `npm run build` | Command to run build |
+| `typecheckCommand` | `string` | `npx tsc --noEmit` | Command to run type checker |
+| `maxFixIterations` | `number` | `3` | Maximum fix attempts per step |
+| `autoFixLint` | `boolean` | `true` | Auto-fix lint errors |
+| `stepsToRun` | `VerificationStep[]` | All steps | Steps to execute |
+| `commandTimeout` | `number` | `300000` | Command timeout (ms) |
+| `continueOnFailure` | `boolean` | `false` | Continue on step failure |
+
+### Verification Pipeline Flow
+
+```
+1. Worker completes code generation
+2. Run test suite → if fail, attempt fix (max 3 times)
+3. Run linter → auto-fix where possible
+4. Run build → fix compilation errors
+5. Run type check → fix type errors
+6. Generate verification report
+7. If all pass → mark complete
+8. If still failing → escalate with report
+```
+
+### Running Individual Steps
+
+```typescript
+// Run a single verification step
+const result = await agent.runStep('test');
+
+console.log(`Step: ${result.step}`);
+console.log(`Passed: ${result.passed}`);
+console.log(`Exit code: ${result.exitCode}`);
+console.log(`Duration: ${result.durationMs}ms`);
+```
+
+### Verification Report
+
+The agent generates a detailed verification report:
+
+```typescript
+interface VerificationReport {
+  taskId: string;              // Task identifier
+  timestamp: string;           // Report timestamp
+  results: {                   // Results for each step
+    tests: VerificationStepResult | null;
+    lint: VerificationStepResult | null;
+    build: VerificationStepResult | null;
+    typecheck: VerificationStepResult | null;
+  };
+  testSummary?: {              // Test summary (if tests ran)
+    passed: number;
+    failed: number;
+    skipped: number;
+    coverage: number;
+  };
+  lintSummary?: {              // Lint summary (if lint ran)
+    errors: number;
+    warnings: number;
+    autoFixed: number;
+  };
+  fixAttempts: FixAttempt[];   // All fix attempts made
+  finalStatus: 'passed' | 'failed' | 'escalated';
+  totalDurationMs: number;     // Total duration
+  escalation?: {               // Escalation details (if escalated)
+    reason: string;
+    failedSteps: VerificationStep[];
+    errorLogs: string[];
+    attemptedFixes: string[];
+    analysis: string;
+  };
+}
+```
+
+### Error Parsing
+
+The agent can parse errors from verification output:
+
+```typescript
+const errors = agent.parseErrors('typecheck', typescriptOutput);
+
+for (const error of errors) {
+  console.log(`File: ${error.filePath}`);
+  console.log(`Line: ${error.line}`);
+  console.log(`Code: ${error.code}`);
+  console.log(`Message: ${error.message}`);
+}
+```
+
+### Fix Suggestions
+
+Analyze errors and get fix suggestions:
+
+```typescript
+const suggestions = agent.analyzeError('lint', lintOutput);
+
+for (const suggestion of suggestions) {
+  console.log(`Type: ${suggestion.type}`);
+  console.log(`Description: ${suggestion.description}`);
+  console.log(`Command: ${suggestion.command}`);
+  console.log(`Confidence: ${suggestion.confidence}%`);
+}
+```
+
+### Error Handling
+
+```typescript
+import {
+  EscalationRequiredError,
+  CommandTimeoutError,
+  TypeCheckError,
+  SelfFixError,
+  VerificationPipelineError,
+} from 'ad-sdlc';
+
+try {
+  const report = await agent.runVerificationPipeline('task-001');
+} catch (error) {
+  if (error instanceof EscalationRequiredError) {
+    console.error(`Escalation needed for ${error.taskId}`);
+    console.error(`Failed steps: ${error.failedSteps.join(', ')}`);
+    console.error(`Total attempts: ${error.totalAttempts}`);
+    console.error(`Analysis: ${error.analysis}`);
+  } else if (error instanceof CommandTimeoutError) {
+    console.error(`Command timed out: ${error.command}`);
+    console.error(`Timeout: ${error.timeoutMs}ms`);
+  }
+}
+```
+
+### SelfVerificationAgent Methods
+
+| Method | Description |
+|--------|-------------|
+| `runVerificationPipeline(taskId)` | Run full verification pipeline |
+| `runStep(step)` | Run a single verification step |
+| `parseErrors(step, output)` | Parse errors from output |
+| `analyzeError(step, output)` | Analyze errors and suggest fixes |
+| `allStepsPassed()` | Check if all steps passed |
+| `getFixAttempts()` | Get fix attempts from last run |
+| `getStepResults()` | Get step results from last run |
+| `getConfig()` | Get current configuration |
+
+### Complete Example
+
+```typescript
+import { SelfVerificationAgent, EscalationRequiredError } from 'ad-sdlc';
+
+const agent = new SelfVerificationAgent({
+  projectRoot: '/path/to/project',
+  maxFixIterations: 3,
+  autoFixLint: true,
+});
+
+try {
+  const report = await agent.runVerificationPipeline('WO-001');
+
+  if (report.finalStatus === 'passed') {
+    console.log('All verification steps passed!');
+    console.log(`Tests: ${report.testSummary?.passed} passed`);
+    console.log(`Coverage: ${report.testSummary?.coverage}%`);
+  }
+} catch (error) {
+  if (error instanceof EscalationRequiredError) {
+    console.error('Verification failed, escalation required:');
+    console.error(`Failed steps: ${error.failedSteps.join(', ')}`);
+    console.error(`Analysis: ${error.analysis}`);
+
+    // Send escalation to controller
+    await notifyController(error);
+  }
+}
+```
+
+### Integration with WorkerAgent
+
+The SelfVerificationAgent can be used alongside WorkerAgent for enhanced verification:
+
+```typescript
+import { WorkerAgent, SelfVerificationAgent } from 'ad-sdlc';
+
+const workerAgent = new WorkerAgent({ projectRoot: '/path/to/project' });
+const verificationAgent = new SelfVerificationAgent({
+  projectRoot: '/path/to/project',
+  maxFixIterations: 3,
+});
+
+// After code generation, run enhanced verification
+const implementResult = await workerAgent.implement(workOrder, {
+  skipVerification: true, // Skip basic verification
+});
+
+// Run full self-verification with fix attempts
+try {
+  const report = await verificationAgent.runVerificationPipeline(
+    implementResult.workOrderId
+  );
+
+  if (report.finalStatus === 'passed') {
+    console.log('Implementation verified successfully');
+  }
+} catch (error) {
+  if (error instanceof EscalationRequiredError) {
+    console.error('Need human intervention');
+  }
+}
 ```

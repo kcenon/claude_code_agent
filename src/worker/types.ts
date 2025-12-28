@@ -545,5 +545,182 @@ export interface TestGenerationResult {
   readonly warnings: readonly string[];
 }
 
+// ============================================================================
+// Self-Verification Types (UC-013)
+// ============================================================================
+
+/**
+ * Verification step types
+ */
+export type VerificationStep = 'test' | 'lint' | 'build' | 'typecheck';
+
+/**
+ * Final status of the self-verification process
+ */
+export type SelfVerificationStatus = 'passed' | 'failed' | 'escalated';
+
+/**
+ * Individual verification step result
+ */
+export interface VerificationStepResult {
+  /** Step name */
+  readonly step: VerificationStep;
+  /** Whether the step passed */
+  readonly passed: boolean;
+  /** Exit code from command */
+  readonly exitCode: number;
+  /** Command output (stdout + stderr) */
+  readonly output: string;
+  /** Duration in milliseconds */
+  readonly durationMs: number;
+  /** Error count (parsed from output if available) */
+  readonly errorCount: number;
+  /** Warning count (parsed from output if available) */
+  readonly warningCount: number;
+  /** Whether auto-fix was applied */
+  readonly autoFixApplied: boolean;
+}
+
+/**
+ * Fix attempt record
+ */
+export interface FixAttempt {
+  /** Iteration number (1-3) */
+  readonly iteration: number;
+  /** Step that was being fixed */
+  readonly step: VerificationStep;
+  /** Fixes that were applied */
+  readonly fixesApplied: readonly string[];
+  /** Whether the fix resolved the issue */
+  readonly success: boolean;
+  /** Error message if fix failed */
+  readonly errorMessage?: string;
+  /** Duration of fix attempt in milliseconds */
+  readonly durationMs: number;
+}
+
+/**
+ * Self-verification report
+ * Generated after running the full verification pipeline
+ */
+export interface VerificationReport {
+  /** Task/work order ID */
+  readonly taskId: string;
+  /** Report generation timestamp */
+  readonly timestamp: string;
+  /** Results for each verification step */
+  readonly results: {
+    readonly tests: VerificationStepResult | null;
+    readonly lint: VerificationStepResult | null;
+    readonly build: VerificationStepResult | null;
+    readonly typecheck: VerificationStepResult | null;
+  };
+  /** Test summary (if tests were run) */
+  readonly testSummary?: {
+    readonly passed: number;
+    readonly failed: number;
+    readonly skipped: number;
+    readonly coverage: number;
+  };
+  /** Lint summary (if lint was run) */
+  readonly lintSummary?: {
+    readonly errors: number;
+    readonly warnings: number;
+    readonly autoFixed: number;
+  };
+  /** All fix attempts made */
+  readonly fixAttempts: readonly FixAttempt[];
+  /** Final status of the verification */
+  readonly finalStatus: SelfVerificationStatus;
+  /** Total duration in milliseconds */
+  readonly totalDurationMs: number;
+  /** Escalation details if escalated */
+  readonly escalation?: {
+    readonly reason: string;
+    readonly failedSteps: readonly VerificationStep[];
+    readonly errorLogs: readonly string[];
+    readonly attemptedFixes: readonly string[];
+    readonly analysis: string;
+  };
+}
+
+/**
+ * Self-verification configuration
+ */
+export interface SelfVerificationConfig {
+  /** Project root directory */
+  readonly projectRoot?: string;
+  /** Test command (default: 'npm test') */
+  readonly testCommand?: string;
+  /** Lint command (default: 'npm run lint') */
+  readonly lintCommand?: string;
+  /** Build command (default: 'npm run build') */
+  readonly buildCommand?: string;
+  /** Type check command (default: 'npm run typecheck' or 'npx tsc --noEmit') */
+  readonly typecheckCommand?: string;
+  /** Maximum fix iterations per step (default: 3) */
+  readonly maxFixIterations?: number;
+  /** Enable auto-fix for lint errors (default: true) */
+  readonly autoFixLint?: boolean;
+  /** Steps to run (default: all) */
+  readonly stepsToRun?: readonly VerificationStep[];
+  /** Command timeout in milliseconds (default: 300000 = 5 min) */
+  readonly commandTimeout?: number;
+  /** Continue on step failure (default: false) */
+  readonly continueOnFailure?: boolean;
+}
+
+/**
+ * Default self-verification configuration
+ */
+export const DEFAULT_SELF_VERIFICATION_CONFIG: Required<SelfVerificationConfig> = {
+  projectRoot: process.cwd(),
+  testCommand: 'npm test',
+  lintCommand: 'npm run lint',
+  buildCommand: 'npm run build',
+  typecheckCommand: 'npx tsc --noEmit',
+  maxFixIterations: 3,
+  autoFixLint: true,
+  stepsToRun: ['test', 'lint', 'build', 'typecheck'],
+  commandTimeout: 300000,
+  continueOnFailure: false,
+} as const;
+
+/**
+ * Fix suggestion for a verification error
+ */
+export interface FixSuggestion {
+  /** Description of the fix */
+  readonly description: string;
+  /** Type of fix */
+  readonly type: 'auto' | 'manual' | 'partial';
+  /** Command to apply fix (if auto) */
+  readonly command?: string;
+  /** Files affected */
+  readonly affectedFiles: readonly string[];
+  /** Confidence level (0-100) */
+  readonly confidence: number;
+}
+
+/**
+ * Parsed error from verification output
+ */
+export interface VerificationError {
+  /** Error type */
+  readonly type: VerificationStep;
+  /** File path where error occurred */
+  readonly filePath?: string;
+  /** Line number */
+  readonly line?: number;
+  /** Column number */
+  readonly column?: number;
+  /** Error message */
+  readonly message: string;
+  /** Error code (e.g., TS2345, ESLint rule name) */
+  readonly code?: string;
+  /** Severity */
+  readonly severity: 'error' | 'warning';
+}
+
 // Re-export types from controller for convenience
 export type { WorkOrder, WorkOrderContext, RelatedFile };
