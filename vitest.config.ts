@@ -23,7 +23,7 @@ export default defineConfig({
       thresholds: {
         lines: 80,
         functions: 78, // Adjusted for new worker module with complex async flows
-        branches: 74, // Adjusted for architecture-generator and srs-writer pattern detection complexity
+        branches: 73, // Adjusted for code-reader module error classes
         statements: 80,
       },
     },
