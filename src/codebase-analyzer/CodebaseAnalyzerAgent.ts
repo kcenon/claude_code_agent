@@ -79,10 +79,7 @@ export class CodebaseAnalyzerAgent {
   /**
    * Start a new analysis session
    */
-  public async startSession(
-    projectId: string,
-    rootPath: string
-  ): Promise<CodebaseAnalysisSession> {
+  public async startSession(projectId: string, rootPath: string): Promise<CodebaseAnalysisSession> {
     await loadYaml();
 
     // Verify root path exists
@@ -133,10 +130,7 @@ export class CodebaseAnalyzerAgent {
       // Step 1: Scan all files
       const allFiles = await this.scanDirectory(session.rootPath);
       if (allFiles.length === 0) {
-        throw new NoSourceFilesError(
-          session.rootPath,
-          this.config.sourcePatterns
-        );
+        throw new NoSourceFilesError(session.rootPath, this.config.sourcePatterns);
       }
 
       // Step 2: Categorize files
@@ -164,20 +158,14 @@ export class CodebaseAnalyzerAgent {
       let confidence = 0;
 
       if (this.config.detectPatterns) {
-        const patternResult = this.detectArchitecturePatterns(
-          structure,
-          fileInfos
-        );
+        const patternResult = this.detectArchitecturePatterns(structure, fileInfos);
         patterns = patternResult.patterns;
         architectureType = patternResult.type;
         confidence = patternResult.confidence;
       }
 
       // Step 7: Detect conventions
-      const conventions = await this.detectConventions(
-        fileInfos,
-        session.rootPath
-      );
+      const conventions = await this.detectConventions(fileInfos, session.rootPath);
 
       // Step 8: Calculate metrics
       let metrics: CodeMetrics;
@@ -248,10 +236,7 @@ export class CodebaseAnalyzerAgent {
       this.session = {
         ...currentSession,
         status: 'failed',
-        errors: [
-          ...currentSession.errors,
-          error instanceof Error ? error.message : String(error),
-        ],
+        errors: [...currentSession.errors, error instanceof Error ? error.message : String(error)],
         updatedAt: new Date().toISOString(),
       };
       throw error;
@@ -312,10 +297,7 @@ export class CodebaseAnalyzerAgent {
             }
 
             // Check file limit
-            if (
-              this.config.maxFiles > 0 &&
-              files.length >= this.config.maxFiles
-            ) {
+            if (this.config.maxFiles > 0 && files.length >= this.config.maxFiles) {
               return;
             }
           }
@@ -323,10 +305,7 @@ export class CodebaseAnalyzerAgent {
       } catch (error) {
         const err = error as NodeJS.ErrnoException;
         if (err.code !== 'EACCES' && err.code !== 'ENOENT') {
-          throw new DirectoryScanError(
-            currentPath,
-            err.message || 'Unknown error'
-          );
+          throw new DirectoryScanError(currentPath, err.message || 'Unknown error');
         }
         // Skip permission denied and not found errors
       }
@@ -339,10 +318,7 @@ export class CodebaseAnalyzerAgent {
   /**
    * Categorize files and extract basic info
    */
-  private async categorizeFiles(
-    filePaths: string[],
-    rootPath: string
-  ): Promise<FileInfo[]> {
+  private async categorizeFiles(filePaths: string[], rootPath: string): Promise<FileInfo[]> {
     const fileInfos: FileInfo[] = [];
 
     for (const filePath of filePaths) {
@@ -548,18 +524,12 @@ export class CodebaseAnalyzerAgent {
   /**
    * Analyze directory structure
    */
-  private analyzeStructure(
-    files: FileInfo[],
-    _rootPath: string
-  ): DirectoryStructure {
+  private analyzeStructure(files: FileInfo[], _rootPath: string): DirectoryStructure {
     const sourceDirs = new Map<
       string,
       { purpose: string; count: number; language: ProgrammingLanguage | undefined }
     >();
-    const testDirs = new Map<
-      string,
-      { framework: string | undefined; count: number }
-    >();
+    const testDirs = new Map<string, { framework: string | undefined; count: number }>();
     const configDirs = new Map<string, string>();
     const buildFiles: BuildFile[] = [];
 
@@ -758,9 +728,7 @@ export class CodebaseAnalyzerAgent {
             const targetId = this.getModuleId(imp.resolvedPath);
 
             // Add edge
-            const existingEdge = edges.find(
-              (e) => e.from === nodeId && e.to === targetId
-            );
+            const existingEdge = edges.find((e) => e.from === nodeId && e.to === targetId);
             if (existingEdge) {
               // Increment weight
               const idx = edges.indexOf(existingEdge);
@@ -804,9 +772,7 @@ export class CodebaseAnalyzerAgent {
           }
         }
 
-        for (const [name, version] of Object.entries(
-          pkg.devDependencies ?? {}
-        )) {
+        for (const [name, version] of Object.entries(pkg.devDependencies ?? {})) {
           const existing = externalDeps.get(name);
           if (existing) {
             externalDeps.set(name, {
@@ -849,8 +815,7 @@ export class CodebaseAnalyzerAgent {
       totalNodes: nodeArray.length,
       totalEdges: edges.length,
       externalPackages: externalArray.length,
-      avgDependenciesPerModule:
-        nodeArray.length > 0 ? edges.length / nodeArray.length : 0,
+      avgDependenciesPerModule: nodeArray.length > 0 ? edges.length / nodeArray.length : 0,
       mostDependedOn: sortedByDeps,
       circularDependencies: circularDeps,
     };
@@ -895,10 +860,7 @@ export class CodebaseAnalyzerAgent {
         /import\s+['"]([^'"]+)['"]/g,
         /require\s*\(\s*['"]([^'"]+)['"]\s*\)/g,
       ],
-      python: [
-        /^from\s+(\S+)\s+import/gm,
-        /^import\s+(\S+)/gm,
-      ],
+      python: [/^from\s+(\S+)\s+import/gm, /^import\s+(\S+)/gm],
       java: [/^import\s+(\S+);/gm],
       kotlin: [/^import\s+(\S+)/gm],
       go: [/import\s+["']([^"']+)["']/g, /import\s+\(\s*["']([^"']+)["']/g],
@@ -931,11 +893,7 @@ export class CodebaseAnalyzerAgent {
           // Resolve path for internal imports
           let resolvedPath: string | null = null;
           if (!isExternal) {
-            resolvedPath = this.resolveImportPath(
-              rawImport,
-              sourcePath,
-              language
-            );
+            resolvedPath = this.resolveImportPath(rawImport, sourcePath, language);
           }
 
           imports.push({
@@ -956,10 +914,7 @@ export class CodebaseAnalyzerAgent {
   /**
    * Check if import is external (from node_modules, pip packages, etc.)
    */
-  private isExternalImport(
-    importPath: string,
-    language: ProgrammingLanguage
-  ): boolean {
+  private isExternalImport(importPath: string, language: ProgrammingLanguage): boolean {
     if (language === 'typescript' || language === 'javascript') {
       // Relative imports start with . or /
       return !importPath.startsWith('.') && !importPath.startsWith('/');
@@ -1073,9 +1028,7 @@ export class CodebaseAnalyzerAgent {
     // Check for layered architecture patterns
     const layeredPatterns = ['controllers', 'services', 'repositories', 'models'];
     const hasLayered = layeredPatterns.filter((pattern) =>
-      structure.sourceDirs.some((d) =>
-        d.path.toLowerCase().includes(pattern)
-      )
+      structure.sourceDirs.some((d) => d.path.toLowerCase().includes(pattern))
     );
 
     if (hasLayered.length >= 3) {
@@ -1086,9 +1039,7 @@ export class CodebaseAnalyzerAgent {
         name: 'Layered Architecture',
         type: 'architectural',
         locations: hasLayered.map((p) => ({
-          path: structure.sourceDirs.find((d) =>
-            d.path.toLowerCase().includes(p)
-          )?.path ?? p,
+          path: structure.sourceDirs.find((d) => d.path.toLowerCase().includes(p))?.path ?? p,
           description: `${p} layer`,
         })),
         confidence,
@@ -1098,9 +1049,7 @@ export class CodebaseAnalyzerAgent {
     // Check for MVC pattern
     const mvcPatterns = ['controllers', 'views', 'models'];
     const hasMVC = mvcPatterns.filter((pattern) =>
-      structure.sourceDirs.some((d) =>
-        d.path.toLowerCase().includes(pattern)
-      )
+      structure.sourceDirs.some((d) => d.path.toLowerCase().includes(pattern))
     );
 
     if (hasMVC.length >= 2) {
@@ -1108,9 +1057,7 @@ export class CodebaseAnalyzerAgent {
         name: 'MVC',
         type: 'architectural',
         locations: hasMVC.map((p) => ({
-          path: structure.sourceDirs.find((d) =>
-            d.path.toLowerCase().includes(p)
-          )?.path ?? p,
+          path: structure.sourceDirs.find((d) => d.path.toLowerCase().includes(p))?.path ?? p,
           description: `${p.charAt(0).toUpperCase()}${p.slice(1)}`,
         })),
         confidence: hasMVC.length / mvcPatterns.length,
@@ -1147,9 +1094,7 @@ export class CodebaseAnalyzerAgent {
     }
 
     // Check for modular pattern
-    const hasModules = structure.sourceDirs.some((d) =>
-      d.path.includes('modules')
-    );
+    const hasModules = structure.sourceDirs.some((d) => d.path.includes('modules'));
 
     if (hasModules && type === 'unknown') {
       type = 'modular';
@@ -1177,9 +1122,7 @@ export class CodebaseAnalyzerAgent {
     // Detect design patterns
     // Repository pattern
     const hasRepositories = files.some(
-      (f) =>
-        f.path.toLowerCase().includes('repository') ||
-        f.path.toLowerCase().includes('repo')
+      (f) => f.path.toLowerCase().includes('repository') || f.path.toLowerCase().includes('repo')
     );
 
     if (hasRepositories) {
@@ -1189,8 +1132,7 @@ export class CodebaseAnalyzerAgent {
         locations: files
           .filter(
             (f) =>
-              f.path.toLowerCase().includes('repository') ||
-              f.path.toLowerCase().includes('repo')
+              f.path.toLowerCase().includes('repository') || f.path.toLowerCase().includes('repo')
           )
           .slice(0, 3)
           .map((f) => ({
@@ -1202,9 +1144,7 @@ export class CodebaseAnalyzerAgent {
     }
 
     // Factory pattern
-    const hasFactories = files.some((f) =>
-      f.path.toLowerCase().includes('factory')
-    );
+    const hasFactories = files.some((f) => f.path.toLowerCase().includes('factory'));
 
     if (hasFactories) {
       patterns.push({
@@ -1232,13 +1172,8 @@ export class CodebaseAnalyzerAgent {
     analysisRootPath: string
   ): Promise<CodingConventions> {
     // Sample files for convention detection
-    const sampleSize = Math.max(
-      1,
-      Math.floor(files.length * this.config.conventionSampleRatio)
-    );
-    const sampledFiles = files
-      .filter((f) => !f.isTest)
-      .slice(0, sampleSize);
+    const sampleSize = Math.max(1, Math.floor(files.length * this.config.conventionSampleRatio));
+    const sampledFiles = files.filter((f) => !f.isTest).slice(0, sampleSize);
 
     // Analyze naming conventions using string-keyed objects for flexibility
     const namingStats: {
@@ -1246,9 +1181,30 @@ export class CodebaseAnalyzerAgent {
       files: Record<string, number>;
       functions: Record<string, number>;
     } = {
-      variables: { camelCase: 0, snake_case: 0, PascalCase: 0, 'kebab-case': 0, SCREAMING_SNAKE_CASE: 0, mixed: 0 },
-      files: { camelCase: 0, 'kebab-case': 0, snake_case: 0, PascalCase: 0, SCREAMING_SNAKE_CASE: 0, mixed: 0 },
-      functions: { camelCase: 0, snake_case: 0, PascalCase: 0, 'kebab-case': 0, SCREAMING_SNAKE_CASE: 0, mixed: 0 },
+      variables: {
+        camelCase: 0,
+        snake_case: 0,
+        PascalCase: 0,
+        'kebab-case': 0,
+        SCREAMING_SNAKE_CASE: 0,
+        mixed: 0,
+      },
+      files: {
+        camelCase: 0,
+        'kebab-case': 0,
+        snake_case: 0,
+        PascalCase: 0,
+        SCREAMING_SNAKE_CASE: 0,
+        mixed: 0,
+      },
+      functions: {
+        camelCase: 0,
+        snake_case: 0,
+        PascalCase: 0,
+        'kebab-case': 0,
+        SCREAMING_SNAKE_CASE: 0,
+        mixed: 0,
+      },
     };
 
     // Analyze file naming
@@ -1266,8 +1222,7 @@ export class CodebaseAnalyzerAgent {
 
         // Extract identifiers (simplified)
         const varPattern = /(?:const|let|var|val)\s+([a-zA-Z_][a-zA-Z0-9_]*)/g;
-        const funcPattern =
-          /(?:function|def|fn|func)\s+([a-zA-Z_][a-zA-Z0-9_]*)/g;
+        const funcPattern = /(?:function|def|fn|func)\s+([a-zA-Z_][a-zA-Z0-9_]*)/g;
 
         let match;
         while ((match = varPattern.exec(content)) !== null) {
@@ -1287,9 +1242,7 @@ export class CodebaseAnalyzerAgent {
     }
 
     // Determine predominant conventions
-    const findPredominant = (
-      stats: Record<string, number>
-    ): NamingConvention => {
+    const findPredominant = (stats: Record<string, number>): NamingConvention => {
       const entries = Object.entries(stats);
       const total = entries.reduce((sum, [, count]) => sum + count, 0);
       if (total === 0) return 'mixed';
@@ -1404,7 +1357,11 @@ export class CodebaseAnalyzerAgent {
 
     if (featureDirs.size >= 3) {
       patterns.push('feature-based');
-      examples.push(...Array.from(featureDirs).slice(0, 3).map((d) => `src/${d}/`));
+      examples.push(
+        ...Array.from(featureDirs)
+          .slice(0, 3)
+          .map((d) => `src/${d}/`)
+      );
     }
 
     // Check for type-based structure
@@ -1428,10 +1385,7 @@ export class CodebaseAnalyzerAgent {
    * Calculate code metrics
    */
   private calculateMetrics(files: FileInfo[]): CodeMetrics {
-    const languageCounts = new Map<
-      ProgrammingLanguage,
-      { files: number; lines: number }
-    >();
+    const languageCounts = new Map<ProgrammingLanguage, { files: number; lines: number }>();
 
     let totalLines = 0;
     let sourceFiles = 0;
@@ -1518,11 +1472,7 @@ export class CodebaseAnalyzerAgent {
     projectId: string,
     overview: ArchitectureOverview
   ): Promise<string> {
-    const outputDir = path.join(
-      this.config.scratchpadBasePath,
-      'analysis',
-      projectId
-    );
+    const outputDir = path.join(this.config.scratchpadBasePath, 'analysis', projectId);
     const outputPath = path.join(outputDir, 'architecture_overview.yaml');
 
     try {
@@ -1625,15 +1575,8 @@ export class CodebaseAnalyzerAgent {
   /**
    * Write dependency graph to JSON file
    */
-  private async writeDependencyGraph(
-    projectId: string,
-    graph: DependencyGraph
-  ): Promise<string> {
-    const outputDir = path.join(
-      this.config.scratchpadBasePath,
-      'analysis',
-      projectId
-    );
+  private async writeDependencyGraph(projectId: string, graph: DependencyGraph): Promise<string> {
+    const outputDir = path.join(this.config.scratchpadBasePath, 'analysis', projectId);
     const outputPath = path.join(outputDir, 'dependency_graph.json');
 
     try {
@@ -1661,9 +1604,7 @@ let codebaseAnalyzerInstance: CodebaseAnalyzerAgent | null = null;
 /**
  * Get the singleton instance of CodebaseAnalyzerAgent
  */
-export function getCodebaseAnalyzerAgent(
-  config?: CodebaseAnalyzerConfig
-): CodebaseAnalyzerAgent {
+export function getCodebaseAnalyzerAgent(config?: CodebaseAnalyzerConfig): CodebaseAnalyzerAgent {
   if (codebaseAnalyzerInstance === null) {
     codebaseAnalyzerInstance = new CodebaseAnalyzerAgent(config);
   }

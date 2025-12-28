@@ -36,9 +36,7 @@ export class NoSourceFilesError extends CodebaseAnalyzerError {
   public readonly patterns: readonly string[];
 
   constructor(projectPath: string, patterns: readonly string[]) {
-    super(
-      `No source files found in ${projectPath}. Searched patterns: ${patterns.join(', ')}`
-    );
+    super(`No source files found in ${projectPath}. Searched patterns: ${patterns.join(', ')}`);
     this.name = 'NoSourceFilesError';
     this.projectPath = projectPath;
     this.patterns = patterns;
@@ -68,9 +66,7 @@ export class BuildSystemNotDetectedError extends CodebaseAnalyzerError {
   public readonly checkedFiles: readonly string[];
 
   constructor(projectPath: string, checkedFiles: readonly string[]) {
-    super(
-      `No build system detected in ${projectPath}. Checked: ${checkedFiles.join(', ')}`
-    );
+    super(`No build system detected in ${projectPath}. Checked: ${checkedFiles.join(', ')}`);
     this.name = 'BuildSystemNotDetectedError';
     this.projectPath = projectPath;
     this.checkedFiles = checkedFiles;

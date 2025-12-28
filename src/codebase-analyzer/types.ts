@@ -8,12 +8,7 @@
 /**
  * Architecture types that can be detected
  */
-export type ArchitectureType =
-  | 'layered'
-  | 'microservices'
-  | 'monolith'
-  | 'modular'
-  | 'unknown';
+export type ArchitectureType = 'layered' | 'microservices' | 'monolith' | 'modular' | 'unknown';
 
 /**
  * Pattern types
@@ -86,11 +81,7 @@ export type BuildSystemType =
 /**
  * Analysis session status
  */
-export type AnalysisSessionStatus =
-  | 'scanning'
-  | 'analyzing'
-  | 'completed'
-  | 'failed';
+export type AnalysisSessionStatus = 'scanning' | 'analyzing' | 'completed' | 'failed';
 
 /**
  * Detected pattern in the codebase
@@ -423,54 +414,47 @@ export interface CodebaseAnalyzerConfig {
 /**
  * Default configuration values
  */
-export const DEFAULT_CODEBASE_ANALYZER_CONFIG: Required<CodebaseAnalyzerConfig> =
-  {
-    scratchpadBasePath: '.ad-sdlc/scratchpad',
-    sourcePatterns: ['src/**/*', 'lib/**/*', 'app/**/*'],
-    testPatterns: [
-      'test/**/*',
-      'tests/**/*',
-      '__tests__/**/*',
-      '**/*.test.*',
-      '**/*.spec.*',
-    ],
-    excludeDirs: [
-      'node_modules',
-      '.git',
-      'dist',
-      'build',
-      'coverage',
-      '__pycache__',
-      '.venv',
-      'venv',
-      'target',
-      'vendor',
-    ],
-    includeExtensions: [
-      '.ts',
-      '.tsx',
-      '.js',
-      '.jsx',
-      '.py',
-      '.java',
-      '.kt',
-      '.go',
-      '.rs',
-      '.cpp',
-      '.c',
-      '.h',
-      '.cs',
-      '.rb',
-      '.php',
-      '.swift',
-    ],
-    maxFiles: 10000,
-    maxFileSize: 5 * 1024 * 1024, // 5MB
-    analyzeDependencies: true,
-    detectPatterns: true,
-    calculateMetrics: true,
-    conventionSampleRatio: 0.1, // Sample 10% of files for convention detection
-  } as const;
+export const DEFAULT_CODEBASE_ANALYZER_CONFIG: Required<CodebaseAnalyzerConfig> = {
+  scratchpadBasePath: '.ad-sdlc/scratchpad',
+  sourcePatterns: ['src/**/*', 'lib/**/*', 'app/**/*'],
+  testPatterns: ['test/**/*', 'tests/**/*', '__tests__/**/*', '**/*.test.*', '**/*.spec.*'],
+  excludeDirs: [
+    'node_modules',
+    '.git',
+    'dist',
+    'build',
+    'coverage',
+    '__pycache__',
+    '.venv',
+    'venv',
+    'target',
+    'vendor',
+  ],
+  includeExtensions: [
+    '.ts',
+    '.tsx',
+    '.js',
+    '.jsx',
+    '.py',
+    '.java',
+    '.kt',
+    '.go',
+    '.rs',
+    '.cpp',
+    '.c',
+    '.h',
+    '.cs',
+    '.rb',
+    '.php',
+    '.swift',
+  ],
+  maxFiles: 10000,
+  maxFileSize: 5 * 1024 * 1024, // 5MB
+  analyzeDependencies: true,
+  detectPatterns: true,
+  calculateMetrics: true,
+  conventionSampleRatio: 0.1, // Sample 10% of files for convention detection
+} as const;
 
 /**
  * Codebase analysis result
