@@ -99,7 +99,32 @@ npm test -- --coverage
 
 # Run specific test file
 npm test -- path/to/test.spec.ts
+
+# Run E2E tests only
+npm run test:e2e
+
+# Run unit tests only
+npm test -- tests/controller
 ```
+
+#### Test Categories
+
+| Category | Location | Description |
+|----------|----------|-------------|
+| Unit Tests | `tests/{module}/` | Individual component testing |
+| E2E Tests | `tests/e2e/` | Full pipeline and integration testing |
+| Orchestration Tests | `tests/e2e/orchestration.e2e.test.ts` | Multi-agent coordination and parallel worker execution |
+
+#### Orchestration Tests
+
+The orchestration tests (`tests/e2e/orchestration.e2e.test.ts`) validate:
+
+- **Controller → Worker distribution**: Work order assignment and tracking
+- **State persistence**: Controller state save/restore between runs
+- **Parallel execution**: 3-5 concurrent workers without conflicts
+- **Resource contention**: Priority queue and concurrent access handling
+- **Deadlock prevention**: Interleaved operations without blocking
+- **Failure recovery**: Worker failure handling and task reassignment
 
 ## Pull Request Process
 
