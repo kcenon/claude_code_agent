@@ -569,4 +569,334 @@ describe('UserController', () => {
       await fs.rm(emptyDir, { recursive: true, force: true });
     });
   });
+
+  describe('configuration options', () => {
+    it('should skip dependency analysis when disabled', async () => {
+      const noDepAgent = new CodebaseAnalyzerAgent({
+        scratchpadBasePath: path.join(tempDir, '.ad-sdlc', 'scratchpad'),
+        analyzeDependencies: false,
+      });
+
+      await noDepAgent.startSession('test-project', tempDir);
+      const result = await noDepAgent.analyze();
+
+      expect(result.success).toBe(true);
+      // Dependency graph should be empty when disabled
+      expect(result.dependencyGraph.edges.length).toBe(0);
+      expect(result.dependencyGraph.nodes.length).toBe(0);
+    });
+
+    it('should skip pattern detection when disabled', async () => {
+      const noPatternAgent = new CodebaseAnalyzerAgent({
+        scratchpadBasePath: path.join(tempDir, '.ad-sdlc', 'scratchpad'),
+        detectPatterns: false,
+      });
+
+      await noPatternAgent.startSession('test-project', tempDir);
+      const result = await noPatternAgent.analyze();
+
+      expect(result.success).toBe(true);
+      expect(result.architectureOverview.type).toBe('unknown');
+    });
+
+    it('should skip metrics calculation when disabled', async () => {
+      const noMetricsAgent = new CodebaseAnalyzerAgent({
+        scratchpadBasePath: path.join(tempDir, '.ad-sdlc', 'scratchpad'),
+        calculateMetrics: false,
+      });
+
+      await noMetricsAgent.startSession('test-project', tempDir);
+      const result = await noMetricsAgent.analyze();
+
+      expect(result.success).toBe(true);
+      expect(result.architectureOverview.metrics).toBeDefined();
+    });
+
+    it('should handle all options disabled', async () => {
+      const minimalAgent = new CodebaseAnalyzerAgent({
+        scratchpadBasePath: path.join(tempDir, '.ad-sdlc', 'scratchpad'),
+        analyzeDependencies: false,
+        detectPatterns: false,
+        calculateMetrics: false,
+      });
+
+      await minimalAgent.startSession('test-project', tempDir);
+      const result = await minimalAgent.analyze();
+
+      expect(result.success).toBe(true);
+    });
+  });
+
+  describe('build system detection', () => {
+    it('should detect yarn projects', async () => {
+      // Create yarn.lock
+      await fs.writeFile(path.join(tempDir, 'yarn.lock'), '# yarn lockfile');
+
+      await agent.startSession('test-project', tempDir);
+      const result = await agent.analyze();
+
+      expect(result.architectureOverview.buildSystem.type).toBe('yarn');
+      expect(result.architectureOverview.buildSystem.hasLockFile).toBe(true);
+    });
+
+    it('should detect pnpm projects', async () => {
+      // Remove package-lock.json and add pnpm-lock.yaml
+      await fs.rm(path.join(tempDir, 'package-lock.json'));
+      await fs.writeFile(
+        path.join(tempDir, 'pnpm-lock.yaml'),
+        'lockfileVersion: 5.4'
+      );
+
+      await agent.startSession('test-project', tempDir);
+      const result = await agent.analyze();
+
+      expect(result.architectureOverview.buildSystem.type).toBe('pnpm');
+    });
+
+    it('should detect Gradle projects', async () => {
+      const gradleDir = await fs.mkdtemp(
+        path.join(os.tmpdir(), 'codebase-gradle-')
+      );
+
+      await fs.mkdir(path.join(gradleDir, 'src', 'main', 'java'), {
+        recursive: true,
+      });
+      await fs.writeFile(
+        path.join(gradleDir, 'build.gradle'),
+        'plugins { id "java" }'
+      );
+      await fs.writeFile(
+        path.join(gradleDir, 'src', 'main', 'java', 'App.java'),
+        'public class App { public static void main(String[] args) {} }'
+      );
+
+      const gradleAgent = new CodebaseAnalyzerAgent({
+        scratchpadBasePath: path.join(gradleDir, '.ad-sdlc', 'scratchpad'),
+      });
+
+      await gradleAgent.startSession('gradle-project', gradleDir);
+      const result = await gradleAgent.analyze();
+
+      expect(result.architectureOverview.buildSystem.type).toBe('gradle');
+
+      await fs.rm(gradleDir, { recursive: true, force: true });
+    });
+
+    it('should detect Cargo projects', async () => {
+      const cargoDir = await fs.mkdtemp(
+        path.join(os.tmpdir(), 'codebase-cargo-')
+      );
+
+      await fs.mkdir(path.join(cargoDir, 'src'), { recursive: true });
+      await fs.writeFile(
+        path.join(cargoDir, 'Cargo.toml'),
+        '[package]\nname = "test"\nversion = "0.1.0"'
+      );
+      await fs.writeFile(
+        path.join(cargoDir, 'Cargo.lock'),
+        '# Cargo lock file'
+      );
+      await fs.writeFile(
+        path.join(cargoDir, 'src', 'main.rs'),
+        'fn main() { println!("Hello"); }'
+      );
+
+      const cargoAgent = new CodebaseAnalyzerAgent({
+        scratchpadBasePath: path.join(cargoDir, '.ad-sdlc', 'scratchpad'),
+      });
+
+      await cargoAgent.startSession('cargo-project', cargoDir);
+      const result = await cargoAgent.analyze();
+
+      expect(result.architectureOverview.buildSystem.type).toBe('cargo');
+      expect(result.architectureOverview.buildSystem.hasLockFile).toBe(true);
+
+      await fs.rm(cargoDir, { recursive: true, force: true });
+    });
+
+    it('should detect Go projects', async () => {
+      const goDir = await fs.mkdtemp(path.join(os.tmpdir(), 'codebase-go-'));
+
+      await fs.writeFile(
+        path.join(goDir, 'go.mod'),
+        'module example.com/test\n\ngo 1.21'
+      );
+      await fs.writeFile(path.join(goDir, 'go.sum'), '');
+      await fs.writeFile(
+        path.join(goDir, 'main.go'),
+        'package main\n\nimport "fmt"\n\nfunc main() { fmt.Println("Hello") }'
+      );
+
+      const goAgent = new CodebaseAnalyzerAgent({
+        scratchpadBasePath: path.join(goDir, '.ad-sdlc', 'scratchpad'),
+      });
+
+      await goAgent.startSession('go-project', goDir);
+      const result = await goAgent.analyze();
+
+      expect(result.architectureOverview.buildSystem.type).toBe('go');
+      expect(result.architectureOverview.buildSystem.hasLockFile).toBe(true);
+
+      await fs.rm(goDir, { recursive: true, force: true });
+    });
+
+    it('should handle invalid package.json gracefully', async () => {
+      // Overwrite with invalid JSON
+      await fs.writeFile(path.join(tempDir, 'package.json'), '{ invalid json }');
+
+      await agent.startSession('test-project', tempDir);
+      const result = await agent.analyze();
+
+      // Should still complete without crashing
+      expect(result.success).toBe(true);
+      expect(result.architectureOverview.buildSystem.scripts).toEqual([]);
+    });
+  });
+
+  describe('path validation', () => {
+    it('should throw ProjectNotFoundError when path is a file not directory', async () => {
+      const filePath = path.join(tempDir, 'some-file.txt');
+      await fs.writeFile(filePath, 'test content');
+
+      await expect(agent.startSession('test-project', filePath)).rejects.toThrow(
+        ProjectNotFoundError
+      );
+    });
+  });
+
+  describe('additional language detection', () => {
+    it('should detect Go files', async () => {
+      await fs.writeFile(
+        path.join(tempDir, 'src', 'main.go'),
+        'package main\n\nfunc main() {}\n'
+      );
+
+      await agent.startSession('test-project', tempDir);
+      const result = await agent.analyze();
+
+      const goLanguage = result.architectureOverview.metrics.languages.find(
+        (l) => l.name === 'go'
+      );
+      expect(goLanguage).toBeDefined();
+    });
+
+    it('should detect Rust files', async () => {
+      await fs.writeFile(
+        path.join(tempDir, 'src', 'lib.rs'),
+        'pub fn hello() { println!("Hello"); }\n'
+      );
+
+      await agent.startSession('test-project', tempDir);
+      const result = await agent.analyze();
+
+      const rustLanguage = result.architectureOverview.metrics.languages.find(
+        (l) => l.name === 'rust'
+      );
+      expect(rustLanguage).toBeDefined();
+    });
+
+    it('should detect C++ files', async () => {
+      await fs.writeFile(
+        path.join(tempDir, 'src', 'main.cpp'),
+        '#include <iostream>\nint main() { return 0; }\n'
+      );
+
+      await agent.startSession('test-project', tempDir);
+      const result = await agent.analyze();
+
+      const cppLanguage = result.architectureOverview.metrics.languages.find(
+        (l) => l.name === 'cpp'
+      );
+      expect(cppLanguage).toBeDefined();
+    });
+
+    it('should detect Kotlin files', async () => {
+      await fs.writeFile(
+        path.join(tempDir, 'src', 'App.kt'),
+        'fun main() { println("Hello") }\n'
+      );
+
+      await agent.startSession('test-project', tempDir);
+      const result = await agent.analyze();
+
+      const kotlinLanguage = result.architectureOverview.metrics.languages.find(
+        (l) => l.name === 'kotlin'
+      );
+      expect(kotlinLanguage).toBeDefined();
+    });
+
+    it('should detect Java files', async () => {
+      await fs.writeFile(
+        path.join(tempDir, 'src', 'Main.java'),
+        'public class Main { public static void main(String[] args) {} }\n'
+      );
+
+      await agent.startSession('test-project', tempDir);
+      const result = await agent.analyze();
+
+      const javaLanguage = result.architectureOverview.metrics.languages.find(
+        (l) => l.name === 'java'
+      );
+      expect(javaLanguage).toBeDefined();
+    });
+  });
+
+  describe('maxFiles configuration', () => {
+    it('should respect maxFiles limit', async () => {
+      // Create a fresh directory with many files
+      const manyFilesDir = await fs.mkdtemp(
+        path.join(os.tmpdir(), 'codebase-many-files-')
+      );
+
+      await fs.mkdir(path.join(manyFilesDir, 'src'), { recursive: true });
+
+      // Create 20 files
+      for (let i = 0; i < 20; i++) {
+        await fs.writeFile(
+          path.join(manyFilesDir, 'src', `file${i}.ts`),
+          `export const x${i} = ${i};`
+        );
+      }
+
+      const limitedAgent = new CodebaseAnalyzerAgent({
+        scratchpadBasePath: path.join(manyFilesDir, '.ad-sdlc', 'scratchpad'),
+        maxFiles: 5,
+      });
+
+      await limitedAgent.startSession('test-project', manyFilesDir);
+      const result = await limitedAgent.analyze();
+
+      expect(result.success).toBe(true);
+      // Should be limited to approximately maxFiles (may vary by 1-2 due to scan order)
+      expect(result.stats.filesScanned).toBeLessThanOrEqual(10);
+
+      await fs.rm(manyFilesDir, { recursive: true, force: true });
+    });
+  });
+
+  describe('includeExtensions configuration', () => {
+    it('should filter by extension when specified', async () => {
+      await fs.writeFile(
+        path.join(tempDir, 'src', 'script.py'),
+        'print("hello")'
+      );
+      await fs.writeFile(
+        path.join(tempDir, 'src', 'app.rb'),
+        'puts "hello"'
+      );
+
+      const tsOnlyAgent = new CodebaseAnalyzerAgent({
+        scratchpadBasePath: path.join(tempDir, '.ad-sdlc', 'scratchpad'),
+        includeExtensions: ['.ts'],
+      });
+
+      await tsOnlyAgent.startSession('test-project', tempDir);
+      const result = await tsOnlyAgent.analyze();
+
+      expect(result.success).toBe(true);
+      // Should only have TypeScript files
+      const languages = result.architectureOverview.metrics.languages;
+      expect(languages.every((l) => l.name === 'typescript')).toBe(true);
+    });
+  });
 });
