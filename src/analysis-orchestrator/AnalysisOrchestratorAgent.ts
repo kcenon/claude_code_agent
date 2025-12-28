@@ -54,6 +54,17 @@ async function loadYaml(): Promise<void> {
 }
 
 /**
+ * Safely converts an unknown value to a string.
+ * Returns empty string for objects to avoid [object Object] output.
+ */
+function toSafeString(value: unknown, defaultValue: string = ''): string {
+  if (value === null || value === undefined) return defaultValue;
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  return defaultValue;
+}
+
+/**
  * Analysis Orchestrator Agent class
  *
  * Responsible for:
@@ -746,7 +757,7 @@ export class AnalysisOrchestratorAgent {
 
     const documentAnalysis: DocumentAnalysisSummary = {
       available: documentResult?.success ?? false,
-      summary: documentResult?.success ? 'Document analysis completed' : null,
+      summary: documentResult?.success === true ? 'Document analysis completed' : null,
       outputPath: documentResult?.outputPath ?? null,
       documentCount: 0,
       requirementCount: 0,
@@ -754,7 +765,7 @@ export class AnalysisOrchestratorAgent {
 
     const codeAnalysis: CodeAnalysisSummary = {
       available: codeResult?.success ?? false,
-      summary: codeResult?.success ? 'Code analysis completed' : null,
+      summary: codeResult?.success === true ? 'Code analysis completed' : null,
       outputPath: codeResult?.outputPath ?? null,
       moduleCount: 0,
       fileCount: 0,
@@ -989,18 +1000,22 @@ export class AnalysisOrchestratorAgent {
     // Type guard for the parsed data
     const parsed = data as Record<string, unknown>;
     return {
-      analysisId: String(parsed['analysis_id'] ?? ''),
-      projectId: String(parsed['project_id'] ?? ''),
-      projectPath: String(parsed['project_path'] ?? ''),
-      startedAt: String(parsed['started_at'] ?? ''),
-      updatedAt: String(parsed['updated_at'] ?? ''),
-      overallStatus: String(parsed['overall_status'] ?? 'pending') as PipelineStatus,
-      scope: String(parsed['scope'] ?? 'full') as AnalysisScope,
+      analysisId: toSafeString(parsed['analysis_id']),
+      projectId: toSafeString(parsed['project_id']),
+      projectPath: toSafeString(parsed['project_path']),
+      startedAt: toSafeString(parsed['started_at']),
+      updatedAt: toSafeString(parsed['updated_at']),
+      overallStatus: toSafeString(parsed['overall_status'], 'pending') as PipelineStatus,
+      scope: toSafeString(parsed['scope'], 'full') as AnalysisScope,
       generateIssues: Boolean(parsed['generate_issues']),
       stages: this.parseStages(parsed['stages']),
       statistics: this.parseStatistics(parsed['statistics']),
-      warnings: Array.isArray(parsed['warnings']) ? parsed['warnings'].map(String) : [],
-      errors: Array.isArray(parsed['errors']) ? parsed['errors'].map(String) : [],
+      warnings: Array.isArray(parsed['warnings'])
+        ? parsed['warnings'].map((w) => toSafeString(w))
+        : [],
+      errors: Array.isArray(parsed['errors'])
+        ? parsed['errors'].map((e) => toSafeString(e))
+        : [],
     };
   }
 
@@ -1010,13 +1025,20 @@ export class AnalysisOrchestratorAgent {
     }
     return data.map((s: unknown) => {
       const stage = s as Record<string, unknown>;
+      const startedAt = stage['started_at'];
+      const completedAt = stage['completed_at'];
+      const outputPath = stage['output_path'];
+      const error = stage['error'];
       return {
-        name: String(stage['name'] ?? '') as PipelineStageName,
-        status: String(stage['status'] ?? 'pending') as PipelineStage['status'],
-        startedAt: stage['started_at'] !== null ? String(stage['started_at']) : null,
-        completedAt: stage['completed_at'] !== null ? String(stage['completed_at']) : null,
-        outputPath: stage['output_path'] !== null ? String(stage['output_path']) : null,
-        error: stage['error'] !== null ? String(stage['error']) : null,
+        name: toSafeString(stage['name']) as PipelineStageName,
+        status: toSafeString(stage['status'], 'pending') as PipelineStage['status'],
+        startedAt:
+          startedAt !== null && startedAt !== undefined ? toSafeString(startedAt) : null,
+        completedAt:
+          completedAt !== null && completedAt !== undefined ? toSafeString(completedAt) : null,
+        outputPath:
+          outputPath !== null && outputPath !== undefined ? toSafeString(outputPath) : null,
+        error: error !== null && error !== undefined ? toSafeString(error) : null,
         retryCount: Number(stage['retry_count'] ?? 0),
       };
     });
