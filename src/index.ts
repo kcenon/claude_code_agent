@@ -585,3 +585,56 @@ export type {
   TraceabilityAnalysis,
   TraceabilityStats,
 } from './sds-writer/index.js';
+
+// Re-export document-reader module (with explicit handling of conflicts)
+export {
+  DocumentReaderAgent,
+  getDocumentReaderAgent,
+  resetDocumentReaderAgent,
+  DocumentReaderError,
+  DocumentNotFoundError as DocReaderDocumentNotFoundError,
+  DocumentParseError,
+  InvalidRequirementIdError,
+  UnsupportedFormatError,
+  ExtractionError as DocReaderExtractionError,
+  TraceabilityError as DocReaderTraceabilityError,
+  NoActiveSessionError,
+  InvalidSessionStateError,
+  FileSizeLimitError,
+  OutputWriteError as DocReaderOutputWriteError,
+  DEFAULT_DOCUMENT_READER_CONFIG,
+} from './document-reader/index.js';
+
+export type {
+  // Configuration
+  DocumentReaderConfig,
+  // Session and Result types
+  DocumentReadingSession,
+  DocumentReadingResult,
+  DocumentReadingStats,
+  // Document types (with alias for DocumentType to avoid conflict)
+  DocumentType as DocReaderDocumentType,
+  ParsedDocument,
+  DocumentMetadata,
+  DocumentSection,
+  DocumentInfo,
+  // Requirement types (with aliases to avoid conflicts)
+  FunctionalRequirement as DocReaderFunctionalRequirement,
+  NonFunctionalRequirement as DocReaderNonFunctionalRequirement,
+  RequirementStatus,
+  RequirementPriority,
+  NFRCategory as DocReaderNFRCategory,
+  // Feature types
+  SystemFeature,
+  UseCase as DocReaderUseCase,
+  // Component types
+  SystemComponent,
+  ComponentType as DocReaderComponentType,
+  APISpecification,
+  // Traceability types
+  PRDToSRSTrace,
+  SRSToSDSTrace,
+  // State types
+  CurrentState,
+  SessionStatus,
+} from './document-reader/index.js';
