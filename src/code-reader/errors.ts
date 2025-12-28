@@ -52,7 +52,9 @@ export class ParseError extends CodeReaderError {
 
   constructor(path: string, reason: string, line?: number, column?: number) {
     const locationInfo =
-      line !== undefined ? ` at line ${String(line)}${column !== undefined ? `:${String(column)}` : ''}` : '';
+      line !== undefined
+        ? ` at line ${String(line)}${column !== undefined ? `:${String(column)}` : ''}`
+        : '';
     super(`Failed to parse ${path}${locationInfo}: ${reason}`);
     this.name = 'ParseError';
     this.path = path;

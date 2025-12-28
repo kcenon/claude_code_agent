@@ -146,9 +146,9 @@ export class CodeReaderAgent {
       const sourceFiles = await this.discoverSourceFiles(sourceRootPath);
 
       // Check for too many parse errors (category 1 = Error)
-      const parseErrors = this.project.getPreEmitDiagnostics().filter(
-        (d) => (d.getCategory() as number) === 1
-      );
+      const parseErrors = this.project
+        .getPreEmitDiagnostics()
+        .filter((d) => (d.getCategory() as number) === 1);
       if (parseErrors.length > sourceFiles.length * 0.5) {
         throw new TooManyParseErrorsError(parseErrors.length, sourceFiles.length, 0.5);
       }
@@ -268,9 +268,7 @@ export class CodeReaderAgent {
     const sourceFiles: SourceFile[] = [];
 
     // Build glob patterns
-    const includePatterns = this.config.includePatterns.map((p) =>
-      path.join(sourceRootPath, p)
-    );
+    const includePatterns = this.config.includePatterns.map((p) => path.join(sourceRootPath, p));
 
     // Add files matching patterns
     const project = this.project;
@@ -342,7 +340,7 @@ export class CodeReaderAgent {
       const parts = relativePath.split(path.sep);
 
       // Module name is the first directory level, or 'root' for files directly in source root
-      const moduleName = parts.length > 1 ? parts[0] ?? 'root' : 'root';
+      const moduleName = parts.length > 1 ? (parts[0] ?? 'root') : 'root';
 
       const files = moduleMap.get(moduleName) ?? [];
       files.push(file);
@@ -638,7 +636,16 @@ export class CodeReaderAgent {
   }
 
   private getJsDocDescription(
-    node: ClassDeclaration | MethodDeclaration | MethodSignature | PropertyDeclaration | PropertySignature | FunctionDeclaration | InterfaceDeclaration | TypeAliasDeclaration | EnumDeclaration
+    node:
+      | ClassDeclaration
+      | MethodDeclaration
+      | MethodSignature
+      | PropertyDeclaration
+      | PropertySignature
+      | FunctionDeclaration
+      | InterfaceDeclaration
+      | TypeAliasDeclaration
+      | EnumDeclaration
   ): string | undefined {
     if (!this.config.includeComments) return undefined;
 
@@ -687,7 +694,11 @@ export class CodeReaderAgent {
           if (targetModule !== null && targetModule !== module.name) {
             const existing = internalDeps.get(targetModule) ?? [];
             existing.push(...imp.items);
-            if (imp.hasDefaultImport && imp.defaultImportName !== undefined && imp.defaultImportName.length > 0) {
+            if (
+              imp.hasDefaultImport &&
+              imp.defaultImportName !== undefined &&
+              imp.defaultImportName.length > 0
+            ) {
               existing.push(imp.defaultImportName);
             }
             internalDeps.set(targetModule, existing);
@@ -775,7 +786,11 @@ export class CodeReaderAgent {
       const targetParts = parts.filter((p) => p !== '.' && p !== '..');
       if (targetParts.length > 0) {
         const targetModule = targetParts[0];
-        if (targetModule !== undefined && targetModule.length > 0 && moduleNames.has(targetModule)) {
+        if (
+          targetModule !== undefined &&
+          targetModule.length > 0 &&
+          moduleNames.has(targetModule)
+        ) {
           return targetModule;
         }
       }
