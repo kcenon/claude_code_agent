@@ -153,20 +153,27 @@ Quality Gates:
     - tests_pass: true
     - build_pass: true
     - lint_pass: true
+    - typescript_check: true      # TypeScript type checking
     - no_critical_security: true
+    - no_dependency_vulns: true   # npm audit (high/critical)
+    - no_path_traversal: true     # Path traversal vulnerabilities
     - code_coverage: ">= 80%"
     - no_critical_issues: true
 
   recommended:  # Warning if not met
     - no_major_issues: true
     - new_lines_coverage: ">= 90%"
-    - complexity_score: "<= 10"
+    - complexity_score: "<= 10"   # Per-function cyclomatic complexity
     - no_style_violations: true
+    - no_magic_numbers: true      # Use named constants
+    - no_god_classes: true        # Classes < 20 methods, < 500 lines
+    - no_code_duplication: true   # No duplicate code blocks
 
   informational:  # For reporting
     - test_count
     - lines_changed
     - files_changed
+    - security_issues_count
 ```
 
 ## Review Comment Severities
@@ -186,6 +193,8 @@ Quality Gates:
 - [ ] SQL injection protection
 - [ ] XSS prevention
 - [ ] Proper authentication/authorization
+- [ ] No path traversal vulnerabilities
+- [ ] Dependency vulnerability check passed (npm audit)
 
 ### Quality
 - [ ] Follows SOLID principles
@@ -193,6 +202,13 @@ Quality Gates:
 - [ ] Functions are focused (single responsibility)
 - [ ] Error handling is comprehensive
 - [ ] Logging is appropriate
+- [ ] No magic numbers (use named constants)
+- [ ] No god classes (excessive methods/lines)
+
+### Static Analysis
+- [ ] TypeScript type checking passed
+- [ ] Cyclomatic complexity ≤ 10 per function
+- [ ] No anti-patterns detected
 
 ### Testing
 - [ ] Unit tests cover happy path

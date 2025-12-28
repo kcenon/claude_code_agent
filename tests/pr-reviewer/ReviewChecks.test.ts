@@ -529,4 +529,247 @@ describe('ReviewChecks', () => {
       expect(result.checklist).toBeDefined();
     });
   });
+
+  describe('cyclomatic complexity analysis', () => {
+    it('should detect high cyclomatic complexity functions', async () => {
+      const checks = new ReviewChecks({
+        projectRoot: testDir,
+        enableTestingChecks: false,
+        enableStaticAnalysis: true,
+        enableDependencyCheck: false,
+        maxComplexity: 5, // Lower threshold to trigger detection
+      });
+
+      await setupTestFile('src/complex.ts', `
+        function highComplexity(a: number, b: number, c: number) {
+          if (a > 0) {
+            if (b > 0) {
+              if (c > 0) {
+                for (let i = 0; i < a; i++) {
+                  while (b > 0) {
+                    if (c && a) {
+                      b--;
+                    }
+                  }
+                }
+              }
+            }
+          }
+          return a || b || c;
+        }
+      `);
+
+      const changes: FileChange[] = [
+        createFileChange({ filePath: 'src/complex.ts' }),
+      ];
+
+      const result = await checks.runAllChecks(changes);
+
+      const complexityComments = result.comments.filter((c) =>
+        c.comment.toLowerCase().includes('complexity')
+      );
+      expect(complexityComments.length).toBeGreaterThan(0);
+    }, 15000);
+
+    it('should not flag simple functions', async () => {
+      const checks = new ReviewChecks({
+        projectRoot: testDir,
+        enableTestingChecks: false,
+        enableStaticAnalysis: true,
+        enableDependencyCheck: false,
+        maxComplexity: 10,
+      });
+
+      await setupTestFile('src/simple.ts', `
+        function add(a: number, b: number): number {
+          return a + b;
+        }
+      `);
+
+      const changes: FileChange[] = [
+        createFileChange({ filePath: 'src/simple.ts' }),
+      ];
+
+      const result = await checks.runAllChecks(changes);
+
+      const complexityComments = result.comments.filter((c) =>
+        c.comment.toLowerCase().includes('complexity') && c.file === 'src/simple.ts'
+      );
+      expect(complexityComments.length).toBe(0);
+    }, 15000);
+  });
+
+  describe('anti-pattern detection', () => {
+    it('should detect magic numbers', async () => {
+      const checks = new ReviewChecks({
+        projectRoot: testDir,
+        enableTestingChecks: false,
+        enableStaticAnalysis: false,
+        enableDependencyCheck: false,
+      });
+
+      await setupTestFile('src/magic.ts', `
+        function calculateDiscount(price: number) {
+          if (price > 50) {
+            return price * 15;
+          }
+          return price * 5;
+        }
+      `);
+
+      const changes: FileChange[] = [
+        createFileChange({ filePath: 'src/magic.ts' }),
+      ];
+
+      const result = await checks.runAllChecks(changes);
+
+      const magicComments = result.comments.filter((c) =>
+        c.comment.toLowerCase().includes('magic number')
+      );
+      expect(magicComments.length).toBeGreaterThan(0);
+      expect(magicComments.some((c) => c.severity === 'suggestion')).toBe(true);
+    }, 15000);
+
+    it('should skip test files for magic number detection', async () => {
+      const checks = new ReviewChecks({
+        projectRoot: testDir,
+        enableTestingChecks: false,
+        enableStaticAnalysis: false,
+        enableDependencyCheck: false,
+      });
+
+      await setupTestFile('src/example.test.ts', `
+        describe('test', () => {
+          it('should work', () => {
+            expect(calculate(42)).toBe(84);
+          });
+        });
+      `);
+
+      const changes: FileChange[] = [
+        createFileChange({ filePath: 'src/example.test.ts' }),
+      ];
+
+      const result = await checks.runAllChecks(changes);
+
+      const magicComments = result.comments.filter(
+        (c) =>
+          c.comment.toLowerCase().includes('magic number') &&
+          c.file === 'src/example.test.ts'
+      );
+      expect(magicComments.length).toBe(0);
+    }, 15000);
+
+    it('should detect path traversal vulnerabilities', async () => {
+      const checks = new ReviewChecks({
+        projectRoot: testDir,
+        enableTestingChecks: false,
+        enableStaticAnalysis: false,
+        enableDependencyCheck: false,
+      });
+
+      await setupTestFile('src/file.ts', `
+        import * as path from 'path';
+        import * as fs from 'fs';
+
+        function getFile(req: Request) {
+          const filePath = path.join('/uploads', req.body.filename);
+          return fs.readFileSync(filePath);
+        }
+      `);
+
+      const changes: FileChange[] = [
+        createFileChange({ filePath: 'src/file.ts' }),
+      ];
+
+      const result = await checks.runAllChecks(changes);
+
+      const pathComments = result.comments.filter((c) =>
+        c.comment.toLowerCase().includes('path traversal')
+      );
+      expect(pathComments.length).toBeGreaterThan(0);
+      expect(pathComments.some((c) => c.severity === 'critical')).toBe(true);
+    }, 15000);
+
+    it('should detect god class pattern', async () => {
+      const checks = new ReviewChecks({
+        projectRoot: testDir,
+        enableTestingChecks: false,
+        enableStaticAnalysis: false,
+        enableDependencyCheck: false,
+      });
+
+      // Create class with more than 20 methods
+      let classContent = 'export class GodClass {\n';
+      for (let i = 0; i < 25; i++) {
+        classContent += `  public method${i}(): void { console.log(${i}); }\n`;
+      }
+      classContent += '}\n';
+
+      await setupTestFile('src/god.ts', classContent);
+
+      const changes: FileChange[] = [
+        createFileChange({ filePath: 'src/god.ts' }),
+      ];
+
+      const result = await checks.runAllChecks(changes);
+
+      const godClassComments = result.comments.filter((c) =>
+        c.comment.toLowerCase().includes('god class')
+      );
+      expect(godClassComments.length).toBeGreaterThan(0);
+    }, 15000);
+  });
+
+  describe('dependency vulnerability check', () => {
+    it('should include dependency vulnerability check in security checklist', async () => {
+      const checks = new ReviewChecks({
+        projectRoot: testDir,
+        enableTestingChecks: false,
+        enableStaticAnalysis: false,
+        enableDependencyCheck: true,
+      });
+
+      await setupTestFile('src/test.ts', 'export const x = 1;');
+
+      const changes: FileChange[] = [
+        createFileChange({ filePath: 'src/test.ts' }),
+      ];
+
+      const result = await checks.runAllChecks(changes);
+
+      // Check that dependency vulnerability check is included in security checklist
+      const depCheck = result.checklist.security.find((item) =>
+        item.name.toLowerCase().includes('dependency') ||
+        item.name.toLowerCase().includes('vulnerabilities')
+      );
+      expect(depCheck).toBeDefined();
+    }, 30000);
+  });
+
+  describe('duplicate code detection', () => {
+    it('should include duplicate code check in quality checklist', async () => {
+      const checks = new ReviewChecks({
+        projectRoot: testDir,
+        enableTestingChecks: false,
+        enableStaticAnalysis: false,
+        enableDependencyCheck: false,
+      });
+
+      await setupTestFile('src/test.ts', 'export const x = 1;');
+
+      const changes: FileChange[] = [
+        createFileChange({ filePath: 'src/test.ts' }),
+      ];
+
+      const result = await checks.runAllChecks(changes);
+
+      // Check that duplicate code check is included
+      const dupCheck = result.checklist.quality.find((item) =>
+        item.name.toLowerCase().includes('duplication') ||
+        item.name.toLowerCase().includes('duplicate')
+      );
+      expect(dupCheck).toBeDefined();
+    }, 15000);
+  });
 });

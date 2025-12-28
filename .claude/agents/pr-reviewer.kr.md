@@ -153,20 +153,27 @@ Quality Gates:
     - tests_pass: true
     - build_pass: true
     - lint_pass: true
+    - typescript_check: true      # TypeScript 타입 체크
     - no_critical_security: true
+    - no_dependency_vulns: true   # npm audit (high/critical)
+    - no_path_traversal: true     # 경로 탐색 취약점
     - code_coverage: ">= 80%"
     - no_critical_issues: true
 
   recommended:  # 미충족 시 경고
     - no_major_issues: true
     - new_lines_coverage: ">= 90%"
-    - complexity_score: "<= 10"
+    - complexity_score: "<= 10"   # 함수별 순환 복잡도
     - no_style_violations: true
+    - no_magic_numbers: true      # 명명된 상수 사용
+    - no_god_classes: true        # 클래스 < 20 메서드, < 500 라인
+    - no_code_duplication: true   # 중복 코드 블록 없음
 
   informational:  # 보고용
     - test_count
     - lines_changed
     - files_changed
+    - security_issues_count
 ```
 
 ## 리뷰 코멘트 심각도
@@ -186,6 +193,8 @@ Quality Gates:
 - [ ] SQL 인젝션 보호
 - [ ] XSS 방지
 - [ ] 적절한 인증/권한 부여
+- [ ] 경로 탐색 취약점 없음
+- [ ] 의존성 취약점 검사 통과 (npm audit)
 
 ### 품질
 - [ ] SOLID 원칙 준수
@@ -193,6 +202,13 @@ Quality Gates:
 - [ ] 함수가 집중됨 (단일 책임)
 - [ ] 오류 처리가 포괄적
 - [ ] 로깅이 적절함
+- [ ] 매직 넘버 없음 (명명된 상수 사용)
+- [ ] 갓 클래스 없음 (과도한 메서드/라인)
+
+### 정적 분석
+- [ ] TypeScript 타입 체크 통과
+- [ ] 순환 복잡도 ≤ 함수당 10
+- [ ] 안티 패턴 미감지
 
 ### 테스트
 - [ ] 단위 테스트가 해피 패스 커버
