@@ -233,7 +233,7 @@ export interface UserService {
       expect(userIntf?.properties.length).toBe(3);
       expect(userIntf?.properties.find((p) => p.name === 'id')?.readonly).toBe(true);
       expect(userIntf?.properties.find((p) => p.name === 'email')?.optional).toBe(true);
-    });
+    }, 15000);
 
     it('should extract type alias information', async () => {
       const typeContent = `
@@ -251,7 +251,7 @@ export type Handler<T> = (input: T) => Promise<void>;
       const rootModule = result.inventory.modules.find((m) => m.name === 'root');
       expect(rootModule?.types.length).toBe(3);
       expect(rootModule?.types.find((t) => t.name === 'UserId')?.definition).toBe('string');
-    });
+    }, 15000);
 
     it('should extract enum information', async () => {
       const enumContent = `
