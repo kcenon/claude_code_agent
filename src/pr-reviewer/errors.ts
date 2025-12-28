@@ -299,6 +299,19 @@ export class BranchNotFoundError extends PRReviewerError {
   }
 }
 
+/**
+ * Error when branch naming convention is invalid
+ */
+export class BranchNamingError extends PRReviewerError {
+  public readonly branch: string;
+
+  constructor(branch: string, reason: string) {
+    super(`Invalid branch naming: ${branch}. ${reason}`, 'BRANCH_NAMING_ERROR');
+    this.name = 'BranchNamingError';
+    this.branch = branch;
+  }
+}
+
 // ============================================================================
 // Command Execution Errors
 // ============================================================================

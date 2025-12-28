@@ -18,6 +18,7 @@ export default defineConfig({
         'src/config/loader.ts', // File system operations - tested via E2E
         'src/config/watcher.ts', // CLI watch mode - tested via E2E
         'src/pr-reviewer/PRReviewerAgent.ts', // GitHub CLI operations - tested via E2E/integration
+        'src/pr-reviewer/PRCreator.ts', // GitHub CLI operations (gh pr create/list) - tested via E2E/integration
       ],
       thresholds: {
         lines: 80,

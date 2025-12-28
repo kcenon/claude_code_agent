@@ -425,5 +425,69 @@ export interface GitHubPRInfo {
   }[];
 }
 
+// ============================================================================
+// PR Creator Types (UC-014)
+// ============================================================================
+
+/**
+ * PR Creator configuration
+ */
+export interface PRCreatorConfig {
+  /** Project root directory */
+  readonly projectRoot?: string;
+  /** Base branch for PRs (default: 'main') */
+  readonly baseBranch?: string;
+  /** Enable draft PR creation (default: true) */
+  readonly enableDraftPR?: boolean;
+  /** Coverage threshold below which PR is created as draft (default: 70) */
+  readonly draftThreshold?: number;
+  /** Automatically assign labels based on changes (default: true) */
+  readonly autoAssignLabels?: boolean;
+  /** Label mapping for branch prefixes */
+  readonly labelMapping?: Record<string, readonly string[]>;
+  /** Custom PR template path (null for default) */
+  readonly prTemplate?: string | null;
+}
+
+/**
+ * Branch validation result
+ */
+export interface BranchValidationResult {
+  /** Whether the branch name is valid */
+  readonly valid: boolean;
+  /** Branch prefix (feature, fix, etc.) */
+  readonly prefix?: string | undefined;
+  /** Issue number if present */
+  readonly issueNumber?: string | undefined;
+  /** Description part of branch name */
+  readonly description?: string | undefined;
+  /** Validation failure reason */
+  readonly reason?: string | undefined;
+}
+
+/**
+ * Label inference result
+ */
+export interface LabelInferenceResult {
+  /** Inferred labels */
+  readonly labels: readonly string[];
+  /** Reasons for each label */
+  readonly reasons: readonly string[];
+}
+
+/**
+ * PR creation result
+ */
+export interface PRCreateResult {
+  /** Created pull request */
+  readonly pullRequest: PullRequest;
+  /** Whether PR was newly created (false if existing) */
+  readonly created: boolean;
+  /** Labels applied to PR */
+  readonly labels: readonly string[];
+  /** Whether PR was created as draft */
+  readonly isDraft: boolean;
+}
+
 // Re-export types from worker for convenience
 export type { ImplementationResult, FileChange } from '../worker/types.js';
