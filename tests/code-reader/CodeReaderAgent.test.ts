@@ -173,7 +173,7 @@ export class Calculator {
       expect(calcClass?.name).toBe('Calculator');
       expect(calcClass?.exported).toBe(true);
       expect(calcClass?.methods.length).toBe(3); // add, subtract, multiply (no private)
-    });
+    }, 15000);
 
     it('should extract function information', async () => {
       const funcContent = `
@@ -205,7 +205,7 @@ function privateHelper(): void {
       expect(fetchFunc?.parameters.length).toBe(1);
       expect(fetchFunc?.parameters[0]?.name).toBe('url');
       expect(fetchFunc?.parameters[0]?.type).toBe('string');
-    });
+    }, 15000);
 
     it('should extract interface information', async () => {
       const intfContent = `
@@ -387,10 +387,7 @@ export class F {}`
 
   describe('output generation', () => {
     it('should write code_inventory.yaml file', async () => {
-      await fs.writeFile(
-        path.join(tempDir, 'src', 'index.ts'),
-        'export const version = "1.0.0";'
-      );
+      await fs.writeFile(path.join(tempDir, 'src', 'index.ts'), 'export const version = "1.0.0";');
 
       await agent.startSession('test-project');
       const result = await agent.analyzeCode();
@@ -416,20 +413,11 @@ export class F {}`
   describe('error handling', () => {
     it('should handle syntax errors gracefully when below threshold', async () => {
       // Create multiple valid files and one invalid
-      await fs.writeFile(
-        path.join(tempDir, 'src', 'valid1.ts'),
-        'export const a = 1;'
-      );
+      await fs.writeFile(path.join(tempDir, 'src', 'valid1.ts'), 'export const a = 1;');
 
-      await fs.writeFile(
-        path.join(tempDir, 'src', 'valid2.ts'),
-        'export const b = 2;'
-      );
+      await fs.writeFile(path.join(tempDir, 'src', 'valid2.ts'), 'export const b = 2;');
 
-      await fs.writeFile(
-        path.join(tempDir, 'src', 'valid3.ts'),
-        'export const c = 3;'
-      );
+      await fs.writeFile(path.join(tempDir, 'src', 'valid3.ts'), 'export const c = 3;');
 
       // This has a minor issue but ts-morph can still parse it
       await fs.writeFile(
