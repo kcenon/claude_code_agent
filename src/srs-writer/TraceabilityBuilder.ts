@@ -5,7 +5,6 @@
  * and SRS features/use cases. Ensures complete coverage and identifies gaps.
  */
 
-import type { SRSFeature, SRSUseCase } from '../architecture-generator/types.js';
 import type {
   ParsedPRD,
   ParsedPRDRequirement,

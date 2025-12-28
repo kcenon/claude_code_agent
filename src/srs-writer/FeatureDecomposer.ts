@@ -10,7 +10,6 @@ import type {
   ParsedPRD,
   ParsedPRDRequirement,
   FeatureDecompositionResult,
-  Priority,
 } from './types.js';
 import { FeatureDecompositionError } from './errors.js';
 
@@ -324,7 +323,7 @@ export class FeatureDecomposer {
    */
   private createPrimaryUseCase(
     requirement: ParsedPRDRequirement,
-    featureId: string,
+    _featureId: string,
     actor: string
   ): SRSUseCase {
     const ucId = `UC-${String(this.useCaseCounter).padStart(3, '0')}`;
@@ -358,7 +357,7 @@ export class FeatureDecomposer {
    */
   private createUseCasesFromCriteria(
     criteria: readonly string[],
-    featureId: string,
+    _featureId: string,
     actor: string
   ): SRSUseCase[] {
     const useCases: SRSUseCase[] = [];
@@ -392,7 +391,7 @@ export class FeatureDecomposer {
    */
   private generateUseCasesFromSegment(
     segment: { name: string; description: string; criteria: string[] },
-    featureId: string,
+    _featureId: string,
     actors: readonly string[]
   ): SRSUseCase[] {
     this.useCaseCounter++;
@@ -460,8 +459,9 @@ export class FeatureDecomposer {
     const postconditions: string[] = [];
 
     // Derive from acceptance criteria
-    if (requirement.acceptanceCriteria.length > 0) {
-      postconditions.push(requirement.acceptanceCriteria[0]);
+    const firstCriterion = requirement.acceptanceCriteria[0];
+    if (firstCriterion !== undefined) {
+      postconditions.push(firstCriterion);
     } else {
       postconditions.push(`${requirement.title} is completed successfully`);
     }
@@ -507,7 +507,7 @@ export class FeatureDecomposer {
     const match = criterion.match(
       /(?:user\s+)?(?:can|should|must)\s+(.+?)(?:\.|,|when|if|$)/i
     );
-    if (match !== null) {
+    if (match !== null && match[1] !== undefined) {
       return this.generateUseCaseName(match[1]);
     }
     return criterion.slice(0, 50).trim();

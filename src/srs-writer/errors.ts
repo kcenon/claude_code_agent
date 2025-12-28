@@ -39,7 +39,7 @@ export class PRDParseError extends SRSWriterError {
   /** The section where parsing failed */
   public readonly section: string;
   /** Line number if available */
-  public readonly lineNumber?: number;
+  public readonly lineNumber: number | undefined;
 
   constructor(section: string, reason: string, lineNumber?: number) {
     const lineInfo = lineNumber !== undefined ? ` at line ${String(lineNumber)}` : '';

@@ -16,7 +16,6 @@ import type {
   PRDDocumentMetadata,
   Priority,
 } from './types.js';
-import { PRDParseError } from './errors.js';
 
 /**
  * PRD Parser options
@@ -103,7 +102,7 @@ export class PRDParser {
   private extractProductName(content: string): string {
     // Try from title (# PRD: Product Name)
     const titleMatch = content.match(/^#\s*(?:PRD:?\s*)?(.+)$/m);
-    if (titleMatch !== null) {
+    if (titleMatch !== null && titleMatch[1] !== undefined) {
       const title = titleMatch[1].trim();
       // Remove "PRD" prefix if present
       return title.replace(/^PRD[:\s-]*\s*/i, '').trim();
@@ -111,7 +110,7 @@ export class PRDParser {
 
     // Try from metadata table
     const productMatch = content.match(/\|\s*Product\s*(?:Name)?\s*\|\s*([^|]+)\s*\|/i);
-    if (productMatch !== null) {
+    if (productMatch !== null && productMatch[1] !== undefined) {
       return productMatch[1].trim();
     }
 
@@ -126,10 +125,11 @@ export class PRDParser {
     const summaryMatch = content.match(
       /##\s*(?:Executive\s*Summary|Product\s*Overview|1\.\s*Introduction)\s*\n+([\s\S]*?)(?=\n##|\n#\s|$)/i
     );
-    if (summaryMatch !== null) {
+    if (summaryMatch !== null && summaryMatch[1] !== undefined) {
       // Get first paragraph
       const paragraphs = summaryMatch[1].trim().split(/\n\n+/);
-      return paragraphs[0]?.replace(/^#+\s*/gm, '').trim() ?? '';
+      const firstParagraph = paragraphs[0];
+      return firstParagraph !== undefined ? firstParagraph.replace(/^#+\s*/gm, '').trim() : '';
     }
 
     return '';
@@ -147,21 +147,26 @@ export class PRDParser {
     let match: RegExpExecArray | null;
     while ((match = frPattern.exec(content)) !== null) {
       const id = match[1];
-      const title = match[2].trim();
+      const title = match[2];
       const body = match[3];
 
+      if (id === undefined || title === undefined || body === undefined) {
+        continue;
+      }
+
       try {
-        const requirement = this.parseRequirementBody(id, title, body);
+        const requirement = this.parseRequirementBody(id, title.trim(), body);
         requirements.push(requirement);
       } catch (error) {
         if (this.options.strict) {
           throw error;
         }
         // In non-strict mode, create a basic requirement
+        const firstLine = body.trim().split('\n')[0];
         requirements.push({
           id,
-          title,
-          description: body.trim().split('\n')[0] ?? '',
+          title: title.trim(),
+          description: firstLine ?? '',
           priority: 'P2',
           acceptanceCriteria: [],
           dependencies: [],
@@ -187,7 +192,8 @@ export class PRDParser {
 
     // Extract description
     const descMatch = body.match(/\*?\*?Description\*?\*?[:\s]+([^\n]+(?:\n(?![*#\-])[^\n]+)*)/i);
-    const description = descMatch?.[1]?.trim() ?? body.trim().split('\n')[0] ?? '';
+    const firstLine = body.trim().split('\n')[0];
+    const description = descMatch?.[1]?.trim() ?? firstLine ?? '';
 
     // Extract acceptance criteria
     const acceptanceCriteria = this.extractAcceptanceCriteria(body);
@@ -199,17 +205,23 @@ export class PRDParser {
     const userStoryMatch = body.match(
       /\*?\*?User\s*Story\*?\*?[:\s]+(As\s+a[^\n]+(?:\n(?![\*#\-])[^\n]+)*)/i
     );
-    const userStory = userStoryMatch?.[1]?.trim();
+    const userStoryValue = userStoryMatch?.[1]?.trim();
 
-    return {
+    // Build result object conditionally to satisfy exactOptionalPropertyTypes
+    const result: ParsedPRDRequirement = {
       id,
       title,
       description,
       priority,
       acceptanceCriteria,
       dependencies,
-      userStory,
     };
+
+    if (userStoryValue !== undefined) {
+      return { ...result, userStory: userStoryValue };
+    }
+
+    return result;
   }
 
   /**
@@ -234,12 +246,15 @@ export class PRDParser {
       /\*?\*?Acceptance\s*Criteria\*?\*?[:\s]*\n([\s\S]*?)(?=\n\*?\*?[A-Z][a-z]+\*?\*?[:\s]|\n##|$)/i
     );
 
-    if (acSection !== null) {
+    if (acSection !== null && acSection[1] !== undefined) {
       // Extract list items
       const listPattern = /[-*]\s*\[?\s*[xX ]?\s*\]?\s*(.+)/g;
       let listMatch: RegExpExecArray | null;
       while ((listMatch = listPattern.exec(acSection[1])) !== null) {
-        criteria.push(listMatch[1].trim());
+        const item = listMatch[1];
+        if (item !== undefined) {
+          criteria.push(item.trim());
+        }
       }
     }
 
@@ -256,9 +271,12 @@ export class PRDParser {
     const depPattern = /(?:depends\s*on|requires|blocked\s*by)[:\s]*((?:FR-\d{3}(?:\s*,\s*)?)+)/gi;
     let depMatch: RegExpExecArray | null;
     while ((depMatch = depPattern.exec(body)) !== null) {
-      const refs = depMatch[1].match(/FR-\d{3}/g);
-      if (refs !== null) {
-        dependencies.push(...refs);
+      const depGroup = depMatch[1];
+      if (depGroup !== undefined) {
+        const refs = depGroup.match(/FR-\d{3}/g);
+        if (refs !== null) {
+          dependencies.push(...refs);
+        }
       }
     }
 
@@ -276,7 +294,7 @@ export class PRDParser {
       /##\s*(?:\d+\.)?\s*Functional\s*Requirements\s*\n([\s\S]*?)(?=\n##\s|$)/i
     );
 
-    if (frSection === null) {
+    if (frSection === null || frSection[1] === undefined) {
       return requirements;
     }
 
@@ -286,18 +304,20 @@ export class PRDParser {
 
     let itemMatch: RegExpExecArray | null;
     while ((itemMatch = itemPattern.exec(frSection[1])) !== null) {
-      const title = itemMatch[1].trim();
-      const description = itemMatch[2].trim();
+      const title = itemMatch[1];
+      const description = itemMatch[2];
 
-      requirements.push({
-        id: `FR-${String(counter).padStart(3, '0')}`,
-        title,
-        description,
-        priority: 'P2',
-        acceptanceCriteria: [],
-        dependencies: [],
-      });
-      counter++;
+      if (title !== undefined && description !== undefined) {
+        requirements.push({
+          id: `FR-${String(counter).padStart(3, '0')}`,
+          title: title.trim(),
+          description: description.trim(),
+          priority: 'P2',
+          acceptanceCriteria: [],
+          dependencies: [],
+        });
+        counter++;
+      }
     }
 
     return requirements;
@@ -315,20 +335,31 @@ export class PRDParser {
     let match: RegExpExecArray | null;
     while ((match = nfrPattern.exec(content)) !== null) {
       const id = match[1];
-      const title = match[2].trim();
+      const title = match[2];
       const body = match[3];
 
+      if (id === undefined || title === undefined || body === undefined) {
+        continue;
+      }
+
+      const titleTrimmed = title.trim();
       const categoryMatch = body.match(/\*?\*?Category\*?\*?[:\s]+([^\n]+)/i);
       const metricMatch = body.match(/\*?\*?(?:Metric|Target)\*?\*?[:\s]+([^\n]+)/i);
       const priorityMatch = body.match(/\*?\*?Priority\*?\*?[:\s]+([Pp][0-3])/i);
 
-      nfrs.push({
+      const metricValue = metricMatch?.[1]?.trim();
+      const nfr: ParsedNFR = {
         id,
-        category: categoryMatch?.[1]?.trim() ?? this.inferNFRCategory(title),
-        description: title,
-        metric: metricMatch?.[1]?.trim(),
+        category: categoryMatch?.[1]?.trim() ?? this.inferNFRCategory(titleTrimmed),
+        description: titleTrimmed,
         priority: this.normalizePriority(priorityMatch?.[1] ?? 'P2'),
-      });
+      };
+
+      if (metricValue !== undefined) {
+        nfrs.push({ ...nfr, metric: metricValue });
+      } else {
+        nfrs.push(nfr);
+      }
     }
 
     // If no NFR-XXX pattern, try alternative
@@ -363,7 +394,7 @@ export class PRDParser {
       /##\s*(?:\d+\.)?\s*Non[- ]?Functional\s*Requirements\s*\n([\s\S]*?)(?=\n##\s|$)/i
     );
 
-    if (nfrSection === null) {
+    if (nfrSection === null || nfrSection[1] === undefined) {
       return nfrs;
     }
 
@@ -373,19 +404,26 @@ export class PRDParser {
 
     let catMatch: RegExpExecArray | null;
     while ((catMatch = categoryPattern.exec(nfrSection[1])) !== null) {
-      const category = catMatch[1].trim();
+      const category = catMatch[1];
       const items = catMatch[2];
+
+      if (category === undefined || items === undefined) {
+        continue;
+      }
 
       const itemPattern = /[-*]\s+([^\n]+)/g;
       let itemMatch: RegExpExecArray | null;
       while ((itemMatch = itemPattern.exec(items)) !== null) {
-        nfrs.push({
-          id: `NFR-${String(counter).padStart(3, '0')}`,
-          category: category.toLowerCase().replace(/\s+requirements?/i, ''),
-          description: itemMatch[1].trim(),
-          priority: 'P2',
-        });
-        counter++;
+        const item = itemMatch[1];
+        if (item !== undefined) {
+          nfrs.push({
+            id: `NFR-${String(counter).padStart(3, '0')}`,
+            category: category.trim().toLowerCase().replace(/\s+requirements?/i, ''),
+            description: item.trim(),
+            priority: 'P2',
+          });
+          counter++;
+        }
       }
     }
 
@@ -403,19 +441,25 @@ export class PRDParser {
       /##\s*(?:\d+\.)?\s*Constraints?\s*(?:and\s*Assumptions)?\s*\n([\s\S]*?)(?=\n##\s|$)/i
     );
 
-    if (constraintSection === null) {
+    if (constraintSection === null || constraintSection[1] === undefined) {
       return constraints;
     }
+
+    const sectionContent = constraintSection[1];
 
     // Parse CON-XXX pattern
     const conPattern = /###?\s*(CON-\d{3})[:\s]+([^\n]+)/gi;
     let match: RegExpExecArray | null;
-    while ((match = conPattern.exec(constraintSection[1])) !== null) {
-      constraints.push({
-        id: match[1],
-        type: 'technical',
-        description: match[2].trim(),
-      });
+    while ((match = conPattern.exec(sectionContent)) !== null) {
+      const id = match[1];
+      const description = match[2];
+      if (id !== undefined && description !== undefined) {
+        constraints.push({
+          id,
+          type: 'technical',
+          description: description.trim(),
+        });
+      }
     }
 
     // If no CON-XXX, parse list items
@@ -423,14 +467,17 @@ export class PRDParser {
       const itemPattern = /[-*]\s+\*?\*?(?:([^:]+):)?\*?\*?\s*([^\n]+)/g;
       let counter = 1;
       let itemMatch: RegExpExecArray | null;
-      while ((itemMatch = itemPattern.exec(constraintSection[1])) !== null) {
-        const type = itemMatch[1]?.toLowerCase().trim() ?? 'technical';
-        constraints.push({
-          id: `CON-${String(counter).padStart(3, '0')}`,
-          type: this.normalizeConstraintType(type),
-          description: itemMatch[2].trim(),
-        });
-        counter++;
+      while ((itemMatch = itemPattern.exec(sectionContent)) !== null) {
+        const description = itemMatch[2];
+        if (description !== undefined) {
+          const type = itemMatch[1]?.toLowerCase().trim() ?? 'technical';
+          constraints.push({
+            id: `CON-${String(counter).padStart(3, '0')}`,
+            type: this.normalizeConstraintType(type),
+            description: description.trim(),
+          });
+          counter++;
+        }
       }
     }
 
@@ -461,12 +508,12 @@ export class PRDParser {
       /##\s*(?:\d+\.)?\s*Assumptions?\s*\n([\s\S]*?)(?=\n##\s|$)/i
     );
 
-    if (assumptionSection === null) {
+    if (assumptionSection === null || assumptionSection[1] === undefined) {
       // Try within Constraints and Assumptions section
       const combinedSection = content.match(
         /###?\s*(?:\d+\.\d+\s*)?Assumptions?\s*\n([\s\S]*?)(?=###|##\s|$)/i
       );
-      if (combinedSection !== null) {
+      if (combinedSection !== null && combinedSection[1] !== undefined) {
         return this.extractListItems(combinedSection[1]);
       }
       return assumptions;
@@ -483,7 +530,10 @@ export class PRDParser {
     const pattern = /[-*]\s+([^\n]+)/g;
     let match: RegExpExecArray | null;
     while ((match = pattern.exec(text)) !== null) {
-      items.push(match[1].trim());
+      const item = match[1];
+      if (item !== undefined) {
+        items.push(item.trim());
+      }
     }
     return items;
   }
@@ -498,7 +548,7 @@ export class PRDParser {
       /##\s*(?:\d+\.)?\s*(?:User\s*)?Personas?\s*\n([\s\S]*?)(?=\n##\s|$)/i
     );
 
-    if (personaSection === null) {
+    if (personaSection === null || personaSection[1] === undefined) {
       return personas;
     }
 
@@ -506,18 +556,24 @@ export class PRDParser {
     const personaPattern = /###\s*(?:\d+\.\d+\s*)?([^\n]+)\n([\s\S]*?)(?=###|$)/g;
     let match: RegExpExecArray | null;
     while ((match = personaPattern.exec(personaSection[1])) !== null) {
-      const name = match[1].trim();
+      const name = match[1];
       const body = match[2];
 
+      if (name === undefined || body === undefined) {
+        continue;
+      }
+
+      const nameTrimmed = name.trim();
       const roleMatch = body.match(/\*?\*?Role\*?\*?[:\s]+([^\n]+)/i);
       const descMatch = body.match(/\*?\*?Description\*?\*?[:\s]+([^\n]+)/i);
       const goalsMatch = body.match(/\*?\*?Goals?\*?\*?[:\s]*\n?([\s\S]*?)(?=\n\*?\*?[A-Z]|$)/i);
 
+      const goalsContent = goalsMatch?.[1];
       personas.push({
-        name,
-        role: roleMatch?.[1]?.trim() ?? name,
+        name: nameTrimmed,
+        role: roleMatch?.[1]?.trim() ?? nameTrimmed,
         description: descMatch?.[1]?.trim() ?? '',
-        goals: goalsMatch !== null ? this.extractListItems(goalsMatch[1]) : [],
+        goals: goalsContent !== undefined ? this.extractListItems(goalsContent) : [],
       });
     }
 
@@ -534,7 +590,7 @@ export class PRDParser {
       /##\s*(?:\d+\.)?\s*(?:Goals?\s*(?:and|&)?\s*)?(?:Success\s*)?Metrics?\s*\n([\s\S]*?)(?=\n##\s|$)/i
     );
 
-    if (goalSection === null) {
+    if (goalSection === null || goalSection[1] === undefined) {
       return goals;
     }
 
@@ -542,11 +598,16 @@ export class PRDParser {
     const itemPattern = /[-*]\s+([^\n]+)/g;
     let match: RegExpExecArray | null;
     while ((match = itemPattern.exec(goalSection[1])) !== null) {
-      const text = match[1].trim();
+      const item = match[1];
+      if (item === undefined) {
+        continue;
+      }
+
+      const text = item.trim();
 
       // Try to extract metric and target
       const metricMatch = text.match(/(.+?)(?::|–|-)\s*(.+)/);
-      if (metricMatch !== null) {
+      if (metricMatch !== null && metricMatch[1] !== undefined && metricMatch[2] !== undefined) {
         goals.push({
           description: metricMatch[1].trim(),
           metric: metricMatch[2].trim(),
