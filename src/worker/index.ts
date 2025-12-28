@@ -9,6 +9,7 @@
 
 export { WorkerAgent } from './WorkerAgent.js';
 export { TestGenerator } from './TestGenerator.js';
+export { SelfVerificationAgent } from './SelfVerificationAgent.js';
 
 export type {
   // Configuration
@@ -54,6 +55,15 @@ export type {
   PropertyInfo,
   DependencyInfo,
   ExportInfo,
+  // Self-verification types (UC-013)
+  VerificationStep,
+  SelfVerificationStatus,
+  VerificationStepResult,
+  FixAttempt,
+  VerificationReport,
+  SelfVerificationConfig,
+  FixSuggestion,
+  VerificationError as ParsedVerificationError,
 } from './types.js';
 
 export {
@@ -61,6 +71,7 @@ export {
   DEFAULT_CODE_PATTERNS,
   DEFAULT_RETRY_POLICY,
   DEFAULT_TEST_GENERATOR_CONFIG,
+  DEFAULT_SELF_VERIFICATION_CONFIG,
 } from './types.js';
 
 export {
@@ -89,4 +100,10 @@ export {
   CommandExecutionError,
   // Persistence errors
   ResultPersistenceError,
+  // Self-verification errors (UC-013)
+  TypeCheckError,
+  SelfFixError,
+  EscalationRequiredError,
+  VerificationPipelineError,
+  CommandTimeoutError,
 } from './errors.js';

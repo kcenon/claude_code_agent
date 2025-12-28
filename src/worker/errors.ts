@@ -294,3 +294,126 @@ export class CommandExecutionError extends WorkerError {
     this.cause = cause;
   }
 }
+
+// ============================================================================
+// Self-Verification Errors (UC-013)
+// ============================================================================
+
+/**
+ * Error thrown when type checking fails
+ */
+export class TypeCheckError extends WorkerError {
+  /** Number of type errors found */
+  public readonly errorCount: number;
+  /** The type check output */
+  public readonly output: string;
+  /** The underlying error */
+  public readonly cause: Error | undefined;
+
+  constructor(errorCount: number, output: string, cause?: Error) {
+    super(`Type check failed with ${String(errorCount)} error(s)`);
+    this.name = 'TypeCheckError';
+    this.errorCount = errorCount;
+    this.output = output;
+    this.cause = cause;
+  }
+}
+
+/**
+ * Error thrown when self-fix attempt fails
+ */
+export class SelfFixError extends WorkerError {
+  /** The step that was being fixed */
+  public readonly step: string;
+  /** The iteration number */
+  public readonly iteration: number;
+  /** The fix that was attempted */
+  public readonly attemptedFix: string;
+  /** The underlying error */
+  public readonly cause: Error | undefined;
+
+  constructor(step: string, iteration: number, attemptedFix: string, cause?: Error) {
+    const causeMessage = cause !== undefined ? `: ${cause.message}` : '';
+    super(`Self-fix failed for ${step} on iteration ${String(iteration)}${causeMessage}`);
+    this.name = 'SelfFixError';
+    this.step = step;
+    this.iteration = iteration;
+    this.attemptedFix = attemptedFix;
+    this.cause = cause;
+  }
+}
+
+/**
+ * Error thrown when escalation is required due to unresolvable issues
+ */
+export class EscalationRequiredError extends WorkerError {
+  /** The task ID that requires escalation */
+  public readonly taskId: string;
+  /** Failed verification steps */
+  public readonly failedSteps: readonly string[];
+  /** Total fix attempts made */
+  public readonly totalAttempts: number;
+  /** Error logs from failed steps */
+  public readonly errorLogs: readonly string[];
+  /** Analysis of the failures */
+  public readonly analysis: string;
+
+  constructor(
+    taskId: string,
+    failedSteps: readonly string[],
+    totalAttempts: number,
+    errorLogs: readonly string[],
+    analysis: string
+  ) {
+    super(
+      `Escalation required for task ${taskId}: ` +
+        `${String(failedSteps.length)} step(s) failed after ${String(totalAttempts)} fix attempt(s)`
+    );
+    this.name = 'EscalationRequiredError';
+    this.taskId = taskId;
+    this.failedSteps = failedSteps;
+    this.totalAttempts = totalAttempts;
+    this.errorLogs = errorLogs;
+    this.analysis = analysis;
+  }
+}
+
+/**
+ * Error thrown when verification pipeline fails
+ */
+export class VerificationPipelineError extends WorkerError {
+  /** The step that caused the failure */
+  public readonly failedStep: string;
+  /** Exit code from the failed step */
+  public readonly exitCode: number;
+  /** Output from the failed step */
+  public readonly output: string;
+  /** The underlying error */
+  public readonly cause: Error | undefined;
+
+  constructor(failedStep: string, exitCode: number, output: string, cause?: Error) {
+    super(`Verification pipeline failed at ${failedStep} (exit code: ${String(exitCode)})`);
+    this.name = 'VerificationPipelineError';
+    this.failedStep = failedStep;
+    this.exitCode = exitCode;
+    this.output = output;
+    this.cause = cause;
+  }
+}
+
+/**
+ * Error thrown when command times out
+ */
+export class CommandTimeoutError extends WorkerError {
+  /** The command that timed out */
+  public readonly command: string;
+  /** The timeout duration in milliseconds */
+  public readonly timeoutMs: number;
+
+  constructor(command: string, timeoutMs: number) {
+    super(`Command timed out after ${String(timeoutMs)}ms: ${command}`);
+    this.name = 'CommandTimeoutError';
+    this.command = command;
+    this.timeoutMs = timeoutMs;
+  }
+}
