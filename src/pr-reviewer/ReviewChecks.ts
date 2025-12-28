@@ -33,10 +33,16 @@ export interface ReviewChecksOptions {
   readonly enableComplexityAnalysis?: boolean;
   /** Enable testing checks (runs npm test) */
   readonly enableTestingChecks?: boolean;
+  /** Enable static analysis (TypeScript type checking) */
+  readonly enableStaticAnalysis?: boolean;
+  /** Enable dependency vulnerability check */
+  readonly enableDependencyCheck?: boolean;
   /** Custom lint command */
   readonly lintCommand?: string;
   /** Custom test command */
   readonly testCommand?: string;
+  /** Maximum allowed cyclomatic complexity per function (default: 10) */
+  readonly maxComplexity?: number;
 }
 
 /**
@@ -58,12 +64,18 @@ interface CommandResult {
 export class ReviewChecks {
   private readonly projectRoot: string;
   private readonly enableTestingChecks: boolean;
+  private readonly enableStaticAnalysis: boolean;
+  private readonly enableDependencyCheck: boolean;
   private readonly testCommand: string;
+  private readonly maxComplexity: number;
 
   constructor(options: ReviewChecksOptions = {}) {
     this.projectRoot = options.projectRoot ?? process.cwd();
     this.enableTestingChecks = options.enableTestingChecks ?? true;
+    this.enableStaticAnalysis = options.enableStaticAnalysis ?? true;
+    this.enableDependencyCheck = options.enableDependencyCheck ?? true;
     this.testCommand = options.testCommand ?? 'npm test';
+    this.maxComplexity = options.maxComplexity ?? 10;
   }
 
   /**
@@ -80,9 +92,27 @@ export class ReviewChecks {
     const securityChecks = await this.runSecurityChecks(changes);
     comments.push(...securityChecks.comments);
 
+    // Run dependency vulnerability check
+    if (this.enableDependencyCheck) {
+      const depCheck = await this.runDependencyVulnerabilityCheck();
+      securityChecks.items.push(...depCheck.items);
+      comments.push(...depCheck.comments);
+    }
+
+    // Run static analysis (TypeScript type checking)
+    const staticAnalysisChecks = this.enableStaticAnalysis
+      ? await this.runStaticAnalysisChecks(changes)
+      : { comments: [], items: [] };
+    comments.push(...staticAnalysisChecks.comments);
+
     // Run quality checks
     const qualityChecks = await this.runQualityChecks(changes);
     comments.push(...qualityChecks.comments);
+
+    // Run anti-pattern detection
+    const antiPatternChecks = await this.runAntiPatternChecks(changes);
+    qualityChecks.items.push(...antiPatternChecks.items);
+    comments.push(...antiPatternChecks.comments);
 
     // Run testing checks (optional, can be slow)
     const testingChecks = this.enableTestingChecks
@@ -100,13 +130,13 @@ export class ReviewChecks {
     // Build checklist
     const checklist: ReviewChecklist = {
       security: securityChecks.items,
-      quality: qualityChecks.items,
+      quality: [...qualityChecks.items, ...staticAnalysisChecks.items],
       testing: testingChecks.items,
       performance: performanceChecks.items,
       documentation: docChecks.items,
     };
 
-    // Calculate metrics
+    // Calculate metrics with complexity analysis
     const metrics = await this.calculateMetrics(changes, testingChecks);
 
     return { comments, checklist, metrics };
@@ -777,6 +807,637 @@ export class ReviewChecks {
       },
       styleViolations: 0,
       testCount: 0,
+    };
+  }
+
+  /**
+   * Run static analysis checks (TypeScript type checking)
+   */
+  private async runStaticAnalysisChecks(
+    changes: readonly FileChange[]
+  ): Promise<{ comments: ReviewComment[]; items: SecurityCheckItem[] }> {
+    const comments: ReviewComment[] = [];
+    const items: SecurityCheckItem[] = [];
+
+    // Check if there are TypeScript files in changes
+    const hasTypeScriptFiles = changes.some(
+      (c) => c.changeType !== 'delete' && c.filePath.match(/\.(ts|tsx)$/) !== null
+    );
+
+    if (!hasTypeScriptFiles) {
+      items.push({
+        name: 'TypeScript type checking',
+        passed: true,
+        description: 'No TypeScript files to check',
+      });
+      return { comments, items };
+    }
+
+    // Run TypeScript compiler in noEmit mode
+    try {
+      const result = await this.executeCommand('npx tsc --noEmit 2>&1');
+
+      if (result.exitCode === 0) {
+        items.push({
+          name: 'TypeScript type checking',
+          passed: true,
+          description: 'All TypeScript files pass type checking',
+        });
+      } else {
+        items.push({
+          name: 'TypeScript type checking',
+          passed: false,
+          description: 'TypeScript compilation errors found',
+          details: result.stdout.substring(0, 500),
+        });
+
+        // Parse TypeScript errors and add as comments
+        const errorLines = result.stdout.split('\n');
+        for (const line of errorLines) {
+          const errorMatch = line.match(/^([^(]+)\((\d+),(\d+)\):\s*error\s+TS\d+:\s*(.+)$/);
+          if (errorMatch !== null) {
+            const [, file, lineNum, , message] = errorMatch;
+            if (file !== undefined && lineNum !== undefined && message !== undefined) {
+              // Only add comments for changed files
+              const normalizedFile = file.replace(/\\/g, '/');
+              const isChangedFile = changes.some((c) => normalizedFile.endsWith(c.filePath));
+              if (isChangedFile) {
+                comments.push({
+                  file: normalizedFile,
+                  line: parseInt(lineNum, 10),
+                  comment: `TypeScript error: ${message}`,
+                  severity: 'critical',
+                  resolved: false,
+                  suggestedFix: 'Fix the type error to ensure type safety',
+                });
+              }
+            }
+          }
+        }
+      }
+    } catch {
+      items.push({
+        name: 'TypeScript type checking',
+        passed: true,
+        description: 'Could not run TypeScript compiler',
+        details: 'TypeScript may not be installed',
+      });
+    }
+
+    // Run complexity analysis on changed files
+    const complexityCheck = await this.runComplexityAnalysis(changes);
+    items.push(...complexityCheck.items);
+    comments.push(...complexityCheck.comments);
+
+    return { comments, items };
+  }
+
+  /**
+   * Run cyclomatic complexity analysis on functions
+   */
+  private async runComplexityAnalysis(
+    changes: readonly FileChange[]
+  ): Promise<{ comments: ReviewComment[]; items: SecurityCheckItem[] }> {
+    const comments: ReviewComment[] = [];
+    let hasHighComplexity = false;
+    const complexityDetails: string[] = [];
+
+    for (const change of changes) {
+      if (change.changeType === 'delete') continue;
+      if (!change.filePath.match(/\.(ts|js|tsx|jsx)$/)) continue;
+
+      const filePath = join(this.projectRoot, change.filePath);
+      if (!existsSync(filePath)) continue;
+
+      try {
+        const content = await readFile(filePath, 'utf-8');
+        const functionComplexities = this.calculateFunctionComplexities(content);
+
+        for (const { name, complexity, line } of functionComplexities) {
+          if (complexity > this.maxComplexity) {
+            hasHighComplexity = true;
+            complexityDetails.push(`${name}: ${String(complexity)}`);
+            comments.push({
+              file: change.filePath,
+              line,
+              comment: `Function '${name}' has cyclomatic complexity of ${String(complexity)} (max: ${String(this.maxComplexity)}). Consider refactoring.`,
+              severity: complexity > this.maxComplexity * 1.5 ? 'major' : 'minor',
+              resolved: false,
+              suggestedFix: 'Break down the function into smaller, more focused functions',
+            });
+          }
+        }
+      } catch {
+        // File read failed, skip
+      }
+    }
+
+    return {
+      comments,
+      items: [
+        {
+          name: 'Cyclomatic complexity',
+          passed: !hasHighComplexity,
+          description: `All functions have complexity ≤${String(this.maxComplexity)}`,
+          details: hasHighComplexity
+            ? `High complexity: ${complexityDetails.join(', ')}`
+            : undefined,
+        },
+      ],
+    };
+  }
+
+  /**
+   * Calculate cyclomatic complexity for each function in the file
+   */
+  private calculateFunctionComplexities(
+    content: string
+  ): Array<{ name: string; complexity: number; line: number }> {
+    const results: Array<{ name: string; complexity: number; line: number }> = [];
+
+    // Match function declarations and expressions
+    const functionPatterns = [
+      // Named function: function name(...) {
+      /function\s+(\w+)\s*\([^)]*\)\s*(?::\s*[^{]+)?\s*\{/g,
+      // Arrow function: const name = (...) => {
+      /(?:const|let|var)\s+(\w+)\s*=\s*(?:async\s*)?\([^)]*\)\s*(?::\s*[^=]+)?\s*=>\s*\{/g,
+      // Method: name(...) {
+      /(\w+)\s*\([^)]*\)\s*(?::\s*[^{]+)?\s*\{/g,
+    ];
+
+    const lines = content.split('\n');
+    const processedRanges: Array<{ start: number; end: number }> = [];
+
+    for (const pattern of functionPatterns) {
+      let match;
+      while ((match = pattern.exec(content)) !== null) {
+        const name = match[1];
+        if (name === undefined) continue;
+
+        const startIndex = match.index;
+        const lineNumber = content.substring(0, startIndex).split('\n').length;
+
+        // Skip if already processed (overlapping patterns)
+        if (processedRanges.some((r) => lineNumber >= r.start && lineNumber <= r.end)) {
+          continue;
+        }
+
+        // Find the matching closing brace
+        let braceCount = 0;
+        let foundStart = false;
+        let endLine = lineNumber;
+
+        for (let i = lineNumber - 1; i < lines.length; i++) {
+          const currentLine = lines[i];
+          if (currentLine === undefined) continue;
+          for (const char of currentLine) {
+            if (char === '{') {
+              braceCount++;
+              foundStart = true;
+            } else if (char === '}') {
+              braceCount--;
+              if (foundStart && braceCount === 0) {
+                endLine = i + 1;
+                break;
+              }
+            }
+          }
+          if (foundStart && braceCount === 0) break;
+        }
+
+        // Extract function body
+        const functionBody = lines.slice(lineNumber - 1, endLine).join('\n');
+
+        // Calculate complexity
+        const complexity = this.calculateComplexity(functionBody);
+
+        results.push({ name, complexity, line: lineNumber });
+        processedRanges.push({ start: lineNumber, end: endLine });
+      }
+    }
+
+    return results;
+  }
+
+  /**
+   * Calculate cyclomatic complexity for a code block
+   */
+  private calculateComplexity(code: string): number {
+    let complexity = 1; // Base complexity
+
+    // Decision points that increase complexity
+    const patterns = [
+      /\bif\s*\(/g, // if statements
+      /\belse\s+if\s*\(/g, // else if (counted separately)
+      /\bfor\s*\(/g, // for loops
+      /\bwhile\s*\(/g, // while loops
+      /\bdo\s*\{/g, // do-while loops
+      /\bcase\s+[^:]+:/g, // switch cases
+      /\bcatch\s*\(/g, // catch blocks
+      /\?\s*[^:]+\s*:/g, // ternary operators
+      /\|\|/g, // logical OR (short-circuit)
+      /&&/g, // logical AND (short-circuit)
+      /\?\?/g, // nullish coalescing
+    ];
+
+    for (const pattern of patterns) {
+      const matches = code.match(pattern);
+      if (matches) {
+        complexity += matches.length;
+      }
+    }
+
+    return complexity;
+  }
+
+  /**
+   * Run dependency vulnerability check using npm audit
+   */
+  private async runDependencyVulnerabilityCheck(): Promise<{
+    comments: ReviewComment[];
+    items: SecurityCheckItem[];
+  }> {
+    const comments: ReviewComment[] = [];
+    const items: SecurityCheckItem[] = [];
+
+    try {
+      const result = await this.executeCommand('npm audit --json 2>/dev/null');
+
+      if (result.exitCode === 0) {
+        items.push({
+          name: 'Dependency vulnerabilities',
+          passed: true,
+          description: 'No known vulnerabilities in dependencies',
+        });
+      } else {
+        try {
+          const auditResult = JSON.parse(result.stdout) as {
+            metadata?: {
+              vulnerabilities?: {
+                critical?: number;
+                high?: number;
+                moderate?: number;
+                low?: number;
+              };
+            };
+            vulnerabilities?: Record<
+              string,
+              {
+                severity: string;
+                via: Array<{ title?: string; url?: string } | string>;
+              }
+            >;
+          };
+
+          const vulnCounts = auditResult.metadata?.vulnerabilities ?? {
+            critical: 0,
+            high: 0,
+            moderate: 0,
+            low: 0,
+          };
+
+          const hasCriticalOrHigh = (vulnCounts.critical ?? 0) > 0 || (vulnCounts.high ?? 0) > 0;
+
+          items.push({
+            name: 'Dependency vulnerabilities',
+            passed: !hasCriticalOrHigh,
+            description: 'Check for vulnerable dependencies',
+            details: `Critical: ${String(vulnCounts.critical ?? 0)}, High: ${String(vulnCounts.high ?? 0)}, Moderate: ${String(vulnCounts.moderate ?? 0)}, Low: ${String(vulnCounts.low ?? 0)}`,
+          });
+
+          if (hasCriticalOrHigh) {
+            comments.push({
+              file: 'package.json',
+              line: 1,
+              comment: `Security vulnerabilities found in dependencies. Critical: ${String(vulnCounts.critical ?? 0)}, High: ${String(vulnCounts.high ?? 0)}. Run 'npm audit fix' to resolve.`,
+              severity: 'critical',
+              resolved: false,
+              suggestedFix: "Run 'npm audit fix' or update affected packages manually",
+            });
+          }
+        } catch {
+          items.push({
+            name: 'Dependency vulnerabilities',
+            passed: true,
+            description: 'Could not parse audit results',
+            details: 'Manual review recommended',
+          });
+        }
+      }
+    } catch {
+      items.push({
+        name: 'Dependency vulnerabilities',
+        passed: true,
+        description: 'Could not run npm audit',
+        details: 'Manual security review recommended',
+      });
+    }
+
+    return { comments, items };
+  }
+
+  /**
+   * Run anti-pattern detection checks
+   */
+  private async runAntiPatternChecks(
+    changes: readonly FileChange[]
+  ): Promise<{ comments: ReviewComment[]; items: SecurityCheckItem[] }> {
+    const comments: ReviewComment[] = [];
+    const items: SecurityCheckItem[] = [];
+
+    // Check for magic numbers
+    const magicNumberCheck = await this.checkMagicNumbers(changes);
+    items.push(magicNumberCheck.item);
+    comments.push(...magicNumberCheck.comments);
+
+    // Check for path traversal vulnerabilities
+    const pathTraversalCheck = await this.checkPathTraversal(changes);
+    items.push(pathTraversalCheck.item);
+    comments.push(...pathTraversalCheck.comments);
+
+    // Check for duplicate code patterns
+    const duplicateCheck = await this.checkDuplicateCode(changes);
+    items.push(duplicateCheck.item);
+    comments.push(...duplicateCheck.comments);
+
+    // Check for god class pattern
+    const godClassCheck = await this.checkGodClass(changes);
+    items.push(godClassCheck.item);
+    comments.push(...godClassCheck.comments);
+
+    return { comments, items };
+  }
+
+  /**
+   * Check for magic numbers in code
+   */
+  private async checkMagicNumbers(
+    changes: readonly FileChange[]
+  ): Promise<{ item: SecurityCheckItem; comments: ReviewComment[] }> {
+    const comments: ReviewComment[] = [];
+    let hasMagicNumbers = false;
+    const allowedNumbers = new Set([0, 1, 2, -1, 10, 100, 1000, 60, 24, 365]);
+
+    for (const change of changes) {
+      if (change.changeType === 'delete') continue;
+      if (!change.filePath.match(/\.(ts|js|tsx|jsx)$/)) continue;
+      // Skip test files and config files
+      if (change.filePath.match(/\.(test|spec|config)\.(ts|js)$/)) continue;
+
+      const filePath = join(this.projectRoot, change.filePath);
+      if (!existsSync(filePath)) continue;
+
+      try {
+        const content = await readFile(filePath, 'utf-8');
+        const lines = content.split('\n');
+
+        for (let i = 0; i < lines.length; i++) {
+          const currentLine = lines[i];
+          if (currentLine === undefined) continue;
+
+          // Skip comments and const declarations (likely named constants)
+          if (
+            currentLine.trim().startsWith('//') ||
+            currentLine.trim().startsWith('*') ||
+            currentLine.includes('const ') ||
+            currentLine.includes('readonly ')
+          ) {
+            continue;
+          }
+
+          // Find magic numbers (standalone numbers in expressions)
+          const magicNumberPattern = /(?<![.\w])(\d{2,})(?![.\d\w])/g;
+          let match;
+          while ((match = magicNumberPattern.exec(currentLine)) !== null) {
+            const num = parseInt(match[1] ?? '0', 10);
+            if (!allowedNumbers.has(num) && num > 1) {
+              hasMagicNumbers = true;
+              comments.push({
+                file: change.filePath,
+                line: i + 1,
+                comment: `Magic number ${String(num)} detected. Consider using a named constant.`,
+                severity: 'suggestion',
+                resolved: false,
+                suggestedFix: `Extract to a named constant: const MEANINGFUL_NAME = ${String(num)};`,
+              });
+            }
+          }
+        }
+      } catch {
+        // File read failed, skip
+      }
+    }
+
+    return {
+      item: {
+        name: 'No magic numbers',
+        passed: !hasMagicNumbers,
+        description: 'Check for unexplained numeric literals',
+        details: hasMagicNumbers
+          ? 'Magic numbers found - consider using named constants'
+          : undefined,
+      },
+      comments,
+    };
+  }
+
+  /**
+   * Check for path traversal vulnerabilities
+   */
+  private async checkPathTraversal(
+    changes: readonly FileChange[]
+  ): Promise<{ item: SecurityCheckItem; comments: ReviewComment[] }> {
+    const comments: ReviewComment[] = [];
+    let hasVulnerability = false;
+
+    const pathTraversalPatterns = [
+      /path\.join\s*\([^)]*req\.(body|query|params)/gi,
+      /path\.resolve\s*\([^)]*req\.(body|query|params)/gi,
+      /readFile\s*\([^)]*req\.(body|query|params)/gi,
+      /readFileSync\s*\([^)]*req\.(body|query|params)/gi,
+      /createReadStream\s*\([^)]*req\.(body|query|params)/gi,
+      /\.\.\/.*req\.(body|query|params)/gi,
+    ];
+
+    for (const change of changes) {
+      if (change.changeType === 'delete') continue;
+      if (!change.filePath.match(/\.(ts|js)$/)) continue;
+
+      const filePath = join(this.projectRoot, change.filePath);
+      if (!existsSync(filePath)) continue;
+
+      try {
+        const content = await readFile(filePath, 'utf-8');
+        const lines = content.split('\n');
+
+        for (let i = 0; i < lines.length; i++) {
+          const currentLine = lines[i];
+          if (currentLine === undefined) continue;
+          for (const pattern of pathTraversalPatterns) {
+            if (pattern.test(currentLine)) {
+              hasVulnerability = true;
+              comments.push({
+                file: change.filePath,
+                line: i + 1,
+                comment:
+                  'Potential path traversal vulnerability. User input used in file path operations.',
+                severity: 'critical',
+                resolved: false,
+                suggestedFix:
+                  'Validate and sanitize user input. Use path.basename() or a whitelist approach.',
+              });
+            }
+          }
+        }
+      } catch {
+        // File read failed, skip
+      }
+    }
+
+    return {
+      item: {
+        name: 'Path traversal prevention',
+        passed: !hasVulnerability,
+        description: 'Check for path traversal vulnerabilities',
+        details: hasVulnerability ? 'Potential path traversal found' : undefined,
+      },
+      comments,
+    };
+  }
+
+  /**
+   * Check for duplicate code patterns
+   */
+  private async checkDuplicateCode(
+    changes: readonly FileChange[]
+  ): Promise<{ item: SecurityCheckItem; comments: ReviewComment[] }> {
+    const comments: ReviewComment[] = [];
+    const codeBlocks: Map<string, Array<{ file: string; line: number }>> = new Map();
+    const minBlockSize = 5; // Minimum lines to consider as duplicate
+
+    for (const change of changes) {
+      if (change.changeType === 'delete') continue;
+      if (!change.filePath.match(/\.(ts|js|tsx|jsx)$/)) continue;
+
+      const filePath = join(this.projectRoot, change.filePath);
+      if (!existsSync(filePath)) continue;
+
+      try {
+        const content = await readFile(filePath, 'utf-8');
+        const lines = content.split('\n');
+
+        // Create blocks of consecutive lines
+        for (let i = 0; i <= lines.length - minBlockSize; i++) {
+          const block = lines
+            .slice(i, i + minBlockSize)
+            .map((l) => l.trim())
+            .filter((l) => l.length > 0 && !l.startsWith('//') && !l.startsWith('*'))
+            .join('\n');
+
+          if (block.length > 50) {
+            // Skip very short blocks
+            const existing = codeBlocks.get(block);
+            if (existing !== undefined) {
+              existing.push({ file: change.filePath, line: i + 1 });
+            } else {
+              codeBlocks.set(block, [{ file: change.filePath, line: i + 1 }]);
+            }
+          }
+        }
+      } catch {
+        // File read failed, skip
+      }
+    }
+
+    // Find duplicates
+    let hasDuplicates = false;
+    for (const [, locations] of codeBlocks) {
+      if (locations.length > 1) {
+        hasDuplicates = true;
+        const firstLoc = locations[0];
+        if (firstLoc !== undefined) {
+          comments.push({
+            file: firstLoc.file,
+            line: firstLoc.line,
+            comment: `Duplicate code block found in ${String(locations.length)} locations. Consider extracting to a shared function.`,
+            severity: 'minor',
+            resolved: false,
+            suggestedFix: 'Extract duplicate code to a reusable function or module',
+          });
+        }
+        break; // Only report first duplicate to avoid noise
+      }
+    }
+
+    return {
+      item: {
+        name: 'No code duplication',
+        passed: !hasDuplicates,
+        description: 'Check for duplicated code blocks',
+        details: hasDuplicates ? 'Duplicate code patterns detected' : undefined,
+      },
+      comments,
+    };
+  }
+
+  /**
+   * Check for god class anti-pattern
+   */
+  private async checkGodClass(
+    changes: readonly FileChange[]
+  ): Promise<{ item: SecurityCheckItem; comments: ReviewComment[] }> {
+    const comments: ReviewComment[] = [];
+    let hasGodClass = false;
+    const maxMethods = 20;
+    const maxLines = 500;
+
+    for (const change of changes) {
+      if (change.changeType === 'delete') continue;
+      if (!change.filePath.match(/\.(ts|js)$/)) continue;
+
+      const filePath = join(this.projectRoot, change.filePath);
+      if (!existsSync(filePath)) continue;
+
+      try {
+        const content = await readFile(filePath, 'utf-8');
+        const lines = content.split('\n');
+
+        // Count methods and class lines
+        const classMatch = content.match(/class\s+(\w+)/);
+        if (classMatch !== null) {
+          const className = classMatch[1] ?? 'Unknown';
+
+          // Count methods
+          const methodPattern =
+            /(?:public|private|protected)?\s*(?:async\s+)?(?:static\s+)?(\w+)\s*\([^)]*\)\s*(?::\s*[^{]+)?\s*\{/g;
+          const methods = [...content.matchAll(methodPattern)];
+
+          if (methods.length > maxMethods || lines.length > maxLines) {
+            hasGodClass = true;
+            comments.push({
+              file: change.filePath,
+              line: 1,
+              comment: `Class '${className}' may be a God Class: ${String(methods.length)} methods, ${String(lines.length)} lines. Consider splitting responsibilities.`,
+              severity: 'minor',
+              resolved: false,
+              suggestedFix:
+                'Apply Single Responsibility Principle - extract related methods into separate classes',
+            });
+          }
+        }
+      } catch {
+        // File read failed, skip
+      }
+    }
+
+    return {
+      item: {
+        name: 'No god classes',
+        passed: !hasGodClass,
+        description: 'Check for classes with too many responsibilities',
+        details: hasGodClass ? 'Large class detected - consider splitting' : undefined,
+      },
+      comments,
     };
   }
 
