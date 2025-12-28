@@ -240,6 +240,18 @@ describe('PRCreator', () => {
 
       expect(result.labels).toContain('cleanup');
     });
+
+    it('should handle invalid branch name gracefully', () => {
+      const changes: FileChange[] = [
+        { filePath: 'src/feature.ts', changeType: 'create', description: '', linesAdded: 10, linesRemoved: 0 },
+      ];
+
+      const result = creator.inferLabels(changes, 'invalid-branch-no-prefix');
+
+      // Should not throw and should still infer labels from file paths
+      expect(result.labels).not.toContain('enhancement');
+      expect(result.labels).toContain('new-feature');
+    });
   });
 
   describe('shouldBeDraft', () => {
@@ -410,6 +422,26 @@ describe('PRCreator', () => {
 
       expect(content.body).toContain('## Notes');
       expect(content.body).toContain('Some important implementation notes');
+    });
+
+    it('should not include notes section when notes is empty string', () => {
+      const implResult = createMinimalImplementationResult({
+        notes: '',
+      });
+
+      const content = creator.generatePRContent(implResult, [], false);
+
+      expect(content.body).not.toContain('## Notes');
+    });
+
+    it('should not include notes section when notes is undefined', () => {
+      const implResult = createMinimalImplementationResult({
+        notes: undefined,
+      });
+
+      const content = creator.generatePRContent(implResult, [], false);
+
+      expect(content.body).not.toContain('## Notes');
     });
 
     it('should set draft flag in options when isDraft is true', () => {
