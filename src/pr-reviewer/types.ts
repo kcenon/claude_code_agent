@@ -489,5 +489,109 @@ export interface PRCreateResult {
   readonly isDraft: boolean;
 }
 
+// ============================================================================
+// Merge Readiness Types (UC-016)
+// ============================================================================
+
+/**
+ * Merge conflict information
+ */
+export interface MergeConflictInfo {
+  /** Whether the PR has merge conflicts */
+  readonly hasConflicts: boolean;
+  /** Conflicting files (if any) */
+  readonly conflictingFiles: readonly string[];
+  /** Whether the PR is mergeable */
+  readonly mergeable: boolean;
+  /** Merge state from GitHub */
+  readonly mergeableState: 'clean' | 'dirty' | 'blocked' | 'behind' | 'unknown';
+}
+
+/**
+ * Blocking review information from GitHub
+ */
+export interface BlockingReview {
+  /** Reviewer username */
+  readonly author: string;
+  /** Review state */
+  readonly state: 'CHANGES_REQUESTED' | 'COMMENTED' | 'DISMISSED';
+  /** Review body/comment */
+  readonly body: string;
+  /** Review timestamp */
+  readonly submittedAt: string;
+}
+
+/**
+ * Individual gate result for detailed report
+ */
+export interface GateResult {
+  /** Gate name */
+  readonly gate: string;
+  /** Whether gate passed */
+  readonly passed: boolean;
+  /** Threshold value */
+  readonly threshold: number | string;
+  /** Actual value */
+  readonly actual: number | string;
+  /** Unit (percentage, count, etc.) */
+  readonly unit: string;
+  /** Whether this gate is blocking */
+  readonly blocking: boolean;
+  /** Human-readable message */
+  readonly message: string;
+}
+
+/**
+ * Detailed gate failure report
+ */
+export interface DetailedGateReport {
+  /** Report timestamp */
+  readonly generatedAt: string;
+  /** PR number */
+  readonly prNumber: number;
+  /** Overall pass status */
+  readonly passed: boolean;
+  /** Individual gate results */
+  readonly gates: readonly GateResult[];
+  /** Required actions to fix failures */
+  readonly requiredActions: readonly string[];
+  /** Recommendations for improvements */
+  readonly recommendations: readonly string[];
+  /** Markdown-formatted report */
+  readonly markdown: string;
+}
+
+/**
+ * Merge readiness check result
+ */
+export interface MergeReadinessResult {
+  /** Whether PR is ready to merge */
+  readonly canMerge: boolean;
+  /** Quality gates result */
+  readonly qualityGates: QualityGateResult;
+  /** Merge conflict info */
+  readonly conflicts: MergeConflictInfo;
+  /** Blocking reviews */
+  readonly blockingReviews: readonly BlockingReview[];
+  /** CI status passed */
+  readonly ciPassed: boolean;
+  /** All blocking reasons (if any) */
+  readonly blockingReasons: readonly string[];
+  /** Detailed gate report */
+  readonly detailedReport: DetailedGateReport;
+}
+
+/**
+ * Squash merge commit message configuration
+ */
+export interface SquashMergeMessage {
+  /** Commit title */
+  readonly title: string;
+  /** Commit body */
+  readonly body: string;
+  /** Issue references to close */
+  readonly closesIssues: readonly number[];
+}
+
 // Re-export types from worker for convenience
 export type { ImplementationResult, FileChange } from '../worker/types.js';

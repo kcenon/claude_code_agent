@@ -25,6 +25,9 @@ export type { QualityGateOptions } from './QualityGate.js';
 export { ReviewChecks } from './ReviewChecks.js';
 export type { ReviewChecksOptions } from './ReviewChecks.js';
 
+export { MergeDecision } from './MergeDecision.js';
+export type { MergeDecisionConfig } from './MergeDecision.js';
+
 // Error classes
 export {
   PRReviewerError,
@@ -95,6 +98,14 @@ export type {
   // GitHub API types
   GitHubStatusCheck,
   GitHubPRInfo,
+
+  // Merge readiness types (UC-016)
+  MergeConflictInfo,
+  BlockingReview,
+  GateResult,
+  DetailedGateReport,
+  MergeReadinessResult,
+  SquashMergeMessage,
 
   // Re-exported
   ImplementationResult,
