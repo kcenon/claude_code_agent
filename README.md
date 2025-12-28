@@ -137,9 +137,17 @@ claude "Start implementation with Controller"
 ### CLI Commands
 
 ```bash
-ad-sdlc init [project-name]   # Initialize new project
-ad-sdlc validate              # Validate configuration
-ad-sdlc status                # Check pipeline status
+# Initialize new project
+ad-sdlc init [project-name]
+
+# Validate configuration files
+ad-sdlc validate [--file <path>] [--watch] [--format text|json]
+
+# Check pipeline status
+ad-sdlc status [--project <id>] [--format text|json] [--verbose]
+
+# Analyze project for documentation-code gaps
+ad-sdlc analyze [--project <path>] [--scope full|documents_only|code_only]
 ```
 
 See [Quickstart Guide](docs/quickstart.md) for a step-by-step tutorial.
