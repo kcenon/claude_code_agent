@@ -382,10 +382,11 @@ export class MergeDecision {
       if (result.exitCode === 0) {
         // Extract merge commit from output if available
         const commitMatch = result.stdout.match(/([a-f0-9]{40})/);
-        return {
-          success: true,
-          mergeCommit: commitMatch?.[1],
-        };
+        const commitSha = commitMatch?.[1];
+        // Use conditional object to avoid undefined with exactOptionalPropertyTypes
+        return commitSha !== undefined
+          ? { success: true, mergeCommit: commitSha }
+          : { success: true };
       }
 
       return {
