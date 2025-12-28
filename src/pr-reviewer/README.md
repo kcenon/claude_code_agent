@@ -134,8 +134,14 @@ class PRReviewerAgent {
   // Create PR from file
   createPRFromFile(resultPath: string): Promise<PRCreateResult>;
 
+  // Check merge readiness (UC-016)
+  checkMergeReadiness(prNumber: number, implResult: ImplementationResult): Promise<MergeReadinessResult>;
+
   // Get PRCreator instance
   getPRCreator(): PRCreator;
+
+  // Get MergeDecision instance
+  getMergeDecision(): MergeDecision;
 
   // Get configuration
   getConfig(): Required<PRReviewerAgentConfig>;
@@ -215,6 +221,90 @@ PRs are automatically created as drafts when:
 - Lint errors exist
 - Build is failing
 - Implementation is blocked
+
+### MergeDecision (UC-016)
+
+The MergeDecision class handles quality gate enforcement and merge decision logic:
+- Merge conflict detection via GitHub API
+- Blocking review comments detection
+- Detailed gate failure report generation
+- Proper squash merge commit message formatting
+- Merge readiness evaluation
+
+```typescript
+class MergeDecision {
+  constructor(config?: MergeDecisionConfig);
+
+  // Check for merge conflicts on a PR
+  checkMergeConflicts(prNumber: number): Promise<MergeConflictInfo>;
+
+  // Check for unresolved blocking reviews
+  checkBlockingReviews(prNumber: number): Promise<readonly BlockingReview[]>;
+
+  // Generate detailed gate failure report
+  generateDetailedReport(
+    prNumber: number,
+    qualityGateResult: QualityGateResult,
+    metrics: QualityMetrics,
+    checks: CheckResults
+  ): DetailedGateReport;
+
+  // Check overall merge readiness
+  checkMergeReadiness(
+    prNumber: number,
+    qualityGateResult: QualityGateResult,
+    metrics: QualityMetrics,
+    checks: CheckResults
+  ): Promise<MergeReadinessResult>;
+
+  // Generate squash merge commit message
+  generateSquashMessage(
+    pullRequest: PullRequest,
+    issueNumber?: number,
+    summary?: string
+  ): SquashMergeMessage;
+
+  // Execute merge with proper commit message
+  executeMerge(
+    prNumber: number,
+    message: SquashMergeMessage
+  ): Promise<{ success: boolean; mergeCommit?: string; error?: string }>;
+}
+```
+
+### MergeDecisionConfig
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `projectRoot` | string | `process.cwd()` | Project root directory |
+| `mergeStrategy` | 'merge' \| 'squash' \| 'rebase' | `'squash'` | Git merge strategy |
+| `deleteBranchOnMerge` | boolean | `true` | Delete branch after merge |
+| `commandTimeout` | number | `30000` | Command timeout (ms) |
+
+### Detailed Gate Report Example
+
+```markdown
+## Quality Gate Report
+
+**PR #123** - Generated at 2024-01-01T00:00:00Z
+
+### Gate Status
+
+| Gate | Threshold | Actual | Status |
+|------|-----------|--------|--------|
+| Tests Pass | pass | pass | ✅ PASSED |
+| Build Pass | pass | pass | ✅ PASSED |
+| Code Coverage | ≥80 | 75 | ❌ FAILED |
+| Complexity | ≤10 | 8 | ✅ PASSED |
+
+### Required Actions
+
+1. Increase test coverage to at least 80% (current: 75%)
+
+### Recommendations
+
+- Consider improving test coverage for new code
+```
 
 ### PRReviewOptions
 
