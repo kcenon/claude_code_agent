@@ -313,6 +313,8 @@ export class InformationExtractor {
 
     for (let i = 0; i < segments.length; i++) {
       const segment = segments[i];
+      if (segment === undefined) continue;
+
       const normalized = segment.toLowerCase();
 
       // Check if this is a requirement
@@ -339,7 +341,7 @@ export class InformationExtractor {
           confidence,
           isFunctional: false,
           nfrCategory,
-          acceptanceCriteria: acceptanceCriteria.length > 0 ? acceptanceCriteria : undefined,
+          ...(acceptanceCriteria.length > 0 && { acceptanceCriteria }),
         });
       } else {
         functional.push({
@@ -350,7 +352,7 @@ export class InformationExtractor {
           source,
           confidence,
           isFunctional: true,
-          acceptanceCriteria: acceptanceCriteria.length > 0 ? acceptanceCriteria : undefined,
+          ...(acceptanceCriteria.length > 0 && { acceptanceCriteria }),
         });
       }
     }
@@ -371,6 +373,8 @@ export class InformationExtractor {
     // Look at the following segments for acceptance criteria patterns
     for (let i = reqIndex + 1; i < segments.length && i <= reqIndex + 5; i++) {
       const segment = segments[i];
+      if (segment === undefined) continue;
+
       const normalized = segment.toLowerCase();
 
       // Check if this segment looks like acceptance criteria
@@ -390,6 +394,10 @@ export class InformationExtractor {
 
     // Also check for inline acceptance criteria (e.g., "The system must X so that Y")
     const reqSegment = segments[reqIndex];
+    if (reqSegment === undefined) {
+      return criteria;
+    }
+
     const inlinePatterns = [
       /so\s+that\s+(.+?)(?:\.|$)/i,
       /in\s+order\s+to\s+(.+?)(?:\.|$)/i,

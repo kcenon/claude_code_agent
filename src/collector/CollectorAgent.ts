@@ -373,8 +373,12 @@ export class CollectorAgent {
           description: r.description,
           priority: r.priority,
           status: 'proposed' as const,
-          acceptanceCriteria: r.acceptanceCriteria ?? [],
-          dependencies: [],
+          acceptanceCriteria: (r.acceptanceCriteria ?? []).map((ac, index) => ({
+            id: `AC-${String(index + 1).padStart(3, '0')}`,
+            description: ac,
+            testable: true,
+          })),
+          dependencies: [] as string[],
           source: r.source,
         })),
         nonFunctional: extraction.nonFunctionalRequirements.map((r) => ({
