@@ -326,7 +326,7 @@ export class MergeDecision {
 
     const bodyParts: string[] = [];
 
-    if (summary) {
+    if (summary !== undefined && summary !== '') {
       bodyParts.push(summary);
       bodyParts.push('');
     }
@@ -495,7 +495,10 @@ export class MergeDecision {
       lines.push('### Required Actions');
       lines.push('');
       for (let i = 0; i < requiredActions.length; i++) {
-        lines.push(`${String(i + 1)}. ${requiredActions[i]}`);
+        const action = requiredActions[i];
+        if (action !== undefined) {
+          lines.push(`${String(i + 1)}. ${action}`);
+        }
       }
       lines.push('');
     }
