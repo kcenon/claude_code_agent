@@ -17,6 +17,8 @@
 // Main classes
 export { PRReviewerAgent, getPRReviewerAgent, resetPRReviewerAgent } from './PRReviewerAgent.js';
 
+export { PRCreator, DEFAULT_PR_CREATOR_CONFIG } from './PRCreator.js';
+
 export { QualityGate } from './QualityGate.js';
 export type { QualityGateOptions } from './QualityGate.js';
 
@@ -42,6 +44,7 @@ export {
   SecurityVulnerabilityError,
   GitOperationError,
   BranchNotFoundError,
+  BranchNamingError,
   CommandExecutionError,
   ResultPersistenceError,
 } from './errors.js';
@@ -58,10 +61,16 @@ export type {
   PRReviewerAgentConfig,
   QualityGateConfig,
   QualityGateRules,
+  PRCreatorConfig,
 
   // PR types
   PullRequest,
   PRCreateOptions,
+  PRCreateResult,
+
+  // Branch validation types
+  BranchValidationResult,
+  LabelInferenceResult,
 
   // Review types
   ReviewComment,

@@ -29,11 +29,13 @@ import type {
   QualityGateResult,
   ImplementationResult,
   PRCreateOptions,
+  PRCreateResult,
   GitHubPRInfo,
 } from './types.js';
 import { DEFAULT_PR_REVIEWER_CONFIG } from './types.js';
 import { QualityGate } from './QualityGate.js';
 import { ReviewChecks } from './ReviewChecks.js';
+import { PRCreator } from './PRCreator.js';
 import {
   ImplementationResultNotFoundError,
   ImplementationResultParseError,
@@ -87,6 +89,7 @@ export class PRReviewerAgent {
   private readonly config: Required<PRReviewerAgentConfig>;
   private readonly qualityGate: QualityGate;
   private readonly reviewChecks: ReviewChecks;
+  private readonly prCreator: PRCreator;
 
   constructor(config: PRReviewerAgentConfig = {}) {
     this.config = {
@@ -116,6 +119,51 @@ export class PRReviewerAgent {
     this.reviewChecks = new ReviewChecks({
       projectRoot: this.config.projectRoot,
     });
+
+    this.prCreator = new PRCreator({
+      projectRoot: this.config.projectRoot,
+      baseBranch: 'main',
+      enableDraftPR: true,
+      draftThreshold: this.config.coverageThreshold,
+      autoAssignLabels: true,
+    });
+  }
+
+  /**
+   * Create PR only (without full review)
+   * Implements UC-014: PR Creation from Completed Work
+   *
+   * This method is the main entry point for creating a PR when Worker signals completion.
+   * It handles:
+   * - Branch naming validation
+   * - Automatic label assignment
+   * - Draft PR creation for incomplete work
+   * - Issue linking
+   *
+   * @param workOrderId - Work order ID to create PR for
+   * @returns PR creation result with PR details, labels, and draft status
+   */
+  public async createPROnly(workOrderId: string): Promise<PRCreateResult> {
+    const implResult = await this.readImplementationResult(workOrderId);
+    return this.prCreator.createFromImplementationResult(implResult);
+  }
+
+  /**
+   * Create PR from implementation result file
+   *
+   * @param resultPath - Path to implementation result YAML file
+   * @returns PR creation result
+   */
+  public async createPRFromFile(resultPath: string): Promise<PRCreateResult> {
+    const implResult = await this.parseImplementationResultFile(resultPath);
+    return this.prCreator.createFromImplementationResult(implResult);
+  }
+
+  /**
+   * Get the PRCreator instance for direct access to PR creation utilities
+   */
+  public getPRCreator(): PRCreator {
+    return this.prCreator;
   }
 
   /**
