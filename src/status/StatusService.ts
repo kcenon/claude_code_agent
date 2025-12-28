@@ -37,12 +37,36 @@ const DEFAULT_OPTIONS: Required<StatusOptions> = {
 /**
  * Pipeline stage definitions with their corresponding states
  */
-const PIPELINE_STAGES: ReadonlyArray<{ name: string; states: readonly ProjectState[]; description: string }> = [
-  { name: 'Collection', states: ['collecting', 'clarifying'], description: 'Requirements gathering' },
-  { name: 'PRD Generation', states: ['prd_drafting', 'prd_approved'], description: 'Product requirements' },
-  { name: 'SRS Generation', states: ['srs_drafting', 'srs_approved'], description: 'System requirements' },
-  { name: 'SDS Generation', states: ['sds_drafting', 'sds_approved'], description: 'System design' },
-  { name: 'Issue Generation', states: ['issues_creating', 'issues_created'], description: 'Issue breakdown' },
+const PIPELINE_STAGES: ReadonlyArray<{
+  name: string;
+  states: readonly ProjectState[];
+  description: string;
+}> = [
+  {
+    name: 'Collection',
+    states: ['collecting', 'clarifying'],
+    description: 'Requirements gathering',
+  },
+  {
+    name: 'PRD Generation',
+    states: ['prd_drafting', 'prd_approved'],
+    description: 'Product requirements',
+  },
+  {
+    name: 'SRS Generation',
+    states: ['srs_drafting', 'srs_approved'],
+    description: 'System requirements',
+  },
+  {
+    name: 'SDS Generation',
+    states: ['sds_drafting', 'sds_approved'],
+    description: 'System design',
+  },
+  {
+    name: 'Issue Generation',
+    states: ['issues_creating', 'issues_created'],
+    description: 'Issue breakdown',
+  },
   { name: 'Implementation', states: ['implementing'], description: 'Code development' },
   { name: 'PR Review', states: ['pr_review'], description: 'Code review' },
   { name: 'Merged', states: ['merged'], description: 'Completed' },
@@ -78,7 +102,8 @@ export class StatusService {
       return {
         projects: projectStatus !== null ? [projectStatus] : [],
         totalProjects: projectStatus !== null ? 1 : 0,
-        activeProjects: projectStatus !== null && !this.isTerminalState(projectStatus.currentState) ? 1 : 0,
+        activeProjects:
+          projectStatus !== null && !this.isTerminalState(projectStatus.currentState) ? 1 : 0,
         timestamp,
       };
     }
@@ -94,9 +119,7 @@ export class StatusService {
       }
     }
 
-    const activeCount = projectStatuses.filter(
-      (p) => !this.isTerminalState(p.currentState)
-    ).length;
+    const activeCount = projectStatuses.filter((p) => !this.isTerminalState(p.currentState)).length;
 
     return {
       projects: projectStatuses,
@@ -206,7 +229,11 @@ export class StatusService {
       return;
     }
 
-    console.log(chalk.dim(`Total Projects: ${String(status.totalProjects)}, Active: ${String(status.activeProjects)}\n`));
+    console.log(
+      chalk.dim(
+        `Total Projects: ${String(status.totalProjects)}, Active: ${String(status.activeProjects)}\n`
+      )
+    );
 
     for (const project of status.projects) {
       this.displayProjectStatus(project, verbose);
@@ -222,7 +249,11 @@ export class StatusService {
     // Header
     console.log(chalk.white.bold(`Project: ${project.projectName ?? project.projectId}`));
     console.log(chalk.white(`Phase: ${stateColor(project.currentState)}`));
-    console.log(chalk.white(`Progress: ${this.formatProgressBar(project.progressPercent)} ${String(project.progressPercent)}%`));
+    console.log(
+      chalk.white(
+        `Progress: ${this.formatProgressBar(project.progressPercent)} ${String(project.progressPercent)}%`
+      )
+    );
     console.log('');
 
     // Stages table
@@ -233,9 +264,8 @@ export class StatusService {
     for (const stage of project.stages) {
       const statusIcon = this.getStatusIcon(stage.status);
       const statusText = this.formatStatus(stage.status);
-      const duration = stage.durationSeconds !== undefined
-        ? this.formatDuration(stage.durationSeconds)
-        : '-';
+      const duration =
+        stage.durationSeconds !== undefined ? this.formatDuration(stage.durationSeconds) : '-';
 
       const name = stage.name.padEnd(18);
       const stat = statusText.padEnd(9);
@@ -249,7 +279,11 @@ export class StatusService {
 
     // Issues summary
     if (project.issues.total > 0) {
-      console.log(chalk.white(`Issues: ${String(project.issues.completed)}/${String(project.issues.total)} completed`));
+      console.log(
+        chalk.white(
+          `Issues: ${String(project.issues.completed)}/${String(project.issues.total)} completed`
+        )
+      );
       if (project.issues.inProgress > 0) {
         console.log(chalk.dim(`  In Progress: ${String(project.issues.inProgress)}`));
       }
@@ -263,7 +297,8 @@ export class StatusService {
     if (project.workers.length > 0 && verbose) {
       console.log(chalk.white(`Active Workers: ${String(project.workers.length)}`));
       for (const worker of project.workers) {
-        const progressStr = worker.progress !== undefined ? `(${String(worker.progress)}% complete)` : '';
+        const progressStr =
+          worker.progress !== undefined ? `(${String(worker.progress)}% complete)` : '';
         const issueStr = worker.currentIssue ?? 'idle';
         console.log(chalk.dim(`- ${worker.id}: ${issueStr} ${progressStr}`));
       }
@@ -406,7 +441,10 @@ export class StatusService {
   private async getWorkerStatus(projectId: string): Promise<WorkerStatus[]> {
     try {
       const workOrdersPath = this.scratchpad.getProgressSubsectionPath(projectId, 'work_orders');
-      const exists = await fs.promises.access(workOrdersPath, fs.constants.F_OK).then(() => true).catch(() => false);
+      const exists = await fs.promises
+        .access(workOrdersPath, fs.constants.F_OK)
+        .then(() => true)
+        .catch(() => false);
 
       if (!exists) {
         return [];
@@ -496,7 +534,8 @@ export class StatusService {
   private calculateProgress(currentState: ProjectState, issues: IssueStatusCounts): number {
     // Base progress from stages
     const stageIndex = this.getStateStageIndex(currentState);
-    const stageProgress = stageIndex >= 0 ? Math.round((stageIndex / (PIPELINE_STAGES.length - 1)) * 100) : 0;
+    const stageProgress =
+      stageIndex >= 0 ? Math.round((stageIndex / (PIPELINE_STAGES.length - 1)) * 100) : 0;
 
     // If we're in implementation phase, use issue progress
     if (currentState === 'implementing' && issues.total > 0) {
