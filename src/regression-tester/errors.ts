@@ -36,7 +36,7 @@ export class NoTestsFoundError extends RegressionTesterError {
 export class TestExecutionFailedError extends RegressionTesterError {
   public readonly testFile: string;
   public readonly reason: string;
-  public readonly exitCode?: number;
+  public readonly exitCode: number | undefined;
 
   constructor(testFile: string, reason: string, exitCode?: number) {
     const exitInfo = exitCode !== undefined ? ` (exit code: ${String(exitCode)})` : '';

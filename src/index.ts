@@ -864,22 +864,21 @@ export type {
   RegressionSessionStatus,
   // Report types
   RegressionReport,
-  RegressionRecommendation,
+  Recommendation as RegressionRecommendation,
   RegressionSummary,
   RecommendationType as RegressionRecommendationType,
-  RecommendationPriority,
-  SummaryStatus,
+  RegressionStatus,
   // Result types
   RegressionAnalysisResult,
   RegressionAnalysisStats,
   // Changed file types
   ChangedFile,
-  ChangeType as RegressionChangeType,
+  FileChangeType as RegressionChangeType,
   // Test types
   TestFile,
   TestMapping,
   TestMappingSummary,
-  MappingSource,
+  TestCase,
   // Affected test types
   AffectedTest,
   TestPriority,
@@ -892,11 +891,13 @@ export type {
   // Coverage types
   CoverageImpact,
   CoverageMetrics,
-  CoverageStatus,
+  UncoveredLines,
   // Compatibility types
   CompatibilityIssue,
+  CompatibilityIssueType,
   IssueSeverity,
-  IssueCategory,
+  // Test framework type
+  TestFramework,
   // Dependency graph types (with aliases)
   DependencyGraph as RegressionDependencyGraph,
   DependencyNode as RegressionDependencyNode,
