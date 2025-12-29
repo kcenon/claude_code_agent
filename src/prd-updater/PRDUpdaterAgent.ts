@@ -127,10 +127,7 @@ export class PRDUpdaterAgent {
       this.session = {
         ...this.session,
         status: 'failed',
-        errors: [
-          ...this.session.errors,
-          error instanceof Error ? error.message : String(error),
-        ],
+        errors: [...this.session.errors, error instanceof Error ? error.message : String(error)],
         updatedAt: new Date().toISOString(),
       };
       throw error;
@@ -170,7 +167,11 @@ export class PRDUpdaterAgent {
           if (changeRequest.newRequirement === undefined) {
             throw new InvalidChangeRequestError('newRequirement', 'Required for add_requirement');
           }
-          const result = this.addRequirement(updatedContent, changeRequest.newRequirement, parsedPRD);
+          const result = this.addRequirement(
+            updatedContent,
+            changeRequest.newRequirement,
+            parsedPRD
+          );
           updatedContent = result.content;
           changes.added.push(result.added);
           break;
@@ -179,7 +180,10 @@ export class PRDUpdaterAgent {
           if (changeRequest.requirementId === undefined) {
             throw new InvalidChangeRequestError('requirementId', 'Required for modify_requirement');
           }
-          if (changeRequest.modifications === undefined || changeRequest.modifications.length === 0) {
+          if (
+            changeRequest.modifications === undefined ||
+            changeRequest.modifications.length === 0
+          ) {
             throw new InvalidChangeRequestError('modifications', 'Required for modify_requirement');
           }
           const result = this.modifyRequirement(
@@ -194,10 +198,16 @@ export class PRDUpdaterAgent {
         }
         case 'deprecate_requirement': {
           if (changeRequest.requirementId === undefined) {
-            throw new InvalidChangeRequestError('requirementId', 'Required for deprecate_requirement');
+            throw new InvalidChangeRequestError(
+              'requirementId',
+              'Required for deprecate_requirement'
+            );
           }
           if (changeRequest.deprecationReason === undefined) {
-            throw new InvalidChangeRequestError('deprecationReason', 'Required for deprecate_requirement');
+            throw new InvalidChangeRequestError(
+              'deprecationReason',
+              'Required for deprecate_requirement'
+            );
           }
           const result = this.deprecateRequirement(
             updatedContent,
@@ -276,10 +286,7 @@ export class PRDUpdaterAgent {
       this.session = {
         ...this.session,
         status: 'failed',
-        errors: [
-          ...this.session.errors,
-          error instanceof Error ? error.message : String(error),
-        ],
+        errors: [...this.session.errors, error instanceof Error ? error.message : String(error)],
         updatedAt: new Date().toISOString(),
       };
       throw error;
@@ -452,7 +459,12 @@ export class PRDUpdaterAgent {
   private parseSections(content: string): DocumentSection[] {
     const lines = content.split('\n');
     const sections: DocumentSection[] = [];
-    let currentSection: { title: string; level: number; startLine: number; lines: string[] } | null = null;
+    let currentSection: {
+      title: string;
+      level: number;
+      startLine: number;
+      lines: string[];
+    } | null = null;
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i] ?? '';
@@ -500,7 +512,8 @@ export class PRDUpdaterAgent {
     const requirements: ParsedRequirement[] = [];
 
     // Extract functional requirements
-    const frPattern = /###\s*(FR-\d{3}):\s*(.+?)(?:\s*\[(NEW|MODIFIED|DEPRECATED)\])?\s*\n([\s\S]*?)(?=\n###\s|$)/gi;
+    const frPattern =
+      /###\s*(FR-\d{3}):\s*(.+?)(?:\s*\[(NEW|MODIFIED|DEPRECATED)\])?\s*\n([\s\S]*?)(?=\n###\s|$)/gi;
     let match;
 
     while ((match = frPattern.exec(content)) !== null) {
@@ -530,7 +543,8 @@ export class PRDUpdaterAgent {
     }
 
     // Extract non-functional requirements
-    const nfrPattern = /###\s*(NFR-\d{3}):\s*(.+?)(?:\s*\[(NEW|MODIFIED|DEPRECATED)\])?\s*\n([\s\S]*?)(?=\n###\s|$)/gi;
+    const nfrPattern =
+      /###\s*(NFR-\d{3}):\s*(.+?)(?:\s*\[(NEW|MODIFIED|DEPRECATED)\])?\s*\n([\s\S]*?)(?=\n###\s|$)/gi;
 
     while ((match = nfrPattern.exec(content)) !== null) {
       const id = match[1] ?? '';
@@ -617,7 +631,10 @@ export class PRDUpdaterAgent {
     }
     if (changeRequest.type === 'modify_requirement') {
       if (changeRequest.requirementId === undefined) {
-        throw new InvalidChangeRequestError('requirementId', 'Required for modify_requirement type');
+        throw new InvalidChangeRequestError(
+          'requirementId',
+          'Required for modify_requirement type'
+        );
       }
       if (changeRequest.modifications === undefined || changeRequest.modifications.length === 0) {
         throw new InvalidChangeRequestError('modifications', 'At least one modification required');
@@ -625,10 +642,16 @@ export class PRDUpdaterAgent {
     }
     if (changeRequest.type === 'deprecate_requirement') {
       if (changeRequest.requirementId === undefined) {
-        throw new InvalidChangeRequestError('requirementId', 'Required for deprecate_requirement type');
+        throw new InvalidChangeRequestError(
+          'requirementId',
+          'Required for deprecate_requirement type'
+        );
       }
       if (changeRequest.deprecationReason === undefined) {
-        throw new InvalidChangeRequestError('deprecationReason', 'Required for deprecate_requirement type');
+        throw new InvalidChangeRequestError(
+          'deprecationReason',
+          'Required for deprecate_requirement type'
+        );
       }
     }
   }
@@ -652,8 +675,12 @@ export class PRDUpdaterAgent {
     }
 
     // Find the section to add to
-    const sectionTitle = newReq.type === 'functional' ? 'Functional Requirements' : 'Non-Functional Requirements';
-    const sectionPattern = new RegExp(`(## \\d+\\.\\s*${sectionTitle}[\\s\\S]*?)(?=\\n## \\d+\\.|$)`, 'i');
+    const sectionTitle =
+      newReq.type === 'functional' ? 'Functional Requirements' : 'Non-Functional Requirements';
+    const sectionPattern = new RegExp(
+      `(## \\d+\\.\\s*${sectionTitle}[\\s\\S]*?)(?=\\n## \\d+\\.|$)`,
+      'i'
+    );
     const sectionMatch = content.match(sectionPattern);
 
     // Build new requirement markdown
@@ -867,7 +894,6 @@ export class PRDUpdaterAgent {
     return content + `\n\n## Scope Extension\n\n${extension}\n`;
   }
 
-
   private calculateNewVersion(currentVersion: string, changes: UpdateChanges): string {
     const parts = currentVersion.split('.');
     const major = parseInt(parts[0] ?? '1', 10);
@@ -934,10 +960,14 @@ export class PRDUpdaterAgent {
     const nfrDuplicates = nfrIds.filter((id, index) => nfrIds.indexOf(id) !== index);
 
     if (frDuplicates.length > 0) {
-      issues.push(`Duplicate functional requirement IDs found: ${[...new Set(frDuplicates)].join(', ')}`);
+      issues.push(
+        `Duplicate functional requirement IDs found: ${[...new Set(frDuplicates)].join(', ')}`
+      );
     }
     if (nfrDuplicates.length > 0) {
-      issues.push(`Duplicate non-functional requirement IDs found: ${[...new Set(nfrDuplicates)].join(', ')}`);
+      issues.push(
+        `Duplicate non-functional requirement IDs found: ${[...new Set(nfrDuplicates)].join(', ')}`
+      );
     }
 
     // Check for requirements without priority
@@ -1035,7 +1065,10 @@ export class PRDUpdaterAgent {
       await fs.writeFile(changelogPath, newContent, 'utf-8');
       return changelogPath;
     } catch (error) {
-      throw new OutputWriteError(changelogPath, error instanceof Error ? error.message : String(error));
+      throw new OutputWriteError(
+        changelogPath,
+        error instanceof Error ? error.message : String(error)
+      );
     }
   }
 
@@ -1080,7 +1113,10 @@ export class PRDUpdaterAgent {
       await fs.writeFile(resultPath, yamlContent, 'utf-8');
       return resultPath;
     } catch (error) {
-      throw new OutputWriteError(resultPath, error instanceof Error ? error.message : String(error));
+      throw new OutputWriteError(
+        resultPath,
+        error instanceof Error ? error.message : String(error)
+      );
     }
   }
 }
