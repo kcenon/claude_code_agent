@@ -413,6 +413,91 @@ agents:
   # ---------------------------------------------------------------------------
   # Enhancement Pipeline Agents
   # ---------------------------------------------------------------------------
+  document-reader:
+    id: "document-reader"
+    name: "Document Reader Agent"
+    korean_name: "문서 분석 에이전트"
+    description: "Parses and analyzes existing PRD/SRS/SDS documents to understand current project state"
+    definition_file: ".claude/agents/document-reader.md"
+    category: "enhancement_pipeline"
+    order: 1
+
+    capabilities:
+      - "document_parsing"
+      - "version_tracking"
+      - "requirement_extraction"
+      - "traceability_mapping"
+
+    io:
+      inputs:
+        - existing_prd.md
+        - existing_srs.md
+        - existing_sds.md
+      outputs:
+        - current_state.yaml
+
+    metrics:
+      avg_duration_seconds: 60
+      success_rate: 0.95
+
+  codebase-analyzer:
+    id: "codebase-analyzer"
+    name: "Codebase Analyzer Agent"
+    korean_name: "코드베이스 분석 에이전트"
+    description: "Analyzes existing code structure, architecture patterns, and dependencies"
+    definition_file: ".claude/agents/codebase-analyzer.md"
+    category: "enhancement_pipeline"
+    order: 2
+
+    capabilities:
+      - "architecture_analysis"
+      - "dependency_graphing"
+      - "pattern_recognition"
+      - "code_metrics"
+
+    io:
+      inputs:
+        - source_root
+        - package_files
+      outputs:
+        - architecture_overview.yaml
+        - dependency_graph.json
+
+    parallelizable: true
+    max_instances: 1
+
+    metrics:
+      avg_duration_seconds: 120
+      success_rate: 0.93
+
+  impact-analyzer:
+    id: "impact-analyzer"
+    name: "Impact Analyzer Agent"
+    korean_name: "영향 분석 에이전트"
+    description: "Assesses implications of proposed changes on existing codebase and documentation"
+    definition_file: ".claude/agents/impact-analyzer.md"
+    category: "enhancement_pipeline"
+    order: 3
+
+    capabilities:
+      - "change_scope_analysis"
+      - "affected_module_detection"
+      - "risk_assessment"
+      - "regression_prediction"
+
+    io:
+      inputs:
+        - current_state.yaml
+        - architecture_overview.yaml
+        - dependency_graph.json
+        - change_request
+      outputs:
+        - impact_report.yaml
+
+    metrics:
+      avg_duration_seconds: 90
+      success_rate: 0.92
+
   regression-tester:
     id: "regression-tester"
     name: "Regression Tester Agent"
@@ -496,8 +581,14 @@ categories:
     name: "Enhancement Pipeline"
     description: "Agents that support existing project improvements and regression testing"
     agents:
+      - document-reader
+      - codebase-analyzer
+      - impact-analyzer
+      - prd-updater
+      - srs-updater
+      - sds-updater
       - regression-tester
-    execution_mode: "parallel"
+    execution_mode: "mixed"  # Some parallel, some sequential
 
 # =============================================================================
 # Agent Relationships
@@ -524,8 +615,13 @@ relationships:
       requires: [srs-updater]
     doc-code-comparator:
       requires: [document-reader, code-reader]
+    # Enhancement Pipeline Dependencies
+    impact-analyzer:
+      requires: [document-reader, codebase-analyzer]
+    prd-updater:
+      requires: [impact-analyzer]
     regression-tester:
-      requires: [codebase-analyzer]
+      requires: [codebase-analyzer, worker]
 
   data_flow:
     - from: collector
@@ -583,6 +679,29 @@ relationships:
     - from: regression-tester
       to: pr-reviewer
       data: regression_report.yaml
+
+    # Enhancement Pipeline Data Flow
+    - from: document-reader
+      to: impact-analyzer
+      data: current_state.yaml
+
+    - from: codebase-analyzer
+      to: impact-analyzer
+      data: [architecture_overview.yaml, dependency_graph.json]
+
+    - from: impact-analyzer
+      to: prd-updater
+      data: impact_report.yaml
+
+    - from: sds-updater
+      to: issue-generator
+      data: sds_update_result.yaml
+      mode: enhancement
+
+    - from: impact-analyzer
+      to: issue-generator
+      data: impact_report.yaml
+      mode: enhancement
 
 # =============================================================================
 # Model Configurations
