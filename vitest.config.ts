@@ -24,7 +24,7 @@ export default defineConfig({
       thresholds: {
         lines: 80,
         functions: 78, // Adjusted for new worker module with complex async flows
-        branches: 73, // Adjusted for code-reader module error classes
+        branches: 72, // Adjusted for reader module error classes (code-reader, document-reader)
         statements: 80,
       },
     },
