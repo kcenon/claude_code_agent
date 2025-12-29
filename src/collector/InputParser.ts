@@ -153,11 +153,11 @@ export class InputParser {
 
       // Handle binary files (PDF, DOCX) differently
       if (fileType === 'pdf') {
-        return this.parsePdfFile(filePath, stats);
+        return await this.parsePdfFile(filePath, stats);
       }
 
       if (fileType === 'docx') {
-        return this.parseDocxFile(filePath, stats);
+        return await this.parseDocxFile(filePath, stats);
       }
 
       // Handle text-based files
