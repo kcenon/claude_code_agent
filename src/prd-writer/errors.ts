@@ -168,3 +168,78 @@ export class FileWriteError extends PRDWriterError {
     this.filePath = filePath;
   }
 }
+
+// ============================================================
+// Approval Workflow Errors
+// ============================================================
+
+/**
+ * Error thrown when approval is requested for a non-existent document
+ */
+export class DocumentNotFoundError extends PRDWriterError {
+  /** The project ID */
+  public readonly projectId: string;
+  /** The document type */
+  public readonly documentType: string;
+
+  constructor(projectId: string, documentType: string) {
+    super(`Document not found: ${documentType} for project "${projectId}"`);
+    this.name = 'DocumentNotFoundError';
+    this.projectId = projectId;
+    this.documentType = documentType;
+  }
+}
+
+/**
+ * Error thrown when feedback is required but not provided
+ */
+export class FeedbackRequiredError extends PRDWriterError {
+  /** The decision that required feedback */
+  public readonly decision: string;
+
+  constructor(decision: string) {
+    super(`Feedback is required for decision "${decision}"`);
+    this.name = 'FeedbackRequiredError';
+    this.decision = decision;
+  }
+}
+
+/**
+ * Error thrown when approval workflow is in invalid state
+ */
+export class ApprovalStateError extends PRDWriterError {
+  /** Current approval state */
+  public readonly currentState: string;
+  /** The action that was attempted */
+  public readonly attemptedAction: string;
+
+  constructor(currentState: string, attemptedAction: string) {
+    super(`Cannot ${attemptedAction}: document is in "${currentState}" approval state`);
+    this.name = 'ApprovalStateError';
+    this.currentState = currentState;
+    this.attemptedAction = attemptedAction;
+  }
+}
+
+/**
+ * Error thrown when project state transition fails
+ */
+export class StateTransitionError extends PRDWriterError {
+  /** The project ID */
+  public readonly projectId: string;
+  /** Source state */
+  public readonly fromState: string;
+  /** Target state */
+  public readonly toState: string;
+
+  constructor(projectId: string, fromState: string, toState: string, reason: string) {
+    super(
+      `State transition failed for project "${projectId}": ` +
+        `cannot transition from "${fromState}" to "${toState}". ${reason}`
+    );
+    this.name = 'StateTransitionError';
+    this.projectId = projectId;
+    this.fromState = fromState;
+    this.toState = toState;
+  }
+}

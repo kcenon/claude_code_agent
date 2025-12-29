@@ -26,6 +26,12 @@ export type { ConsistencyCheckerOptions } from './ConsistencyChecker.js';
 export { TemplateProcessor } from './TemplateProcessor.js';
 export type { TemplateProcessorOptions } from './TemplateProcessor.js';
 
+export {
+  ApprovalWorkflow,
+  getApprovalWorkflow,
+  resetApprovalWorkflow,
+} from './ApprovalWorkflow.js';
+
 // Error classes
 export {
   PRDWriterError,
@@ -38,6 +44,11 @@ export {
   ValidationError,
   GenerationError,
   FileWriteError,
+  // Approval workflow errors
+  DocumentNotFoundError,
+  FeedbackRequiredError,
+  ApprovalStateError,
+  StateTransitionError,
 } from './errors.js';
 
 // Type exports
@@ -72,4 +83,14 @@ export type {
   // Template types
   TemplateVariable,
   TemplateProcessingResult,
+
+  // Approval workflow types
+  ApprovalDecision,
+  ApprovableDocument,
+  ApprovalRequest,
+  ApprovalResult,
+  ApprovalHistoryEntry,
+  ApprovalWorkflowConfig,
+  PRDRevision,
+  ApprovalStatus,
 } from './types.js';
