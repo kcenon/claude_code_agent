@@ -10,6 +10,7 @@ src/
 ├── cli.ts                 # CLI entry point
 ├── index.ts               # Main module exports
 ├── config/                # Configuration validation module
+├── error-handler/         # Retry logic and error handling
 ├── init/                  # Project initialization module
 ├── issue-generator/       # GitHub issue generation
 ├── scratchpad/            # Inter-agent state sharing
@@ -23,6 +24,20 @@ src/
 - `watcher.ts` - File watching for real-time validation
 - `errors.ts` - Custom error types
 - `types.ts` - TypeScript type definitions
+
+### error-handler/ - Retry Logic and Error Handling
+- `RetryHandler.ts` - Core retry logic with exponential backoff
+- `types.ts` - Retry policy and error classification types
+- `errors.ts` - Custom error classes (MaxRetriesExceeded, OperationTimeout, etc.)
+- `index.ts` - Module exports
+
+Features:
+- Configurable retry policies (max attempts, delays, backoff strategy)
+- Exponential, linear, and fixed backoff strategies
+- Jitter support to prevent thundering herd
+- Error categorization (retryable vs non-retryable)
+- Timeout handling for long-running operations
+- Abort signal support for cancellation
 
 ## Structure Examples
 
