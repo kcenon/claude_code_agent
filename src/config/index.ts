@@ -68,3 +68,21 @@ export {
 
 // Watcher
 export { ConfigWatcher, watchConfigFiles, watchConfigWithLogging } from './watcher.js';
+
+// ConfigManager
+export {
+  ConfigManager,
+  getConfigManager,
+  resetConfigManager,
+  isConfigManagerInitialized,
+  resolveEnvVars,
+} from './ConfigManager.js';
+export type {
+  RetryPolicy,
+  GlobalConfig,
+  PipelineStage,
+  AgentWorkflowConfig,
+  QualityGates,
+  DocumentQualityGate,
+  ConfigManagerOptions,
+} from './ConfigManager.js';
