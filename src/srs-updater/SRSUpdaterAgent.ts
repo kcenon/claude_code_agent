@@ -244,7 +244,10 @@ export class SRSUpdaterAgent {
         }
         case 'update_interface': {
           if (changeRequest.interfaceName === undefined) {
-            throw new InvalidSRSChangeRequestError('interfaceName', 'Required for update_interface');
+            throw new InvalidSRSChangeRequestError(
+              'interfaceName',
+              'Required for update_interface'
+            );
           }
           if (changeRequest.interfaceChanges === undefined) {
             throw new InvalidSRSChangeRequestError(
@@ -271,10 +274,7 @@ export class SRSUpdaterAgent {
               'Required for update_traceability'
             );
           }
-          const result = this.updateTraceability(
-            updatedContent,
-            changeRequest.traceabilityUpdates
-          );
+          const result = this.updateTraceability(updatedContent, changeRequest.traceabilityUpdates);
           updatedContent = result.content;
           traceabilityUpdates.push(...changeRequest.traceabilityUpdates);
           break;
@@ -1192,8 +1192,7 @@ export class SRSUpdaterAgent {
     if (interfaceMatch !== null && interfaceMatch[1] !== undefined) {
       const sectionEnd = (interfaceMatch.index ?? 0) + interfaceMatch[1].length;
       const interfaceNote = `\n\n**Interface Update (${today})**: ${interfaceName}\n${changes}\n`;
-      updatedContent =
-        content.slice(0, sectionEnd) + interfaceNote + content.slice(sectionEnd);
+      updatedContent = content.slice(0, sectionEnd) + interfaceNote + content.slice(sectionEnd);
     } else {
       // Add interface section if not found
       updatedContent += `\n\n## External Interfaces\n\n**Interface Update (${today})**: ${interfaceName}\n${changes}\n`;
@@ -1422,7 +1421,10 @@ export class SRSUpdaterAgent {
     try {
       await fs.writeFile(srsPath, content, 'utf-8');
     } catch (error) {
-      throw new SRSOutputWriteError(srsPath, error instanceof Error ? error.message : String(error));
+      throw new SRSOutputWriteError(
+        srsPath,
+        error instanceof Error ? error.message : String(error)
+      );
     }
   }
 
@@ -1458,7 +1460,10 @@ export class SRSUpdaterAgent {
     }
   }
 
-  private async writeUpdateResult(projectId: string, updateResult: SRSUpdateResult): Promise<string> {
+  private async writeUpdateResult(
+    projectId: string,
+    updateResult: SRSUpdateResult
+  ): Promise<string> {
     const outputDir = path.join(this.config.scratchpadBasePath, 'documents', projectId);
     const resultPath = path.join(outputDir, 'srs_update_result.yaml');
 
