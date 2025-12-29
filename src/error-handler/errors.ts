@@ -73,10 +73,7 @@ export class OperationTimeoutError extends ErrorHandlerError {
 
   constructor(timeoutMs: number, operationName?: string) {
     const opName = operationName !== undefined ? ` '${operationName}'` : '';
-    super(
-      `Operation${opName} timed out after ${String(timeoutMs)}ms`,
-      'OPERATION_TIMEOUT'
-    );
+    super(`Operation${opName} timed out after ${String(timeoutMs)}ms`, 'OPERATION_TIMEOUT');
     this.name = 'OperationTimeoutError';
     this.timeoutMs = timeoutMs;
     this.operationName = operationName;
@@ -114,10 +111,7 @@ export class NonRetryableError extends ErrorHandlerError {
   public readonly category: string;
 
   constructor(originalError: Error, category: string = 'non-retryable') {
-    super(
-      `Non-retryable error encountered: ${originalError.message}`,
-      'NON_RETRYABLE_ERROR'
-    );
+    super(`Non-retryable error encountered: ${originalError.message}`, 'NON_RETRYABLE_ERROR');
     this.name = 'NonRetryableError';
     this.originalError = originalError;
     this.category = category;
@@ -162,11 +156,7 @@ export class RetryContextError extends ErrorHandlerError {
   /** Whether this was the final attempt */
   public readonly isFinalAttempt: boolean;
 
-  constructor(
-    originalError: Error,
-    attempt: number,
-    maxAttempts: number
-  ) {
+  constructor(originalError: Error, attempt: number, maxAttempts: number) {
     super(
       `Retry attempt ${String(attempt)}/${String(maxAttempts)} failed: ${originalError.message}`,
       'RETRY_CONTEXT_ERROR'

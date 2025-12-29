@@ -58,10 +58,18 @@ function validatePolicy(policy: RetryPolicy): void {
     );
   }
   if (policy.backoffMultiplier < 1) {
-    throw new InvalidRetryPolicyError('backoffMultiplier', policy.backoffMultiplier, 'must be >= 1');
+    throw new InvalidRetryPolicyError(
+      'backoffMultiplier',
+      policy.backoffMultiplier,
+      'must be >= 1'
+    );
   }
   if (policy.jitterFactor < 0 || policy.jitterFactor > 1) {
-    throw new InvalidRetryPolicyError('jitterFactor', policy.jitterFactor, 'must be between 0 and 1');
+    throw new InvalidRetryPolicyError(
+      'jitterFactor',
+      policy.jitterFactor,
+      'must be between 0 and 1'
+    );
   }
 }
 
@@ -113,10 +121,7 @@ export function defaultErrorClassifier(error: Error): ErrorCategory {
 /**
  * Calculate delay for a retry attempt using the configured backoff strategy
  */
-export function calculateDelay(
-  attempt: number,
-  policy: RetryPolicy
-): number {
+export function calculateDelay(attempt: number, policy: RetryPolicy): number {
   let delay: number;
 
   switch (policy.backoff) {
@@ -319,9 +324,8 @@ export async function withRetry<T>(
       const isRetryable = category !== 'non-retryable';
 
       // Calculate next delay (for logging)
-      const nextRetryDelayMs = !isFinalAttempt && isRetryable
-        ? calculateDelay(attempt, policy)
-        : undefined;
+      const nextRetryDelayMs =
+        !isFinalAttempt && isRetryable ? calculateDelay(attempt, policy) : undefined;
 
       const attemptResult: RetryAttemptResult = {
         attempt,
@@ -335,16 +339,19 @@ export async function withRetry<T>(
       attemptResults.push(attemptResult);
 
       // Log the failure
-      logger.warn(`Retry attempt ${String(attempt)}/${String(policy.maxAttempts)} failed for '${operationName}'`, {
-        attempt,
-        maxAttempts: policy.maxAttempts,
-        errorMessage: caughtError.message,
-        errorName: caughtError.name,
-        category,
-        isRetryable,
-        nextRetryDelayMs,
-        isFinalAttempt,
-      });
+      logger.warn(
+        `Retry attempt ${String(attempt)}/${String(policy.maxAttempts)} failed for '${operationName}'`,
+        {
+          attempt,
+          maxAttempts: policy.maxAttempts,
+          errorMessage: caughtError.message,
+          errorName: caughtError.name,
+          category,
+          isRetryable,
+          nextRetryDelayMs,
+          isFinalAttempt,
+        }
+      );
 
       // Fire callback if provided
       options.onAttempt?.(context, attemptResult);
@@ -488,10 +495,7 @@ export class RetryHandler {
   private readonly policy: RetryPolicy;
   private readonly errorClassifier: ErrorClassifier;
 
-  constructor(
-    policyOverride?: Partial<RetryPolicy>,
-    errorClassifier?: ErrorClassifier
-  ) {
+  constructor(policyOverride?: Partial<RetryPolicy>, errorClassifier?: ErrorClassifier) {
     this.policy = mergePolicy(policyOverride);
     this.errorClassifier = errorClassifier ?? defaultErrorClassifier;
   }
