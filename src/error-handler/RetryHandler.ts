@@ -35,9 +35,12 @@ import {
   OperationAbortedError,
   NonRetryableError,
   InvalidRetryPolicyError,
+  CircuitOpenError,
 } from './errors.js';
 
 import { getLogger } from '../monitoring/Logger.js';
+
+import { CircuitBreaker } from './CircuitBreaker.js';
 
 /**
  * Validates a retry policy configuration
@@ -261,6 +264,10 @@ export async function withRetry<T>(
   const logger = getLogger();
   const operationName = options.operationName ?? 'unknown';
 
+  // Extract circuit breaker if provided
+  const circuitBreaker = options.circuitBreaker?.breaker as CircuitBreaker | undefined;
+  const countRetryableFailures = options.circuitBreaker?.countRetryableFailures ?? true;
+
   const attemptResults: RetryAttemptResult[] = [];
   const startTime = Date.now();
   let lastError: Error | undefined;
@@ -272,6 +279,17 @@ export async function withRetry<T>(
     // Check abort signal before each attempt
     if (options.signal?.aborted === true) {
       throw new OperationAbortedError(operationName, 'Aborted before attempt');
+    }
+
+    // Check circuit breaker before each attempt
+    if (circuitBreaker !== undefined && !circuitBreaker.isAcceptingRequests()) {
+      const remainingMs = circuitBreaker.getRemainingTimeout();
+      logger.warn(`Circuit breaker blocking retry for '${operationName}'`, {
+        attempt,
+        remainingTimeoutMs: remainingMs,
+        circuitState: circuitBreaker.getState(),
+      });
+      throw new CircuitOpenError(remainingMs, circuitBreaker.getFailureCount(), operationName);
     }
 
     const context: RetryContext = {
@@ -314,6 +332,11 @@ export async function withRetry<T>(
       // Fire callback if provided
       options.onAttempt?.(context, attemptResult);
 
+      // Notify circuit breaker of success
+      if (circuitBreaker !== undefined) {
+        circuitBreaker.recordSuccess();
+      }
+
       return result;
     } catch (error) {
       const caughtError = error instanceof Error ? error : new Error(String(error));
@@ -355,6 +378,11 @@ export async function withRetry<T>(
 
       // Fire callback if provided
       options.onAttempt?.(context, attemptResult);
+
+      // Notify circuit breaker of failure (for non-retryable or when counting retryable)
+      if (circuitBreaker !== undefined && (!isRetryable || countRetryableFailures)) {
+        circuitBreaker.recordFailure(caughtError);
+      }
 
       // If non-retryable, throw immediately
       if (!isRetryable) {
