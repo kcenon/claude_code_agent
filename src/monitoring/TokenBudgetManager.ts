@@ -117,7 +117,10 @@ const DEFAULT_ON_LIMIT_REACHED = 'pause' as const;
  */
 export class TokenBudgetManager {
   private readonly config: Required<
-    Pick<TokenBudgetConfig, 'warningThresholds' | 'hardLimitThreshold' | 'onLimitReached' | 'allowOverride'>
+    Pick<
+      TokenBudgetConfig,
+      'warningThresholds' | 'hardLimitThreshold' | 'onLimitReached' | 'allowOverride'
+    >
   > &
     TokenBudgetConfig;
   private currentTokens = 0;
@@ -139,7 +142,11 @@ export class TokenBudgetManager {
   /**
    * Record token usage and check budget
    */
-  public recordUsage(inputTokens: number, outputTokens: number, costUsd: number): BudgetCheckResult {
+  public recordUsage(
+    inputTokens: number,
+    outputTokens: number,
+    costUsd: number
+  ): BudgetCheckResult {
     this.currentTokens += inputTokens + outputTokens;
     this.currentCostUsd += costUsd;
 
@@ -248,7 +255,8 @@ export class TokenBudgetManager {
       this.config.warningThresholds.some((t) => costPercent >= t);
 
     const limitExceeded =
-      tokenPercent >= this.config.hardLimitThreshold || costPercent >= this.config.hardLimitThreshold;
+      tokenPercent >= this.config.hardLimitThreshold ||
+      costPercent >= this.config.hardLimitThreshold;
 
     const status: BudgetStatus = {
       currentTokens: this.currentTokens,
@@ -262,7 +270,10 @@ export class TokenBudgetManager {
 
     if (tokenLimit !== undefined) {
       (status as { tokenLimit?: number }).tokenLimit = tokenLimit;
-      (status as { remainingTokens?: number }).remainingTokens = Math.max(0, tokenLimit - this.currentTokens);
+      (status as { remainingTokens?: number }).remainingTokens = Math.max(
+        0,
+        tokenLimit - this.currentTokens
+      );
     }
 
     if (costLimit !== undefined) {
@@ -318,7 +329,10 @@ export class TokenBudgetManager {
   /**
    * Estimate if a request will exceed budget
    */
-  public estimateUsage(estimatedInputTokens: number, estimatedOutputTokens: number): BudgetCheckResult {
+  public estimateUsage(
+    estimatedInputTokens: number,
+    estimatedOutputTokens: number
+  ): BudgetCheckResult {
     const estimatedTotal = this.currentTokens + estimatedInputTokens + estimatedOutputTokens;
     const tokenLimit = this.config.sessionTokenLimit;
 
@@ -340,7 +354,11 @@ export class TokenBudgetManager {
   /**
    * Create a warning object
    */
-  private createWarning(type: 'token' | 'cost', thresholdPercent: number, currentPercent: number): BudgetWarning {
+  private createWarning(
+    type: 'token' | 'cost',
+    thresholdPercent: number,
+    currentPercent: number
+  ): BudgetWarning {
     const severity = this.getSeverityForThreshold(thresholdPercent);
     const typeLabel = type === 'token' ? 'Token' : 'Cost';
 

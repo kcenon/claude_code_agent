@@ -122,7 +122,12 @@ export class ContextPruner {
   private readonly config: Required<
     Pick<
       ContextPrunerConfig,
-      'strategy' | 'recencyWeight' | 'relevanceWeight' | 'priorityWeight' | 'systemReserve' | 'outputReserve'
+      | 'strategy'
+      | 'recencyWeight'
+      | 'relevanceWeight'
+      | 'priorityWeight'
+      | 'systemReserve'
+      | 'outputReserve'
     >
   > &
     ContextPrunerConfig;
@@ -143,7 +148,8 @@ export class ContextPruner {
    * Prune content sections to fit within token limit
    */
   public prune(sections: readonly ContentSection[]): PruningResult {
-    const availableTokens = this.config.maxTokens - this.config.systemReserve - this.config.outputReserve;
+    const availableTokens =
+      this.config.maxTokens - this.config.systemReserve - this.config.outputReserve;
     const originalTokens = sections.reduce((sum, s) => sum + s.estimatedTokens, 0);
 
     // If within limit, return all sections

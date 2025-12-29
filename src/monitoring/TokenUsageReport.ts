@@ -382,7 +382,11 @@ export class TokenUsageReport {
    */
   private calculateModelUsage(tokenUsage: TokenUsageMetrics, model: string): ModelUsage[] {
     const totalTokens = tokenUsage.totalInputTokens + tokenUsage.totalOutputTokens;
-    const cost = this.calculateCost(tokenUsage.totalInputTokens, tokenUsage.totalOutputTokens, model);
+    const cost = this.calculateCost(
+      tokenUsage.totalInputTokens,
+      tokenUsage.totalOutputTokens,
+      model
+    );
 
     return [
       {
@@ -488,13 +492,15 @@ export class TokenUsageReport {
     }
 
     // Check for caching opportunities
-    const avgInvocations = agentMetrics.reduce((sum, m) => sum + m.invocations, 0) / agentMetrics.length;
+    const avgInvocations =
+      agentMetrics.reduce((sum, m) => sum + m.invocations, 0) / agentMetrics.length;
     if (avgInvocations > 3) {
       recommendations.push({
         type: 'caching',
         priority: 2,
         title: 'Enable query caching',
-        description: 'Multiple agent invocations detected. Enabling query caching for repeated or similar queries could reduce token usage.',
+        description:
+          'Multiple agent invocations detected. Enabling query caching for repeated or similar queries could reduce token usage.',
         estimatedSavingsUsd: tokenUsage.estimatedCostUsd * 0.15,
         estimatedTokenReduction: Math.round(totalTokens * 0.15),
         difficulty: 'easy',
@@ -507,7 +513,8 @@ export class TokenUsageReport {
         type: 'pruning',
         priority: 2,
         title: 'Apply context pruning',
-        description: 'Large input context detected. Implementing context pruning could reduce input tokens while maintaining quality.',
+        description:
+          'Large input context detected. Implementing context pruning could reduce input tokens while maintaining quality.',
         estimatedSavingsUsd: tokenUsage.estimatedCostUsd * 0.2,
         estimatedTokenReduction: Math.round(tokenUsage.totalInputTokens * 0.2),
         difficulty: 'medium',
@@ -520,7 +527,8 @@ export class TokenUsageReport {
         type: 'general',
         priority: 3,
         title: 'Optimize output verbosity',
-        description: 'Output tokens significantly exceed input. Consider requesting more concise responses where appropriate.',
+        description:
+          'Output tokens significantly exceed input. Consider requesting more concise responses where appropriate.',
         estimatedSavingsUsd: tokenUsage.estimatedCostUsd * 0.1,
         difficulty: 'easy',
       });
@@ -534,11 +542,13 @@ export class TokenUsageReport {
    */
   private calculateCost(inputTokens: number, outputTokens: number, model = 'sonnet'): number {
     const pricing = TOKEN_PRICING[model] ?? TOKEN_PRICING['sonnet'];
-    return Math.round(
-      ((inputTokens / 1000) * (pricing?.input ?? 0.003) +
-        (outputTokens / 1000) * (pricing?.output ?? 0.015)) *
-        10000
-    ) / 10000;
+    return (
+      Math.round(
+        ((inputTokens / 1000) * (pricing?.input ?? 0.003) +
+          (outputTokens / 1000) * (pricing?.output ?? 0.015)) *
+          10000
+      ) / 10000
+    );
   }
 }
 

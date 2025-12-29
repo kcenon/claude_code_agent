@@ -265,10 +265,7 @@ export class QueryCache<T = unknown> {
    * Normalize a query for comparison
    */
   private normalizeQuery(query: string): string {
-    return query
-      .toLowerCase()
-      .replace(/\s+/g, ' ')
-      .trim();
+    return query.toLowerCase().replace(/\s+/g, ' ').trim();
   }
 
   /**

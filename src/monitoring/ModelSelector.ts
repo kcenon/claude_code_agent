@@ -246,11 +246,14 @@ export class ModelSelector {
   /**
    * Analyze task complexity from content
    */
-  public analyzeComplexity(content: string, options?: {
-    hasCodeGeneration?: boolean;
-    hasReasoning?: boolean;
-    requiresAccuracy?: boolean;
-  }): TaskComplexity {
+  public analyzeComplexity(
+    content: string,
+    options?: {
+      hasCodeGeneration?: boolean;
+      hasReasoning?: boolean;
+      requiresAccuracy?: boolean;
+    }
+  ): TaskComplexity {
     let complexityScore = 0;
 
     // Length-based scoring

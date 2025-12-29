@@ -99,12 +99,7 @@ export type {
 
 // QueryCache
 export { QueryCache, getQueryCache, resetQueryCache } from './QueryCache.js';
-export type {
-  CacheEntry,
-  QueryCacheConfig,
-  CacheStats,
-  CacheLookupResult,
-} from './QueryCache.js';
+export type { CacheEntry, QueryCacheConfig, CacheStats, CacheLookupResult } from './QueryCache.js';
 
 // ModelSelector
 export { ModelSelector, getModelSelector, resetModelSelector } from './ModelSelector.js';
