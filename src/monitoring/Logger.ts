@@ -262,11 +262,12 @@ export class Logger {
   /**
    * Extract durationMs from context if present
    */
-  private extractDuration(
-    context?: Record<string, unknown>
-  ): { durationMs?: number; remainingContext?: Record<string, unknown> } {
+  private extractDuration(context?: Record<string, unknown>): {
+    durationMs: number | undefined;
+    remainingContext: Record<string, unknown> | undefined;
+  } {
     if (context === undefined) {
-      return {};
+      return { durationMs: undefined, remainingContext: undefined };
     }
 
     const { durationMs, ...rest } = context;
