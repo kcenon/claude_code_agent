@@ -157,7 +157,7 @@ export interface ParsedComponent {
     readonly internal?: readonly InternalDependency[];
     readonly external?: readonly ExternalDependency[];
   };
-  readonly notes?: string;
+  readonly notes?: string | undefined;
   readonly lineNumber: number;
   readonly rawContent: string;
 }
@@ -166,13 +166,13 @@ export interface ParsedAPI {
   readonly endpoint: string;
   readonly method: string;
   readonly componentId: string;
-  readonly linkedUseCase?: string;
+  readonly linkedUseCase?: string | undefined;
   readonly status: ComponentStatus;
   readonly requestSchema?: Record<string, unknown>;
   readonly responseSchema?: Record<string, unknown>;
   readonly errorResponses?: readonly ErrorResponse[];
-  readonly authentication?: string;
-  readonly notes?: string;
+  readonly authentication?: string | undefined;
+  readonly notes?: string | undefined;
   readonly lineNumber: number;
   readonly rawContent: string;
 }
@@ -213,7 +213,7 @@ export interface AddedComponent {
 export interface AddedAPI {
   readonly endpoint: string;
   readonly component: string;
-  readonly useCase?: string;
+  readonly useCase?: string | undefined;
   readonly lineNumber: number;
 }
 
