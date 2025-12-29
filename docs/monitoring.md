@@ -15,6 +15,9 @@ The monitoring module includes:
 - **QueryCache** - LRU-based caching for repeated API queries
 - **ModelSelector** - Optimal model selection based on task complexity
 - **TokenUsageReport** - Detailed usage reports with optimization recommendations
+- **LatencyOptimizer** - Agent startup and handoff latency optimization
+- **ParallelExecutionTuner** - Optimal worker pool and batch configuration
+- **ResponseTimeBenchmarks** - Performance benchmark definitions and validation
 
 ## Installation
 
@@ -33,6 +36,10 @@ import {
   QueryCache,
   ModelSelector,
   TokenUsageReport,
+  // Performance optimization
+  LatencyOptimizer,
+  ParallelExecutionTuner,
+  ResponseTimeBenchmarks,
   // Factory functions
   getLogger,
   getMetricsCollector,
@@ -43,6 +50,9 @@ import {
   createContextPruner,
   createQueryCache,
   createTokenUsageReport,
+  getLatencyOptimizer,
+  getParallelExecutionTuner,
+  getResponseTimeBenchmarks,
 } from 'ad-sdlc';
 ```
 
@@ -923,6 +933,458 @@ fs.writeFileSync('report.json', json);
 const markdown = report.toMarkdown(data);
 fs.writeFileSync('report.md', markdown);
 ```
+
+## LatencyOptimizer
+
+Optimizes agent startup time and handoff latency through pre-warming, connection pooling, and parallel I/O operations.
+
+### Basic Usage
+
+```typescript
+import { LatencyOptimizer, getLatencyOptimizer } from 'ad-sdlc';
+
+const optimizer = getLatencyOptimizer({
+  targets: {
+    agentStartup: 2000,      // Target agent startup time (ms)
+    handoffLatency: 1000,    // Target handoff latency (ms)
+    fileIO: 100,             // Target file I/O time (ms)
+    apiConnection: 500,      // Target API connection time (ms)
+  },
+  enablePrewarming: true,
+  enableConnectionPooling: true,
+  maxPooledConnections: 10,
+  cacheDir: '.ad-sdlc/cache',
+  warmupIntervalMs: 300000,  // 5 minutes
+});
+```
+
+### Measuring Latency
+
+```typescript
+// Measure synchronous operations
+const result = optimizer.measure(
+  'file_read',
+  'fileIO',
+  () => readFileSync('file.txt'),
+  { fileName: 'file.txt' }
+);
+
+// Measure async operations
+const data = await optimizer.measureAsync(
+  'api_call',
+  'apiConnection',
+  async () => await fetch('/api/data'),
+  { endpoint: '/api/data' }
+);
+```
+
+### Agent Pre-warming
+
+```typescript
+// Pre-warm a single agent
+const status = await optimizer.prewarmAgent('collector', '/path/to/agent.md');
+console.log(`Agent warmed: ${status.isWarm}`);
+console.log(`Warmup time: ${status.warmupTimeMs}ms`);
+
+// Pre-warm multiple agents in parallel
+const statuses = await optimizer.prewarmAgents([
+  { name: 'collector', definitionPath: '/agents/collector.md' },
+  { name: 'prd-writer', definitionPath: '/agents/prd-writer.md' },
+  { name: 'worker', definitionPath: '/agents/worker.md' },
+]);
+
+// Check if agent is warmed
+if (optimizer.isAgentWarmed('collector')) {
+  const definition = optimizer.getCachedAgentDefinition('collector');
+}
+
+// Start periodic warmup timer
+optimizer.startWarmupTimer([
+  { name: 'collector', definitionPath: '/agents/collector.md' },
+]);
+
+// Stop warmup timer
+optimizer.stopWarmupTimer();
+```
+
+### Parallel I/O Operations
+
+```typescript
+// Execute multiple I/O operations in parallel
+const results = await optimizer.parallelIO([
+  () => fs.promises.readFile('file1.txt', 'utf-8'),
+  () => fs.promises.readFile('file2.txt', 'utf-8'),
+  () => fs.promises.readFile('file3.txt', 'utf-8'),
+]);
+```
+
+### Latency Statistics
+
+```typescript
+// Get statistics for all operations
+const stats = optimizer.getLatencyStats();
+console.log(`Total measurements: ${stats.count}`);
+console.log(`Average latency: ${stats.avgMs}ms`);
+console.log(`P50: ${stats.p50Ms}ms`);
+console.log(`P95: ${stats.p95Ms}ms`);
+console.log(`P99: ${stats.p99Ms}ms`);
+console.log(`Target met rate: ${stats.targetMetRate}%`);
+
+// Get statistics for specific operation
+const fileStats = optimizer.getLatencyStats('file_read');
+
+// Get measurements that missed targets
+const slowOps = optimizer.getSlowMeasurements();
+
+// Check if performance meets targets
+const targetCheck = optimizer.meetsTargets();
+console.log(`Overall: ${targetCheck.overall}`);
+console.log(`Details:`, targetCheck.details);
+```
+
+### Default Latency Targets
+
+| Target | Default | Description |
+|--------|---------|-------------|
+| `agentStartup` | 2000ms | Agent initialization time |
+| `handoffLatency` | 1000ms | Time to hand off between agents |
+| `fileIO` | 100ms | File read/write operations |
+| `apiConnection` | 500ms | API connection establishment |
+
+## ParallelExecutionTuner
+
+Dynamically tunes parallel execution parameters based on system resources and workload characteristics.
+
+### Basic Usage
+
+```typescript
+import { ParallelExecutionTuner, getParallelExecutionTuner } from 'ad-sdlc';
+
+const tuner = getParallelExecutionTuner({
+  baseWorkerCount: 4,
+  maxWorkerCount: 8,
+  enableAutoScaling: true,
+  targetCpuUtilization: 70,
+  targetMemoryUtilization: 80,
+  monitoringIntervalMs: 5000,
+  historySize: 100,
+  baseBatchSize: 3,
+  maxBatchSize: 5,
+  batchDelayMs: 500,
+});
+```
+
+### System Resource Monitoring
+
+```typescript
+// Get current system resources
+const resources = tuner.getSystemResources();
+console.log(`CPU cores: ${resources.cpuCores}`);
+console.log(`Total memory: ${resources.totalMemoryBytes}`);
+console.log(`Free memory: ${resources.freeMemoryBytes}`);
+console.log(`Memory usage: ${resources.memoryUsagePercent}%`);
+console.log(`Load average: ${resources.loadAverage}`);
+```
+
+### Optimal Worker Count
+
+```typescript
+// Calculate optimal worker count
+const recommendation = tuner.calculateOptimalWorkerCount();
+console.log(`Recommended workers: ${recommendation.recommendedWorkers}`);
+console.log(`Min workers: ${recommendation.minWorkers}`);
+console.log(`Max workers: ${recommendation.maxWorkers}`);
+console.log(`Reasoning: ${recommendation.reasoning}`);
+console.log(`Confidence: ${recommendation.confidence}%`);
+
+// Get/set current worker count
+console.log(`Current workers: ${tuner.getCurrentWorkerCount()}`);
+tuner.setCurrentWorkerCount(6);
+```
+
+### Batch Configuration
+
+```typescript
+// Calculate batch configuration for a given workload
+const batchConfig = tuner.calculateBatchConfig(100); // 100 items
+console.log(`Batch size: ${batchConfig.batchSize}`);
+console.log(`Max concurrent batches: ${batchConfig.maxConcurrentBatches}`);
+console.log(`Batch delay: ${batchConfig.batchDelayMs}ms`);
+
+// Get/set current batch size
+console.log(`Current batch size: ${tuner.getCurrentBatchSize()}`);
+tuner.setCurrentBatchSize(5);
+```
+
+### Auto-scaling
+
+```typescript
+// Perform auto-scaling based on current conditions
+const scaleResult = tuner.autoScale();
+console.log(`Action: ${scaleResult.action}`); // 'scale_up' | 'scale_down' | 'no_change'
+console.log(`Previous workers: ${scaleResult.previousWorkers}`);
+console.log(`New workers: ${scaleResult.newWorkers}`);
+console.log(`Reason: ${scaleResult.reason}`);
+```
+
+### Recording Performance
+
+```typescript
+// Record tuning result for learning
+tuner.recordTuningResult(
+  4,      // workerCount
+  3,      // batchSize
+  100,    // itemsProcessed
+  10000,  // totalTimeMs
+  2       // errorCount
+);
+
+// Get tuning history
+const history = tuner.getTuningHistory();
+
+// Get performance summary
+const summary = tuner.getPerformanceSummary();
+console.log(`Avg throughput: ${summary.avgThroughput} items/sec`);
+console.log(`Avg latency: ${summary.avgLatencyMs}ms`);
+console.log(`Avg error rate: ${summary.avgErrorRate}%`);
+```
+
+### Resource Contention Detection
+
+```typescript
+// Detect resource contention
+const contention = tuner.detectContention();
+if (contention) {
+  console.log(`Contention type: ${contention.type}`);
+  console.log(`Severity: ${contention.severity}`);
+  console.log(`Message: ${contention.message}`);
+}
+
+// Get contention event history
+const events = tuner.getContentionEvents();
+```
+
+### Recommendations
+
+```typescript
+// Get tuning recommendations based on history
+const recommendations = tuner.getTuningRecommendations();
+console.log(`Worker count: ${recommendations.workerCount}`);
+console.log(`Batch size: ${recommendations.batchSize}`);
+console.log(`Reasoning: ${recommendations.reasoning}`);
+```
+
+### Monitoring
+
+```typescript
+// Start continuous monitoring
+tuner.startMonitoring((event) => {
+  console.log(`Monitor event: ${event.type}`);
+});
+
+// Stop monitoring
+tuner.stopMonitoring();
+```
+
+## ResponseTimeBenchmarks
+
+Defines and validates performance benchmarks for pipeline stages and operations.
+
+### Basic Usage
+
+```typescript
+import { ResponseTimeBenchmarks, getResponseTimeBenchmarks, DEFAULT_BENCHMARKS } from 'ad-sdlc';
+
+const benchmarks = getResponseTimeBenchmarks({
+  pipeline: {
+    simple: { documentGeneration: 20000, issueGeneration: 10000, total: 30000 },
+    medium: { documentGeneration: 30000, issueGeneration: 15000, total: 45000 },
+    complex: { documentGeneration: 60000, issueGeneration: 30000, total: 90000 },
+  },
+  stages: {
+    collection: 10000,
+    prd: 15000,
+    srs: 15000,
+    sds: 15000,
+    issues: 30000,
+    implementation: 300000,
+    prReview: 120000,
+  },
+  latency: {
+    agentStartup: 2000,
+    handoffLatency: 1000,
+    fileIO: 100,
+    apiConnection: 500,
+  },
+  e2e: {
+    simpleFeature: 15,   // minutes
+    mediumFeature: 20,   // minutes
+    complexFeature: 30,  // minutes
+  },
+});
+```
+
+### Getting Benchmarks
+
+```typescript
+// Get all benchmarks
+const all = benchmarks.getBenchmarks();
+
+// Get pipeline benchmarks by complexity
+const simple = benchmarks.getPipelineBenchmarks('simple');
+console.log(`Document gen: ${simple.documentGeneration}ms`);
+console.log(`Issue gen: ${simple.issueGeneration}ms`);
+console.log(`Total: ${simple.total}ms`);
+
+// Get stage benchmarks
+const stages = benchmarks.getStageBenchmarks();
+console.log(`Collection: ${stages.collection}ms`);
+console.log(`Implementation: ${stages.implementation}ms`);
+
+// Get latency benchmarks
+const latency = benchmarks.getLatencyBenchmarks();
+console.log(`Agent startup: ${latency.agentStartup}ms`);
+```
+
+### Creating and Validating Targets
+
+```typescript
+// Create a benchmark target
+const target = benchmarks.createTarget('api_response', 500, 'API response time');
+console.log(`Target: ${target.targetMs}ms`);
+console.log(`Warning: ${target.warningMs}ms`);  // 20% over target
+console.log(`Critical: ${target.criticalMs}ms`); // 50% over target
+
+// Validate a timing against target
+const result = benchmarks.validateTiming('api_response', 450, target);
+console.log(`Status: ${result.status}`);        // 'pass' | 'warning' | 'fail'
+console.log(`Target met: ${result.targetMet}`);
+console.log(`Deviation: ${result.deviationPercent}%`);
+```
+
+### Pipeline Validation
+
+```typescript
+// Validate pipeline timings
+const pipelineResult = benchmarks.validatePipeline('simple', {
+  documentGenerationMs: 18000,
+  issueGenerationMs: 8000,
+  totalMs: 26000,
+});
+
+console.log(`Passed: ${pipelineResult.passed}`);
+console.log(`Results: ${pipelineResult.results.length}`);
+console.log(`Summary: ${pipelineResult.summary.passed} passed, ${pipelineResult.summary.failed} failed`);
+```
+
+### Stage Validation
+
+```typescript
+// Validate stage timings
+const stageResult = benchmarks.validateStages({
+  collection: 8000,
+  prd: 12000,
+  srs: 14000,
+  implementation: 250000,
+});
+
+for (const result of stageResult.results) {
+  console.log(`${result.name}: ${result.status} (${result.actualMs}ms / ${result.targetMs}ms)`);
+}
+```
+
+### Latency Validation
+
+```typescript
+// Validate latency metrics
+const latencyResult = benchmarks.validateLatency({
+  agentStartup: 1500,
+  handoffLatency: 800,
+  fileIO: 80,
+});
+
+console.log(`All passed: ${latencyResult.passed}`);
+```
+
+### Recording and Tracking History
+
+```typescript
+// Record a benchmark run
+const entry = benchmarks.recordRun('session-123', 'simple', {
+  collection: 8000,
+  prd: 12000,
+}, 25000);
+
+console.log(`Session: ${entry.sessionId}`);
+console.log(`All passed: ${entry.allPassed}`);
+
+// Get history
+const history = benchmarks.getHistory();
+const simpleHistory = benchmarks.getHistoryByComplexity('simple');
+```
+
+### Performance Trends
+
+```typescript
+// Get performance trend analysis
+const trend = benchmarks.getPerformanceTrend('simple');
+
+console.log(`Average: ${trend.avgTotalMs}ms`);
+console.log(`Min: ${trend.minTotalMs}ms`);
+console.log(`Max: ${trend.maxTotalMs}ms`);
+console.log(`Pass rate: ${trend.passRate}%`);
+console.log(`Trend: ${trend.trend}`); // 'improving' | 'stable' | 'degrading'
+```
+
+### End-to-End Target Check
+
+```typescript
+// Check E2E targets
+const e2eResult = benchmarks.checkE2ETarget('simple', 12 * 60 * 1000); // 12 minutes
+console.log(`Target: ${e2eResult.targetMinutes} minutes`);
+console.log(`Actual: ${e2eResult.actualMinutes} minutes`);
+console.log(`Met: ${e2eResult.met}`);
+```
+
+### Generating Reports
+
+```typescript
+// Generate comprehensive report
+const report = benchmarks.generateReport();
+
+console.log(`Total runs: ${report.history.total}`);
+console.log(`Pass rate: ${report.history.passRate}%`);
+
+// By complexity
+console.log(`Simple runs: ${report.byComplexity.simple.count}`);
+console.log(`Simple avg: ${report.byComplexity.simple.avgTotalMs}ms`);
+```
+
+### Default Benchmark Values
+
+| Category | Benchmark | Default |
+|----------|-----------|---------|
+| **Pipeline (Simple)** | Document Generation | 20,000ms |
+| | Issue Generation | 10,000ms |
+| | Total | 30,000ms |
+| **Pipeline (Medium)** | Document Generation | 30,000ms |
+| | Issue Generation | 15,000ms |
+| | Total | 45,000ms |
+| **Pipeline (Complex)** | Document Generation | 60,000ms |
+| | Issue Generation | 30,000ms |
+| | Total | 90,000ms |
+| **Stages** | Collection | 10,000ms |
+| | PRD/SRS/SDS | 15,000ms each |
+| | Issues | 30,000ms |
+| | Implementation | 300,000ms |
+| | PR Review | 120,000ms |
+| **Latency** | Agent Startup | 2,000ms |
+| | Handoff | 1,000ms |
+| | File I/O | 100ms |
+| | API Connection | 500ms |
+| **E2E** | Simple Feature | 15 minutes |
+| | Medium Feature | 20 minutes |
+| | Complex Feature | 30 minutes |
 
 ## Error Classes
 
