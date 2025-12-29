@@ -27,6 +27,12 @@ export {
   type TraceabilityValidationResult,
   type TraceabilityIssue,
 } from './TraceabilityBuilder.js';
+export {
+  UseCaseGenerator,
+  type UseCaseGeneratorOptions,
+  type UseCaseGenerationResult,
+  type UseCaseCoverage,
+} from './UseCaseGenerator.js';
 
 // Error classes
 export {
@@ -63,6 +69,12 @@ export type {
   FeatureDecompositionResult,
   UseCaseInput,
   GeneratedUseCase,
+
+  // Use case types
+  FlowStep,
+  AlternativeFlow,
+  ExceptionFlow,
+  DetailedUseCase,
 
   // Traceability types
   TraceabilityEntry,
