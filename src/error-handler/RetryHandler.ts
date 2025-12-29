@@ -487,7 +487,6 @@ export function createRetryableFunction<TArgs extends unknown[], TResult>(
 export class RetryHandler {
   private readonly policy: RetryPolicy;
   private readonly errorClassifier: ErrorClassifier;
-  private readonly logger = getLogger();
 
   constructor(
     policyOverride?: Partial<RetryPolicy>,

@@ -58,7 +58,7 @@ export interface RetryContext {
   /** Time elapsed since first attempt in milliseconds */
   readonly elapsedMs: number;
   /** Last error encountered (undefined for first attempt) */
-  readonly lastError?: Error;
+  readonly lastError?: Error | undefined;
   /** Whether this is the final attempt */
   readonly isFinalAttempt: boolean;
 }
@@ -74,11 +74,11 @@ export interface RetryAttemptResult {
   /** Duration of the attempt in milliseconds */
   readonly durationMs: number;
   /** Error if the attempt failed */
-  readonly error?: Error;
+  readonly error?: Error | undefined;
   /** Delay before next retry (if applicable) */
-  readonly nextRetryDelayMs?: number;
+  readonly nextRetryDelayMs?: number | undefined;
   /** Whether the error was categorized as retryable */
-  readonly isRetryable?: boolean;
+  readonly isRetryable?: boolean | undefined;
 }
 
 /**
