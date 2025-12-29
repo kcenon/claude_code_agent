@@ -832,3 +832,74 @@ export type {
   // Resume types
   ResumeOptions,
 } from './analysis-orchestrator/index.js';
+
+// Re-export regression-tester module (with explicit handling of conflicts)
+export {
+  RegressionTesterAgent,
+  getRegressionTesterAgent,
+  resetRegressionTesterAgent,
+  RegressionTesterError,
+  NoTestsFoundError,
+  TestExecutionFailedError,
+  TestFrameworkNotDetectedError,
+  CoverageCalculationError,
+  DependencyGraphNotFoundError,
+  NoChangedFilesError,
+  TestTimeoutError,
+  NoActiveSessionError as RegressionNoActiveSessionError,
+  InvalidSessionStateError as RegressionInvalidSessionStateError,
+  OutputWriteError as RegressionOutputWriteError,
+  FileReadError as RegressionFileReadError,
+  InvalidProjectPathError as RegressionInvalidProjectPathError,
+  TestMappingError,
+  MaxTestsExceededError,
+  DEFAULT_REGRESSION_TESTER_CONFIG,
+} from './regression-tester/index.js';
+
+export type {
+  // Configuration types
+  RegressionTesterConfig,
+  // Session types
+  RegressionTesterSession,
+  RegressionSessionStatus,
+  // Report types
+  RegressionReport,
+  Recommendation as RegressionRecommendation,
+  RegressionSummary,
+  RecommendationType as RegressionRecommendationType,
+  RegressionStatus,
+  // Result types
+  RegressionAnalysisResult,
+  RegressionAnalysisStats,
+  // Changed file types
+  ChangedFile,
+  FileChangeType as RegressionChangeType,
+  // Test types
+  TestFile,
+  TestMapping,
+  TestMappingSummary,
+  TestCase,
+  // Affected test types
+  AffectedTest,
+  TestPriority,
+  // Changes analysis
+  ChangesAnalyzed,
+  // Execution types
+  TestExecutionSummary,
+  TestResult,
+  TestStatus,
+  // Coverage types
+  CoverageImpact,
+  CoverageMetrics,
+  UncoveredLines,
+  // Compatibility types
+  CompatibilityIssue,
+  CompatibilityIssueType,
+  IssueSeverity,
+  // Test framework type
+  TestFramework,
+  // Dependency graph types (with aliases)
+  DependencyGraph as RegressionDependencyGraph,
+  DependencyNode as RegressionDependencyNode,
+  DependencyEdge as RegressionDependencyEdge,
+} from './regression-tester/index.js';

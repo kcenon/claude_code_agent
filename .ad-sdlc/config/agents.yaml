@@ -379,6 +379,40 @@ agents:
       avg_duration_seconds: 30
       success_rate: 0.95
 
+  # ---------------------------------------------------------------------------
+  # Enhancement Pipeline Agents
+  # ---------------------------------------------------------------------------
+  regression-tester:
+    id: "regression-tester"
+    name: "Regression Tester Agent"
+    korean_name: "회귀 테스트 에이전트"
+    description: "Validates that existing functionality is not broken by new changes through test mapping, execution, and compatibility analysis"
+    definition_file: ".claude/agents/regression-tester.md"
+    category: "enhancement_pipeline"
+    order: 11
+
+    capabilities:
+      - "affected_test_identification"
+      - "regression_test_execution"
+      - "coverage_impact_analysis"
+      - "compatibility_verification"
+      - "test_mapping"
+
+    io:
+      inputs:
+        - changed_files
+        - dependency_graph.json
+        - architecture_overview.yaml
+      outputs:
+        - regression_report.yaml
+
+    parallelizable: true
+    max_instances: 1
+
+    metrics:
+      avg_duration_seconds: 300
+      success_rate: 0.95
+
 # =============================================================================
 # Agent Categories
 # =============================================================================
@@ -427,6 +461,13 @@ categories:
       - doc-code-comparator
     execution_mode: "parallel"
 
+  enhancement_pipeline:
+    name: "Enhancement Pipeline"
+    description: "Agents that support existing project improvements and regression testing"
+    agents:
+      - regression-tester
+    execution_mode: "parallel"
+
 # =============================================================================
 # Agent Relationships
 # =============================================================================
@@ -452,6 +493,8 @@ relationships:
       requires: [srs-updater]
     doc-code-comparator:
       requires: [document-reader, code-reader]
+    regression-tester:
+      requires: [codebase-analyzer]
 
   data_flow:
     - from: collector
@@ -497,6 +540,18 @@ relationships:
     - from: code-reader
       to: doc-code-comparator
       data: code_inventory.yaml
+
+    - from: codebase-analyzer
+      to: regression-tester
+      data: [dependency_graph.json, architecture_overview.yaml]
+
+    - from: worker
+      to: regression-tester
+      data: changed_files
+
+    - from: regression-tester
+      to: pr-reviewer
+      data: regression_report.yaml
 
 # =============================================================================
 # Model Configurations

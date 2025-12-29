@@ -38,6 +38,7 @@ flowchart TB
         CODEBASE[Codebase Analyzer Agent]
         COMP[Comparator Agent]
         IMPACT[Impact Analyzer Agent]
+        REGTEST[Regression Tester Agent]
     end
 
     subgraph Output["Output Layer"]
@@ -82,8 +83,10 @@ flowchart TB
     ORCH --> CODEBASE
     DOCREAD --> COMP
     CODEBASE --> COMP
+    CODEBASE --> REGTEST
     COMP --> IMPACT
     IMPACT -.-> CTRL
+    REGTEST -.-> PR
 ```
 
 ## 2. Agent Communication Pattern
