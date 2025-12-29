@@ -454,9 +454,7 @@ export class DeploymentDesigner {
   /**
    * Extract configurations from components
    */
-  private extractComponentConfigurations(
-    components: readonly SDSComponent[]
-  ): ConfigurationSpec[] {
+  private extractComponentConfigurations(components: readonly SDSComponent[]): ConfigurationSpec[] {
     const configs: ConfigurationSpec[] = [];
 
     for (const component of components) {
@@ -675,7 +673,9 @@ export class DeploymentDesigner {
     // Check for missing security NFRs
     const hasSecurityRequirement = nfrs.some((n) => n.category.toLowerCase() === 'security');
     if (!hasSecurityRequirement) {
-      warnings.push('No security NFRs detected; consider adding authentication/authorization specs');
+      warnings.push(
+        'No security NFRs detected; consider adding authentication/authorization specs'
+      );
     }
 
     // Check for missing performance NFRs
@@ -745,7 +745,9 @@ export class DeploymentDesigner {
       const defaultVal = config.defaultValue ?? '-';
       const required = config.required ? 'Yes' : 'No';
       const sensitive = config.sensitive === true ? 'Yes' : 'No';
-      lines.push(`| ${config.key} | ${config.description} | ${defaultVal} | ${required} | ${sensitive} |`);
+      lines.push(
+        `| ${config.key} | ${config.description} | ${defaultVal} | ${required} | ${sensitive} |`
+      );
     }
     lines.push('');
 
