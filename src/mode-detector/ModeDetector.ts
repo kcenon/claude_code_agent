@@ -466,7 +466,32 @@ export class ModeDetector {
       };
     }
 
-    // Use score-based decision
+    // Has existing docs - enhancement mode (even without code)
+    if (evidence.documents.totalCount > 0) {
+      const docConfidence = 0.7 + (evidence.documents.totalCount / 3) * 0.25;
+      return {
+        mode: 'enhancement',
+        confidence: Math.min(1.0, docConfidence),
+        confidenceLevel: docConfidence >= 0.8 ? 'high' : 'medium',
+      };
+    }
+
+    // Has existing codebase - enhancement mode (even without docs)
+    if (evidence.codebase.exists) {
+      let codeConfidence = 0.6;
+      if (evidence.codebase.hasTests) codeConfidence += 0.1;
+      if (evidence.codebase.hasBuildSystem) codeConfidence += 0.1;
+      if (evidence.codebase.linesOfCode >= this.config.thresholds.minLinesOfCode) {
+        codeConfidence += 0.1;
+      }
+      return {
+        mode: 'enhancement',
+        confidence: Math.min(1.0, codeConfidence),
+        confidenceLevel: codeConfidence >= 0.8 ? 'high' : 'medium',
+      };
+    }
+
+    // Use score-based decision for edge cases
     const { enhancementThreshold, greenfieldThreshold } = this.config.thresholds;
 
     let mode: PipelineMode;
