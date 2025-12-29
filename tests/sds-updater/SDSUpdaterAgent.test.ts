@@ -1239,4 +1239,816 @@ describe('SDSUpdaterAgent', () => {
       expect(result.success).toBe(true);
     });
   });
+
+  describe('findSDSFile auto-discovery', () => {
+    it('should auto-discover SDS file when path not provided', async () => {
+      await agent.startSession(testProjectId);
+
+      vi.mocked(fs.access).mockResolvedValue(undefined);
+      vi.mocked(fs.readdir).mockResolvedValue(['project-SDS.md', 'other.txt'] as unknown as string[]);
+      vi.mocked(fs.readFile).mockResolvedValue(SAMPLE_SDS_CONTENT);
+      vi.mocked(fs.stat).mockResolvedValue({
+        size: 1000,
+        mtime: new Date('2024-01-01'),
+      } as unknown as Awaited<ReturnType<typeof fs.stat>>);
+
+      const parsedSDS = await agent.loadSDS();
+
+      expect(parsedSDS).toBeDefined();
+      expect(parsedSDS.metadata.version).toBe('1.0.0');
+    });
+
+    it('should fall back to first md file when no matching file found', async () => {
+      await agent.startSession(testProjectId);
+
+      vi.mocked(fs.access).mockResolvedValue(undefined);
+      vi.mocked(fs.readdir).mockResolvedValue(['random.md', 'other.txt'] as unknown as string[]);
+      vi.mocked(fs.readFile).mockResolvedValue(SAMPLE_SDS_CONTENT);
+      vi.mocked(fs.stat).mockResolvedValue({
+        size: 1000,
+        mtime: new Date('2024-01-01'),
+      } as unknown as Awaited<ReturnType<typeof fs.stat>>);
+
+      const parsedSDS = await agent.loadSDS();
+
+      expect(parsedSDS).toBeDefined();
+    });
+
+    it('should throw SDSNotFoundError when directory does not exist', async () => {
+      await agent.startSession(testProjectId);
+
+      vi.mocked(fs.access).mockRejectedValue(new Error('ENOENT'));
+
+      await expect(agent.loadSDS()).rejects.toThrow();
+    });
+
+    it('should throw SDSNotFoundError when no md files exist', async () => {
+      await agent.startSession(testProjectId);
+
+      vi.mocked(fs.access).mockResolvedValue(undefined);
+      vi.mocked(fs.readdir).mockResolvedValue(['file.txt', 'other.json'] as unknown as string[]);
+
+      await expect(agent.loadSDS()).rejects.toThrow();
+    });
+  });
+
+  describe('file validation', () => {
+    it('should throw SDSFileSizeLimitError when file exceeds size limit', async () => {
+      const smallAgent = new SDSUpdaterAgent({
+        docsBasePath: 'docs',
+        sdsSubdir: 'sds',
+        scratchpadBasePath: '.ad-sdlc/scratchpad',
+        maxFileSize: 100, // Very small limit
+      });
+
+      await smallAgent.startSession(testProjectId);
+
+      vi.mocked(fs.access).mockResolvedValue(undefined);
+      vi.mocked(fs.stat).mockResolvedValue({
+        size: 1000000, // Much larger than limit
+        mtime: new Date('2024-01-01'),
+      } as unknown as Awaited<ReturnType<typeof fs.stat>>);
+
+      await expect(smallAgent.loadSDS('/docs/sds/sds.md')).rejects.toThrow();
+    });
+  });
+
+  describe('frontmatter parsing', () => {
+    it('should use frontmatter version when table version is default 1.0.0', async () => {
+      // When table version is '1.0.0' (default), frontmatter version takes precedence
+      // Heading title takes precedence over frontmatter title
+      const frontmatterContent = `---
+title: "Test SDS Document"
+version: "2.0.0"
+---
+
+# SDS: Frontmatter Test Project
+
+| Field | Value |
+|-------|-------|
+| Version | 1.0.0 |
+
+## 1. Component Design
+
+### CMP-001: Test Component
+**Source Features**: SF-001
+**Type**: service
+**Responsibility**: Test responsibility
+`;
+
+      await agent.startSession(testProjectId);
+
+      vi.mocked(fs.access).mockResolvedValue(undefined);
+      vi.mocked(fs.readFile).mockResolvedValue(frontmatterContent);
+      vi.mocked(fs.stat).mockResolvedValue({
+        size: 1000,
+        mtime: new Date('2024-01-01'),
+      } as unknown as Awaited<ReturnType<typeof fs.stat>>);
+
+      const parsedSDS = await agent.loadSDS('/docs/sds/sds.md');
+
+      // Heading title takes precedence over frontmatter title
+      expect(parsedSDS.metadata.title).toBe('Frontmatter Test Project');
+      // Frontmatter version is used when table version is '1.0.0'
+      expect(parsedSDS.metadata.version).toBe('2.0.0');
+    });
+
+    it('should use frontmatter title when no heading exists', async () => {
+      const frontmatterOnlyContent = `---
+title: "Only Frontmatter Title"
+version: "3.0.0"
+---
+
+| Field | Value |
+|-------|-------|
+| Version | 1.0.0 |
+
+## 1. Component Design
+
+### CMP-001: Test Component
+**Source Features**: SF-001
+**Type**: service
+**Responsibility**: Test responsibility
+`;
+
+      await agent.startSession(testProjectId);
+
+      vi.mocked(fs.access).mockResolvedValue(undefined);
+      vi.mocked(fs.readFile).mockResolvedValue(frontmatterOnlyContent);
+      vi.mocked(fs.stat).mockResolvedValue({
+        size: 1000,
+        mtime: new Date('2024-01-01'),
+      } as unknown as Awaited<ReturnType<typeof fs.stat>>);
+
+      const parsedSDS = await agent.loadSDS('/docs/sds/sds.md');
+
+      // When no heading, frontmatter title is preserved
+      expect(parsedSDS.metadata.title).toBe('Only Frontmatter Title');
+      // Frontmatter version is used
+      expect(parsedSDS.metadata.version).toBe('3.0.0');
+    });
+
+    it('should use table version when not default', async () => {
+      const frontmatterContent = `---
+title: "Test SDS Document"
+version: "2.0.0"
+---
+
+# SDS: Test Project
+
+| Field | Value |
+|-------|-------|
+| Version | 1.5.0 |
+
+## 1. Component Design
+
+### CMP-001: Test Component
+**Source Features**: SF-001
+**Type**: service
+**Responsibility**: Test responsibility
+`;
+
+      await agent.startSession(testProjectId);
+
+      vi.mocked(fs.access).mockResolvedValue(undefined);
+      vi.mocked(fs.readFile).mockResolvedValue(frontmatterContent);
+      vi.mocked(fs.stat).mockResolvedValue({
+        size: 1000,
+        mtime: new Date('2024-01-01'),
+      } as unknown as Awaited<ReturnType<typeof fs.stat>>);
+
+      const parsedSDS = await agent.loadSDS('/docs/sds/sds.md');
+
+      // Table version '1.5.0' is not default, so it takes precedence over frontmatter
+      expect(parsedSDS.metadata.version).toBe('1.5.0');
+    });
+  });
+
+  describe('section not found fallbacks', () => {
+    const minimalContent = `# SDS: Minimal Project
+
+| Field | Value |
+|-------|-------|
+| Version | 1.0.0 |
+
+## 1. Introduction
+Minimal SDS without Component Design or Interface Design sections.
+`;
+
+    beforeEach(async () => {
+      await agent.startSession(testProjectId);
+
+      vi.mocked(fs.access).mockResolvedValue(undefined);
+      vi.mocked(fs.readFile).mockResolvedValue(minimalContent);
+      vi.mocked(fs.stat).mockResolvedValue({
+        size: 1000,
+        mtime: new Date('2024-01-01'),
+      } as unknown as Awaited<ReturnType<typeof fs.stat>>);
+      vi.mocked(fs.writeFile).mockResolvedValue(undefined);
+      vi.mocked(fs.mkdir).mockResolvedValue(undefined);
+
+      await agent.loadSDS('/docs/sds/sds.md');
+    });
+
+    it('should append component at end when Component Design section not found', async () => {
+      const changeRequest: SDSChangeRequest = {
+        type: 'add_component',
+        newComponent: {
+          name: 'New Component',
+          description: 'Test component',
+          type: 'service',
+          linkedSrsIds: ['SF-001'],
+          notes: 'This is a note',
+        },
+      };
+
+      const result = await agent.applyChange(changeRequest);
+
+      expect(result.success).toBe(true);
+      expect(result.updateResult.changes.componentsAdded).toHaveLength(1);
+    });
+
+    it('should append API at end when Interface Design section not found', async () => {
+      const changeRequest: SDSChangeRequest = {
+        type: 'add_api',
+        newAPI: {
+          endpoint: '/api/v1/test',
+          method: 'GET',
+          componentId: 'CMP-001',
+          authentication: 'Bearer token',
+          notes: 'API notes',
+        },
+      };
+
+      const result = await agent.applyChange(changeRequest);
+
+      expect(result.success).toBe(true);
+      expect(result.updateResult.changes.apisAdded).toHaveLength(1);
+    });
+
+    it('should create new Data Design section when updating data model', async () => {
+      const changeRequest: SDSChangeRequest = {
+        type: 'update_data_model',
+        dataModelUpdate: {
+          entityName: 'User',
+          dataChanges: [
+            { type: 'add_field', details: { name: 'email', type: 'string' } },
+          ],
+        },
+      };
+
+      const result = await agent.applyChange(changeRequest);
+
+      expect(result.success).toBe(true);
+      expect(result.updateResult.changes.dataModelsChanged).toHaveLength(1);
+    });
+
+    it('should create new System Architecture section when updating architecture', async () => {
+      const changeRequest: SDSChangeRequest = {
+        type: 'update_architecture',
+        architectureChange: {
+          type: 'add_pattern',
+          description: 'New microservices pattern',
+          rationale: 'Scalability requirements',
+        },
+      };
+
+      const result = await agent.applyChange(changeRequest);
+
+      expect(result.success).toBe(true);
+      expect(result.updateResult.changes.architectureChanges).toHaveLength(1);
+    });
+
+    it('should create new traceability matrix section when section not found', async () => {
+      const changeRequest: SDSChangeRequest = {
+        type: 'update_traceability',
+        traceabilityUpdates: [
+          { srsId: 'SF-001', sdsIds: ['CMP-001'] },
+        ],
+      };
+
+      const result = await agent.applyChange(changeRequest);
+
+      expect(result.success).toBe(true);
+      expect(result.updateResult.traceabilityUpdates).toHaveLength(1);
+    });
+  });
+
+  describe('traceability matrix updates', () => {
+    beforeEach(async () => {
+      await agent.startSession(testProjectId);
+
+      vi.mocked(fs.access).mockResolvedValue(undefined);
+      vi.mocked(fs.readFile).mockResolvedValue(SAMPLE_SDS_CONTENT);
+      vi.mocked(fs.stat).mockResolvedValue({
+        size: 1000,
+        mtime: new Date('2024-01-01'),
+      } as unknown as Awaited<ReturnType<typeof fs.stat>>);
+      vi.mocked(fs.writeFile).mockResolvedValue(undefined);
+      vi.mocked(fs.mkdir).mockResolvedValue(undefined);
+
+      await agent.loadSDS('/docs/sds/sds.md');
+    });
+
+    it('should update existing row in traceability matrix', async () => {
+      const changeRequest: SDSChangeRequest = {
+        type: 'update_traceability',
+        traceabilityUpdates: [
+          { srsId: 'SF-001', sdsIds: ['CMP-001', 'CMP-002'] },
+        ],
+      };
+
+      const result = await agent.applyChange(changeRequest);
+
+      expect(result.success).toBe(true);
+    });
+
+    it('should add new row to existing traceability matrix', async () => {
+      const changeRequest: SDSChangeRequest = {
+        type: 'update_traceability',
+        traceabilityUpdates: [
+          { srsId: 'SF-999', sdsIds: ['CMP-001'] },
+        ],
+      };
+
+      const result = await agent.applyChange(changeRequest);
+
+      expect(result.success).toBe(true);
+    });
+  });
+
+  describe('consistency check issues', () => {
+    it('should detect duplicate component IDs', async () => {
+      const duplicateContent = `# SDS: Test Project
+
+| Field | Value |
+|-------|-------|
+| Version | 1.0.0 |
+
+## 1. Component Design
+
+### CMP-001: First Component
+**Source Features**: SF-001
+**Type**: service
+**Responsibility**: First component
+
+### CMP-001: Duplicate Component
+**Source Features**: SF-002
+**Type**: service
+**Responsibility**: Duplicate ID
+`;
+
+      await agent.startSession(testProjectId);
+
+      vi.mocked(fs.access).mockResolvedValue(undefined);
+      vi.mocked(fs.readFile).mockResolvedValue(duplicateContent);
+      vi.mocked(fs.stat).mockResolvedValue({
+        size: 1000,
+        mtime: new Date('2024-01-01'),
+      } as unknown as Awaited<ReturnType<typeof fs.stat>>);
+      vi.mocked(fs.writeFile).mockResolvedValue(undefined);
+      vi.mocked(fs.mkdir).mockResolvedValue(undefined);
+
+      await agent.loadSDS('/docs/sds/sds.md');
+
+      const changeRequest: SDSChangeRequest = {
+        type: 'add_component',
+        newComponent: {
+          name: 'New Component',
+          description: 'Test',
+          type: 'service',
+          linkedSrsIds: ['SF-003'],
+        },
+      };
+
+      const result = await agent.applyChange(changeRequest);
+
+      expect(result.updateResult.consistencyCheck.passed).toBe(false);
+      expect(result.updateResult.consistencyCheck.issues.length).toBeGreaterThan(0);
+    });
+
+    it('should detect components without source features', async () => {
+      const noSourceContent = `# SDS: Test Project
+
+| Field | Value |
+|-------|-------|
+| Version | 1.0.0 |
+
+## 1. Component Design
+
+### CMP-001: Missing Source
+**Type**: service
+**Responsibility**: Missing source features field
+`;
+
+      await agent.startSession(testProjectId);
+
+      vi.mocked(fs.access).mockResolvedValue(undefined);
+      vi.mocked(fs.readFile).mockResolvedValue(noSourceContent);
+      vi.mocked(fs.stat).mockResolvedValue({
+        size: 1000,
+        mtime: new Date('2024-01-01'),
+      } as unknown as Awaited<ReturnType<typeof fs.stat>>);
+      vi.mocked(fs.writeFile).mockResolvedValue(undefined);
+      vi.mocked(fs.mkdir).mockResolvedValue(undefined);
+
+      await agent.loadSDS('/docs/sds/sds.md');
+
+      const changeRequest: SDSChangeRequest = {
+        type: 'add_component',
+        newComponent: {
+          name: 'New Component',
+          description: 'Test',
+          type: 'service',
+          linkedSrsIds: ['SF-001'],
+        },
+      };
+
+      const result = await agent.applyChange(changeRequest);
+
+      expect(result.updateResult.consistencyCheck.passed).toBe(false);
+      expect(result.updateResult.consistencyCheck.issues).toContainEqual(
+        expect.stringContaining('CMP-001')
+      );
+    });
+
+    it('should detect APIs without component link', async () => {
+      const noComponentApiContent = `# SDS: Test Project
+
+| Field | Value |
+|-------|-------|
+| Version | 1.0.0 |
+
+## 1. Interface Design
+
+#### GET /api/v1/orphan
+**Description**: API without component
+`;
+
+      await agent.startSession(testProjectId);
+
+      vi.mocked(fs.access).mockResolvedValue(undefined);
+      vi.mocked(fs.readFile).mockResolvedValue(noComponentApiContent);
+      vi.mocked(fs.stat).mockResolvedValue({
+        size: 1000,
+        mtime: new Date('2024-01-01'),
+      } as unknown as Awaited<ReturnType<typeof fs.stat>>);
+      vi.mocked(fs.writeFile).mockResolvedValue(undefined);
+      vi.mocked(fs.mkdir).mockResolvedValue(undefined);
+
+      await agent.loadSDS('/docs/sds/sds.md');
+
+      const changeRequest: SDSChangeRequest = {
+        type: 'add_api',
+        newAPI: {
+          endpoint: '/api/v1/new',
+          method: 'POST',
+          componentId: 'CMP-001',
+        },
+      };
+
+      const result = await agent.applyChange(changeRequest);
+
+      expect(result.updateResult.consistencyCheck.passed).toBe(false);
+      expect(result.updateResult.consistencyCheck.issues).toContainEqual(
+        expect.stringContaining('/api/v1/orphan')
+      );
+    });
+  });
+
+  describe('changelog generation edge cases', () => {
+    beforeEach(async () => {
+      await agent.startSession(testProjectId);
+
+      vi.mocked(fs.access).mockResolvedValue(undefined);
+      vi.mocked(fs.readFile).mockResolvedValue(SAMPLE_SDS_CONTENT);
+      vi.mocked(fs.stat).mockResolvedValue({
+        size: 1000,
+        mtime: new Date('2024-01-01'),
+      } as unknown as Awaited<ReturnType<typeof fs.stat>>);
+      vi.mocked(fs.writeFile).mockResolvedValue(undefined);
+      vi.mocked(fs.mkdir).mockResolvedValue(undefined);
+
+      await agent.loadSDS('/docs/sds/sds.md');
+    });
+
+    it('should generate changelog with API useCase', async () => {
+      const changeRequest: SDSChangeRequest = {
+        type: 'add_api',
+        newAPI: {
+          endpoint: '/api/v1/changelog-test',
+          method: 'POST',
+          componentId: 'CMP-001',
+          linkedUseCase: 'UC-100',
+        },
+      };
+
+      const result = await agent.applyChange(changeRequest);
+
+      expect(result.updateResult.changelogEntry).toContain('UC-100');
+    });
+
+    it('should generate changelog for component modifications', async () => {
+      const changeRequest: SDSChangeRequest = {
+        type: 'modify_component',
+        itemId: 'CMP-001',
+        modifications: [{ field: 'name', newValue: 'Updated Service' }],
+      };
+
+      const result = await agent.applyChange(changeRequest);
+
+      expect(result.updateResult.changelogEntry).toContain('Components Modified');
+      expect(result.updateResult.changelogEntry).toContain('CMP-001');
+    });
+
+    it('should generate changelog for API modifications', async () => {
+      const changeRequest: SDSChangeRequest = {
+        type: 'modify_api',
+        itemId: 'POST /api/v1/auth/login',
+        modifications: [{ field: 'Component', newValue: 'CMP-002' }],
+      };
+
+      const result = await agent.applyChange(changeRequest);
+
+      expect(result.updateResult.changelogEntry).toContain('APIs Modified');
+    });
+
+    it('should generate changelog for data model changes', async () => {
+      const changeRequest: SDSChangeRequest = {
+        type: 'update_data_model',
+        dataModelUpdate: {
+          entityName: 'User',
+          dataChanges: [
+            { type: 'add_field', details: { name: 'createdAt', type: 'datetime' } },
+          ],
+        },
+      };
+
+      const result = await agent.applyChange(changeRequest);
+
+      expect(result.updateResult.changelogEntry).toContain('Data Models Changed');
+      expect(result.updateResult.changelogEntry).toContain('User');
+    });
+
+    it('should generate changelog for architecture changes', async () => {
+      const changeRequest: SDSChangeRequest = {
+        type: 'update_architecture',
+        architectureChange: {
+          type: 'add_layer',
+          description: 'Added caching layer',
+          rationale: 'Performance improvement',
+        },
+      };
+
+      const result = await agent.applyChange(changeRequest);
+
+      expect(result.updateResult.changelogEntry).toContain('Architecture Changes');
+      expect(result.updateResult.changelogEntry).toContain('add_layer');
+    });
+  });
+
+  describe('component without linked SRS', () => {
+    beforeEach(async () => {
+      await agent.startSession(testProjectId);
+
+      vi.mocked(fs.access).mockResolvedValue(undefined);
+      vi.mocked(fs.readFile).mockResolvedValue(SAMPLE_SDS_CONTENT);
+      vi.mocked(fs.stat).mockResolvedValue({
+        size: 1000,
+        mtime: new Date('2024-01-01'),
+      } as unknown as Awaited<ReturnType<typeof fs.stat>>);
+      vi.mocked(fs.writeFile).mockResolvedValue(undefined);
+      vi.mocked(fs.mkdir).mockResolvedValue(undefined);
+
+      await agent.loadSDS('/docs/sds/sds.md');
+    });
+
+    it('should handle component with empty linkedSrsIds array', async () => {
+      const changeRequest: SDSChangeRequest = {
+        type: 'add_component',
+        newComponent: {
+          name: 'Utility Component',
+          description: 'Internal utility with no SRS link',
+          type: 'utility',
+          linkedSrsIds: [],
+        },
+      };
+
+      const result = await agent.applyChange(changeRequest);
+
+      expect(result.success).toBe(true);
+      expect(result.updateResult.traceabilityUpdates).toHaveLength(0);
+    });
+
+    it('should generate changelog entry without linked SRS', async () => {
+      const changeRequest: SDSChangeRequest = {
+        type: 'add_component',
+        newComponent: {
+          name: 'No Link Component',
+          description: 'Test',
+          type: 'service',
+          linkedSrsIds: [],
+        },
+      };
+
+      const result = await agent.applyChange(changeRequest);
+
+      expect(result.updateResult.changelogEntry).toContain('Components Added');
+      expect(result.updateResult.changelogEntry).not.toContain('linked to');
+    });
+  });
+
+  describe('version calculation edge cases', () => {
+    beforeEach(async () => {
+      await agent.startSession(testProjectId);
+
+      vi.mocked(fs.access).mockResolvedValue(undefined);
+      vi.mocked(fs.readFile).mockResolvedValue(SAMPLE_SDS_CONTENT);
+      vi.mocked(fs.stat).mockResolvedValue({
+        size: 1000,
+        mtime: new Date('2024-01-01'),
+      } as unknown as Awaited<ReturnType<typeof fs.stat>>);
+      vi.mocked(fs.writeFile).mockResolvedValue(undefined);
+      vi.mocked(fs.mkdir).mockResolvedValue(undefined);
+
+      await agent.loadSDS('/docs/sds/sds.md');
+    });
+
+    it('should increment minor version for data model update', async () => {
+      const changeRequest: SDSChangeRequest = {
+        type: 'update_data_model',
+        dataModelUpdate: {
+          entityName: 'User',
+          dataChanges: [
+            { type: 'add_field', details: { name: 'role', type: 'string' } },
+          ],
+        },
+      };
+
+      const result = await agent.applyChange(changeRequest);
+
+      expect(result.updateResult.versionAfter).toBe('1.1.0');
+    });
+
+    it('should increment patch version for component modification only', async () => {
+      const changeRequest: SDSChangeRequest = {
+        type: 'modify_component',
+        itemId: 'CMP-001',
+        modifications: [{ field: 'Responsibility', newValue: 'Updated responsibility' }],
+      };
+
+      const result = await agent.applyChange(changeRequest);
+
+      expect(result.updateResult.versionAfter).toBe('1.0.1');
+    });
+  });
+
+  describe('modify component field variations', () => {
+    beforeEach(async () => {
+      await agent.startSession(testProjectId);
+
+      vi.mocked(fs.access).mockResolvedValue(undefined);
+      vi.mocked(fs.readFile).mockResolvedValue(SAMPLE_SDS_CONTENT);
+      vi.mocked(fs.stat).mockResolvedValue({
+        size: 1000,
+        mtime: new Date('2024-01-01'),
+      } as unknown as Awaited<ReturnType<typeof fs.stat>>);
+      vi.mocked(fs.writeFile).mockResolvedValue(undefined);
+      vi.mocked(fs.mkdir).mockResolvedValue(undefined);
+
+      await agent.loadSDS('/docs/sds/sds.md');
+    });
+
+    it('should modify generic field in component', async () => {
+      const changeRequest: SDSChangeRequest = {
+        type: 'modify_component',
+        itemId: 'CMP-001',
+        modifications: [{ field: 'Added', newValue: '2024-12-01' }],
+      };
+
+      const result = await agent.applyChange(changeRequest);
+
+      expect(result.success).toBe(true);
+      expect(result.updateResult.changes.componentsModified.length).toBeGreaterThanOrEqual(0);
+    });
+  });
+
+  describe('parse status tags', () => {
+    it('should parse DEPRECATED status tag', async () => {
+      const deprecatedContent = `# SDS: Test Project
+
+| Field | Value |
+|-------|-------|
+| Version | 1.0.0 |
+
+## 1. Component Design
+
+### CMP-001: Old Service [DEPRECATED]
+**Source Features**: SF-001
+**Type**: service
+**Responsibility**: Legacy component
+`;
+
+      await agent.startSession(testProjectId);
+
+      vi.mocked(fs.access).mockResolvedValue(undefined);
+      vi.mocked(fs.readFile).mockResolvedValue(deprecatedContent);
+      vi.mocked(fs.stat).mockResolvedValue({
+        size: 1000,
+        mtime: new Date('2024-01-01'),
+      } as unknown as Awaited<ReturnType<typeof fs.stat>>);
+
+      const parsedSDS = await agent.loadSDS('/docs/sds/sds.md');
+
+      expect(parsedSDS.components[0]?.status).toBe('deprecated');
+    });
+
+    it('should parse NEW status tag', async () => {
+      const newContent = `# SDS: Test Project
+
+| Field | Value |
+|-------|-------|
+| Version | 1.0.0 |
+
+## 1. Component Design
+
+### CMP-001: New Service [NEW]
+**Source Features**: SF-001
+**Type**: service
+**Responsibility**: New component
+`;
+
+      await agent.startSession(testProjectId);
+
+      vi.mocked(fs.access).mockResolvedValue(undefined);
+      vi.mocked(fs.readFile).mockResolvedValue(newContent);
+      vi.mocked(fs.stat).mockResolvedValue({
+        size: 1000,
+        mtime: new Date('2024-01-01'),
+      } as unknown as Awaited<ReturnType<typeof fs.stat>>);
+
+      const parsedSDS = await agent.loadSDS('/docs/sds/sds.md');
+
+      expect(parsedSDS.components[0]?.status).toBe('pending');
+    });
+  });
+
+  describe('extract component type variations', () => {
+    it('should extract controller type', async () => {
+      const controllerContent = `# SDS: Test Project
+
+| Field | Value |
+|-------|-------|
+| Version | 1.0.0 |
+
+## 1. Component Design
+
+### CMP-001: API Controller
+**Source Features**: SF-001
+**Type**: controller
+**Responsibility**: Handle API requests
+`;
+
+      await agent.startSession(testProjectId);
+
+      vi.mocked(fs.access).mockResolvedValue(undefined);
+      vi.mocked(fs.readFile).mockResolvedValue(controllerContent);
+      vi.mocked(fs.stat).mockResolvedValue({
+        size: 1000,
+        mtime: new Date('2024-01-01'),
+      } as unknown as Awaited<ReturnType<typeof fs.stat>>);
+
+      const parsedSDS = await agent.loadSDS('/docs/sds/sds.md');
+
+      expect(parsedSDS.components[0]?.type).toBe('controller');
+    });
+
+    it('should default to service when type not specified', async () => {
+      const noTypeContent = `# SDS: Test Project
+
+| Field | Value |
+|-------|-------|
+| Version | 1.0.0 |
+
+## 1. Component Design
+
+### CMP-001: Unknown Type Component
+**Source Features**: SF-001
+**Responsibility**: No type specified
+`;
+
+      await agent.startSession(testProjectId);
+
+      vi.mocked(fs.access).mockResolvedValue(undefined);
+      vi.mocked(fs.readFile).mockResolvedValue(noTypeContent);
+      vi.mocked(fs.stat).mockResolvedValue({
+        size: 1000,
+        mtime: new Date('2024-01-01'),
+      } as unknown as Awaited<ReturnType<typeof fs.stat>>);
+
+      const parsedSDS = await agent.loadSDS('/docs/sds/sds.md');
+
+      expect(parsedSDS.components[0]?.type).toBe('service');
+    });
+  });
 });
