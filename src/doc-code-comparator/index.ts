@@ -25,32 +25,16 @@ export type {
 } from './types.js';
 
 // Type exports - Mapping types
-export type {
-  AgentMapping,
-  MappingResult,
-  MappingStatus,
-} from './types.js';
+export type { AgentMapping, MappingResult, MappingStatus } from './types.js';
 
 // Type exports - Gap types
-export type {
-  GapItem,
-  GapType,
-  GapPriority,
-  GapSummary,
-  GeneratedIssue,
-} from './types.js';
+export type { GapItem, GapType, GapPriority, GapSummary, GeneratedIssue } from './types.js';
 
 // Type exports - Inventory types
-export type {
-  DocumentItem,
-  CodeItem,
-} from './types.js';
+export type { DocumentItem, CodeItem } from './types.js';
 
 // Type exports - Session status
-export type {
-  SessionStatus,
-  MatchConfidence,
-} from './types.js';
+export type { SessionStatus, MatchConfidence } from './types.js';
 
 // Constants
 export { DEFAULT_DOC_CODE_COMPARATOR_CONFIG } from './types.js';

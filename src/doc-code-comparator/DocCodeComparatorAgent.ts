@@ -127,11 +127,26 @@ interface RawDocumentState {
   current_state?: {
     project?: { name?: string; version?: string };
     requirements?: {
-      functional?: Array<{ id?: string; title?: string; description?: string; sourceLocation?: string }>;
-      nonFunctional?: Array<{ id?: string; title?: string; description?: string; sourceLocation?: string }>;
+      functional?: Array<{
+        id?: string;
+        title?: string;
+        description?: string;
+        sourceLocation?: string;
+      }>;
+      nonFunctional?: Array<{
+        id?: string;
+        title?: string;
+        description?: string;
+        sourceLocation?: string;
+      }>;
     };
     features?: Array<{ id?: string; name?: string; description?: string; sourceLocation?: string }>;
-    components?: Array<{ id?: string; name?: string; description?: string; sourceLocation?: string }>;
+    components?: Array<{
+      id?: string;
+      name?: string;
+      description?: string;
+      sourceLocation?: string;
+    }>;
     apis?: Array<{ id?: string; name?: string; description?: string; sourceLocation?: string }>;
   };
 }
@@ -216,7 +231,12 @@ export class DocCodeComparatorAgent {
         path.join(this.config.scratchpadBasePath, 'state', session.projectId, 'current_state.yaml');
       const codePath =
         codeInventoryPath ??
-        path.join(this.config.scratchpadBasePath, 'analysis', session.projectId, 'code_inventory.yaml');
+        path.join(
+          this.config.scratchpadBasePath,
+          'analysis',
+          session.projectId,
+          'code_inventory.yaml'
+        );
 
       // Update session with paths
       this.session = {
@@ -695,36 +715,38 @@ export class DocCodeComparatorAgent {
     // Detect documented but not implemented
     for (const mapping of mappings) {
       if (mapping.status === 'unmatched') {
-        gaps.push(this.createGap(
-          'documented_not_implemented',
-          this.determinePriority('documented_not_implemented', mapping.documentId),
-          `${mapping.documentName} not implemented`,
-          `The documented item "${mapping.documentName}" (${mapping.documentId}) has no corresponding code implementation.`,
-          mapping.documentId,
-          undefined,
-          `Create implementation for ${mapping.documentName}`,
-          [mapping.documentId]
-        ));
+        gaps.push(
+          this.createGap(
+            'documented_not_implemented',
+            this.determinePriority('documented_not_implemented', mapping.documentId),
+            `${mapping.documentName} not implemented`,
+            `The documented item "${mapping.documentName}" (${mapping.documentId}) has no corresponding code implementation.`,
+            mapping.documentId,
+            undefined,
+            `Create implementation for ${mapping.documentName}`,
+            [mapping.documentId]
+          )
+        );
       } else if (mapping.status === 'partial') {
-        gaps.push(this.createGap(
-          'partial_implementation',
-          this.determinePriority('partial_implementation', mapping.documentId),
-          `${mapping.documentName} partially implemented`,
-          `The documented item "${mapping.documentName}" (${mapping.documentId}) appears to have only partial implementation at ${mapping.codeModulePath ?? 'unknown'}.`,
-          mapping.documentId,
-          mapping.codeModulePath ?? undefined,
-          `Review and complete implementation for ${mapping.documentName}`,
-          [mapping.documentId]
-        ));
+        gaps.push(
+          this.createGap(
+            'partial_implementation',
+            this.determinePriority('partial_implementation', mapping.documentId),
+            `${mapping.documentName} partially implemented`,
+            `The documented item "${mapping.documentName}" (${mapping.documentId}) appears to have only partial implementation at ${mapping.codeModulePath ?? 'unknown'}.`,
+            mapping.documentId,
+            mapping.codeModulePath ?? undefined,
+            `Review and complete implementation for ${mapping.documentName}`,
+            [mapping.documentId]
+          )
+        );
       }
     }
 
     // Detect implemented but not documented (if configured)
     if (this.config.reportUndocumentedCode) {
       const mappedPaths = new Set(
-        mappings
-          .filter((m) => m.codeModulePath !== null)
-          .map((m) => m.codeModulePath)
+        mappings.filter((m) => m.codeModulePath !== null).map((m) => m.codeModulePath)
       );
 
       for (const codeItem of codeItems) {
@@ -734,16 +756,18 @@ export class DocCodeComparatorAgent {
         }
 
         if (!mappedPaths.has(codeItem.modulePath)) {
-          gaps.push(this.createGap(
-            'implemented_not_documented',
-            'P3',
-            `${codeItem.moduleName} not documented`,
-            `The code module "${codeItem.moduleName}" at ${codeItem.modulePath} has no corresponding documentation.`,
-            undefined,
-            codeItem.modulePath,
-            `Add documentation for ${codeItem.moduleName}`,
-            []
-          ));
+          gaps.push(
+            this.createGap(
+              'implemented_not_documented',
+              'P3',
+              `${codeItem.moduleName} not documented`,
+              `The code module "${codeItem.moduleName}" at ${codeItem.modulePath} has no corresponding documentation.`,
+              undefined,
+              codeItem.modulePath,
+              `Add documentation for ${codeItem.moduleName}`,
+              []
+            )
+          );
         }
       }
     }
@@ -810,7 +834,9 @@ export class DocCodeComparatorAgent {
     ];
 
     const isCore = coreAgents.some(
-      (agent) => itemId.toLowerCase().includes(agent) || itemId.toLowerCase().includes(agent.replace('-', ''))
+      (agent) =>
+        itemId.toLowerCase().includes(agent) ||
+        itemId.toLowerCase().includes(agent.replace('-', ''))
     );
 
     if (gapType === 'documented_not_implemented') {
@@ -883,10 +909,13 @@ export class DocCodeComparatorAgent {
   private createGapSummary(gaps: GapItem[]): GapSummary {
     return {
       byType: {
-        documentedNotImplemented: gaps.filter((g) => g.type === 'documented_not_implemented').length,
-        implementedNotDocumented: gaps.filter((g) => g.type === 'implemented_not_documented').length,
+        documentedNotImplemented: gaps.filter((g) => g.type === 'documented_not_implemented')
+          .length,
+        implementedNotDocumented: gaps.filter((g) => g.type === 'implemented_not_documented')
+          .length,
         partialImplementation: gaps.filter((g) => g.type === 'partial_implementation').length,
-        documentationCodeMismatch: gaps.filter((g) => g.type === 'documentation_code_mismatch').length,
+        documentationCodeMismatch: gaps.filter((g) => g.type === 'documentation_code_mismatch')
+          .length,
       },
       byPriority: {
         P0: gaps.filter((g) => g.priority === 'P0').length,
@@ -994,7 +1023,10 @@ export class DocCodeComparatorAgent {
     return lines.join('\n');
   }
 
-  private async writeComparisonResult(projectId: string, result: ComparisonResult): Promise<string> {
+  private async writeComparisonResult(
+    projectId: string,
+    result: ComparisonResult
+  ): Promise<string> {
     const outputDir = path.join(this.config.scratchpadBasePath, 'analysis', projectId);
     const outputPath = path.join(outputDir, 'comparison_result.yaml');
 
@@ -1077,7 +1109,9 @@ let globalDocCodeComparatorAgent: DocCodeComparatorAgent | null = null;
 /**
  * Get the global Doc-Code Comparator Agent instance
  */
-export function getDocCodeComparatorAgent(config?: DocCodeComparatorConfig): DocCodeComparatorAgent {
+export function getDocCodeComparatorAgent(
+  config?: DocCodeComparatorConfig
+): DocCodeComparatorAgent {
   if (globalDocCodeComparatorAgent === null) {
     globalDocCodeComparatorAgent = new DocCodeComparatorAgent(config);
   }
