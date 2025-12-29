@@ -74,7 +74,7 @@ export interface UserOverride {
   /** Whether user explicitly specified mode */
   readonly specified: boolean;
   /** Mode specified by user (if any) */
-  readonly mode?: PipelineMode;
+  readonly mode?: PipelineMode | undefined;
 }
 
 /**
