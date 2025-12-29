@@ -38,12 +38,21 @@ export type {
   ErrorClassifier,
   RetryEventCallback,
   WithRetryOptions,
+  CircuitBreakerIntegration,
+  // Circuit breaker types
+  CircuitState,
+  CircuitBreakerConfig,
+  CircuitBreakerStatus,
+  CircuitBreakerEvent,
+  CircuitBreakerEventType,
+  CircuitBreakerEventCallback,
 } from './types.js';
 
 export {
   DEFAULT_RETRY_POLICY,
   RETRYABLE_ERROR_PATTERNS,
   NON_RETRYABLE_ERROR_PATTERNS,
+  DEFAULT_CIRCUIT_BREAKER_CONFIG,
 } from './types.js';
 
 // Errors
@@ -55,6 +64,8 @@ export {
   NonRetryableError,
   InvalidRetryPolicyError,
   RetryContextError,
+  CircuitOpenError,
+  InvalidCircuitBreakerConfigError,
 } from './errors.js';
 
 // Core functionality
@@ -66,3 +77,6 @@ export {
   defaultErrorClassifier,
   RetryHandler,
 } from './RetryHandler.js';
+
+// Circuit breaker
+export { CircuitBreaker, createCircuitBreakerFunction } from './CircuitBreaker.js';

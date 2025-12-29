@@ -25,10 +25,11 @@ src/
 - `errors.ts` - Custom error types
 - `types.ts` - TypeScript type definitions
 
-### error-handler/ - Retry Logic and Error Handling
+### error-handler/ - Retry Logic, Error Handling, and Circuit Breaker
 - `RetryHandler.ts` - Core retry logic with exponential backoff
-- `types.ts` - Retry policy and error classification types
-- `errors.ts` - Custom error classes (MaxRetriesExceeded, OperationTimeout, etc.)
+- `CircuitBreaker.ts` - Circuit breaker pattern for fault tolerance
+- `types.ts` - Retry policy, circuit breaker config, and error classification types
+- `errors.ts` - Custom error classes (MaxRetriesExceeded, CircuitOpen, OperationTimeout, etc.)
 - `index.ts` - Module exports
 
 Features:
@@ -38,6 +39,9 @@ Features:
 - Error categorization (retryable vs non-retryable)
 - Timeout handling for long-running operations
 - Abort signal support for cancellation
+- Circuit breaker pattern (CLOSED/OPEN/HALF_OPEN states)
+- Automatic circuit recovery with configurable reset timeout
+- Integration between retry logic and circuit breaker
 
 ## Structure Examples
 
