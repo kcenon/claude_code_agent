@@ -329,11 +329,12 @@ export class QueryCache<T = unknown> {
    */
   private evictLRU(): void {
     let oldestHash: string | null = null;
-    let oldestTime = Date.now();
+    let oldestTime = Infinity;
 
     for (const [hash, entry] of this.cache) {
-      if (entry.lastAccessedAt.getTime() < oldestTime) {
-        oldestTime = entry.lastAccessedAt.getTime();
+      const accessTime = entry.lastAccessedAt.getTime();
+      if (accessTime < oldestTime) {
+        oldestTime = accessTime;
         oldestHash = hash;
       }
     }

@@ -40,27 +40,42 @@ describe('TokenBudgetManager', () => {
     it('should trigger warning at 50% threshold', () => {
       const result = manager.recordUsage(2500, 2500, 0.5);
 
-      expect(result.warnings.length).toBe(1);
-      expect(result.warnings[0]?.thresholdPercent).toBe(50);
-      expect(result.warnings[0]?.severity).toBe('info');
+      // Both token (50%) and cost (50%) warnings are triggered
+      expect(result.warnings.length).toBe(2);
+      const tokenWarning = result.warnings.find((w) => w.type === 'token');
+      const costWarning = result.warnings.find((w) => w.type === 'cost');
+      expect(tokenWarning?.thresholdPercent).toBe(50);
+      expect(tokenWarning?.severity).toBe('info');
+      expect(costWarning?.thresholdPercent).toBe(50);
+      expect(costWarning?.severity).toBe('info');
     });
 
     it('should trigger warning at 75% threshold', () => {
       manager.recordUsage(2500, 2500, 0.5); // 50%
       const result = manager.recordUsage(1250, 1250, 0.25); // 75%
 
-      expect(result.warnings.length).toBe(1);
-      expect(result.warnings[0]?.thresholdPercent).toBe(75);
-      expect(result.warnings[0]?.severity).toBe('warning');
+      // Both token (75%) and cost (75%) warnings are triggered
+      expect(result.warnings.length).toBe(2);
+      const tokenWarning = result.warnings.find((w) => w.type === 'token');
+      const costWarning = result.warnings.find((w) => w.type === 'cost');
+      expect(tokenWarning?.thresholdPercent).toBe(75);
+      expect(tokenWarning?.severity).toBe('warning');
+      expect(costWarning?.thresholdPercent).toBe(75);
+      expect(costWarning?.severity).toBe('warning');
     });
 
     it('should trigger critical warning at 90% threshold', () => {
       manager.recordUsage(4000, 4000, 0.8); // 80%
       const result = manager.recordUsage(500, 500, 0.1); // 90%
 
-      expect(result.warnings.length).toBe(1);
-      expect(result.warnings[0]?.thresholdPercent).toBe(90);
-      expect(result.warnings[0]?.severity).toBe('critical');
+      // Both token (90%) and cost (90%) warnings are triggered
+      expect(result.warnings.length).toBe(2);
+      const tokenWarning = result.warnings.find((w) => w.type === 'token');
+      const costWarning = result.warnings.find((w) => w.type === 'cost');
+      expect(tokenWarning?.thresholdPercent).toBe(90);
+      expect(tokenWarning?.severity).toBe('critical');
+      expect(costWarning?.thresholdPercent).toBe(90);
+      expect(costWarning?.severity).toBe('critical');
     });
 
     it('should not trigger same warning twice', () => {
@@ -170,12 +185,13 @@ describe('TokenBudgetManager', () => {
 
   describe('getWarningHistory', () => {
     it('should return all triggered warnings', () => {
-      manager.recordUsage(2500, 2500, 0.5); // 50%
-      manager.recordUsage(1250, 1250, 0.25); // 75%
+      manager.recordUsage(2500, 2500, 0.5); // 50% token + 50% cost = 2 warnings
+      manager.recordUsage(1250, 1250, 0.25); // 75% token + 75% cost = 2 warnings
 
       const history = manager.getWarningHistory();
 
-      expect(history.length).toBe(2);
+      // Total: 4 warnings (2 for 50% + 2 for 75%)
+      expect(history.length).toBe(4);
     });
   });
 

@@ -333,7 +333,9 @@ export class TokenUsageReport {
     sessionDurationMs: number
   ): ReportSummary {
     const totalTokens = tokenUsage.totalInputTokens + tokenUsage.totalOutputTokens;
-    const durationMinutes = sessionDurationMs / 60000;
+    // Ensure minimum duration of 1ms to avoid division by zero
+    const effectiveDurationMs = Math.max(sessionDurationMs, 1);
+    const durationMinutes = effectiveDurationMs / 60000;
 
     // Find most expensive agent
     let mostExpensiveAgent: string | undefined;
