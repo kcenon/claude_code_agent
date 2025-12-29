@@ -13,7 +13,6 @@ import type {
   FlowStep,
   AlternativeFlow,
   ExceptionFlow,
-  UserPersona,
 } from './types.js';
 import { UseCaseGenerationError } from './errors.js';
 
