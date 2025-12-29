@@ -447,7 +447,45 @@ export class InputParser {
       return this.stripHtml(content);
     }
 
+    if (contentType.includes('application/xml') || contentType.includes('text/xml')) {
+      return this.stripXml(content);
+    }
+
     return content;
+  }
+
+  /**
+   * Strip XML tags and extract text content
+   *
+   * @param xml - XML content
+   * @returns Plain text content
+   */
+  private stripXml(xml: string): string {
+    // Remove XML declaration
+    let text = xml.replace(/<\?xml[^?]*\?>/gi, '');
+
+    // Remove CDATA sections but keep content
+    text = text.replace(/<!\[CDATA\[(.*?)\]\]>/gs, '$1');
+
+    // Remove comments
+    text = text.replace(/<!--[\s\S]*?-->/g, '');
+
+    // Remove XML tags but keep text content
+    text = text.replace(/<[^>]+>/g, ' ');
+
+    // Decode common XML entities
+    text = text
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&apos;/g, "'");
+
+    // Normalize whitespace
+    text = text.replace(/\s+/g, ' ').trim();
+
+    return text;
   }
 
   /**
