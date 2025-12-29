@@ -144,10 +144,7 @@ export class RegressionTesterAgent {
       const testFiles = await this.discoverTestFiles(this.currentSession.projectPath);
 
       if (testFiles.length === 0) {
-        throw new NoTestsFoundError(
-          this.currentSession.projectPath,
-          this.config.testPatterns
-        );
+        throw new NoTestsFoundError(this.currentSession.projectPath, this.config.testPatterns);
       }
 
       // Step 2: Load dependency graph if available
@@ -424,9 +421,7 @@ export class RegressionTesterAgent {
 
     for (const sourceFile of sourceFiles) {
       // Method 1: Naming convention matching
-      const namingMatches = testFiles.filter((tf) =>
-        this.matchesByNaming(sourceFile, tf.path)
-      );
+      const namingMatches = testFiles.filter((tf) => this.matchesByNaming(sourceFile, tf.path));
 
       // Method 2: Import analysis (from dependency graph)
       const importMatches: TestFile[] = [];
@@ -479,9 +474,7 @@ export class RegressionTesterAgent {
       if (changedFile.changeType === 'deleted') continue;
 
       // Direct mappings
-      const directMappings = testMappings.filter(
-        (m) => m.sourceFile === changedFile.path
-      );
+      const directMappings = testMappings.filter((m) => m.sourceFile === changedFile.path);
 
       for (const mapping of directMappings) {
         for (const testFile of mapping.testFiles) {
@@ -611,17 +604,16 @@ export class RegressionTesterAgent {
   /**
    * Detect compatibility issues
    */
-  private detectCompatibilityIssues(
-    testExecution: TestExecutionSummary
-  ): CompatibilityIssue[] {
+  private detectCompatibilityIssues(testExecution: TestExecutionSummary): CompatibilityIssue[] {
     const issues: CompatibilityIssue[] = [];
 
     // Check for test failures
     for (const result of testExecution.results) {
       if (result.status === 'failed' || result.status === 'error') {
-        const description = result.errorMessage !== null
-          ? `Test '${result.testName}' failed: ${result.errorMessage}`
-          : `Test '${result.testName}' failed`;
+        const description =
+          result.errorMessage !== null
+            ? `Test '${result.testName}' failed: ${result.errorMessage}`
+            : `Test '${result.testName}' failed`;
         issues.push({
           type: 'breaking_change',
           severity: 'high',
@@ -700,9 +692,7 @@ export class RegressionTesterAgent {
       filesModified: changedFiles.filter((f) => f.changeType === 'modified').length,
       filesAdded: changedFiles.filter((f) => f.changeType === 'added').length,
       filesDeleted: changedFiles.filter((f) => f.changeType === 'deleted').length,
-      componentsAffected: new Set(
-        testMappings.flatMap((m) => m.testFiles)
-      ).size,
+      componentsAffected: new Set(testMappings.flatMap((m) => m.testFiles)).size,
     };
 
     const mappedSourceFiles = new Set(testMappings.map((m) => m.sourceFile));
@@ -720,9 +710,9 @@ export class RegressionTesterAgent {
       unmappedSourceFiles,
     };
 
-    const blockingIssues = compatibilityIssues.filter(
-      (i) => i.severity === 'critical' || i.severity === 'high'
-    ).length + testExecution.failed;
+    const blockingIssues =
+      compatibilityIssues.filter((i) => i.severity === 'critical' || i.severity === 'high').length +
+      testExecution.failed;
 
     const status: RegressionSummary['status'] =
       blockingIssues > 0 ? 'failed' : testExecution.failed > 0 ? 'warning' : 'passed';
@@ -929,12 +919,10 @@ export class RegressionTesterAgent {
     }
   }
 
-  private async inferCoveredFiles(
-    testFile: string,
-    projectPath: string
-  ): Promise<string[]> {
+  private async inferCoveredFiles(testFile: string, projectPath: string): Promise<string[]> {
     const covered: string[] = [];
-    const testBasename = path.basename(testFile, path.extname(testFile))
+    const testBasename = path
+      .basename(testFile, path.extname(testFile))
       .replace(/\.(test|spec)$/, '')
       .replace(/^test_/, '')
       .replace(/_test$/, '');
@@ -990,26 +978,17 @@ export class RegressionTesterAgent {
     return patterns.some((pattern) => testBasename.includes(pattern) || testBasename === pattern);
   }
 
-  private hasImportRelation(
-    sourceFile: string,
-    testFile: string,
-    graph: DependencyGraph
-  ): boolean {
+  private hasImportRelation(sourceFile: string, testFile: string, graph: DependencyGraph): boolean {
     // Find if test file imports source file through the dependency graph
     const testNode = graph.nodes.find((n) => n.path !== undefined && n.path.includes(testFile));
     const sourceNode = graph.nodes.find((n) => n.path !== undefined && n.path.includes(sourceFile));
 
     if (testNode === undefined || sourceNode === undefined) return false;
 
-    return graph.edges.some(
-      (e) => e.from === testNode.id && e.to === sourceNode.id
-    );
+    return graph.edges.some((e) => e.from === testNode.id && e.to === sourceNode.id);
   }
 
-  private calculateMappingConfidence(
-    namingMatches: number,
-    importMatches: number
-  ): number {
+  private calculateMappingConfidence(namingMatches: number, importMatches: number): number {
     if (namingMatches > 0 && importMatches > 0) return 0.95;
     if (namingMatches > 0) return 0.8;
     if (importMatches > 0) return 0.7;
@@ -1024,7 +1003,9 @@ export class RegressionTesterAgent {
     const results: Array<{ testFile: string; path: string }> = [];
     const visited = new Set<string>();
 
-    const changedNode = graph.nodes.find((n) => n.path !== undefined && n.path.includes(changedFile));
+    const changedNode = graph.nodes.find(
+      (n) => n.path !== undefined && n.path.includes(changedFile)
+    );
     if (changedNode === undefined) return results;
 
     // BFS to find all dependent modules
@@ -1083,9 +1064,7 @@ export class RegressionTesterAgent {
 /**
  * Get singleton instance
  */
-export function getRegressionTesterAgent(
-  config?: RegressionTesterConfig
-): RegressionTesterAgent {
+export function getRegressionTesterAgent(config?: RegressionTesterConfig): RegressionTesterAgent {
   if (instance === null) {
     instance = new RegressionTesterAgent(config);
   }

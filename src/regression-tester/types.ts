@@ -57,7 +57,13 @@ export type TestFramework =
 /**
  * Session status
  */
-export type RegressionSessionStatus = 'mapping' | 'identifying' | 'executing' | 'analyzing' | 'completed' | 'failed';
+export type RegressionSessionStatus =
+  | 'mapping'
+  | 'identifying'
+  | 'executing'
+  | 'analyzing'
+  | 'completed'
+  | 'failed';
 
 /**
  * Changed file information
