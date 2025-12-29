@@ -172,6 +172,36 @@ agents:
       avg_duration_seconds: 150
       success_rate: 0.90
 
+  sds-updater:
+    id: "sds-updater"
+    name: "SDS Updater Agent"
+    korean_name: "SDS 업데이트 에이전트"
+    description: "Incrementally updates SDS documents with new components, APIs, and architecture changes"
+    definition_file: ".claude/agents/sds-updater.md"
+    category: "document_update"
+    order: 7
+
+    capabilities:
+      - "incremental_update"
+      - "component_integration"
+      - "api_specification"
+      - "architecture_evolution"
+      - "traceability_update"
+      - "consistency_check"
+
+    io:
+      inputs:
+        - existing_sds.md
+        - srs_update_result.yaml
+        - change_request
+      outputs:
+        - updated_sds.md
+        - sds_changelog.md
+
+    metrics:
+      avg_duration_seconds: 180
+      success_rate: 0.88
+
   # ---------------------------------------------------------------------------
   # Issue Management Agents
   # ---------------------------------------------------------------------------
@@ -369,6 +399,7 @@ categories:
     agents:
       - prd-updater
       - srs-updater
+      - sds-updater
     execution_mode: "on_demand"
 
   issue_management:
@@ -417,6 +448,8 @@ relationships:
       requires: [worker]
     srs-updater:
       requires: [prd-updater]
+    sds-updater:
+      requires: [srs-updater]
     doc-code-comparator:
       requires: [document-reader, code-reader]
 
@@ -452,6 +485,10 @@ relationships:
     - from: prd-updater
       to: srs-updater
       data: prd_update_result.yaml
+
+    - from: srs-updater
+      to: sds-updater
+      data: srs_update_result.yaml
 
     - from: document-reader
       to: doc-code-comparator
