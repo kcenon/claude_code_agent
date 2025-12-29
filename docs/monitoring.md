@@ -108,6 +108,115 @@ const errors = logger.getErrors(50);
 const warnings = logger.getEntriesByLevel('WARN', 50);
 ```
 
+### Sensitive Data Masking
+
+The logger automatically masks sensitive data in log messages, context, and error information:
+
+```typescript
+// Automatically masked patterns:
+// - GitHub tokens (ghp_*, gho_*, ghs_*, ghr_*)
+// - OpenAI API keys (sk-*)
+// - Anthropic API keys (sk-ant-*)
+// - Bearer tokens
+// - JWT tokens
+// - AWS access keys
+// - Generic API keys
+
+logger.info('Token: ghp_1234567890abcdefghijklmnopqrstuvwxyz');
+// Output: { "message": "Token: ***REDACTED***", ... }
+
+// Masking also works in context
+logger.info('Auth configured', { apiKey: 'sk-secret-key-value' });
+// Output: { "context": { "apiKey": "***REDACTED***" }, ... }
+
+// Add custom masking patterns
+const logger = new Logger({
+  maskingPatterns: [
+    { name: 'custom_secret', pattern: /SECRET_[A-Z0-9]+/g, replacement: '[HIDDEN]' },
+  ],
+});
+
+// Disable masking (not recommended for production)
+const debugLogger = new Logger({ enableMasking: false });
+
+// Toggle masking at runtime
+logger.setMaskingEnabled(false);
+console.log(logger.isMaskingEnabled()); // false
+
+// Get list of active masking patterns
+const patterns = logger.getMaskingPatternNames();
+// ['github_pat', 'openai_api_key', 'jwt_token', ...]
+```
+
+### Agent-Specific Logging
+
+Enable per-agent log files for easier debugging and filtering:
+
+```typescript
+const logger = new Logger({
+  logDir: '.ad-sdlc/logs',
+  agentLogConfig: {
+    enabled: true,
+    directory: 'agent-logs',  // Relative to logDir
+    maxFileSize: 10 * 1024 * 1024,  // 10MB per agent
+    maxFiles: 5,  // Keep 5 rotated files per agent
+  },
+});
+
+logger.setAgent('collector');
+logger.info('Starting collection');  // Written to both main log and agent-logs/collector-*.jsonl
+
+logger.setAgent('prd-writer');
+logger.info('Writing PRD');  // Written to both main log and agent-logs/prd-writer-*.jsonl
+
+// Get logs for a specific agent
+const collectorLogs = logger.getAgentLogs('collector', 100);
+
+// Get list of all agents that have logs
+const agents = logger.getLoggedAgents();
+// ['collector', 'prd-writer', 'srs-writer', ...]
+
+// Get agent log file path
+const logFile = logger.getAgentLogFile('collector');
+```
+
+File structure:
+```
+.ad-sdlc/logs/
+├── app-2024-01-15T10-30-00-000Z.jsonl   # Main log file
+├── agent-logs/
+│   ├── collector-2024-01-15T10-30-00-000Z.jsonl
+│   ├── prd-writer-2024-01-15T10-31-00-000Z.jsonl
+│   └── srs-writer-2024-01-15T10-32-00-000Z.jsonl
+```
+
+### Advanced Log Querying
+
+Query and filter logs with multiple criteria:
+
+```typescript
+// Query with filters
+const result = logger.queryLogs({
+  level: 'ERROR',
+  agent: 'worker-1',
+  stage: 'implementation',
+  projectId: 'proj-001',
+  correlationId: 'abc-123',
+  startTime: '2024-01-15T00:00:00.000Z',
+  endTime: '2024-01-15T23:59:59.999Z',
+  messageContains: 'failed',
+}, 100, 0);  // limit, offset
+
+console.log(`Found ${result.totalCount} entries`);
+console.log(`Has more: ${result.hasMore}`);
+
+// Convenience methods
+const agentLogs = logger.getAgentLogs('worker-1', 100);
+const timeRangeLogs = logger.getLogsByTimeRange('2024-01-15T00:00:00Z', '2024-01-15T12:00:00Z');
+const searchResults = logger.searchLogs('connection timeout', 50);
+const traceLogs = logger.getLogsByCorrelationId('abc-123-def');
+```
+
 ### Configuration
 
 ```typescript
@@ -457,6 +566,7 @@ Default file locations:
 | Type | Location |
 |------|----------|
 | Application logs | `.ad-sdlc/logs/app-*.jsonl` |
+| Agent-specific logs | `.ad-sdlc/logs/agent-logs/{agent}-*.jsonl` |
 | Audit logs | `.ad-sdlc/logs/audit/audit-*.jsonl` |
 | Metrics | `.ad-sdlc/metrics/metrics-*.json` |
 | Prometheus metrics | `.ad-sdlc/metrics/metrics.prom` |
@@ -472,6 +582,9 @@ Default file locations:
 6. **Configure alerts** - Set up alerts for critical thresholds
 7. **Review dashboards** - Regularly check health scores and active alerts
 8. **Log rotation** - Configure appropriate max file size and count to manage disk usage
+9. **Enable sensitive data masking** - Keep masking enabled in production to prevent credential leaks
+10. **Use agent-specific logs** - Enable agent logging for easier debugging in multi-agent systems
+11. **Add custom masking patterns** - Register patterns for any organization-specific secrets
 
 ## Integration Example
 

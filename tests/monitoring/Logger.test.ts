@@ -3,6 +3,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import { Logger, getLogger, resetLogger } from '../../src/monitoring/index.js';
+import type { MaskingPattern } from '../../src/monitoring/index.js';
 
 describe('Logger', () => {
   let logger: Logger;
@@ -442,6 +443,318 @@ describe('Logger', () => {
       expect(remainingFiles.length).toBeLessThanOrEqual(3);
 
       fs.rmSync(rotationDir, { recursive: true, force: true });
+    });
+  });
+
+  describe('sensitive data masking', () => {
+    it('should mask GitHub personal access tokens', () => {
+      logger.info('Token is ghp_1234567890abcdefghijklmnopqrstuvwxyz');
+
+      const entries = logger.getRecentEntries(1);
+      expect(entries[0]?.message).toContain('***REDACTED***');
+      expect(entries[0]?.message).not.toContain('ghp_');
+    });
+
+    it('should mask OpenAI API keys', () => {
+      logger.info('API key: sk-1234567890abcdefghijklmnopqrstuvwxyz012345678901');
+
+      const entries = logger.getRecentEntries(1);
+      expect(entries[0]?.message).toContain('***REDACTED***');
+      expect(entries[0]?.message).not.toContain('sk-');
+    });
+
+    it('should mask Bearer tokens', () => {
+      logger.info('Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.abc');
+
+      const entries = logger.getRecentEntries(1);
+      expect(entries[0]?.message).toContain('***REDACTED***');
+      expect(entries[0]?.message).not.toContain('Bearer');
+    });
+
+    it('should mask JWT tokens', () => {
+      const jwt =
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U';
+      logger.info(`JWT: ${jwt}`);
+
+      const entries = logger.getRecentEntries(1);
+      expect(entries[0]?.message).toContain('***REDACTED***');
+      expect(entries[0]?.message).not.toContain('eyJ');
+    });
+
+    it('should mask sensitive data in context', () => {
+      logger.info('User logged in', { token: 'ghp_1234567890abcdefghijklmnopqrstuvwxyz' });
+
+      const entries = logger.getRecentEntries(1);
+      expect(entries[0]?.context?.token).toBe('***REDACTED***');
+    });
+
+    it('should mask sensitive data in nested context', () => {
+      logger.info('Config loaded', {
+        auth: {
+          apiKey: 'sk-1234567890abcdefghijklmnopqrstuvwxyz012345678901',
+        },
+      });
+
+      const entries = logger.getRecentEntries(1);
+      const auth = entries[0]?.context?.auth as { apiKey: string };
+      expect(auth.apiKey).toBe('***REDACTED***');
+    });
+
+    it('should mask sensitive data in error messages', () => {
+      const error = new Error('Failed with token ghp_1234567890abcdefghijklmnopqrstuvwxyz');
+      logger.error('Auth error', error);
+
+      const entries = logger.getRecentEntries(1);
+      expect(entries[0]?.error?.message).toContain('***REDACTED***');
+      expect(entries[0]?.error?.message).not.toContain('ghp_');
+    });
+
+    it('should allow disabling masking', () => {
+      const noMaskLogger = new Logger({
+        logDir: testLogDir,
+        consoleOutput: false,
+        enableMasking: false,
+      });
+
+      noMaskLogger.info('Token: ghp_1234567890abcdefghijklmnopqrstuvwxyz');
+
+      const entries = noMaskLogger.getRecentEntries(1);
+      expect(entries[0]?.message).toContain('ghp_');
+    });
+
+    it('should allow adding custom masking patterns', () => {
+      const customPattern: MaskingPattern = {
+        name: 'custom_secret',
+        pattern: /SECRET_[A-Z0-9]+/g,
+        replacement: '[CUSTOM_REDACTED]',
+      };
+
+      const customLogger = new Logger({
+        logDir: testLogDir,
+        consoleOutput: false,
+        maskingPatterns: [customPattern],
+      });
+
+      customLogger.info('My secret is SECRET_ABC123XYZ');
+
+      const entries = customLogger.getRecentEntries(1);
+      expect(entries[0]?.message).toContain('[CUSTOM_REDACTED]');
+    });
+
+    it('should toggle masking at runtime', () => {
+      logger.info('Token: ghp_1234567890abcdefghijklmnopqrstuvwxyz');
+      const masked = logger.getRecentEntries(1);
+      expect(masked[0]?.message).toContain('***REDACTED***');
+
+      logger.setMaskingEnabled(false);
+      expect(logger.isMaskingEnabled()).toBe(false);
+
+      logger.info('Token: ghp_1234567890abcdefghijklmnopqrstuvwxyz');
+      const unmasked = logger.getRecentEntries(1);
+      expect(unmasked[0]?.message).toContain('ghp_');
+
+      // Reset for other tests
+      logger.setMaskingEnabled(true);
+    });
+
+    it('should list masking pattern names', () => {
+      const patterns = logger.getMaskingPatternNames();
+      expect(patterns).toContain('github_pat');
+      expect(patterns).toContain('openai_api_key');
+      expect(patterns).toContain('jwt_token');
+    });
+  });
+
+  describe('agent-specific logging', () => {
+    let agentLogDir: string;
+
+    beforeEach(() => {
+      agentLogDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-log-test-'));
+    });
+
+    afterEach(() => {
+      if (fs.existsSync(agentLogDir)) {
+        fs.rmSync(agentLogDir, { recursive: true, force: true });
+      }
+    });
+
+    it('should create agent-specific log files when enabled', () => {
+      const agentLogger = new Logger({
+        logDir: agentLogDir,
+        consoleOutput: false,
+        agentLogConfig: { enabled: true },
+      });
+
+      agentLogger.setAgent('worker-1');
+      agentLogger.info('Agent task started');
+
+      const agentLogsPath = path.join(agentLogDir, 'agent-logs');
+      expect(fs.existsSync(agentLogsPath)).toBe(true);
+
+      const files = fs.readdirSync(agentLogsPath);
+      expect(files.some((f) => f.startsWith('worker-1-'))).toBe(true);
+    });
+
+    it('should write to both main and agent log files', () => {
+      const agentLogger = new Logger({
+        logDir: agentLogDir,
+        consoleOutput: false,
+        agentLogConfig: { enabled: true },
+      });
+
+      agentLogger.setAgent('collector');
+      agentLogger.info('Collecting data');
+
+      // Check main log
+      const mainEntries = agentLogger.getRecentEntries(1);
+      expect(mainEntries[0]?.message).toBe('Collecting data');
+
+      // Check agent log
+      const agentLogsPath = path.join(agentLogDir, 'agent-logs');
+      const agentFiles = fs.readdirSync(agentLogsPath);
+      const collectorFile = agentFiles.find((f) => f.startsWith('collector-'));
+      expect(collectorFile).toBeDefined();
+
+      if (collectorFile !== undefined) {
+        const content = fs.readFileSync(path.join(agentLogsPath, collectorFile), 'utf8');
+        expect(content).toContain('Collecting data');
+      }
+    });
+
+    it('should use custom agent logs directory', () => {
+      const agentLogger = new Logger({
+        logDir: agentLogDir,
+        consoleOutput: false,
+        agentLogConfig: { enabled: true, directory: 'custom-agent-logs' },
+      });
+
+      agentLogger.setAgent('prd-writer');
+      agentLogger.info('Writing PRD');
+
+      const customAgentLogsPath = path.join(agentLogDir, 'custom-agent-logs');
+      expect(fs.existsSync(customAgentLogsPath)).toBe(true);
+    });
+
+    it('should get agent logs using getAgentLogs', () => {
+      const agentLogger = new Logger({
+        logDir: agentLogDir,
+        consoleOutput: false,
+        agentLogConfig: { enabled: true },
+      });
+
+      agentLogger.setAgent('worker-1');
+      agentLogger.info('Task 1');
+      agentLogger.info('Task 2');
+      agentLogger.setAgent('worker-2');
+      agentLogger.info('Other task');
+
+      const worker1Logs = agentLogger.getAgentLogs('worker-1');
+      expect(worker1Logs).toHaveLength(2);
+      expect(worker1Logs.every((e) => e.agent === 'worker-1')).toBe(true);
+    });
+
+    it('should list logged agents', () => {
+      const agentLogger = new Logger({
+        logDir: agentLogDir,
+        consoleOutput: false,
+        agentLogConfig: { enabled: true },
+      });
+
+      agentLogger.setAgent('collector');
+      agentLogger.info('Log 1');
+      agentLogger.setAgent('prd-writer');
+      agentLogger.info('Log 2');
+      agentLogger.setAgent('srs-writer');
+      agentLogger.info('Log 3');
+
+      const agents = agentLogger.getLoggedAgents();
+      expect(agents).toContain('collector');
+      expect(agents).toContain('prd-writer');
+      expect(agents).toContain('srs-writer');
+    });
+  });
+
+  describe('advanced log querying', () => {
+    beforeEach(() => {
+      // Create some test logs
+      logger.setAgent('agent-a');
+      logger.setStage('stage-1');
+      logger.setProjectId('proj-001');
+      logger.info('Message 1');
+
+      logger.setAgent('agent-b');
+      logger.setStage('stage-2');
+      logger.warn('Warning message');
+
+      logger.setAgent('agent-a');
+      logger.error('Error occurred', new Error('test error'));
+    });
+
+    it('should query logs by agent', () => {
+      const result = logger.queryLogs({ agent: 'agent-a' });
+      expect(result.entries.every((e) => e.agent === 'agent-a')).toBe(true);
+      expect(result.totalCount).toBeGreaterThan(0);
+    });
+
+    it('should query logs by level', () => {
+      const result = logger.queryLogs({ level: 'WARN' });
+      expect(result.entries.every((e) => e.level === 'WARN')).toBe(true);
+    });
+
+    it('should query logs by stage', () => {
+      const result = logger.queryLogs({ stage: 'stage-1' });
+      expect(result.entries.every((e) => e.stage === 'stage-1')).toBe(true);
+    });
+
+    it('should query logs by project ID', () => {
+      const result = logger.queryLogs({ projectId: 'proj-001' });
+      expect(result.entries.every((e) => e.projectId === 'proj-001')).toBe(true);
+    });
+
+    it('should search logs by message content', () => {
+      const result = logger.searchLogs('Warning');
+      expect(result.some((e) => e.message.includes('Warning'))).toBe(true);
+    });
+
+    it('should support pagination', () => {
+      // Add more logs
+      for (let i = 0; i < 10; i++) {
+        logger.info(`Bulk message ${i}`);
+      }
+
+      const page1 = logger.queryLogs({}, 5, 0);
+      const page2 = logger.queryLogs({}, 5, 5);
+
+      expect(page1.entries).toHaveLength(5);
+      expect(page1.hasMore).toBe(true);
+      expect(page2.entries.length).toBeGreaterThan(0);
+    });
+
+    it('should query logs by correlation ID', () => {
+      const correlationId = logger.getCorrelationId();
+      const result = logger.getLogsByCorrelationId(correlationId);
+      expect(result.every((e) => e.correlationId === correlationId)).toBe(true);
+    });
+
+    it('should query logs by time range', () => {
+      const now = new Date();
+      const past = new Date(now.getTime() - 60000); // 1 minute ago
+      const future = new Date(now.getTime() + 60000); // 1 minute in future
+
+      const result = logger.getLogsByTimeRange(past.toISOString(), future.toISOString());
+      expect(result.length).toBeGreaterThan(0);
+    });
+
+    it('should combine multiple filters', () => {
+      const result = logger.queryLogs({
+        agent: 'agent-a',
+        level: 'ERROR',
+      });
+
+      for (const entry of result.entries) {
+        expect(entry.agent).toBe('agent-a');
+        expect(entry.level).toBe('ERROR');
+      }
     });
   });
 });

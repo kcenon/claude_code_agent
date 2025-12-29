@@ -12,7 +12,16 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import type { LogEntry, LogLevel, LoggerOptions, ErrorInfo } from './types.js';
+import type {
+  LogEntry,
+  LogLevel,
+  LoggerOptions,
+  ErrorInfo,
+  AgentLogConfig,
+  MaskingPattern,
+  LogQueryFilter,
+  LogQueryResult,
+} from './types.js';
 
 /**
  * Default log directory
@@ -30,6 +39,16 @@ const DEFAULT_MAX_FILE_SIZE = 10 * 1024 * 1024;
 const DEFAULT_MAX_FILES = 5;
 
 /**
+ * Default agent logs directory
+ */
+const DEFAULT_AGENT_LOGS_DIR = 'agent-logs';
+
+/**
+ * Default masking replacement string
+ */
+const DEFAULT_MASK_REPLACEMENT = '***REDACTED***';
+
+/**
  * Log level priority for filtering
  */
 const LOG_LEVEL_PRIORITY: Record<LogLevel, number> = {
@@ -38,6 +57,24 @@ const LOG_LEVEL_PRIORITY: Record<LogLevel, number> = {
   WARN: 2,
   ERROR: 3,
 };
+
+/**
+ * Default sensitive data masking patterns
+ */
+const DEFAULT_MASKING_PATTERNS: MaskingPattern[] = [
+  { name: 'github_pat', pattern: /ghp_[a-zA-Z0-9]{36}/g },
+  { name: 'github_oauth', pattern: /gho_[a-zA-Z0-9]{36}/g },
+  { name: 'github_app', pattern: /ghs_[a-zA-Z0-9]{36}/g },
+  { name: 'github_refresh', pattern: /ghr_[a-zA-Z0-9]{36}/g },
+  { name: 'openai_api_key', pattern: /sk-[a-zA-Z0-9]{48}/g },
+  { name: 'anthropic_api_key', pattern: /sk-ant-[a-zA-Z0-9-]{95}/g },
+  { name: 'generic_api_key', pattern: /(?:api[_-]?key|apikey|api_secret)["\s:=]+["']?([a-zA-Z0-9_-]{20,})["']?/gi },
+  { name: 'bearer_token', pattern: /Bearer\s+[a-zA-Z0-9._-]+/gi },
+  { name: 'basic_auth', pattern: /Basic\s+[a-zA-Z0-9+/=]+/gi },
+  { name: 'jwt_token', pattern: /eyJ[a-zA-Z0-9_-]*\.eyJ[a-zA-Z0-9_-]*\.[a-zA-Z0-9_-]*/g },
+  { name: 'aws_access_key', pattern: /AKIA[0-9A-Z]{16}/g },
+  { name: 'aws_secret_key', pattern: /(?:aws)?_?secret_?(?:access)?_?key["'\s:=]+["']?([a-zA-Z0-9/+=]{40})["']?/gi },
+];
 
 /**
  * Structured logger for the AD-SDLC system
@@ -49,6 +86,9 @@ export class Logger {
   private readonly minLevel: LogLevel;
   private readonly consoleOutput: boolean;
   private readonly jsonOutput: boolean;
+  private readonly agentLogConfig: AgentLogConfig;
+  private readonly maskingPatterns: MaskingPattern[];
+  private readonly enableMasking: boolean;
   private correlationId: string;
   private sessionId: string;
   private currentAgent: string | undefined;
@@ -56,6 +96,7 @@ export class Logger {
   private currentProjectId: string | undefined;
   private currentLogFile: string | null = null;
   private currentFileSize = 0;
+  private readonly agentLogFiles: Map<string, { file: string; size: number }> = new Map();
 
   constructor(options: LoggerOptions = {}) {
     this.logDir = options.logDir ?? DEFAULT_LOG_DIR;
@@ -64,6 +105,12 @@ export class Logger {
     this.minLevel = options.minLevel ?? 'INFO';
     this.consoleOutput = options.consoleOutput ?? process.env['NODE_ENV'] !== 'production';
     this.jsonOutput = options.jsonOutput ?? true;
+    this.agentLogConfig = options.agentLogConfig ?? { enabled: false };
+    this.enableMasking = options.enableMasking ?? true;
+    this.maskingPatterns = [
+      ...DEFAULT_MASKING_PATTERNS,
+      ...(options.maskingPatterns ?? []),
+    ];
     this.correlationId = randomUUID();
     this.sessionId = randomUUID();
 
@@ -78,6 +125,64 @@ export class Logger {
     if (!fs.existsSync(this.logDir)) {
       fs.mkdirSync(this.logDir, { recursive: true, mode: 0o755 });
     }
+    // Create agent logs directory if enabled
+    if (this.agentLogConfig.enabled === true) {
+      const agentLogsDir = this.getAgentLogsDir();
+      if (!fs.existsSync(agentLogsDir)) {
+        fs.mkdirSync(agentLogsDir, { recursive: true, mode: 0o755 });
+      }
+    }
+  }
+
+  /**
+   * Get the agent logs directory path
+   */
+  private getAgentLogsDir(): string {
+    return path.join(this.logDir, this.agentLogConfig.directory ?? DEFAULT_AGENT_LOGS_DIR);
+  }
+
+  /**
+   * Mask sensitive data in a string
+   */
+  private maskSensitiveData(text: string): string {
+    if (!this.enableMasking) {
+      return text;
+    }
+
+    let masked = text;
+    for (const { pattern, replacement } of this.maskingPatterns) {
+      // Reset lastIndex for global patterns
+      pattern.lastIndex = 0;
+      masked = masked.replace(pattern, replacement ?? DEFAULT_MASK_REPLACEMENT);
+    }
+    return masked;
+  }
+
+  /**
+   * Mask sensitive data in an object recursively
+   */
+  private maskObject(obj: unknown): unknown {
+    if (!this.enableMasking) {
+      return obj;
+    }
+
+    if (typeof obj === 'string') {
+      return this.maskSensitiveData(obj);
+    }
+
+    if (Array.isArray(obj)) {
+      return obj.map((item) => this.maskObject(item));
+    }
+
+    if (obj !== null && typeof obj === 'object') {
+      const masked: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(obj)) {
+        masked[key] = this.maskObject(value);
+      }
+      return masked;
+    }
+
+    return obj;
   }
 
   /**
@@ -142,10 +247,13 @@ export class Logger {
     error?: Error,
     durationMs?: number
   ): LogEntry {
+    // Apply masking to message
+    const maskedMessage = this.maskSensitiveData(message);
+
     const entry: LogEntry = {
       timestamp: new Date().toISOString(),
       level,
-      message,
+      message: maskedMessage,
       correlationId: this.correlationId,
     };
 
@@ -163,7 +271,9 @@ export class Logger {
       (entry as { durationMs?: number }).durationMs = durationMs;
     }
     if (context !== undefined) {
-      (entry as { context?: Record<string, unknown> }).context = context;
+      // Apply masking to context
+      const maskedContext = this.maskObject(context) as Record<string, unknown>;
+      (entry as { context?: Record<string, unknown> }).context = maskedContext;
     }
     if (error !== undefined) {
       (entry as { error?: ErrorInfo }).error = this.formatError(error);
@@ -178,14 +288,113 @@ export class Logger {
   private formatError(error: Error): ErrorInfo {
     const errorInfo: ErrorInfo = {
       name: error.name,
-      message: error.message,
+      message: this.maskSensitiveData(error.message),
     };
 
     if (error.stack !== undefined) {
-      (errorInfo as { stack?: string }).stack = error.stack;
+      (errorInfo as { stack?: string }).stack = this.maskSensitiveData(error.stack);
     }
 
     return errorInfo;
+  }
+
+  /**
+   * Get or create agent log file info
+   */
+  private getOrCreateAgentLogFile(agentName: string): { file: string; size: number } {
+    const existing = this.agentLogFiles.get(agentName);
+    if (existing !== undefined) {
+      return existing;
+    }
+
+    const agentLogsDir = this.getAgentLogsDir();
+
+    // Ensure agent logs directory exists
+    if (!fs.existsSync(agentLogsDir)) {
+      fs.mkdirSync(agentLogsDir, { recursive: true, mode: 0o755 });
+    }
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const file = path.join(agentLogsDir, `${agentName}-${timestamp}.jsonl`);
+    const logInfo = { file, size: 0 };
+    this.agentLogFiles.set(agentName, logInfo);
+
+    // Rotate old agent log files
+    this.rotateAgentLogFiles(agentName);
+
+    return logInfo;
+  }
+
+  /**
+   * Rotate old agent log files
+   */
+  private rotateAgentLogFiles(agentName: string): void {
+    try {
+      const agentLogsDir = this.getAgentLogsDir();
+      if (!fs.existsSync(agentLogsDir)) {
+        return;
+      }
+
+      const maxFiles = this.agentLogConfig.maxFiles ?? this.maxFiles;
+      const files = fs
+        .readdirSync(agentLogsDir)
+        .filter((f) => f.startsWith(`${agentName}-`) && f.endsWith('.jsonl'))
+        .map((f) => ({
+          name: f,
+          path: path.join(agentLogsDir, f),
+          mtime: fs.statSync(path.join(agentLogsDir, f)).mtime.getTime(),
+        }))
+        .sort((a, b) => b.mtime - a.mtime);
+
+      for (let i = maxFiles; i < files.length; i++) {
+        const file = files[i];
+        if (file !== undefined) {
+          fs.unlinkSync(file.path);
+        }
+      }
+    } catch {
+      // Ignore rotation errors
+    }
+  }
+
+  /**
+   * Check if agent log file rotation is needed
+   */
+  private checkAgentLogRotation(agentName: string): void {
+    const logInfo = this.agentLogFiles.get(agentName);
+    if (logInfo === undefined) {
+      return;
+    }
+
+    const maxFileSize = this.agentLogConfig.maxFileSize ?? this.maxFileSize;
+    if (logInfo.size >= maxFileSize) {
+      // Create new log file
+      const agentLogsDir = this.getAgentLogsDir();
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const file = path.join(agentLogsDir, `${agentName}-${timestamp}.jsonl`);
+      this.agentLogFiles.set(agentName, { file, size: 0 });
+      this.rotateAgentLogFiles(agentName);
+    }
+  }
+
+  /**
+   * Write entry to agent-specific log file
+   */
+  private writeToAgentLog(entry: LogEntry, line: string): void {
+    if (this.agentLogConfig.enabled !== true || entry.agent === undefined) {
+      return;
+    }
+
+    try {
+      const logInfo = this.getOrCreateAgentLogFile(entry.agent);
+      this.checkAgentLogRotation(entry.agent);
+
+      const lineBytes = Buffer.byteLength(line, 'utf8');
+      fs.appendFileSync(logInfo.file, line, { mode: 0o644 });
+      logInfo.size += lineBytes;
+    } catch {
+      // Ignore agent log write errors
+    }
   }
 
   /**
@@ -206,6 +415,9 @@ export class Logger {
         console.error('[LOG]', JSON.stringify(entry));
       }
     }
+
+    // Write to agent-specific log file
+    this.writeToAgentLog(entry, line);
 
     if (this.consoleOutput) {
       this.logToConsole(entry);
@@ -420,6 +632,8 @@ export class Logger {
       minLevel: this.minLevel,
       consoleOutput: this.consoleOutput,
       jsonOutput: this.jsonOutput,
+      agentLogConfig: this.agentLogConfig,
+      enableMasking: this.enableMasking,
     });
     child.setCorrelationId(this.correlationId);
     child.setSessionId(this.sessionId);
@@ -476,6 +690,247 @@ export class Logger {
    */
   public getErrors(limit = 50): LogEntry[] {
     return this.getEntriesByLevel('ERROR', limit);
+  }
+
+  /**
+   * Query log entries with advanced filtering
+   */
+  public queryLogs(filter: LogQueryFilter, limit = 100, offset = 0): LogQueryResult {
+    const allEntries = this.getAllLogEntries();
+    const filtered = this.applyFilter(allEntries, filter);
+
+    const totalCount = filtered.length;
+    const entries = filtered.slice(offset, offset + limit);
+    const hasMore = offset + limit < totalCount;
+
+    return { entries, totalCount, hasMore };
+  }
+
+  /**
+   * Get all log entries from all log files
+   */
+  private getAllLogEntries(): LogEntry[] {
+    const entries: LogEntry[] = [];
+
+    try {
+      const files = fs
+        .readdirSync(this.logDir)
+        .filter((f) => f.startsWith('app-') && f.endsWith('.jsonl'))
+        .map((f) => ({
+          name: f,
+          path: path.join(this.logDir, f),
+          mtime: fs.statSync(path.join(this.logDir, f)).mtime.getTime(),
+        }))
+        .sort((a, b) => b.mtime - a.mtime);
+
+      for (const file of files) {
+        const content = fs.readFileSync(file.path, 'utf8');
+        const lines = content.trim().split('\n');
+        for (const line of lines) {
+          if (line.trim() !== '') {
+            try {
+              entries.push(JSON.parse(line) as LogEntry);
+            } catch {
+              // Skip malformed lines
+            }
+          }
+        }
+      }
+    } catch {
+      // Ignore read errors
+    }
+
+    // Sort by timestamp descending (most recent first)
+    return entries.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  }
+
+  /**
+   * Apply filter to log entries
+   */
+  private applyFilter(entries: LogEntry[], filter: LogQueryFilter): LogEntry[] {
+    return entries.filter((entry) => {
+      if (filter.level !== undefined && entry.level !== filter.level) {
+        return false;
+      }
+      if (filter.agent !== undefined && entry.agent !== filter.agent) {
+        return false;
+      }
+      if (filter.stage !== undefined && entry.stage !== filter.stage) {
+        return false;
+      }
+      if (filter.projectId !== undefined && entry.projectId !== filter.projectId) {
+        return false;
+      }
+      if (filter.correlationId !== undefined && entry.correlationId !== filter.correlationId) {
+        return false;
+      }
+      if (filter.startTime !== undefined) {
+        const entryTime = new Date(entry.timestamp).getTime();
+        const startTime = new Date(filter.startTime).getTime();
+        if (entryTime < startTime) {
+          return false;
+        }
+      }
+      if (filter.endTime !== undefined) {
+        const entryTime = new Date(entry.timestamp).getTime();
+        const endTime = new Date(filter.endTime).getTime();
+        if (entryTime > endTime) {
+          return false;
+        }
+      }
+      if (filter.messageContains !== undefined) {
+        if (!entry.message.toLowerCase().includes(filter.messageContains.toLowerCase())) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }
+
+  /**
+   * Get log entries for a specific agent
+   */
+  public getAgentLogs(agentName: string, limit = 100): LogEntry[] {
+    // First try agent-specific log file
+    if (this.agentLogConfig.enabled === true) {
+      const agentEntries = this.getAgentLogEntries(agentName);
+      if (agentEntries.length > 0) {
+        return agentEntries.slice(0, limit);
+      }
+    }
+
+    // Fall back to filtering main logs
+    return this.queryLogs({ agent: agentName }, limit).entries;
+  }
+
+  /**
+   * Get entries from agent-specific log file
+   */
+  private getAgentLogEntries(agentName: string): LogEntry[] {
+    const entries: LogEntry[] = [];
+    const agentLogsDir = this.getAgentLogsDir();
+
+    if (!fs.existsSync(agentLogsDir)) {
+      return entries;
+    }
+
+    try {
+      const files = fs
+        .readdirSync(agentLogsDir)
+        .filter((f) => f.startsWith(`${agentName}-`) && f.endsWith('.jsonl'))
+        .map((f) => ({
+          name: f,
+          path: path.join(agentLogsDir, f),
+          mtime: fs.statSync(path.join(agentLogsDir, f)).mtime.getTime(),
+        }))
+        .sort((a, b) => b.mtime - a.mtime);
+
+      for (const file of files) {
+        const content = fs.readFileSync(file.path, 'utf8');
+        const lines = content.trim().split('\n');
+        for (const line of lines) {
+          if (line.trim() !== '') {
+            try {
+              entries.push(JSON.parse(line) as LogEntry);
+            } catch {
+              // Skip malformed lines
+            }
+          }
+        }
+      }
+    } catch {
+      // Ignore read errors
+    }
+
+    return entries.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  }
+
+  /**
+   * Get logs within a time range
+   */
+  public getLogsByTimeRange(startTime: string, endTime: string, limit = 100): LogEntry[] {
+    return this.queryLogs({ startTime, endTime }, limit).entries;
+  }
+
+  /**
+   * Search logs by message content
+   */
+  public searchLogs(searchTerm: string, limit = 100): LogEntry[] {
+    return this.queryLogs({ messageContains: searchTerm }, limit).entries;
+  }
+
+  /**
+   * Get logs by correlation ID (for tracing a request)
+   */
+  public getLogsByCorrelationId(correlationId: string): LogEntry[] {
+    return this.queryLogs({ correlationId }, 1000).entries;
+  }
+
+  /**
+   * Get agent log file path for a specific agent
+   */
+  public getAgentLogFile(agentName: string): string | null {
+    const logInfo = this.agentLogFiles.get(agentName);
+    return logInfo?.file ?? null;
+  }
+
+  /**
+   * Get list of all agents that have logs
+   */
+  public getLoggedAgents(): string[] {
+    const agents = new Set<string>();
+
+    // From main logs
+    const entries = this.getRecentEntries(1000);
+    for (const entry of entries) {
+      if (entry.agent !== undefined) {
+        agents.add(entry.agent);
+      }
+    }
+
+    // From agent logs directory
+    if (this.agentLogConfig.enabled === true) {
+      const agentLogsDir = this.getAgentLogsDir();
+      if (fs.existsSync(agentLogsDir)) {
+        const files = fs.readdirSync(agentLogsDir);
+        for (const file of files) {
+          const match = file.match(/^([^-]+)-/);
+          if (match !== null && match[1] !== undefined) {
+            agents.add(match[1]);
+          }
+        }
+      }
+    }
+
+    return Array.from(agents).sort();
+  }
+
+  /**
+   * Enable or disable masking at runtime
+   */
+  public setMaskingEnabled(enabled: boolean): void {
+    (this as { enableMasking: boolean }).enableMasking = enabled;
+  }
+
+  /**
+   * Check if masking is enabled
+   */
+  public isMaskingEnabled(): boolean {
+    return this.enableMasking;
+  }
+
+  /**
+   * Add a custom masking pattern at runtime
+   */
+  public addMaskingPattern(pattern: MaskingPattern): void {
+    this.maskingPatterns.push(pattern);
+  }
+
+  /**
+   * Get list of registered masking pattern names
+   */
+  public getMaskingPatternNames(): string[] {
+    return this.maskingPatterns.map((p) => p.name);
   }
 }
 
