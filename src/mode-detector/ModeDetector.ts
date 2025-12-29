@@ -28,7 +28,6 @@ import type {
 import { DEFAULT_MODE_DETECTOR_CONFIG } from './types.js';
 
 import {
-  ModeDetectorError,
   ProjectNotFoundError,
   NoActiveSessionError,
   InvalidSessionStateError,
@@ -98,22 +97,22 @@ export class ModeDetector {
   /**
    * Detect pipeline mode for the current session
    */
-  public async detect(userOverrideMode?: PipelineMode): Promise<ModeDetectionResult> {
-    const session = this.ensureSession();
-
-    if (session.status !== 'detecting') {
-      throw new InvalidSessionStateError(session.status, 'detecting');
-    }
-
-    const startTime = Date.now();
-    const stats: DetectionStats = {
-      documentCheckTimeMs: 0,
-      codebaseCheckTimeMs: 0,
-      keywordAnalysisTimeMs: 0,
-      totalTimeMs: 0,
-    };
-
+  public detect(userOverrideMode?: PipelineMode): Promise<ModeDetectionResult> {
     try {
+      const session = this.ensureSession();
+
+      if (session.status !== 'detecting') {
+        return Promise.reject(new InvalidSessionStateError(session.status, 'detecting'));
+      }
+
+      const startTime = Date.now();
+      const stats: DetectionStats = {
+        documentCheckTimeMs: 0,
+        codebaseCheckTimeMs: 0,
+        keywordAnalysisTimeMs: 0,
+        totalTimeMs: 0,
+      };
+
       // Validate project path exists
       if (!fs.existsSync(session.rootPath)) {
         throw new ProjectNotFoundError(session.rootPath);
@@ -175,22 +174,24 @@ export class ModeDetector {
       };
 
       // Save result to scratchpad
-      await this.saveResult(session.rootPath, session.projectId, result);
+      this.saveResult(session.rootPath, session.projectId, result);
 
       (stats as { totalTimeMs: number }).totalTimeMs = Date.now() - startTime;
 
-      return result;
+      return Promise.resolve(result);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
 
-      this.session = {
-        ...session,
-        status: 'failed',
-        updatedAt: new Date().toISOString(),
-        errors: [...session.errors, errorMessage],
-      };
+      if (this.session) {
+        this.session = {
+          ...this.session,
+          status: 'failed',
+          updatedAt: new Date().toISOString(),
+          errors: [...this.session.errors, errorMessage],
+        };
+      }
 
-      throw error;
+      return Promise.reject(error instanceof Error ? error : new Error(String(error)));
     }
   }
 
@@ -556,8 +557,8 @@ export class ModeDetector {
     // Codebase evidence
     if (evidence.codebase.exists) {
       reasons.push(
-        `Found existing codebase with ${evidence.codebase.sourceFileCount} source files ` +
-          `(${evidence.codebase.linesOfCode} lines of code)`
+        `Found existing codebase with ${String(evidence.codebase.sourceFileCount)} source files ` +
+          `(${String(evidence.codebase.linesOfCode)} lines of code)`
       );
       if (evidence.codebase.hasTests) {
         reasons.push('Test suite detected');
@@ -582,9 +583,8 @@ export class ModeDetector {
     }
 
     // Final decision
-    reasons.push(
-      `Final score: ${(scores.finalScore * 100).toFixed(1)}% → ${mode.toUpperCase()} mode selected`
-    );
+    const scorePercent = (scores.finalScore * 100).toFixed(1);
+    reasons.push(`Final score: ${scorePercent}% → ${mode.toUpperCase()} mode selected`);
 
     return reasons.join('. ') + '.';
   }
@@ -625,11 +625,11 @@ export class ModeDetector {
   /**
    * Save detection result to scratchpad
    */
-  private async saveResult(
+  private saveResult(
     rootPath: string,
     projectId: string,
     result: ModeDetectionResult
-  ): Promise<void> {
+  ): void {
     const scratchpadPath = path.join(rootPath, this.config.scratchpadBasePath, 'mode_detection');
 
     try {

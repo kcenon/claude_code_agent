@@ -97,7 +97,7 @@ export class OutputWriteError extends ModeDetectorError {
  */
 export class DetectionTimeoutError extends ModeDetectorError {
   constructor(timeoutMs: number) {
-    super(`Detection timed out after ${timeoutMs}ms`, 'DETECTION_TIMEOUT', { timeoutMs });
+    super(`Detection timed out after ${String(timeoutMs)}ms`, 'DETECTION_TIMEOUT', { timeoutMs });
     this.name = 'DetectionTimeoutError';
   }
 }
