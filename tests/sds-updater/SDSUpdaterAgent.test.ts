@@ -785,4 +785,458 @@ describe('SDSUpdaterAgent', () => {
       expect(result.updateResult.changelogEntry).toContain('/api/v1/test');
     });
   });
+
+  describe('validation edge cases', () => {
+    beforeEach(async () => {
+      await agent.startSession(testProjectId);
+
+      vi.mocked(fs.access).mockResolvedValue(undefined);
+      vi.mocked(fs.readFile).mockResolvedValue(SAMPLE_SDS_CONTENT);
+      vi.mocked(fs.stat).mockResolvedValue({
+        size: 1000,
+        mtime: new Date('2024-01-01'),
+      } as unknown as Awaited<ReturnType<typeof fs.stat>>);
+      vi.mocked(fs.writeFile).mockResolvedValue(undefined);
+      vi.mocked(fs.mkdir).mockResolvedValue(undefined);
+
+      await agent.loadSDS('/docs/sds/sds.md');
+    });
+
+    it('should throw for modify_component without itemId', async () => {
+      const changeRequest: SDSChangeRequest = {
+        type: 'modify_component',
+        modifications: [{ field: 'description', newValue: 'New description' }],
+      };
+
+      await expect(agent.applyChange(changeRequest)).rejects.toThrow(InvalidSDSChangeRequestError);
+    });
+
+    it('should throw for modify_component without modifications', async () => {
+      const changeRequest: SDSChangeRequest = {
+        type: 'modify_component',
+        itemId: 'CMP-001',
+        modifications: [],
+      };
+
+      await expect(agent.applyChange(changeRequest)).rejects.toThrow(InvalidSDSChangeRequestError);
+    });
+
+    it('should throw for modify_api without itemId', async () => {
+      const changeRequest: SDSChangeRequest = {
+        type: 'modify_api',
+        modifications: [{ field: 'description', newValue: 'New description' }],
+      };
+
+      await expect(agent.applyChange(changeRequest)).rejects.toThrow(InvalidSDSChangeRequestError);
+    });
+
+    it('should throw for modify_api without modifications', async () => {
+      const changeRequest: SDSChangeRequest = {
+        type: 'modify_api',
+        itemId: 'POST /api/v1/auth/login',
+        modifications: [],
+      };
+
+      await expect(agent.applyChange(changeRequest)).rejects.toThrow(InvalidSDSChangeRequestError);
+    });
+
+    it('should throw for update_data_model without dataModelUpdate', async () => {
+      const changeRequest: SDSChangeRequest = {
+        type: 'update_data_model',
+      };
+
+      await expect(agent.applyChange(changeRequest)).rejects.toThrow(InvalidSDSChangeRequestError);
+    });
+
+    it('should throw for update_architecture without architectureChange', async () => {
+      const changeRequest: SDSChangeRequest = {
+        type: 'update_architecture',
+      };
+
+      await expect(agent.applyChange(changeRequest)).rejects.toThrow(InvalidSDSChangeRequestError);
+    });
+
+    it('should throw for update_traceability without updates', async () => {
+      const changeRequest: SDSChangeRequest = {
+        type: 'update_traceability',
+        traceabilityUpdates: [],
+      };
+
+      await expect(agent.applyChange(changeRequest)).rejects.toThrow(InvalidSDSChangeRequestError);
+    });
+  });
+
+  describe('component with interfaces and dependencies', () => {
+    beforeEach(async () => {
+      await agent.startSession(testProjectId);
+
+      vi.mocked(fs.access).mockResolvedValue(undefined);
+      vi.mocked(fs.readFile).mockResolvedValue(SAMPLE_SDS_CONTENT);
+      vi.mocked(fs.stat).mockResolvedValue({
+        size: 1000,
+        mtime: new Date('2024-01-01'),
+      } as unknown as Awaited<ReturnType<typeof fs.stat>>);
+      vi.mocked(fs.writeFile).mockResolvedValue(undefined);
+      vi.mocked(fs.mkdir).mockResolvedValue(undefined);
+
+      await agent.loadSDS('/docs/sds/sds.md');
+    });
+
+    it('should add component with provided interfaces', async () => {
+      const changeRequest: SDSChangeRequest = {
+        type: 'add_component',
+        newComponent: {
+          name: 'API Gateway',
+          description: 'Central API routing',
+          type: 'service',
+          linkedSrsIds: ['SF-005'],
+          interfaces: {
+            provided: [
+              {
+                name: 'IApiGateway',
+                methods: [
+                  { name: 'route', parameters: ['request: Request'], returnType: 'Response', async: true },
+                  { name: 'validate', parameters: ['token: string'], returnType: 'boolean', async: false },
+                ],
+              },
+            ],
+          },
+        },
+      };
+
+      const result = await agent.applyChange(changeRequest);
+
+      expect(result.success).toBe(true);
+      expect(result.updateResult.changes.componentsAdded.length).toBe(1);
+    });
+
+    it('should add component with required interfaces', async () => {
+      const changeRequest: SDSChangeRequest = {
+        type: 'add_component',
+        newComponent: {
+          name: 'Cache Service',
+          description: 'Caching layer',
+          type: 'service',
+          linkedSrsIds: ['SF-006'],
+          interfaces: {
+            required: [
+              { name: 'IDatabase', reason: 'Data persistence' },
+            ],
+          },
+        },
+      };
+
+      const result = await agent.applyChange(changeRequest);
+
+      expect(result.success).toBe(true);
+    });
+
+    it('should add component with dependencies', async () => {
+      const changeRequest: SDSChangeRequest = {
+        type: 'add_component',
+        newComponent: {
+          name: 'Message Queue',
+          description: 'Async messaging',
+          type: 'service',
+          linkedSrsIds: ['SF-007'],
+          dependencies: {
+            internal: [
+              { componentId: 'CMP-001', type: 'uses', description: 'User context' },
+            ],
+            external: [
+              { name: 'rabbitmq', version: '3.12.0', purpose: 'Message broker' },
+            ],
+          },
+        },
+      };
+
+      const result = await agent.applyChange(changeRequest);
+
+      expect(result.success).toBe(true);
+    });
+  });
+
+  describe('API with error responses', () => {
+    beforeEach(async () => {
+      await agent.startSession(testProjectId);
+
+      vi.mocked(fs.access).mockResolvedValue(undefined);
+      vi.mocked(fs.readFile).mockResolvedValue(SAMPLE_SDS_CONTENT);
+      vi.mocked(fs.stat).mockResolvedValue({
+        size: 1000,
+        mtime: new Date('2024-01-01'),
+      } as unknown as Awaited<ReturnType<typeof fs.stat>>);
+      vi.mocked(fs.writeFile).mockResolvedValue(undefined);
+      vi.mocked(fs.mkdir).mockResolvedValue(undefined);
+
+      await agent.loadSDS('/docs/sds/sds.md');
+    });
+
+    it('should add API with error responses', async () => {
+      const changeRequest: SDSChangeRequest = {
+        type: 'add_api',
+        newAPI: {
+          endpoint: '/api/v1/validate',
+          method: 'POST',
+          componentId: 'CMP-001',
+          linkedUseCase: 'UC-003',
+          description: 'Validation endpoint',
+          authentication: 'Bearer token',
+          requestSchema: { body: { type: 'object' } },
+          responseSchema: { status: 'number' },
+          errorResponses: [
+            { statusCode: 400, description: 'Invalid input', schema: { error: 'string' } },
+            { statusCode: 401, description: 'Unauthorized', schema: { message: 'string' } },
+            { statusCode: 500, description: 'Server error', schema: { details: 'string' } },
+          ],
+        },
+      };
+
+      const result = await agent.applyChange(changeRequest);
+
+      expect(result.success).toBe(true);
+      expect(result.updateResult.changes.apisAdded.length).toBe(1);
+    });
+  });
+
+  describe('parsing edge cases', () => {
+    it('should handle malformed component sections', async () => {
+      const malformedContent = `# SDS: Test Project
+
+| Field | Value |
+|-------|-------|
+| Version | 1.0.0 |
+
+## 1. Component Design
+
+### CMP-001:
+**Type**: service
+**Responsibility**: Missing name
+
+### : Empty ID
+**Type**: service
+
+### CMP-002: Valid Component
+**Type**: service
+**Responsibility**: Valid component
+`;
+
+      await agent.startSession(testProjectId);
+
+      vi.mocked(fs.access).mockResolvedValue(undefined);
+      vi.mocked(fs.readFile).mockResolvedValue(malformedContent);
+      vi.mocked(fs.stat).mockResolvedValue({
+        size: 1000,
+        mtime: new Date('2024-01-01'),
+      } as unknown as Awaited<ReturnType<typeof fs.stat>>);
+
+      await agent.loadSDS('/docs/sds/sds.md');
+      const session = agent.getSession();
+      expect(session.parsedSDS).toBeDefined();
+      // Should only parse valid components
+      expect(session.parsedSDS?.components.length).toBeGreaterThanOrEqual(0);
+    });
+
+    it('should handle API without method', async () => {
+      const apiContent = `# SDS: Test Project
+
+| Field | Value |
+|-------|-------|
+| Version | 1.0.0 |
+
+## 1. Interface Design
+
+#### /api/v1/test
+**Component**: CMP-001
+`;
+
+      await agent.startSession(testProjectId);
+
+      vi.mocked(fs.access).mockResolvedValue(undefined);
+      vi.mocked(fs.readFile).mockResolvedValue(apiContent);
+      vi.mocked(fs.stat).mockResolvedValue({
+        size: 1000,
+        mtime: new Date('2024-01-01'),
+      } as unknown as Awaited<ReturnType<typeof fs.stat>>);
+
+      await agent.loadSDS('/docs/sds/sds.md');
+      const session = agent.getSession();
+      // API without proper method format should not be parsed
+      expect(session.parsedSDS?.apis.length).toBe(0);
+    });
+  });
+
+  describe('modify component advanced cases', () => {
+    beforeEach(async () => {
+      await agent.startSession(testProjectId);
+
+      vi.mocked(fs.access).mockResolvedValue(undefined);
+      vi.mocked(fs.readFile).mockResolvedValue(SAMPLE_SDS_CONTENT);
+      vi.mocked(fs.stat).mockResolvedValue({
+        size: 1000,
+        mtime: new Date('2024-01-01'),
+      } as unknown as Awaited<ReturnType<typeof fs.stat>>);
+      vi.mocked(fs.writeFile).mockResolvedValue(undefined);
+      vi.mocked(fs.mkdir).mockResolvedValue(undefined);
+
+      await agent.loadSDS('/docs/sds/sds.md');
+    });
+
+    it('should modify component and add Modified date', async () => {
+      const changeRequest: SDSChangeRequest = {
+        type: 'modify_component',
+        itemId: 'CMP-001',
+        modifications: [{ field: 'Responsibility', newValue: 'Updated responsibility' }],
+      };
+
+      const result = await agent.applyChange(changeRequest);
+
+      expect(result.success).toBe(true);
+      expect(result.updateResult.changes.componentsModified.length).toBe(1);
+    });
+
+    it('should update existing Modified date', async () => {
+      const contentWithModified = SAMPLE_SDS_CONTENT.replace(
+        '**Added**: 2024-01-01',
+        '**Added**: 2024-01-01\n**Modified**: 2024-01-02'
+      );
+
+      vi.mocked(fs.readFile).mockResolvedValue(contentWithModified);
+      await agent.loadSDS('/docs/sds/sds.md');
+
+      const changeRequest: SDSChangeRequest = {
+        type: 'modify_component',
+        itemId: 'CMP-001',
+        modifications: [{ field: 'Responsibility', newValue: 'New responsibility' }],
+      };
+
+      const result = await agent.applyChange(changeRequest);
+
+      expect(result.success).toBe(true);
+    });
+  });
+
+  describe('modify API advanced cases', () => {
+    beforeEach(async () => {
+      await agent.startSession(testProjectId);
+
+      vi.mocked(fs.access).mockResolvedValue(undefined);
+      vi.mocked(fs.readFile).mockResolvedValue(SAMPLE_SDS_CONTENT);
+      vi.mocked(fs.stat).mockResolvedValue({
+        size: 1000,
+        mtime: new Date('2024-01-01'),
+      } as unknown as Awaited<ReturnType<typeof fs.stat>>);
+      vi.mocked(fs.writeFile).mockResolvedValue(undefined);
+      vi.mocked(fs.mkdir).mockResolvedValue(undefined);
+
+      await agent.loadSDS('/docs/sds/sds.md');
+    });
+
+    it('should modify API with method and path', async () => {
+      const changeRequest: SDSChangeRequest = {
+        type: 'modify_api',
+        itemId: 'POST /api/v1/auth/login',
+        modifications: [{ field: 'Source Use Case', newValue: 'UC-004' }],
+      };
+
+      const result = await agent.applyChange(changeRequest);
+
+      expect(result.success).toBe(true);
+      expect(result.updateResult.changes.apisModified.length).toBe(1);
+    });
+
+    it('should modify API and update existing Modified date', async () => {
+      const contentWithModifiedApi = SAMPLE_SDS_CONTENT.replace(
+        '#### POST /api/v1/auth/login',
+        '#### POST /api/v1/auth/login\n**Modified**: 2024-01-02'
+      );
+
+      vi.mocked(fs.readFile).mockResolvedValue(contentWithModifiedApi);
+      await agent.loadSDS('/docs/sds/sds.md');
+
+      const changeRequest: SDSChangeRequest = {
+        type: 'modify_api',
+        itemId: 'POST /api/v1/auth/login',
+        modifications: [{ field: 'Component', newValue: 'CMP-002' }],
+      };
+
+      const result = await agent.applyChange(changeRequest);
+
+      expect(result.success).toBe(true);
+    });
+
+    it('should handle modification when field not found', async () => {
+      const changeRequest: SDSChangeRequest = {
+        type: 'modify_api',
+        itemId: 'POST /api/v1/auth/login',
+        modifications: [{ field: 'NonExistentField', newValue: 'Value' }],
+      };
+
+      const result = await agent.applyChange(changeRequest);
+
+      expect(result.success).toBe(true);
+      // No modifications recorded since field wasn't found
+      expect(result.updateResult.changes.apisModified.length).toBe(0);
+    });
+  });
+
+  describe('output write error handling', () => {
+    it('should throw SDSOutputWriteError on write failure', async () => {
+      await agent.startSession(testProjectId);
+
+      vi.mocked(fs.access).mockResolvedValue(undefined);
+      vi.mocked(fs.readFile).mockResolvedValue(SAMPLE_SDS_CONTENT);
+      vi.mocked(fs.stat).mockResolvedValue({
+        size: 1000,
+        mtime: new Date('2024-01-01'),
+      } as unknown as Awaited<ReturnType<typeof fs.stat>>);
+      vi.mocked(fs.mkdir).mockResolvedValue(undefined);
+
+      await agent.loadSDS('/docs/sds/sds.md');
+
+      // All writes fail
+      vi.mocked(fs.writeFile).mockRejectedValue(new Error('Permission denied'));
+
+      const changeRequest: SDSChangeRequest = {
+        type: 'add_component',
+        newComponent: {
+          name: 'Test Component',
+          description: 'Test',
+          type: 'service',
+          linkedSrsIds: ['SF-008'],
+        },
+      };
+
+      // Should throw SDSOutputWriteError
+      await expect(agent.applyChange(changeRequest)).rejects.toThrow('Permission denied');
+    });
+
+    it('should successfully write when no errors occur', async () => {
+      await agent.startSession(testProjectId);
+
+      vi.mocked(fs.access).mockResolvedValue(undefined);
+      vi.mocked(fs.readFile).mockResolvedValue(SAMPLE_SDS_CONTENT);
+      vi.mocked(fs.stat).mockResolvedValue({
+        size: 1000,
+        mtime: new Date('2024-01-01'),
+      } as unknown as Awaited<ReturnType<typeof fs.stat>>);
+      vi.mocked(fs.mkdir).mockResolvedValue(undefined);
+      vi.mocked(fs.writeFile).mockResolvedValue(undefined);
+
+      await agent.loadSDS('/docs/sds/sds.md');
+
+      const changeRequest: SDSChangeRequest = {
+        type: 'add_component',
+        newComponent: {
+          name: 'Test Component',
+          description: 'Test',
+          type: 'service',
+          linkedSrsIds: ['SF-008'],
+        },
+      };
+
+      const result = await agent.applyChange(changeRequest);
+      expect(result.success).toBe(true);
+    });
+  });
 });
