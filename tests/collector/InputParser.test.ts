@@ -184,6 +184,8 @@ describe('InputParser', () => {
       expect(InputParser.isExtensionSupported('.txt')).toBe(true);
       expect(InputParser.isExtensionSupported('.json')).toBe(true);
       expect(InputParser.isExtensionSupported('.yaml')).toBe(true);
+      expect(InputParser.isExtensionSupported('.pdf')).toBe(true);
+      expect(InputParser.isExtensionSupported('.docx')).toBe(true);
       expect(InputParser.isExtensionSupported('.xyz')).toBe(false);
     });
 
@@ -194,6 +196,76 @@ describe('InputParser', () => {
       expect(extensions).toContain('.txt');
       expect(extensions).toContain('.json');
       expect(extensions).toContain('.yaml');
+      expect(extensions).toContain('.pdf');
+      expect(extensions).toContain('.docx');
+    });
+
+    it('should identify async-only file types', () => {
+      expect(InputParser.requiresAsyncParsing('.pdf')).toBe(true);
+      expect(InputParser.requiresAsyncParsing('pdf')).toBe(true);
+      expect(InputParser.requiresAsyncParsing('.docx')).toBe(true);
+      expect(InputParser.requiresAsyncParsing('docx')).toBe(true);
+      expect(InputParser.requiresAsyncParsing('.md')).toBe(false);
+      expect(InputParser.requiresAsyncParsing('.txt')).toBe(false);
+      expect(InputParser.requiresAsyncParsing('.json')).toBe(false);
+    });
+  });
+
+  describe('PDF and DOCX file handling', () => {
+    it('should return error for PDF in sync mode', () => {
+      const filePath = path.join(testDir, 'test.pdf');
+      fs.writeFileSync(filePath, 'fake pdf content');
+
+      const result = parser.parseFileSync(filePath);
+
+      expect(result.success).toBe(false);
+      expect(result.fileType).toBe('pdf');
+      expect(result.error).toContain('require async parsing');
+    });
+
+    it('should return error for DOCX in sync mode', () => {
+      const filePath = path.join(testDir, 'test.docx');
+      fs.writeFileSync(filePath, 'fake docx content');
+
+      const result = parser.parseFileSync(filePath);
+
+      expect(result.success).toBe(false);
+      expect(result.fileType).toBe('docx');
+      expect(result.error).toContain('require async parsing');
+    });
+
+    it('should handle invalid PDF file gracefully', async () => {
+      const filePath = path.join(testDir, 'invalid.pdf');
+      fs.writeFileSync(filePath, 'This is not a valid PDF');
+
+      const result = await parser.parseFileContent(filePath);
+
+      expect(result.success).toBe(false);
+      expect(result.fileType).toBe('pdf');
+      expect(result.error).toBeDefined();
+    });
+
+    it('should handle invalid DOCX file gracefully', async () => {
+      const filePath = path.join(testDir, 'invalid.docx');
+      fs.writeFileSync(filePath, 'This is not a valid DOCX');
+
+      const result = await parser.parseFileContent(filePath);
+
+      expect(result.success).toBe(false);
+      expect(result.fileType).toBe('docx');
+      expect(result.error).toBeDefined();
+    });
+
+    it('should handle non-existent PDF file', async () => {
+      const filePath = path.join(testDir, 'nonexistent.pdf');
+
+      await expect(parser.parseFile(filePath)).rejects.toThrow(FileParseError);
+    });
+
+    it('should handle non-existent DOCX file', async () => {
+      const filePath = path.join(testDir, 'nonexistent.docx');
+
+      await expect(parser.parseFile(filePath)).rejects.toThrow(FileParseError);
     });
   });
 

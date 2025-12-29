@@ -242,6 +242,74 @@ describe('CollectorAgent', () => {
     });
   });
 
+  describe('collectFromFiles', () => {
+    it('should collect from multiple files', async () => {
+      const file1 = path.join(testDir, 'requirements.md');
+      const file2 = path.join(testDir, 'constraints.txt');
+      fs.writeFileSync(file1, '# Requirements\n\nThe system must support login.');
+      fs.writeFileSync(file2, 'The system is constrained to use PostgreSQL database.');
+
+      const result = await agent.collectFromFiles([file1, file2], {
+        projectName: 'MultiFileApp',
+        projectDescription: 'From multiple files',
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.stats.sourcesProcessed).toBe(2);
+      expect(result.collectedInfo.project.name).toBe('MultiFileApp');
+    });
+
+    it('should throw error for empty file paths array', async () => {
+      await expect(agent.collectFromFiles([])).rejects.toThrow(MissingInformationError);
+    });
+
+    it('should continue processing when some files fail', async () => {
+      const validFile = path.join(testDir, 'valid.md');
+      const invalidFile = path.join(testDir, 'nonexistent.md');
+      fs.writeFileSync(validFile, '# Valid\n\nThe system must work.');
+
+      const result = await agent.collectFromFiles([validFile, invalidFile], {
+        projectName: 'PartialApp',
+        projectDescription: 'Partial success',
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.stats.sourcesProcessed).toBe(1);
+      expect(result.collectedInfo.sources).toHaveLength(1);
+    });
+
+    it('should throw error when all files fail', async () => {
+      const nonexistent1 = path.join(testDir, 'missing1.md');
+      const nonexistent2 = path.join(testDir, 'missing2.md');
+
+      await expect(
+        agent.collectFromFiles([nonexistent1, nonexistent2])
+      ).rejects.toThrow(MissingInformationError);
+    });
+
+    it('should merge information from multiple files', async () => {
+      const file1 = path.join(testDir, 'functional.md');
+      const file2 = path.join(testDir, 'nonfunctional.md');
+      fs.writeFileSync(
+        file1,
+        '# Functional Requirements\n\n- The system must authenticate users\n- Users should be able to upload files'
+      );
+      fs.writeFileSync(
+        file2,
+        '# Non-Functional Requirements\n\n- Performance: Response time under 200ms\n- Security: All data must be encrypted'
+      );
+
+      const result = await agent.collectFromFiles([file1, file2], {
+        projectName: 'MergedApp',
+        projectDescription: 'Merged from multiple sources',
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.stats.sourcesProcessed).toBe(2);
+      expect(result.collectedInfo.sources).toHaveLength(2);
+    });
+  });
+
   describe('reset', () => {
     it('should clear current session', async () => {
       await agent.startSession();
