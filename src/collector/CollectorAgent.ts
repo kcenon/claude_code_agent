@@ -547,10 +547,7 @@ export class CollectorAgent {
 
     // Check if we have at least one successful source
     if (this.session !== null && this.session.sources.length === 0) {
-      throw new MissingInformationError([
-        'No files could be processed successfully',
-        ...errors,
-      ]);
+      throw new MissingInformationError(['No files could be processed successfully', ...errors]);
     }
 
     const extraction = this.processInputs();
