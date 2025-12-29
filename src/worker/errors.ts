@@ -417,3 +417,285 @@ export class CommandTimeoutError extends WorkerError {
     this.timeoutMs = timeoutMs;
   }
 }
+
+/**
+ * Error thrown when operation times out
+ */
+export class OperationTimeoutError extends WorkerError {
+  /** The operation that timed out */
+  public readonly operation: string;
+  /** The timeout duration in milliseconds */
+  public readonly timeoutMs: number;
+  /** The task ID */
+  public readonly taskId: string;
+
+  constructor(taskId: string, operation: string, timeoutMs: number) {
+    super(`Operation "${operation}" timed out after ${String(timeoutMs)}ms for task ${taskId}`);
+    this.name = 'OperationTimeoutError';
+    this.taskId = taskId;
+    this.operation = operation;
+    this.timeoutMs = timeoutMs;
+  }
+}
+
+// ============================================================================
+// Error Categorization (Issue #48)
+// ============================================================================
+
+import type { ErrorCategory, WorkerErrorInfo } from './types.js';
+
+/**
+ * Error code mappings for categorization
+ */
+const ERROR_CATEGORY_MAP: Record<string, ErrorCategory> = {
+  // Transient errors - retry with backoff
+  ECONNRESET: 'transient',
+  ECONNREFUSED: 'transient',
+  ETIMEDOUT: 'transient',
+  ENOTFOUND: 'transient',
+  EAI_AGAIN: 'transient',
+  RATE_LIMITED: 'transient',
+  SERVICE_UNAVAILABLE: 'transient',
+  GATEWAY_TIMEOUT: 'transient',
+  CommandTimeoutError: 'transient',
+
+  // Recoverable errors - attempt self-fix then retry
+  VerificationError: 'recoverable',
+  TypeCheckError: 'recoverable',
+  TestGenerationError: 'recoverable',
+  SelfFixError: 'recoverable',
+
+  // Fatal errors - immediate escalation
+  ImplementationBlockedError: 'fatal',
+  EscalationRequiredError: 'fatal',
+  EACCES: 'fatal',
+  EPERM: 'fatal',
+  ENOENT: 'fatal',
+  MODULE_NOT_FOUND: 'fatal',
+  MISSING_DEPENDENCY: 'fatal',
+} as const;
+
+/**
+ * Categorize an error for retry decision
+ * @param error - The error to categorize
+ * @returns The error category
+ */
+export function categorizeError(error: Error): ErrorCategory {
+  // Check error name first
+  if (error.name in ERROR_CATEGORY_MAP) {
+    return ERROR_CATEGORY_MAP[error.name];
+  }
+
+  // Check for specific error types
+  if (error instanceof ImplementationBlockedError) {
+    return 'fatal';
+  }
+  if (error instanceof EscalationRequiredError) {
+    return 'fatal';
+  }
+  if (error instanceof VerificationError) {
+    return 'recoverable';
+  }
+  if (error instanceof TypeCheckError) {
+    return 'recoverable';
+  }
+  if (error instanceof CommandTimeoutError) {
+    return 'transient';
+  }
+  if (error instanceof OperationTimeoutError) {
+    return 'transient';
+  }
+
+  // Check for Node.js system error codes
+  const nodeError = error as { code?: string };
+  if (typeof nodeError.code === 'string' && nodeError.code in ERROR_CATEGORY_MAP) {
+    return ERROR_CATEGORY_MAP[nodeError.code];
+  }
+
+  // Check message patterns for common errors
+  const message = error.message.toLowerCase();
+  if (
+    message.includes('timeout') ||
+    message.includes('connection') ||
+    message.includes('network')
+  ) {
+    return 'transient';
+  }
+  if (
+    message.includes('permission denied') ||
+    message.includes('not found') ||
+    message.includes('missing dependency')
+  ) {
+    return 'fatal';
+  }
+  if (
+    message.includes('test failed') ||
+    message.includes('lint error') ||
+    message.includes('build failed')
+  ) {
+    return 'recoverable';
+  }
+
+  // Default to transient for unknown errors (will retry)
+  return 'transient';
+}
+
+/**
+ * Generate suggested action based on error category and type
+ * @param error - The error to analyze
+ * @param category - The error category
+ * @returns Suggested action string
+ */
+export function getSuggestedAction(error: Error, category: ErrorCategory): string {
+  switch (category) {
+    case 'transient':
+      return 'Retry with exponential backoff. Check network connectivity if issue persists.';
+    case 'recoverable':
+      if (error instanceof VerificationError) {
+        switch (error.verificationType) {
+          case 'test':
+            return 'Review test failures and fix implementation. Check test assertions and mock setup.';
+          case 'lint':
+            return 'Run lint --fix to auto-correct issues. Review remaining lint errors manually.';
+          case 'build':
+            return 'Check compilation errors. Ensure all dependencies are installed and types are correct.';
+        }
+      }
+      if (error instanceof TypeCheckError) {
+        return 'Review TypeScript errors. Check type definitions and imports.';
+      }
+      return 'Attempt automatic fix, then retry. If fix fails, escalate to Controller.';
+    case 'fatal':
+      if (error instanceof ImplementationBlockedError) {
+        return `Resolve blockers: ${error.blockers.join(', ')}. Escalate to Controller for assistance.`;
+      }
+      return 'Escalate to Controller immediately. Manual intervention required.';
+    default:
+      return 'Unknown error. Review logs and escalate if necessary.';
+  }
+}
+
+/**
+ * Create extended worker error information from an error
+ * @param error - The error to convert
+ * @param additionalContext - Additional context to include
+ * @returns WorkerErrorInfo object
+ */
+export function createWorkerErrorInfo(
+  error: Error,
+  additionalContext: Record<string, unknown> = {}
+): WorkerErrorInfo {
+  const category = categorizeError(error);
+  const categoryPolicy = getCategoryRetryPolicy(category);
+
+  return {
+    category,
+    code: getErrorCode(error),
+    message: error.message,
+    context: {
+      ...extractErrorContext(error),
+      ...additionalContext,
+    },
+    stackTrace: error.stack,
+    retryable: categoryPolicy.retry,
+    suggestedAction: getSuggestedAction(error, category),
+  };
+}
+
+/**
+ * Get error code from error
+ * @param error - The error to get code from
+ * @returns Error code string
+ */
+function getErrorCode(error: Error): string {
+  // Check for explicit error code
+  const nodeError = error as { code?: string };
+  if (typeof nodeError.code === 'string') {
+    return nodeError.code;
+  }
+
+  // Use error name as code
+  return error.name;
+}
+
+/**
+ * Extract context from specific error types
+ * @param error - The error to extract context from
+ * @returns Context object
+ */
+function extractErrorContext(error: Error): Record<string, unknown> {
+  const context: Record<string, unknown> = {};
+
+  if (error instanceof WorkOrderParseError) {
+    context.orderId = error.orderId;
+  } else if (error instanceof ContextAnalysisError) {
+    context.issueId = error.issueId;
+  } else if (error instanceof FileReadError || error instanceof FileWriteError) {
+    context.filePath = error.filePath;
+  } else if (error instanceof BranchCreationError || error instanceof BranchExistsError) {
+    context.branchName = error.branchName;
+  } else if (error instanceof CommitError) {
+    context.commitMessage = error.commitMessage;
+  } else if (error instanceof VerificationError) {
+    context.verificationType = error.verificationType;
+    context.output = error.output.slice(0, 500); // Truncate for context
+  } else if (error instanceof MaxRetriesExceededError) {
+    context.issueId = error.issueId;
+    context.attempts = error.attempts;
+  } else if (error instanceof ImplementationBlockedError) {
+    context.issueId = error.issueId;
+    context.blockers = error.blockers;
+  } else if (error instanceof CommandExecutionError) {
+    context.command = error.command;
+    context.exitCode = error.exitCode;
+  } else if (error instanceof TypeCheckError) {
+    context.errorCount = error.errorCount;
+  } else if (error instanceof EscalationRequiredError) {
+    context.taskId = error.taskId;
+    context.failedSteps = error.failedSteps;
+    context.totalAttempts = error.totalAttempts;
+  } else if (error instanceof OperationTimeoutError) {
+    context.taskId = error.taskId;
+    context.operation = error.operation;
+    context.timeoutMs = error.timeoutMs;
+  }
+
+  return context;
+}
+
+/**
+ * Get default retry policy for a category
+ * @param category - The error category
+ * @returns Category retry policy
+ */
+function getCategoryRetryPolicy(category: ErrorCategory): { retry: boolean; maxAttempts: number } {
+  switch (category) {
+    case 'transient':
+      return { retry: true, maxAttempts: 3 };
+    case 'recoverable':
+      return { retry: true, maxAttempts: 3 };
+    case 'fatal':
+      return { retry: false, maxAttempts: 0 };
+    default:
+      return { retry: true, maxAttempts: 3 };
+  }
+}
+
+/**
+ * Check if an error is retryable based on its category
+ * @param error - The error to check
+ * @returns Whether the error is retryable
+ */
+export function isRetryableError(error: Error): boolean {
+  const category = categorizeError(error);
+  return category !== 'fatal';
+}
+
+/**
+ * Check if an error requires immediate escalation
+ * @param error - The error to check
+ * @returns Whether escalation is required
+ */
+export function requiresEscalation(error: Error): boolean {
+  return categorizeError(error) === 'fatal';
+}
