@@ -392,3 +392,147 @@ export type WorkerFailureCallback = (
   orderId: string,
   error: Error
 ) => void | Promise<void>;
+
+// ============================================================================
+// Progress Monitor Types
+// ============================================================================
+
+/**
+ * Bottleneck type classification
+ */
+export type BottleneckType =
+  | 'stuck_worker'
+  | 'blocked_chain'
+  | 'dependency_cycle'
+  | 'resource_contention';
+
+/**
+ * Detected bottleneck information
+ */
+export interface Bottleneck {
+  /** Type of bottleneck */
+  readonly type: BottleneckType;
+  /** Human-readable description */
+  readonly description: string;
+  /** Affected issue IDs */
+  readonly affectedIssues: readonly string[];
+  /** Suggested action to resolve */
+  readonly suggestedAction: string;
+  /** Severity level (1-5, 5 being most severe) */
+  readonly severity: number;
+  /** Timestamp when detected */
+  readonly detectedAt: string;
+}
+
+/**
+ * Progress metrics for tracking overall status
+ */
+export interface ProgressMetrics {
+  /** Total number of issues */
+  readonly totalIssues: number;
+  /** Number of completed issues */
+  readonly completed: number;
+  /** Number of issues in progress */
+  readonly inProgress: number;
+  /** Number of pending issues */
+  readonly pending: number;
+  /** Number of blocked issues */
+  readonly blocked: number;
+  /** Number of failed issues */
+  readonly failed: number;
+  /** Completion percentage (0-100) */
+  readonly percentage: number;
+  /** Estimated time of completion (null if cannot estimate) */
+  readonly eta: Date | null;
+  /** Average completion time in milliseconds */
+  readonly averageCompletionTime: number;
+}
+
+/**
+ * Recent activity entry for progress report
+ */
+export interface RecentActivity {
+  /** Timestamp of the activity */
+  readonly timestamp: string;
+  /** Type of activity */
+  readonly type: 'completed' | 'started' | 'failed' | 'blocked';
+  /** Issue ID involved */
+  readonly issueId: string;
+  /** Worker ID involved (if applicable) */
+  readonly workerId?: string;
+  /** Additional details */
+  readonly details?: string;
+}
+
+/**
+ * Complete progress report
+ */
+export interface ProgressReport {
+  /** Session/project identifier */
+  readonly sessionId: string;
+  /** Report generation timestamp */
+  readonly generatedAt: string;
+  /** Progress metrics */
+  readonly metrics: ProgressMetrics;
+  /** Worker status summary */
+  readonly workers: readonly WorkerInfo[];
+  /** Detected bottlenecks */
+  readonly bottlenecks: readonly Bottleneck[];
+  /** Recent activity log */
+  readonly recentActivity: readonly RecentActivity[];
+}
+
+/**
+ * Progress monitor configuration
+ */
+export interface ProgressMonitorConfig {
+  /** Polling interval in milliseconds (default: 30000 = 30 seconds) */
+  readonly pollingInterval?: number;
+  /** Threshold for stuck worker detection in milliseconds (default: 1800000 = 30 minutes) */
+  readonly stuckWorkerThreshold?: number;
+  /** Maximum number of recent activities to track (default: 50) */
+  readonly maxRecentActivities?: number;
+  /** Path to store progress reports */
+  readonly reportPath?: string;
+  /** Enable notification hooks */
+  readonly enableNotifications?: boolean;
+}
+
+/**
+ * Default progress monitor configuration
+ */
+export const DEFAULT_PROGRESS_MONITOR_CONFIG: Required<ProgressMonitorConfig> = {
+  pollingInterval: 30000, // 30 seconds
+  stuckWorkerThreshold: 1800000, // 30 minutes
+  maxRecentActivities: 50,
+  reportPath: '.ad-sdlc/scratchpad/progress',
+  enableNotifications: true,
+} as const;
+
+/**
+ * Progress event types for notification hooks
+ */
+export type ProgressEventType =
+  | 'progress_updated'
+  | 'bottleneck_detected'
+  | 'bottleneck_resolved'
+  | 'milestone_reached'
+  | 'worker_stuck'
+  | 'all_completed';
+
+/**
+ * Progress event for notification hooks
+ */
+export interface ProgressEvent {
+  /** Event type */
+  readonly type: ProgressEventType;
+  /** Event timestamp */
+  readonly timestamp: string;
+  /** Event data */
+  readonly data: Record<string, unknown>;
+}
+
+/**
+ * Progress event callback
+ */
+export type ProgressEventCallback = (event: ProgressEvent) => void | Promise<void>;

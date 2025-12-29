@@ -250,3 +250,60 @@ export class DependenciesNotResolvedError extends ControllerError {
     this.unresolvedDependencies = unresolvedDependencies;
   }
 }
+
+// ============================================================================
+// Progress Monitor Errors
+// ============================================================================
+
+/**
+ * Error thrown when progress monitor is already running
+ */
+export class ProgressMonitorAlreadyRunningError extends ControllerError {
+  constructor() {
+    super('Progress monitor is already running');
+    this.name = 'ProgressMonitorAlreadyRunningError';
+  }
+}
+
+/**
+ * Error thrown when progress monitor is not running
+ */
+export class ProgressMonitorNotRunningError extends ControllerError {
+  constructor() {
+    super('Progress monitor is not running');
+    this.name = 'ProgressMonitorNotRunningError';
+  }
+}
+
+/**
+ * Error thrown when progress report generation fails
+ */
+export class ProgressReportGenerationError extends ControllerError {
+  /** The underlying error */
+  public readonly cause: Error | undefined;
+
+  constructor(cause?: Error) {
+    const causeMessage = cause !== undefined ? `: ${cause.message}` : '';
+    super(`Failed to generate progress report${causeMessage}`);
+    this.name = 'ProgressReportGenerationError';
+    this.cause = cause;
+  }
+}
+
+/**
+ * Error thrown when progress report persistence fails
+ */
+export class ProgressReportPersistenceError extends ControllerError {
+  /** The operation that failed */
+  public readonly operation: 'save' | 'load';
+  /** The underlying error */
+  public readonly cause: Error | undefined;
+
+  constructor(operation: 'save' | 'load', cause?: Error) {
+    const causeMessage = cause !== undefined ? `: ${cause.message}` : '';
+    super(`Failed to ${operation} progress report${causeMessage}`);
+    this.name = 'ProgressReportPersistenceError';
+    this.operation = operation;
+    this.cause = cause;
+  }
+}

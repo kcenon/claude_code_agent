@@ -1,14 +1,15 @@
 /**
  * Controller module
  *
- * Provides dependency graph analysis, prioritization, and worker pool management
- * for the Controller Agent orchestration.
+ * Provides dependency graph analysis, prioritization, worker pool management,
+ * and progress monitoring for the Controller Agent orchestration.
  *
  * @module controller
  */
 
 export { PriorityAnalyzer } from './PriorityAnalyzer.js';
 export { WorkerPoolManager } from './WorkerPoolManager.js';
+export { ProgressMonitor } from './ProgressMonitor.js';
 
 export type {
   // Priority Analyzer types
@@ -39,12 +40,23 @@ export type {
   ControllerState,
   WorkerCompletionCallback,
   WorkerFailureCallback,
+  // Progress Monitor types
+  BottleneckType,
+  Bottleneck,
+  ProgressMetrics,
+  RecentActivity,
+  ProgressReport,
+  ProgressMonitorConfig,
+  ProgressEventType,
+  ProgressEvent,
+  ProgressEventCallback,
 } from './types.js';
 
 export {
   DEFAULT_PRIORITY_WEIGHTS,
   DEFAULT_ANALYZER_CONFIG,
   DEFAULT_WORKER_POOL_CONFIG,
+  DEFAULT_PROGRESS_MONITOR_CONFIG,
 } from './types.js';
 
 export {
@@ -67,4 +79,9 @@ export {
   WorkerAssignmentError,
   ControllerStatePersistenceError,
   DependenciesNotResolvedError,
+  // Progress Monitor errors
+  ProgressMonitorAlreadyRunningError,
+  ProgressMonitorNotRunningError,
+  ProgressReportGenerationError,
+  ProgressReportPersistenceError,
 } from './errors.js';
