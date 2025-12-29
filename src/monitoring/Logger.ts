@@ -88,7 +88,7 @@ export class Logger {
   private readonly jsonOutput: boolean;
   private readonly agentLogConfig: AgentLogConfig;
   private readonly maskingPatterns: MaskingPattern[];
-  private readonly enableMasking: boolean;
+  private enableMasking: boolean;
   private correlationId: string;
   private sessionId: string;
   private currentAgent: string | undefined;
@@ -909,7 +909,7 @@ export class Logger {
    * Enable or disable masking at runtime
    */
   public setMaskingEnabled(enabled: boolean): void {
-    (this as { enableMasking: boolean }).enableMasking = enabled;
+    this.enableMasking = enabled;
   }
 
   /**
