@@ -1,0 +1,117 @@
+# Mode Detection Configuration
+# This configuration controls how the system automatically detects
+# whether to use Greenfield or Enhancement pipeline.
+
+mode_detection:
+  # Detection rules (evaluated in priority order, highest first)
+  rules:
+    - name: user_override
+      condition: "User explicitly specifies mode"
+      mode: "${user_specified_mode}"
+      confidence: 1.0
+      priority: 100
+
+    - name: no_docs_no_code
+      condition: "No existing PRD/SRS/SDS and no source code"
+      mode: greenfield
+      confidence: 1.0
+      priority: 90
+
+    - name: has_docs_and_code
+      condition: "Has existing PRD/SRS/SDS and substantial source code"
+      mode: enhancement
+      confidence: 0.95
+      priority: 80
+
+    - name: has_docs_only
+      condition: "Has existing PRD/SRS/SDS but minimal/no code"
+      mode: enhancement
+      confidence: 0.85
+      priority: 70
+
+    - name: has_code_only
+      condition: "Has existing code but no PRD/SRS/SDS"
+      mode: enhancement
+      confidence: 0.8
+      priority: 60
+
+  # Keywords that indicate project type from user input
+  indicators:
+    greenfield_keywords:
+      - "new project"
+      - "from scratch"
+      - "initial implementation"
+      - "create new"
+      - "start fresh"
+      - "greenfield"
+      - "brand new"
+      - "bootstrap"
+      - "scaffold"
+      - "initialize"
+
+    enhancement_keywords:
+      - "add feature"
+      - "improve"
+      - "fix bug"
+      - "enhance"
+      - "modify"
+      - "update"
+      - "refactor"
+      - "extend"
+      - "upgrade"
+      - "optimize"
+      - "change"
+      - "migrate"
+      - "existing"
+      - "current"
+
+  # Score weights for each evidence type
+  weights:
+    documents: 0.35    # Weight for document presence
+    codebase: 0.45     # Weight for codebase presence
+    keywords: 0.20     # Weight for keyword analysis
+
+  # Detection thresholds
+  thresholds:
+    enhancement_threshold: 0.5   # Score >= this = enhancement mode
+    greenfield_threshold: 0.3    # Score <= this = greenfield mode
+    min_source_files: 5          # Minimum files to consider codebase existing
+    min_lines_of_code: 100       # Minimum LOC to consider codebase substantial
+
+  # Document detection paths (relative to project root)
+  paths:
+    docs_base: "docs"
+    prd_subdir: "prd"
+    srs_subdir: "srs"
+    sds_subdir: "sds"
+
+  # Output configuration
+  output:
+    scratchpad_base: ".ad-sdlc/scratchpad"
+    result_subdir: "mode_detection"
+    result_format: "yaml"
+
+# Pipeline mode definitions
+modes:
+  greenfield:
+    description: "Full document generation pipeline for new projects"
+    stages:
+      - collection
+      - prd_generation
+      - srs_generation
+      - sds_generation
+      - issue_generation
+      - implementation
+      - pr_review
+
+  enhancement:
+    description: "Incremental update pipeline for existing projects"
+    stages:
+      - document_reading
+      - codebase_analysis
+      - impact_analysis
+      - document_update
+      - issue_generation
+      - implementation
+      - regression_testing
+      - pr_review
