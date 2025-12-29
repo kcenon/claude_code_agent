@@ -7,6 +7,7 @@ The PRD Writer module generates Product Requirements Documents (PRD) from collec
 This module provides:
 - **Gap Analysis**: Identifies missing information in collected data
 - **Consistency Checking**: Validates requirement conflicts, duplicates, and priority balance
+- **Quality Metrics**: Calculates completeness, consistency, and clarity scores
 - **Template-based Generation**: Creates PRD using standardized templates
 - **Template-less Generation**: Fallback generation without template files
 
@@ -14,9 +15,10 @@ This module provides:
 
 ```
 PRDWriterAgent
-    ├── GapAnalyzer         # Identifies missing information
-    ├── ConsistencyChecker  # Validates requirements consistency
-    └── TemplateProcessor   # Handles PRD template processing
+    ├── GapAnalyzer              # Identifies missing information
+    ├── ConsistencyChecker       # Validates requirements consistency
+    ├── QualityMetricsCalculator # Calculates quality scores
+    └── TemplateProcessor        # Handles PRD template processing
 ```
 
 ## Usage
@@ -56,6 +58,13 @@ console.log(`Completeness score: ${gapAnalysis.completenessScore}`);
 // Check consistency
 const consistencyCheck = agent.checkConsistency();
 console.log(`Is consistent: ${consistencyCheck.isConsistent}`);
+
+// Calculate quality metrics
+const qualityMetrics = agent.calculateQualityMetrics();
+console.log(`Completeness: ${qualityMetrics.completeness}`);
+console.log(`Consistency: ${qualityMetrics.consistency}`);
+console.log(`Clarity: ${qualityMetrics.clarity}`);
+console.log(`Overall: ${qualityMetrics.overall}`);
 
 // Generate PRD
 const generatedPRD = agent.generate();
@@ -134,6 +143,48 @@ Detected issues:
 - Missing bidirectional dependencies
 - Conflicting requirements (performance vs security)
 - Unbalanced priority distribution
+
+### QualityMetricsCalculator
+
+Calculates comprehensive quality metrics for the PRD, including completeness, consistency, and clarity scores.
+
+```typescript
+import { QualityMetricsCalculator } from './prd-writer';
+
+const calculator = new QualityMetricsCalculator({
+  completenessWeight: 0.4,
+  consistencyWeight: 0.35,
+  clarityWeight: 0.25,
+  maxSentenceLength: 40,
+  maxPassiveVoicePercentage: 30,
+});
+
+// Basic calculation
+const metrics = calculator.calculate(collectedInfo, gapAnalysis, consistencyCheck);
+// metrics.completeness (0.0 - 1.0)
+// metrics.consistency (0.0 - 1.0)
+// metrics.clarity (0.0 - 1.0)
+// metrics.overall (weighted average)
+
+// Detailed calculation with clarity analysis
+const detailed = calculator.calculateDetailed(collectedInfo, gapAnalysis, consistencyCheck);
+// detailed.clarityAnalysis.issues (array of clarity issues)
+// detailed.clarityAnalysis.averageSentenceLength
+// detailed.clarityAnalysis.passiveVoicePercentage
+// detailed.clarityAnalysis.ambiguousTermCount
+```
+
+Quality scores:
+- **completeness**: Based on gap analysis (0.0 - 1.0)
+- **consistency**: Based on consistency check issues (0.0 - 1.0)
+- **clarity**: Based on text analysis (0.0 - 1.0)
+- **overall**: Weighted average of all scores
+
+Clarity analysis detects:
+- Ambiguous terms (e.g., "some", "fast", "user-friendly", "etc")
+- Long sentences (exceeding max length)
+- Passive voice usage
+- Vague references (e.g., "it is", "this should")
 
 ### TemplateProcessor
 
