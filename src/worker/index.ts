@@ -10,6 +10,8 @@
 export { WorkerAgent } from './WorkerAgent.js';
 export { TestGenerator } from './TestGenerator.js';
 export { SelfVerificationAgent } from './SelfVerificationAgent.js';
+export { RetryHandler } from './RetryHandler.js';
+export type { RetryHandlerConfig, OperationResult } from './RetryHandler.js';
 
 export type {
   // Configuration
@@ -17,6 +19,7 @@ export type {
   WorkerExecutionOptions,
   RetryPolicy,
   ExecutionContext,
+  CategoryRetryPolicy,
   // Result types
   ImplementationResult,
   ImplementationStatus,
@@ -38,6 +41,13 @@ export type {
   WorkOrder,
   WorkOrderContext,
   RelatedFile,
+  // Error handling types (Issue #48)
+  ErrorCategory,
+  WorkerErrorInfo,
+  RetryAttempt,
+  ProgressCheckpoint,
+  EscalationReport,
+  WorkerStep,
   // Test generation types
   TestGeneratorConfig,
   TestGenerationResult,
@@ -106,4 +116,11 @@ export {
   EscalationRequiredError,
   VerificationPipelineError,
   CommandTimeoutError,
+  OperationTimeoutError,
+  // Error categorization functions (Issue #48)
+  categorizeError,
+  createWorkerErrorInfo,
+  isRetryableError,
+  requiresEscalation,
+  getSuggestedAction,
 } from './errors.js';

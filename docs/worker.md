@@ -771,3 +771,252 @@ try {
   }
 }
 ```
+
+## RetryHandler
+
+The RetryHandler class provides comprehensive retry mechanism with error categorization, timeout handling, progress checkpointing, and Controller escalation support.
+
+### Basic Usage
+
+```typescript
+import { RetryHandler } from 'ad-sdlc';
+
+// Create handler with required configuration
+const handler = new RetryHandler({
+  workerId: 'worker-001',
+  projectRoot: '/path/to/project',
+});
+
+// Execute an operation with retry
+const result = await handler.executeWithRetry(
+  async () => await someOperation(),
+  {
+    taskId: 'task-001',
+    step: 'code_generation',
+    workOrder: { id: 'WO-001' },
+  }
+);
+
+if (result.success) {
+  console.log('Operation succeeded:', result.data);
+} else {
+  console.error('Operation failed:', result.error?.message);
+}
+```
+
+### Custom Configuration
+
+```typescript
+const handler = new RetryHandler({
+  workerId: 'worker-001',
+  projectRoot: '/path/to/project',
+  checkpointPath: '.ad-sdlc/scratchpad/checkpoints',
+  retryPolicy: {
+    maxAttempts: 3,
+    baseDelayMs: 1000,
+    backoff: 'exponential',
+    maxDelayMs: 30000,
+    timeoutMs: 600000, // 10 minutes
+    byCategory: {
+      transient: { retry: true, maxAttempts: 3 },
+      recoverable: { retry: true, maxAttempts: 3, requireFixAttempt: true },
+      fatal: { retry: false, escalateImmediately: true },
+    },
+  },
+  onEscalation: async (report) => {
+    await notifyController(report);
+  },
+  onProgress: (checkpoint) => {
+    console.log(`Progress: ${checkpoint.currentStep}`);
+  },
+  verbose: true,
+});
+```
+
+### Configuration Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `workerId` | `string` | (required) | Worker identifier |
+| `projectRoot` | `string` | (required) | Project root directory |
+| `checkpointPath` | `string` | `.ad-sdlc/scratchpad/checkpoints` | Checkpoint storage path |
+| `retryPolicy` | `RetryPolicy` | Default policy | Retry configuration |
+| `onEscalation` | `(report) => Promise<void>` | `undefined` | Escalation callback |
+| `onProgress` | `(checkpoint) => void` | `undefined` | Progress callback |
+| `verbose` | `boolean` | `false` | Enable detailed logging |
+
+### Error Categories
+
+The handler categorizes errors for intelligent retry decisions:
+
+| Category | Description | Default Behavior |
+|----------|-------------|------------------|
+| `transient` | Network issues, timeouts, rate limits | Retry with exponential backoff |
+| `recoverable` | Test failures, lint errors, build errors | Attempt self-fix, then retry |
+| `fatal` | Missing dependencies, permission denied | Immediate escalation |
+
+### Error Categorization Functions
+
+```typescript
+import {
+  categorizeError,
+  createWorkerErrorInfo,
+  isRetryableError,
+  requiresEscalation,
+  getSuggestedAction,
+} from 'ad-sdlc';
+
+const error = new Error('Connection timeout');
+
+// Get error category
+const category = categorizeError(error); // 'transient'
+
+// Check if retryable
+if (isRetryableError(error)) {
+  console.log('Will retry');
+}
+
+// Check if escalation needed
+if (requiresEscalation(error)) {
+  console.log('Need to escalate');
+}
+
+// Get suggested action
+const suggestion = getSuggestedAction(error, category);
+console.log(suggestion); // 'Retry with exponential backoff...'
+
+// Create detailed error info
+const errorInfo = createWorkerErrorInfo(error, { taskId: 'task-001' });
+console.log(errorInfo.category);      // 'transient'
+console.log(errorInfo.retryable);     // true
+console.log(errorInfo.suggestedAction);
+```
+
+### Progress Checkpointing
+
+The handler creates checkpoints for resume capability:
+
+```typescript
+// Create checkpoint
+await handler.createCheckpoint('task-001', 'code_generation', 1, {
+  filesProcessed: 5,
+  currentFile: 'src/Feature.ts',
+});
+
+// Load checkpoint (for resume)
+const checkpoint = await handler.loadCheckpoint('task-001');
+if (checkpoint) {
+  console.log(`Resume from: ${checkpoint.currentStep}`);
+  console.log(`Attempt: ${checkpoint.attemptNumber}`);
+}
+
+// Clear checkpoint (on success)
+await handler.clearCheckpoint('task-001');
+```
+
+### Escalation Reports
+
+When escalation is needed, a detailed report is generated:
+
+```typescript
+interface EscalationReport {
+  taskId: string;          // Task identifier
+  workerId: string;        // Worker identifier
+  error: WorkerErrorInfo;  // Detailed error information
+  attempts: RetryAttempt[];// All retry attempts
+  context: {
+    workOrder: object;     // Original work order
+    progressSnapshot: object; // Progress at failure
+  };
+  recommendation: string;  // Suggested action
+  timestamp: string;       // Escalation time
+}
+```
+
+### Timeout Handling
+
+Operations are automatically wrapped with timeout:
+
+```typescript
+const handler = new RetryHandler({
+  workerId: 'worker-001',
+  projectRoot: '/path/to/project',
+  retryPolicy: {
+    ...DEFAULT_RETRY_POLICY,
+    timeoutMs: 300000, // 5 minutes per operation
+  },
+});
+
+// Operation will timeout after 5 minutes
+const result = await handler.executeWithRetry(
+  async () => await longRunningOperation(),
+  context
+);
+```
+
+### RetryHandler Methods
+
+| Method | Description |
+|--------|-------------|
+| `executeWithRetry(operation, context)` | Execute operation with retry mechanism |
+| `createCheckpoint(taskId, step, attempt, snapshot)` | Create progress checkpoint |
+| `loadCheckpoint(taskId)` | Load checkpoint for resume |
+| `clearCheckpoint(taskId)` | Clear checkpoint (on success) |
+| `escalate(taskId, workOrder, error)` | Escalate to Controller |
+| `getCurrentCheckpoint()` | Get current checkpoint |
+| `getRetryAttempts()` | Get all retry attempts |
+| `getConfig()` | Get current configuration |
+
+### Complete Example
+
+```typescript
+import { RetryHandler, OperationTimeoutError } from 'ad-sdlc';
+
+const handler = new RetryHandler({
+  workerId: 'worker-001',
+  projectRoot: '/path/to/project',
+  retryPolicy: {
+    maxAttempts: 3,
+    baseDelayMs: 1000,
+    backoff: 'exponential',
+    maxDelayMs: 30000,
+    timeoutMs: 600000,
+    byCategory: {
+      transient: { retry: true, maxAttempts: 3 },
+      recoverable: { retry: true, maxAttempts: 3, requireFixAttempt: true },
+      fatal: { retry: false, escalateImmediately: true },
+    },
+  },
+  onEscalation: async (report) => {
+    console.error(`Escalation required for ${report.taskId}`);
+    console.error(`Recommendation: ${report.recommendation}`);
+    // Notify Controller
+    await controllerAgent.handleEscalation(report);
+  },
+  verbose: true,
+});
+
+try {
+  const result = await handler.executeWithRetry(
+    async () => {
+      // Perform code generation
+      return await generateCode(workOrder);
+    },
+    {
+      taskId: workOrder.orderId,
+      step: 'code_generation',
+      workOrder,
+    }
+  );
+
+  if (result.success) {
+    console.log('Code generation completed');
+    console.log(`Attempts: ${result.attempts}`);
+    console.log(`Duration: ${result.durationMs}ms`);
+  }
+} catch (error) {
+  if (error instanceof OperationTimeoutError) {
+    console.error(`Operation timed out after ${error.timeoutMs}ms`);
+  }
+}
+```
