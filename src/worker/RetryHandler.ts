@@ -59,6 +59,8 @@ export interface RetryHandlerConfig {
 export const DEFAULT_RETRY_HANDLER_CONFIG: Omit<RetryHandlerConfig, 'workerId' | 'projectRoot'> = {
   checkpointPath: '.ad-sdlc/scratchpad/checkpoints',
   retryPolicy: DEFAULT_RETRY_POLICY,
+  onEscalation: undefined,
+  onProgress: undefined,
   verbose: false,
 } as const;
 

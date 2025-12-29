@@ -483,7 +483,10 @@ const ERROR_CATEGORY_MAP: Record<string, ErrorCategory> = {
 export function categorizeError(error: Error): ErrorCategory {
   // Check error name first
   if (error.name in ERROR_CATEGORY_MAP) {
-    return ERROR_CATEGORY_MAP[error.name];
+    const category = ERROR_CATEGORY_MAP[error.name];
+    if (category !== undefined) {
+      return category;
+    }
   }
 
   // Check for specific error types
@@ -509,7 +512,10 @@ export function categorizeError(error: Error): ErrorCategory {
   // Check for Node.js system error codes
   const nodeError = error as { code?: string };
   if (typeof nodeError.code === 'string' && nodeError.code in ERROR_CATEGORY_MAP) {
-    return ERROR_CATEGORY_MAP[nodeError.code];
+    const category = ERROR_CATEGORY_MAP[nodeError.code];
+    if (category !== undefined) {
+      return category;
+    }
   }
 
   // Check message patterns for common errors
@@ -588,7 +594,7 @@ export function createWorkerErrorInfo(
   const category = categorizeError(error);
   const categoryPolicy = getCategoryRetryPolicy(category);
 
-  return {
+  const result: WorkerErrorInfo = {
     category,
     code: getErrorCode(error),
     message: error.message,
@@ -596,10 +602,16 @@ export function createWorkerErrorInfo(
       ...extractErrorContext(error),
       ...additionalContext,
     },
-    stackTrace: error.stack,
     retryable: categoryPolicy.retry,
     suggestedAction: getSuggestedAction(error, category),
   };
+
+  // Only set stackTrace if it exists (exactOptionalPropertyTypes)
+  if (error.stack !== undefined) {
+    return { ...result, stackTrace: error.stack };
+  }
+
+  return result;
 }
 
 /**
