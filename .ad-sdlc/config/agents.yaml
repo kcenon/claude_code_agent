@@ -143,6 +143,35 @@ agents:
       avg_duration_seconds: 120
       success_rate: 0.92
 
+  srs-updater:
+    id: "srs-updater"
+    name: "SRS Updater Agent"
+    korean_name: "SRS 업데이트 에이전트"
+    description: "Incrementally updates SRS documents with new features, use cases, and traceability"
+    definition_file: ".claude/agents/srs-updater.md"
+    category: "document_update"
+    order: 6
+
+    capabilities:
+      - "incremental_update"
+      - "traceability_update"
+      - "use_case_generation"
+      - "interface_update"
+      - "consistency_check"
+
+    io:
+      inputs:
+        - existing_srs.md
+        - prd_update_result.yaml
+        - change_request
+      outputs:
+        - updated_srs.md
+        - srs_changelog.md
+
+    metrics:
+      avg_duration_seconds: 150
+      success_rate: 0.90
+
   # ---------------------------------------------------------------------------
   # Issue Management Agents
   # ---------------------------------------------------------------------------
@@ -311,6 +340,7 @@ categories:
     description: "Agents that incrementally update existing documents"
     agents:
       - prd-updater
+      - srs-updater
     execution_mode: "on_demand"
 
   issue_management:
@@ -357,6 +387,8 @@ relationships:
       requires: [controller]
     pr-reviewer:
       requires: [worker]
+    srs-updater:
+      requires: [prd-updater]
 
   data_flow:
     - from: collector
@@ -386,6 +418,10 @@ relationships:
     - from: worker
       to: pr-reviewer
       data: implementation_result.yaml
+
+    - from: prd-updater
+      to: srs-updater
+      data: prd_update_result.yaml
 
 # =============================================================================
 # Model Configurations
