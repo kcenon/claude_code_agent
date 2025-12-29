@@ -2,7 +2,7 @@
  * Error Handler module type definitions
  *
  * Provides types for retry policies, error categorization,
- * and timeout handling configurations.
+ * timeout handling configurations, and circuit breaker settings.
  *
  * @module error-handler/types
  */
@@ -110,6 +110,16 @@ export type ErrorClassifier = (error: Error) => ErrorCategory;
 export type RetryEventCallback = (context: RetryContext, result: RetryAttemptResult) => void;
 
 /**
+ * Circuit breaker integration mode for retry operations
+ */
+export type CircuitBreakerIntegration = {
+  /** The circuit breaker instance to use */
+  readonly breaker: unknown; // Use unknown to avoid circular import, actual type is CircuitBreaker
+  /** Whether to count retryable failures toward circuit breaker threshold (default: true) */
+  readonly countRetryableFailures?: boolean;
+};
+
+/**
  * Options for the withRetry function
  */
 export interface WithRetryOptions<T> {
@@ -127,6 +137,8 @@ export interface WithRetryOptions<T> {
   readonly operationName?: string;
   /** Callback to transform the result before returning */
   readonly transformResult?: (result: T) => T;
+  /** Circuit breaker integration for fault tolerance */
+  readonly circuitBreaker?: CircuitBreakerIntegration;
 }
 
 /**
@@ -188,3 +200,84 @@ export const NON_RETRYABLE_ERROR_PATTERNS: readonly string[] = [
   '404',
   '422',
 ] as const;
+
+/**
+ * Circuit breaker state enumeration
+ */
+export type CircuitState = 'CLOSED' | 'OPEN' | 'HALF_OPEN';
+
+/**
+ * Circuit breaker configuration
+ */
+export interface CircuitBreakerConfig {
+  /** Number of consecutive failures before opening the circuit (default: 5) */
+  readonly failureThreshold: number;
+  /** Time in milliseconds to wait before transitioning from OPEN to HALF_OPEN (default: 60000) */
+  readonly resetTimeoutMs: number;
+  /** Maximum number of test requests allowed in HALF_OPEN state (default: 3) */
+  readonly halfOpenMaxAttempts: number;
+  /** Optional name for logging and monitoring */
+  readonly name?: string | undefined;
+}
+
+/**
+ * Circuit breaker status for monitoring
+ */
+export interface CircuitBreakerStatus {
+  /** Current state of the circuit breaker */
+  readonly state: CircuitState;
+  /** Current failure count */
+  readonly failureCount: number;
+  /** Number of successful calls in HALF_OPEN state */
+  readonly halfOpenSuccessCount: number;
+  /** Timestamp of the last failure (undefined if no failures) */
+  readonly lastFailureTime?: number | undefined;
+  /** Time remaining until reset (only applicable in OPEN state) */
+  readonly timeUntilResetMs?: number | undefined;
+  /** Whether the circuit is currently accepting requests */
+  readonly isAcceptingRequests: boolean;
+  /** Total number of requests blocked due to open circuit */
+  readonly blockedRequestCount: number;
+}
+
+/**
+ * Circuit breaker event types for monitoring
+ */
+export type CircuitBreakerEventType =
+  | 'state_change'
+  | 'failure_recorded'
+  | 'success_recorded'
+  | 'request_blocked'
+  | 'reset';
+
+/**
+ * Circuit breaker event data
+ */
+export interface CircuitBreakerEvent {
+  /** Type of event */
+  readonly type: CircuitBreakerEventType;
+  /** Previous state (for state_change events) */
+  readonly previousState?: CircuitState;
+  /** New state (for state_change events) */
+  readonly newState?: CircuitState;
+  /** Current failure count */
+  readonly failureCount: number;
+  /** Timestamp of the event */
+  readonly timestamp: number;
+  /** Optional error that triggered the event */
+  readonly error?: Error;
+}
+
+/**
+ * Circuit breaker event callback
+ */
+export type CircuitBreakerEventCallback = (event: CircuitBreakerEvent) => void;
+
+/**
+ * Default circuit breaker configuration values
+ */
+export const DEFAULT_CIRCUIT_BREAKER_CONFIG: Readonly<CircuitBreakerConfig> = {
+  failureThreshold: 5,
+  resetTimeoutMs: 60000,
+  halfOpenMaxAttempts: 3,
+} as const;

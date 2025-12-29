@@ -169,3 +169,52 @@ export class RetryContextError extends ErrorHandlerError {
     Object.setPrototypeOf(this, RetryContextError.prototype);
   }
 }
+
+/**
+ * Error thrown when the circuit breaker is open and rejecting requests
+ */
+export class CircuitOpenError extends ErrorHandlerError {
+  /** Time remaining until the circuit may transition to HALF_OPEN */
+  public readonly remainingTimeoutMs: number;
+  /** Name of the circuit breaker */
+  public readonly circuitName: string | undefined;
+  /** Current failure count that triggered the open state */
+  public readonly failureCount: number;
+
+  constructor(remainingTimeoutMs: number, failureCount: number, circuitName?: string) {
+    const name = circuitName !== undefined ? ` '${circuitName}'` : '';
+    super(
+      `Circuit breaker${name} is open. Retry after ${String(remainingTimeoutMs)}ms`,
+      'CIRCUIT_OPEN'
+    );
+    this.name = 'CircuitOpenError';
+    this.remainingTimeoutMs = remainingTimeoutMs;
+    this.circuitName = circuitName;
+    this.failureCount = failureCount;
+    Object.setPrototypeOf(this, CircuitOpenError.prototype);
+  }
+}
+
+/**
+ * Error thrown when circuit breaker configuration is invalid
+ */
+export class InvalidCircuitBreakerConfigError extends ErrorHandlerError {
+  /** The invalid config field */
+  public readonly field: string;
+  /** The invalid value */
+  public readonly value: unknown;
+  /** Expected constraint */
+  public readonly constraint: string;
+
+  constructor(field: string, value: unknown, constraint: string) {
+    super(
+      `Invalid circuit breaker config: ${field} (${String(value)}) ${constraint}`,
+      'INVALID_CIRCUIT_BREAKER_CONFIG'
+    );
+    this.name = 'InvalidCircuitBreakerConfigError';
+    this.field = field;
+    this.value = value;
+    this.constraint = constraint;
+    Object.setPrototypeOf(this, InvalidCircuitBreakerConfigError.prototype);
+  }
+}
