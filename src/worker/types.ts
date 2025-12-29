@@ -233,6 +233,49 @@ export type BranchPrefix = 'feature' | 'fix' | 'docs' | 'test' | 'refactor';
 export type CommitType = 'feat' | 'fix' | 'docs' | 'test' | 'refactor' | 'style' | 'chore' | 'perf';
 
 /**
+ * Error category for retry decision
+ * - transient: Network issues, API rate limits - retry with backoff
+ * - recoverable: Test failures, lint errors - attempt self-fix then retry
+ * - fatal: Missing dependencies, permission denied - immediate escalation
+ */
+export type ErrorCategory = 'transient' | 'recoverable' | 'fatal';
+
+/**
+ * Extended worker error information
+ * Provides detailed context for error handling and reporting
+ */
+export interface WorkerErrorInfo {
+  /** Error category for retry decision */
+  readonly category: ErrorCategory;
+  /** Error code for identification */
+  readonly code: string;
+  /** Human-readable error message */
+  readonly message: string;
+  /** Additional context information */
+  readonly context: Record<string, unknown>;
+  /** Stack trace if available */
+  readonly stackTrace?: string;
+  /** Whether the error is retryable */
+  readonly retryable: boolean;
+  /** Suggested action for resolution */
+  readonly suggestedAction: string;
+}
+
+/**
+ * Retry policy configuration by error category
+ */
+export interface CategoryRetryPolicy {
+  /** Whether to retry for this category */
+  readonly retry: boolean;
+  /** Maximum attempts for this category */
+  readonly maxAttempts: number;
+  /** Whether to require fix attempt before retry (for recoverable) */
+  readonly requireFixAttempt?: boolean;
+  /** Whether to escalate immediately (for fatal) */
+  readonly escalateImmediately?: boolean;
+}
+
+/**
  * Retry policy configuration
  */
 export interface RetryPolicy {
@@ -244,6 +287,14 @@ export interface RetryPolicy {
   readonly backoff: 'fixed' | 'linear' | 'exponential';
   /** Maximum delay in milliseconds */
   readonly maxDelayMs: number;
+  /** Operation timeout in milliseconds (default: 600000 = 10 min) */
+  readonly timeoutMs?: number;
+  /** Category-specific retry policies */
+  readonly byCategory?: {
+    readonly transient?: Partial<CategoryRetryPolicy>;
+    readonly recoverable?: Partial<CategoryRetryPolicy>;
+    readonly fatal?: Partial<CategoryRetryPolicy>;
+  };
 }
 
 /**
@@ -251,10 +302,102 @@ export interface RetryPolicy {
  */
 export const DEFAULT_RETRY_POLICY: RetryPolicy = {
   maxAttempts: 3,
-  baseDelayMs: 5000,
+  baseDelayMs: 1000,
   backoff: 'exponential',
-  maxDelayMs: 60000,
+  maxDelayMs: 30000,
+  timeoutMs: 600000, // 10 minutes
+  byCategory: {
+    transient: {
+      retry: true,
+      maxAttempts: 3,
+    },
+    recoverable: {
+      retry: true,
+      maxAttempts: 3,
+      requireFixAttempt: true,
+    },
+    fatal: {
+      retry: false,
+      maxAttempts: 0,
+      escalateImmediately: true,
+    },
+  },
 } as const;
+
+/**
+ * Retry attempt record
+ */
+export interface RetryAttempt {
+  /** Attempt number (1-based) */
+  readonly attempt: number;
+  /** Timestamp of the attempt */
+  readonly timestamp: string;
+  /** Error encountered */
+  readonly error: WorkerErrorInfo;
+  /** Whether fix was attempted */
+  readonly fixAttempted: boolean;
+  /** Duration of the attempt in milliseconds */
+  readonly durationMs: number;
+}
+
+/**
+ * Progress checkpoint for resume capability
+ */
+export interface ProgressCheckpoint {
+  /** Work order ID */
+  readonly workOrderId: string;
+  /** Task ID */
+  readonly taskId: string;
+  /** Current step being executed */
+  readonly currentStep: WorkerStep;
+  /** Timestamp of the checkpoint */
+  readonly timestamp: string;
+  /** Attempt number at checkpoint */
+  readonly attemptNumber: number;
+  /** Progress snapshot data */
+  readonly progressSnapshot: Record<string, unknown>;
+  /** Files changed so far */
+  readonly filesChanged: readonly string[];
+  /** Whether checkpoint is resumable */
+  readonly resumable: boolean;
+}
+
+/**
+ * Worker execution steps
+ */
+export type WorkerStep =
+  | 'context_analysis'
+  | 'branch_creation'
+  | 'code_generation'
+  | 'test_generation'
+  | 'verification'
+  | 'commit'
+  | 'result_persistence';
+
+/**
+ * Escalation report for Controller notification
+ */
+export interface EscalationReport {
+  /** Task ID requiring escalation */
+  readonly taskId: string;
+  /** Worker ID that encountered the issue */
+  readonly workerId: string;
+  /** Error information */
+  readonly error: WorkerErrorInfo;
+  /** All retry attempts made */
+  readonly attempts: readonly RetryAttempt[];
+  /** Context information */
+  readonly context: {
+    /** Original work order */
+    readonly workOrder: Record<string, unknown>;
+    /** Progress snapshot at failure */
+    readonly progressSnapshot: Record<string, unknown>;
+  };
+  /** Recommended action */
+  readonly recommendation: string;
+  /** Timestamp of escalation */
+  readonly timestamp: string;
+}
 
 /**
  * Worker execution options
