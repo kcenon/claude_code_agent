@@ -718,7 +718,9 @@ export class SDSUpdaterAgent {
   }
 
   private extractComponentType(content: string): ComponentType {
-    const match = content.match(/\*\*Type\*\*:\s*(service|controller|repository|utility|middleware)/i);
+    const match = content.match(
+      /\*\*Type\*\*:\s*(service|controller|repository|utility|middleware)/i
+    );
     if (match?.[1] !== undefined) {
       return match[1].toLowerCase() as ComponentType;
     }
@@ -819,7 +821,10 @@ export class SDSUpdaterAgent {
     componentMarkdown += `**Responsibility**: ${newComponent.description}\n`;
     componentMarkdown += `**Added**: ${today}\n`;
 
-    if (newComponent.interfaces?.provided !== undefined && newComponent.interfaces.provided.length > 0) {
+    if (
+      newComponent.interfaces?.provided !== undefined &&
+      newComponent.interfaces.provided.length > 0
+    ) {
       componentMarkdown += `\n#### Interface Definition\n`;
       componentMarkdown += '```typescript\n';
       for (const iface of newComponent.interfaces.provided) {
@@ -835,13 +840,19 @@ export class SDSUpdaterAgent {
       componentMarkdown += '```\n';
     }
 
-    if (newComponent.dependencies?.internal !== undefined && newComponent.dependencies.internal.length > 0) {
+    if (
+      newComponent.dependencies?.internal !== undefined &&
+      newComponent.dependencies.internal.length > 0
+    ) {
       componentMarkdown += `\n#### Dependencies\n`;
-      componentMarkdown += `- Internal: ${newComponent.dependencies.internal.map(d => d.componentId).join(', ')}\n`;
+      componentMarkdown += `- Internal: ${newComponent.dependencies.internal.map((d) => d.componentId).join(', ')}\n`;
     }
 
-    if (newComponent.dependencies?.external !== undefined && newComponent.dependencies.external.length > 0) {
-      componentMarkdown += `- External: ${newComponent.dependencies.external.map(d => `${d.name}@${d.version}`).join(', ')}\n`;
+    if (
+      newComponent.dependencies?.external !== undefined &&
+      newComponent.dependencies.external.length > 0
+    ) {
+      componentMarkdown += `- External: ${newComponent.dependencies.external.map((d) => `${d.name}@${d.version}`).join(', ')}\n`;
     }
 
     if (newComponent.notes !== undefined) {
