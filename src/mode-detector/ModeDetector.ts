@@ -129,7 +129,8 @@ export class ModeDetector {
 
       const keywordStart = Date.now();
       const keywordEvidence = this.analyzeKeywords(session.userInput);
-      (stats as { keywordAnalysisTimeMs: number }).keywordAnalysisTimeMs = Date.now() - keywordStart;
+      (stats as { keywordAnalysisTimeMs: number }).keywordAnalysisTimeMs =
+        Date.now() - keywordStart;
 
       const userOverride: UserOverride = {
         specified: userOverrideMode !== undefined,
@@ -501,11 +502,12 @@ export class ModeDetector {
     if (scores.finalScore >= enhancementThreshold) {
       mode = 'enhancement';
       // Confidence based on how far above threshold
-      confidence = 0.5 + (scores.finalScore - enhancementThreshold) / (1 - enhancementThreshold) * 0.5;
+      confidence =
+        0.5 + ((scores.finalScore - enhancementThreshold) / (1 - enhancementThreshold)) * 0.5;
     } else if (scores.finalScore <= greenfieldThreshold) {
       mode = 'greenfield';
       // Confidence based on how far below threshold
-      confidence = 0.5 + (greenfieldThreshold - scores.finalScore) / greenfieldThreshold * 0.5;
+      confidence = 0.5 + ((greenfieldThreshold - scores.finalScore) / greenfieldThreshold) * 0.5;
     } else {
       // In the uncertain zone - default to enhancement but with lower confidence
       mode = 'enhancement';
@@ -625,11 +627,7 @@ export class ModeDetector {
   /**
    * Save detection result to scratchpad
    */
-  private saveResult(
-    rootPath: string,
-    projectId: string,
-    result: ModeDetectionResult
-  ): void {
+  private saveResult(rootPath: string, projectId: string, result: ModeDetectionResult): void {
     const scratchpadPath = path.join(rootPath, this.config.scratchpadBasePath, 'mode_detection');
 
     try {

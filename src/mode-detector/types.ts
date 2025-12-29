@@ -310,7 +310,7 @@ export const DEFAULT_MODE_DETECTOR_CONFIG: Required<ModeDetectorConfig> = {
   weights: {
     documents: 0.35,
     codebase: 0.45,
-    keywords: 0.20,
+    keywords: 0.2,
   },
   thresholds: {
     enhancementThreshold: 0.5,
