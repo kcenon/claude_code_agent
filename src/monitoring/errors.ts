@@ -99,3 +99,71 @@ export class DashboardDataError extends MonitoringError {
     Object.setPrototypeOf(this, DashboardDataError.prototype);
   }
 }
+
+/**
+ * Error thrown when token budget is exceeded
+ */
+export class BudgetExceededError extends MonitoringError {
+  public readonly currentTokens: number;
+  public readonly tokenLimit: number;
+  public readonly currentCostUsd: number;
+
+  constructor(currentTokens: number, tokenLimit: number, currentCostUsd: number) {
+    super(
+      `Token budget exceeded: ${String(currentTokens)}/${String(tokenLimit)} tokens ($${currentCostUsd.toFixed(4)})`,
+      'BUDGET_EXCEEDED_ERROR'
+    );
+    this.name = 'BudgetExceededError';
+    this.currentTokens = currentTokens;
+    this.tokenLimit = tokenLimit;
+    this.currentCostUsd = currentCostUsd;
+    Object.setPrototypeOf(this, BudgetExceededError.prototype);
+  }
+}
+
+/**
+ * Error thrown when context pruning fails
+ */
+export class ContextPruningError extends MonitoringError {
+  public readonly originalTokens: number;
+  public readonly targetTokens: number;
+
+  constructor(originalTokens: number, targetTokens: number, reason: string) {
+    super(
+      `Failed to prune context from ${String(originalTokens)} to ${String(targetTokens)} tokens: ${reason}`,
+      'CONTEXT_PRUNING_ERROR'
+    );
+    this.name = 'ContextPruningError';
+    this.originalTokens = originalTokens;
+    this.targetTokens = targetTokens;
+    Object.setPrototypeOf(this, ContextPruningError.prototype);
+  }
+}
+
+/**
+ * Error thrown when model selection fails
+ */
+export class ModelSelectionError extends MonitoringError {
+  public readonly taskType: string;
+
+  constructor(taskType: string, reason: string) {
+    super(`Failed to select model for task '${taskType}': ${reason}`, 'MODEL_SELECTION_ERROR');
+    this.name = 'ModelSelectionError';
+    this.taskType = taskType;
+    Object.setPrototypeOf(this, ModelSelectionError.prototype);
+  }
+}
+
+/**
+ * Error thrown when cache operation fails
+ */
+export class CacheError extends MonitoringError {
+  public readonly operation: string;
+
+  constructor(operation: string, reason: string) {
+    super(`Cache operation '${operation}' failed: ${reason}`, 'CACHE_ERROR');
+    this.name = 'CacheError';
+    this.operation = operation;
+    Object.setPrototypeOf(this, CacheError.prototype);
+  }
+}
