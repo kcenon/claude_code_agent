@@ -53,6 +53,7 @@ export class Logger {
   private sessionId: string;
   private currentAgent: string | undefined;
   private currentStage: string | undefined;
+  private currentProjectId: string | undefined;
   private currentLogFile: string | null = null;
   private currentFileSize = 0;
 
@@ -138,7 +139,8 @@ export class Logger {
     level: LogLevel,
     message: string,
     context?: Record<string, unknown>,
-    error?: Error
+    error?: Error,
+    durationMs?: number
   ): LogEntry {
     const entry: LogEntry = {
       timestamp: new Date().toISOString(),
@@ -153,6 +155,12 @@ export class Logger {
     }
     if (this.currentStage !== undefined) {
       (entry as { stage?: string }).stage = this.currentStage;
+    }
+    if (this.currentProjectId !== undefined) {
+      (entry as { projectId?: string }).projectId = this.currentProjectId;
+    }
+    if (durationMs !== undefined) {
+      (entry as { durationMs?: number }).durationMs = durationMs;
     }
     if (context !== undefined) {
       (entry as { context?: Record<string, unknown> }).context = context;
@@ -252,11 +260,29 @@ export class Logger {
   }
 
   /**
+   * Extract durationMs from context if present
+   */
+  private extractDuration(
+    context?: Record<string, unknown>
+  ): { durationMs?: number; remainingContext?: Record<string, unknown> } {
+    if (context === undefined) {
+      return {};
+    }
+
+    const { durationMs, ...rest } = context;
+    const duration = typeof durationMs === 'number' ? durationMs : undefined;
+    const remaining = Object.keys(rest).length > 0 ? rest : undefined;
+
+    return { durationMs: duration, remainingContext: remaining };
+  }
+
+  /**
    * Log a debug message
    */
   public debug(message: string, context?: Record<string, unknown>): void {
     if (!this.shouldLog('DEBUG')) return;
-    const entry = this.createEntry('DEBUG', message, context);
+    const { durationMs, remainingContext } = this.extractDuration(context);
+    const entry = this.createEntry('DEBUG', message, remainingContext, undefined, durationMs);
     this.writeEntry(entry);
   }
 
@@ -265,7 +291,8 @@ export class Logger {
    */
   public info(message: string, context?: Record<string, unknown>): void {
     if (!this.shouldLog('INFO')) return;
-    const entry = this.createEntry('INFO', message, context);
+    const { durationMs, remainingContext } = this.extractDuration(context);
+    const entry = this.createEntry('INFO', message, remainingContext, undefined, durationMs);
     this.writeEntry(entry);
   }
 
@@ -274,7 +301,8 @@ export class Logger {
    */
   public warn(message: string, context?: Record<string, unknown>): void {
     if (!this.shouldLog('WARN')) return;
-    const entry = this.createEntry('WARN', message, context);
+    const { durationMs, remainingContext } = this.extractDuration(context);
+    const entry = this.createEntry('WARN', message, remainingContext, undefined, durationMs);
     this.writeEntry(entry);
   }
 
@@ -283,7 +311,8 @@ export class Logger {
    */
   public error(message: string, error?: Error, context?: Record<string, unknown>): void {
     if (!this.shouldLog('ERROR')) return;
-    const entry = this.createEntry('ERROR', message, context, error);
+    const { durationMs, remainingContext } = this.extractDuration(context);
+    const entry = this.createEntry('ERROR', message, remainingContext, error, durationMs);
     this.writeEntry(entry);
   }
 
@@ -313,6 +342,20 @@ export class Logger {
    */
   public getStage(): string | undefined {
     return this.currentStage;
+  }
+
+  /**
+   * Set the current project ID
+   */
+  public setProjectId(projectId: string | undefined): void {
+    this.currentProjectId = projectId;
+  }
+
+  /**
+   * Get the current project ID
+   */
+  public getProjectId(): string | undefined {
+    return this.currentProjectId;
   }
 
   /**
@@ -368,7 +411,7 @@ export class Logger {
   /**
    * Create a child logger with additional context
    */
-  public child(context: { agent?: string; stage?: string }): Logger {
+  public child(context: { agent?: string; stage?: string; projectId?: string }): Logger {
     const child = new Logger({
       logDir: this.logDir,
       maxFileSize: this.maxFileSize,
@@ -381,6 +424,7 @@ export class Logger {
     child.setSessionId(this.sessionId);
     child.setAgent(context.agent ?? this.currentAgent);
     child.setStage(context.stage ?? this.currentStage);
+    child.setProjectId(context.projectId ?? this.currentProjectId);
     // Share the same log file
     child.currentLogFile = this.currentLogFile;
     child.currentFileSize = this.currentFileSize;

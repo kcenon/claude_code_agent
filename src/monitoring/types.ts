@@ -23,6 +23,10 @@ export interface LogEntry {
   readonly agent?: string;
   /** Pipeline stage if applicable */
   readonly stage?: string;
+  /** Project ID for associating logs with a specific project */
+  readonly projectId?: string;
+  /** Operation duration in milliseconds */
+  readonly durationMs?: number;
   /** Additional context data */
   readonly context?: Record<string, unknown>;
   /** Error information if applicable */

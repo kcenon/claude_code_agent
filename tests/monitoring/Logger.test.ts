@@ -147,6 +147,73 @@ describe('Logger', () => {
     });
   });
 
+  describe('project ID context', () => {
+    it('should set and get project ID', () => {
+      logger.setProjectId('proj-001');
+      expect(logger.getProjectId()).toBe('proj-001');
+
+      logger.info('Project log');
+
+      const entries = logger.getRecentEntries(1);
+      expect(entries[0]?.projectId).toBe('proj-001');
+    });
+
+    it('should clear project ID context', () => {
+      logger.setProjectId('proj-001');
+      logger.setProjectId(undefined);
+
+      logger.info('No project');
+
+      const entries = logger.getRecentEntries(1);
+      expect(entries[0]?.projectId).toBeUndefined();
+    });
+  });
+
+  describe('duration tracking', () => {
+    it('should extract durationMs from context', () => {
+      logger.info('Operation completed', { durationMs: 150, other: 'data' });
+
+      const entries = logger.getRecentEntries(1);
+      expect(entries[0]?.durationMs).toBe(150);
+      expect(entries[0]?.context).toEqual({ other: 'data' });
+    });
+
+    it('should handle durationMs only in context', () => {
+      logger.info('Fast operation', { durationMs: 5 });
+
+      const entries = logger.getRecentEntries(1);
+      expect(entries[0]?.durationMs).toBe(5);
+      expect(entries[0]?.context).toBeUndefined();
+    });
+
+    it('should ignore non-numeric durationMs', () => {
+      logger.info('Operation', { durationMs: 'invalid', other: 'data' });
+
+      const entries = logger.getRecentEntries(1);
+      expect(entries[0]?.durationMs).toBeUndefined();
+      expect(entries[0]?.context).toEqual({ other: 'data' });
+    });
+
+    it('should work with all log levels', () => {
+      const debugLogger = new Logger({
+        logDir: testLogDir,
+        minLevel: 'DEBUG',
+        consoleOutput: false,
+      });
+
+      debugLogger.debug('Debug op', { durationMs: 10 });
+      debugLogger.info('Info op', { durationMs: 20 });
+      debugLogger.warn('Warn op', { durationMs: 30 });
+      debugLogger.error('Error op', new Error('test'), { durationMs: 40 });
+
+      const entries = debugLogger.getRecentEntries(4);
+      expect(entries[0]?.durationMs).toBe(40);
+      expect(entries[1]?.durationMs).toBe(30);
+      expect(entries[2]?.durationMs).toBe(20);
+      expect(entries[3]?.durationMs).toBe(10);
+    });
+  });
+
   describe('correlation ID', () => {
     it('should set and get correlation ID', () => {
       const correlationId = 'test-correlation-123';
@@ -203,6 +270,22 @@ describe('Logger', () => {
       const child = logger.child({ agent: 'child-agent' });
 
       expect(child.getCorrelationId()).toBe(correlationId);
+    });
+
+    it('should inherit project ID from parent', () => {
+      logger.setProjectId('proj-001');
+
+      const child = logger.child({ agent: 'child-agent' });
+
+      expect(child.getProjectId()).toBe('proj-001');
+    });
+
+    it('should override project ID when specified', () => {
+      logger.setProjectId('proj-001');
+
+      const child = logger.child({ agent: 'child-agent', projectId: 'proj-002' });
+
+      expect(child.getProjectId()).toBe('proj-002');
     });
   });
 
