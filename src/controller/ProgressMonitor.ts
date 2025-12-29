@@ -359,11 +359,7 @@ export class ProgressMonitor {
     }
 
     // 2. Detect blocked chain (all workers idle but queue not empty)
-    if (
-      workerStatus.workingWorkers === 0 &&
-      workerStatus.idleWorkers > 0 &&
-      workQueue.length > 0
-    ) {
+    if (workerStatus.workingWorkers === 0 && workerStatus.idleWorkers > 0 && workQueue.length > 0) {
       const bottleneckId = 'blocked_chain';
 
       if (!this.detectedBottlenecks.has(bottleneckId)) {
@@ -649,8 +645,7 @@ export class ProgressMonitor {
     } else {
       for (const activity of report.recentActivity.slice(0, 10)) {
         const time = new Date(activity.timestamp).toLocaleTimeString();
-        const workerInfo =
-          activity.workerId !== undefined ? ` (${activity.workerId})` : '';
+        const workerInfo = activity.workerId !== undefined ? ` (${activity.workerId})` : '';
         lines.push(`- **${time}** [${activity.type}] ${activity.issueId}${workerInfo}`);
         if (activity.details !== undefined) {
           lines.push(`  - ${activity.details}`);

@@ -400,7 +400,11 @@ export type WorkerFailureCallback = (
 /**
  * Bottleneck type classification
  */
-export type BottleneckType = 'stuck_worker' | 'blocked_chain' | 'dependency_cycle' | 'resource_contention';
+export type BottleneckType =
+  | 'stuck_worker'
+  | 'blocked_chain'
+  | 'dependency_cycle'
+  | 'resource_contention';
 
 /**
  * Detected bottleneck information
