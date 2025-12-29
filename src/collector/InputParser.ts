@@ -464,14 +464,23 @@ export class InputParser {
     // Remove XML declaration
     let text = xml.replace(/<\?xml[^?]*\?>/gi, '');
 
-    // Remove CDATA sections but keep content
-    text = text.replace(/<!\[CDATA\[(.*?)\]\]>/gs, '$1');
+    // Extract and preserve CDATA content with placeholders
+    const cdataContents: string[] = [];
+    text = text.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (_match, content: string) => {
+      cdataContents.push(content);
+      return `__CDATA_PLACEHOLDER_${String(cdataContents.length - 1)}__`;
+    });
 
     // Remove comments
     text = text.replace(/<!--[\s\S]*?-->/g, '');
 
     // Remove XML tags but keep text content
     text = text.replace(/<[^>]+>/g, ' ');
+
+    // Restore CDATA content
+    cdataContents.forEach((content, index) => {
+      text = text.replace(`__CDATA_PLACEHOLDER_${String(index)}__`, content);
+    });
 
     // Decode common XML entities
     text = text
