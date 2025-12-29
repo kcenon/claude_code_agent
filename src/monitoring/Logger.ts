@@ -68,12 +68,18 @@ const DEFAULT_MASKING_PATTERNS: MaskingPattern[] = [
   { name: 'github_refresh', pattern: /ghr_[a-zA-Z0-9]{36}/g },
   { name: 'openai_api_key', pattern: /sk-[a-zA-Z0-9]{48}/g },
   { name: 'anthropic_api_key', pattern: /sk-ant-[a-zA-Z0-9-]{95}/g },
-  { name: 'generic_api_key', pattern: /(?:api[_-]?key|apikey|api_secret)["\s:=]+["']?([a-zA-Z0-9_-]{20,})["']?/gi },
+  {
+    name: 'generic_api_key',
+    pattern: /(?:api[_-]?key|apikey|api_secret)["\s:=]+["']?([a-zA-Z0-9_-]{20,})["']?/gi,
+  },
   { name: 'bearer_token', pattern: /Bearer\s+[a-zA-Z0-9._-]+/gi },
   { name: 'basic_auth', pattern: /Basic\s+[a-zA-Z0-9+/=]+/gi },
   { name: 'jwt_token', pattern: /eyJ[a-zA-Z0-9_-]*\.eyJ[a-zA-Z0-9_-]*\.[a-zA-Z0-9_-]*/g },
   { name: 'aws_access_key', pattern: /AKIA[0-9A-Z]{16}/g },
-  { name: 'aws_secret_key', pattern: /(?:aws)?_?secret_?(?:access)?_?key["'\s:=]+["']?([a-zA-Z0-9/+=]{40})["']?/gi },
+  {
+    name: 'aws_secret_key',
+    pattern: /(?:aws)?_?secret_?(?:access)?_?key["'\s:=]+["']?([a-zA-Z0-9/+=]{40})["']?/gi,
+  },
 ];
 
 /**
@@ -107,10 +113,7 @@ export class Logger {
     this.jsonOutput = options.jsonOutput ?? true;
     this.agentLogConfig = options.agentLogConfig ?? { enabled: false };
     this.enableMasking = options.enableMasking ?? true;
-    this.maskingPatterns = [
-      ...DEFAULT_MASKING_PATTERNS,
-      ...(options.maskingPatterns ?? []),
-    ];
+    this.maskingPatterns = [...DEFAULT_MASKING_PATTERNS, ...(options.maskingPatterns ?? [])];
     this.correlationId = randomUUID();
     this.sessionId = randomUUID();
 
@@ -741,7 +744,9 @@ export class Logger {
     }
 
     // Sort by timestamp descending (most recent first)
-    return entries.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    return entries.sort(
+      (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    );
   }
 
   /**
@@ -842,7 +847,9 @@ export class Logger {
       // Ignore read errors
     }
 
-    return entries.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    return entries.sort(
+      (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    );
   }
 
   /**
