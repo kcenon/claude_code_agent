@@ -346,11 +346,11 @@ export interface ApprovalResult {
   /** The decision made */
   readonly decision: ApprovalDecision;
   /** Feedback provided (for request_changes or reject) */
-  readonly feedback?: string;
+  readonly feedback?: string | undefined;
   /** Timestamp of the decision */
   readonly timestamp: string;
   /** Identifier of who approved (optional) */
-  readonly approver?: string;
+  readonly approver?: string | undefined;
 }
 
 /**
@@ -368,11 +368,11 @@ export interface ApprovalHistoryEntry {
   /** Decision made */
   readonly decision: ApprovalDecision;
   /** Feedback provided */
-  readonly feedback?: string;
+  readonly feedback?: string | undefined;
   /** Timestamp */
   readonly timestamp: string;
   /** Approver identifier */
-  readonly approver?: string;
+  readonly approver?: string | undefined;
 }
 
 /**
@@ -414,7 +414,7 @@ export interface ApprovalStatus {
   /** Current approval state */
   readonly state: 'pending' | 'approved' | 'changes_requested' | 'rejected';
   /** Latest approval history entry */
-  readonly latestEntry?: ApprovalHistoryEntry;
+  readonly latestEntry?: ApprovalHistoryEntry | undefined;
   /** Total number of approval attempts */
   readonly attemptCount: number;
   /** Revision history */
