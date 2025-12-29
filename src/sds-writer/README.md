@@ -33,11 +33,12 @@ This module is part of the AD-SDLC pipeline and transforms SRS documents into de
         ┌─────────────────────┼─────────────────────┐
         ▼                     ▼                     ▼
 ┌───────────────┐    ┌───────────────┐    ┌───────────────┐
-│  DataDesigner │    │Traceability   │    │   Output      │
-│               │    │   Mapper      │    │  Generator    │
+│  DataDesigner │    │Deployment     │    │Traceability   │
+│               │    │  Designer     │    │   Mapper      │
 │ Designs data  │    │               │    │               │
-│ models        │    │ Builds matrix │    │ Writes files  │
-└───────────────┘    └───────────────┘    └───────────────┘
+│ models        │    │ Deployment    │    │ Builds matrix │
+└───────────────┘    │ architecture  │    └───────────────┘
+                     └───────────────┘
 ```
 
 ## Usage
@@ -180,6 +181,18 @@ Designs data models from components:
 - Extracts properties from interfaces
 - Creates relationships between models
 - Generates database indexes
+- Determines data categories (entity, aggregate, value object, enum)
+- Adds standard timestamps and soft delete fields
+
+### DeploymentDesigner
+
+Designs deployment architecture from components and NFRs:
+- Determines deployment pattern (monolith, microservices, serverless, hybrid)
+- Generates environment specifications (development, staging, production)
+- Creates scaling strategy based on NFRs
+- Extracts configuration specifications from components
+- Generates infrastructure diagrams in Mermaid format
+- Validates design and provides warnings for missing NFRs
 
 ### TraceabilityMapper
 
@@ -244,6 +257,13 @@ PRD-001 (FR-XXX)
 ```
 
 ## Version History
+
+- **1.1.0** - Database schema and deployment architecture (Issue #32)
+  - Added DeploymentDesigner for deployment architecture generation
+  - Enhanced DataDesigner with comprehensive unit tests
+  - Added configuration specifications for deployment
+  - Added infrastructure diagram generation (Mermaid)
+  - Added scaling strategy from NFR analysis
 
 - **1.0.0** - Initial implementation
   - SRSParser with full SRS structure parsing

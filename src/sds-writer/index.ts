@@ -23,6 +23,13 @@ export type { APISpecifierOptions, APISpecificationResult } from './APISpecifier
 export { DataDesigner } from './DataDesigner.js';
 export type { DataDesignerOptions, DataDesignResult } from './DataDesigner.js';
 
+export { DeploymentDesigner } from './DeploymentDesigner.js';
+export type {
+  DeploymentDesignerOptions,
+  DeploymentDesignResult,
+  ConfigurationSpec,
+} from './DeploymentDesigner.js';
+
 export { TraceabilityMapper } from './TraceabilityMapper.js';
 export type {
   TraceabilityMapperOptions,
