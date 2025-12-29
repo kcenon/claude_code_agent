@@ -178,12 +178,12 @@ export interface PRDUpdateOperationResult {
 // ============ Configuration Types ============
 
 export interface PRDUpdaterConfig {
-  readonly docsBasePath?: string | undefined;
-  readonly prdSubdir?: string | undefined;
-  readonly scratchpadBasePath?: string | undefined;
-  readonly maxFileSize?: number | undefined;
-  readonly preserveFormatting?: boolean | undefined;
-  readonly generateChangelog?: boolean | undefined;
+  readonly docsBasePath?: string;
+  readonly prdSubdir?: string;
+  readonly scratchpadBasePath?: string;
+  readonly maxFileSize?: number;
+  readonly preserveFormatting?: boolean;
+  readonly generateChangelog?: boolean;
 }
 
 export const DEFAULT_PRD_UPDATER_CONFIG: Required<PRDUpdaterConfig> = {

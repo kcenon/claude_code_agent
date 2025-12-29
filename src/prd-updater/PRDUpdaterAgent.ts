@@ -248,7 +248,7 @@ export class PRDUpdaterAgent {
       await this.writeUpdatedPRD(prdPath, updatedContent);
 
       let changelogPath = '';
-      if (this.config.generateChangelog === true) {
+      if (this.config.generateChangelog) {
         changelogPath = await this.writeChangelog(session.projectId, updateResult);
       }
 
@@ -867,11 +867,6 @@ export class PRDUpdaterAgent {
     return content + `\n\n## Scope Extension\n\n${extension}\n`;
   }
 
-  private extractFieldFromBody(body: string, fieldName: string): string | undefined {
-    const pattern = new RegExp(`\\*\\*${fieldName}\\*\\*:\\s*(.+?)(?=\\n|$)`, 'i');
-    const match = body.match(pattern);
-    return match?.[1]?.trim();
-  }
 
   private calculateNewVersion(currentVersion: string, changes: UpdateChanges): string {
     const parts = currentVersion.split('.');
@@ -895,7 +890,7 @@ export class PRDUpdaterAgent {
     return `${String(major)}.${String(minor)}.${String(patch)}`;
   }
 
-  private updateVersionInContent(content: string, oldVersion: string, newVersion: string): string {
+  private updateVersionInContent(content: string, _oldVersion: string, newVersion: string): string {
     // Update in metadata table
     const tablePattern = /(\|\s*Version\s*\|\s*)([^|]+)(\|)/i;
     let updated = content.replace(tablePattern, `$1${newVersion} $3`);
