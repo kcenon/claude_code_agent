@@ -178,12 +178,71 @@ InputParser.requiresAsyncParsing('.md');    // false
 
 ### Parse URLs
 
+The InputParser supports fetching and parsing content from HTTP/HTTPS URLs with intelligent content type handling.
+
 ```typescript
 // Fetch and parse URL content
 const source = await parser.parseUrl('https://example.com/requirements');
 console.log(source.title);    // Page title if available
 console.log(source.content);  // Processed content
+console.log(source.reference); // Final URL after redirects
 ```
+
+#### Supported Content Types
+
+| Content-Type | Processing |
+|-------------|-----------|
+| `text/html` | Strips HTML tags, removes script/style elements, decodes entities, extracts title |
+| `application/json` | Pretty-prints with indentation |
+| `application/xml`, `text/xml` | Strips XML tags, preserves CDATA content, removes comments |
+| `text/plain` | Returns as-is |
+
+#### URL Fetch Options
+
+```typescript
+const parser = new InputParser({
+  urlTimeout: 30000,      // Timeout in ms (default: 30s)
+  followRedirects: true,  // Follow HTTP redirects (default: true)
+});
+```
+
+#### Low-level URL Fetching
+
+For more control, use `fetchUrlContent` directly:
+
+```typescript
+const result = await parser.fetchUrlContent('https://example.com/api/docs');
+
+if (result.success) {
+  console.log(result.content);   // Processed content
+  console.log(result.finalUrl);  // Final URL after redirects
+  console.log(result.title);     // Page title (HTML only)
+} else {
+  console.log(result.error);     // Error message
+}
+```
+
+#### Error Handling
+
+```typescript
+import { UrlFetchError } from 'ad-sdlc';
+
+try {
+  await parser.parseUrl('https://example.com/missing');
+} catch (error) {
+  if (error instanceof UrlFetchError) {
+    console.log(`URL: ${error.url}`);
+    console.log(`Error: ${error.message}`);
+    console.log(`Status: ${error.statusCode}`); // HTTP status if available
+  }
+}
+```
+
+Common error scenarios:
+- **HTTP errors**: 4xx/5xx status codes
+- **Timeouts**: Request exceeds configured timeout
+- **Network errors**: DNS failures, connection refused
+- **Unsupported protocols**: Only HTTP/HTTPS supported
 
 ### Combine Inputs
 

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
@@ -7,6 +7,7 @@ import {
   InputParseError,
   FileParseError,
   UnsupportedFileTypeError,
+  UrlFetchError,
 } from '../../src/collector/index.js';
 
 describe('InputParser', () => {
@@ -279,6 +280,363 @@ describe('InputParser', () => {
 
       expect(result.success).toBe(false);
       expect(result.error).toContain('exceeds maximum');
+    });
+  });
+
+  describe('parseUrl', () => {
+    let originalFetch: typeof globalThis.fetch;
+
+    beforeEach(() => {
+      originalFetch = globalThis.fetch;
+    });
+
+    afterEach(() => {
+      globalThis.fetch = originalFetch;
+      vi.restoreAllMocks();
+    });
+
+    /**
+     * Helper to create a mock Response object
+     */
+    function createMockResponse(
+      body: string,
+      options: { status?: number; statusText?: string; contentType?: string; url?: string } = {}
+    ): Response {
+      const { status = 200, statusText = 'OK', contentType = 'text/plain', url = '' } = options;
+      return {
+        ok: status >= 200 && status < 300,
+        status,
+        statusText,
+        url,
+        headers: new Headers({ 'content-type': contentType }),
+        text: async () => body,
+        json: async () => JSON.parse(body),
+        clone: () => createMockResponse(body, options),
+      } as Response;
+    }
+
+    it('should fetch and parse HTML content', async () => {
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+        <head><title>Test Page</title></head>
+        <body>
+          <h1>Test Heading</h1>
+          <p>This is a test paragraph with requirements.</p>
+        </body>
+        </html>
+      `;
+
+      globalThis.fetch = vi.fn().mockResolvedValue(
+        createMockResponse(htmlContent, {
+          contentType: 'text/html; charset=utf-8',
+          url: 'https://example.com/page',
+        })
+      );
+
+      const result = await parser.parseUrl('https://example.com/page');
+
+      expect(result.type).toBe('url');
+      expect(result.content).toContain('Test Heading');
+      expect(result.content).toContain('test paragraph');
+      expect(result.content).not.toContain('<h1>');
+      expect(result.summary).toBe('Test Page');
+    });
+
+    it('should fetch and parse JSON content', async () => {
+      const jsonContent = JSON.stringify({
+        name: 'Test API',
+        endpoints: [{ path: '/users', method: 'GET' }],
+      });
+
+      globalThis.fetch = vi.fn().mockResolvedValue(
+        createMockResponse(jsonContent, {
+          contentType: 'application/json',
+          url: 'https://api.example.com/docs',
+        })
+      );
+
+      const result = await parser.parseUrl('https://api.example.com/docs');
+
+      expect(result.type).toBe('url');
+      expect(result.content).toContain('"name"');
+      expect(result.content).toContain('Test API');
+    });
+
+    it('should fetch and parse XML content', async () => {
+      const xmlContent = `<?xml version="1.0" encoding="UTF-8"?>
+        <root>
+          <item>First item</item>
+          <item>Second item</item>
+          <!-- This is a comment -->
+        </root>
+      `;
+
+      globalThis.fetch = vi.fn().mockResolvedValue(
+        createMockResponse(xmlContent, {
+          contentType: 'application/xml',
+          url: 'https://example.com/data.xml',
+        })
+      );
+
+      const result = await parser.parseUrl('https://example.com/data.xml');
+
+      expect(result.type).toBe('url');
+      expect(result.content).toContain('First item');
+      expect(result.content).toContain('Second item');
+      expect(result.content).not.toContain('<?xml');
+      expect(result.content).not.toContain('<!-- This is a comment -->');
+    });
+
+    it('should fetch and parse text/xml content', async () => {
+      const xmlContent = `<data><value>Test value</value></data>`;
+
+      globalThis.fetch = vi.fn().mockResolvedValue(
+        createMockResponse(xmlContent, {
+          contentType: 'text/xml',
+          url: 'https://example.com/data.xml',
+        })
+      );
+
+      const result = await parser.parseUrl('https://example.com/data.xml');
+
+      expect(result.content).toContain('Test value');
+      expect(result.content).not.toContain('<data>');
+    });
+
+    it('should fetch plain text content', async () => {
+      const textContent = 'This is plain text content.';
+
+      globalThis.fetch = vi.fn().mockResolvedValue(
+        createMockResponse(textContent, {
+          contentType: 'text/plain',
+          url: 'https://example.com/file.txt',
+        })
+      );
+
+      const result = await parser.parseUrl('https://example.com/file.txt');
+
+      expect(result.type).toBe('url');
+      expect(result.content).toBe(textContent);
+    });
+
+    it('should throw UrlFetchError for HTTP error responses', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue(
+        createMockResponse('Not Found', { status: 404, statusText: 'Not Found' })
+      );
+
+      await expect(parser.parseUrl('https://example.com/missing')).rejects.toThrow(UrlFetchError);
+    });
+
+    it('should throw UrlFetchError for unsupported protocols', async () => {
+      await expect(parser.parseUrl('ftp://example.com/file')).rejects.toThrow(UrlFetchError);
+    });
+
+    it('should throw UrlFetchError for network errors', async () => {
+      globalThis.fetch = vi.fn().mockRejectedValue(new Error('Network error'));
+
+      await expect(parser.parseUrl('https://example.com/page')).rejects.toThrow(UrlFetchError);
+    });
+
+    it('should handle timeout errors', async () => {
+      const error = new Error('Request timeout');
+      error.name = 'AbortError';
+      globalThis.fetch = vi.fn().mockRejectedValue(error);
+
+      await expect(parser.parseUrl('https://example.com/slow')).rejects.toThrow(UrlFetchError);
+    });
+
+    it('should track final URL after redirects', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue(
+        createMockResponse('Redirected content', {
+          contentType: 'text/plain',
+          url: 'https://example.com/final-page',
+        })
+      );
+
+      const result = await parser.parseUrl('https://example.com/redirect');
+
+      expect(result.reference).toBe('https://example.com/final-page');
+    });
+
+    it('should extract title from HTML for summary', async () => {
+      const htmlContent = `<html><head><title>API Documentation</title></head><body>Content</body></html>`;
+
+      globalThis.fetch = vi.fn().mockResolvedValue(
+        createMockResponse(htmlContent, {
+          contentType: 'text/html',
+          url: 'https://api.example.com/docs',
+        })
+      );
+
+      const result = await parser.parseUrl('https://api.example.com/docs');
+
+      expect(result.summary).toBe('API Documentation');
+    });
+
+    it('should handle HTML without title gracefully', async () => {
+      const htmlContent = `<html><body><p>Content without title</p></body></html>`;
+
+      globalThis.fetch = vi.fn().mockResolvedValue(
+        createMockResponse(htmlContent, {
+          contentType: 'text/html',
+          url: 'https://example.com/notitle',
+        })
+      );
+
+      const result = await parser.parseUrl('https://example.com/notitle');
+
+      expect(result.summary).toBeDefined();
+      expect(result.summary).toContain('Content without title');
+    });
+
+    it('should strip script and style tags from HTML', async () => {
+      const htmlContent = `
+        <html>
+        <head>
+          <style>.class { color: red; }</style>
+          <script>console.log('test');</script>
+        </head>
+        <body>
+          <p>Visible content</p>
+          <script>alert('inline script');</script>
+        </body>
+        </html>
+      `;
+
+      globalThis.fetch = vi.fn().mockResolvedValue(
+        createMockResponse(htmlContent, {
+          contentType: 'text/html',
+          url: 'https://example.com/page',
+        })
+      );
+
+      const result = await parser.parseUrl('https://example.com/page');
+
+      expect(result.content).toContain('Visible content');
+      expect(result.content).not.toContain('console.log');
+      expect(result.content).not.toContain('color: red');
+      expect(result.content).not.toContain('inline script');
+    });
+
+    it('should decode HTML entities', async () => {
+      const htmlContent = `<html><body>&amp; &lt; &gt; &quot; &#39;</body></html>`;
+
+      globalThis.fetch = vi.fn().mockResolvedValue(
+        createMockResponse(htmlContent, {
+          contentType: 'text/html',
+          url: 'https://example.com/entities',
+        })
+      );
+
+      const result = await parser.parseUrl('https://example.com/entities');
+
+      expect(result.content).toContain('&');
+      expect(result.content).toContain('<');
+      expect(result.content).toContain('>');
+      expect(result.content).toContain('"');
+      expect(result.content).toContain("'");
+    });
+
+    it('should handle malformed JSON gracefully', async () => {
+      const malformedJson = '{ invalid json }';
+
+      globalThis.fetch = vi.fn().mockResolvedValue(
+        createMockResponse(malformedJson, {
+          contentType: 'application/json',
+          url: 'https://api.example.com/broken',
+        })
+      );
+
+      const result = await parser.parseUrl('https://api.example.com/broken');
+
+      expect(result.content).toBe(malformedJson);
+    });
+
+    it('should use custom timeout option', async () => {
+      const shortTimeoutParser = new InputParser({ urlTimeout: 100 });
+      let abortSignalReceived = false;
+
+      globalThis.fetch = vi.fn().mockImplementation(async (_url, options) => {
+        if (options?.signal) {
+          options.signal.addEventListener('abort', () => {
+            abortSignalReceived = true;
+          });
+        }
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        throw new Error('Should have timed out');
+      });
+
+      await expect(shortTimeoutParser.parseUrl('https://example.com/slow')).rejects.toThrow();
+    });
+
+    it('should handle CDATA sections in XML', async () => {
+      const xmlContent = `<?xml version="1.0"?>
+        <root><![CDATA[Special <characters> & content]]></root>
+      `;
+
+      globalThis.fetch = vi.fn().mockResolvedValue(
+        createMockResponse(xmlContent, {
+          contentType: 'application/xml',
+          url: 'https://example.com/cdata.xml',
+        })
+      );
+
+      const result = await parser.parseUrl('https://example.com/cdata.xml');
+
+      expect(result.content).toContain('Special <characters> & content');
+    });
+  });
+
+  describe('fetchUrlContent', () => {
+    let originalFetch: typeof globalThis.fetch;
+
+    beforeEach(() => {
+      originalFetch = globalThis.fetch;
+    });
+
+    afterEach(() => {
+      globalThis.fetch = originalFetch;
+      vi.restoreAllMocks();
+    });
+
+    it('should return success false for invalid URL', async () => {
+      const result = await parser.fetchUrlContent('not-a-valid-url');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBeDefined();
+    });
+
+    it('should return success false for HTTP errors', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 500,
+        statusText: 'Internal Server Error',
+        headers: new Headers(),
+        text: async () => 'Error',
+        url: 'https://example.com/error',
+      } as Response);
+
+      const result = await parser.fetchUrlContent('https://example.com/error');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('500');
+    });
+
+    it('should include final URL in result', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        headers: new Headers({ 'content-type': 'text/plain' }),
+        text: async () => 'content',
+        url: 'https://example.com/final',
+      } as Response);
+
+      const result = await parser.fetchUrlContent('https://example.com/original');
+
+      expect(result.success).toBe(true);
+      expect(result.finalUrl).toBe('https://example.com/final');
     });
   });
 });
