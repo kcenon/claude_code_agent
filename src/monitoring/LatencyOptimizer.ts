@@ -315,9 +315,7 @@ export class LatencyOptimizer {
   /**
    * Start periodic warmup timer
    */
-  public startWarmupTimer(
-    agents: Array<{ name: string; definitionPath: string }>
-  ): void {
+  public startWarmupTimer(agents: Array<{ name: string; definitionPath: string }>): void {
     if (this.warmupTimer !== null) return;
 
     // Initial warmup
@@ -348,9 +346,14 @@ export class LatencyOptimizer {
     const results = await Promise.all(promises);
     const latencyMs = performance.now() - startTime;
 
-    this.recordMeasurement('parallel_io_batch', latencyMs, this.targets.fileIO * operations.length, {
-      operationCount: operations.length,
-    });
+    this.recordMeasurement(
+      'parallel_io_batch',
+      latencyMs,
+      this.targets.fileIO * operations.length,
+      {
+        operationCount: operations.length,
+      }
+    );
 
     return results;
   }

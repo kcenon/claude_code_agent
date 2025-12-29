@@ -199,10 +199,7 @@ export class ResponseTimeBenchmarks {
   private readonly history: BenchmarkHistoryEntry[] = [];
   private readonly maxHistorySize: number;
 
-  constructor(
-    customBenchmarks: Partial<AllBenchmarks> = {},
-    maxHistorySize: number = 100
-  ) {
+  constructor(customBenchmarks: Partial<AllBenchmarks> = {}, maxHistorySize: number = 100) {
     this.benchmarks = this.mergeBenchmarks(DEFAULT_BENCHMARKS, customBenchmarks);
     this.maxHistorySize = maxHistorySize;
   }
@@ -210,10 +207,7 @@ export class ResponseTimeBenchmarks {
   /**
    * Deep merge benchmark configurations
    */
-  private mergeBenchmarks(
-    defaults: AllBenchmarks,
-    custom: Partial<AllBenchmarks>
-  ): AllBenchmarks {
+  private mergeBenchmarks(defaults: AllBenchmarks, custom: Partial<AllBenchmarks>): AllBenchmarks {
     return {
       pipeline: {
         simple: { ...defaults.pipeline.simple, ...custom.pipeline?.simple },
@@ -257,11 +251,7 @@ export class ResponseTimeBenchmarks {
   /**
    * Create a benchmark target
    */
-  public createTarget(
-    name: string,
-    targetMs: number,
-    description: string
-  ): BenchmarkTarget {
+  public createTarget(name: string, targetMs: number, description: string): BenchmarkTarget {
     return {
       name,
       targetMs,
@@ -274,11 +264,7 @@ export class ResponseTimeBenchmarks {
   /**
    * Validate a timing against a benchmark
    */
-  public validateTiming(
-    name: string,
-    actualMs: number,
-    target: BenchmarkTarget
-  ): BenchmarkResult {
+  public validateTiming(name: string, actualMs: number, target: BenchmarkTarget): BenchmarkResult {
     let status: 'pass' | 'warning' | 'fail';
     if (actualMs <= target.targetMs) {
       status = 'pass';
@@ -333,9 +319,7 @@ export class ResponseTimeBenchmarks {
         targets.issueGeneration,
         `Issue generation for ${complexity} feature`
       );
-      results.push(
-        this.validateTiming('issue_generation', timings.issueGenerationMs, target)
-      );
+      results.push(this.validateTiming('issue_generation', timings.issueGenerationMs, target));
     }
 
     if (timings.totalMs !== undefined) {
@@ -359,7 +343,9 @@ export class ResponseTimeBenchmarks {
     const targets = this.benchmarks.stages;
     const results: BenchmarkResult[] = [];
 
-    for (const [stage, actualMs] of Object.entries(stageTimes) as Array<[keyof StageBenchmarks, number]>) {
+    for (const [stage, actualMs] of Object.entries(stageTimes) as Array<
+      [keyof StageBenchmarks, number]
+    >) {
       const targetMs = targets[stage];
       const target = this.createTarget(stage, targetMs, `${stage} stage`);
       results.push(this.validateTiming(stage, actualMs, target));
@@ -377,7 +363,9 @@ export class ResponseTimeBenchmarks {
     const targets = this.benchmarks.latency;
     const results: BenchmarkResult[] = [];
 
-    for (const [metric, actualMs] of Object.entries(latencies) as Array<[keyof LatencyBenchmarks, number]>) {
+    for (const [metric, actualMs] of Object.entries(latencies) as Array<
+      [keyof LatencyBenchmarks, number]
+    >) {
       const targetMs = targets[metric];
       const target = this.createTarget(metric, targetMs, `${metric} latency`);
       results.push(this.validateTiming(metric, actualMs, target));
@@ -448,18 +436,14 @@ export class ResponseTimeBenchmarks {
   /**
    * Get history for a specific complexity
    */
-  public getHistoryByComplexity(
-    complexity: FeatureComplexity
-  ): readonly BenchmarkHistoryEntry[] {
+  public getHistoryByComplexity(complexity: FeatureComplexity): readonly BenchmarkHistoryEntry[] {
     return this.history.filter((h) => h.complexity === complexity);
   }
 
   /**
    * Get performance trend
    */
-  public getPerformanceTrend(
-    complexity?: FeatureComplexity
-  ): {
+  public getPerformanceTrend(complexity?: FeatureComplexity): {
     readonly avgTotalMs: number;
     readonly minTotalMs: number;
     readonly maxTotalMs: number;
@@ -492,10 +476,8 @@ export class ResponseTimeBenchmarks {
       const firstHalf = filtered.slice(0, mid);
       const secondHalf = filtered.slice(mid);
 
-      const firstAvg =
-        firstHalf.reduce((sum, h) => sum + h.totalTimeMs, 0) / firstHalf.length;
-      const secondAvg =
-        secondHalf.reduce((sum, h) => sum + h.totalTimeMs, 0) / secondHalf.length;
+      const firstAvg = firstHalf.reduce((sum, h) => sum + h.totalTimeMs, 0) / firstHalf.length;
+      const secondAvg = secondHalf.reduce((sum, h) => sum + h.totalTimeMs, 0) / secondHalf.length;
 
       const change = (secondAvg - firstAvg) / firstAvg;
       if (change < -0.1) {
@@ -552,9 +534,8 @@ export class ResponseTimeBenchmarks {
           avgTimeMs: Math.round(
             entries.reduce((sum, e) => sum + e.totalTimeMs, 0) / entries.length
           ),
-          passRate: Math.round(
-            (entries.filter((e) => e.allPassed).length / entries.length) * 10000
-          ) / 100,
+          passRate:
+            Math.round((entries.filter((e) => e.allPassed).length / entries.length) * 10000) / 100,
         };
       }
     }

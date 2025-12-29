@@ -196,10 +196,7 @@ export class ParallelExecutionTuner {
 
     // Take the minimum of all constraints
     const baseRecommendation = Math.min(cpuBasedWorkers, memoryBasedWorkers);
-    const loadAdjustedRecommendation = Math.max(
-      1,
-      Math.floor(baseRecommendation * loadAdjustment)
-    );
+    const loadAdjustedRecommendation = Math.max(1, Math.floor(baseRecommendation * loadAdjustment));
 
     // Apply bounds
     const recommendedWorkers = Math.min(
@@ -240,8 +237,12 @@ export class ParallelExecutionTuner {
     const parts: string[] = [];
 
     parts.push(`CPU cores: ${String(resources.cpuCores)} (suggests ${String(cpuBased)} workers)`);
-    parts.push(`Free memory: ${String(Math.round(resources.freeMemoryBytes / 1024 / 1024))}MB (suggests ${String(memoryBased)} workers)`);
-    parts.push(`Current load: ${resources.loadAverage[0].toFixed(2)} (adjustment factor: ${String(loadAdjustment)})`);
+    parts.push(
+      `Free memory: ${String(Math.round(resources.freeMemoryBytes / 1024 / 1024))}MB (suggests ${String(memoryBased)} workers)`
+    );
+    parts.push(
+      `Current load: ${resources.loadAverage[0].toFixed(2)} (adjustment factor: ${String(loadAdjustment)})`
+    );
 
     if (memoryBased < cpuBased) {
       parts.push('Memory is the limiting factor');
@@ -259,7 +260,10 @@ export class ParallelExecutionTuner {
     const recommendation = this.calculateOptimalWorkerCount();
 
     // Batch size should balance parallelism with overhead
-    const optimalBatchSize = Math.max(1, Math.min(5, Math.ceil(itemCount / recommendation.recommendedWorkers / 2)));
+    const optimalBatchSize = Math.max(
+      1,
+      Math.min(5, Math.ceil(itemCount / recommendation.recommendedWorkers / 2))
+    );
 
     // Concurrent batches based on worker availability
     const maxConcurrentBatches = Math.min(
@@ -288,7 +292,10 @@ export class ParallelExecutionTuner {
     if (memoryUsage > this.config.contentionThreshold) {
       const event: ContentionEvent = {
         type: 'memory',
-        severity: Math.round((memoryUsage - this.config.contentionThreshold) * 100 / (1 - this.config.contentionThreshold)),
+        severity: Math.round(
+          ((memoryUsage - this.config.contentionThreshold) * 100) /
+            (1 - this.config.contentionThreshold)
+        ),
         timestamp: new Date().toISOString(),
         resource: 'system_memory',
         recommendedAction: 'Reduce worker count or batch size',
@@ -302,7 +309,10 @@ export class ParallelExecutionTuner {
     if (cpuLoad > this.config.contentionThreshold) {
       const event: ContentionEvent = {
         type: 'cpu',
-        severity: Math.round((cpuLoad - this.config.contentionThreshold) * 100 / (1 - this.config.contentionThreshold)),
+        severity: Math.round(
+          ((cpuLoad - this.config.contentionThreshold) * 100) /
+            (1 - this.config.contentionThreshold)
+        ),
         timestamp: new Date().toISOString(),
         resource: 'cpu',
         recommendedAction: 'Reduce parallelism or add delays between operations',
@@ -389,7 +399,10 @@ export class ParallelExecutionTuner {
       if (effectiveThroughput > bestThroughput) {
         bestThroughput = effectiveThroughput;
         const [workers, batch] = key.split('-').map(Number);
-        bestConfig = { workers: workers ?? this.currentWorkerCount, batch: batch ?? this.currentBatchSize };
+        bestConfig = {
+          workers: workers ?? this.currentWorkerCount,
+          batch: batch ?? this.currentBatchSize,
+        };
       }
     }
 
@@ -433,7 +446,10 @@ export class ParallelExecutionTuner {
       };
     }
 
-    if (recommendation.recommendedWorkers > this.currentWorkerCount && recommendation.confidence > 70) {
+    if (
+      recommendation.recommendedWorkers > this.currentWorkerCount &&
+      recommendation.confidence > 70
+    ) {
       // Scale up if resources are available
       this.currentWorkerCount = Math.min(
         this.currentWorkerCount + 1,
@@ -513,9 +529,7 @@ export class ParallelExecutionTuner {
    */
   public getRecentContentionEvents(durationMs: number = 60000): readonly ContentionEvent[] {
     const cutoff = Date.now() - durationMs;
-    return this.contentionEvents.filter(
-      (e) => new Date(e.timestamp).getTime() > cutoff
-    );
+    return this.contentionEvents.filter((e) => new Date(e.timestamp).getTime() > cutoff);
   }
 
   /**
