@@ -36,6 +36,7 @@ flowchart TB
         DOCREAD[Document Reader Agent]
         CODEBASE[Codebase Analyzer Agent]
         IMPACT[Impact Analyzer Agent]
+        REGTEST[Regression Tester Agent]
     end
 
     subgraph Output["Output Layer"]
@@ -78,7 +79,9 @@ flowchart TB
     CODE --> CODEBASE
     DOCREAD --> IMPACT
     CODEBASE --> IMPACT
+    CODEBASE --> REGTEST
     IMPACT -.-> CTRL
+    REGTEST -.-> PR
 ```
 
 ## 2. Agent Communication Pattern
