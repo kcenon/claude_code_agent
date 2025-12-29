@@ -8,6 +8,37 @@ version: "1.0.0"
 # =============================================================================
 agents:
   # ---------------------------------------------------------------------------
+  # Infrastructure Agents (Pre-pipeline)
+  # ---------------------------------------------------------------------------
+  mode-detector:
+    id: "mode-detector"
+    name: "Mode Detector Agent"
+    korean_name: "모드 감지 에이전트"
+    description: "Determines whether to use Greenfield or Enhancement pipeline based on project state"
+    definition_file: ".claude/agents/mode-detector.md"
+    category: "infrastructure"
+    order: 0
+
+    capabilities:
+      - "document_presence_detection"
+      - "codebase_analysis"
+      - "keyword_analysis"
+      - "confidence_scoring"
+      - "user_override_support"
+
+    io:
+      inputs:
+        - project_path
+        - user_input
+        - override_mode
+      outputs:
+        - mode_detection_result.yaml
+
+    metrics:
+      avg_duration_seconds: 5
+      success_rate: 0.99
+
+  # ---------------------------------------------------------------------------
   # Document Pipeline Agents
   # ---------------------------------------------------------------------------
   collector:
