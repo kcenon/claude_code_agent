@@ -10,6 +10,11 @@ The monitoring module includes:
 - **MetricsCollector** - Performance metrics collection and aggregation
 - **AlertManager** - Alert management and notifications
 - **DashboardDataProvider** - Dashboard data aggregation
+- **TokenBudgetManager** - Session-based token budget control and limits
+- **ContextPruner** - Intelligent context size management for large documents
+- **QueryCache** - LRU-based caching for repeated API queries
+- **ModelSelector** - Optimal model selection based on task complexity
+- **TokenUsageReport** - Detailed usage reports with optimization recommendations
 
 ## Installation
 
@@ -17,10 +22,27 @@ The monitoring module is included in the main `ad-sdlc` package:
 
 ```typescript
 import {
+  // Core monitoring
   Logger,
   MetricsCollector,
   AlertManager,
   DashboardDataProvider,
+  // Token optimization
+  TokenBudgetManager,
+  ContextPruner,
+  QueryCache,
+  ModelSelector,
+  TokenUsageReport,
+  // Factory functions
+  getLogger,
+  getMetricsCollector,
+  getAlertManager,
+  getDashboardDataProvider,
+  getTokenBudgetManager,
+  getModelSelector,
+  createContextPruner,
+  createQueryCache,
+  createTokenUsageReport,
 } from 'ad-sdlc';
 ```
 
@@ -500,6 +522,408 @@ console.log(`Token cost: $${summary.tokenUsage.cost}`);
 const jsonData = dashboard.exportAsJson();
 ```
 
+## TokenBudgetManager
+
+Manages token budgets with session limits, warning thresholds, and hard limits for cost control.
+
+### Basic Usage
+
+```typescript
+import { TokenBudgetManager, getTokenBudgetManager } from 'ad-sdlc';
+
+const budget = getTokenBudgetManager({
+  sessionTokenLimit: 100000,       // Max tokens per session
+  sessionCostLimitUsd: 5.00,       // Max cost per session
+  warningThresholds: [50, 75, 90], // Warning at these percentages
+  hardLimitThreshold: 100,         // Hard limit at 100%
+  onLimitReached: 'pause',         // Action: 'continue' | 'pause' | 'terminate'
+});
+```
+
+### Recording Usage
+
+```typescript
+// Record token usage after each API call
+const result = budget.recordUsage(1500, 500, 0.0225); // input, output, cost
+
+if (!result.allowed) {
+  console.log(`Budget exceeded: ${result.reason}`);
+  console.log(`Suggested action: ${result.suggestedAction}`);
+}
+
+// Check for warnings
+for (const warning of result.warnings) {
+  console.log(`Warning: ${warning.message} (${warning.severity})`);
+}
+```
+
+### Budget Status
+
+```typescript
+const status = budget.getStatus();
+
+console.log(`Current tokens: ${status.currentTokens}/${status.tokenLimit}`);
+console.log(`Token usage: ${status.tokenUsagePercent}%`);
+console.log(`Current cost: $${status.currentCostUsd}`);
+console.log(`Remaining tokens: ${status.remainingTokens}`);
+console.log(`Warning exceeded: ${status.warningExceeded}`);
+console.log(`Limit exceeded: ${status.limitExceeded}`);
+```
+
+### Pre-flight Estimation
+
+```typescript
+// Check if a request will exceed budget
+const estimate = budget.estimateUsage(5000, 2000); // estimated input, output
+
+if (!estimate.allowed) {
+  console.log(`Cannot proceed: ${estimate.reason}`);
+}
+```
+
+### Override Limits
+
+```typescript
+// Temporarily allow exceeding limits (with user consent)
+if (budget.config.allowOverride) {
+  budget.enableOverride();
+  // Perform critical operation
+  budget.disableOverride();
+}
+```
+
+## ContextPruner
+
+Intelligently prunes context to fit within token limits using configurable strategies.
+
+### Basic Usage
+
+```typescript
+import { ContextPruner, createContextPruner } from 'ad-sdlc';
+
+const pruner = createContextPruner(100000, {
+  strategy: 'balanced',      // 'recency' | 'relevance' | 'priority' | 'balanced'
+  recencyWeight: 0.3,        // Weight for recency scoring
+  relevanceWeight: 0.4,      // Weight for relevance scoring
+  priorityWeight: 0.3,       // Weight for priority scoring
+  relevanceKeywords: ['error', 'bug', 'critical'],
+  systemReserve: 500,        // Reserve for system prompts
+  outputReserve: 2000,       // Reserve for expected output
+});
+```
+
+### Creating Content Sections
+
+```typescript
+// Create sections from content
+const systemSection = pruner.createSection('system', systemPrompt, {
+  type: 'system',
+  priority: 10,
+  required: true,  // Cannot be pruned
+});
+
+const userSection = pruner.createSection('user-1', userMessage, {
+  type: 'user',
+  priority: 8,
+  timestamp: new Date(),
+});
+
+const historySection = pruner.createSection('history-1', conversationHistory, {
+  type: 'context',
+  priority: 5,
+  timestamp: new Date(Date.now() - 3600000), // 1 hour ago
+});
+```
+
+### Pruning Content
+
+```typescript
+const sections = [systemSection, userSection, historySection, ...moreSections];
+const result = pruner.prune(sections);
+
+console.log(`Retained ${result.stats.sectionsRetained} of ${result.stats.sectionsAnalyzed}`);
+console.log(`Tokens: ${result.totalTokens} (saved ${result.tokensSaved})`);
+console.log(`Reduction: ${result.stats.reductionPercent}%`);
+
+// Use retained sections
+const context = result.retainedSections.map(s => s.content).join('\n');
+```
+
+### Pruning Strategies
+
+| Strategy | Description |
+|----------|-------------|
+| `recency` | Prioritize recent content |
+| `relevance` | Prioritize content matching keywords |
+| `priority` | Prioritize by assigned priority score |
+| `balanced` | Weighted combination of all factors |
+
+### Token Estimation
+
+```typescript
+// Estimate tokens for arbitrary text
+const tokens = pruner.estimateTokens(longText);
+console.log(`Estimated tokens: ${tokens}`);
+
+// Get suggested limit for a model
+const limit = ContextPruner.suggestTokenLimit('sonnet'); // Returns 80% of model limit
+```
+
+## QueryCache
+
+LRU-based cache for repeated API queries with TTL and similarity matching.
+
+### Basic Usage
+
+```typescript
+import { QueryCache, createQueryCache } from 'ad-sdlc';
+
+const cache = createQueryCache({
+  maxSize: 100,           // Maximum entries
+  ttlMs: 30 * 60 * 1000,  // 30 minute TTL
+  enableSimilarityMatch: true,
+  similarityThreshold: 0.8,
+});
+```
+
+### Caching Queries
+
+```typescript
+// Check cache before API call
+const cachedResult = cache.get('What is TypeScript?');
+
+if (cachedResult) {
+  console.log('Cache hit!');
+  return cachedResult.response;
+}
+
+// Make API call and cache result
+const response = await callAPI('What is TypeScript?');
+cache.set('What is TypeScript?', response, {
+  model: 'sonnet',
+  inputTokens: 50,
+  outputTokens: 200,
+});
+```
+
+### Similarity Matching
+
+```typescript
+// Similar queries can match cached entries
+cache.set('What is TypeScript?', response, metadata);
+
+// This will find the cached entry due to similarity
+const result = cache.get('What is typescript?'); // Note: different case
+const result2 = cache.get('What is TypeScript language?'); // Similar query
+```
+
+### Cache Statistics
+
+```typescript
+const stats = cache.getStats();
+
+console.log(`Hits: ${stats.hits}`);
+console.log(`Misses: ${stats.misses}`);
+console.log(`Hit rate: ${stats.hitRate}%`);
+console.log(`Entries: ${stats.entries}`);
+console.log(`Tokens saved: ${stats.tokensSaved}`);
+console.log(`Cost saved: $${stats.estimatedCostSaved}`);
+```
+
+### Cache Management
+
+```typescript
+// Check if entry exists
+if (cache.has('query')) { ... }
+
+// Delete specific entry
+cache.delete('query');
+
+// Clear entire cache
+cache.clear();
+
+// Get all entries (for persistence)
+const entries = cache.getAllEntries();
+```
+
+## ModelSelector
+
+Selects optimal model based on task complexity, cost sensitivity, and budget constraints.
+
+### Basic Usage
+
+```typescript
+import { ModelSelector, getModelSelector } from 'ad-sdlc';
+
+const selector = getModelSelector({
+  defaultModel: 'sonnet',
+  costSensitivity: 0.5,      // 0-1, higher = prefer cheaper
+  qualitySensitivity: 0.5,   // 0-1, higher = prefer better
+  budgetConstraintUsd: 10.0, // Max cost per task
+  agentOverrides: {
+    'validator': 'haiku',    // Force haiku for validation
+    'sds-writer': 'opus',    // Force opus for architecture
+  },
+});
+```
+
+### Selecting a Model
+
+```typescript
+const result = selector.selectModel({
+  estimatedInputTokens: 5000,
+  estimatedOutputTokens: 2000,
+  complexity: 'moderate',       // 'simple' | 'moderate' | 'complex' | 'critical'
+  taskType: 'code_generation',
+  agent: 'worker-1',
+  accuracyCritical: false,
+  speedCritical: true,
+});
+
+console.log(`Selected: ${result.model}`);
+console.log(`Reason: ${result.reason}`);
+console.log(`Estimated cost: $${result.estimatedCostUsd}`);
+console.log(`Confidence: ${result.confidence}`);
+
+// Check alternatives
+for (const alt of result.alternatives) {
+  console.log(`Alternative: ${alt.model} (${alt.reason})`);
+}
+```
+
+### Complexity Analysis
+
+```typescript
+// Analyze content to determine complexity
+const complexity = selector.analyzeComplexity(content, {
+  hasCodeGeneration: true,
+  hasReasoning: false,
+  requiresAccuracy: true,
+});
+
+console.log(`Complexity: ${complexity}`); // 'simple' | 'moderate' | 'complex' | 'critical'
+```
+
+### Agent Recommendations
+
+```typescript
+// Get recommended model for an agent type
+const model = selector.getAgentRecommendation('collector'); // Returns 'sonnet'
+const model2 = selector.getAgentRecommendation('validator'); // Returns 'haiku'
+const model3 = selector.getAgentRecommendation('sds-writer'); // Returns 'opus'
+```
+
+### Model Profiles
+
+```typescript
+const profile = selector.getModelProfile('sonnet');
+
+console.log(`Input cost: $${profile.inputCostPer1k}/1K tokens`);
+console.log(`Output cost: $${profile.outputCostPer1k}/1K tokens`);
+console.log(`Capability: ${profile.capabilityScore}`);
+console.log(`Latency: ${profile.avgLatencyMs}ms`);
+console.log(`Best for: ${profile.bestFor.join(', ')}`);
+```
+
+### Cost Estimation
+
+```typescript
+const cost = selector.estimateCost('sonnet', {
+  estimatedInputTokens: 10000,
+  estimatedOutputTokens: 5000,
+  complexity: 'moderate',
+});
+
+console.log(`Estimated cost: $${cost}`);
+```
+
+## TokenUsageReport
+
+Generates detailed token usage reports with optimization recommendations.
+
+### Basic Usage
+
+```typescript
+import { TokenUsageReport, createTokenUsageReport } from 'ad-sdlc';
+
+const report = createTokenUsageReport('session-123', {
+  includeRecommendations: true,
+  includeTrends: true,
+  trendGranularityMs: 60000,     // 1 minute
+  minSavingsThreshold: 0.01,     // Min $0.01 savings for recommendations
+});
+```
+
+### Recording Trend Data
+
+```typescript
+// Record trend points as usage occurs
+report.recordTrendPoint(1500, 0.0225); // tokens, cost
+```
+
+### Generating Reports
+
+```typescript
+const data = report.generate(
+  tokenUsageMetrics,   // From MetricsCollector
+  agentMetrics,        // From MetricsCollector
+  stageDurations,      // From MetricsCollector
+  'sonnet'             // Primary model used
+);
+
+// Access summary
+console.log(`Total tokens: ${data.summary.totalTokens}`);
+console.log(`Total cost: $${data.summary.totalCostUsd}`);
+console.log(`Tokens/min: ${data.summary.tokensPerMinute}`);
+console.log(`Most expensive agent: ${data.summary.mostExpensiveAgent}`);
+```
+
+### Usage Breakdown
+
+```typescript
+// By model
+for (const model of data.byModel) {
+  console.log(`${model.model}: ${model.totalTokens} tokens ($${model.costUsd})`);
+}
+
+// By agent
+for (const agent of data.byAgent) {
+  console.log(`${agent.agent}: ${agent.percentageOfTotal}% of total`);
+  console.log(`  Avg tokens/invocation: ${agent.avgTokensPerInvocation}`);
+}
+
+// By stage
+for (const stage of data.byStage) {
+  console.log(`${stage.stage}: ${stage.tokens} tokens (${stage.tokensPerSecond}/s)`);
+}
+```
+
+### Optimization Recommendations
+
+```typescript
+for (const rec of data.recommendations) {
+  console.log(`[${rec.priority}] ${rec.title}`);
+  console.log(`  Type: ${rec.type}`);
+  console.log(`  ${rec.description}`);
+  if (rec.estimatedSavingsUsd) {
+    console.log(`  Potential savings: $${rec.estimatedSavingsUsd}`);
+  }
+  console.log(`  Difficulty: ${rec.difficulty}`);
+}
+```
+
+### Export Formats
+
+```typescript
+// Export as JSON
+const json = report.toJSON(data);
+fs.writeFileSync('report.json', json);
+
+// Export as Markdown
+const markdown = report.toMarkdown(data);
+fs.writeFileSync('report.md', markdown);
+```
+
 ## Error Classes
 
 All monitoring errors extend `MonitoringError`:
@@ -513,6 +937,10 @@ import {
   LogWriteError,
   MetricsExportError,
   DashboardDataError,
+  BudgetExceededError,
+  ContextPruningError,
+  ModelSelectionError,
+  CacheError,
 } from 'ad-sdlc';
 
 try {
