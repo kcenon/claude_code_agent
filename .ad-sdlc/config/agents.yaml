@@ -113,6 +113,37 @@ agents:
       success_rate: 0.88
 
   # ---------------------------------------------------------------------------
+  # Document Update Agents
+  # ---------------------------------------------------------------------------
+  prd-updater:
+    id: "prd-updater"
+    name: "PRD Updater Agent"
+    korean_name: "PRD 업데이트 에이전트"
+    description: "Incrementally updates PRD documents with new requirements, modifications, or deprecations"
+    definition_file: ".claude/agents/prd-updater.md"
+    category: "document_update"
+    order: 5
+
+    capabilities:
+      - "incremental_update"
+      - "version_management"
+      - "conflict_detection"
+      - "change_tracking"
+      - "consistency_check"
+
+    io:
+      inputs:
+        - existing_prd.md
+        - change_request
+      outputs:
+        - updated_prd.md
+        - changelog.md
+
+    metrics:
+      avg_duration_seconds: 120
+      success_rate: 0.92
+
+  # ---------------------------------------------------------------------------
   # Issue Management Agents
   # ---------------------------------------------------------------------------
   issue-generator:
@@ -274,6 +305,13 @@ categories:
       - srs-writer
       - sds-writer
     execution_mode: "sequential"
+
+  document_update:
+    name: "Document Update"
+    description: "Agents that incrementally update existing documents"
+    agents:
+      - prd-updater
+    execution_mode: "on_demand"
 
   issue_management:
     name: "Issue Management"
