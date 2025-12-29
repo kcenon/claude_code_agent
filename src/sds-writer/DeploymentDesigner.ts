@@ -301,14 +301,14 @@ export class DeploymentDesigner {
 
     // Try to extract numbers from NFR text
     const concurrentMatch = nfrText.match(/(\d+)\s*concurrent/i);
-    if (concurrentMatch) {
+    if (concurrentMatch !== null && concurrentMatch[1] !== undefined) {
       const concurrent = parseInt(concurrentMatch[1], 10);
       // Estimate instances based on concurrent users (rough: 100 users per instance)
       maxInstances = Math.max(Math.ceil(concurrent / 100), maxInstances);
     }
 
     const instanceMatch = nfrText.match(/max(?:imum)?\s*(\d+)\s*instance/i);
-    if (instanceMatch) {
+    if (instanceMatch !== null && instanceMatch[1] !== undefined) {
       maxInstances = parseInt(instanceMatch[1], 10);
     }
 
