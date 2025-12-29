@@ -59,7 +59,10 @@ interface ApprovalHistoryStorage {
 /**
  * Map document types to project states
  */
-const DOCUMENT_STATE_MAP: Record<ApprovableDocument, { drafting: ProjectState; approved: ProjectState }> = {
+const DOCUMENT_STATE_MAP: Record<
+  ApprovableDocument,
+  { drafting: ProjectState; approved: ProjectState }
+> = {
   prd: { drafting: 'prd_drafting', approved: 'prd_approved' },
   srs: { drafting: 'srs_drafting', approved: 'srs_approved' },
   sds: { drafting: 'sds_drafting', approved: 'sds_approved' },
@@ -267,10 +270,7 @@ export class ApprovalWorkflow {
   /**
    * Handle approve decision
    */
-  private async handleApprove(
-    projectId: string,
-    documentType: ApprovableDocument
-  ): Promise<void> {
+  private async handleApprove(projectId: string, documentType: ApprovableDocument): Promise<void> {
     const stateConfig = DOCUMENT_STATE_MAP[documentType];
 
     // Transition project state
@@ -329,10 +329,7 @@ export class ApprovalWorkflow {
   /**
    * Handle reject decision
    */
-  private async handleReject(
-    projectId: string,
-    _documentType: ApprovableDocument
-  ): Promise<void> {
+  private async handleReject(projectId: string, _documentType: ApprovableDocument): Promise<void> {
     // Transition to cancelled state
     try {
       await this.stateManager.transitionState(projectId, 'cancelled');
@@ -371,10 +368,7 @@ export class ApprovalWorkflow {
   /**
    * Get document metadata
    */
-  private getDocumentMetadata(
-    projectId: string,
-    documentType: ApprovableDocument
-  ): PRDMetadata {
+  private getDocumentMetadata(projectId: string, documentType: ApprovableDocument): PRDMetadata {
     const now = new Date().toISOString();
 
     // Return basic metadata - in real implementation, would read from document
