@@ -685,7 +685,7 @@ export class DocCodeComparatorAgent {
   }
 
   private detectGaps(
-    documentItems: DocumentItem[],
+    _documentItems: DocumentItem[],
     codeItems: CodeItem[],
     mappings: MappingResult[],
     warnings: string[]
