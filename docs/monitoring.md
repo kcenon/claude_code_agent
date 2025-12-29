@@ -47,22 +47,39 @@ logger.warn('Resource running low', { usage: 85 });
 logger.error('Operation failed', new Error('Connection timeout'), { retries: 3 });
 ```
 
-### Agent and Stage Context
+### Agent, Stage, and Project Context
 
 ```typescript
 // Set context for all subsequent logs
 logger.setAgent('worker-1');
 logger.setStage('implementation');
+logger.setProjectId('proj-001');
 
 logger.info('Task started');
-// Output includes: { "agent": "worker-1", "stage": "implementation", ... }
+// Output includes: { "agent": "worker-1", "stage": "implementation", "projectId": "proj-001", ... }
 
 // Create child logger with context
 const childLogger = logger.child({
   agent: 'worker-2',
   stage: 'testing',
+  projectId: 'proj-002',
 });
 ```
+
+### Duration Tracking
+
+Track operation duration by passing `durationMs` in the context:
+
+```typescript
+const startTime = Date.now();
+// ... perform operation ...
+const duration = Date.now() - startTime;
+
+logger.info('Operation completed', { durationMs: duration, result: 'success' });
+// Output: { "durationMs": 150, "context": { "result": "success" }, ... }
+```
+
+The `durationMs` field is automatically extracted from context and stored as a separate field in the log entry.
 
 ### Correlation IDs
 
@@ -410,12 +427,28 @@ Logs are stored in JSON Lines format (`.jsonl`):
   "correlationId": "abc-123-def",
   "agent": "worker-1",
   "stage": "implementation",
+  "projectId": "proj-001",
+  "durationMs": 1500,
   "context": {
-    "taskId": 42,
-    "duration": 1500
+    "taskId": 42
   }
 }
 ```
+
+### Log Entry Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `timestamp` | string | Yes | ISO 8601 timestamp |
+| `level` | string | Yes | Log level (DEBUG, INFO, WARN, ERROR) |
+| `message` | string | Yes | Log message |
+| `correlationId` | string | Yes | Request/operation tracing ID |
+| `agent` | string | No | Agent name that generated the log |
+| `stage` | string | No | Current pipeline stage |
+| `projectId` | string | No | Associated project ID |
+| `durationMs` | number | No | Operation duration in milliseconds |
+| `context` | object | No | Additional context data |
+| `error` | object | No | Error information (name, message, stack) |
 
 ## File Locations
 
@@ -433,10 +466,12 @@ Default file locations:
 
 1. **Use correlation IDs** - Set correlation ID at the start of each request/task for tracing
 2. **Set agent context** - Always set agent name and stage for better log filtering
-3. **Monitor token usage** - Track token consumption to control costs
-4. **Configure alerts** - Set up alerts for critical thresholds
-5. **Review dashboards** - Regularly check health scores and active alerts
-6. **Log rotation** - Configure appropriate max file size and count to manage disk usage
+3. **Set project ID** - Associate logs with projects for multi-project environments
+4. **Track durations** - Include `durationMs` in context for performance analysis
+5. **Monitor token usage** - Track token consumption to control costs
+6. **Configure alerts** - Set up alerts for critical thresholds
+7. **Review dashboards** - Regularly check health scores and active alerts
+8. **Log rotation** - Configure appropriate max file size and count to manage disk usage
 
 ## Integration Example
 
