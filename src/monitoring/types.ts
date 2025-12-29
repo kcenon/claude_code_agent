@@ -61,6 +61,12 @@ export interface LoggerOptions {
   readonly consoleOutput?: boolean;
   /** Enable JSON output format */
   readonly jsonOutput?: boolean;
+  /** Agent-specific log file configuration */
+  readonly agentLogConfig?: AgentLogConfig;
+  /** Custom masking patterns (in addition to defaults) */
+  readonly maskingPatterns?: MaskingPattern[];
+  /** Enable sensitive data masking (default: true) */
+  readonly enableMasking?: boolean;
 }
 
 /**
@@ -286,4 +292,64 @@ export interface LogStorageOptions {
   readonly maxFiles?: number;
   /** Log retention in days */
   readonly retentionDays?: number;
+}
+
+/**
+ * Agent log file configuration
+ */
+export interface AgentLogConfig {
+  /** Enable per-agent log files */
+  readonly enabled?: boolean;
+  /** Directory for agent logs (relative to logDir) */
+  readonly directory?: string;
+  /** Maximum file size per agent log */
+  readonly maxFileSize?: number;
+  /** Maximum number of files per agent */
+  readonly maxFiles?: number;
+}
+
+/**
+ * Sensitive data masking patterns
+ */
+export interface MaskingPattern {
+  /** Pattern name for identification */
+  readonly name: string;
+  /** Regular expression pattern to match */
+  readonly pattern: RegExp;
+  /** Replacement string (default: '***REDACTED***') */
+  readonly replacement?: string;
+}
+
+/**
+ * Log query filter options
+ */
+export interface LogQueryFilter {
+  /** Filter by log level */
+  readonly level?: LogLevel;
+  /** Filter by agent name */
+  readonly agent?: string;
+  /** Filter by pipeline stage */
+  readonly stage?: string;
+  /** Filter by project ID */
+  readonly projectId?: string;
+  /** Filter by correlation ID */
+  readonly correlationId?: string;
+  /** Start time (ISO string) */
+  readonly startTime?: string;
+  /** End time (ISO string) */
+  readonly endTime?: string;
+  /** Text search in message */
+  readonly messageContains?: string;
+}
+
+/**
+ * Log query result with pagination
+ */
+export interface LogQueryResult {
+  /** Matching log entries */
+  readonly entries: LogEntry[];
+  /** Total count of matching entries */
+  readonly totalCount: number;
+  /** Whether there are more entries */
+  readonly hasMore: boolean;
 }
