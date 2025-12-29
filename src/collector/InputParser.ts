@@ -9,6 +9,8 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import * as yaml from 'js-yaml';
+import { PDFParse } from 'pdf-parse';
+import * as mammoth from 'mammoth';
 import type {
   InputSource,
   ParsedInput,
@@ -34,6 +36,8 @@ const FILE_TYPE_MAP: Record<string, SupportedFileType> = {
   '.json': 'json',
   '.yaml': 'yaml',
   '.yml': 'yaml',
+  '.pdf': 'pdf',
+  '.docx': 'docx',
 };
 
 /**
@@ -147,6 +151,16 @@ export class InputParser {
         };
       }
 
+      // Handle binary files (PDF, DOCX) differently
+      if (fileType === 'pdf') {
+        return this.parsePdfFile(filePath, stats);
+      }
+
+      if (fileType === 'docx') {
+        return this.parseDocxFile(filePath, stats);
+      }
+
+      // Handle text-based files
       const rawContent = await fs.promises.readFile(filePath, 'utf8');
       const content = this.processFileContent(rawContent, fileType);
 
@@ -177,6 +191,106 @@ export class InputParser {
         };
       }
       throw error;
+    }
+  }
+
+  /**
+   * Parse PDF file and extract text content
+   *
+   * @param filePath - Path to the PDF file
+   * @param stats - File stats
+   * @returns FileParseResult with extracted text
+   */
+  private async parsePdfFile(filePath: string, stats: fs.Stats): Promise<FileParseResult> {
+    let pdfParser: PDFParse | null = null;
+    try {
+      const dataBuffer = await fs.promises.readFile(filePath);
+      pdfParser = new PDFParse({ data: dataBuffer });
+      const textResult = await pdfParser.getText();
+
+      const content = textResult.text.trim();
+      if (content.length === 0) {
+        return {
+          success: false,
+          content: '',
+          fileType: 'pdf',
+          error: 'PDF file contains no extractable text (may be image-based)',
+        };
+      }
+
+      // Get document info for metadata
+      const infoResult = await pdfParser.getInfo();
+
+      return {
+        success: true,
+        content,
+        fileType: 'pdf',
+        metadata: {
+          size: stats.size,
+          modified: stats.mtime.toISOString(),
+          pages: textResult.pages.length,
+          info: infoResult.info,
+        },
+      };
+    } catch (error) {
+      return {
+        success: false,
+        content: '',
+        fileType: 'pdf',
+        error: error instanceof Error ? error.message : 'Failed to parse PDF file',
+      };
+    } finally {
+      if (pdfParser !== null) {
+        await pdfParser.destroy().catch(() => {
+          // Ignore cleanup errors
+        });
+      }
+    }
+  }
+
+  /**
+   * Parse DOCX file and extract text content
+   *
+   * @param filePath - Path to the DOCX file
+   * @param stats - File stats
+   * @returns FileParseResult with extracted text
+   */
+  private async parseDocxFile(filePath: string, stats: fs.Stats): Promise<FileParseResult> {
+    try {
+      const result = await mammoth.extractRawText({ path: filePath });
+
+      const content = result.value.trim();
+      if (content.length === 0) {
+        return {
+          success: false,
+          content: '',
+          fileType: 'docx',
+          error: 'DOCX file contains no extractable text',
+        };
+      }
+
+      // Collect any warnings from mammoth
+      const warnings = result.messages
+        .filter((msg) => msg.type === 'warning')
+        .map((msg) => msg.message);
+
+      return {
+        success: true,
+        content,
+        fileType: 'docx',
+        metadata: {
+          size: stats.size,
+          modified: stats.mtime.toISOString(),
+          warnings: warnings.length > 0 ? warnings : undefined,
+        },
+      };
+    } catch (error) {
+      return {
+        success: false,
+        content: '',
+        fileType: 'docx',
+        error: error instanceof Error ? error.message : 'Failed to parse DOCX file',
+      };
     }
   }
 
@@ -480,6 +594,7 @@ export class InputParser {
    *
    * @param filePath - Path to the file
    * @returns FileParseResult with parsed content
+   * @note PDF and DOCX files require async parsing - use parseFile() instead
    */
   public parseFileSync(filePath: string): FileParseResult {
     const extension = path.extname(filePath).toLowerCase();
@@ -490,6 +605,16 @@ export class InputParser {
         extension.slice(1),
         SUPPORTED_EXTENSIONS.map((e) => e.slice(1))
       );
+    }
+
+    // PDF and DOCX require async parsing
+    if (fileType === 'pdf' || fileType === 'docx') {
+      return {
+        success: false,
+        content: '',
+        fileType,
+        error: `${fileType.toUpperCase()} files require async parsing. Use parseFile() instead of parseFileSync().`,
+      };
     }
 
     try {
@@ -534,5 +659,17 @@ export class InputParser {
       }
       throw error;
     }
+  }
+
+  /**
+   * Check if a file type requires async parsing
+   *
+   * @param extension - File extension
+   * @returns True if the file type requires async parsing
+   */
+  public static requiresAsyncParsing(extension: string): boolean {
+    const ext = extension.startsWith('.') ? extension.toLowerCase() : `.${extension.toLowerCase()}`;
+    const fileType = FILE_TYPE_MAP[ext];
+    return fileType === 'pdf' || fileType === 'docx';
   }
 }
