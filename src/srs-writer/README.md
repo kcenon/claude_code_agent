@@ -154,6 +154,91 @@ Decomposes PRD requirements into SRS features:
 - Generates use cases with complete flows
 - Handles complex requirements by splitting into sub-features
 - Preserves requirement priorities
+- Optionally uses advanced UseCaseGenerator for detailed use case creation
+
+### UseCaseGenerator
+
+Generates detailed use cases with structured flows:
+
+```typescript
+import { UseCaseGenerator } from './srs-writer';
+
+const generator = new UseCaseGenerator({
+  minUseCasesPerFeature: 1,
+  maxUseCasesPerFeature: 5,
+  generateExceptionFlows: true,
+  includeSecondaryActors: true,
+});
+
+const result = generator.generateForFeature({
+  feature: srsFeature,
+  requirement: prdRequirement,
+  actors: ['User', 'Administrator', 'System'],
+});
+
+// Access detailed use cases
+console.log(result.useCases);  // DetailedUseCase[]
+console.log(result.coverage);  // Coverage metrics
+
+// Convert to basic format for backward compatibility
+const basicUseCases = generator.toBasicUseCases(result.useCases);
+```
+
+#### Use Case Structure
+
+```typescript
+interface DetailedUseCase {
+  id: string;              // UC-XXX
+  title: string;
+  description: string;
+  actor: string;           // Primary actor
+  secondaryActors: string[];
+  preconditions: string[];
+  mainFlow: FlowStep[];    // Structured flow steps
+  alternativeFlows: AlternativeFlow[];
+  exceptionFlows: ExceptionFlow[];
+  postconditions: string[];
+  sourceFeatureId: string;
+  sourceRequirementId: string;
+}
+
+interface FlowStep {
+  stepNumber: number;
+  description: string;
+  systemResponse?: string;
+}
+
+interface AlternativeFlow {
+  label: string;      // e.g., "2a"
+  condition: string;
+  steps: FlowStep[];
+}
+
+interface ExceptionFlow {
+  label: string;      // e.g., "E1"
+  exception: string;
+  handling: string;
+}
+```
+
+#### Enabling Advanced Use Case Generation
+
+To use the advanced UseCaseGenerator in FeatureDecomposer:
+
+```typescript
+const decomposer = new FeatureDecomposer({
+  useAdvancedUseCaseGeneration: true,
+  useCaseGeneratorOptions: {
+    generateExceptionFlows: true,
+    includeSecondaryActors: true,
+  },
+});
+
+const result = decomposer.decompose(parsedPRD);
+
+// Access detailed use cases (only available with advanced generation)
+const detailedUseCases = decomposer.getDetailedUseCases();
+```
 
 ### TraceabilityBuilder
 

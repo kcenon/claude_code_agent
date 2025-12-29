@@ -156,6 +156,73 @@ export interface FeatureDecompositionResult {
 }
 
 /**
+ * Flow step in a use case main or alternative flow
+ */
+export interface FlowStep {
+  /** Step number in the flow */
+  readonly stepNumber: number;
+  /** Step description (user or system action) */
+  readonly description: string;
+  /** Optional system response to this step */
+  readonly systemResponse?: string;
+}
+
+/**
+ * Alternative flow that branches from the main flow
+ */
+export interface AlternativeFlow {
+  /** Flow label (e.g., "2a", "3b") indicating branch point */
+  readonly label: string;
+  /** Condition that triggers this alternative */
+  readonly condition: string;
+  /** Steps in this alternative flow */
+  readonly steps: readonly FlowStep[];
+}
+
+/**
+ * Exception flow for error handling scenarios
+ */
+export interface ExceptionFlow {
+  /** Exception label (e.g., "E1", "E2") */
+  readonly label: string;
+  /** Exception condition or error type */
+  readonly exception: string;
+  /** How the system handles this exception */
+  readonly handling: string;
+}
+
+/**
+ * Detailed use case with structured flows
+ * Extends the basic SRSUseCase with richer flow information
+ */
+export interface DetailedUseCase {
+  /** Unique identifier (UC-XXX) */
+  readonly id: string;
+  /** Use case title */
+  readonly title: string;
+  /** Detailed description */
+  readonly description: string;
+  /** Primary actor */
+  readonly actor: string;
+  /** Secondary actors involved */
+  readonly secondaryActors: readonly string[];
+  /** Preconditions that must be true before execution */
+  readonly preconditions: readonly string[];
+  /** Structured main flow steps */
+  readonly mainFlow: readonly FlowStep[];
+  /** Alternative flows branching from main flow */
+  readonly alternativeFlows: readonly AlternativeFlow[];
+  /** Exception flows for error scenarios */
+  readonly exceptionFlows: readonly ExceptionFlow[];
+  /** Postconditions that will be true after successful execution */
+  readonly postconditions: readonly string[];
+  /** Source feature ID this use case belongs to */
+  readonly sourceFeatureId: string;
+  /** Source requirement ID this traces to */
+  readonly sourceRequirementId: string;
+}
+
+/**
  * Use case generation input
  */
 export interface UseCaseInput {
