@@ -304,3 +304,119 @@ export interface TemplateProcessingResult {
   /** Warnings during processing */
   readonly warnings: readonly string[];
 }
+
+// ============================================================
+// Approval Workflow Types
+// ============================================================
+
+/**
+ * Approval decision options
+ */
+export type ApprovalDecision = 'approve' | 'request_changes' | 'reject';
+
+/**
+ * Document types that can be approved
+ */
+export type ApprovableDocument = 'prd' | 'srs' | 'sds';
+
+/**
+ * Approval request structure
+ */
+export interface ApprovalRequest {
+  /** Project identifier */
+  readonly projectId: string;
+  /** Document type being approved */
+  readonly documentType: ApprovableDocument;
+  /** Path to the document */
+  readonly documentPath: string;
+  /** Document content for review */
+  readonly content: string;
+  /** Document metadata */
+  readonly metadata: PRDMetadata;
+  /** Request timestamp */
+  readonly requestedAt: string;
+}
+
+/**
+ * Approval result structure
+ */
+export interface ApprovalResult {
+  /** Whether the document was approved */
+  readonly approved: boolean;
+  /** The decision made */
+  readonly decision: ApprovalDecision;
+  /** Feedback provided (for request_changes or reject) */
+  readonly feedback?: string;
+  /** Timestamp of the decision */
+  readonly timestamp: string;
+  /** Identifier of who approved (optional) */
+  readonly approver?: string;
+}
+
+/**
+ * Approval history entry
+ */
+export interface ApprovalHistoryEntry {
+  /** Entry identifier */
+  readonly id: string;
+  /** Project identifier */
+  readonly projectId: string;
+  /** Document type */
+  readonly documentType: ApprovableDocument;
+  /** Document version at time of review */
+  readonly documentVersion: string;
+  /** Decision made */
+  readonly decision: ApprovalDecision;
+  /** Feedback provided */
+  readonly feedback?: string;
+  /** Timestamp */
+  readonly timestamp: string;
+  /** Approver identifier */
+  readonly approver?: string;
+}
+
+/**
+ * Approval workflow configuration
+ */
+export interface ApprovalWorkflowConfig {
+  /** Base path for scratchpad */
+  readonly scratchpadBasePath?: string;
+  /** Path for approved documents */
+  readonly approvedDocsPath?: string;
+  /** Whether to require feedback on rejection */
+  readonly requireFeedbackOnReject?: boolean;
+  /** Whether to require feedback on request_changes */
+  readonly requireFeedbackOnChanges?: boolean;
+}
+
+/**
+ * PRD revision entry for tracking changes
+ */
+export interface PRDRevision {
+  /** Revision version */
+  readonly version: string;
+  /** Revision timestamp */
+  readonly timestamp: string;
+  /** List of changes made */
+  readonly changes: readonly string[];
+  /** Feedback that prompted the revision */
+  readonly feedback: string;
+}
+
+/**
+ * Approval status for a project
+ */
+export interface ApprovalStatus {
+  /** Project identifier */
+  readonly projectId: string;
+  /** Document type */
+  readonly documentType: ApprovableDocument;
+  /** Current approval state */
+  readonly state: 'pending' | 'approved' | 'changes_requested' | 'rejected';
+  /** Latest approval history entry */
+  readonly latestEntry?: ApprovalHistoryEntry;
+  /** Total number of approval attempts */
+  readonly attemptCount: number;
+  /** Revision history */
+  readonly revisions: readonly PRDRevision[];
+}
