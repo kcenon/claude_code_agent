@@ -515,6 +515,64 @@ export class CollectorAgent {
 
     return this.finalize(options?.projectName, options?.projectDescription);
   }
+
+  /**
+   * Convenience method: Collect from multiple files and finalize in one call
+   *
+   * @param filePaths - Array of file paths to process
+   * @param options - Optional project name and description
+   * @returns CollectionResult with merged information from all files
+   */
+  public async collectFromFiles(
+    filePaths: readonly string[],
+    options?: { projectName?: string; projectDescription?: string }
+  ): Promise<CollectionResult> {
+    if (filePaths.length === 0) {
+      throw new MissingInformationError(['No file paths provided']);
+    }
+
+    await this.startSession(options?.projectName);
+
+    // Process all files sequentially, collecting errors
+    const errors: string[] = [];
+    for (const filePath of filePaths) {
+      try {
+        await this.addFileInput(filePath);
+      } catch (error) {
+        errors.push(
+          `Failed to process "${filePath}": ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
+    }
+
+    // Check if we have at least one successful source
+    if (this.session !== null && this.session.sources.length === 0) {
+      throw new MissingInformationError(['No files could be processed successfully', ...errors]);
+    }
+
+    const extraction = this.processInputs();
+
+    // Add file processing errors as warnings
+    if (errors.length > 0 && this.session !== null) {
+      this.session = {
+        ...this.session,
+        extraction: {
+          ...this.session.extraction,
+          warnings: [...this.session.extraction.warnings, ...errors],
+        },
+        updatedAt: new Date().toISOString(),
+      };
+    }
+
+    if (
+      this.config.skipClarificationIfConfident &&
+      extraction.overallConfidence >= this.config.confidenceThreshold
+    ) {
+      this.skipClarification();
+    }
+
+    return this.finalize(options?.projectName, options?.projectDescription);
+  }
 }
 
 /**

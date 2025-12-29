@@ -6,7 +6,7 @@ The collector module gathers, parses, and structures information from various in
 
 The module includes:
 
-- **InputParser** - Parses text, files (.md, .txt, .json, .yaml), and URLs
+- **InputParser** - Parses text, files (.md, .txt, .json, .yaml, .pdf, .docx), and URLs
 - **InformationExtractor** - Extracts requirements, constraints, assumptions, and dependencies
 - **CollectorAgent** - Main orchestration class for the collection workflow
 
@@ -49,6 +49,19 @@ const result = await collector.collectFromText(
 
 console.log(`Collected ${result.stats.functionalRequirements} requirements`);
 console.log(`Output: ${result.outputPath}`);
+
+// Quick collection from a single file
+const fileResult = await collector.collectFromFile('requirements.md', {
+  projectName: 'MyProject',
+});
+
+// Quick collection from multiple files
+const multiResult = await collector.collectFromFiles(
+  ['requirements.md', 'constraints.pdf', 'specs.docx'],
+  { projectName: 'MultiSourceProject' }
+);
+
+console.log(`Processed ${multiResult.stats.sourcesProcessed} files`);
 ```
 
 ### Session-Based Collection
@@ -123,20 +136,45 @@ console.log(source.type);     // 'text'
 ### Parse Files
 
 ```typescript
-// Parse file (async)
+// Parse file (async) - supports .md, .txt, .json, .yaml, .pdf, .docx
 const source = await parser.parseFile('requirements.md');
 
-// Parse file (sync)
+// Parse PDF with text extraction
+const pdfSource = await parser.parseFile('specification.pdf');
+console.log(pdfSource.content);  // Extracted text from PDF
+
+// Parse DOCX with text extraction
+const docxSource = await parser.parseFile('requirements.docx');
+console.log(docxSource.content);  // Extracted text from Word document
+
+// Parse file (sync) - NOTE: PDF and DOCX require async parsing
 const result = parser.parseFileSync('config.json');
 if (result.success) {
   console.log(result.content);
 }
 
 // Check supported extensions
-InputParser.isExtensionSupported('.md');   // true
-InputParser.isExtensionSupported('.pdf');  // false (not yet supported)
-InputParser.getSupportedExtensions();      // ['.md', '.txt', '.json', '.yaml', ...]
+InputParser.isExtensionSupported('.md');    // true
+InputParser.isExtensionSupported('.pdf');   // true
+InputParser.isExtensionSupported('.docx');  // true
+InputParser.getSupportedExtensions();       // ['.md', '.txt', '.json', '.yaml', '.pdf', '.docx', ...]
+
+// Check if file type requires async parsing
+InputParser.requiresAsyncParsing('.pdf');   // true
+InputParser.requiresAsyncParsing('.docx');  // true
+InputParser.requiresAsyncParsing('.md');    // false
 ```
+
+#### Supported File Types
+
+| Extension | Type | Parsing Method | Notes |
+|-----------|------|----------------|-------|
+| `.md`, `.markdown` | Markdown | Sync/Async | Plain text extraction |
+| `.txt`, `.text` | Text | Sync/Async | Plain text |
+| `.json` | JSON | Sync/Async | Pretty-printed |
+| `.yaml`, `.yml` | YAML | Sync/Async | Normalized format |
+| `.pdf` | PDF | Async only | Text extraction via pdf-parse |
+| `.docx` | Word | Async only | Text extraction via mammoth |
 
 ### Parse URLs
 
