@@ -323,10 +323,7 @@ export class UseCaseGenerator {
   /**
    * Select the primary actor based on requirement context
    */
-  private selectPrimaryActor(
-    requirement: ParsedPRDRequirement,
-    actors: readonly string[]
-  ): string {
+  private selectPrimaryActor(requirement: ParsedPRDRequirement, actors: readonly string[]): string {
     const text = `${requirement.title} ${requirement.description} ${requirement.userStory ?? ''}`;
     const lowerText = text.toLowerCase();
 
@@ -823,7 +820,8 @@ export class UseCaseGenerator {
           `${String(step.stepNumber)}. ${step.description}${step.systemResponse !== undefined ? ` (${step.systemResponse})` : ''}`
       ),
       alternativeFlows: detailed.alternativeFlows.map(
-        (alt) => `${alt.label}: ${alt.condition} - ${alt.steps.map((s) => s.description).join(', ')}`
+        (alt) =>
+          `${alt.label}: ${alt.condition} - ${alt.steps.map((s) => s.description).join(', ')}`
       ),
       postconditions: [...detailed.postconditions],
     };
