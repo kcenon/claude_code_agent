@@ -37,100 +37,272 @@ global:
     pr_review: 300
 
 # =============================================================================
-# Pipeline Stages
+# Pipeline Mode Selection
+# =============================================================================
+# Mode is determined by mode-detector agent or can be overridden by user
+# See mode-detection.yaml for detection rules and thresholds
+
+# =============================================================================
+# Pipeline Stages by Mode
 # =============================================================================
 pipeline:
-  stages:
-    - name: "collection"
-      agent: "collector"
-      description: "Collect and structure user requirements"
-      inputs:
-        - type: "user_message"
-        - type: "files"
-        - type: "urls"
-      outputs:
-        - "${scratchpad_dir}/info/${project_id}/collected_info.yaml"
-      next: "prd_generation"
-      approval_required: true
+  # Default mode (can be overridden by user or auto-detected)
+  default_mode: "greenfield"
 
-    - name: "prd_generation"
-      agent: "prd-writer"
-      description: "Generate PRD from collected information"
-      inputs:
-        - "${scratchpad_dir}/info/${project_id}/collected_info.yaml"
-      outputs:
-        - "${scratchpad_dir}/documents/${project_id}/prd.md"
-        - "${output_docs_dir}/prd/PRD-${project_id}.md"
-      next: "srs_generation"
-      approval_required: true
+  modes:
+    # =========================================================================
+    # Greenfield Mode - Full document generation pipeline for new projects
+    # =========================================================================
+    greenfield:
+      description: "Full document generation pipeline for new projects"
+      stages:
+        - name: "collection"
+          agent: "collector"
+          description: "Collect and structure user requirements"
+          inputs:
+            - type: "user_message"
+            - type: "files"
+            - type: "urls"
+          outputs:
+            - "${scratchpad_dir}/info/${project_id}/collected_info.yaml"
+          next: "prd_generation"
+          approval_required: true
 
-    - name: "srs_generation"
-      agent: "srs-writer"
-      description: "Generate SRS from PRD"
-      inputs:
-        - "${scratchpad_dir}/documents/${project_id}/prd.md"
-      outputs:
-        - "${scratchpad_dir}/documents/${project_id}/srs.md"
-        - "${output_docs_dir}/srs/SRS-${project_id}.md"
-      next: "sds_generation"
-      approval_required: true
+        - name: "prd_generation"
+          agent: "prd-writer"
+          description: "Generate PRD from collected information"
+          inputs:
+            - "${scratchpad_dir}/info/${project_id}/collected_info.yaml"
+          outputs:
+            - "${scratchpad_dir}/documents/${project_id}/prd.md"
+            - "${output_docs_dir}/prd/PRD-${project_id}.md"
+          next: "srs_generation"
+          approval_required: true
 
-    - name: "sds_generation"
-      agent: "sds-writer"
-      description: "Generate SDS from SRS"
-      inputs:
-        - "${scratchpad_dir}/documents/${project_id}/srs.md"
-      outputs:
-        - "${scratchpad_dir}/documents/${project_id}/sds.md"
-        - "${output_docs_dir}/sds/SDS-${project_id}.md"
-      next: "issue_generation"
-      approval_required: true
+        - name: "srs_generation"
+          agent: "srs-writer"
+          description: "Generate SRS from PRD"
+          inputs:
+            - "${scratchpad_dir}/documents/${project_id}/prd.md"
+          outputs:
+            - "${scratchpad_dir}/documents/${project_id}/srs.md"
+            - "${output_docs_dir}/srs/SRS-${project_id}.md"
+          next: "sds_generation"
+          approval_required: true
 
-    - name: "issue_generation"
-      agent: "issue-generator"
-      description: "Generate GitHub issues from SDS"
-      inputs:
-        - "${scratchpad_dir}/documents/${project_id}/sds.md"
-      outputs:
-        - "${scratchpad_dir}/issues/${project_id}/issue_list.json"
-        - "${scratchpad_dir}/issues/${project_id}/dependency_graph.json"
-      next: "orchestration"
-      approval_required: true
+        - name: "sds_generation"
+          agent: "sds-writer"
+          description: "Generate SDS from SRS"
+          inputs:
+            - "${scratchpad_dir}/documents/${project_id}/srs.md"
+          outputs:
+            - "${scratchpad_dir}/documents/${project_id}/sds.md"
+            - "${output_docs_dir}/sds/SDS-${project_id}.md"
+          next: "issue_generation"
+          approval_required: true
 
-    - name: "orchestration"
-      agent: "controller"
-      description: "Orchestrate work distribution"
-      inputs:
-        - "${scratchpad_dir}/issues/${project_id}/issue_list.json"
-        - "${scratchpad_dir}/issues/${project_id}/dependency_graph.json"
-      outputs:
-        - "${scratchpad_dir}/progress/${project_id}/controller_state.yaml"
-        - "${scratchpad_dir}/progress/${project_id}/work_orders/*.yaml"
-      next: "implementation"
-      approval_required: false
+        - name: "issue_generation"
+          agent: "issue-generator"
+          description: "Generate GitHub issues from SDS"
+          inputs:
+            - "${scratchpad_dir}/documents/${project_id}/sds.md"
+          outputs:
+            - "${scratchpad_dir}/issues/${project_id}/issue_list.json"
+            - "${scratchpad_dir}/issues/${project_id}/dependency_graph.json"
+          next: "orchestration"
+          approval_required: true
 
-    - name: "implementation"
-      agent: "worker"
-      description: "Implement assigned issues"
-      parallel: true
-      max_parallel: 5
-      inputs:
-        - "${scratchpad_dir}/progress/${project_id}/work_orders/*.yaml"
-      outputs:
-        - "${scratchpad_dir}/progress/${project_id}/results/*.yaml"
-        - "src/**/*"
-      next: "review"
-      approval_required: false
+        - name: "orchestration"
+          agent: "controller"
+          description: "Orchestrate work distribution"
+          inputs:
+            - "${scratchpad_dir}/issues/${project_id}/issue_list.json"
+            - "${scratchpad_dir}/issues/${project_id}/dependency_graph.json"
+          outputs:
+            - "${scratchpad_dir}/progress/${project_id}/controller_state.yaml"
+            - "${scratchpad_dir}/progress/${project_id}/work_orders/*.yaml"
+          next: "implementation"
+          approval_required: false
 
-    - name: "review"
-      agent: "pr-reviewer"
-      description: "Create and review PRs"
-      inputs:
-        - "${scratchpad_dir}/progress/${project_id}/results/*.yaml"
-      outputs:
-        - "${scratchpad_dir}/progress/${project_id}/reviews/*.yaml"
-      next: null  # End of pipeline
-      approval_required: false
+        - name: "implementation"
+          agent: "worker"
+          description: "Implement assigned issues"
+          parallel: true
+          max_parallel: 5
+          inputs:
+            - "${scratchpad_dir}/progress/${project_id}/work_orders/*.yaml"
+          outputs:
+            - "${scratchpad_dir}/progress/${project_id}/results/*.yaml"
+            - "src/**/*"
+          next: "review"
+          approval_required: false
+
+        - name: "review"
+          agent: "pr-reviewer"
+          description: "Create and review PRs"
+          inputs:
+            - "${scratchpad_dir}/progress/${project_id}/results/*.yaml"
+          outputs:
+            - "${scratchpad_dir}/progress/${project_id}/reviews/*.yaml"
+          next: null  # End of pipeline
+          approval_required: false
+
+    # =========================================================================
+    # Enhancement Mode - Incremental update pipeline for existing projects
+    # =========================================================================
+    enhancement:
+      description: "Incremental update pipeline for existing projects"
+      stages:
+        - name: "analysis_parallel"
+          description: "Parallel analysis of existing documents and codebase"
+          parallel: true
+          substages:
+            - name: "document_reading"
+              agent: "document-reader"
+              description: "Parse existing PRD/SRS/SDS documents"
+              inputs:
+                - type: "existing_documents"
+                - "${output_docs_dir}/prd/*.md"
+                - "${output_docs_dir}/srs/*.md"
+                - "${output_docs_dir}/sds/*.md"
+              outputs:
+                - "${scratchpad_dir}/current_state/${project_id}/current_state.yaml"
+              approval_required: false
+
+            - name: "codebase_analysis"
+              agent: "codebase-analyzer"
+              description: "Analyze existing codebase structure"
+              inputs:
+                - type: "source_code"
+                - "src/**/*"
+                - "package.json"
+                - "tsconfig.json"
+              outputs:
+                - "${scratchpad_dir}/analysis/${project_id}/architecture_overview.yaml"
+                - "${scratchpad_dir}/analysis/${project_id}/dependency_graph.json"
+              approval_required: false
+          next: "impact_analysis"
+
+        - name: "impact_analysis"
+          agent: "impact-analyzer"
+          description: "Analyze change impact on existing system"
+          inputs:
+            - type: "user_message"
+            - "${scratchpad_dir}/current_state/${project_id}/current_state.yaml"
+            - "${scratchpad_dir}/analysis/${project_id}/architecture_overview.yaml"
+            - "${scratchpad_dir}/analysis/${project_id}/dependency_graph.json"
+          outputs:
+            - "${scratchpad_dir}/impact/${project_id}/impact_report.yaml"
+          next: "document_update"
+          approval_required: true  # Human review of impact analysis
+
+        - name: "document_update"
+          description: "Sequential document updates (PRD → SRS → SDS)"
+          substages:
+            - name: "prd_update"
+              agent: "prd-updater"
+              description: "Incrementally update PRD"
+              inputs:
+                - "${output_docs_dir}/prd/*.md"
+                - "${scratchpad_dir}/impact/${project_id}/impact_report.yaml"
+              outputs:
+                - "${scratchpad_dir}/documents/${project_id}/prd_update_result.yaml"
+                - "${output_docs_dir}/prd/PRD-${project_id}.md"
+                - "${output_docs_dir}/prd/prd_changelog.md"
+              next: "srs_update"
+              approval_required: true
+
+            - name: "srs_update"
+              agent: "srs-updater"
+              description: "Incrementally update SRS"
+              inputs:
+                - "${output_docs_dir}/srs/*.md"
+                - "${scratchpad_dir}/documents/${project_id}/prd_update_result.yaml"
+              outputs:
+                - "${scratchpad_dir}/documents/${project_id}/srs_update_result.yaml"
+                - "${output_docs_dir}/srs/SRS-${project_id}.md"
+                - "${output_docs_dir}/srs/srs_changelog.md"
+              next: "sds_update"
+              approval_required: true
+
+            - name: "sds_update"
+              agent: "sds-updater"
+              description: "Incrementally update SDS"
+              inputs:
+                - "${output_docs_dir}/sds/*.md"
+                - "${scratchpad_dir}/documents/${project_id}/srs_update_result.yaml"
+              outputs:
+                - "${scratchpad_dir}/documents/${project_id}/sds_update_result.yaml"
+                - "${output_docs_dir}/sds/SDS-${project_id}.md"
+                - "${output_docs_dir}/sds/sds_changelog.md"
+              approval_required: true
+          next: "issue_generation"
+
+        - name: "issue_generation"
+          agent: "issue-generator"
+          description: "Generate issues from updated SDS and impact report"
+          inputs:
+            - "${scratchpad_dir}/documents/${project_id}/sds_update_result.yaml"
+            - "${scratchpad_dir}/impact/${project_id}/impact_report.yaml"
+          outputs:
+            - "${scratchpad_dir}/issues/${project_id}/issue_list.json"
+            - "${scratchpad_dir}/issues/${project_id}/dependency_graph.json"
+          next: "orchestration"
+          approval_required: true
+
+        - name: "orchestration"
+          agent: "controller"
+          description: "Orchestrate work distribution"
+          inputs:
+            - "${scratchpad_dir}/issues/${project_id}/issue_list.json"
+            - "${scratchpad_dir}/issues/${project_id}/dependency_graph.json"
+          outputs:
+            - "${scratchpad_dir}/progress/${project_id}/controller_state.yaml"
+            - "${scratchpad_dir}/progress/${project_id}/work_orders/*.yaml"
+          next: "parallel_execution"
+          approval_required: false
+
+        - name: "parallel_execution"
+          description: "Parallel execution of implementation and regression testing"
+          parallel: true
+          substages:
+            - name: "implementation"
+              agent: "worker"
+              description: "Implement assigned issues"
+              parallel: true
+              max_parallel: 5
+              inputs:
+                - "${scratchpad_dir}/progress/${project_id}/work_orders/*.yaml"
+              outputs:
+                - "${scratchpad_dir}/progress/${project_id}/results/*.yaml"
+                - "src/**/*"
+              approval_required: false
+
+            - name: "regression_testing"
+              agent: "regression-tester"
+              description: "Run regression tests for affected areas"
+              inputs:
+                - "${scratchpad_dir}/progress/${project_id}/results/*.yaml"
+                - "${scratchpad_dir}/analysis/${project_id}/dependency_graph.json"
+              outputs:
+                - "${scratchpad_dir}/progress/${project_id}/regression_report.yaml"
+              approval_required: false
+          next: "review"
+
+        - name: "review"
+          agent: "pr-reviewer"
+          description: "Create and review PRs with regression report"
+          inputs:
+            - "${scratchpad_dir}/progress/${project_id}/results/*.yaml"
+            - "${scratchpad_dir}/progress/${project_id}/regression_report.yaml"
+          outputs:
+            - "${scratchpad_dir}/progress/${project_id}/reviews/*.yaml"
+          next: null  # End of pipeline
+          approval_required: false
+
+  # Legacy compatibility: stages array for backward compatibility
+  # When no mode is specified, this defaults to greenfield stages
+  stages: []  # Use modes.greenfield.stages or modes.enhancement.stages
 
 # =============================================================================
 # Agent Configurations
@@ -242,6 +414,124 @@ agents:
     github:
       merge_strategy: "squash"  # merge, squash, rebase
       delete_branch_after_merge: true
+
+  # ---------------------------------------------------------------------------
+  # Enhancement Pipeline Agent Configurations
+  # ---------------------------------------------------------------------------
+  document-reader:
+    model: "sonnet"
+    tools:
+      - Read
+      - Write
+      - Glob
+      - Grep
+    parsing:
+      supported_formats:
+        - markdown
+        - yaml
+      extract_ids: true
+      build_traceability: true
+
+  codebase-analyzer:
+    model: "sonnet"
+    tools:
+      - Read
+      - Write
+      - Glob
+      - Grep
+      - Bash
+    analysis:
+      languages:
+        - typescript
+        - javascript
+        - python
+      detect_patterns: true
+      generate_metrics: true
+      max_depth: 10
+
+  impact-analyzer:
+    model: "sonnet"
+    tools:
+      - Read
+      - Write
+      - Glob
+      - Grep
+    risk_scoring:
+      enabled: true
+      factors:
+        - code_complexity
+        - dependency_count
+        - test_coverage
+        - change_scope
+
+  prd-updater:
+    model: "sonnet"
+    tools:
+      - Read
+      - Write
+      - Edit
+      - Glob
+      - Grep
+    update_modes:
+      - add_requirement
+      - modify_requirement
+      - deprecate_requirement
+      - extend_scope
+    version_management:
+      auto_increment: true
+      generate_changelog: true
+
+  srs-updater:
+    model: "sonnet"
+    tools:
+      - Read
+      - Write
+      - Edit
+      - Glob
+      - Grep
+    update_modes:
+      - add_feature
+      - add_use_case
+      - modify_feature
+      - update_interface
+      - update_traceability
+    traceability:
+      maintain_prd_links: true
+      auto_update_matrix: true
+
+  sds-updater:
+    model: "sonnet"
+    tools:
+      - Read
+      - Write
+      - Edit
+      - Glob
+      - Grep
+    update_modes:
+      - add_component
+      - add_api
+      - modify_component
+      - update_data_model
+      - update_architecture
+    traceability:
+      maintain_srs_links: true
+      auto_update_matrix: true
+
+  regression-tester:
+    model: "sonnet"
+    tools:
+      - Read
+      - Write
+      - Glob
+      - Grep
+      - Bash
+    testing:
+      run_affected_tests: true
+      coverage_analysis: true
+      compatibility_check: true
+    thresholds:
+      min_coverage: 80
+      max_regression_risk: "medium"
 
 # =============================================================================
 # Quality Gates
