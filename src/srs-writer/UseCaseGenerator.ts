@@ -467,11 +467,16 @@ export class UseCaseGenerator {
           /\b(?:system|shall|must|will|should)\b/i.test(trimmed) ||
           /\b(?:display|store|validate|process|generate)\b/i.test(trimmed);
 
-        steps.push({
+        const step: FlowStep = {
           stepNumber: stepNumber++,
           description: trimmed,
-          systemResponse: isSystemAction ? 'Action completed' : undefined,
-        });
+        };
+
+        if (isSystemAction) {
+          steps.push({ ...step, systemResponse: 'Action completed' });
+        } else {
+          steps.push(step);
+        }
       }
     }
 
