@@ -15,6 +15,7 @@ import { getScratchpad, type CollectedInfo } from '../scratchpad/index.js';
 import { GapAnalyzer, type GapAnalyzerOptions } from './GapAnalyzer.js';
 import { ConsistencyChecker, type ConsistencyCheckerOptions } from './ConsistencyChecker.js';
 import { TemplateProcessor, type TemplateProcessorOptions } from './TemplateProcessor.js';
+import { QualityMetricsCalculator } from './QualityMetricsCalculator.js';
 import type {
   PRDWriterAgentConfig,
   PRDGenerationSession,
@@ -24,6 +25,7 @@ import type {
   PRDMetadata,
   GapAnalysisResult,
   ConsistencyCheckResult,
+  QualityMetrics,
 } from './types.js';
 import {
   CollectedInfoNotFoundError,
@@ -53,6 +55,7 @@ export class PRDWriterAgent {
   private readonly gapAnalyzer: GapAnalyzer;
   private readonly consistencyChecker: ConsistencyChecker;
   private readonly templateProcessor: TemplateProcessor;
+  private readonly qualityMetricsCalculator: QualityMetricsCalculator;
   private session: PRDGenerationSession | null = null;
 
   constructor(config: PRDWriterAgentConfig = {}) {
@@ -79,6 +82,7 @@ export class PRDWriterAgent {
     this.gapAnalyzer = new GapAnalyzer(gapOptions);
     this.consistencyChecker = new ConsistencyChecker(consistencyOptions);
     this.templateProcessor = new TemplateProcessor(templateOptions);
+    this.qualityMetricsCalculator = new QualityMetricsCalculator();
   }
 
   /**
@@ -200,6 +204,13 @@ export class PRDWriterAgent {
     const consistencyCheck =
       session.consistencyCheck ?? this.consistencyChecker.check(session.collectedInfo);
 
+    // Calculate quality metrics
+    const qualityMetrics = this.qualityMetricsCalculator.calculate(
+      session.collectedInfo,
+      gapAnalysis,
+      consistencyCheck
+    );
+
     // Create metadata
     const metadata = this.createMetadata(session);
 
@@ -219,6 +230,7 @@ export class PRDWriterAgent {
       content,
       gapAnalysis,
       consistencyCheck,
+      qualityMetrics,
     };
 
     this.session = {
@@ -408,8 +420,28 @@ export class PRDWriterAgent {
       gapsFound: generatedPRD.gapAnalysis.totalGaps,
       consistencyIssues: generatedPRD.consistencyCheck.issues.length,
       completenessScore: generatedPRD.gapAnalysis.completenessScore,
+      qualityMetrics: generatedPRD.qualityMetrics,
       processingTimeMs,
     };
+  }
+
+  /**
+   * Calculate quality metrics for the current session
+   *
+   * @returns Quality metrics
+   */
+  public calculateQualityMetrics(): QualityMetrics {
+    const session = this.ensureSession(['pending', 'analyzing', 'generating', 'completed']);
+
+    const gapAnalysis = session.gapAnalysis ?? this.gapAnalyzer.analyze(session.collectedInfo);
+    const consistencyCheck =
+      session.consistencyCheck ?? this.consistencyChecker.check(session.collectedInfo);
+
+    return this.qualityMetricsCalculator.calculate(
+      session.collectedInfo,
+      gapAnalysis,
+      consistencyCheck
+    );
   }
 
   /**

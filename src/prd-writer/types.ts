@@ -191,6 +191,8 @@ export interface GeneratedPRD {
   readonly gapAnalysis: GapAnalysisResult;
   /** Consistency check result */
   readonly consistencyCheck: ConsistencyCheckResult;
+  /** Quality metrics */
+  readonly qualityMetrics: QualityMetrics;
 }
 
 /**
@@ -275,6 +277,8 @@ export interface PRDGenerationStats {
   readonly consistencyIssues: number;
   /** Completeness score */
   readonly completenessScore: number;
+  /** Quality metrics */
+  readonly qualityMetrics: QualityMetrics;
   /** Total processing time in milliseconds */
   readonly processingTimeMs: number;
 }
@@ -419,4 +423,93 @@ export interface ApprovalStatus {
   readonly attemptCount: number;
   /** Revision history */
   readonly revisions: readonly PRDRevision[];
+}
+
+// ============================================================
+// Quality Metrics Types
+// ============================================================
+
+/**
+ * Clarity issue found in the document
+ */
+export interface ClarityIssue {
+  /** Issue identifier */
+  readonly id: string;
+  /** Location of the issue (requirement ID or section name) */
+  readonly location: string;
+  /** Type of clarity issue */
+  readonly type: ClarityIssueType;
+  /** Description of the issue */
+  readonly description: string;
+  /** The problematic text */
+  readonly text: string;
+  /** Suggestion for improvement */
+  readonly suggestion: string;
+}
+
+/**
+ * Types of clarity issues
+ */
+export type ClarityIssueType =
+  | 'ambiguous_term'
+  | 'long_sentence'
+  | 'passive_voice'
+  | 'missing_quantification'
+  | 'vague_reference'
+  | 'complex_structure';
+
+/**
+ * Clarity analysis result
+ */
+export interface ClarityAnalysisResult {
+  /** Overall clarity score (0.0 - 1.0) */
+  readonly clarityScore: number;
+  /** List of clarity issues found */
+  readonly issues: readonly ClarityIssue[];
+  /** Average sentence length */
+  readonly averageSentenceLength: number;
+  /** Percentage of passive voice sentences */
+  readonly passiveVoicePercentage: number;
+  /** Count of ambiguous terms found */
+  readonly ambiguousTermCount: number;
+}
+
+/**
+ * Quality metrics for the PRD document
+ */
+export interface QualityMetrics {
+  /** Completeness score (0.0 - 1.0) - measures information completeness */
+  readonly completeness: number;
+  /** Consistency score (0.0 - 1.0) - measures requirement consistency */
+  readonly consistency: number;
+  /** Clarity score (0.0 - 1.0) - measures document clarity */
+  readonly clarity: number;
+  /** Overall quality score (0.0 - 1.0) - weighted average of all metrics */
+  readonly overall: number;
+}
+
+/**
+ * Detailed quality metrics with analysis results
+ */
+export interface DetailedQualityMetrics extends QualityMetrics {
+  /** Clarity analysis details */
+  readonly clarityAnalysis: ClarityAnalysisResult;
+  /** Timestamp of the analysis */
+  readonly analyzedAt: string;
+}
+
+/**
+ * Configuration for quality metrics calculation
+ */
+export interface QualityMetricsConfig {
+  /** Weight for completeness in overall score (default: 0.4) */
+  readonly completenessWeight?: number;
+  /** Weight for consistency in overall score (default: 0.35) */
+  readonly consistencyWeight?: number;
+  /** Weight for clarity in overall score (default: 0.25) */
+  readonly clarityWeight?: number;
+  /** Maximum acceptable sentence length (default: 40 words) */
+  readonly maxSentenceLength?: number;
+  /** Maximum acceptable passive voice percentage (default: 30%) */
+  readonly maxPassiveVoicePercentage?: number;
 }

@@ -26,6 +26,8 @@ export type { ConsistencyCheckerOptions } from './ConsistencyChecker.js';
 export { TemplateProcessor } from './TemplateProcessor.js';
 export type { TemplateProcessorOptions } from './TemplateProcessor.js';
 
+export { QualityMetricsCalculator } from './QualityMetricsCalculator.js';
+
 export {
   ApprovalWorkflow,
   getApprovalWorkflow,
@@ -93,4 +95,12 @@ export type {
   ApprovalWorkflowConfig,
   PRDRevision,
   ApprovalStatus,
+
+  // Quality metrics types
+  ClarityIssue,
+  ClarityIssueType,
+  ClarityAnalysisResult,
+  QualityMetrics,
+  DetailedQualityMetrics,
+  QualityMetricsConfig,
 } from './types.js';
