@@ -321,6 +321,34 @@ agents:
       avg_duration_seconds: 60
       success_rate: 0.95
 
+  doc-code-comparator:
+    id: "doc-code-comparator"
+    name: "Doc-Code Comparator Agent"
+    korean_name: "문서-코드 비교 에이전트"
+    description: "Compares documentation specifications against code implementations to identify gaps"
+    definition_file: ".claude/agents/doc-code-comparator.md"
+    category: "analysis_pipeline"
+    order: 10
+
+    capabilities:
+      - "document_code_mapping"
+      - "gap_detection"
+      - "match_scoring"
+      - "issue_generation"
+      - "priority_assignment"
+
+    io:
+      inputs:
+        - current_state.yaml
+        - code_inventory.yaml
+      outputs:
+        - comparison_result.yaml
+        - gap_issues.json
+
+    metrics:
+      avg_duration_seconds: 30
+      success_rate: 0.95
+
 # =============================================================================
 # Agent Categories
 # =============================================================================
@@ -389,6 +417,8 @@ relationships:
       requires: [worker]
     srs-updater:
       requires: [prd-updater]
+    doc-code-comparator:
+      requires: [document-reader, code-reader]
 
   data_flow:
     - from: collector
@@ -422,6 +452,14 @@ relationships:
     - from: prd-updater
       to: srs-updater
       data: prd_update_result.yaml
+
+    - from: document-reader
+      to: doc-code-comparator
+      data: current_state.yaml
+
+    - from: code-reader
+      to: doc-code-comparator
+      data: code_inventory.yaml
 
 # =============================================================================
 # Model Configurations
