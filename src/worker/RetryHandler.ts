@@ -166,7 +166,9 @@ export class RetryHandler {
 
         // Log if verbose
         if (this.config.verbose) {
-          this.log(`Attempt ${String(attempt)}/${String(maxAttempts)} failed: ${actualError.message}`);
+          this.log(
+            `Attempt ${String(attempt)}/${String(maxAttempts)} failed: ${actualError.message}`
+          );
         }
 
         // Check if error requires immediate escalation
@@ -371,7 +373,9 @@ export class RetryHandler {
     } catch (error) {
       // Log but don't fail - checkpoint is optional
       if (this.config.verbose) {
-        this.log(`Failed to save checkpoint: ${error instanceof Error ? error.message : String(error)}`);
+        this.log(
+          `Failed to save checkpoint: ${error instanceof Error ? error.message : String(error)}`
+        );
       }
     }
   }
@@ -463,7 +467,9 @@ export class RetryHandler {
       await writeFile(filePath, JSON.stringify(report, null, 2), 'utf-8');
     } catch (writeError) {
       if (this.config.verbose) {
-        this.log(`Failed to save escalation report: ${writeError instanceof Error ? writeError.message : String(writeError)}`);
+        this.log(
+          `Failed to save escalation report: ${writeError instanceof Error ? writeError.message : String(writeError)}`
+        );
       }
     }
 
