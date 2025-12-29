@@ -438,9 +438,7 @@ export class QualityMetricsCalculator {
    * Count words in a sentence
    */
   private countWords(sentence: string): number {
-    return sentence
-      .split(/\s+/)
-      .filter((w) => w.length > 0).length;
+    return sentence.split(/\s+/).filter((w) => w.length > 0).length;
   }
 
   /**
