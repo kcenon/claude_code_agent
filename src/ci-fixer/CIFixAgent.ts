@@ -25,8 +25,6 @@ import type {
   VerificationResult,
   NextAction,
   FixOutcome,
-  EscalationInfo,
-  ProgressComparison,
 } from './types.js';
 import { DEFAULT_CI_FIXER_CONFIG } from './types.js';
 import { CILogAnalyzer } from './CILogAnalyzer.js';
@@ -38,7 +36,6 @@ import {
   GitOperationError,
   CommitError,
   PushError,
-  CIWaitTimeoutError,
   EscalationRequiredError,
   ResultPersistenceError,
 } from './errors.js';
@@ -147,7 +144,7 @@ export class CIFixAgent {
 
     // 8. Determine outcome and next action
     const outcome = this.determineOutcome(verification, analysis);
-    const nextAction = await this.determineNextAction(
+    const nextAction = this.determineNextAction(
       handoff,
       outcome,
       analysis,
@@ -346,7 +343,7 @@ export class CIFixAgent {
    */
   private async applyFixes(
     analysis: CIAnalysisResult,
-    handoff: CIFixHandoff
+    _handoff: CIFixHandoff
   ): Promise<AppliedFix[]> {
     const categories: Array<'lint' | 'type' | 'test' | 'build' | 'dependency'> = [];
 
@@ -456,12 +453,12 @@ Fixes applied by CI Fix Agent for PR #${String(handoff.prNumber)}`;
   /**
    * Determine next action
    */
-  private async determineNextAction(
+  private determineNextAction(
     handoff: CIFixHandoff,
     outcome: FixOutcome,
-    analysis: CIAnalysisResult,
+    _analysis: CIAnalysisResult,
     verification: VerificationResult
-  ): Promise<NextAction> {
+  ): NextAction {
     if (outcome === 'success') {
       return {
         type: 'none',
@@ -591,7 +588,7 @@ Fixes applied by CI Fix Agent for PR #${String(handoff.prNumber)}`;
     result: CIFixResult
   ): string {
     const unresolvedIssues = result.analysis.identifiedCauses
-      .map((c) => `- **${c.category}**: ${c.message}${c.file ? ` (${c.file})` : ''}`)
+      .map((c) => `- **${c.category}**: ${c.message}${c.file !== undefined ? ` (${c.file})` : ''}`)
       .join('\n');
 
     return `## CI Fix Agent Escalation

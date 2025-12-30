@@ -22,10 +22,6 @@ import type {
 import {
   LintFixError,
   TypeFixError,
-  TestFixError,
-  BuildFixError,
-  VerificationError,
-  VerificationTimeoutError,
 } from './errors.js';
 
 const execAsync = promisify(exec);
@@ -77,8 +73,6 @@ export class FixStrategies {
    * @returns Applied fix result
    */
   public async applyLintFix(): Promise<AppliedFix> {
-    const startTime = Date.now();
-
     try {
       if (this.dryRun) {
         return this.createDryRunResult('lint', 'project', 'Would run lint --fix');
@@ -413,7 +407,7 @@ export class FixStrategies {
         continue;
       }
 
-      const fix = await this.attemptBuildFix(failure);
+      const fix = this.attemptBuildFix(failure);
       results.push(fix);
     }
 
@@ -454,7 +448,7 @@ export class FixStrategies {
   /**
    * Attempt to fix a single build failure
    */
-  private async attemptBuildFix(failure: CIFailure): Promise<AppliedFix> {
+  private attemptBuildFix(failure: CIFailure): AppliedFix {
     // Check for module not found errors
     if (failure.message.includes('Module not found') || failure.message.includes('Cannot resolve')) {
       return this.attemptModuleInstall(failure);
@@ -472,7 +466,7 @@ export class FixStrategies {
   /**
    * Attempt to install missing module
    */
-  private async attemptModuleInstall(failure: CIFailure): Promise<AppliedFix> {
+  private attemptModuleInstall(failure: CIFailure): AppliedFix {
     // Extract module name from error message
     const moduleMatch = failure.message.match(/['"]([^'"]+)['"]/);
     if (moduleMatch === null) {

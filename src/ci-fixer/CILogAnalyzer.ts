@@ -13,7 +13,6 @@ import type {
   CIFailureCategory,
   CILogPattern,
 } from './types.js';
-import { CILogParseError } from './errors.js';
 
 // ============================================================================
 // Log Patterns
@@ -31,8 +30,8 @@ const CI_LOG_PATTERNS: readonly CILogPattern[] = [
     autoFixable: true,
     extractLocation: (match) => ({
       file: match.groups?.['file'],
-      line: match.groups?.['line'] ? parseInt(match.groups['line'], 10) : undefined,
-      column: match.groups?.['column'] ? parseInt(match.groups['column'], 10) : undefined,
+      line: match.groups?.['line'] !== undefined ? parseInt(match.groups['line'], 10) : undefined,
+      column: match.groups?.['column'] !== undefined ? parseInt(match.groups['column'], 10) : undefined,
     }),
     extractMessage: (match) => match.groups?.['message'] ?? 'TypeScript error',
   },
@@ -45,8 +44,8 @@ const CI_LOG_PATTERNS: readonly CILogPattern[] = [
     autoFixable: true,
     extractLocation: (match) => ({
       file: match.groups?.['file'],
-      line: match.groups?.['line'] ? parseInt(match.groups['line'], 10) : undefined,
-      column: match.groups?.['column'] ? parseInt(match.groups['column'], 10) : undefined,
+      line: match.groups?.['line'] !== undefined ? parseInt(match.groups['line'], 10) : undefined,
+      column: match.groups?.['column'] !== undefined ? parseInt(match.groups['column'], 10) : undefined,
     }),
     extractMessage: (match) => `${match.groups?.['message'] ?? ''} (${match.groups?.['rule'] ?? ''})`,
   },
