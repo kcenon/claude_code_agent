@@ -62,6 +62,7 @@ This directory contains detailed reference documentation for all AD-SDLC agents.
 | Controller | [controller.md](./controller.md) | Orchestrates work distribution |
 | Worker | [worker.md](./worker.md) | Implements code for issues |
 | PR Reviewer | [pr-reviewer.md](./pr-reviewer.md) | Reviews and merges PRs |
+| CI Fixer | [ci-fixer.md](./ci-fixer.md) | Automatically diagnoses and fixes CI failures |
 | Regression Tester | [regression-tester.md](./regression-tester.md) | Validates existing functionality |
 
 ---
@@ -177,6 +178,7 @@ Example input and output
 9. Worker(s)        ┐
    Regression Tester├── [parallel]
 10. PR Reviewer     ┘
+11. CI Fixer        # On CI failure (delegated from PR Reviewer)
 ```
 
 ### Agent Execution Order (Import)
@@ -202,6 +204,7 @@ Example input and output
 | Controller | Haiku | Fast decisions |
 | Worker | Sonnet | Code quality |
 | PR Reviewer | Sonnet | Thorough review |
+| CI Fixer | Sonnet | Complex diagnosis and fixes |
 | Document Reader | Haiku | Fast parsing |
 | Codebase Analyzer | Haiku | Fast analysis |
 | Impact Analyzer | Sonnet | Complex reasoning |
@@ -220,6 +223,7 @@ Example input and output
 | Controller | Read, Write, Bash (gh) |
 | Worker | Read, Write, Edit, Bash, Grep, Glob |
 | PR Reviewer | Read, Bash (gh, git) |
+| CI Fixer | Read, Write, Edit, Bash (npm, git), Glob, Grep |
 | Analyzers | Read, Glob, Grep, LSP |
 
 ---

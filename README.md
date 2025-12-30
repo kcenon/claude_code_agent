@@ -49,6 +49,8 @@ Existing Docs + Code → Document Reader → Codebase Analyzer
                    Issue Generator + Regression Tester
                                                ↓
                               Controller → Worker → PR Reviewer
+                                                      ↓
+                                              CI Fix (on failure)
 ```
 
 ### Agent Pipeline
@@ -63,6 +65,7 @@ Existing Docs + Code → Document Reader → Codebase Analyzer
 | **Execution** | Controller | Orchestrates work distribution and monitors progress |
 | | Worker | Implements code based on assigned issues |
 | **Quality** | PR Reviewer | Creates PRs and performs automated code review |
+| | CI Fixer | Automatically diagnoses and fixes CI failures |
 | **Enhancement** | Document Reader | Parses existing PRD/SRS/SDS documents |
 | | Codebase Analyzer | Analyzes current architecture and code structure |
 | | Code Reader | Extracts source code structure and dependencies |
