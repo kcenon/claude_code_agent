@@ -7,12 +7,7 @@
  * @module ci-fixer/CILogAnalyzer
  */
 
-import type {
-  CIAnalysisResult,
-  CIFailure,
-  CIFailureCategory,
-  CILogPattern,
-} from './types.js';
+import type { CIAnalysisResult, CIFailure, CIFailureCategory, CILogPattern } from './types.js';
 
 // ============================================================================
 // Log Patterns
@@ -25,13 +20,15 @@ const CI_LOG_PATTERNS: readonly CILogPattern[] = [
   // TypeScript errors
   {
     name: 'typescript-error',
-    pattern: /(?<file>[^\s]+\.tsx?):(?<line>\d+):(?<column>\d+)\s*-\s*error\s+TS(?<code>\d+):\s*(?<message>.+)/gm,
+    pattern:
+      /(?<file>[^\s]+\.tsx?):(?<line>\d+):(?<column>\d+)\s*-\s*error\s+TS(?<code>\d+):\s*(?<message>.+)/gm,
     category: 'type',
     autoFixable: true,
     extractLocation: (match) => ({
       file: match.groups?.['file'],
       line: match.groups?.['line'] !== undefined ? parseInt(match.groups['line'], 10) : undefined,
-      column: match.groups?.['column'] !== undefined ? parseInt(match.groups['column'], 10) : undefined,
+      column:
+        match.groups?.['column'] !== undefined ? parseInt(match.groups['column'], 10) : undefined,
     }),
     extractMessage: (match) => match.groups?.['message'] ?? 'TypeScript error',
   },
@@ -39,21 +36,25 @@ const CI_LOG_PATTERNS: readonly CILogPattern[] = [
   // ESLint errors
   {
     name: 'eslint-error',
-    pattern: /(?<file>[^\s]+\.[jt]sx?)\s*\n\s*(?<line>\d+):(?<column>\d+)\s+error\s+(?<message>.+?)\s+(?<rule>\S+)/gm,
+    pattern:
+      /(?<file>[^\s]+\.[jt]sx?)\s*\n\s*(?<line>\d+):(?<column>\d+)\s+error\s+(?<message>.+?)\s+(?<rule>\S+)/gm,
     category: 'lint',
     autoFixable: true,
     extractLocation: (match) => ({
       file: match.groups?.['file'],
       line: match.groups?.['line'] !== undefined ? parseInt(match.groups['line'], 10) : undefined,
-      column: match.groups?.['column'] !== undefined ? parseInt(match.groups['column'], 10) : undefined,
+      column:
+        match.groups?.['column'] !== undefined ? parseInt(match.groups['column'], 10) : undefined,
     }),
-    extractMessage: (match) => `${match.groups?.['message'] ?? ''} (${match.groups?.['rule'] ?? ''})`,
+    extractMessage: (match) =>
+      `${match.groups?.['message'] ?? ''} (${match.groups?.['rule'] ?? ''})`,
   },
 
   // ESLint summary
   {
     name: 'eslint-summary',
-    pattern: /✖\s+(?<count>\d+)\s+problems?\s+\((?<errors>\d+)\s+errors?,\s*(?<warnings>\d+)\s+warnings?\)/gm,
+    pattern:
+      /✖\s+(?<count>\d+)\s+problems?\s+\((?<errors>\d+)\s+errors?,\s*(?<warnings>\d+)\s+warnings?\)/gm,
     category: 'lint',
     autoFixable: true,
     extractMessage: (match) =>
@@ -406,11 +407,7 @@ export class CILogAnalyzer {
       currentPosition = lineEnd + 1; // +1 for newline
 
       // Skip if this line is within a matched range
-      if (
-        matchedRanges.some(
-          (range) => lineStart < range.end && lineEnd > range.start
-        )
-      ) {
+      if (matchedRanges.some((range) => lineStart < range.end && lineEnd > range.start)) {
         continue;
       }
 

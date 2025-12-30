@@ -13,16 +13,8 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
-import type {
-  AppliedFix,
-  CIFailure,
-  CIFailureCategory,
-  VerificationResult,
-} from './types.js';
-import {
-  LintFixError,
-  TypeFixError,
-} from './errors.js';
+import type { AppliedFix, CIFailure, CIFailureCategory, VerificationResult } from './types.js';
+import { LintFixError, TypeFixError } from './errors.js';
 
 const execAsync = promisify(exec);
 
@@ -95,10 +87,7 @@ export class FixStrategies {
         error: success ? undefined : result.stderr.slice(0, 500),
       };
     } catch (error) {
-      throw new LintFixError(
-        1,
-        error instanceof Error ? error.message : 'Unknown error'
-      );
+      throw new LintFixError(1, error instanceof Error ? error.message : 'Unknown error');
     }
   }
 
@@ -240,7 +229,10 @@ export class FixStrategies {
     errorMessage: string
   ): string | null {
     // Strategy 1: Add type assertion for 'possibly undefined'
-    if (errorMessage.includes('possibly undefined') || errorMessage.includes("possibly 'undefined'")) {
+    if (
+      errorMessage.includes('possibly undefined') ||
+      errorMessage.includes("possibly 'undefined'")
+    ) {
       return this.addNonNullAssertion(lines, lineNumber);
     }
 
@@ -450,7 +442,10 @@ export class FixStrategies {
    */
   private attemptBuildFix(failure: CIFailure): AppliedFix {
     // Check for module not found errors
-    if (failure.message.includes('Module not found') || failure.message.includes('Cannot resolve')) {
+    if (
+      failure.message.includes('Module not found') ||
+      failure.message.includes('Cannot resolve')
+    ) {
       return this.attemptModuleInstall(failure);
     }
 

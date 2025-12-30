@@ -114,9 +114,7 @@ export class CIFixAgent {
     const analysis = await this.fetchAndAnalyzeLogs(handoff);
 
     // 4. Check for security vulnerabilities (immediate escalation)
-    const securityFailures = analysis.identifiedCauses.filter(
-      (f) => f.category === 'security'
-    );
+    const securityFailures = analysis.identifiedCauses.filter((f) => f.category === 'security');
     if (securityFailures.length > 0) {
       throw new EscalationRequiredError(
         handoff.prNumber,
@@ -144,12 +142,7 @@ export class CIFixAgent {
 
     // 8. Determine outcome and next action
     const outcome = this.determineOutcome(verification, analysis);
-    const nextAction = this.determineNextAction(
-      handoff,
-      outcome,
-      analysis,
-      verification
-    );
+    const nextAction = this.determineNextAction(handoff, outcome, analysis, verification);
 
     // 9. Build result
     const completedAt = new Date().toISOString();
@@ -222,10 +215,7 @@ export class CIFixAgent {
       const content = await readFile(handoffPath, 'utf-8');
       return yaml.load(content) as CIFixHandoff;
     } catch (error) {
-      throw new HandoffParseError(
-        handoffPath,
-        error instanceof Error ? error : undefined
-      );
+      throw new HandoffParseError(handoffPath, error instanceof Error ? error : undefined);
     }
   }
 
@@ -319,9 +309,7 @@ export class CIFixAgent {
    */
   private async fetchCILogs(runId: number): Promise<string> {
     try {
-      const result = await this.executeCommand(
-        `gh run view ${String(runId)} --log-failed`
-      );
+      const result = await this.executeCommand(`gh run view ${String(runId)} --log-failed`);
       return result.stdout;
     } catch (error) {
       throw new CILogFetchError(runId, error instanceof Error ? error : undefined);
@@ -396,9 +384,7 @@ Fixes applied by CI Fix Agent for PR #${String(handoff.prNumber)}`;
 
     // Commit
     try {
-      await this.executeCommand(
-        `git commit -m "${this.escapeShell(commitMessage)}"`
-      );
+      await this.executeCommand(`git commit -m "${this.escapeShell(commitMessage)}"`);
     } catch (error) {
       throw new CommitError(handoff.branch, error instanceof Error ? error : undefined);
     }
@@ -468,10 +454,7 @@ Fixes applied by CI Fix Agent for PR #${String(handoff.prNumber)}`;
 
     // Check if we've made progress
     const previousAttempts = handoff.attemptHistory;
-    if (
-      previousAttempts.length > 0 &&
-      !this.hasProgress(previousAttempts, verification)
-    ) {
+    if (previousAttempts.length > 0 && !this.hasProgress(previousAttempts, verification)) {
       return {
         type: 'escalate',
         reason: 'No progress made after fix attempts',
@@ -552,10 +535,7 @@ Fixes applied by CI Fix Agent for PR #${String(handoff.prNumber)}`;
       ...originalHandoff,
       currentAttempt: originalHandoff.currentAttempt + 1,
       attemptHistory: [...originalHandoff.attemptHistory, newAttempt],
-      failureLogs: [
-        ...originalHandoff.failureLogs,
-        result.analysis.rawLogs,
-      ],
+      failureLogs: [...originalHandoff.failureLogs, result.analysis.rawLogs],
     };
 
     await this.persistHandoff(newHandoff);
@@ -564,10 +544,7 @@ Fixes applied by CI Fix Agent for PR #${String(handoff.prNumber)}`;
   /**
    * Escalate to human review
    */
-  private async escalate(
-    handoff: CIFixHandoff,
-    result: CIFixResult
-  ): Promise<void> {
+  private async escalate(handoff: CIFixHandoff, result: CIFixResult): Promise<void> {
     // Add label to PR
     await this.executeCommand(
       `gh pr edit ${String(handoff.prNumber)} --add-label "needs-human-review"`
@@ -583,10 +560,7 @@ Fixes applied by CI Fix Agent for PR #${String(handoff.prNumber)}`;
   /**
    * Generate escalation comment for PR
    */
-  private generateEscalationComment(
-    handoff: CIFixHandoff,
-    result: CIFixResult
-  ): string {
+  private generateEscalationComment(handoff: CIFixHandoff, result: CIFixResult): string {
     const unresolvedIssues = result.analysis.identifiedCauses
       .map((c) => `- **${c.category}**: ${c.message}${c.file !== undefined ? ` (${c.file})` : ''}`)
       .join('\n');
@@ -602,10 +576,12 @@ ${unresolvedIssues}
 ${handoff.attemptHistory.map((a) => `- Attempt ${String(a.attempt)}: ${String(a.fixesSucceeded.length)}/${String(a.fixesAttempted.length)} fixes succeeded`).join('\n')}
 
 ### Suggested Actions
-${result.analysis.identifiedCauses
-  .filter((c) => !c.autoFixable)
-  .map((c) => `- Manual fix required for: ${c.message}`)
-  .join('\n') || '- Review CI logs for additional context'}
+${
+  result.analysis.identifiedCauses
+    .filter((c) => !c.autoFixable)
+    .map((c) => `- Manual fix required for: ${c.message}`)
+    .join('\n') || '- Review CI logs for additional context'
+}
 
 ---
 _This escalation was generated automatically by the CI Fix Agent._`;
@@ -629,10 +605,7 @@ _This escalation was generated automatically by the CI Fix Agent._`;
       const yamlContent = yaml.dump(result, { indent: 2 });
       await writeFile(resultPath, yamlContent, 'utf-8');
     } catch (error) {
-      throw new ResultPersistenceError(
-        resultsDir,
-        error instanceof Error ? error : undefined
-      );
+      throw new ResultPersistenceError(resultsDir, error instanceof Error ? error : undefined);
     }
   }
 

@@ -51,7 +51,11 @@ export class HandoffParseError extends CIFixerError {
   public readonly handoffPath: string;
 
   constructor(handoffPath: string, cause?: Error) {
-    super(`Failed to parse CI Fix handoff document at: ${handoffPath}`, 'HANDOFF_PARSE_ERROR', cause);
+    super(
+      `Failed to parse CI Fix handoff document at: ${handoffPath}`,
+      'HANDOFF_PARSE_ERROR',
+      cause
+    );
     this.name = 'HandoffParseError';
     this.handoffPath = handoffPath;
   }
@@ -171,11 +175,7 @@ export class TestFixError extends CIFixerError {
   public readonly testName: string;
 
   constructor(testFile: string, testName: string, reason: string, cause?: Error) {
-    super(
-      `Failed to fix test "${testName}" in ${testFile}: ${reason}`,
-      'TEST_FIX_ERROR',
-      cause
-    );
+    super(`Failed to fix test "${testName}" in ${testFile}: ${reason}`, 'TEST_FIX_ERROR', cause);
     this.name = 'TestFixError';
     this.testFile = testFile;
     this.testName = testName;
@@ -206,10 +206,7 @@ export class VerificationError extends CIFixerError {
   public readonly failedChecks: readonly string[];
 
   constructor(failedChecks: readonly string[]) {
-    super(
-      `Local verification failed: ${failedChecks.join(', ')}`,
-      'VERIFICATION_ERROR'
-    );
+    super(`Local verification failed: ${failedChecks.join(', ')}`, 'VERIFICATION_ERROR');
     this.name = 'VerificationError';
     this.failedChecks = failedChecks;
   }
@@ -284,10 +281,7 @@ export class EscalationRequiredError extends CIFixerError {
   public readonly prNumber: number;
 
   constructor(prNumber: number, reason: EscalationReason, description: string) {
-    super(
-      `Escalation required for PR #${String(prNumber)}: ${description}`,
-      'ESCALATION_REQUIRED'
-    );
+    super(`Escalation required for PR #${String(prNumber)}: ${description}`, 'ESCALATION_REQUIRED');
     this.name = 'EscalationRequiredError';
     this.reason = reason;
     this.prNumber = prNumber;
@@ -301,11 +295,7 @@ export class EscalationError extends CIFixerError {
   public readonly prNumber: number;
 
   constructor(prNumber: number, cause?: Error) {
-    super(
-      `Failed to escalate PR #${String(prNumber)}`,
-      'ESCALATION_ERROR',
-      cause
-    );
+    super(`Failed to escalate PR #${String(prNumber)}`, 'ESCALATION_ERROR', cause);
     this.name = 'EscalationError';
     this.prNumber = prNumber;
   }
