@@ -18,6 +18,7 @@ global:
     after_collection: true
     after_prd: true
     after_srs: true
+    after_github_repo_setup: true
     after_sds: true
     after_issues: true
     before_merge: false  # Auto-merge if all checks pass
@@ -87,6 +88,17 @@ pipeline:
           outputs:
             - "${scratchpad_dir}/documents/${project_id}/srs.md"
             - "${output_docs_dir}/srs/SRS-${project_id}.md"
+          next: "github_repo_setup"
+          approval_required: true
+
+        - name: "github_repo_setup"
+          agent: "github-repo-setup"
+          description: "Create and initialize public GitHub repository"
+          inputs:
+            - "${scratchpad_dir}/documents/${project_id}/prd.md"
+            - "${scratchpad_dir}/documents/${project_id}/srs.md"
+          outputs:
+            - "${scratchpad_dir}/repo/${project_id}/github_repo.yaml"
           next: "sds_generation"
           approval_required: true
 
@@ -338,6 +350,23 @@ agents:
       - Glob
       - Grep
     template: ".ad-sdlc/templates/srs-template.md"
+
+  github-repo-setup:
+    model: "sonnet"
+    tools:
+      - Read
+      - Write
+      - Edit
+      - Glob
+      - Grep
+      - Bash
+    repository:
+      visibility: "public"
+      default_branch: "main"
+      default_license: "MIT"
+    github:
+      require_auth: true
+      add_topics: true
 
   sds-writer:
     model: "sonnet"

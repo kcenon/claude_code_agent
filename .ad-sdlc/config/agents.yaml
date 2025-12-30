@@ -118,6 +118,37 @@ agents:
       avg_duration_seconds: 240
       success_rate: 0.90
 
+  github-repo-setup:
+    id: "github-repo-setup"
+    name: "GitHub Repo Setup Agent"
+    korean_name: "GitHub 저장소 설정 에이전트"
+    description: "Creates and initializes public GitHub repository after SRS approval"
+    definition_file: ".claude/agents/github-repo-setup.md"
+    category: "project_setup"
+    order: 3.5
+
+    capabilities:
+      - "project_info_extraction"
+      - "readme_generation"
+      - "license_selection"
+      - "gitignore_generation"
+      - "repository_creation"
+      - "initial_commit"
+
+    io:
+      inputs:
+        - prd.md
+        - srs.md
+      outputs:
+        - github_repo.yaml
+        - README.md
+        - LICENSE
+        - .gitignore
+
+    metrics:
+      avg_duration_seconds: 60
+      success_rate: 0.95
+
   sds-writer:
     id: "sds-writer"
     name: "SDS Writer Agent"
@@ -533,6 +564,13 @@ agents:
 # Agent Categories
 # =============================================================================
 categories:
+  project_setup:
+    name: "Project Setup"
+    description: "Agents that setup project infrastructure"
+    agents:
+      - github-repo-setup
+    execution_mode: "sequential"
+
   document_pipeline:
     name: "Document Pipeline"
     description: "Agents that generate documentation (PRD, SRS, SDS)"
@@ -599,8 +637,11 @@ relationships:
       requires: [collector]
     srs-writer:
       requires: [prd-writer]
-    sds-writer:
+    github-repo-setup:
       requires: [srs-writer]
+      blocks: [sds-writer]
+    sds-writer:
+      requires: [srs-writer, github-repo-setup]
     issue-generator:
       requires: [sds-writer]
     controller:
@@ -631,6 +672,18 @@ relationships:
     - from: prd-writer
       to: srs-writer
       data: prd.md
+
+    - from: srs-writer
+      to: github-repo-setup
+      data: srs.md
+
+    - from: prd-writer
+      to: github-repo-setup
+      data: prd.md
+
+    - from: github-repo-setup
+      to: sds-writer
+      data: github_repo.yaml
 
     - from: srs-writer
       to: sds-writer

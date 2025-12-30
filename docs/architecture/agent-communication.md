@@ -52,6 +52,8 @@ Agents do not communicate directly. Instead, they:
 │   │   ├── prd.md
 │   │   ├── srs.md
 │   │   └── sds.md
+│   ├── repo/                    # Repository setup
+│   │   └── github_repo.yaml
 │   ├── issues/                  # Issue management
 │   │   └── issues.json
 │   ├── progress/                # Execution tracking
@@ -76,7 +78,8 @@ Each agent has designated files it reads from and writes to:
 | Collector | User input, files, URLs | `info/collected_info.yaml` |
 | PRD Writer | `info/collected_info.yaml` | `documents/prd.md` |
 | SRS Writer | `documents/prd.md` | `documents/srs.md` |
-| SDS Writer | `documents/srs.md` | `documents/sds.md` |
+| GitHub Repo Setup | `documents/prd.md`, `documents/srs.md` | `repo/github_repo.yaml` |
+| SDS Writer | `documents/srs.md`, `repo/github_repo.yaml` | `documents/sds.md` |
 | Issue Generator | `documents/sds.md` | `issues/issues.json` |
 | Controller | `issues/issues.json` | `progress/controller_state.yaml` |
 | Worker | `progress/work_orders.yaml` | Implementation results |
@@ -94,12 +97,12 @@ Each agent has designated files it reads from and writes to:
 Used in document generation pipeline:
 
 ```
-┌───────────┐    ┌───────────┐    ┌───────────┐    ┌───────────┐
-│ Collector │───▶│PRD Writer │───▶│SRS Writer │───▶│SDS Writer │
-└───────────┘    └───────────┘    └───────────┘    └───────────┘
-      │                │                │                │
-      ▼                ▼                ▼                ▼
- collected_info    prd.md           srs.md           sds.md
+┌───────────┐    ┌───────────┐    ┌───────────┐    ┌────────────────┐    ┌───────────┐
+│ Collector │───▶│PRD Writer │───▶│SRS Writer │───▶│GitHub Repo Setup│───▶│SDS Writer │
+└───────────┘    └───────────┘    └───────────┘    └────────────────┘    └───────────┘
+      │                │                │                  │                   │
+      ▼                ▼                ▼                  ▼                   ▼
+ collected_info    prd.md           srs.md          github_repo.yaml       sds.md
 ```
 
 **Protocol Steps**:
