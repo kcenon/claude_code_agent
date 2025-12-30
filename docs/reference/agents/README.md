@@ -160,7 +160,8 @@ The AD-SDLC Orchestrator can manage the entire pipeline automatically:
 AD-SDLC Orchestrator
 └── Automatically invokes all agents in correct sequence
     ├── Greenfield Pipeline (new projects)
-    └── Enhancement Pipeline (existing projects)
+    ├── Enhancement Pipeline (existing projects)
+    └── Import Pipeline (existing GitHub issues)
 ```
 
 ### Agent Execution Order (Greenfield)
@@ -201,11 +202,22 @@ AD-SDLC Orchestrator
 ### Agent Execution Order (Import)
 
 ```
-1. Issue Reader     # Imports existing GitHub issues
-2. Controller       # Orchestrates work distribution
-3. Worker(s) [parallel]
-4. PR Reviewer
+1. Mode Detector    # Confirms import mode (auto-detect or explicit)
+2. Issue Reader     # Imports existing GitHub issues (with optional filters)
+3. Controller       # Orchestrates work distribution
+4. Worker(s) [parallel]
+5. PR Reviewer
 ```
+
+**Import Mode Detection Keywords:**
+- "process issues", "work on issues", "implement issues"
+- "handle backlog", "process backlog"
+- "existing issues", "open issues"
+
+**Import Filtering Options:**
+- Filter by labels: `labeled 'bug'`
+- Filter by milestone: `milestone 'v1.0'`
+- Specific issues: `issues #10, #12, #15`
 
 ### Model Assignments
 
