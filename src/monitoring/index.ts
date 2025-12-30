@@ -125,3 +125,51 @@ export type {
   StageUsageDetail,
   TokenUsageReportConfig,
 } from './TokenUsageReport.js';
+
+// LatencyOptimizer
+export {
+  LatencyOptimizer,
+  getLatencyOptimizer,
+  resetLatencyOptimizer,
+} from './LatencyOptimizer.js';
+export type {
+  LatencyTargets,
+  LatencyMeasurement,
+  WarmupStatus,
+  LatencyOptimizerConfig,
+} from './LatencyOptimizer.js';
+
+// ParallelExecutionTuner
+export {
+  ParallelExecutionTuner,
+  getParallelExecutionTuner,
+  resetParallelExecutionTuner,
+} from './ParallelExecutionTuner.js';
+export type {
+  SystemResources,
+  WorkerPoolRecommendation,
+  BatchConfig,
+  ContentionEvent,
+  TuningHistoryEntry,
+  ParallelExecutionTunerConfig,
+} from './ParallelExecutionTuner.js';
+
+// ResponseTimeBenchmarks
+export {
+  ResponseTimeBenchmarks,
+  getResponseTimeBenchmarks,
+  resetResponseTimeBenchmarks,
+  DEFAULT_BENCHMARKS,
+} from './ResponseTimeBenchmarks.js';
+export type {
+  FeatureComplexity,
+  PipelineStage,
+  BenchmarkTarget,
+  BenchmarkResult,
+  PipelineBenchmarks,
+  StageBenchmarks,
+  LatencyBenchmarks,
+  AllBenchmarks,
+  ValidationResult,
+  BenchmarkHistoryEntry,
+} from './ResponseTimeBenchmarks.js';
