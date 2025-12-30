@@ -8,6 +8,43 @@ version: "1.0.0"
 # =============================================================================
 agents:
   # ---------------------------------------------------------------------------
+  # Orchestration Agents (Top-level pipeline coordination)
+  # ---------------------------------------------------------------------------
+  ad-sdlc-orchestrator:
+    id: "ad-sdlc-orchestrator"
+    name: "AD-SDLC Pipeline Orchestrator"
+    korean_name: "AD-SDLC 파이프라인 오케스트레이터"
+    description: "Coordinates full AD-SDLC pipeline execution by invoking subagents in sequence"
+    definition_file: ".claude/agents/ad-sdlc-orchestrator.md"
+    category: "orchestration"
+    order: -1
+
+    capabilities:
+      - "pipeline_coordination"
+      - "subagent_invocation"
+      - "progress_monitoring"
+      - "approval_gate_management"
+      - "error_recovery"
+
+    io:
+      inputs:
+        - user_request
+        - project_path
+        - override_mode
+      outputs:
+        - pipeline_log.yaml
+        - final_report.md
+
+    metrics:
+      avg_duration_seconds: 1800  # Full pipeline execution
+      success_rate: 0.90
+
+    token_budget:
+      default_limit: 200000
+      cost_limit_usd: 5.00
+      model_preference: "opus"
+
+  # ---------------------------------------------------------------------------
   # Infrastructure Agents (Pre-pipeline)
   # ---------------------------------------------------------------------------
   mode-detector:
@@ -623,6 +660,13 @@ agents:
 # Agent Categories
 # =============================================================================
 categories:
+  orchestration:
+    name: "Orchestration"
+    description: "Top-level agents that coordinate pipeline execution"
+    agents:
+      - ad-sdlc-orchestrator
+    execution_mode: "sequential"
+
   project_setup:
     name: "Project Setup"
     description: "Agents that setup project infrastructure"
