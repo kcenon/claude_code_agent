@@ -25,15 +25,19 @@ agents:
       - "progress_monitoring"
       - "approval_gate_management"
       - "error_recovery"
+      - "import_mode_support"
+      - "issue_filtering"
 
     io:
       inputs:
         - user_request
         - project_path
         - override_mode
+        - import_options
       outputs:
         - pipeline_log.yaml
         - final_report.md
+        - imported_issues.json
 
     metrics:
       avg_duration_seconds: 1800  # Full pipeline execution
@@ -731,6 +735,16 @@ categories:
       - sds-updater
       - regression-tester
     execution_mode: "mixed"  # Some parallel, some sequential
+
+  import_pipeline:
+    name: "Import Pipeline"
+    description: "Agents that process existing GitHub issues without document generation"
+    agents:
+      - issue-reader
+      - controller
+      - worker
+      - pr-reviewer
+    execution_mode: "sequential"
 
 # =============================================================================
 # Agent Relationships
