@@ -47,7 +47,7 @@ export class CommandSanitizer {
   private readonly logCommands: boolean;
 
   constructor(options: CommandSanitizerOptions = {}) {
-    this.whitelist = options.whitelist ?? DEFAULT_COMMAND_WHITELIST;
+    this.whitelist = (options.whitelist as CommandWhitelistConfig | undefined) ?? DEFAULT_COMMAND_WHITELIST;
     this.strictMode = options.strictMode ?? true;
     this.logCommands = options.logCommands ?? false;
   }
@@ -98,7 +98,7 @@ export class CommandSanitizer {
 
     return {
       baseCommand,
-      subCommand,
+      ...(subCommand !== undefined ? { subCommand } : {}),
       args: sanitizedArgs,
       rawCommand: `${baseCommand} ${sanitizedArgs.join(' ')}`,
     };
@@ -235,7 +235,7 @@ export class CommandSanitizer {
         stderr: execError.stderr ?? errorMessage,
         command: command.rawCommand,
         duration,
-        exitCode: execError.code,
+        ...(execError.code !== undefined ? { exitCode: execError.code } : {}),
       };
     }
   }
@@ -343,7 +343,7 @@ export class CommandSanitizer {
         stderr: typeof execError.stderr === 'string' ? execError.stderr : errorMessage,
         command: command.rawCommand,
         duration,
-        exitCode: execError.status,
+        ...(execError.status !== undefined ? { exitCode: execError.status } : {}),
       };
     }
   }

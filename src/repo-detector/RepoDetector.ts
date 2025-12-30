@@ -496,7 +496,7 @@ export class RepoDetector {
     return {
       success: result.success,
       output: result.stdout,
-      error: result.success ? undefined : result.stderr,
+      ...(result.success ? {} : { error: result.stderr }),
     };
   }
 
@@ -520,7 +520,7 @@ export class RepoDetector {
     return {
       success: result.success,
       output: result.stdout,
-      error: result.success ? undefined : result.stderr,
+      ...(result.success ? {} : { error: result.stderr }),
     };
   }
 
