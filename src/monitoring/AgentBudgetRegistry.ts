@@ -24,16 +24,20 @@ import {
  */
 export interface AgentBudgetRegistryConfig {
   /** Pipeline-level budget configuration */
-  readonly pipelineConfig?: PipelineBudgetConfig;
+  readonly pipelineConfig?: PipelineBudgetConfig | undefined;
 
   /** Default limits by agent category */
-  readonly categoryDefaults?: CategoryBudgetDefaults;
+  readonly categoryDefaults?: CategoryBudgetDefaults | undefined;
 
   /** Callback when any agent exceeds budget */
-  readonly onAnyBudgetExceeded?: (agentName: string, status: BudgetStatus) => void | Promise<void>;
+  readonly onAnyBudgetExceeded?:
+    | ((agentName: string, status: BudgetStatus) => void | Promise<void>)
+    | undefined;
 
   /** Callback when pipeline budget exceeded */
-  readonly onPipelineBudgetExceeded?: (status: PipelineBudgetStatus) => void | Promise<void>;
+  readonly onPipelineBudgetExceeded?:
+    | ((status: PipelineBudgetStatus) => void | Promise<void>)
+    | undefined;
 }
 
 /**
@@ -52,13 +56,12 @@ export class AgentBudgetRegistry {
   private readonly agentBudgets: Map<string, AgentBudgetEntry> = new Map();
   private readonly pipelineConfig: Required<PipelineBudgetConfig>;
   private readonly categoryDefaults: Required<CategoryBudgetDefaults>;
-  private readonly onAnyBudgetExceeded?: (
-    agentName: string,
-    status: BudgetStatus
-  ) => void | Promise<void>;
-  private readonly onPipelineBudgetExceeded?: (
-    status: PipelineBudgetStatus
-  ) => void | Promise<void>;
+  private readonly onAnyBudgetExceeded:
+    | ((agentName: string, status: BudgetStatus) => void | Promise<void>)
+    | undefined;
+  private readonly onPipelineBudgetExceeded:
+    | ((status: PipelineBudgetStatus) => void | Promise<void>)
+    | undefined;
 
   constructor(config: AgentBudgetRegistryConfig = {}) {
     this.pipelineConfig = {
@@ -108,27 +111,31 @@ export class AgentBudgetRegistry {
       config?.sessionCostLimitUsd ??
       categoryDefaults?.maxCostUsd;
 
+    // Build AgentTokenBudgetConfig with only defined properties
     const fullConfig: AgentTokenBudgetConfig = {
       agentName,
-      agentCategory: category,
-      sessionTokenLimit,
-      sessionCostLimitUsd,
-      warningThresholds: config?.warningThresholds,
-      hardLimitThreshold: config?.hardLimitThreshold,
-      onLimitReached: config?.onLimitReached,
-      allowOverride: config?.allowOverride,
-      onBudgetExceeded: config?.onBudgetExceeded,
-      modelPreference: config?.modelPreference,
+      ...(category !== undefined && { agentCategory: category }),
+      ...(sessionTokenLimit !== undefined && { sessionTokenLimit }),
+      ...(sessionCostLimitUsd !== undefined && { sessionCostLimitUsd }),
+      ...(config?.warningThresholds !== undefined && { warningThresholds: config.warningThresholds }),
+      ...(config?.hardLimitThreshold !== undefined && { hardLimitThreshold: config.hardLimitThreshold }),
+      ...(config?.onLimitReached !== undefined && { onLimitReached: config.onLimitReached }),
+      ...(config?.allowOverride !== undefined && { allowOverride: config.allowOverride }),
+      ...(config?.onBudgetExceeded !== undefined && { onBudgetExceeded: config.onBudgetExceeded }),
+      ...(config?.modelPreference !== undefined && { modelPreference: config.modelPreference }),
     };
 
-    const manager = new TokenBudgetManager({
-      sessionTokenLimit: fullConfig.sessionTokenLimit,
-      sessionCostLimitUsd: fullConfig.sessionCostLimitUsd,
-      warningThresholds: fullConfig.warningThresholds,
-      hardLimitThreshold: fullConfig.hardLimitThreshold,
-      onLimitReached: fullConfig.onLimitReached,
-      allowOverride: fullConfig.allowOverride,
-    });
+    // Build TokenBudgetConfig with only defined properties
+    const managerConfig = {
+      ...(sessionTokenLimit !== undefined && { sessionTokenLimit }),
+      ...(sessionCostLimitUsd !== undefined && { sessionCostLimitUsd }),
+      ...(config?.warningThresholds !== undefined && { warningThresholds: config.warningThresholds }),
+      ...(config?.hardLimitThreshold !== undefined && { hardLimitThreshold: config.hardLimitThreshold }),
+      ...(config?.onLimitReached !== undefined && { onLimitReached: config.onLimitReached }),
+      ...(config?.allowOverride !== undefined && { allowOverride: config.allowOverride }),
+    };
+
+    const manager = new TokenBudgetManager(managerConfig);
 
     const entry: AgentBudgetEntry = {
       manager,

@@ -28,7 +28,7 @@ export interface AgentUsageSummary {
   /** Agent name */
   readonly agentName: string;
   /** Agent category if known */
-  readonly category?: AgentCategory;
+  readonly category?: AgentCategory | undefined;
   /** Total tokens used */
   readonly totalTokens: number;
   /** Total cost in USD */

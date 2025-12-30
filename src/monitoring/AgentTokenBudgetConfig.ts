@@ -20,19 +20,19 @@ export interface AgentTokenBudgetConfig extends TokenBudgetConfig {
   readonly agentName: string;
 
   /** Agent category for default inheritance */
-  readonly agentCategory?: AgentCategory;
+  readonly agentCategory?: AgentCategory | undefined;
 
   /** Override session token limit for this agent */
-  readonly agentTokenLimit?: number;
+  readonly agentTokenLimit?: number | undefined;
 
   /** Override cost limit for this agent in USD */
-  readonly agentCostLimitUsd?: number;
+  readonly agentCostLimitUsd?: number | undefined;
 
   /** Callback when budget exceeded */
-  readonly onBudgetExceeded?: (status: BudgetStatus) => void | Promise<void>;
+  readonly onBudgetExceeded?: ((status: BudgetStatus) => void | Promise<void>) | undefined;
 
   /** Model preference for this agent (affects cost calculation) */
-  readonly modelPreference?: 'sonnet' | 'opus' | 'haiku';
+  readonly modelPreference?: 'sonnet' | 'opus' | 'haiku' | undefined;
 }
 
 /**
