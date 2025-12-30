@@ -10,7 +10,7 @@ tools:
   - Write
   - Glob
   - Grep
-model: sonnet
+model: inherit
 ---
 
 # Document Reader Agent

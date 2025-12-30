@@ -12,7 +12,7 @@ tools:
   - Grep
   - Bash
   - Task
-model: opus
+model: inherit
 ---
 
 # AD-SDLC Pipeline Orchestrator

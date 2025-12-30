@@ -10,7 +10,7 @@ tools:
   - Edit
   - Glob
   - Grep
-model: sonnet
+model: inherit
 ---
 
 # SRS Writer Agent (SRS 작성 에이전트)

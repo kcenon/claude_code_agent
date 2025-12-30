@@ -12,7 +12,7 @@ tools:
   - Glob
   - Grep
   - Bash
-model: sonnet
+model: inherit
 ---
 
 # GitHub Repo Setup Agent

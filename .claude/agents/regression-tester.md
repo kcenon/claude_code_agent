@@ -10,7 +10,7 @@ tools:
   - Glob
   - Grep
   - Bash
-model: sonnet
+model: inherit
 ---
 
 # Regression Tester Agent

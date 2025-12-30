@@ -7,7 +7,7 @@ description: |
 tools:
   - Read
   - Glob
-model: haiku
+model: inherit
 ---
 
 # Mode Detector Agent
