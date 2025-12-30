@@ -26,6 +26,7 @@ Each agent is defined with:
 | PRD Writer | `prd-writer.md` | CMP-002 | Generates PRD |
 | SRS Writer | `srs-writer.md` | CMP-003 | Generates SRS |
 | SDS Writer | `sds-writer.md` | CMP-004 | Generates SDS |
+| Issue Reader | `issue-reader.md` | CMP-009 | Imports existing GitHub Issues |
 | Issue Generator | `issue-generator.md` | CMP-005 | Creates GitHub Issues |
 | Controller | `controller.md` | CMP-006 | Orchestrates Workers |
 | Worker | `worker.md` | CMP-007 | Implements code |

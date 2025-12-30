@@ -49,6 +49,7 @@ This directory contains detailed reference documentation for all AD-SDLC agents.
 
 | Agent | File | Description |
 |-------|------|-------------|
+| Issue Reader | [issue-reader.md](./issue-reader.md) | Imports existing GitHub issues |
 | Issue Generator | [issue-generator.md](./issue-generator.md) | Creates GitHub issues |
 | Controller | [controller.md](./controller.md) | Orchestrates work distribution |
 | Worker | [worker.md](./worker.md) | Implements code for issues |
@@ -167,12 +168,22 @@ Example input and output
 10. PR Reviewer     ┘
 ```
 
+### Agent Execution Order (Import)
+
+```
+1. Issue Reader     # Imports existing GitHub issues
+2. Controller       # Orchestrates work distribution
+3. Worker(s) [parallel]
+4. PR Reviewer
+```
+
 ### Model Assignments
 
 | Agent | Default Model | Rationale |
 |-------|---------------|-----------|
 | Collector | Sonnet | Balanced understanding |
 | PRD/SRS/SDS Writer | Sonnet | Quality writing |
+| Issue Reader | Sonnet | Accurate parsing |
 | Issue Generator | Sonnet | Structured output |
 | Controller | Haiku | Fast decisions |
 | Worker | Sonnet | Code quality |
@@ -187,6 +198,7 @@ Example input and output
 |-------|-------|
 | Collector | Read, WebFetch, Glob |
 | Writers | Read, Write, Glob |
+| Issue Reader | Read, Write, Bash (gh), Glob, Grep |
 | Issue Generator | Read, Bash (gh) |
 | Controller | Read, Write, Bash (gh) |
 | Worker | Read, Write, Edit, Bash, Grep, Glob |
