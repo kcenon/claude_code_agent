@@ -19,25 +19,39 @@ export const EXISTING_PRD_CONTENT = `# Product Requirements Document
 
 ## Project: E-Commerce Platform (v2.0)
 
-### PRD-001: User Authentication
+## Functional Requirements
+
+### FR-001: User Authentication
 **Priority**: P0
 **Status**: Implemented
 **Description**: Users can authenticate using email/password or OAuth providers.
+**Acceptance Criteria**:
+- Users can log in with email and password
+- Users can log in with OAuth providers
 
-### PRD-002: Product Catalog
+### FR-002: Product Catalog
 **Priority**: P0
 **Status**: Implemented
 **Description**: Display products with categories, search, and filtering.
+**Acceptance Criteria**:
+- Products are displayed with pagination
+- Users can filter by category
 
-### PRD-003: Shopping Cart
+### FR-003: Shopping Cart
 **Priority**: P0
 **Status**: Implemented
 **Description**: Users can add/remove items, update quantities, and save cart.
+**Acceptance Criteria**:
+- Users can add items to cart
+- Users can remove items from cart
 
-### PRD-004: Order Processing
+### FR-004: Order Processing
 **Priority**: P1
 **Status**: In Progress
 **Description**: Process orders with payment integration and confirmation.
+**Acceptance Criteria**:
+- Users can create orders from cart
+- Users receive order confirmation
 `;
 
 /**
@@ -279,6 +293,134 @@ export class CartService {
 `;
 
 /**
+ * Sample existing source code - Order module
+ */
+export const EXISTING_ORDER_CODE = `/**
+ * Order Service
+ * Implements FR-004: Order Processing
+ */
+
+export interface OrderItem {
+  productId: string;
+  quantity: number;
+  price: number;
+}
+
+export interface Order {
+  id: string;
+  userId: string;
+  items: OrderItem[];
+  total: number;
+  status: 'pending' | 'processing' | 'completed' | 'cancelled';
+  createdAt: Date;
+}
+
+export class OrderService {
+  private orders: Map<string, Order> = new Map();
+
+  // FR-004.1: Create order from cart
+  createOrder(userId: string, items: OrderItem[]): Order {
+    const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const order: Order = {
+      id: this.generateId(),
+      userId,
+      items,
+      total,
+      status: 'pending',
+      createdAt: new Date(),
+    };
+    this.orders.set(order.id, order);
+    return order;
+  }
+
+  // FR-004.2: Process payment
+  async processPayment(orderId: string): Promise<boolean> {
+    const order = this.orders.get(orderId);
+    if (!order) return false;
+
+    order.status = 'processing';
+    // Payment integration would be here
+    return true;
+  }
+
+  // FR-004.3: Confirm order
+  confirmOrder(orderId: string): Order | undefined {
+    const order = this.orders.get(orderId);
+    if (!order) return undefined;
+
+    order.status = 'completed';
+    return order;
+  }
+
+  getOrder(orderId: string): Order | undefined {
+    return this.orders.get(orderId);
+  }
+
+  private generateId(): string {
+    return Math.random().toString(36).substring(2, 15);
+  }
+}
+`;
+
+/**
+ * Sample existing source code - User module
+ */
+export const EXISTING_USER_CODE = `/**
+ * User Service
+ * Implements user management functionality
+ */
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  name: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export class UserService {
+  private users: Map<string, UserProfile> = new Map();
+
+  createUser(email: string, name: string): UserProfile {
+    const user: UserProfile = {
+      id: this.generateId(),
+      email,
+      name,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    this.users.set(user.id, user);
+    return user;
+  }
+
+  getUser(userId: string): UserProfile | undefined {
+    return this.users.get(userId);
+  }
+
+  updateUser(userId: string, updates: Partial<UserProfile>): UserProfile | undefined {
+    const user = this.users.get(userId);
+    if (!user) return undefined;
+
+    const updated = { ...user, ...updates, updatedAt: new Date() };
+    this.users.set(userId, updated);
+    return updated;
+  }
+
+  deleteUser(userId: string): boolean {
+    return this.users.delete(userId);
+  }
+
+  findByEmail(email: string): UserProfile | undefined {
+    return Array.from(this.users.values()).find(u => u.email === email);
+  }
+
+  private generateId(): string {
+    return Math.random().toString(36).substring(2, 15);
+  }
+}
+`;
+
+/**
  * Sample test file for existing project
  */
 export const EXISTING_TEST_CODE = `/**
@@ -382,19 +524,28 @@ export async function createEnhancementFixture(
     fs.writeFileSync(path.join(docsPath, 'sds', 'SDS-001.md'), EXISTING_SDS_CONTENT);
   }
 
-  // Create source files
+  // Create source files (directly in src for ModeDetector to find)
+  // ModeDetector requires minSourceFiles >= 5 to detect codebase.exists = true
   fs.writeFileSync(
-    path.join(srcPath, 'services', 'auth', 'AuthService.ts'),
+    path.join(srcPath, 'AuthService.ts'),
     EXISTING_AUTH_CODE
   );
   if (!partialCode) {
     fs.writeFileSync(
-      path.join(srcPath, 'services', 'product', 'ProductService.ts'),
+      path.join(srcPath, 'ProductService.ts'),
       EXISTING_PRODUCT_CODE
     );
     fs.writeFileSync(
-      path.join(srcPath, 'services', 'cart', 'CartService.ts'),
+      path.join(srcPath, 'CartService.ts'),
       EXISTING_CART_CODE
+    );
+    fs.writeFileSync(
+      path.join(srcPath, 'OrderService.ts'),
+      EXISTING_ORDER_CODE
+    );
+    fs.writeFileSync(
+      path.join(srcPath, 'UserService.ts'),
+      EXISTING_USER_CODE
     );
   }
 
@@ -484,18 +635,19 @@ export async function createCodeOnlyFixture(
 
   // Create directory structure without docs
   fs.mkdirSync(docsPath, { recursive: true });
-  fs.mkdirSync(path.join(srcPath, 'services', 'auth'), { recursive: true });
+  fs.mkdirSync(srcPath, { recursive: true });
   fs.mkdirSync(testsPath, { recursive: true });
   fs.mkdirSync(scratchpadPath, { recursive: true });
 
-  // Create source files only
-  fs.writeFileSync(
-    path.join(srcPath, 'services', 'auth', 'AuthService.ts'),
-    EXISTING_AUTH_CODE
-  );
+  // Create source files only (need >= 5 files for ModeDetector to detect codebase)
+  fs.writeFileSync(path.join(srcPath, 'AuthService.ts'), EXISTING_AUTH_CODE);
+  fs.writeFileSync(path.join(srcPath, 'ProductService.ts'), EXISTING_PRODUCT_CODE);
+  fs.writeFileSync(path.join(srcPath, 'CartService.ts'), EXISTING_CART_CODE);
+  fs.writeFileSync(path.join(srcPath, 'OrderService.ts'), EXISTING_ORDER_CODE);
+  fs.writeFileSync(path.join(srcPath, 'UserService.ts'), EXISTING_USER_CODE);
   fs.writeFileSync(path.join(testsPath, 'auth.test.ts'), EXISTING_TEST_CODE);
 
-  // Create package.json
+  // Create package.json for build system detection
   fs.writeFileSync(
     path.join(rootDir, 'package.json'),
     JSON.stringify({ name: 'code-only-project', version: '1.0.0' }, null, 2)

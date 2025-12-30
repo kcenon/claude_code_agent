@@ -279,7 +279,7 @@ describe('Enhancement Pipeline E2E Integration', () => {
       // Stage 3: Impact Analysis
       const changeRequest = createChangeRequest(SIMPLE_FEATURE_REQUEST);
       const analyzer = new ImpactAnalyzerAgent({
-        scratchpadBasePath: path.join(fixture.rootDir, '.ad-sdlc', 'scratchpad'),
+        scratchpadBasePath: '.ad-sdlc/scratchpad',
       });
       await analyzer.startSession('feature-project', changeRequest);
       const impactResult = await analyzer.analyze(fixture.rootDir);
@@ -307,7 +307,7 @@ describe('Enhancement Pipeline E2E Integration', () => {
 
       const changeRequest = createChangeRequest(SIMPLE_FEATURE_REQUEST);
       const analyzer = new ImpactAnalyzerAgent({
-        scratchpadBasePath: path.join(fixture.rootDir, '.ad-sdlc', 'scratchpad'),
+        scratchpadBasePath: '.ad-sdlc/scratchpad',
       });
       await analyzer.startSession('isolated-project', changeRequest);
       const impactResult = await analyzer.analyze(fixture.rootDir);
@@ -339,7 +339,7 @@ describe('Enhancement Pipeline E2E Integration', () => {
 
       const changeRequest = createChangeRequest(REQUIREMENT_MODIFICATION_REQUEST);
       const analyzer = new ImpactAnalyzerAgent({
-        scratchpadBasePath: path.join(fixture.rootDir, '.ad-sdlc', 'scratchpad'),
+        scratchpadBasePath: '.ad-sdlc/scratchpad',
       });
       await analyzer.startSession('modify-project', changeRequest);
       const impactResult = await analyzer.analyze(fixture.rootDir);
@@ -362,7 +362,7 @@ describe('Enhancement Pipeline E2E Integration', () => {
 
       const changeRequest = createChangeRequest(REQUIREMENT_MODIFICATION_REQUEST);
       const analyzer = new ImpactAnalyzerAgent({
-        scratchpadBasePath: path.join(fixture.rootDir, '.ad-sdlc', 'scratchpad'),
+        scratchpadBasePath: '.ad-sdlc/scratchpad',
       });
       await analyzer.startSession('auth-project', changeRequest);
       const impactResult = await analyzer.analyze(fixture.rootDir);
@@ -393,7 +393,7 @@ describe('Enhancement Pipeline E2E Integration', () => {
 
       const changeRequest = createChangeRequest(MULTI_COMPONENT_CHANGE_REQUEST);
       const analyzer = new ImpactAnalyzerAgent({
-        scratchpadBasePath: path.join(fixture.rootDir, '.ad-sdlc', 'scratchpad'),
+        scratchpadBasePath: '.ad-sdlc/scratchpad',
       });
       await analyzer.startSession('multi-project', changeRequest);
       const impactResult = await analyzer.analyze(fixture.rootDir);
@@ -416,7 +416,7 @@ describe('Enhancement Pipeline E2E Integration', () => {
 
       const changeRequest = createChangeRequest(MULTI_COMPONENT_CHANGE_REQUEST);
       const analyzer = new ImpactAnalyzerAgent({
-        scratchpadBasePath: path.join(fixture.rootDir, '.ad-sdlc', 'scratchpad'),
+        scratchpadBasePath: '.ad-sdlc/scratchpad',
       });
       await analyzer.startSession('dep-project', changeRequest);
       const impactResult = await analyzer.analyze(fixture.rootDir);
@@ -551,7 +551,7 @@ describe('Enhancement Pipeline E2E Integration', () => {
       // Stage 3: Impact Analysis (receives output from previous stages)
       const changeRequest = createChangeRequest(SIMPLE_FEATURE_REQUEST);
       const analyzer = new ImpactAnalyzerAgent({
-        scratchpadBasePath: path.join(fixture.rootDir, '.ad-sdlc', 'scratchpad'),
+        scratchpadBasePath: '.ad-sdlc/scratchpad',
       });
       await analyzer.startSession(projectId, changeRequest);
       const impactResult = await analyzer.analyze(fixture.rootDir);
@@ -633,7 +633,7 @@ describe('Enhancement Pipeline E2E Integration', () => {
 
       const changeRequest = createChangeRequest(SIMPLE_FEATURE_REQUEST);
       const analyzer = new ImpactAnalyzerAgent({
-        scratchpadBasePath: path.join(fixture.rootDir, '.ad-sdlc', 'scratchpad'),
+        scratchpadBasePath: '.ad-sdlc/scratchpad',
       });
 
       // When: Measuring analysis time
