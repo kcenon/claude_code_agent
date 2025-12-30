@@ -12,6 +12,8 @@ The security module includes:
 - **SecureFileHandler** - Secure temporary file handling
 - **RateLimiter** - API rate limiting
 - **CommandSanitizer** - Safe shell command execution (prevents command injection)
+- **SecureFileOps** - Centralized secure file operations with path validation
+- **PathResolver** - Project-aware path resolution with traversal prevention
 
 ## Installation
 
@@ -26,6 +28,9 @@ import {
   RateLimiter,
   CommandSanitizer,
   getCommandSanitizer,
+  SecureFileOps,
+  createSecureFileOps,
+  PathResolver,
 } from 'ad-sdlc';
 ```
 
@@ -512,6 +517,160 @@ if (result.valid) {
 }
 ```
 
+## SecureFileOps
+
+Provides a centralized, secure wrapper for all file operations with automatic path validation.
+
+### The Problem
+
+Direct file operations with user-provided paths can lead to path traversal attacks:
+
+```typescript
+// DANGEROUS - Never do this!
+const userPath = '../../../etc/passwd';
+const content = fs.readFileSync(userPath);  // Path traversal vulnerability!
+```
+
+### Solution: SecureFileOps
+
+SecureFileOps wraps all file operations with automatic path validation:
+
+```typescript
+import { createSecureFileOps, SecureFileOps } from 'ad-sdlc';
+
+// Create instance with project root
+const fileOps = createSecureFileOps({
+  projectRoot: '/path/to/project',
+});
+
+// Safe file operations - validates path before executing
+const content = await fileOps.readFile('src/config.json');  // Safe
+const content2 = await fileOps.readFile('../../../etc/passwd');  // Throws PathTraversalError!
+```
+
+### Basic Usage
+
+```typescript
+import { createSecureFileOps, getSecureFileOps } from 'ad-sdlc';
+
+// Using factory function with configuration
+const fileOps = createSecureFileOps({
+  projectRoot: process.cwd(),
+  allowedExternalDirs: ['/tmp/allowed'],  // Optional: allow specific external directories
+});
+
+// Or using singleton (uses CWD as project root)
+const defaultOps = getSecureFileOps();
+
+// Read files safely
+const content = await fileOps.readFile('src/index.ts');
+const jsonData = await fileOps.readFile('config.json');
+
+// Write files safely (auto-creates directories)
+await fileOps.writeFile('dist/output.js', 'console.log("hello")');
+
+// Append to files
+await fileOps.appendFile('logs/app.log', 'New log entry\n');
+
+// Create directories
+await fileOps.mkdir('new-dir/nested');
+
+// Check file existence
+if (await fileOps.exists('package.json')) {
+  // File exists
+}
+
+// Delete files
+await fileOps.unlink('temp-file.txt');
+
+// Rename/move files
+await fileOps.rename('old-name.ts', 'new-name.ts');
+
+// Copy files
+await fileOps.copyFile('source.ts', 'backup/source.ts');
+```
+
+### Synchronous Operations
+
+All operations have synchronous versions:
+
+```typescript
+const content = fileOps.readFileSync('config.json');
+fileOps.writeFileSync('output.txt', 'content');
+fileOps.mkdirSync('new-directory');
+const exists = fileOps.existsSync('file.txt');
+fileOps.unlinkSync('temp.txt');
+fileOps.renameSync('old.ts', 'new.ts');
+fileOps.copyFileSync('src.ts', 'dest.ts');
+```
+
+### Path Validation
+
+Validate paths explicitly:
+
+```typescript
+// Get validated absolute path
+const absolutePath = fileOps.validatePath('relative/path.ts');
+// Returns: '/path/to/project/relative/path.ts'
+
+// Path traversal attempts throw PathTraversalError
+try {
+  fileOps.validatePath('../../etc/passwd');
+} catch (error) {
+  if (error instanceof PathTraversalError) {
+    console.error('Path traversal detected!');
+  }
+}
+```
+
+### Configuration Options
+
+```typescript
+const fileOps = createSecureFileOps({
+  // Project root directory (all paths must resolve within this)
+  projectRoot: '/path/to/project',
+
+  // Optional: Allow access to specific external directories
+  allowedExternalDirs: ['/tmp/shared', '/var/cache/app'],
+
+  // Optional: Validate symlinks don't escape project
+  validateSymlinks: true,  // Default: false
+});
+```
+
+## PathResolver
+
+Low-level path resolution with security validation.
+
+### Basic Usage
+
+```typescript
+import { PathResolver } from 'ad-sdlc';
+
+const resolver = new PathResolver({
+  projectRoot: '/path/to/project',
+});
+
+// Resolve path safely
+const resolved = resolver.resolve('src/index.ts');
+console.log(resolved.absolutePath);     // '/path/to/project/src/index.ts'
+console.log(resolved.relativePath);     // 'src/index.ts'
+console.log(resolved.isWithinProject);  // true
+
+// Path traversal throws error
+resolver.resolve('../../../etc/passwd');  // Throws PathTraversalError
+```
+
+### Configuration
+
+```typescript
+const resolver = new PathResolver({
+  projectRoot: '/project',
+  allowedExternalDirs: ['/tmp'],  // Allow specific external paths
+  validateSymlinks: true,          // Check symlink targets
+});
+```
+
 ## Error Classes
 
 All security errors extend `SecurityError`:
@@ -546,6 +705,8 @@ try {
 5. **Implement rate limiting** - Protect APIs from abuse with `RateLimiter`
 6. **Prevent command injection** - Always use `CommandSanitizer` for shell command execution
 7. **Never use exec() with user input** - Use `execGit()`, `execGh()`, or `execFromString()` instead
+8. **Use SecureFileOps for all file operations** - Prevents path traversal attacks by validating all paths against project root
+9. **Configure project root** - Always specify `projectRoot` when creating `SecureFileOps` or `PathResolver` instances
 
 ## Security Scanning
 
