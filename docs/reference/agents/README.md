@@ -35,6 +35,14 @@ This directory contains detailed reference documentation for all AD-SDLC agents.
 | SRS Updater | [srs-updater.md](./srs-updater.md) | Incremental SRS modifications |
 | SDS Updater | [sds-updater.md](./sds-updater.md) | Incremental SDS modifications |
 
+### Infrastructure Pipeline
+
+| Agent | File | Description |
+|-------|------|-------------|
+| Mode Detector | [mode-detector.md](./mode-detector.md) | Detects greenfield vs enhancement mode |
+| Repo Detector | [repo-detector.md](./repo-detector.md) | Detects existing vs new repository |
+| GitHub Repo Setup | [github-repo-setup.md](./github-repo-setup.md) | Creates and configures GitHub repository |
+
 ### Analysis Pipeline
 
 | Agent | File | Description |
@@ -140,14 +148,17 @@ Example input and output
 ### Agent Execution Order (Greenfield)
 
 ```
-1. Collector
-2. PRD Writer
-3. SRS Writer
-4. SDS Writer
-5. Issue Generator
-6. Controller
-7. Worker(s) [parallel]
-8. PR Reviewer
+1. Mode Detector
+2. Collector
+3. PRD Writer
+4. SRS Writer
+5. Repo Detector
+6. GitHub Repo Setup  (conditional: skipped if existing repo)
+7. SDS Writer
+8. Issue Generator
+9. Controller
+10. Worker(s) [parallel]
+11. PR Reviewer
 ```
 
 ### Agent Execution Order (Enhancement)
@@ -181,6 +192,9 @@ Example input and output
 
 | Agent | Default Model | Rationale |
 |-------|---------------|-----------|
+| Mode Detector | Haiku | Fast detection |
+| Repo Detector | Haiku | Fast detection |
+| GitHub Repo Setup | Sonnet | Complex setup |
 | Collector | Sonnet | Balanced understanding |
 | PRD/SRS/SDS Writer | Sonnet | Quality writing |
 | Issue Reader | Sonnet | Accurate parsing |
@@ -196,6 +210,9 @@ Example input and output
 
 | Agent | Tools |
 |-------|-------|
+| Mode Detector | Read, Glob |
+| Repo Detector | Read, Bash (git, gh), Glob |
+| GitHub Repo Setup | Read, Write, Edit, Bash (gh, git), Glob, Grep |
 | Collector | Read, WebFetch, Glob |
 | Writers | Read, Write, Glob |
 | Issue Reader | Read, Write, Bash (gh), Glob, Grep |
