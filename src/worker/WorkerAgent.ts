@@ -612,7 +612,11 @@ export class WorkerAgent {
    */
   public async saveResult(result: ImplementationResult): Promise<void> {
     // Construct relative path from project root
-    const resultFilePath = join(this.config.resultsPath, 'results', `${result.workOrderId}-result.yaml`);
+    const resultFilePath = join(
+      this.config.resultsPath,
+      'results',
+      `${result.workOrderId}-result.yaml`
+    );
 
     try {
       const yamlContent = this.toYaml(result as unknown as Record<string, unknown>);
