@@ -11,10 +11,8 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { InputValidator } from './InputValidator.js';
 import { PathResolver } from './PathResolver.js';
 import { getAuditLogger } from './AuditLogger.js';
-import { PathTraversalError } from './errors.js';
 import type { AuditEventType } from './types.js';
 
 /**
@@ -82,7 +80,6 @@ const DEFAULT_DIR_MODE = 0o700;
  * path traversal attacks. Operations are optionally logged for audit.
  */
 export class SecureFileOps {
-  private readonly validator: InputValidator;
   private readonly resolver: PathResolver;
   private readonly enableAuditLog: boolean;
   private readonly actor: string;
@@ -92,10 +89,9 @@ export class SecureFileOps {
 
   constructor(config: SecureFileOpsConfig) {
     this.projectRoot = path.resolve(config.projectRoot);
-    this.validator = new InputValidator({ basePath: this.projectRoot });
     this.resolver = new PathResolver({
       projectRoot: this.projectRoot,
-      allowedExternalDirs: config.allowedExternalDirs,
+      allowedExternalDirs: config.allowedExternalDirs ?? [],
     });
     this.enableAuditLog = config.enableAuditLog ?? false;
     this.actor = config.actor ?? 'system';

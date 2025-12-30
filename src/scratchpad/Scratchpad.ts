@@ -14,7 +14,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import * as yaml from 'js-yaml';
-import { InputValidator, PathTraversalError } from '../security/index.js';
+import { InputValidator } from '../security/index.js';
 import type {
   ScratchpadOptions,
   ScratchpadSection,
@@ -72,8 +72,12 @@ export class Scratchpad {
     this.lockTimeout = options.lockTimeout ?? DEFAULT_LOCK_TIMEOUT;
     // Use projectRoot if provided, otherwise use current working directory
     this.projectRoot = options.projectRoot ?? process.cwd();
-    // Initialize validator with project root to prevent path traversal
-    this.validator = new InputValidator({ basePath: this.projectRoot });
+    // Initialize validator with resolved basePath to prevent path traversal
+    // The basePath is resolved against projectRoot for relative paths
+    const resolvedBasePath = path.isAbsolute(this.basePath)
+      ? this.basePath
+      : path.resolve(this.projectRoot, this.basePath);
+    this.validator = new InputValidator({ basePath: resolvedBasePath });
   }
 
   // ============================================================
