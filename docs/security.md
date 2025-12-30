@@ -11,6 +11,7 @@ The security module includes:
 - **AuditLogger** - Security audit logging
 - **SecureFileHandler** - Secure temporary file handling
 - **RateLimiter** - API rate limiting
+- **CommandSanitizer** - Safe shell command execution (prevents command injection)
 
 ## Installation
 
@@ -23,6 +24,8 @@ import {
   AuditLogger,
   SecureFileHandler,
   RateLimiter,
+  CommandSanitizer,
+  getCommandSanitizer,
 } from 'ad-sdlc';
 ```
 
@@ -346,6 +349,169 @@ limiter.reset('user-key');
 limiter.resetAll();
 ```
 
+## CommandSanitizer
+
+Provides safe shell command execution by preventing command injection attacks.
+
+### The Problem
+
+Using `exec()` or `execSync()` with unsanitized user input can lead to command injection:
+
+```typescript
+// DANGEROUS - Never do this!
+const userInput = '; rm -rf /';
+exec(`git checkout ${userInput}`); // Would execute: git checkout ; rm -rf /
+```
+
+### Solution: CommandSanitizer
+
+CommandSanitizer uses `execFile()` instead of `exec()`, which bypasses the shell entirely:
+
+```typescript
+import { getCommandSanitizer } from 'ad-sdlc';
+
+const sanitizer = getCommandSanitizer();
+
+// Safe execution - uses execFile, bypasses shell
+const result = await sanitizer.execGit(['checkout', 'main']);
+console.log(result.stdout);
+```
+
+### Basic Usage
+
+```typescript
+import { CommandSanitizer, getCommandSanitizer } from 'ad-sdlc';
+
+const sanitizer = getCommandSanitizer();
+
+// Execute git commands safely
+const gitStatus = await sanitizer.execGit(['status', '--porcelain']);
+
+// Execute GitHub CLI commands safely
+const prList = await sanitizer.execGh(['pr', 'list', '--json', 'number,title']);
+
+// Synchronous versions
+const branch = sanitizer.execGitSync(['rev-parse', '--abbrev-ref', 'HEAD']);
+```
+
+### Command Validation
+
+Commands are validated against a whitelist before execution:
+
+```typescript
+// Validate and sanitize a command
+const validated = sanitizer.validateCommand('git', ['status', '--porcelain']);
+// Returns: { baseCommand: 'git', subCommand: 'status', args: ['status', '--porcelain'], rawCommand: 'git status --porcelain' }
+
+// Execute the validated command
+const result = await sanitizer.safeExec(validated);
+```
+
+### Argument Sanitization
+
+Arguments are checked for shell metacharacters and dangerous patterns:
+
+```typescript
+// Safe argument
+const safe = sanitizer.sanitizeArgument('feature/my-branch');
+// Returns: 'feature/my-branch'
+
+// Dangerous argument - throws CommandInjectionError
+sanitizer.sanitizeArgument('; rm -rf /');
+// Throws: CommandInjectionError - Shell metacharacter detected
+```
+
+### String-Based Execution (Migration)
+
+For backward compatibility with existing code using command strings:
+
+```typescript
+// Parse and execute a command string safely
+const result = await sanitizer.execFromString('gh pr view 123 --json url');
+
+// Synchronous version
+const syncResult = sanitizer.execFromStringSync('git log -1 --oneline');
+```
+
+The parser respects quoted strings:
+
+```typescript
+// Double-quoted content is preserved
+await sanitizer.execFromString('git commit -m "fix: add new feature"');
+
+// Single-quoted content is preserved
+await sanitizer.execFromString("git commit -m 'fix: add new feature'");
+```
+
+### Escaping Content for Command Strings
+
+When building command strings with user content:
+
+```typescript
+const userMessage = 'Fix the "bug" in parser';
+
+// Escape for use in double quotes
+const escaped = sanitizer.escapeForParser(userMessage);
+// Returns: 'Fix the \\"bug\\" in parser'
+
+// Use in command string
+await sanitizer.execFromString(`git commit -m "${escaped}"`);
+```
+
+### Whitelisted Commands
+
+By default, only these commands are allowed:
+
+| Command | Subcommands |
+|---------|-------------|
+| git | status, add, commit, push, pull, checkout, branch, log, diff, show, fetch, merge, rebase, stash, reset, tag, init, clone, remote, rev-parse |
+| gh | pr, issue, repo, auth, api, run, workflow |
+| npm | install, ci, run, test, build, audit, version, pack, publish, exec, cache |
+| npx | (any) |
+| node | (any) |
+| tsc | (any) |
+| eslint | (any) |
+| prettier | (any) |
+| vitest | (any) |
+| jest | (any) |
+
+### Error Handling
+
+```typescript
+import {
+  CommandInjectionError,
+  CommandNotAllowedError
+} from 'ad-sdlc';
+
+try {
+  await sanitizer.execFromString('curl http://evil.com');
+} catch (error) {
+  if (error instanceof CommandNotAllowedError) {
+    console.error('Command not in whitelist');
+  }
+}
+
+try {
+  await sanitizer.execFromString('git checkout $(whoami)');
+} catch (error) {
+  if (error instanceof CommandInjectionError) {
+    console.error('Command injection detected');
+  }
+}
+```
+
+### Configuration for Validated Commands
+
+```typescript
+// Validate command for hook/config usage
+const result = sanitizer.validateConfigCommand('npm run build');
+if (result.valid) {
+  // Safe to execute in config context
+} else {
+  console.error('Dangerous command:', result.reason);
+}
+```
+
 ## Error Classes
 
 All security errors extend `SecurityError`:
@@ -358,6 +524,8 @@ import {
   InvalidUrlError,
   ValidationError,
   RateLimitExceededError,
+  CommandInjectionError,
+  CommandNotAllowedError,
 } from 'ad-sdlc';
 
 try {
@@ -376,6 +544,8 @@ try {
 3. **Audit sensitive operations** - Log API key usage, file operations, and security events
 4. **Use secure file handling** - Always use `SecureFileHandler` for temporary files
 5. **Implement rate limiting** - Protect APIs from abuse with `RateLimiter`
+6. **Prevent command injection** - Always use `CommandSanitizer` for shell command execution
+7. **Never use exec() with user input** - Use `execGit()`, `execGh()`, or `execFromString()` instead
 
 ## Security Scanning
 
