@@ -312,9 +312,62 @@ pipeline:
           next: null  # End of pipeline
           approval_required: false
 
+    # =========================================================================
+    # Import Mode - Start from existing GitHub issues
+    # =========================================================================
+    import:
+      description: "Import existing GitHub issues and start execution pipeline"
+      stages:
+        - name: "issue_reading"
+          agent: "issue-reader"
+          description: "Import existing GitHub issues to AD-SDLC format"
+          inputs:
+            - type: "github_issues"
+            - type: "filter_criteria"
+          outputs:
+            - "${scratchpad_dir}/issues/${project_id}/issue_list.json"
+            - "${scratchpad_dir}/issues/${project_id}/dependency_graph.json"
+          next: "orchestration"
+          approval_required: true
+
+        - name: "orchestration"
+          agent: "controller"
+          description: "Orchestrate work distribution from imported issues"
+          inputs:
+            - "${scratchpad_dir}/issues/${project_id}/issue_list.json"
+            - "${scratchpad_dir}/issues/${project_id}/dependency_graph.json"
+          outputs:
+            - "${scratchpad_dir}/progress/${project_id}/controller_state.yaml"
+            - "${scratchpad_dir}/progress/${project_id}/work_orders/*.yaml"
+          next: "implementation"
+          approval_required: false
+
+        - name: "implementation"
+          agent: "worker"
+          description: "Implement assigned issues"
+          parallel: true
+          max_parallel: 5
+          inputs:
+            - "${scratchpad_dir}/progress/${project_id}/work_orders/*.yaml"
+          outputs:
+            - "${scratchpad_dir}/progress/${project_id}/results/*.yaml"
+            - "src/**/*"
+          next: "review"
+          approval_required: false
+
+        - name: "review"
+          agent: "pr-reviewer"
+          description: "Create and review PRs"
+          inputs:
+            - "${scratchpad_dir}/progress/${project_id}/results/*.yaml"
+          outputs:
+            - "${scratchpad_dir}/progress/${project_id}/reviews/*.yaml"
+          next: null  # End of pipeline
+          approval_required: false
+
   # Legacy compatibility: stages array for backward compatibility
   # When no mode is specified, this defaults to greenfield stages
-  stages: []  # Use modes.greenfield.stages or modes.enhancement.stages
+  stages: []  # Use modes.greenfield.stages, modes.enhancement.stages, or modes.import.stages
 
 # =============================================================================
 # Agent Configurations
@@ -390,6 +443,33 @@ agents:
     github:
       labels_prefix: "ad-sdlc"
       auto_assign: false
+
+  issue-reader:
+    model: "sonnet"
+    tools:
+      - Read
+      - Write
+      - Bash
+      - Glob
+      - Grep
+    github:
+      default_state: "open"
+      max_issues: 500
+    priority_mapping:
+      critical: "P0"
+      priority-p0: "P0"
+      high: "P1"
+      priority-p1: "P1"
+      medium: "P2"
+      priority-p2: "P2"
+      low: "P3"
+      priority-p3: "P3"
+    effort_mapping:
+      "size:XS": 2
+      "size:S": 4
+      "size:M": 6
+      "size:L": 12
+      "size:XL": 20
 
   controller:
     model: "sonnet"
