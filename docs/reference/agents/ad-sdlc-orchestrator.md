@@ -33,15 +33,19 @@ ad-sdlc-orchestrator:
     - "progress_monitoring"
     - "approval_gate_management"
     - "error_recovery"
+    - "import_mode_support"
+    - "issue_filtering"
 
   io:
     inputs:
       - user_request
       - project_path
       - override_mode
+      - import_options
     outputs:
       - pipeline_log.yaml
       - final_report.md
+      - imported_issues.json
 
   token_budget:
     default_limit: 200000
@@ -63,7 +67,14 @@ ad-sdlc-orchestrator:
 input:
   user_request: string    # "Build a task management CLI"
   project_path: string    # "/path/to/project"
-  override_mode: string   # "greenfield" | "enhancement" | null
+  override_mode: string   # "greenfield" | "enhancement" | "import" | null
+  import_options:         # Only for import mode
+    filter:
+      labels: [string]    # ["bug", "feature"]
+      milestone: string   # "v1.0"
+      issues: [integer]   # [1, 2, 3]
+      state: string       # "open" (default)
+    batch_size: integer   # Max concurrent workers (default: 5)
 ```
 
 ## Output
@@ -77,7 +88,7 @@ input:
 
 ```yaml
 orchestration_result:
-  pipeline_mode: "greenfield" | "enhancement"
+  pipeline_mode: "greenfield" | "enhancement" | "import"
   started_at: datetime
   completed_at: datetime
   status: "success" | "partial" | "failed"
@@ -142,8 +153,9 @@ orchestration_result:
 ### Decision Points
 
 - **Mode Selection**: Based on existing docs/code and user keywords
-- **Pipeline Branch**: Greenfield vs Enhancement pipeline
-- **Approval Gates**: User must approve PRD, SRS, SDS, and issues
+- **Pipeline Branch**: Greenfield vs Enhancement vs Import pipeline
+- **Import Detection**: Triggered by keywords like "process issues", "work on issues", "existing issues"
+- **Approval Gates**: User must approve PRD, SRS, SDS, and issues (not applicable for Import mode)
 - **Error Recovery**: Retry, skip, or abort on failure
 
 ### Pipeline Stages
@@ -181,6 +193,22 @@ orchestration_result:
 | 11 | worker | Implement | No |
 | 12 | regression-tester | Verify stability | No |
 | 13 | pr-reviewer | Review PRs | No |
+
+#### Import Pipeline
+
+| Order | Agent | Description | Approval Gate |
+|-------|-------|-------------|---------------|
+| 1 | mode-detector | Confirm import mode | No |
+| 2 | issue-reader | Import GitHub issues | No |
+| 3 | controller | Prioritize and assign | No |
+| 4 | worker | Implement issues | No |
+| 5 | pr-reviewer | Review PRs | No |
+
+**Import Mode Keywords** (auto-detection):
+- "process issues", "work on issues", "implement issues"
+- "handle backlog", "process backlog"
+- "existing issues", "open issues"
+- "issue #", "issues #"
 
 ## Error Handling
 
@@ -242,6 +270,36 @@ orchestration_result:
 11. Review and merge PRs
 12. Final report generated
 
+### Basic Usage: Import Mode
+
+**Invocation**:
+```
+"Use the ad-sdlc-orchestrator to process the open issues labeled 'bug'"
+```
+
+**Expected Flow**:
+1. Import mode detected from keywords ("process", "issues")
+2. Import GitHub issues with label filter: ["bug"]
+3. Prioritize and assign work orders
+4. Implement fixes via worker agents
+5. Review and merge PRs
+6. Final report generated
+
+### Import Mode with Specific Issues
+
+**Invocation**:
+```
+"Use the ad-sdlc-orchestrator to work on issues #10, #12, #15"
+```
+
+**Expected Flow**:
+1. Import mode detected from keywords ("work on issues", "#")
+2. Parse and import issues: [10, 12, 15]
+3. Analyze dependencies between issues
+4. Execute in dependency order
+5. Review each implementation
+6. Final report generated
+
 ### With Mode Override
 
 **Invocation**:
@@ -259,17 +317,18 @@ orchestration_result:
 
 | Agent | Pipeline | Purpose |
 |-------|----------|---------|
-| mode-detector | Both | Determine pipeline mode |
+| mode-detector | All | Determine pipeline mode |
 | collector | Greenfield | Gather requirements |
 | prd-writer | Greenfield | Generate PRD |
 | srs-writer | Greenfield | Generate SRS |
 | sds-writer | Greenfield | Generate SDS |
 | repo-detector | Greenfield | Check for existing repo |
 | github-repo-setup | Greenfield | Create repository |
-| issue-generator | Both | Create GitHub issues |
-| controller | Both | Orchestrate work |
-| worker | Both | Implement features |
-| pr-reviewer | Both | Review PRs |
+| issue-generator | Greenfield/Enhancement | Create GitHub issues |
+| issue-reader | Import | Import existing GitHub issues |
+| controller | All | Orchestrate work |
+| worker | All | Implement features |
+| pr-reviewer | All | Review PRs |
 | document-reader | Enhancement | Parse existing docs |
 | codebase-analyzer | Enhancement | Analyze codebase |
 | code-reader | Enhancement | Extract code structure |
