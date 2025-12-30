@@ -381,7 +381,7 @@ Fixes applied by CI Fix Agent for PR #${String(handoff.prNumber)}`;
 
     // Commit
     try {
-      await this.executeCommand(`git commit -m "${this.escapeShell(commitMessage)}"`);
+      await this.executeCommand(`git commit -m "${this.escapeForParser(commitMessage)}"`);
     } catch (error) {
       throw new CommitError(handoff.branch, error instanceof Error ? error : undefined);
     }
@@ -550,7 +550,7 @@ Fixes applied by CI Fix Agent for PR #${String(handoff.prNumber)}`;
     // Add comment to PR
     const escalationInfo = this.generateEscalationComment(handoff, result);
     await this.executeCommand(
-      `gh pr comment ${String(handoff.prNumber)} --body "${this.escapeShell(escalationInfo)}"`
+      `gh pr comment ${String(handoff.prNumber)} --body "${this.escapeForParser(escalationInfo)}"`
     );
   }
 
@@ -714,11 +714,12 @@ _This escalation was generated automatically by the CI Fix Agent._`;
   }
 
   /**
-   * Escape shell special characters
-   * @deprecated No longer needed with safe execution, kept for backward compatibility
+   * Escape content for use within double quotes in command strings
+   * Uses the centralized sanitizer method
    */
-  private escapeShell(str: string): string {
-    return str.replace(/"/g, '\\"').replace(/`/g, '\\`').replace(/\$/g, '\\$');
+  private escapeForParser(str: string): string {
+    const sanitizer = getCommandSanitizer();
+    return sanitizer.escapeForParser(str);
   }
 
   /**

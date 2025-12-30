@@ -455,9 +455,9 @@ export class MergeDecision {
       }
 
       // Build commit subject and body
-      flags.push(`--subject "${this.escapeShell(message.title)}"`);
+      flags.push(`--subject "${this.escapeForParser(message.title)}"`);
       if (message.body) {
-        flags.push(`--body "${this.escapeShell(message.body)}"`);
+        flags.push(`--body "${this.escapeForParser(message.body)}"`);
       }
 
       const command = `gh pr merge ${String(prNumber)} ${flags.join(' ')}`;
@@ -623,11 +623,12 @@ export class MergeDecision {
   }
 
   /**
-   * Escape shell special characters
-   * @deprecated No longer needed with safe execution, kept for backward compatibility
+   * Escape content for use within double quotes in command strings
+   * Uses the centralized sanitizer method
    */
-  private escapeShell(str: string): string {
-    return str.replace(/"/g, '\\"').replace(/`/g, '\\`').replace(/\$/g, '\\$');
+  private escapeForParser(str: string): string {
+    const sanitizer = getCommandSanitizer();
+    return sanitizer.escapeForParser(str);
   }
 
   /**

@@ -19,6 +19,17 @@ vi.mock('node:child_process', () => ({
     }
     return {};
   }),
+  execFile: vi.fn((command: string, args: string[], options: unknown, callback?: (err: Error | null, stdout: string, stderr: string) => void) => {
+    // Handle different argument patterns
+    if (typeof options === 'function') {
+      callback = options as (err: Error | null, stdout: string, stderr: string) => void;
+    }
+    if (callback) {
+      callback(null, '{}', '');
+    }
+    return {};
+  }),
+  execFileSync: vi.fn(() => '{}'),
 }));
 
 import { exec } from 'node:child_process';

@@ -208,7 +208,7 @@ export const DEFAULT_COMMAND_WHITELIST: CommandWhitelistConfig = {
  * Shell metacharacters that must be escaped or rejected
  * These characters can be used for command injection attacks
  */
-export const SHELL_METACHARACTERS = /[;&|`$"'<>(){}[\]!#*?\\]/g;
+export const SHELL_METACHARACTERS = /[;&|`$"'<>(){}[\]!#*?\\]/;
 
 /**
  * Characters that need escaping in shell arguments

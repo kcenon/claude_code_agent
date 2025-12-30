@@ -22,7 +22,6 @@ import {
   isAllowedSubcommand,
   getCommandConfig,
   containsShellMetacharacters,
-  SHELL_METACHARACTERS,
 } from './CommandWhitelist.js';
 import { CommandInjectionError, CommandNotAllowedError } from './errors.js';
 import type { SanitizedCommand, CommandExecResult, CommandSanitizerOptions } from './types.js';
@@ -133,7 +132,7 @@ export class CommandSanitizer {
 
     // Additional validation based on command config
     const config = command !== undefined ? getCommandConfig(command, this.whitelist) : undefined;
-    if (config !== undefined && !config.allowArbitraryArgs) {
+    if (config !== undefined && config.allowArbitraryArgs !== true) {
       // For commands without allowArbitraryArgs, do extra validation
       if (arg.startsWith('-') && arg.length > 2 && !arg.startsWith('--')) {
         // Multiple short flags like -abc are okay
@@ -153,11 +152,26 @@ export class CommandSanitizer {
   }
 
   /**
+   * Escape content for use within double quotes in command strings
+   * Escapes backslashes and double quotes for parseCommandString compatibility
+   *
+   * @param content - The content to escape
+   * @returns Escaped content safe for use in double-quoted command arguments
+   * @example
+   * // Usage: `gh pr create --title "${sanitizer.escapeForParser(title)}"`
+   */
+  public escapeForParser(content: string): string {
+    // Escape backslashes first, then double quotes
+    return content.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  }
+
+  /**
    * Escape a single argument for shell use
    * Wraps in single quotes and escapes internal single quotes
    *
    * @param arg - The argument to escape
    * @returns Escaped argument safe for shell use
+   * @deprecated Use escapeForParser() for execFromString, or use array-based methods (execGit, execGh)
    */
   public escapeForShell(arg: string): string {
     // Single-quote the argument and escape any internal single quotes
@@ -199,8 +213,8 @@ export class CommandSanitizer {
 
       return {
         success: true,
-        stdout: stdout ?? '',
-        stderr: stderr ?? '',
+        stdout,
+        stderr,
         command: command.rawCommand,
         duration,
       };
@@ -309,7 +323,7 @@ export class CommandSanitizer {
 
       return {
         success: true,
-        stdout: output ?? '',
+        stdout: output,
         stderr: '',
         command: command.rawCommand,
         duration,
@@ -406,7 +420,7 @@ export class CommandSanitizer {
     let inDoubleQuote = false;
 
     for (let i = 0; i < cleanedCommand.length; i++) {
-      const char = cleanedCommand[i];
+      const char = cleanedCommand[i] as string;
       const nextChar = cleanedCommand[i + 1];
 
       if (char === '\\' && nextChar !== undefined && !inSingleQuote) {
