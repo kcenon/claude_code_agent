@@ -8,9 +8,6 @@
  * @module worker/SelfVerificationAgent
  */
 
-import { exec } from 'node:child_process';
-import { promisify } from 'node:util';
-
 import type {
   SelfVerificationConfig,
   VerificationStep,
@@ -23,8 +20,7 @@ import type {
 } from './types.js';
 import { DEFAULT_SELF_VERIFICATION_CONFIG } from './types.js';
 import { EscalationRequiredError, CommandTimeoutError } from './errors.js';
-
-const execAsync = promisify(exec);
+import { getCommandSanitizer } from '../security/index.js';
 
 /**
  * Command execution result
@@ -481,15 +477,22 @@ export class SelfVerificationAgent {
   }
 
   /**
-   * Run a shell command with timeout
+   * Run a shell command with timeout using safe execution
+   * Uses execFile to bypass shell and prevent command injection
    */
   private async runCommand(command: string): Promise<CommandResult> {
+    const sanitizer = getCommandSanitizer();
+
     try {
-      const { stdout, stderr } = await execAsync(command, {
+      const result = await sanitizer.execFromString(command, {
         cwd: this.config.projectRoot,
         timeout: this.config.commandTimeout,
       });
-      return { stdout, stderr, exitCode: 0 };
+      return {
+        stdout: result.stdout,
+        stderr: result.stderr,
+        exitCode: result.success ? 0 : (result.exitCode ?? 1),
+      };
     } catch (error: unknown) {
       // Check for timeout
       const errorObj = error as {
@@ -497,6 +500,7 @@ export class SelfVerificationAgent {
         code?: string | number;
         stdout?: string;
         stderr?: string;
+        exitCode?: number;
       };
       if (errorObj.killed === true || errorObj.code === 'ETIMEDOUT') {
         throw new CommandTimeoutError(command, this.config.commandTimeout);
@@ -506,7 +510,7 @@ export class SelfVerificationAgent {
       return {
         stdout: errorObj.stdout ?? '',
         stderr: errorObj.stderr ?? '',
-        exitCode: typeof errorObj.code === 'number' ? errorObj.code : 1,
+        exitCode: errorObj.exitCode ?? (typeof errorObj.code === 'number' ? errorObj.code : 1),
       };
     }
   }

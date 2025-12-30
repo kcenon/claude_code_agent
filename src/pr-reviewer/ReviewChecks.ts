@@ -5,8 +5,6 @@
  * code quality assessment, and best practice verification.
  */
 
-import { exec } from 'node:child_process';
-import { promisify } from 'node:util';
 import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -18,8 +16,7 @@ import type {
   QualityMetrics,
   FileChange,
 } from './types.js';
-
-const execAsync = promisify(exec);
+import { getCommandSanitizer } from '../security/index.js';
 
 /**
  * Review Checks Options
@@ -1442,24 +1439,31 @@ export class ReviewChecks {
   }
 
   /**
-   * Execute a shell command
+   * Execute a shell command using safe execution
+   * Uses execFile to bypass shell and prevent command injection
    */
   private async executeCommand(command: string): Promise<CommandResult> {
+    const sanitizer = getCommandSanitizer();
+
     try {
-      const { stdout, stderr } = await execAsync(command, {
+      const result = await sanitizer.execFromString(command, {
         cwd: this.projectRoot,
         timeout: 120000,
         maxBuffer: 10 * 1024 * 1024,
       });
 
-      return { stdout, stderr, exitCode: 0 };
+      return {
+        stdout: result.stdout,
+        stderr: result.stderr,
+        exitCode: result.success ? 0 : (result.exitCode ?? 1),
+      };
     } catch (error: unknown) {
-      if (error !== null && typeof error === 'object' && 'code' in error) {
-        const execError = error as { stdout?: string; stderr?: string; code?: number };
+      if (error !== null && typeof error === 'object' && 'exitCode' in error) {
+        const execError = error as { stdout?: string; stderr?: string; exitCode?: number };
         return {
           stdout: execError.stdout ?? '',
           stderr: execError.stderr ?? '',
-          exitCode: execError.code ?? 1,
+          exitCode: execError.exitCode ?? 1,
         };
       }
       throw error;

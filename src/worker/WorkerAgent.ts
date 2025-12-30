@@ -7,8 +7,6 @@
  * @module worker/WorkerAgent
  */
 
-import { exec } from 'node:child_process';
-import { promisify } from 'node:util';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -44,8 +42,7 @@ import {
   ResultPersistenceError,
   GitOperationError,
 } from './errors.js';
-
-const execAsync = promisify(exec);
+import { getCommandSanitizer } from '../security/index.js';
 
 /**
  * Command execution result
@@ -666,35 +663,52 @@ export class WorkerAgent {
   }
 
   /**
-   * Execute a git command
+   * Execute a git command using safe execution
+   * Uses execFile to bypass shell and prevent command injection
    */
   private async execGit(command: string): Promise<{ stdout: string; stderr: string }> {
+    const sanitizer = getCommandSanitizer();
+    // Split command string into arguments array
+    const args = command.split(/\s+/).filter((arg) => arg.length > 0);
+
     try {
-      const { stdout, stderr } = await execAsync(`git ${command}`, {
+      const result = await sanitizer.execGit(args, {
         cwd: this.config.projectRoot,
       });
-      return { stdout, stderr };
+      if (!result.success) {
+        throw new GitOperationError(command, new Error(result.stderr));
+      }
+      return { stdout: result.stdout, stderr: result.stderr };
     } catch (error) {
+      if (error instanceof GitOperationError) {
+        throw error;
+      }
       throw new GitOperationError(command, error instanceof Error ? error : undefined);
     }
   }
 
   /**
-   * Run a shell command
+   * Run a shell command using safe execution
+   * Uses execFile to bypass shell and prevent command injection
    */
   private async runCommand(command: string): Promise<CommandResult> {
+    const sanitizer = getCommandSanitizer();
+
     try {
-      const { stdout, stderr } = await execAsync(command, {
+      const result = await sanitizer.execFromString(command, {
         cwd: this.config.projectRoot,
       });
-      return { stdout, stderr, exitCode: 0 };
+      return {
+        stdout: result.stdout,
+        stderr: result.stderr,
+        exitCode: result.success ? 0 : (result.exitCode ?? 1),
+      };
     } catch (error: unknown) {
-      // ExecException has stdout, stderr, and code
-      const execError = error as { stdout?: string; stderr?: string; code?: number };
+      const execError = error as { stdout?: string; stderr?: string; exitCode?: number };
       return {
         stdout: execError.stdout ?? '',
         stderr: execError.stderr ?? '',
-        exitCode: execError.code ?? 1,
+        exitCode: execError.exitCode ?? 1,
       };
     }
   }

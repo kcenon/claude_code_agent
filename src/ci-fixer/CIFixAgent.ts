@@ -7,8 +7,6 @@
  * @module ci-fixer/CIFixAgent
  */
 
-import { exec } from 'node:child_process';
-import { promisify } from 'node:util';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -39,8 +37,7 @@ import {
   EscalationRequiredError,
   ResultPersistenceError,
 } from './errors.js';
-
-const execAsync = promisify(exec);
+import { getCommandSanitizer } from '../security/index.js';
 
 /**
  * Command execution result
@@ -384,7 +381,7 @@ Fixes applied by CI Fix Agent for PR #${String(handoff.prNumber)}`;
 
     // Commit
     try {
-      await this.executeCommand(`git commit -m "${this.escapeShell(commitMessage)}"`);
+      await this.executeCommand(`git commit -m "${this.escapeForParser(commitMessage)}"`);
     } catch (error) {
       throw new CommitError(handoff.branch, error instanceof Error ? error : undefined);
     }
@@ -553,7 +550,7 @@ Fixes applied by CI Fix Agent for PR #${String(handoff.prNumber)}`;
     // Add comment to PR
     const escalationInfo = this.generateEscalationComment(handoff, result);
     await this.executeCommand(
-      `gh pr comment ${String(handoff.prNumber)} --body "${this.escapeShell(escalationInfo)}"`
+      `gh pr comment ${String(handoff.prNumber)} --body "${this.escapeForParser(escalationInfo)}"`
     );
   }
 
@@ -681,28 +678,35 @@ _This escalation was generated automatically by the CI Fix Agent._`;
   // ==========================================================================
 
   /**
-   * Execute a shell command
+   * Execute a shell command using safe execution
+   * Uses execFile to bypass shell and prevent command injection
    */
   private async executeCommand(command: string): Promise<CommandResult> {
+    const sanitizer = getCommandSanitizer();
+
     try {
-      const { stdout, stderr } = await execAsync(command, {
+      const result = await sanitizer.execFromString(command, {
         cwd: this.config.projectRoot,
         timeout: 120000,
         maxBuffer: 10 * 1024 * 1024,
       });
 
-      return { stdout, stderr, exitCode: 0 };
+      return {
+        stdout: result.stdout,
+        stderr: result.stderr,
+        exitCode: result.success ? 0 : (result.exitCode ?? 1),
+      };
     } catch (error: unknown) {
-      if (error !== null && typeof error === 'object' && 'code' in error) {
+      if (error !== null && typeof error === 'object' && 'exitCode' in error) {
         const execError = error as {
           stdout?: string;
           stderr?: string;
-          code?: number;
+          exitCode?: number;
         };
         return {
           stdout: execError.stdout ?? '',
           stderr: execError.stderr ?? '',
-          exitCode: execError.code ?? 1,
+          exitCode: execError.exitCode ?? 1,
         };
       }
       throw error;
@@ -710,10 +714,12 @@ _This escalation was generated automatically by the CI Fix Agent._`;
   }
 
   /**
-   * Escape shell special characters
+   * Escape content for use within double quotes in command strings
+   * Uses the centralized sanitizer method
    */
-  private escapeShell(str: string): string {
-    return str.replace(/"/g, '\\"').replace(/`/g, '\\`').replace(/\$/g, '\\$');
+  private escapeForParser(str: string): string {
+    const sanitizer = getCommandSanitizer();
+    return sanitizer.escapeForParser(str);
   }
 
   /**

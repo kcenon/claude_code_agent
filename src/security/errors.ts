@@ -89,3 +89,33 @@ export class RateLimitExceededError extends SecurityError {
     Object.setPrototypeOf(this, RateLimitExceededError.prototype);
   }
 }
+
+/**
+ * Error thrown when command injection is detected
+ */
+export class CommandInjectionError extends SecurityError {
+  public readonly details: string;
+
+  constructor(details: string) {
+    super(`Command injection detected: ${details}`, 'COMMAND_INJECTION');
+    this.name = 'CommandInjectionError';
+    this.details = details;
+    Object.setPrototypeOf(this, CommandInjectionError.prototype);
+  }
+}
+
+/**
+ * Error thrown when a command is not in the whitelist
+ */
+export class CommandNotAllowedError extends SecurityError {
+  public readonly command: string;
+  public readonly reason: string;
+
+  constructor(command: string, reason: string) {
+    super(`Command not allowed: ${command} - ${reason}`, 'COMMAND_NOT_ALLOWED');
+    this.name = 'CommandNotAllowedError';
+    this.command = command;
+    this.reason = reason;
+    Object.setPrototypeOf(this, CommandNotAllowedError.prototype);
+  }
+}

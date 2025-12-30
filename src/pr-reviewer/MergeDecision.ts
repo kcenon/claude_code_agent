@@ -8,9 +8,6 @@
  * @module pr-reviewer/MergeDecision
  */
 
-import { exec } from 'node:child_process';
-import { promisify } from 'node:util';
-
 import type {
   MergeConflictInfo,
   BlockingReview,
@@ -23,8 +20,7 @@ import type {
   CheckResults,
   PullRequest,
 } from './types.js';
-
-const execAsync = promisify(exec);
+import { getCommandSanitizer } from '../security/index.js';
 
 /**
  * GitHub PR merge info from API
@@ -459,9 +455,9 @@ export class MergeDecision {
       }
 
       // Build commit subject and body
-      flags.push(`--subject "${this.escapeShell(message.title)}"`);
+      flags.push(`--subject "${this.escapeForParser(message.title)}"`);
       if (message.body) {
-        flags.push(`--body "${this.escapeShell(message.body)}"`);
+        flags.push(`--body "${this.escapeForParser(message.body)}"`);
       }
 
       const command = `gh pr merge ${String(prNumber)} ${flags.join(' ')}`;
@@ -627,31 +623,40 @@ export class MergeDecision {
   }
 
   /**
-   * Escape shell special characters
+   * Escape content for use within double quotes in command strings
+   * Uses the centralized sanitizer method
    */
-  private escapeShell(str: string): string {
-    return str.replace(/"/g, '\\"').replace(/`/g, '\\`').replace(/\$/g, '\\$');
+  private escapeForParser(str: string): string {
+    const sanitizer = getCommandSanitizer();
+    return sanitizer.escapeForParser(str);
   }
 
   /**
-   * Execute a shell command
+   * Execute a shell command using safe execution
+   * Uses execFile to bypass shell and prevent command injection
    */
   private async executeCommand(command: string): Promise<CommandResult> {
+    const sanitizer = getCommandSanitizer();
+
     try {
-      const { stdout, stderr } = await execAsync(command, {
+      const result = await sanitizer.execFromString(command, {
         cwd: this.config.projectRoot,
         timeout: this.config.commandTimeout,
         maxBuffer: 10 * 1024 * 1024,
       });
 
-      return { stdout, stderr, exitCode: 0 };
+      return {
+        stdout: result.stdout,
+        stderr: result.stderr,
+        exitCode: result.success ? 0 : (result.exitCode ?? 1),
+      };
     } catch (error: unknown) {
-      if (error !== null && typeof error === 'object' && 'code' in error) {
-        const execError = error as { stdout?: string; stderr?: string; code?: number };
+      if (error !== null && typeof error === 'object' && 'exitCode' in error) {
+        const execError = error as { stdout?: string; stderr?: string; exitCode?: number };
         return {
           stdout: execError.stdout ?? '',
           stderr: execError.stderr ?? '',
-          exitCode: execError.code ?? 1,
+          exitCode: execError.exitCode ?? 1,
         };
       }
       throw error;
