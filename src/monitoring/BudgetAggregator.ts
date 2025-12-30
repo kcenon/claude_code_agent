@@ -171,13 +171,9 @@ export class BudgetAggregator {
 
     for (const [agentName, agentStatus] of status.byAgent) {
       const tokenSharePercent =
-        status.totalTokens > 0
-          ? (agentStatus.currentTokens / status.totalTokens) * 100
-          : 0;
+        status.totalTokens > 0 ? (agentStatus.currentTokens / status.totalTokens) * 100 : 0;
       const costSharePercent =
-        status.totalCostUsd > 0
-          ? (agentStatus.currentCostUsd / status.totalCostUsd) * 100
-          : 0;
+        status.totalCostUsd > 0 ? (agentStatus.currentCostUsd / status.totalCostUsd) * 100 : 0;
 
       summaries.push({
         agentName,
@@ -198,10 +194,8 @@ export class BudgetAggregator {
    * Generate category usage summaries
    */
   public generateCategorySummaries(status: PipelineBudgetStatus): CategoryUsageSummary[] {
-    const categoryData: Map<
-      AgentCategory,
-      { tokens: number; cost: number; count: number }
-    > = new Map();
+    const categoryData: Map<AgentCategory, { tokens: number; cost: number; count: number }> =
+      new Map();
 
     for (const [agentName, agentStatus] of status.byAgent) {
       const category = this.categoryMappings.get(agentName);
@@ -398,9 +392,7 @@ let globalBudgetAggregator: BudgetAggregator | null = null;
 /**
  * Get or create the global BudgetAggregator instance
  */
-export function getBudgetAggregator(
-  options?: { maxTrendPoints?: number }
-): BudgetAggregator {
+export function getBudgetAggregator(options?: { maxTrendPoints?: number }): BudgetAggregator {
   if (globalBudgetAggregator === null) {
     globalBudgetAggregator = new BudgetAggregator(options);
   }

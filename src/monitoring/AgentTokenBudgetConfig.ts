@@ -92,11 +92,14 @@ export interface TokenBudgetsConfig {
   readonly defaults?: CategoryBudgetDefaults;
 
   /** Agent-specific overrides */
-  readonly agents?: Record<string, {
-    readonly maxTokens?: number;
-    readonly maxCostUsd?: number;
-    readonly modelPreference?: 'sonnet' | 'opus' | 'haiku';
-  }>;
+  readonly agents?: Record<
+    string,
+    {
+      readonly maxTokens?: number;
+      readonly maxCostUsd?: number;
+      readonly modelPreference?: 'sonnet' | 'opus' | 'haiku';
+    }
+  >;
 }
 
 /**

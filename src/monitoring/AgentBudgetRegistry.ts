@@ -102,14 +102,10 @@ export class AgentBudgetRegistry {
     const categoryDefaults = category !== undefined ? this.categoryDefaults[category] : undefined;
 
     const sessionTokenLimit =
-      config?.agentTokenLimit ??
-      config?.sessionTokenLimit ??
-      categoryDefaults?.maxTokens;
+      config?.agentTokenLimit ?? config?.sessionTokenLimit ?? categoryDefaults?.maxTokens;
 
     const sessionCostLimitUsd =
-      config?.agentCostLimitUsd ??
-      config?.sessionCostLimitUsd ??
-      categoryDefaults?.maxCostUsd;
+      config?.agentCostLimitUsd ?? config?.sessionCostLimitUsd ?? categoryDefaults?.maxCostUsd;
 
     // Build AgentTokenBudgetConfig with only defined properties
     const fullConfig: AgentTokenBudgetConfig = {
@@ -117,8 +113,12 @@ export class AgentBudgetRegistry {
       ...(category !== undefined && { agentCategory: category }),
       ...(sessionTokenLimit !== undefined && { sessionTokenLimit }),
       ...(sessionCostLimitUsd !== undefined && { sessionCostLimitUsd }),
-      ...(config?.warningThresholds !== undefined && { warningThresholds: config.warningThresholds }),
-      ...(config?.hardLimitThreshold !== undefined && { hardLimitThreshold: config.hardLimitThreshold }),
+      ...(config?.warningThresholds !== undefined && {
+        warningThresholds: config.warningThresholds,
+      }),
+      ...(config?.hardLimitThreshold !== undefined && {
+        hardLimitThreshold: config.hardLimitThreshold,
+      }),
       ...(config?.onLimitReached !== undefined && { onLimitReached: config.onLimitReached }),
       ...(config?.allowOverride !== undefined && { allowOverride: config.allowOverride }),
       ...(config?.onBudgetExceeded !== undefined && { onBudgetExceeded: config.onBudgetExceeded }),
@@ -129,8 +129,12 @@ export class AgentBudgetRegistry {
     const managerConfig = {
       ...(sessionTokenLimit !== undefined && { sessionTokenLimit }),
       ...(sessionCostLimitUsd !== undefined && { sessionCostLimitUsd }),
-      ...(config?.warningThresholds !== undefined && { warningThresholds: config.warningThresholds }),
-      ...(config?.hardLimitThreshold !== undefined && { hardLimitThreshold: config.hardLimitThreshold }),
+      ...(config?.warningThresholds !== undefined && {
+        warningThresholds: config.warningThresholds,
+      }),
+      ...(config?.hardLimitThreshold !== undefined && {
+        hardLimitThreshold: config.hardLimitThreshold,
+      }),
       ...(config?.onLimitReached !== undefined && { onLimitReached: config.onLimitReached }),
       ...(config?.allowOverride !== undefined && { allowOverride: config.allowOverride }),
     };
@@ -240,10 +244,8 @@ export class AgentBudgetRegistry {
     const tokenLimit = this.pipelineConfig.maxTokens;
     const costLimit = this.pipelineConfig.maxCostUsd;
 
-    const tokenUsagePercent =
-      tokenLimit > 0 ? (totalTokens / tokenLimit) * 100 : 0;
-    const costUsagePercent =
-      costLimit > 0 ? (totalCostUsd / costLimit) * 100 : 0;
+    const tokenUsagePercent = tokenLimit > 0 ? (totalTokens / tokenLimit) * 100 : 0;
+    const costUsagePercent = costLimit > 0 ? (totalCostUsd / costLimit) * 100 : 0;
 
     const warningThresholdPercent = this.pipelineConfig.warningThreshold * 100;
     const warningExceeded =
@@ -252,9 +254,7 @@ export class AgentBudgetRegistry {
       exceededAgents.length > 0;
 
     const limitExceeded =
-      tokenUsagePercent >= 100 ||
-      costUsagePercent >= 100 ||
-      exceededAgents.length > 0;
+      tokenUsagePercent >= 100 || costUsagePercent >= 100 || exceededAgents.length > 0;
 
     return {
       totalTokens,
@@ -353,10 +353,7 @@ export class AgentBudgetRegistry {
     const estimatedTotal =
       pipelineStatus.totalTokens + estimatedInputTokens + estimatedOutputTokens;
 
-    if (
-      this.pipelineConfig.maxTokens > 0 &&
-      estimatedTotal > this.pipelineConfig.maxTokens
-    ) {
+    if (this.pipelineConfig.maxTokens > 0 && estimatedTotal > this.pipelineConfig.maxTokens) {
       return {
         allowed: false,
         reason: `Pipeline budget exceeded: estimated ${String(estimatedTotal)} tokens would exceed limit ${String(this.pipelineConfig.maxTokens)}`,
@@ -380,12 +377,14 @@ export class AgentBudgetRegistry {
     ];
 
     for (const [agentName, agentStatus] of status.byAgent) {
-      const tokenStr = agentStatus.tokenLimit !== undefined
-        ? `${String(agentStatus.currentTokens)}/${String(agentStatus.tokenLimit)}`
-        : String(agentStatus.currentTokens);
-      const costStr = agentStatus.costLimitUsd !== undefined
-        ? `$${String(agentStatus.currentCostUsd)}/$${String(agentStatus.costLimitUsd)}`
-        : `$${String(agentStatus.currentCostUsd)}`;
+      const tokenStr =
+        agentStatus.tokenLimit !== undefined
+          ? `${String(agentStatus.currentTokens)}/${String(agentStatus.tokenLimit)}`
+          : String(agentStatus.currentTokens);
+      const costStr =
+        agentStatus.costLimitUsd !== undefined
+          ? `$${String(agentStatus.currentCostUsd)}/$${String(agentStatus.costLimitUsd)}`
+          : `$${String(agentStatus.currentCostUsd)}`;
       const statusIndicator = agentStatus.limitExceeded
         ? '❌'
         : agentStatus.warningExceeded
@@ -412,9 +411,7 @@ let globalAgentBudgetRegistry: AgentBudgetRegistry | null = null;
 /**
  * Get or create the global AgentBudgetRegistry instance
  */
-export function getAgentBudgetRegistry(
-  config?: AgentBudgetRegistryConfig
-): AgentBudgetRegistry {
+export function getAgentBudgetRegistry(config?: AgentBudgetRegistryConfig): AgentBudgetRegistry {
   if (globalAgentBudgetRegistry === null) {
     globalAgentBudgetRegistry = new AgentBudgetRegistry(config);
   }

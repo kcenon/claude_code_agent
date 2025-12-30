@@ -127,10 +127,7 @@ export type {
 } from './TokenUsageReport.js';
 
 // AgentTokenBudgetConfig
-export {
-  DEFAULT_CATEGORY_BUDGETS,
-  DEFAULT_PIPELINE_BUDGET,
-} from './AgentTokenBudgetConfig.js';
+export { DEFAULT_CATEGORY_BUDGETS, DEFAULT_PIPELINE_BUDGET } from './AgentTokenBudgetConfig.js';
 export type {
   AgentCategory,
   AgentTokenBudgetConfig,
