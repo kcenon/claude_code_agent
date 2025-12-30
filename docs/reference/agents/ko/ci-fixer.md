@@ -1,4 +1,3 @@
-
 # CI Fix Agent (CI 수정 에이전트)
 
 ## 역할

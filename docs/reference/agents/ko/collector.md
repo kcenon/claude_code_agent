@@ -1,4 +1,3 @@
-
 # Collector Agent (수집 에이전트)
 
 ## 메타데이터

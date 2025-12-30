@@ -1,4 +1,3 @@
-
 # Issue Generator Agent (이슈 생성 에이전트)
 
 ## 역할
