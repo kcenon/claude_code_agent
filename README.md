@@ -25,7 +25,9 @@ That's it! The agents will generate documents, create issues, implement code, an
 
 ## What is AD-SDLC?
 
-AD-SDLC is an automated software development pipeline that uses **8 specialized Claude agents** to transform your requirements into production-ready code:
+AD-SDLC is an automated software development pipeline that uses **specialized Claude agents** to transform your requirements into production-ready code. It supports two modes:
+
+### Greenfield Pipeline (New Projects)
 
 ```
 User Input → Collector → PRD Writer → SRS Writer → SDS Writer
@@ -33,6 +35,20 @@ User Input → Collector → PRD Writer → SRS Writer → SDS Writer
                            Worker ← Controller ← Issue Generator
                               ↓
                          PR Reviewer → Merge
+```
+
+### Enhancement Pipeline (Existing Projects)
+
+```
+Existing Docs + Code → Document Reader → Codebase Analyzer
+                                               ↓
+                                       Impact Analyzer
+                                               ↓
+                        PRD/SRS/SDS Updaters (Delta Updates)
+                                               ↓
+                   Issue Generator + Regression Tester
+                                               ↓
+                              Controller → Worker → PR Reviewer
 ```
 
 ### Agent Pipeline
@@ -47,14 +63,25 @@ User Input → Collector → PRD Writer → SRS Writer → SDS Writer
 | **Execution** | Controller | Orchestrates work distribution and monitors progress |
 | | Worker | Implements code based on assigned issues |
 | **Quality** | PR Reviewer | Creates PRs and performs automated code review |
+| **Enhancement** | Document Reader | Parses existing PRD/SRS/SDS documents |
+| | Codebase Analyzer | Analyzes current architecture and code structure |
+| | Code Reader | Extracts source code structure and dependencies |
+| | Impact Analyzer | Assesses change implications and risks |
+| | PRD/SRS/SDS Updaters | Performs incremental document updates |
+| | Regression Tester | Identifies affected tests for changes |
+| | Mode Detector | Automatically detects Greenfield vs Enhancement |
+| | Analysis Orchestrator | Coordinates the analysis pipeline |
 
 ## Features
 
 - **Automatic Document Generation**: PRD, SRS, SDS documents from natural language requirements
+- **Enhancement Pipeline**: Incremental updates to existing projects without full rewrites
+- **Mode Detection**: Automatically detects whether to use Greenfield or Enhancement pipeline
 - **GitHub Integration**: Automatic issue creation with dependencies and labels
 - **Parallel Implementation**: Multiple workers implementing issues concurrently
 - **Automated PR Review**: Code review and quality gate enforcement
 - **Progress Tracking**: Real-time visibility into pipeline status
+- **Regression Testing**: Identifies affected tests when modifying existing code
 - **Customizable Workflows**: Configure agents, templates, and quality gates
 
 ## Installation
