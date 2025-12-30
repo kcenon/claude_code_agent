@@ -11,6 +11,8 @@ The monitoring module includes:
 - **AlertManager** - Alert management and notifications
 - **DashboardDataProvider** - Dashboard data aggregation
 - **TokenBudgetManager** - Session-based token budget control and limits
+- **AgentBudgetRegistry** - Per-agent token budget isolation and management
+- **BudgetAggregator** - Pipeline-level budget reporting and optimization suggestions
 - **ContextPruner** - Intelligent context size management for large documents
 - **QueryCache** - LRU-based caching for repeated API queries
 - **ModelSelector** - Optimal model selection based on task complexity
@@ -32,6 +34,8 @@ import {
   DashboardDataProvider,
   // Token optimization
   TokenBudgetManager,
+  AgentBudgetRegistry,
+  BudgetAggregator,
   ContextPruner,
   QueryCache,
   ModelSelector,
@@ -46,6 +50,8 @@ import {
   getAlertManager,
   getDashboardDataProvider,
   getTokenBudgetManager,
+  getAgentBudgetRegistry,
+  getBudgetAggregator,
   getModelSelector,
   createContextPruner,
   createQueryCache,
@@ -600,6 +606,200 @@ if (budget.config.allowOverride) {
   // Perform critical operation
   budget.disableOverride();
 }
+```
+
+## Per-Agent Token Budget
+
+The `AgentBudgetRegistry` enables independent token budget isolation for each agent, providing granular cost control and optimization insights.
+
+### Why Per-Agent Budgets?
+
+- **Cost Control**: Set individual limits per agent to prevent expensive agents from consuming the entire pipeline budget
+- **Optimization**: Identify high-cost agents for targeted optimization
+- **Flexibility**: Different budgets for different agent types (document writers vs. execution agents)
+- **Visibility**: Clear per-agent cost attribution and reporting
+
+### Basic Usage
+
+```typescript
+import {
+  AgentBudgetRegistry,
+  getAgentBudgetRegistry,
+  resetAgentBudgetRegistry,
+} from 'ad-sdlc';
+
+// Get or create the global registry
+const registry = getAgentBudgetRegistry({
+  pipelineConfig: {
+    maxTokens: 500000,     // Total pipeline limit
+    maxCostUsd: 10.00,
+    warningThreshold: 0.8, // 80% warning
+  },
+});
+
+// Get budget manager for an agent with custom limits
+const workerBudget = registry.getAgentBudget('worker-1', {
+  agentTokenLimit: 150000,
+  agentCostLimitUsd: 3.00,
+  agentCategory: 'execution',
+});
+```
+
+### Category-Based Defaults
+
+Agents inherit default limits based on their category:
+
+```typescript
+// Category defaults (built-in)
+const DEFAULT_CATEGORY_BUDGETS = {
+  document: { maxTokens: 80000, maxCostUsd: 1.50 },
+  execution: { maxTokens: 100000, maxCostUsd: 2.00 },
+  analysis: { maxTokens: 50000, maxCostUsd: 0.75 },
+  infrastructure: { maxTokens: 20000, maxCostUsd: 0.30 },
+};
+
+// Agent inherits category defaults
+registry.getAgentBudget('prd-writer', { agentCategory: 'document' });
+// Uses maxTokens: 80000, maxCostUsd: 1.50
+```
+
+### Recording Usage
+
+```typescript
+// Record usage for an agent
+const status = registry.recordAgentUsage(
+  'worker-1',
+  1500,   // input tokens
+  500,    // output tokens
+  0.0225  // cost in USD
+);
+
+console.log(`Agent tokens: ${status.currentTokens}`);
+console.log(`Agent cost: $${status.currentCostUsd}`);
+```
+
+### Pipeline Status
+
+```typescript
+// Get aggregated status across all agents
+const pipelineStatus = registry.getPipelineStatus();
+
+console.log(`Total tokens: ${pipelineStatus.totalTokens}`);
+console.log(`Total cost: $${pipelineStatus.totalCostUsd}`);
+console.log(`Exceeded agents: ${pipelineStatus.exceededAgents.join(', ')}`);
+console.log(`Warning agents: ${pipelineStatus.warningAgents.join(', ')}`);
+```
+
+### Budget Exceeded Callbacks
+
+```typescript
+registry.getAgentBudget('worker-1', {
+  agentTokenLimit: 50000,
+  onBudgetExceeded: async (status) => {
+    console.log(`Worker-1 exceeded budget: ${status.currentTokens} tokens`);
+    await notifyAdmin('Budget exceeded for worker-1');
+  },
+});
+```
+
+### Pre-flight Estimation
+
+```typescript
+// Check if a request will exceed agent or pipeline budget
+const estimate = registry.estimateUsage('worker-1', 5000, 2000);
+
+if (!estimate.allowed) {
+  console.log(`Cannot proceed: ${estimate.reason}`);
+}
+```
+
+### Budget Aggregation and Reporting
+
+```typescript
+import { BudgetAggregator, getBudgetAggregator } from 'ad-sdlc';
+
+const aggregator = getBudgetAggregator();
+
+// Register agent categories for reporting
+aggregator.registerCategoryMappings([
+  { agentName: 'worker-1', category: 'execution' },
+  { agentName: 'prd-writer', category: 'document' },
+  { agentName: 'collector', category: 'document' },
+]);
+
+// Generate comprehensive report
+const pipelineStatus = registry.getPipelineStatus();
+const report = aggregator.generateReport(pipelineStatus);
+
+console.log(report.agentSummaries);    // Per-agent breakdown
+console.log(report.categorySummaries); // Per-category aggregation
+console.log(report.topConsumers);      // Top 5 cost consumers
+console.log(report.suggestions);       // Optimization suggestions
+```
+
+### Formatted Report
+
+```typescript
+// Get a human-readable report
+const formatted = aggregator.formatReportAsString(report);
+console.log(formatted);
+
+// Output:
+// ╔════════════════════════════════════════════════════════════╗
+// ║              PIPELINE BUDGET REPORT                        ║
+// ╚════════════════════════════════════════════════════════════╝
+//
+// ─── Pipeline Summary ───────────────────────────────────────
+// Total Tokens:     150000 / 500000
+// Total Cost:       $1.50 / $10.00
+// Status:           ✓  OK
+//
+// ─── Top Consumers ──────────────────────────────────────────
+// ✓ worker-1              80000 tokens  $0.80  (53%)
+// ✓ prd-writer            50000 tokens  $0.50  (33%)
+// ...
+```
+
+### Configuration via YAML
+
+Configure per-agent budgets in `workflow.yaml`:
+
+```yaml
+token_budgets:
+  pipeline:
+    max_tokens: 500000
+    max_cost_usd: 10.00
+    warning_threshold: 0.8
+
+  defaults:
+    document:
+      max_tokens: 80000
+      max_cost_usd: 1.50
+    execution:
+      max_tokens: 100000
+      max_cost_usd: 2.00
+
+  agents:
+    sds-writer:
+      max_tokens: 120000
+      max_cost_usd: 2.50
+    worker:
+      max_tokens: 150000
+      max_cost_usd: 3.00
+```
+
+And in `agents.yaml`:
+
+```yaml
+agents:
+  worker:
+    id: "worker"
+    name: "Worker Agent"
+    category: "execution"
+    token_budget:
+      default_limit: 150000
+      cost_limit_usd: 3.00
+      model_preference: "sonnet"
 ```
 
 ## ContextPruner
