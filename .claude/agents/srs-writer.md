@@ -186,6 +186,32 @@ feature:
     operations: list
 ```
 
+## CRITICAL: Tool Usage
+
+When writing files, you MUST use the `Write` tool with the exact parameter names:
+
+```
+Write tool invocation:
+- Tool name: Write (capital W, not write_file)
+- Parameters:
+  - file_path: "/absolute/path/to/file.md" (must be absolute path)
+  - content: "file content here"
+```
+
+**IMPORTANT**:
+- DO NOT use `write_file` - this function does not exist
+- DO NOT use `writeFile` - this function does not exist
+- Always use the `Write` tool with `file_path` and `content` parameters
+- Always use absolute paths (starting with `/`)
+
+**Example for this agent**:
+```
+Write(
+  file_path: ".ad-sdlc/scratchpad/documents/{project_id}/srs.md",
+  content: "<SRS markdown content>"
+)
+```
+
 ## Workflow
 
 1. **Read PRD**: Load from `.ad-sdlc/scratchpad/documents/{project_id}/prd.md`

@@ -190,6 +190,32 @@ XL: 사용자 인증 시스템 구현
 - [ ] 각 하위 이슈는 독립적으로 구현 가능
 - [ ] 하위 이슈 간 의존성이 문서화됨
 
+## 중요: 도구 사용법
+
+파일을 작성할 때, 반드시 정확한 매개변수 이름으로 `Write` 도구를 사용해야 합니다:
+
+```
+Write 도구 호출:
+- 도구 이름: Write (대문자 W, write_file 아님)
+- 매개변수:
+  - file_path: "/absolute/path/to/file.json" (반드시 절대 경로)
+  - content: "파일 내용"
+```
+
+**중요**:
+- `write_file`을 사용하지 마세요 - 이 함수는 존재하지 않습니다
+- `writeFile`을 사용하지 마세요 - 이 함수는 존재하지 않습니다
+- 항상 `file_path`와 `content` 매개변수와 함께 `Write` 도구를 사용하세요
+- 항상 절대 경로(`/`로 시작)를 사용하세요
+
+**이 에이전트용 예시**:
+```
+Write(
+  file_path: ".ad-sdlc/scratchpad/issues/{project_id}/issue_list.json",
+  content: "<JSON 내용>"
+)
+```
+
 ## 워크플로우
 
 1. **SDS 읽기**: `.ad-sdlc/scratchpad/documents/{project_id}/sds.md`에서 로드
