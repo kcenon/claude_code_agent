@@ -18,6 +18,12 @@ This directory contains detailed reference documentation for all AD-SDLC agents.
 
 ## Agent Categories
 
+### Orchestration
+
+| Agent | File | Description |
+|-------|------|-------------|
+| AD-SDLC Orchestrator | [ad-sdlc-orchestrator.md](./ad-sdlc-orchestrator.md) | Coordinates full pipeline execution |
+
 ### Document Generation Pipeline
 
 | Agent | File | Description |
@@ -146,6 +152,17 @@ Example input and output
 
 ## Quick Reference
 
+### Orchestrated Execution
+
+The AD-SDLC Orchestrator can manage the entire pipeline automatically:
+
+```
+AD-SDLC Orchestrator
+└── Automatically invokes all agents in correct sequence
+    ├── Greenfield Pipeline (new projects)
+    └── Enhancement Pipeline (existing projects)
+```
+
 ### Agent Execution Order (Greenfield)
 
 ```
@@ -194,6 +211,7 @@ Example input and output
 
 | Agent | Default Model | Rationale |
 |-------|---------------|-----------|
+| AD-SDLC Orchestrator | Opus | Complex coordination |
 | Mode Detector | Haiku | Fast detection |
 | Repo Detector | Haiku | Fast detection |
 | GitHub Repo Setup | Sonnet | Complex setup |
@@ -213,6 +231,7 @@ Example input and output
 
 | Agent | Tools |
 |-------|-------|
+| AD-SDLC Orchestrator | Read, Write, Glob, Grep, Bash, Task |
 | Mode Detector | Read, Glob |
 | Repo Detector | Read, Bash (git, gh), Glob |
 | GitHub Repo Setup | Read, Write, Edit, Bash (gh, git), Glob, Grep |
