@@ -79,8 +79,4 @@ export {
   SHELL_METACHARACTERS,
 } from './CommandWhitelist.js';
 
-export type {
-  ArgPattern,
-  CommandConfig,
-  CommandWhitelistConfig,
-} from './CommandWhitelist.js';
+export type { ArgPattern, CommandConfig, CommandWhitelistConfig } from './CommandWhitelist.js';

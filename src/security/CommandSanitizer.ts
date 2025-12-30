@@ -47,7 +47,8 @@ export class CommandSanitizer {
   private readonly logCommands: boolean;
 
   constructor(options: CommandSanitizerOptions = {}) {
-    this.whitelist = (options.whitelist as CommandWhitelistConfig | undefined) ?? DEFAULT_COMMAND_WHITELIST;
+    this.whitelist =
+      (options.whitelist as CommandWhitelistConfig | undefined) ?? DEFAULT_COMMAND_WHITELIST;
     this.strictMode = options.strictMode ?? true;
     this.logCommands = options.logCommands ?? false;
   }
@@ -73,7 +74,10 @@ export class CommandSanitizer {
     // Validate subcommand if defined
     if (args.length > 0 && config?.subcommands !== undefined) {
       const subcommand = args[0];
-      if (subcommand !== undefined && !isAllowedSubcommand(baseCommand, subcommand, this.whitelist)) {
+      if (
+        subcommand !== undefined &&
+        !isAllowedSubcommand(baseCommand, subcommand, this.whitelist)
+      ) {
         throw new CommandNotAllowedError(
           `${baseCommand} ${subcommand}`,
           `Subcommand '${subcommand}' not allowed for '${baseCommand}'`
