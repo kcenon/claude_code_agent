@@ -74,6 +74,7 @@ tests/
     │   └── enhancement-pipeline.e2e.test.ts
     ├── pipeline.e2e.test.ts
     ├── recovery.e2e.test.ts
+    ├── error-recovery-edge-cases.e2e.test.ts  # Error recovery & edge cases
     └── orchestration.e2e.test.ts
 ```
 
@@ -177,6 +178,53 @@ Note that `ModeDetector` requires:
 - **minLinesOfCode**: 100+ lines for substantial codebase detection
 
 Fixtures must provide sufficient source files to meet these thresholds.
+
+## Error Recovery and Edge Cases E2E Tests
+
+The error recovery and edge cases tests ensure the system handles failures gracefully and can recover from unexpected situations.
+
+### Test Categories
+
+| Category | Description |
+|----------|-------------|
+| Error Injection | Tests for API rate limiting, network timeout, invalid input handling |
+| Edge Cases | Empty input, large documents (100+ requirements), circular dependencies, unicode |
+| Recovery Tests | Mid-pipeline restart, partial completion resume, checkpoint restoration |
+| Graceful Degradation | Missing dependencies, resource exhaustion, fallback behavior |
+
+### Running Error Recovery Tests
+
+```bash
+npm run test:e2e -- --run tests/e2e/error-recovery-edge-cases.e2e.test.ts
+```
+
+### Test Scenarios
+
+#### Error Injection Tests
+
+- **API Rate Limiting**: Validates `RateLimiter` behavior when limits are exceeded
+- **Network Timeout Recovery**: Tests handling of long-running operations
+- **Invalid Input Handling**: Tests for null-like inputs, special characters, control characters
+- **Malformed Document Recovery**: Tests for corrupted YAML, empty files, binary content
+
+#### Edge Case Tests
+
+- **Empty Input**: Empty string, whitespace-only, newline-only input
+- **Large Documents**: Documents with 100+ requirements
+- **Circular Dependencies**: Detection using `DependencyGraphBuilder`
+- **Unicode Handling**: CJK characters, emojis, RTL text, special symbols
+
+#### Recovery Tests
+
+- **Mid-Pipeline Restart**: Detecting incomplete pipeline state
+- **Partial Completion Resume**: Identifying completed stages from filesystem
+- **Checkpoint Restoration**: Creating and restoring checkpoints after each stage
+
+#### Graceful Degradation Tests
+
+- **Missing Dependencies**: Handling missing scratchpad directories
+- **Concurrent Operations**: Multiple operations running simultaneously
+- **Error Message Quality**: Clear and informative error messages
 
 ## Writing Tests
 
