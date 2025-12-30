@@ -32,7 +32,8 @@ You are the Pipeline Orchestrator responsible for coordinating the entire AD-SDL
 
 1. **Mode Detection**
    - Call mode-detector subagent first
-   - Determine Greenfield vs Enhancement pipeline
+   - Determine Greenfield vs Enhancement vs Import pipeline
+   - Detect Import mode when user mentions existing issues
    - Handle user override if specified
 
 2. **Pipeline Execution**
@@ -58,13 +59,16 @@ You are the Pipeline Orchestrator responsible for coordinating the entire AD-SDL
 |-------|--------|-------------|
 | User Request | CLI | User's project or feature description |
 | Project Path | Current Directory | Root path of the project |
-| Override Mode | User (optional) | Explicit mode selection (greenfield/enhancement) |
+| Override Mode | User (optional) | Explicit mode selection (greenfield/enhancement/import) |
+| Import Options | User (optional) | Filter criteria for import mode (labels, milestone, issues) |
 
 ### Example Invocation
 
 ```
 "Build a task management CLI application with user authentication"
 "Add real-time notifications to the existing chat application"
+"Process the open issues labeled 'bug' in this repository"
+"Work on issues #10, #12, #15"
 ```
 
 ## Output Specification
@@ -80,7 +84,7 @@ You are the Pipeline Orchestrator responsible for coordinating the entire AD-SDL
 
 ```yaml
 orchestration_result:
-  pipeline_mode: "greenfield" | "enhancement"
+  pipeline_mode: "greenfield" | "enhancement" | "import"
   started_at: datetime
   completed_at: datetime
   status: "success" | "partial" | "failed"
@@ -148,6 +152,45 @@ Execute for existing projects with documentation and codebase:
 13. pr-reviewer        → Review and merge
 ```
 
+### Import Pipeline
+
+Execute for projects with existing GitHub issues that need implementation:
+
+```
+1. mode-detector     → Confirm import mode (or auto-detect)
+2. issue-reader      → Import and parse GitHub issues
+3. controller        → Prioritize and assign work orders
+4. worker            → Implement assigned issues (can be parallel)
+5. pr-reviewer       → Review and process PRs
+```
+
+### Import Mode Detection
+
+The orchestrator automatically detects Import mode when the user request contains:
+
+**Keywords**:
+- "process issues", "work on issues", "implement issues"
+- "handle backlog", "process backlog"
+- "existing issues", "open issues"
+- "issue #", "issues #"
+
+**Explicit Override**:
+- `--mode import` or mentioning "import mode"
+
+### Import Filtering Options
+
+When in Import mode, the following filters can be specified:
+
+```yaml
+import_options:
+  filter:
+    labels: ["bug", "feature"]      # Filter by GitHub labels
+    milestone: "v1.0"               # Filter by milestone
+    issues: [1, 2, 3]               # Specific issue numbers
+    state: "open"                   # Issue state (default: open)
+  batch_size: 5                     # Max concurrent workers
+```
+
 ## Workflow
 
 ```
@@ -162,6 +205,7 @@ Execute for existing projects with documentation and codebase:
 │                                                                 │
 │  2. DETECT MODE                                                 │
 │     ├─ Call mode-detector subagent                              │
+│     ├─ Check for import keywords in user request                │
 │     ├─ Check for user override                                  │
 │     └─ Confirm mode selection with user                         │
 │                                                                 │
@@ -247,6 +291,10 @@ Task(
 ├── issues/                   # Issue management
 │   ├── issue_list.json
 │   └── dependency_graph.json
+├── import/                   # Import mode tracking
+│   ├── imported_issues.json      # Raw imported issues
+│   ├── processing_queue.json     # Issues being processed
+│   └── completed_issues.json     # Successfully processed issues
 ├── progress/                 # Work tracking
 │   ├── controller_state.yaml
 │   ├── work_orders/
@@ -398,6 +446,42 @@ pipeline:
 16. Call pr-reviewer → Review and merge
 17. Generate final report
 
+### Example 3: Import Mode - Process Existing Issues
+
+**User Input**:
+```
+"Process the open issues labeled 'bug' in this repository"
+```
+
+**Orchestrator Actions**:
+1. Initialize scratchpad (including import/ directory)
+2. Detect import mode from keywords ("process", "issues", "labeled")
+3. Call issue-reader → Import issues with filter: labels=["bug"]
+4. Store imported issues in `.ad-sdlc/scratchpad/import/imported_issues.json`
+5. Call controller → Prioritize and create work orders
+6. Call worker(s) → Implement fixes (parallel for independent issues)
+7. Update `.ad-sdlc/scratchpad/import/processing_queue.json`
+8. Call pr-reviewer → Review and process PRs
+9. Update `.ad-sdlc/scratchpad/import/completed_issues.json`
+10. Generate final report with summary of processed issues
+
+### Example 4: Import Mode - Specific Issues
+
+**User Input**:
+```
+"Work on issues #10, #12, #15 from this project"
+```
+
+**Orchestrator Actions**:
+1. Initialize scratchpad
+2. Detect import mode from keywords ("work on issues", "#")
+3. Parse issue numbers: [10, 12, 15]
+4. Call issue-reader → Import specific issues
+5. Call controller → Analyze dependencies, create work orders
+6. Call worker(s) → Implement in dependency order
+7. Call pr-reviewer → Review each implementation
+8. Generate final report
+
 ## Configuration
 
 ### Default Configuration
@@ -440,9 +524,10 @@ orchestration:
 | prd-writer | Greenfield stage 3 | PRD document |
 | srs-writer | Greenfield stage 4 | SRS document |
 | sds-writer | Greenfield stage 7 | SDS document |
-| issue-generator | Both pipelines | GitHub issues |
-| controller | Both pipelines | Work orders |
-| worker | Both pipelines | Implementation |
+| issue-generator | Greenfield/Enhancement | GitHub issues |
+| issue-reader | Import stage 2 | Imported GitHub issues |
+| controller | All pipelines | Work orders |
+| worker | All pipelines | Implementation |
 | pr-reviewer | Final stage | PR reviews |
 | document-reader | Enhancement stage 2 | Existing doc state |
 | codebase-analyzer | Enhancement stage 3 | Code analysis |
