@@ -69,6 +69,9 @@ tests/
     ├── analysis-pipeline/      # Analysis Pipeline E2E
     │   ├── analysis-fixtures.ts
     │   └── analysis-pipeline.e2e.test.ts
+    ├── enhancement-pipeline/   # Enhancement Pipeline E2E
+    │   ├── enhancement-fixtures.ts
+    │   └── enhancement-pipeline.e2e.test.ts
     ├── pipeline.e2e.test.ts
     ├── recovery.e2e.test.ts
     └── orchestration.e2e.test.ts
@@ -116,6 +119,64 @@ const fixture = await createAnalysisFixture({
   includeOrphanCode: true,  // Add undocumented code
 });
 ```
+
+## Enhancement Pipeline E2E Tests
+
+The Enhancement Pipeline E2E tests validate incremental updates to existing projects:
+
+```
+Mode Detection → Document Reading → Impact Analysis
+```
+
+### Test Scenarios
+
+| Scenario | Description |
+|----------|-------------|
+| Mode Detection | Detect greenfield vs enhancement mode |
+| Document Reading | Read and parse PRD/SRS/SDS documents |
+| Simple Feature Addition | Add isolated new features |
+| Requirement Modification | Modify existing requirements |
+| Multi-Component Change | Changes affecting multiple components |
+| Error Handling | Graceful error recovery |
+| Session Management | Session lifecycle tracking |
+| Performance | Timing benchmarks for each stage |
+
+### Running Enhancement Pipeline Tests
+
+```bash
+npm run test:e2e -- --run tests/e2e/enhancement-pipeline/
+```
+
+### Test Fixtures
+
+The enhancement pipeline uses fixtures simulating existing e-commerce projects:
+
+- **Documents**: PRD, SRS, SDS with linked requirements (FR-###)
+- **Source Code**: AuthService, ProductService, CartService, OrderService, UserService
+- **Build System**: package.json with scripts
+
+```typescript
+import { createEnhancementFixture, createCodeOnlyFixture } from './enhancement-fixtures.js';
+
+// Full project with docs and code
+const fixture = await createEnhancementFixture({
+  name: 'my-test',
+  includeTests: true,     // Include test files
+  partialDocs: false,     // Include all doc types
+  partialCode: false,     // Include all source files
+});
+
+// Code-only project (no docs)
+const codeOnlyFixture = await createCodeOnlyFixture('code-test');
+```
+
+### ModeDetector Thresholds
+
+Note that `ModeDetector` requires:
+- **minSourceFiles**: 5+ source files for `codebase.exists = true`
+- **minLinesOfCode**: 100+ lines for substantial codebase detection
+
+Fixtures must provide sufficient source files to meet these thresholds.
 
 ## Writing Tests
 
