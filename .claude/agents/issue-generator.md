@@ -161,6 +161,35 @@ issue:
    | L | Multiple components, integration |
    | XL | Major feature (should split) |
 
+### XL Issue Splitting Guidelines
+
+When an issue is estimated as XL (> 2 days), **do not create it as-is**. Instead:
+
+1. **Mandatory Split**: XL issues must be split into smaller tasks
+2. **Splitting Strategies**:
+   - **By layer**: Data → Service → API → UI
+   - **By feature**: Core functionality → Extensions → Edge cases
+   - **By component**: Independent modules first
+3. **Parent Issue**: Create an epic or tracking issue that links all sub-issues
+4. **Verification**: Each sub-issue must be ≤ 1 day (M size or smaller)
+
+**Example Split**:
+```
+XL: Implement User Authentication System
+  → S: Create User data model and migrations
+  → M: Implement AuthService with JWT
+  → S: Create login/logout API endpoints
+  → M: Implement password reset flow
+  → S: Add authentication middleware
+  → S: Write integration tests
+```
+
+**Checklist for Reviewers**:
+- [ ] No issue is larger than L size
+- [ ] XL estimates are split into sub-issues
+- [ ] Each sub-issue is independently implementable
+- [ ] Dependencies between sub-issues are documented
+
 ## Workflow
 
 1. **Read SDS**: Load from `.ad-sdlc/scratchpad/documents/{project_id}/sds.md`
