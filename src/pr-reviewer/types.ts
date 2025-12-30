@@ -55,6 +55,14 @@ export interface PRReviewerAgentConfig {
   readonly ciTimeout?: number;
   /** CI poll interval in milliseconds (default: 10000 = 10 sec) */
   readonly ciPollInterval?: number;
+  /** Enable CI fix delegation on failure (default: true) */
+  readonly enableCIFixDelegation?: boolean;
+  /** Maximum CI retries before delegation (default: 3) */
+  readonly maxCIRetries?: number;
+  /** Maximum CI fix delegations (default: 3) */
+  readonly maxCIFixDelegations?: number;
+  /** CI fix timeout per attempt in ms (default: 1800000 = 30min) */
+  readonly ciFixTimeout?: number;
 }
 
 /**
@@ -70,6 +78,10 @@ export const DEFAULT_PR_REVIEWER_CONFIG: Required<PRReviewerAgentConfig> = {
   maxComplexity: 10,
   ciTimeout: 600000,
   ciPollInterval: 10000,
+  enableCIFixDelegation: true,
+  maxCIRetries: 3,
+  maxCIFixDelegations: 3,
+  ciFixTimeout: 1800000,
 } as const;
 
 /**
@@ -405,7 +417,14 @@ export interface GitHubStatusCheck {
   /** Check status */
   readonly status: CheckStatus;
   /** Conclusion */
-  readonly conclusion?: 'success' | 'failure' | 'neutral' | 'cancelled' | 'skipped' | 'timed_out';
+  readonly conclusion?:
+    | 'success'
+    | 'failure'
+    | 'neutral'
+    | 'cancelled'
+    | 'skipped'
+    | 'timed_out'
+    | undefined;
 }
 
 /**
@@ -591,6 +610,48 @@ export interface SquashMergeMessage {
   readonly body: string;
   /** Issue references to close */
   readonly closesIssues: readonly number[];
+}
+
+// ============================================================================
+// CI Fix Delegation Types
+// ============================================================================
+
+/**
+ * CI Fix delegation configuration
+ */
+export interface CIFixDelegationConfig {
+  /** Enable CI fix delegation (default: true) */
+  readonly enableCIFixDelegation?: boolean;
+  /** Maximum CI retries before delegation (default: 3) */
+  readonly maxCIRetries?: number;
+  /** Maximum CI fix delegations (default: 3) */
+  readonly maxCIFixDelegations?: number;
+  /** CI fix timeout per attempt in ms (default: 1800000 = 30min) */
+  readonly ciFixTimeout?: number;
+}
+
+/**
+ * Default CI fix delegation configuration
+ */
+export const DEFAULT_CI_FIX_DELEGATION_CONFIG: Required<CIFixDelegationConfig> = {
+  enableCIFixDelegation: true,
+  maxCIRetries: 3,
+  maxCIFixDelegations: 3,
+  ciFixTimeout: 1800000,
+} as const;
+
+/**
+ * CI fix delegation result
+ */
+export interface CIFixDelegationResult {
+  /** Whether delegation was initiated */
+  readonly delegated: boolean;
+  /** Handoff file path */
+  readonly handoffPath?: string | undefined;
+  /** Delegation reason */
+  readonly reason: string;
+  /** Timestamp */
+  readonly delegatedAt: string;
 }
 
 // Re-export types from worker for convenience
