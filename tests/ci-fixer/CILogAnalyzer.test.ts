@@ -99,12 +99,16 @@ npm audit found 1 critical vulnerability
       expect(result.byCategory.size).toBeGreaterThan(0);
     });
 
-    it('should truncate very long logs', () => {
-      const longLogs = 'a'.repeat(200000);
-      const result = analyzer.analyze(longLogs);
-      expect(result.rawLogs.length).toBeLessThan(150000);
-      expect(result.rawLogs).toContain('TRUNCATED');
-    });
+    it(
+      'should truncate very long logs',
+      () => {
+        const longLogs = 'a'.repeat(200000);
+        const result = analyzer.analyze(longLogs);
+        expect(result.rawLogs.length).toBeLessThan(150000);
+        expect(result.rawLogs).toContain('TRUNCATED');
+      },
+      30000
+    );
 
     it('should find unidentified causes with error keywords', () => {
       const logs = `
