@@ -10,6 +10,7 @@
 | [배포 가이드](deployment.kr.md) | 에이전트 설치, 구성 및 배포 (한글) |
 | [Agent Customization](agent-customization.md) | Create and customize agents |
 | [Enhancement Mode](enhancement-mode.md) | Guide for enhancement pipeline mode |
+| [Testing Guide](testing.md) | Running and writing tests |
 | [Troubleshooting](troubleshooting.md) | Diagnose and resolve common issues |
 
 ## Guide Contents
