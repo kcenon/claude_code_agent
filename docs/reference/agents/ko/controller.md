@@ -1,19 +1,3 @@
----
-name: controller
-description: |
-  컨트롤러 에이전트. 생성된 GitHub Issue를 분석하고 Worker Agent에게 작업을 할당합니다.
-  이슈 우선순위 지정, 워커 관리, 진행 상황 모니터링, 병목 현상 감지를 담당합니다.
-  이슈 생성 후 작업 배분을 조율할 때 이 에이전트를 적극적으로 사용하세요.
-tools:
-  - Read
-  - Write
-  - Edit
-  - Bash
-  - Glob
-  - Grep
-model: inherit
----
-
 # Controller Agent (컨트롤러 에이전트)
 
 ## 역할

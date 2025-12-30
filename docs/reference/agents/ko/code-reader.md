@@ -1,17 +1,3 @@
----
-name: code-reader
-description: |
-  코드 분석 에이전트. 소스 코드 구조, 모듈, 구현을 분석합니다.
-  클래스, 함수, 인터페이스, 타입, 의존성 관계를 추출합니다.
-  문서-코드 비교 전에 기존 코드베이스를 이해하기 위해 이 에이전트를 사용하세요.
-tools:
-  - Read
-  - Write
-  - Glob
-  - Grep
-model: inherit
----
-
 # Code Reader Agent (코드 분석 에이전트)
 
 ## 메타데이터

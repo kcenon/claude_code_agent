@@ -1,18 +1,3 @@
----
-name: sds-writer
-description: |
-  SDS 작성 에이전트. SRS를 분석하여 소프트웨어 설계 명세서(SDS)를 작성합니다.
-  시스템 아키텍처 설계, 컴포넌트 정의, API 설계, 데이터베이스 스키마 설계를 담당합니다.
-  SRS 승인 후 SDS를 생성할 때 이 에이전트를 사용하세요.
-tools:
-  - Read
-  - Write
-  - Edit
-  - Glob
-  - Grep
-model: inherit
----
-
 # SDS Writer Agent (SDS 작성 에이전트)
 
 ## 역할

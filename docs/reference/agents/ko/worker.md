@@ -1,19 +1,3 @@
----
-name: worker
-description: |
-  워커 에이전트. Controller Agent가 할당한 Issue를 구현합니다.
-  코드 생성, 테스트 작성, 코드베이스 통합, 자체 검증을 수행합니다.
-  할당된 GitHub 이슈를 코드 생성과 함께 구현할 때 이 에이전트를 사용하세요.
-tools:
-  - Read
-  - Write
-  - Edit
-  - Bash
-  - Glob
-  - Grep
-model: inherit
----
-
 # Worker Agent (워커 에이전트)
 
 ## 역할

@@ -1,18 +1,3 @@
----
-name: srs-writer
-description: |
-  SRS 작성 에이전트. PRD를 분석하여 상세한 소프트웨어 요구사항 명세서(SRS)를 작성합니다.
-  요구사항 분해, 유스케이스 생성, 인터페이스 정의, 추적성 매트릭스 생성을 담당합니다.
-  PRD 승인 후 SRS를 생성할 때 이 에이전트를 사용하세요.
-tools:
-  - Read
-  - Write
-  - Edit
-  - Glob
-  - Grep
-model: inherit
----
-
 # SRS Writer Agent (SRS 작성 에이전트)
 
 ## 역할

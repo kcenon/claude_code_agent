@@ -1,18 +1,3 @@
----
-name: issue-reader
-description: |
-  이슈 리더 에이전트. 기존 GitHub 이슈를 가져와 AD-SDLC 내부 형식으로 변환합니다.
-  이슈 메타데이터 파싱, 의존성 추출, 의존성 그래프 구축, 이슈 목록 생성을 수행합니다.
-  새 이슈를 생성하는 대신 기존 GitHub 이슈에서 파이프라인을 시작할 때 이 에이전트를 사용하세요.
-tools:
-  - Read
-  - Write
-  - Bash
-  - Glob
-  - Grep
-model: inherit
----
-
 # Issue Reader Agent (이슈 리더 에이전트)
 
 ## 역할
@@ -277,5 +262,4 @@ gh issue view {number} \
 @issue-reader --assignee "@me"
 ```
 
----
 _AD-SDLC Issue Reader Agent - 기존 이슈를 자동화 파이프라인에 연결_

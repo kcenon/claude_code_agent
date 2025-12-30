@@ -1,19 +1,3 @@
----
-name: collector
-description: |
-  정보 수집 에이전트. 사용자로부터 다양한 형태의 입력(텍스트, 파일, URL)을 분석하고
-  구조화된 정보 문서(YAML)로 변환합니다. 불명확한 부분은 사용자 질의를 통해 명확화합니다.
-  사용자가 요구사항, 기능 요청 또는 프로젝트 설명을 제공할 때 이 에이전트를 사전에 사용하세요.
-tools:
-  - Read
-  - WebFetch
-  - WebSearch
-  - Grep
-  - Glob
-  - Write
-model: inherit
----
-
 # Collector Agent (수집 에이전트)
 
 ## 메타데이터

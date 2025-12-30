@@ -3,6 +3,11 @@
 > **Version**: 1.0.0
 > **Last Updated**: 2025-01-01
 
+## Language / 언어
+
+- **English**: This directory (default)
+- **한국어**: [Korean Documentation](./ko/README.md)
+
 ## Overview
 
 This directory contains detailed reference documentation for all AD-SDLC agents. Each agent document includes:

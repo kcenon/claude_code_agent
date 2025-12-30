@@ -1,19 +1,3 @@
----
-name: prd-writer
-description: |
-  PRD 작성 에이전트. Collector 에이전트가 생성한 정보 문서를 분석하여
-  표준 PRD 형식의 문서를 자동 생성합니다. 누락 정보 식별,
-  요구사항 우선순위 제안, 일관성 검사를 수행합니다.
-  정보 수집 완료 후 PRD를 생성할 때 이 에이전트를 사용하세요.
-tools:
-  - Read
-  - Write
-  - Edit
-  - Glob
-  - Grep
-model: inherit
----
-
 # PRD Writer Agent (PRD 작성 에이전트)
 
 ## 역할

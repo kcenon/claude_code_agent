@@ -1,20 +1,3 @@
----
-name: ci-fixer
-description: |
-  CI 수정 에이전트. PR 생성 후 CI/CD 실패를 자동으로 진단하고 수정합니다.
-  PR Reviewer Agent가 반복적인 CI 실패를 만나면 핸드오프를 받습니다.
-  CI 로그를 분석하고, 문제를 식별하고, 수정 사항을 적용합니다.
-  PR Reviewer가 지속적인 CI 실패를 만날 때 이 에이전트를 사용하세요.
-tools:
-  - Read
-  - Write
-  - Edit
-  - Bash
-  - Glob
-  - Grep
-model: inherit
----
-
 # CI Fix Agent (CI 수정 에이전트)
 
 ## 역할

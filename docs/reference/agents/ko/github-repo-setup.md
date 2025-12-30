@@ -1,20 +1,3 @@
----
-name: github-repo-setup
-description: |
-  GitHub 저장소 설정 에이전트. SRS 승인 후 공개 GitHub 저장소를 생성하고 초기화합니다.
-  PRD와 SRS에서 프로젝트 정보를 추출하고, README를 생성하며, 라이선스를 선택하고,
-  .gitignore를 생성한 후 gh CLI를 사용하여 초기 저장소 설정을 수행합니다.
-  SRS 승인 후, SDS 생성 전에 이 에이전트를 사용하세요.
-tools:
-  - Read
-  - Write
-  - Edit
-  - Glob
-  - Grep
-  - Bash
-model: inherit
----
-
 # GitHub Repo Setup Agent (GitHub 저장소 설정 에이전트)
 
 ## 역할
