@@ -117,7 +117,7 @@ export type {
 export { TokenUsageReport, createTokenUsageReport } from './TokenUsageReport.js';
 export type {
   ModelUsage,
-  UsageTrendPoint,
+  UsageTrendPoint as TokenUsageTrendPoint,
   OptimizationRecommendation,
   ReportSummary,
   TokenUsageReportData,
@@ -125,6 +125,44 @@ export type {
   StageUsageDetail,
   TokenUsageReportConfig,
 } from './TokenUsageReport.js';
+
+// AgentTokenBudgetConfig
+export {
+  DEFAULT_CATEGORY_BUDGETS,
+  DEFAULT_PIPELINE_BUDGET,
+  DEFAULT_MODEL_PREFERENCE,
+} from './AgentTokenBudgetConfig.js';
+export type {
+  AgentCategory,
+  AgentTokenBudgetConfig,
+  PipelineBudgetConfig,
+  CategoryBudgetDefaults,
+  TokenBudgetsConfig,
+  PipelineBudgetStatus,
+} from './AgentTokenBudgetConfig.js';
+
+// AgentBudgetRegistry
+export {
+  AgentBudgetRegistry,
+  getAgentBudgetRegistry,
+  resetAgentBudgetRegistry,
+} from './AgentBudgetRegistry.js';
+export type { AgentBudgetRegistryConfig } from './AgentBudgetRegistry.js';
+
+// BudgetAggregator
+export {
+  BudgetAggregator,
+  getBudgetAggregator,
+  resetBudgetAggregator,
+} from './BudgetAggregator.js';
+export type {
+  UsageTrendPoint,
+  AgentUsageSummary,
+  CategoryUsageSummary,
+  BudgetOptimizationSuggestion,
+  BudgetReport,
+  AgentCategoryMapping,
+} from './BudgetAggregator.js';
 
 // LatencyOptimizer
 export {

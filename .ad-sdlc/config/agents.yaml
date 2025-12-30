@@ -38,6 +38,11 @@ agents:
       avg_duration_seconds: 5
       success_rate: 0.99
 
+    token_budget:
+      default_limit: 20000
+      cost_limit_usd: 0.30
+      model_preference: "sonnet"
+
   # ---------------------------------------------------------------------------
   # Document Pipeline Agents
   # ---------------------------------------------------------------------------
@@ -68,6 +73,11 @@ agents:
       avg_duration_seconds: 120
       success_rate: 0.95
 
+    token_budget:
+      default_limit: 60000
+      cost_limit_usd: 1.00
+      model_preference: "sonnet"
+
   prd-writer:
     id: "prd-writer"
     name: "PRD Writer Agent"
@@ -93,6 +103,11 @@ agents:
       avg_duration_seconds: 180
       success_rate: 0.92
 
+    token_budget:
+      default_limit: 80000
+      cost_limit_usd: 1.50
+      model_preference: "sonnet"
+
   srs-writer:
     id: "srs-writer"
     name: "SRS Writer Agent"
@@ -117,6 +132,11 @@ agents:
     metrics:
       avg_duration_seconds: 240
       success_rate: 0.90
+
+    token_budget:
+      default_limit: 80000
+      cost_limit_usd: 1.50
+      model_preference: "sonnet"
 
   github-repo-setup:
     id: "github-repo-setup"
@@ -173,6 +193,11 @@ agents:
     metrics:
       avg_duration_seconds: 300
       success_rate: 0.88
+
+    token_budget:
+      default_limit: 120000
+      cost_limit_usd: 2.50
+      model_preference: "sonnet"
 
   # ---------------------------------------------------------------------------
   # Document Update Agents
@@ -385,6 +410,11 @@ agents:
       avg_duration_seconds: 600
       success_rate: 0.85
       retry_rate: 0.15
+
+    token_budget:
+      default_limit: 150000
+      cost_limit_usd: 3.00
+      model_preference: "sonnet"
 
   pr-reviewer:
     id: "pr-reviewer"
