@@ -8,6 +8,9 @@
 |-------|-------------|
 | [Deployment Guide](deployment.md) | Install, configure, and deploy agents |
 | [배포 가이드](deployment.kr.md) | 에이전트 설치, 구성 및 배포 (한글) |
+| [Agent Customization](agent-customization.md) | Create and customize agents |
+| [Enhancement Mode](enhancement-mode.md) | Guide for enhancement pipeline mode |
+| [Troubleshooting](troubleshooting.md) | Diagnose and resolve common issues |
 
 ## Guide Contents
 
@@ -53,6 +56,40 @@
    - Common issues and solutions
    - Debug mode
    - Getting help
+
+### Troubleshooting Guide
+
+1. **Quick Diagnostic Commands**
+   - System status checks
+   - Configuration validation
+   - API connectivity tests
+
+2. **Error Reference Guide**
+   - API rate limit issues
+   - Agent timeouts
+   - Scratchpad corruption
+   - Authentication failures
+
+3. **Diagnostic Procedures**
+   - Checking agent status
+   - Inspecting scratchpad state
+   - Viewing and analyzing logs
+
+4. **Recovery Procedures**
+   - Resume from failure
+   - Reset specific stages
+   - Manual intervention
+   - Emergency recovery
+
+5. **Performance Troubleshooting**
+   - Pipeline optimization
+   - Token usage reduction
+   - Memory management
+
+6. **Integration Issues**
+   - GitHub integration
+   - Agent-specific problems
+   - Environment configuration
 
 ## Quick Links
 

@@ -1,16 +1,19 @@
 # Frequently Asked Questions (FAQ)
 
-> **Version**: 1.0.0
+> **Version**: 1.1.0
 
-This document answers common questions and provides troubleshooting guidance for the AD-SDLC system.
+This document answers common questions about the AD-SDLC system. For detailed troubleshooting procedures, see the [Troubleshooting Guide](guides/troubleshooting.md).
 
 ## Table of Contents
 
 1. [General Questions](#general-questions)
 2. [Setup & Configuration](#setup--configuration)
 3. [Usage & Workflow](#usage--workflow)
-4. [Troubleshooting](#troubleshooting)
-5. [Advanced Topics](#advanced-topics)
+4. [Documents & Output](#documents--output)
+5. [Agents & Customization](#agents--customization)
+6. [Troubleshooting](#troubleshooting)
+7. [Advanced Topics](#advanced-topics)
+8. [Enterprise & Security](#enterprise--security)
 
 ---
 
@@ -248,7 +251,164 @@ Document generation is sequential, but issue implementation can be parallel.
 
 ---
 
+## Documents & Output
+
+### What documents are generated?
+
+AD-SDLC generates three core documents following software engineering best practices:
+
+| Document | Purpose | Contains |
+|----------|---------|----------|
+| **PRD** (Product Requirements Document) | Define WHAT to build | Features, user stories, acceptance criteria |
+| **SRS** (Software Requirements Specification) | Define HOW it should work | Functional requirements, data models, interfaces |
+| **SDS** (Software Design Specification) | Define HOW to build it | Architecture, components, APIs, database schema |
+
+### Can I customize document templates?
+
+Yes. Templates are in `.ad-sdlc/templates/`:
+
+```bash
+# List available templates
+ls .ad-sdlc/templates/
+
+# Customize PRD template
+vim .ad-sdlc/templates/prd-template.md
+```
+
+Template variables available:
+- `{{project_name}}` - Project name
+- `{{timestamp}}` - Generation timestamp
+- `{{requirements}}` - Extracted requirements
+- `{{version}}` - Document version
+
+### How do I export documents to other formats?
+
+```bash
+# Export to Markdown files
+ad-sdlc export --format markdown --output ./docs
+
+# Export to PDF (requires pandoc)
+ad-sdlc export --format pdf --output ./docs
+
+# Export to Confluence (requires configuration)
+ad-sdlc export --format confluence --space MYSPACE
+```
+
+### Can I use existing documents instead of generating new ones?
+
+Yes. Skip generation stages and provide your own:
+
+```bash
+# Use existing PRD
+ad-sdlc run --prd docs/existing-prd.md
+
+# Use existing PRD and SRS
+ad-sdlc run --prd docs/prd.md --srs docs/srs.md
+
+# Skip document generation entirely
+ad-sdlc run --skip-stages prd,srs,sds --issues docs/issues.yaml
+```
+
+### Where are the generated files saved?
+
+All outputs are saved to the scratchpad directory:
+
+```
+.ad-sdlc/scratchpad/
+├── documents/         # PRD, SRS, SDS
+│   ├── prd.yaml
+│   ├── srs.yaml
+│   └── sds.yaml
+├── issues/            # Generated issues
+│   └── issues.yaml
+├── progress/          # Implementation results
+│   ├── checkpoint.yaml
+│   └── results/
+└── logs/              # Execution logs
+```
+
+---
+
+## Agents & Customization
+
+### What agents are available?
+
+| Agent | Purpose | Stage |
+|-------|---------|-------|
+| Collector | Extract requirements from user input | Input Processing |
+| PRD Writer | Generate Product Requirements Document | Documentation |
+| SRS Writer | Generate Software Requirements Specification | Documentation |
+| SDS Writer | Generate Software Design Specification | Documentation |
+| Issue Generator | Create GitHub issues from SDS | Issue Management |
+| Controller | Orchestrate worker execution | Execution |
+| Worker | Implement issues (write code) | Implementation |
+| PR Reviewer | Review and merge PRs | Quality Assurance |
+| Regression Tester | Test for regressions | Testing |
+
+### How do I create a custom agent?
+
+1. **Define agent metadata** in `.ad-sdlc/config/agents.yaml`:
+   ```yaml
+   agents:
+     my-agent:
+       id: "my-agent"
+       name: "My Agent"
+       definition_file: ".claude/agents/my-agent.md"
+       category: "custom"
+   ```
+
+2. **Create agent definition** in `.claude/agents/my-agent.md`
+
+3. **Add to workflow** in `.ad-sdlc/config/workflow.yaml`
+
+See the [Agent Customization Guide](guides/agent-customization.md) for details.
+
+### Can agents use external tools?
+
+Yes, via MCP (Model Context Protocol):
+
+```yaml
+# .ad-sdlc/config/workflow.yaml
+mcp:
+  servers:
+    my-tools:
+      command: "node"
+      args: ["tools/server.js"]
+```
+
+### How do I change which model an agent uses?
+
+```yaml
+# .ad-sdlc/config/workflow.yaml
+agents:
+  prd-writer:
+    model: "opus"     # For complex reasoning
+  worker:
+    model: "sonnet"   # Default for most tasks
+  collector:
+    model: "haiku"    # For quick, simple tasks
+```
+
+### Can I disable specific agents?
+
+Yes. Skip agents or entire stages:
+
+```bash
+# Skip specific stages
+ad-sdlc run --skip-stages srs,sds
+
+# Disable worker verification
+ad-sdlc run --no-verify
+
+# Disable PR creation
+ad-sdlc run --no-pr
+```
+
+---
+
 ## Troubleshooting
+
+For detailed troubleshooting procedures, see the [Troubleshooting Guide](guides/troubleshooting.md).
 
 ### Error: API Rate Limit Exceeded
 
@@ -485,6 +645,138 @@ console.log(result.issues);
 
 ---
 
+## Enterprise & Security
+
+### Is my data sent to external servers?
+
+Your data is processed through:
+
+1. **Claude API (Anthropic)** - For AI reasoning
+2. **GitHub API** - For issue/PR management (if enabled)
+
+**Data NOT sent externally:**
+- Source code (unless explicitly included in prompts)
+- Environment variables
+- Credentials
+
+### Can I use AD-SDLC offline?
+
+No. AD-SDLC requires:
+- Internet connection for Claude API
+- GitHub API access (optional but recommended)
+
+For air-gapped environments, contact for enterprise deployment options.
+
+### How do I use AD-SDLC with SSO/SAML?
+
+For enterprise SSO:
+
+```yaml
+# .ad-sdlc/config/workflow.yaml
+authentication:
+  type: "sso"
+  provider: "okta"  # or azure-ad, google, etc.
+  client_id: "${SSO_CLIENT_ID}"
+```
+
+### Is there an audit log?
+
+Yes. All operations are logged:
+
+```bash
+# View audit log
+cat .ad-sdlc/logs/audit.log
+
+# Export audit log
+ad-sdlc export-audit --format json --output audit-export.json
+```
+
+Audit log includes:
+- Timestamp
+- User/Agent
+- Action type
+- Input/Output hashes
+- API calls made
+
+### How do I prevent secrets from being committed?
+
+AD-SDLC includes safeguards:
+
+1. **Automatic detection:**
+   - Scans for API keys, passwords, tokens
+   - Warns before committing `.env` files
+
+2. **Configuration:**
+   ```yaml
+   # .ad-sdlc/config/workflow.yaml
+   security:
+     secret_detection: true
+     block_secrets_in_pr: true
+     allowed_secret_patterns: []  # Exceptions
+   ```
+
+3. **Pre-commit hooks:**
+   ```bash
+   ad-sdlc setup-hooks
+   ```
+
+### Can I run AD-SDLC in a Docker container?
+
+Yes:
+
+```bash
+# Using official image
+docker run -it \
+  -v $(pwd):/workspace \
+  -e ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY \
+  ad-sdlc/ad-sdlc:latest \
+  "Implement user authentication"
+```
+
+### How do I integrate with my CI/CD pipeline?
+
+**GitHub Actions:**
+```yaml
+- uses: ad-sdlc/action@v1
+  with:
+    api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+    command: "implement"
+    issue: ${{ github.event.issue.number }}
+```
+
+**GitLab CI:**
+```yaml
+implement:
+  image: ad-sdlc/ad-sdlc:latest
+  script:
+    - ad-sdlc implement --issue $CI_ISSUE_ID
+```
+
+### What compliance certifications does AD-SDLC support?
+
+AD-SDLC can be configured to support:
+- SOC 2 Type II
+- GDPR
+- HIPAA (with enterprise configuration)
+- ISO 27001
+
+See enterprise documentation for compliance setup.
+
+### How do I rotate API keys?
+
+```bash
+# Update environment
+export ANTHROPIC_API_KEY="sk-ant-new-key..."
+
+# Or update .env
+echo "ANTHROPIC_API_KEY=sk-ant-new-key..." > .env
+
+# Verify new key works
+ad-sdlc verify-auth
+```
+
+---
+
 ## Getting More Help
 
 If your question isn't answered here:
@@ -493,6 +785,7 @@ If your question isn't answered here:
    - [Installation Guide](installation.md)
    - [Quickstart](quickstart.md)
    - [Use Cases](use-cases.md)
+   - [Troubleshooting Guide](guides/troubleshooting.md)
 
 2. **Search issues:**
    [GitHub Issues](https://github.com/kcenon/claude_code_agent/issues)
