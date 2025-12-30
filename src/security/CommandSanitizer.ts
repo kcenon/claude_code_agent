@@ -8,7 +8,12 @@
  * - Safe execution using execFile (bypasses shell)
  */
 
-import { execFile as execFileCallback, type ExecFileOptions } from 'node:child_process';
+import {
+  execFile as execFileCallback,
+  execFileSync,
+  type ExecFileOptions,
+  type ExecFileSyncOptions,
+} from 'node:child_process';
 import { promisify } from 'node:util';
 import {
   type CommandWhitelistConfig,
@@ -269,6 +274,103 @@ export class CommandSanitizer {
    */
   public async execNpm(args: string[], options: ExecFileOptions = {}): Promise<CommandExecResult> {
     return this.exec('npm', args, options);
+  }
+
+  /**
+   * Execute a command synchronously using execFileSync (no shell)
+   *
+   * @param command - Sanitized command object
+   * @param options - Execution options
+   * @returns Command execution result
+   */
+  public safeExecSync(
+    command: SanitizedCommand,
+    options: ExecFileSyncOptions = {}
+  ): CommandExecResult {
+    const startTime = Date.now();
+
+    if (this.logCommands) {
+      console.log(`[CommandSanitizer] Executing (sync): ${command.rawCommand}`);
+    }
+
+    try {
+      const output = execFileSync(command.baseCommand, command.args, {
+        encoding: 'utf-8',
+        maxBuffer: 10 * 1024 * 1024,
+        timeout: 300000,
+        ...options,
+      } as ExecFileSyncOptions & { encoding: 'utf-8' });
+
+      const duration = Date.now() - startTime;
+
+      if (this.logCommands) {
+        console.log(`[CommandSanitizer] Completed in ${String(duration)}ms`);
+      }
+
+      return {
+        success: true,
+        stdout: output ?? '',
+        stderr: '',
+        command: command.rawCommand,
+        duration,
+      };
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      const execError = error as { stdout?: string; stderr?: string; status?: number };
+      const errorMessage = error instanceof Error ? error.message : String(error);
+
+      if (this.logCommands) {
+        console.error(`[CommandSanitizer] Failed after ${String(duration)}ms: ${errorMessage}`);
+      }
+
+      return {
+        success: false,
+        stdout: typeof execError.stdout === 'string' ? execError.stdout : '',
+        stderr: typeof execError.stderr === 'string' ? execError.stderr : errorMessage,
+        command: command.rawCommand,
+        duration,
+        exitCode: execError.status,
+      };
+    }
+  }
+
+  /**
+   * Validate and execute a command synchronously
+   *
+   * @param baseCommand - The base command
+   * @param args - Command arguments
+   * @param options - Execution options
+   * @returns Command execution result
+   */
+  public execSync(
+    baseCommand: string,
+    args: string[],
+    options: ExecFileSyncOptions = {}
+  ): CommandExecResult {
+    const sanitized = this.validateCommand(baseCommand, args);
+    return this.safeExecSync(sanitized, options);
+  }
+
+  /**
+   * Execute a git command synchronously
+   *
+   * @param args - Git command arguments
+   * @param options - Execution options
+   * @returns Command execution result
+   */
+  public execGitSync(args: string[], options: ExecFileSyncOptions = {}): CommandExecResult {
+    return this.execSync('git', args, options);
+  }
+
+  /**
+   * Execute a GitHub CLI command synchronously
+   *
+   * @param args - gh command arguments
+   * @param options - Execution options
+   * @returns Command execution result
+   */
+  public execGhSync(args: string[], options: ExecFileSyncOptions = {}): CommandExecResult {
+    return this.execSync('gh', args, options);
   }
 
   /**

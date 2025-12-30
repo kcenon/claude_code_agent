@@ -9,7 +9,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as yaml from 'js-yaml';
 import { randomUUID } from 'crypto';
-import { execSync } from 'child_process';
+import { getCommandSanitizer } from '../security/index.js';
 
 import type {
   RepoDetectorConfig,
@@ -477,55 +477,51 @@ export class RepoDetector {
   }
 
   /**
-   * Run a Git command with timeout
+   * Run a Git command with timeout using safe execution
+   * Uses execFileSync to bypass shell and prevent command injection
    */
   private runGitCommand(
     rootPath: string,
     command: string
   ): { success: boolean; output: string; error?: string } {
-    try {
-      const output = execSync(`git ${command}`, {
-        cwd: rootPath,
-        timeout: this.config.timeouts.gitCommandMs,
-        encoding: 'utf-8',
-        stdio: ['pipe', 'pipe', 'pipe'],
-      });
+    const sanitizer = getCommandSanitizer();
+    // Split command string into arguments array
+    const args = command.split(/\s+/).filter((arg) => arg.length > 0);
 
-      return { success: true, output };
-    } catch (error) {
-      const err = error as { stdout?: string; stderr?: string; message?: string };
-      return {
-        success: false,
-        output: err.stdout ?? '',
-        error: err.stderr ?? err.message ?? 'Unknown error',
-      };
-    }
+    const result = sanitizer.execGitSync(args, {
+      cwd: rootPath,
+      timeout: this.config.timeouts.gitCommandMs,
+    });
+
+    return {
+      success: result.success,
+      output: result.stdout,
+      error: result.success ? undefined : result.stderr,
+    };
   }
 
   /**
-   * Run a gh CLI command with timeout
+   * Run a gh CLI command with timeout using safe execution
+   * Uses execFileSync to bypass shell and prevent command injection
    */
   private runGhCommand(
     rootPath: string,
     command: string
   ): { success: boolean; output: string; error?: string } {
-    try {
-      const output = execSync(`gh ${command}`, {
-        cwd: rootPath,
-        timeout: this.config.timeouts.ghCommandMs,
-        encoding: 'utf-8',
-        stdio: ['pipe', 'pipe', 'pipe'],
-      });
+    const sanitizer = getCommandSanitizer();
+    // Split command string into arguments array
+    const args = command.split(/\s+/).filter((arg) => arg.length > 0);
 
-      return { success: true, output };
-    } catch (error) {
-      const err = error as { stdout?: string; stderr?: string; message?: string };
-      return {
-        success: false,
-        output: err.stdout ?? '',
-        error: err.stderr ?? err.message ?? 'Unknown error',
-      };
-    }
+    const result = sanitizer.execGhSync(args, {
+      cwd: rootPath,
+      timeout: this.config.timeouts.ghCommandMs,
+    });
+
+    return {
+      success: result.success,
+      output: result.stdout,
+      error: result.success ? undefined : result.stderr,
+    };
   }
 
   /**
