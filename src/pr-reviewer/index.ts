@@ -107,9 +107,17 @@ export type {
   MergeReadinessResult,
   SquashMergeMessage,
 
+  // CI Fix delegation types
+  CIFixDelegationConfig,
+  CIFixDelegationResult,
+
   // Re-exported
   ImplementationResult,
 } from './types.js';
 
 // Default configurations
-export { DEFAULT_PR_REVIEWER_CONFIG, DEFAULT_QUALITY_GATE_CONFIG } from './types.js';
+export {
+  DEFAULT_PR_REVIEWER_CONFIG,
+  DEFAULT_QUALITY_GATE_CONFIG,
+  DEFAULT_CI_FIX_DELEGATION_CONFIG,
+} from './types.js';
