@@ -11,7 +11,7 @@ tools:
   - Grep
   - Glob
   - Write
-model: sonnet
+model: inherit
 ---
 
 # Collector Agent

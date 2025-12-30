@@ -11,7 +11,7 @@ tools:
   - Bash
   - Glob
   - Grep
-model: sonnet
+model: inherit
 ---
 
 # Controller Agent (컨트롤러 에이전트)

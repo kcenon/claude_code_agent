@@ -7,7 +7,7 @@ tools:
   - Read
   - Write
   # Add other tools as needed: Edit, Bash, Glob, Grep, WebFetch, WebSearch
-model: sonnet  # Options: sonnet, opus
+model: inherit  # Inherits parent conversation model. Override: sonnet, opus, haiku
 ---
 
 # {Agent Name} Agent

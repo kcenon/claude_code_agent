@@ -2,7 +2,9 @@
 
 ## Status
 
-**Accepted** - 2024-12-20
+**Superseded** - 2024-12-20 → 2024-12-31
+
+> **Update (2024-12-31)**: This ADR has been superseded. All agents now use `model: inherit` by default, allowing users to control model selection at the conversation level. See [Implementation Update](#implementation-update-2024-12-31) for details.
 
 ## Context
 
@@ -155,6 +157,50 @@ function selectModel(agent: AgentConfig, context: Context): Model {
   return 'sonnet';
 }
 ```
+
+## Implementation Update (2024-12-31)
+
+### New Strategy: Model Inheritance
+
+All 35 agent definition files now use `model: inherit` instead of hardcoded model names. This change:
+
+1. **Simplifies Configuration**: No need to manage per-agent model settings
+2. **Increases Flexibility**: Users control model selection at conversation level
+3. **Reduces Maintenance**: Model preferences don't require agent file edits
+
+### Updated Agent Definition
+
+```markdown
+---
+name: worker
+model: inherit  # Automatically uses parent conversation's model
+---
+```
+
+### Override Mechanism
+
+Users can still override the inherited model:
+
+1. **Task tool parameter**:
+   ```typescript
+   await Task({
+     subagent_type: 'worker',
+     model: 'opus',  // Override inherit for this invocation
+     prompt: '...'
+   });
+   ```
+
+2. **Edit agent file** (not recommended for general use):
+   ```yaml
+   model: sonnet  # Hardcode if specific model required
+   ```
+
+### Rationale for Change
+
+- **User Control**: Let users decide based on their needs (cost, quality, speed)
+- **Consistency**: All agents use same model as parent conversation
+- **Flexibility**: Easy switching without file modifications
+- **Simplicity**: Remove complex per-agent model assignment logic
 
 ## Related Decisions
 

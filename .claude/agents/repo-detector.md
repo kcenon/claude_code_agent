@@ -8,7 +8,7 @@ tools:
   - Read
   - Bash
   - Glob
-model: haiku
+model: inherit
 ---
 
 # Repository Detector Agent

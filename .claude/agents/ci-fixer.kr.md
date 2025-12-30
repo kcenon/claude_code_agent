@@ -12,7 +12,7 @@ tools:
   - Bash
   - Glob
   - Grep
-model: sonnet
+model: inherit
 ---
 
 # CI Fix Agent (CI 수정 에이전트)

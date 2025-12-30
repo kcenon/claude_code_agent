@@ -11,7 +11,7 @@ tools:
   - Bash
   - Glob
   - Grep
-model: sonnet
+model: inherit
 ---
 
 # Worker Agent (워커 에이전트)

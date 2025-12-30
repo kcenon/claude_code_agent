@@ -10,7 +10,7 @@ tools:
   - Bash
   - Glob
   - Grep
-model: sonnet
+model: inherit
 ---
 
 # Issue Reader Agent

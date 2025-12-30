@@ -11,7 +11,7 @@ tools:
   - Grep
   - Bash
   - Task
-model: sonnet
+model: inherit
 ---
 
 # Analysis Orchestrator Agent

@@ -9,7 +9,7 @@ tools:
   - Write
   - Glob
   - Grep
-model: sonnet
+model: inherit
 ---
 
 # Code Reader Agent (코드 분석 에이전트)

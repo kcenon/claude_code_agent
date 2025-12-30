@@ -9,7 +9,7 @@ tools:
   - Write
   - Glob
   - Grep
-model: sonnet
+model: inherit
 ---
 
 # Impact Analyzer Agent

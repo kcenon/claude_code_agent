@@ -221,23 +221,13 @@ AD-SDLC Orchestrator
 
 ### Model Assignments
 
-| Agent | Default Model | Rationale |
-|-------|---------------|-----------|
-| AD-SDLC Orchestrator | Opus | Complex coordination |
-| Mode Detector | Haiku | Fast detection |
-| Repo Detector | Haiku | Fast detection |
-| GitHub Repo Setup | Sonnet | Complex setup |
-| Collector | Sonnet | Balanced understanding |
-| PRD/SRS/SDS Writer | Sonnet | Quality writing |
-| Issue Reader | Sonnet | Accurate parsing |
-| Issue Generator | Sonnet | Structured output |
-| Controller | Haiku | Fast decisions |
-| Worker | Sonnet | Code quality |
-| PR Reviewer | Sonnet | Thorough review |
-| CI Fixer | Sonnet | Complex diagnosis and fixes |
-| Document Reader | Haiku | Fast parsing |
-| Codebase Analyzer | Haiku | Fast analysis |
-| Impact Analyzer | Sonnet | Complex reasoning |
+> **Note**: All agents now use `model: inherit` by default, automatically inheriting the parent conversation's model. This provides flexibility for users to choose their preferred model (opus, sonnet, or haiku) at the conversation level.
+
+| Agent | Model | Notes |
+|-------|-------|-------|
+| All Agents | inherit | Uses parent conversation model |
+
+**Override**: Users can still override per-agent via the Task tool's `model` parameter when needed.
 
 ### Tool Allocations
 

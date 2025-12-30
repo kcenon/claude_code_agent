@@ -11,7 +11,7 @@ tools:
   - Edit
   - Glob
   - Grep
-model: sonnet
+model: inherit
 ---
 
 # PRD Writer Agent
