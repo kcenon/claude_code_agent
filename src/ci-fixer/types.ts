@@ -100,11 +100,18 @@ export interface CICheck {
   /** Check status */
   readonly status: CICheckStatus;
   /** Check conclusion (if completed) */
-  readonly conclusion?: 'success' | 'failure' | 'neutral' | 'cancelled' | 'skipped' | 'timed_out';
+  readonly conclusion?:
+    | 'success'
+    | 'failure'
+    | 'neutral'
+    | 'cancelled'
+    | 'skipped'
+    | 'timed_out'
+    | undefined;
   /** Logs URL (if available) */
-  readonly logsUrl?: string;
+  readonly logsUrl?: string | undefined;
   /** Run ID (for fetching logs) */
-  readonly runId?: number;
+  readonly runId?: number | undefined;
 }
 
 /**
@@ -116,11 +123,11 @@ export interface CIFailure {
   /** Error message */
   readonly message: string;
   /** File path (if applicable) */
-  readonly file?: string;
+  readonly file?: string | undefined;
   /** Line number (if applicable) */
-  readonly line?: number;
+  readonly line?: number | undefined;
   /** Column number (if applicable) */
-  readonly column?: number;
+  readonly column?: number | undefined;
   /** Full error details */
   readonly details: string;
   /** Confidence score (0-1) */
@@ -128,7 +135,7 @@ export interface CIFailure {
   /** Whether this is auto-fixable */
   readonly autoFixable: boolean;
   /** Suggested fix (if available) */
-  readonly suggestedFix?: string;
+  readonly suggestedFix?: string | undefined;
 }
 
 // ============================================================================
@@ -170,12 +177,14 @@ export interface AppliedFix {
   /** Whether the fix was successful */
   readonly success: boolean;
   /** Error message if fix failed */
-  readonly error?: string;
+  readonly error?: string | undefined;
   /** Lines changed (added/removed) */
-  readonly linesChanged?: {
-    readonly added: number;
-    readonly removed: number;
-  };
+  readonly linesChanged?:
+    | {
+        readonly added: number;
+        readonly removed: number;
+      }
+    | undefined;
 }
 
 /**
@@ -275,7 +284,7 @@ export interface NextAction {
   /** Reason for the action */
   readonly reason: string;
   /** Path to handoff file (if delegating) */
-  readonly handoffPath?: string;
+  readonly handoffPath?: string | undefined;
 }
 
 /**
@@ -310,9 +319,9 @@ export interface CIFixResult {
   readonly duration: number;
 
   /** Git commit hash (if changes were committed) */
-  readonly commitHash?: string;
+  readonly commitHash?: string | undefined;
   /** Commit message */
-  readonly commitMessage?: string;
+  readonly commitMessage?: string | undefined;
 }
 
 // ============================================================================
@@ -366,13 +375,15 @@ export interface CILogPattern {
   /** Whether this type is auto-fixable */
   readonly autoFixable: boolean;
   /** Extract file/line info from match */
-  readonly extractLocation?: (match: RegExpMatchArray) => {
-    file?: string;
-    line?: number;
-    column?: number;
-  };
+  readonly extractLocation?:
+    | ((match: RegExpMatchArray) => {
+        file?: string | undefined;
+        line?: number | undefined;
+        column?: number | undefined;
+      })
+    | undefined;
   /** Extract error message from match */
-  readonly extractMessage?: (match: RegExpMatchArray) => string;
+  readonly extractMessage?: ((match: RegExpMatchArray) => string) | undefined;
 }
 
 // ============================================================================

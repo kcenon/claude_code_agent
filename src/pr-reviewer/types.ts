@@ -417,7 +417,14 @@ export interface GitHubStatusCheck {
   /** Check status */
   readonly status: CheckStatus;
   /** Conclusion */
-  readonly conclusion?: 'success' | 'failure' | 'neutral' | 'cancelled' | 'skipped' | 'timed_out';
+  readonly conclusion?:
+    | 'success'
+    | 'failure'
+    | 'neutral'
+    | 'cancelled'
+    | 'skipped'
+    | 'timed_out'
+    | undefined;
 }
 
 /**
@@ -640,7 +647,7 @@ export interface CIFixDelegationResult {
   /** Whether delegation was initiated */
   readonly delegated: boolean;
   /** Handoff file path */
-  readonly handoffPath?: string;
+  readonly handoffPath?: string | undefined;
   /** Delegation reason */
   readonly reason: string;
   /** Timestamp */
