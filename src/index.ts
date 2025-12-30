@@ -903,3 +903,94 @@ export type {
   DependencyNode as RegressionDependencyNode,
   DependencyEdge as RegressionDependencyEdge,
 } from './regression-tester/index.js';
+
+// Re-export mode-detector module
+export {
+  ModeDetector,
+  getModeDetector,
+  resetModeDetector,
+  ModeDetectorError,
+  ProjectNotFoundError as ModeDetectorProjectNotFoundError,
+  NoActiveSessionError as ModeDetectorNoActiveSessionError,
+  InvalidSessionStateError as ModeDetectorInvalidSessionStateError,
+  DocumentAnalysisError,
+  CodebaseAnalysisError,
+  InvalidConfigurationError as ModeDetectorInvalidConfigurationError,
+  OutputWriteError as ModeDetectorOutputWriteError,
+  DetectionTimeoutError as ModeDetectorDetectionTimeoutError,
+  DEFAULT_MODE_DETECTOR_CONFIG,
+  DEFAULT_GREENFIELD_KEYWORDS,
+  DEFAULT_ENHANCEMENT_KEYWORDS,
+  DEFAULT_DETECTION_RULES,
+} from './mode-detector/index.js';
+
+export type {
+  // Mode types
+  PipelineMode,
+  ConfidenceLevel,
+  DetectionStatus as ModeDetectionStatus,
+  EvidenceSource,
+  // Evidence types
+  DetectionEvidence,
+  DocumentEvidence,
+  CodebaseEvidence,
+  KeywordEvidence,
+  UserOverride,
+  // Score types
+  DetectionScores,
+  // Result types
+  ModeDetectionResult,
+  ModeDetectionSession,
+  DetectionStats as ModeDetectionStats,
+  // Rule types
+  DetectionRule,
+  KeywordConfig,
+  ScoreWeights,
+  DetectionThresholds,
+  // Configuration types
+  ModeDetectorConfig,
+} from './mode-detector/index.js';
+
+// Re-export repo-detector module
+export {
+  RepoDetector,
+  getRepoDetector,
+  resetRepoDetector,
+  RepoDetectorError,
+  ProjectNotFoundError as RepoDetectorProjectNotFoundError,
+  NoActiveSessionError as RepoDetectorNoActiveSessionError,
+  InvalidSessionStateError as RepoDetectorInvalidSessionStateError,
+  GitCommandError,
+  GitCommandTimeoutError,
+  GitHubAuthenticationError,
+  GitHubCommandError,
+  GitHubNotAccessibleError,
+  OutputWriteError as RepoDetectorOutputWriteError,
+  DetectionTimeoutError as RepoDetectorDetectionTimeoutError,
+  DEFAULT_REPO_DETECTOR_CONFIG,
+  DEFAULT_TIMEOUT_CONFIG,
+  DEFAULT_GITHUB_CONFIG,
+  DEFAULT_DETECTION_CONFIG,
+} from './repo-detector/index.js';
+
+export type {
+  // Mode types
+  RepositoryMode,
+  DetectionStatus as RepoDetectionStatus,
+  RemoteType,
+  RepositoryVisibility,
+  // Status types
+  GitStatus,
+  RemoteStatus,
+  GitHubStatus,
+  DetectionRecommendation,
+  // Result types
+  RepoDetectionResult,
+  RepoDetectionSession,
+  DetectionStats as RepoDetectionStats,
+  // Configuration types
+  TimeoutConfig,
+  GitHubConfig,
+  DetectionConfig,
+  RepoDetectorConfig,
+} from './repo-detector/index.js';
