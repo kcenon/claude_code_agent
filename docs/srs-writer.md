@@ -7,7 +7,7 @@ The SRS Writer Agent is responsible for generating Software Requirements Specifi
 ## Pipeline Position
 
 ```
-Collector → PRD Writer → SRS Writer → SDS Writer → Issue Generator
+Collector → PRD Writer → SRS Writer → GitHub Repo Setup → SDS Writer → Issue Generator
                               ↑
                          You are here
 ```
