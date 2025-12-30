@@ -7,12 +7,14 @@
  * - File locking for concurrent access
  * - YAML/JSON/Markdown helper functions
  * - Project ID management
+ * - Path traversal prevention via InputValidator
  */
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import * as yaml from 'js-yaml';
+import { InputValidator, PathTraversalError } from '../security/index.js';
 import type {
   ScratchpadOptions,
   ScratchpadSection,
@@ -59,6 +61,8 @@ export class Scratchpad {
   private readonly enableLocking: boolean;
   private readonly lockTimeout: number;
   private readonly activeLocks: Map<string, NodeJS.Timeout> = new Map();
+  private readonly validator: InputValidator;
+  private readonly projectRoot: string;
 
   constructor(options: ScratchpadOptions = {}) {
     this.basePath = options.basePath ?? DEFAULT_BASE_PATH;
@@ -66,6 +70,25 @@ export class Scratchpad {
     this.dirMode = options.dirMode ?? DEFAULT_DIR_MODE;
     this.enableLocking = options.enableLocking ?? true;
     this.lockTimeout = options.lockTimeout ?? DEFAULT_LOCK_TIMEOUT;
+    // Use projectRoot if provided, otherwise use current working directory
+    this.projectRoot = options.projectRoot ?? process.cwd();
+    // Initialize validator with project root to prevent path traversal
+    this.validator = new InputValidator({ basePath: this.projectRoot });
+  }
+
+  // ============================================================
+  // Path Validation
+  // ============================================================
+
+  /**
+   * Validate that a path is within the project root
+   *
+   * @param filePath - Path to validate
+   * @returns Validated absolute path
+   * @throws PathTraversalError if path escapes project root
+   */
+  private validatePath(filePath: string): string {
+    return this.validator.validateFilePath(filePath);
   }
 
   // ============================================================
@@ -305,16 +328,19 @@ export class Scratchpad {
    * @param filePath - Target file path
    * @param content - Content to write
    * @param options - Write options
+   * @throws PathTraversalError if path escapes project root
    */
   public async atomicWrite(
     filePath: string,
     content: string,
     options: AtomicWriteOptions = {}
   ): Promise<void> {
+    // Validate path before any file operations
+    const validatedPath = this.validatePath(filePath);
     const { createDirs = true, mode = this.fileMode, encoding = 'utf8' } = options;
 
-    const dir = path.dirname(filePath);
-    const tempPath = `${filePath}.${randomUUID()}.tmp`;
+    const dir = path.dirname(validatedPath);
+    const tempPath = `${validatedPath}.${randomUUID()}.tmp`;
 
     try {
       // Create parent directories if needed
@@ -326,7 +352,7 @@ export class Scratchpad {
       await fs.promises.writeFile(tempPath, content, { encoding, mode });
 
       // Atomically rename to target
-      await fs.promises.rename(tempPath, filePath);
+      await fs.promises.rename(tempPath, validatedPath);
     } catch (error) {
       // Clean up temp file on error
       try {
@@ -344,16 +370,19 @@ export class Scratchpad {
    * @param filePath - Target file path
    * @param content - Content to write
    * @param options - Write options
+   * @throws PathTraversalError if path escapes project root
    */
   public atomicWriteSync(
     filePath: string,
     content: string,
     options: AtomicWriteOptions = {}
   ): void {
+    // Validate path before any file operations
+    const validatedPath = this.validatePath(filePath);
     const { createDirs = true, mode = this.fileMode, encoding = 'utf8' } = options;
 
-    const dir = path.dirname(filePath);
-    const tempPath = `${filePath}.${randomUUID()}.tmp`;
+    const dir = path.dirname(validatedPath);
+    const tempPath = `${validatedPath}.${randomUUID()}.tmp`;
 
     try {
       if (createDirs) {
@@ -361,7 +390,7 @@ export class Scratchpad {
       }
 
       fs.writeFileSync(tempPath, content, { encoding, mode });
-      fs.renameSync(tempPath, filePath);
+      fs.renameSync(tempPath, validatedPath);
     } catch (error) {
       try {
         fs.unlinkSync(tempPath);
@@ -376,18 +405,22 @@ export class Scratchpad {
    * Ensure a directory exists, creating it if necessary
    *
    * @param dirPath - Directory path
+   * @throws PathTraversalError if path escapes project root
    */
   public async ensureDir(dirPath: string): Promise<void> {
-    await fs.promises.mkdir(dirPath, { recursive: true, mode: this.dirMode });
+    const validatedPath = this.validatePath(dirPath);
+    await fs.promises.mkdir(validatedPath, { recursive: true, mode: this.dirMode });
   }
 
   /**
    * Ensure a directory exists (synchronous)
    *
    * @param dirPath - Directory path
+   * @throws PathTraversalError if path escapes project root
    */
   public ensureDirSync(dirPath: string): void {
-    fs.mkdirSync(dirPath, { recursive: true, mode: this.dirMode });
+    const validatedPath = this.validatePath(dirPath);
+    fs.mkdirSync(validatedPath, { recursive: true, mode: this.dirMode });
   }
 
   // ============================================================
@@ -400,13 +433,16 @@ export class Scratchpad {
    * @param filePath - File to lock
    * @param holderId - Lock holder identifier
    * @returns True if lock acquired
+   * @throws PathTraversalError if path escapes project root
    */
   public async acquireLock(filePath: string, holderId?: string): Promise<boolean> {
     if (!this.enableLocking) {
       return true;
     }
 
-    const lockPath = `${filePath}${LOCK_EXTENSION}`;
+    // Validate the file path first
+    const validatedPath = this.validatePath(filePath);
+    const lockPath = `${validatedPath}${LOCK_EXTENSION}`;
     const lockId = holderId ?? randomUUID();
     const now = Date.now();
     const expiresAt = now + this.lockTimeout;
@@ -425,7 +461,7 @@ export class Scratchpad {
       }
 
       const lock: FileLock = {
-        filePath,
+        filePath: validatedPath,
         holderId: lockId,
         acquiredAt: new Date(now).toISOString(),
         expiresAt: new Date(expiresAt).toISOString(),
@@ -439,9 +475,9 @@ export class Scratchpad {
 
       // Set up auto-release timer
       const timer = setTimeout(() => {
-        this.releaseLock(filePath, lockId).catch(() => {});
+        this.releaseLock(validatedPath, lockId).catch(() => {});
       }, this.lockTimeout);
-      this.activeLocks.set(filePath, timer);
+      this.activeLocks.set(validatedPath, timer);
 
       return true;
     } catch (error) {
@@ -458,13 +494,16 @@ export class Scratchpad {
    *
    * @param filePath - File to unlock
    * @param holderId - Lock holder identifier (optional, releases if matches)
+   * @throws PathTraversalError if path escapes project root
    */
   public async releaseLock(filePath: string, holderId?: string): Promise<void> {
     if (!this.enableLocking) {
       return;
     }
 
-    const lockPath = `${filePath}${LOCK_EXTENSION}`;
+    // Validate the file path first
+    const validatedPath = this.validatePath(filePath);
+    const lockPath = `${validatedPath}${LOCK_EXTENSION}`;
 
     try {
       if (holderId !== undefined && holderId !== '') {
@@ -477,10 +516,10 @@ export class Scratchpad {
       await fs.promises.unlink(lockPath);
 
       // Clear auto-release timer
-      const timer = this.activeLocks.get(filePath);
+      const timer = this.activeLocks.get(validatedPath);
       if (timer) {
         clearTimeout(timer);
-        this.activeLocks.delete(filePath);
+        this.activeLocks.delete(validatedPath);
       }
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
@@ -539,12 +578,14 @@ export class Scratchpad {
    * @param filePath - Path to YAML file
    * @param options - Read options
    * @returns Parsed YAML content
+   * @throws PathTraversalError if path escapes project root
    */
   public async readYaml<T>(filePath: string, options: ReadOptions = {}): Promise<T | null> {
+    const validatedPath = this.validatePath(filePath);
     const { encoding = 'utf8', allowMissing = false } = options;
 
     try {
-      const content = await fs.promises.readFile(filePath, encoding);
+      const content = await fs.promises.readFile(validatedPath, encoding);
       return yaml.load(content) as T;
     } catch (error) {
       if (allowMissing && (error as NodeJS.ErrnoException).code === 'ENOENT') {
@@ -560,12 +601,14 @@ export class Scratchpad {
    * @param filePath - Path to YAML file
    * @param options - Read options
    * @returns Parsed YAML content
+   * @throws PathTraversalError if path escapes project root
    */
   public readYamlSync<T>(filePath: string, options: ReadOptions = {}): T | null {
+    const validatedPath = this.validatePath(filePath);
     const { encoding = 'utf8', allowMissing = false } = options;
 
     try {
-      const content = fs.readFileSync(filePath, encoding);
+      const content = fs.readFileSync(validatedPath, encoding);
       return yaml.load(content) as T;
     } catch (error) {
       if (allowMissing && (error as NodeJS.ErrnoException).code === 'ENOENT') {
@@ -621,12 +664,14 @@ export class Scratchpad {
    * @param filePath - Path to JSON file
    * @param options - Read options
    * @returns Parsed JSON content
+   * @throws PathTraversalError if path escapes project root
    */
   public async readJson<T>(filePath: string, options: ReadOptions = {}): Promise<T | null> {
+    const validatedPath = this.validatePath(filePath);
     const { encoding = 'utf8', allowMissing = false } = options;
 
     try {
-      const content = await fs.promises.readFile(filePath, encoding);
+      const content = await fs.promises.readFile(validatedPath, encoding);
       return JSON.parse(content) as T;
     } catch (error) {
       if (allowMissing && (error as NodeJS.ErrnoException).code === 'ENOENT') {
@@ -642,12 +687,14 @@ export class Scratchpad {
    * @param filePath - Path to JSON file
    * @param options - Read options
    * @returns Parsed JSON content
+   * @throws PathTraversalError if path escapes project root
    */
   public readJsonSync<T>(filePath: string, options: ReadOptions = {}): T | null {
+    const validatedPath = this.validatePath(filePath);
     const { encoding = 'utf8', allowMissing = false } = options;
 
     try {
-      const content = fs.readFileSync(filePath, encoding);
+      const content = fs.readFileSync(validatedPath, encoding);
       return JSON.parse(content) as T;
     } catch (error) {
       if (allowMissing && (error as NodeJS.ErrnoException).code === 'ENOENT') {
@@ -697,12 +744,14 @@ export class Scratchpad {
    * @param filePath - Path to Markdown file
    * @param options - Read options
    * @returns Markdown content
+   * @throws PathTraversalError if path escapes project root
    */
   public async readMarkdown(filePath: string, options: ReadOptions = {}): Promise<string | null> {
+    const validatedPath = this.validatePath(filePath);
     const { encoding = 'utf8', allowMissing = false } = options;
 
     try {
-      return await fs.promises.readFile(filePath, encoding);
+      return await fs.promises.readFile(validatedPath, encoding);
     } catch (error) {
       if (allowMissing && (error as NodeJS.ErrnoException).code === 'ENOENT') {
         return null;
@@ -717,12 +766,14 @@ export class Scratchpad {
    * @param filePath - Path to Markdown file
    * @param options - Read options
    * @returns Markdown content
+   * @throws PathTraversalError if path escapes project root
    */
   public readMarkdownSync(filePath: string, options: ReadOptions = {}): string | null {
+    const validatedPath = this.validatePath(filePath);
     const { encoding = 'utf8', allowMissing = false } = options;
 
     try {
-      return fs.readFileSync(filePath, encoding);
+      return fs.readFileSync(validatedPath, encoding);
     } catch (error) {
       if (allowMissing && (error as NodeJS.ErrnoException).code === 'ENOENT') {
         return null;
@@ -770,10 +821,12 @@ export class Scratchpad {
    *
    * @param filePath - Path to check
    * @returns True if file exists
+   * @throws PathTraversalError if path escapes project root
    */
   public async exists(filePath: string): Promise<boolean> {
+    const validatedPath = this.validatePath(filePath);
     try {
-      await fs.promises.access(filePath, fs.constants.F_OK);
+      await fs.promises.access(validatedPath, fs.constants.F_OK);
       return true;
     } catch {
       return false;
@@ -785,10 +838,12 @@ export class Scratchpad {
    *
    * @param filePath - Path to check
    * @returns True if file exists
+   * @throws PathTraversalError if path escapes project root
    */
   public existsSync(filePath: string): boolean {
+    const validatedPath = this.validatePath(filePath);
     try {
-      fs.accessSync(filePath, fs.constants.F_OK);
+      fs.accessSync(validatedPath, fs.constants.F_OK);
       return true;
     } catch {
       return false;
@@ -799,18 +854,22 @@ export class Scratchpad {
    * Delete a file
    *
    * @param filePath - Path to delete
+   * @throws PathTraversalError if path escapes project root
    */
   public async deleteFile(filePath: string): Promise<void> {
-    await fs.promises.unlink(filePath);
+    const validatedPath = this.validatePath(filePath);
+    await fs.promises.unlink(validatedPath);
   }
 
   /**
    * Delete a file (synchronous)
    *
    * @param filePath - Path to delete
+   * @throws PathTraversalError if path escapes project root
    */
   public deleteFileSync(filePath: string): void {
-    fs.unlinkSync(filePath);
+    const validatedPath = this.validatePath(filePath);
+    fs.unlinkSync(validatedPath);
   }
 
   /**

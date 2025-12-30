@@ -39,6 +39,8 @@ export interface ScratchpadOptions {
   readonly enableLocking?: boolean;
   /** Lock timeout in milliseconds (default: 5000) */
   readonly lockTimeout?: number;
+  /** Project root directory for path validation (default: process.cwd()) */
+  readonly projectRoot?: string;
 }
 
 /**
