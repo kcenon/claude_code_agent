@@ -206,8 +206,11 @@ export class ParallelExecutionTuner {
 
     // Calculate confidence based on resource availability
     const memoryHeadroom = resources.freeMemoryBytes / resources.totalMemoryBytes;
-    const cpuHeadroom = 1 - loadFactor;
-    const confidence = Math.round(Math.min(memoryHeadroom, cpuHeadroom) * 100);
+    const cpuHeadroom = Math.max(0, 1 - loadFactor);
+    const confidence = Math.min(
+      100,
+      Math.max(0, Math.round(Math.min(memoryHeadroom, cpuHeadroom) * 100))
+    );
 
     const reasoning = this.buildReasoningString(
       resources,
@@ -290,12 +293,13 @@ export class ParallelExecutionTuner {
     // Check memory contention
     const memoryUsage = 1 - resources.freeMemoryBytes / resources.totalMemoryBytes;
     if (memoryUsage > this.config.contentionThreshold) {
+      const rawSeverity = Math.round(
+        ((memoryUsage - this.config.contentionThreshold) * 100) /
+          (1 - this.config.contentionThreshold)
+      );
       const event: ContentionEvent = {
         type: 'memory',
-        severity: Math.round(
-          ((memoryUsage - this.config.contentionThreshold) * 100) /
-            (1 - this.config.contentionThreshold)
-        ),
+        severity: Math.min(100, Math.max(0, rawSeverity)),
         timestamp: new Date().toISOString(),
         resource: 'system_memory',
         recommendedAction: 'Reduce worker count or batch size',
@@ -307,12 +311,12 @@ export class ParallelExecutionTuner {
     // Check CPU contention
     const cpuLoad = resources.loadAverage[0] / resources.cpuCores;
     if (cpuLoad > this.config.contentionThreshold) {
+      const rawSeverity = Math.round(
+        ((cpuLoad - this.config.contentionThreshold) * 100) / (1 - this.config.contentionThreshold)
+      );
       const event: ContentionEvent = {
         type: 'cpu',
-        severity: Math.round(
-          ((cpuLoad - this.config.contentionThreshold) * 100) /
-            (1 - this.config.contentionThreshold)
-        ),
+        severity: Math.min(100, Math.max(0, rawSeverity)),
         timestamp: new Date().toISOString(),
         resource: 'cpu',
         recommendedAction: 'Reduce parallelism or add delays between operations',
