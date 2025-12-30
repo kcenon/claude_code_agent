@@ -70,11 +70,10 @@ export class GitCommandError extends RepoDetectorError {
  */
 export class GitCommandTimeoutError extends RepoDetectorError {
   constructor(command: string, timeoutMs: number) {
-    super(
-      `Git command timed out after ${String(timeoutMs)}ms: ${command}`,
-      'GIT_COMMAND_TIMEOUT',
-      { command, timeoutMs }
-    );
+    super(`Git command timed out after ${String(timeoutMs)}ms: ${command}`, 'GIT_COMMAND_TIMEOUT', {
+      command,
+      timeoutMs,
+    });
     this.name = 'GitCommandTimeoutError';
   }
 }
