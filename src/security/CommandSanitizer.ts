@@ -385,17 +385,105 @@ export class CommandSanitizer {
 
   /**
    * Parse a command string into base command and arguments
-   * Note: This is for migration purposes only. Prefer passing arguments as array.
+   * Handles basic quoting and shell redirections
    *
    * @param commandString - Full command string (e.g., "git status --porcelain")
    * @returns Parsed command and arguments
    */
   public parseCommandString(commandString: string): { command: string; args: string[] } {
-    // Simple tokenization - doesn't handle all shell quoting
-    const tokens = commandString.trim().split(/\s+/);
+    // Remove shell redirections (2>&1, 2>/dev/null, etc.) as execFile doesn't need them
+    const cleanedCommand = commandString
+      .replace(/\s+2>&1\s*/g, ' ')
+      .replace(/\s+2>\/dev\/null\s*/g, ' ')
+      .replace(/\s+>\/dev\/null\s*/g, ' ')
+      .replace(/\s+2>\s*\S+/g, ' ')
+      .trim();
+
+    // Tokenize respecting quoted strings
+    const tokens: string[] = [];
+    let current = '';
+    let inSingleQuote = false;
+    let inDoubleQuote = false;
+
+    for (let i = 0; i < cleanedCommand.length; i++) {
+      const char = cleanedCommand[i];
+      const nextChar = cleanedCommand[i + 1];
+
+      if (char === '\\' && nextChar !== undefined && !inSingleQuote) {
+        // Escape sequence
+        current += nextChar;
+        i++;
+      } else if (char === "'" && !inDoubleQuote) {
+        inSingleQuote = !inSingleQuote;
+      } else if (char === '"' && !inSingleQuote) {
+        inDoubleQuote = !inDoubleQuote;
+      } else if (char === ' ' && !inSingleQuote && !inDoubleQuote) {
+        if (current.length > 0) {
+          tokens.push(current);
+          current = '';
+        }
+      } else {
+        current += char;
+      }
+    }
+
+    if (current.length > 0) {
+      tokens.push(current);
+    }
+
     const command = tokens[0] ?? '';
     const args = tokens.slice(1);
     return { command, args };
+  }
+
+  /**
+   * Execute a command from a string (for migration compatibility)
+   * Parses the command string and executes safely
+   *
+   * @param commandString - Full command string (e.g., "gh pr view 123 --json url")
+   * @param options - Execution options
+   * @returns Command execution result
+   */
+  public async execFromString(
+    commandString: string,
+    options: ExecFileOptions = {}
+  ): Promise<CommandExecResult> {
+    const { command, args } = this.parseCommandString(commandString);
+
+    // Check if command is in whitelist
+    if (!this.isAllowed(command)) {
+      // For non-whitelisted commands, validate as config command
+      const validation = this.validateConfigCommand(commandString);
+      if (!validation.valid) {
+        throw new CommandNotAllowedError(command, validation.reason ?? 'Command not in whitelist');
+      }
+      // Still use execFile for validated config commands
+    }
+
+    return this.exec(command, args, options);
+  }
+
+  /**
+   * Execute a command from a string synchronously
+   *
+   * @param commandString - Full command string
+   * @param options - Execution options
+   * @returns Command execution result
+   */
+  public execFromStringSync(
+    commandString: string,
+    options: ExecFileSyncOptions = {}
+  ): CommandExecResult {
+    const { command, args } = this.parseCommandString(commandString);
+
+    if (!this.isAllowed(command)) {
+      const validation = this.validateConfigCommand(commandString);
+      if (!validation.valid) {
+        throw new CommandNotAllowedError(command, validation.reason ?? 'Command not in whitelist');
+      }
+    }
+
+    return this.execSync(command, args, options);
   }
 
   /**
