@@ -267,6 +267,35 @@ agents:
   # ---------------------------------------------------------------------------
   # Issue Management Agents
   # ---------------------------------------------------------------------------
+  issue-reader:
+    id: "issue-reader"
+    name: "Issue Reader Agent"
+    korean_name: "이슈 리더 에이전트"
+    description: "Imports existing GitHub issues and converts them to AD-SDLC internal format for pipeline execution"
+    definition_file: ".claude/agents/issue-reader.md"
+    category: "issue_management"
+    order: 4.5
+
+    capabilities:
+      - "github_issue_fetching"
+      - "issue_parsing"
+      - "dependency_extraction"
+      - "priority_mapping"
+      - "effort_estimation"
+      - "dependency_graph_building"
+
+    io:
+      inputs:
+        - github_issues
+        - filter_criteria
+      outputs:
+        - issue_list.json
+        - dependency_graph.json
+
+    metrics:
+      avg_duration_seconds: 30
+      success_rate: 0.95
+
   issue-generator:
     id: "issue-generator"
     name: "Issue Generator Agent"
@@ -594,6 +623,7 @@ categories:
     name: "Issue Management"
     description: "Agents that manage GitHub issues and work distribution"
     agents:
+      - issue-reader
       - issue-generator
       - controller
     execution_mode: "sequential"
@@ -644,8 +674,12 @@ relationships:
       requires: [srs-writer, github-repo-setup]
     issue-generator:
       requires: [sds-writer]
+    issue-reader:
+      requires: []  # Alternative entry point, no dependencies
+      alternative_to: [issue-generator]  # Can replace issue-generator in import mode
     controller:
-      requires: [issue-generator]
+      requires: [issue-generator]  # Or issue-reader in import mode
+      alternative_inputs: [issue-reader]
     worker:
       requires: [controller]
     pr-reviewer:
@@ -696,6 +730,11 @@ relationships:
     - from: issue-generator
       to: controller
       data: [issue_list.json, dependency_graph.json]
+
+    - from: issue-reader
+      to: controller
+      data: [issue_list.json, dependency_graph.json]
+      mode: import  # Alternative data flow for import mode
 
     - from: controller
       to: worker
