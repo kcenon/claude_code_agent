@@ -80,3 +80,21 @@ export {
 } from './CommandWhitelist.js';
 
 export type { ArgPattern, CommandConfig, CommandWhitelistConfig } from './CommandWhitelist.js';
+
+// PathResolver - Project-aware path resolution with security validation
+export { PathResolver } from './PathResolver.js';
+export type { PathResolverOptions, ResolvedPath } from './PathResolver.js';
+
+// SecureFileOps - Centralized secure file operations wrapper
+export {
+  SecureFileOps,
+  getSecureFileOps,
+  createSecureFileOps,
+  resetSecureFileOps,
+} from './SecureFileOps.js';
+export type {
+  SecureFileOpsConfig,
+  WriteOptions,
+  ReadOptions,
+  MkdirOptions,
+} from './SecureFileOps.js';
