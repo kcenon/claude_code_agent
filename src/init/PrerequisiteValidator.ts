@@ -4,16 +4,12 @@
  * @packageDocumentation
  */
 
-import { exec } from 'child_process';
-import { promisify } from 'util';
-
 import type {
   PrerequisiteCheck,
   PrerequisiteResult,
   PrerequisiteValidationResult,
 } from './types.js';
-
-const execAsync = promisify(exec);
+import { getCommandSanitizer } from '../security/index.js';
 
 /**
  * Validates prerequisites required for AD-SDLC project initialization
@@ -118,9 +114,10 @@ export class PrerequisiteValidator {
    * Check if GitHub CLI is installed and authenticated
    */
   private async checkGitHubCli(): Promise<boolean> {
+    const sanitizer = getCommandSanitizer();
     try {
-      const { stdout } = await execAsync('gh auth status 2>&1');
-      return stdout.includes('Logged in') || stdout.includes('logged in');
+      const result = await sanitizer.execGh(['auth', 'status'], {});
+      return result.stdout.includes('Logged in') || result.stdout.includes('logged in');
     } catch {
       return false;
     }
@@ -130,9 +127,10 @@ export class PrerequisiteValidator {
    * Check if Git is installed
    */
   private async checkGit(): Promise<boolean> {
+    const sanitizer = getCommandSanitizer();
     try {
-      await execAsync('git --version');
-      return true;
+      const result = await sanitizer.execGit(['--version'], {});
+      return result.success;
     } catch {
       return false;
     }
