@@ -207,7 +207,10 @@ export class ParallelExecutionTuner {
     // Calculate confidence based on resource availability
     const memoryHeadroom = resources.freeMemoryBytes / resources.totalMemoryBytes;
     const cpuHeadroom = Math.max(0, 1 - loadFactor);
-    const confidence = Math.min(100, Math.max(0, Math.round(Math.min(memoryHeadroom, cpuHeadroom) * 100)));
+    const confidence = Math.min(
+      100,
+      Math.max(0, Math.round(Math.min(memoryHeadroom, cpuHeadroom) * 100))
+    );
 
     const reasoning = this.buildReasoningString(
       resources,
@@ -309,8 +312,7 @@ export class ParallelExecutionTuner {
     const cpuLoad = resources.loadAverage[0] / resources.cpuCores;
     if (cpuLoad > this.config.contentionThreshold) {
       const rawSeverity = Math.round(
-        ((cpuLoad - this.config.contentionThreshold) * 100) /
-          (1 - this.config.contentionThreshold)
+        ((cpuLoad - this.config.contentionThreshold) * 100) / (1 - this.config.contentionThreshold)
       );
       const event: ContentionEvent = {
         type: 'cpu',
