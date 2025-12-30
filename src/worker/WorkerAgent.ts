@@ -7,8 +7,6 @@
  * @module worker/WorkerAgent
  */
 
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 import type {
@@ -42,7 +40,7 @@ import {
   ResultPersistenceError,
   GitOperationError,
 } from './errors.js';
-import { getCommandSanitizer } from '../security/index.js';
+import { getCommandSanitizer, createSecureFileOps, type SecureFileOps } from '../security/index.js';
 
 /**
  * Command execution result
@@ -65,6 +63,7 @@ export class WorkerAgent {
   private readonly testsCreated: Map<string, number>;
   private readonly commits: CommitInfo[];
   private readonly testGenerator: TestGenerator;
+  private readonly fileOps: SecureFileOps;
   private lastTestGenerationResult: TestGenerationResult | null;
 
   constructor(config: WorkerAgentConfig = {}, testGeneratorConfig?: TestGeneratorConfig) {
@@ -84,6 +83,8 @@ export class WorkerAgent {
     this.commits = [];
     this.testGenerator = new TestGenerator(testGeneratorConfig);
     this.lastTestGenerationResult = null;
+    // Initialize secure file operations with project root validation
+    this.fileOps = createSecureFileOps({ projectRoot: this.config.projectRoot });
   }
 
   /**
@@ -195,6 +196,7 @@ export class WorkerAgent {
   /**
    * Analyze context from work order
    * Reads related files and analyzes code patterns
+   * Uses SecureFileOps for path traversal prevention
    */
   public async analyzeContext(workOrder: WorkOrder): Promise<CodeContext> {
     try {
@@ -202,11 +204,10 @@ export class WorkerAgent {
 
       // Read all related files from work order context
       for (const file of workOrder.context.relatedFiles) {
-        const filePath = join(this.config.projectRoot, file.path);
-
-        if (existsSync(filePath)) {
+        // Use SecureFileOps for path validation - prevents path traversal
+        if (this.fileOps.existsSync(file.path)) {
           try {
-            const content = await readFile(filePath, 'utf-8');
+            const content = await this.fileOps.readFile(file.path);
             relatedFiles.push({
               path: file.path,
               content,
@@ -377,6 +378,7 @@ export class WorkerAgent {
   /**
    * Generate tests for the implemented code
    * Analyzes source files and generates comprehensive test suites
+   * Uses SecureFileOps for path traversal prevention
    */
   public async generateTests(context: ExecutionContext): Promise<TestGenerationResult> {
     const { codeContext } = context;
@@ -389,19 +391,11 @@ export class WorkerAgent {
 
     // Write test files to disk
     for (const suite of result.testSuites) {
-      const testFilePath = join(this.config.projectRoot, suite.testFile);
-      const testDir = join(this.config.projectRoot, suite.testFile.replace(/\/[^/]+$/, ''));
-
-      // Ensure test directory exists
-      if (!existsSync(testDir)) {
-        await mkdir(testDir, { recursive: true });
-      }
-
       // Generate test file content
       const content = this.testGenerator.generateTestFileContent(suite, codeContext.patterns);
 
-      // Write test file
-      await writeFile(testFilePath, content, 'utf-8');
+      // Write test file using SecureFileOps (auto-creates directories)
+      await this.fileOps.writeFile(suite.testFile, content);
 
       // Record the test file creation
       this.recordTestFile(suite.testFile, suite.totalTests);
@@ -614,19 +608,17 @@ export class WorkerAgent {
 
   /**
    * Save implementation result to disk
+   * Uses SecureFileOps for path traversal prevention
    */
   public async saveResult(result: ImplementationResult): Promise<void> {
-    const resultsDir = join(this.config.projectRoot, this.config.resultsPath, 'results');
+    // Construct relative path from project root
+    const resultFilePath = join(this.config.resultsPath, 'results', `${result.workOrderId}-result.yaml`);
 
     try {
-      if (!existsSync(resultsDir)) {
-        await mkdir(resultsDir, { recursive: true });
-      }
-
-      const filePath = join(resultsDir, `${result.workOrderId}-result.yaml`);
       const yamlContent = this.toYaml(result as unknown as Record<string, unknown>);
 
-      await writeFile(filePath, yamlContent, 'utf-8');
+      // Write using SecureFileOps (auto-creates directories and validates path)
+      await this.fileOps.writeFile(resultFilePath, yamlContent);
     } catch (error) {
       throw new ResultPersistenceError(
         result.workOrderId,
