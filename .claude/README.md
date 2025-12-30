@@ -47,7 +47,7 @@ tools:
   - Read
   - Write
   - Bash
-model: sonnet
+model: inherit
 ---
 
 # Agent Name
@@ -74,7 +74,7 @@ Use the template at `.ad-sdlc/templates/agent-template.md` as a starting point f
 | `name` | string | Lowercase with hyphens | `my-agent` |
 | `description` | string | Agent purpose (min 10 chars) | `Processes user input...` |
 | `tools` | array | List of allowed tools | `[Read, Write, Bash]` |
-| `model` | string | Model to use | `sonnet` or `opus` |
+| `model` | string | Model to use | `inherit` (default), `sonnet`, `opus`, or `haiku` |
 
 ### Valid Tools
 
