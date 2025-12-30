@@ -331,7 +331,7 @@ export class RepoDetector {
     }
 
     // Fallback: parse from remote URL
-    if (remoteStatus.originUrl) {
+    if (remoteStatus.originUrl !== null && remoteStatus.originUrl !== '') {
       const parsed = this.parseGitHubUrl(remoteStatus.originUrl);
       if (parsed) {
         return {
@@ -363,7 +363,13 @@ export class RepoDetector {
   private parseGitHubUrl(url: string): { owner: string; name: string } | null {
     // Handle HTTPS URLs
     const httpsMatch = url.match(/github\.com[/:]([^/]+)\/([^/.]+)/);
-    if (httpsMatch && httpsMatch[1] && httpsMatch[2]) {
+    if (
+      httpsMatch !== null &&
+      typeof httpsMatch[1] === 'string' &&
+      httpsMatch[1] !== '' &&
+      typeof httpsMatch[2] === 'string' &&
+      httpsMatch[2] !== ''
+    ) {
       return {
         owner: httpsMatch[1],
         name: httpsMatch[2].replace(/\.git$/, ''),
@@ -372,7 +378,13 @@ export class RepoDetector {
 
     // Handle SSH URLs
     const sshMatch = url.match(/git@github\.com:([^/]+)\/([^/.]+)/);
-    if (sshMatch && sshMatch[1] && sshMatch[2]) {
+    if (
+      sshMatch !== null &&
+      typeof sshMatch[1] === 'string' &&
+      sshMatch[1] !== '' &&
+      typeof sshMatch[2] === 'string' &&
+      sshMatch[2] !== ''
+    ) {
       return {
         owner: sshMatch[1],
         name: sshMatch[2].replace(/\.git$/, ''),

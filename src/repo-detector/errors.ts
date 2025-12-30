@@ -110,7 +110,7 @@ export class GitHubCommandError extends RepoDetectorError {
 export class GitHubNotAccessibleError extends RepoDetectorError {
   constructor(repoUrl: string, reason?: string) {
     super(
-      `GitHub repository not accessible: ${repoUrl}${reason ? ` - ${reason}` : ''}`,
+      `GitHub repository not accessible: ${repoUrl}${reason !== undefined && reason !== '' ? ` - ${reason}` : ''}`,
       'GITHUB_NOT_ACCESSIBLE',
       { repoUrl, reason }
     );
