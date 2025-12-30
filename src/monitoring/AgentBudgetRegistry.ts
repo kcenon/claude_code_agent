@@ -12,7 +12,6 @@
 import { TokenBudgetManager, type BudgetStatus } from './TokenBudgetManager.js';
 import {
   type AgentTokenBudgetConfig,
-  type AgentCategory,
   type PipelineBudgetConfig,
   type PipelineBudgetStatus,
   type CategoryBudgetDefaults,
@@ -155,7 +154,7 @@ export class AgentBudgetRegistry {
     const result = manager.recordUsage(inputTokens, outputTokens, costUsd);
     const status = manager.getStatus();
 
-    if (result.allowed === false) {
+    if (!result.allowed) {
       const entry = this.agentBudgets.get(agentName);
       if (entry?.config.onBudgetExceeded !== undefined) {
         void entry.config.onBudgetExceeded(status);

@@ -5,7 +5,6 @@
  * generating reports, and analyzing cost trends.
  */
 
-import type { BudgetStatus } from './TokenBudgetManager.js';
 import type { PipelineBudgetStatus, AgentCategory } from './AgentTokenBudgetConfig.js';
 
 /**
