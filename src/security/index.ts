@@ -11,9 +11,12 @@ export type {
   AuditEventType,
   AuditLogEntry,
   AuditLoggerOptions,
+  CommandExecResult,
+  CommandSanitizerOptions,
   InputValidatorOptions,
   RateLimitConfig,
   RateLimitStatus,
+  SanitizedCommand,
   SecretManagerOptions,
   SecureFileHandlerOptions,
   ValidationResult,
@@ -21,12 +24,14 @@ export type {
 
 // Errors
 export {
-  SecurityError,
-  SecretNotFoundError,
-  PathTraversalError,
+  CommandInjectionError,
+  CommandNotAllowedError,
   InvalidUrlError,
-  ValidationError,
+  PathTraversalError,
   RateLimitExceededError,
+  SecretNotFoundError,
+  SecurityError,
+  ValidationError,
 } from './errors.js';
 
 // SecretManager
@@ -52,3 +57,30 @@ export {
 
 // RateLimiter
 export { RateLimiter, RateLimiters } from './RateLimiter.js';
+
+// CommandSanitizer
+export {
+  CommandSanitizer,
+  getCommandSanitizer,
+  resetCommandSanitizer,
+} from './CommandSanitizer.js';
+
+// CommandWhitelist
+export {
+  BRANCH_NAME_PATTERN,
+  containsShellMetacharacters,
+  DEFAULT_COMMAND_WHITELIST,
+  ESCAPE_CHARS,
+  getCommandConfig,
+  isAllowedCommand,
+  isAllowedSubcommand,
+  PACKAGE_NAME_PATTERN,
+  SAFE_PATH_PATTERN,
+  SHELL_METACHARACTERS,
+} from './CommandWhitelist.js';
+
+export type {
+  ArgPattern,
+  CommandConfig,
+  CommandWhitelistConfig,
+} from './CommandWhitelist.js';

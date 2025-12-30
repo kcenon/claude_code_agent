@@ -137,3 +137,47 @@ export interface RateLimitStatus {
   /** Time until rate limit resets (ms) */
   readonly resetIn: number;
 }
+
+/**
+ * Command sanitizer configuration options
+ */
+export interface CommandSanitizerOptions {
+  /** Custom command whitelist (overrides default) */
+  readonly whitelist?: Record<string, unknown>;
+  /** Enable strict mode (reject any shell metacharacters) */
+  readonly strictMode?: boolean;
+  /** Enable command logging */
+  readonly logCommands?: boolean;
+}
+
+/**
+ * Sanitized command ready for safe execution
+ */
+export interface SanitizedCommand {
+  /** Base command (e.g., 'git', 'npm') */
+  readonly baseCommand: string;
+  /** Subcommand if any (e.g., 'status', 'install') */
+  readonly subCommand?: string;
+  /** Sanitized arguments array */
+  readonly args: string[];
+  /** Raw command string for logging (do not execute directly) */
+  readonly rawCommand: string;
+}
+
+/**
+ * Result of command execution
+ */
+export interface CommandExecResult {
+  /** Whether command succeeded (exit code 0) */
+  readonly success: boolean;
+  /** Standard output */
+  readonly stdout: string;
+  /** Standard error */
+  readonly stderr: string;
+  /** Full command string (for logging) */
+  readonly command: string;
+  /** Execution duration in milliseconds */
+  readonly duration: number;
+  /** Exit code if available */
+  readonly exitCode?: number;
+}
