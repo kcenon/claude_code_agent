@@ -275,15 +275,17 @@ describe('AgentBudgetRegistry', () => {
 
   describe('default constants', () => {
     it('should have category budget defaults', () => {
-      expect(DEFAULT_CATEGORY_BUDGETS.document.maxTokens).toBe(80000);
-      expect(DEFAULT_CATEGORY_BUDGETS.execution.maxTokens).toBe(100000);
-      expect(DEFAULT_CATEGORY_BUDGETS.analysis.maxTokens).toBe(50000);
-      expect(DEFAULT_CATEGORY_BUDGETS.infrastructure.maxTokens).toBe(20000);
+      // Default model is Opus, tokens set to 150000
+      expect(DEFAULT_CATEGORY_BUDGETS.document.maxTokens).toBe(150000);
+      expect(DEFAULT_CATEGORY_BUDGETS.execution.maxTokens).toBe(150000);
+      expect(DEFAULT_CATEGORY_BUDGETS.analysis.maxTokens).toBe(150000);
+      expect(DEFAULT_CATEGORY_BUDGETS.infrastructure.maxTokens).toBe(50000);
     });
 
     it('should have pipeline budget defaults', () => {
-      expect(DEFAULT_PIPELINE_BUDGET.maxTokens).toBe(500000);
-      expect(DEFAULT_PIPELINE_BUDGET.maxCostUsd).toBe(10.0);
+      // Pipeline budget set high to allow multiple agents with 150000 tokens each
+      expect(DEFAULT_PIPELINE_BUDGET.maxTokens).toBe(1500000);
+      expect(DEFAULT_PIPELINE_BUDGET.maxCostUsd).toBe(50.0);
       expect(DEFAULT_PIPELINE_BUDGET.warningThreshold).toBe(0.8);
     });
   });

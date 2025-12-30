@@ -144,33 +144,42 @@ export interface PipelineBudgetStatus {
 }
 
 /**
+ * Default model preference for agents
+ * Uses Opus (claude-opus-4-5-20251101) as the default model
+ */
+export const DEFAULT_MODEL_PREFERENCE: 'sonnet' | 'opus' | 'haiku' = 'opus';
+
+/**
  * Default category budget limits
+ * Tokens are set based on typical usage patterns per category
  */
 export const DEFAULT_CATEGORY_BUDGETS: Required<CategoryBudgetDefaults> = {
   document: {
-    maxTokens: 80000,
-    maxCostUsd: 1.5,
+    maxTokens: 150000,
+    maxCostUsd: 3.0,
   },
   execution: {
-    maxTokens: 100000,
-    maxCostUsd: 2.0,
+    maxTokens: 150000,
+    maxCostUsd: 3.0,
   },
   analysis: {
-    maxTokens: 50000,
-    maxCostUsd: 0.75,
+    maxTokens: 150000,
+    maxCostUsd: 3.0,
   },
   infrastructure: {
-    maxTokens: 20000,
-    maxCostUsd: 0.3,
+    maxTokens: 50000,
+    maxCostUsd: 1.0,
   },
 };
 
 /**
  * Default pipeline budget limits
+ * Total budget across all agents in a pipeline
+ * Set high enough to allow multiple agents to use their full 150000 token budgets
  */
 export const DEFAULT_PIPELINE_BUDGET: Required<PipelineBudgetConfig> = {
-  maxTokens: 500000,
-  maxCostUsd: 10.0,
+  maxTokens: 1500000,
+  maxCostUsd: 50.0,
   warningThreshold: 0.8,
   onLimitReached: 'pause',
 };

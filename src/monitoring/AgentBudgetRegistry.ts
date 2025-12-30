@@ -17,6 +17,7 @@ import {
   type CategoryBudgetDefaults,
   DEFAULT_CATEGORY_BUDGETS,
   DEFAULT_PIPELINE_BUDGET,
+  DEFAULT_MODEL_PREFERENCE,
 } from './AgentTokenBudgetConfig.js';
 
 /**
@@ -107,9 +108,13 @@ export class AgentBudgetRegistry {
     const sessionCostLimitUsd =
       config?.agentCostLimitUsd ?? config?.sessionCostLimitUsd ?? categoryDefaults?.maxCostUsd;
 
+    // Use provided model preference or fall back to default (Opus)
+    const modelPreference = config?.modelPreference ?? DEFAULT_MODEL_PREFERENCE;
+
     // Build AgentTokenBudgetConfig with only defined properties
     const fullConfig: AgentTokenBudgetConfig = {
       agentName,
+      modelPreference,
       ...(category !== undefined && { agentCategory: category }),
       ...(sessionTokenLimit !== undefined && { sessionTokenLimit }),
       ...(sessionCostLimitUsd !== undefined && { sessionCostLimitUsd }),
@@ -122,7 +127,6 @@ export class AgentBudgetRegistry {
       ...(config?.onLimitReached !== undefined && { onLimitReached: config.onLimitReached }),
       ...(config?.allowOverride !== undefined && { allowOverride: config.allowOverride }),
       ...(config?.onBudgetExceeded !== undefined && { onBudgetExceeded: config.onBudgetExceeded }),
-      ...(config?.modelPreference !== undefined && { modelPreference: config.modelPreference }),
     };
 
     // Build TokenBudgetConfig with only defined properties

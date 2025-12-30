@@ -723,39 +723,44 @@ github:
 # Token Budgets
 # =============================================================================
 # Per-agent token budget configuration for cost control and monitoring
+# Default model: Opus (claude-opus-4-5-20251101)
 token_budgets:
+  # Default model preference for all agents
+  default_model: "opus"  # claude-opus-4-5-20251101
+
   # Pipeline-level limits (aggregate of all agents)
+  # High enough to allow multiple agents with 150000 tokens each
   pipeline:
-    max_tokens: 500000
-    max_cost_usd: 10.00
+    max_tokens: 1500000
+    max_cost_usd: 50.00
     warning_threshold: 0.8  # 80% warning
 
   # Default limits by agent category
   defaults:
     document:
-      max_tokens: 80000
-      max_cost_usd: 1.50
+      max_tokens: 150000
+      max_cost_usd: 3.00
     execution:
-      max_tokens: 100000
-      max_cost_usd: 2.00
+      max_tokens: 150000
+      max_cost_usd: 3.00
     analysis:
-      max_tokens: 50000
-      max_cost_usd: 0.75
+      max_tokens: 150000
+      max_cost_usd: 3.00
     infrastructure:
-      max_tokens: 20000
-      max_cost_usd: 0.30
+      max_tokens: 50000
+      max_cost_usd: 1.00
 
   # Agent-specific overrides (optional)
   agents:
     sds-writer:
-      max_tokens: 120000  # Override default for complex design docs
-      max_cost_usd: 2.50
+      max_tokens: 150000  # Complex design docs
+      max_cost_usd: 3.00
     worker:
       max_tokens: 150000  # Heavy implementation work
       max_cost_usd: 3.00
     collector:
-      max_tokens: 60000   # Multi-source collection
-      max_cost_usd: 1.00
+      max_tokens: 150000  # Multi-source collection
+      max_cost_usd: 3.00
 
 # =============================================================================
 # Logging & Monitoring
