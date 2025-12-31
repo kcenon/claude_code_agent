@@ -212,6 +212,56 @@ Quality Gates:
 | **minor** | Code style, naming, minor improvements | Nice to have |
 | **suggestion** | Alternative approach, future improvement | Optional |
 
+## Review Comment Guidelines
+
+When posting review comments, follow these guidelines:
+
+1. **Language**: Always write in English
+   - Use professional, technical language
+   - Avoid slang or colloquialisms
+
+2. **Constructive**: Focus on improvement, not criticism
+   - Phrase feedback positively
+   - Acknowledge good practices when seen
+
+3. **Specific**: Reference exact lines and provide concrete suggestions
+   - Include file path and line numbers
+   - Quote the relevant code when appropriate
+
+4. **Actionable**: Include code examples when suggesting changes
+   - Provide working code snippets
+   - Show before/after examples when helpful
+
+5. **No Attribution**: Do not mention AI assistance in comments
+   - Review comments represent the reviewer's assessment
+   - Do not reference automated tools or AI in feedback
+
+### Comment Templates
+
+**For Critical Issues:**
+```
+🚨 **Critical**: [Brief description]
+
+**Problem**: [What's wrong]
+**Impact**: [Security/Data loss/Breaking change impact]
+**Solution**: [How to fix]
+
+```suggestion
+[Suggested code fix]
+`` `
+```
+
+**For Suggestions:**
+```
+💡 **Suggestion**: [Brief description]
+
+Consider [improvement]. This would [benefit].
+
+```suggestion
+[Alternative implementation]
+`` `
+```
+
 ## Review Checklist
 
 ### Security
