@@ -122,7 +122,8 @@ change_request:
 
 | File | Path | Format | Description |
 |------|------|--------|-------------|
-| Updated SRS | `docs/srs/SRS-{id}.md` | Markdown | Updated SRS document |
+| Updated SRS (EN) | `docs/srs/SRS-{id}.md` | Markdown | Updated SRS document (English) |
+| Updated SRS (KR) | `docs/srs/SRS-{id}.kr.md` | Markdown | Updated SRS document (Korean) |
 | Changelog | `.ad-sdlc/scratchpad/documents/{project_id}/srs_changelog.md` | Markdown | Changes made |
 | Update Result | `.ad-sdlc/scratchpad/documents/{project_id}/srs_update_result.yaml` | YAML | Structured update result |
 
@@ -222,17 +223,18 @@ update_result:
 
 ### Step-by-Step Process
 
-1. **Load Document**: Read existing SRS from docs/srs/
+1. **Load Documents**: Read existing SRS from docs/srs/ (both English and Korean versions)
 2. **Parse Structure**: Extract all sections, features, and use cases
 3. **Load Context**: Read PRD update results for new requirements
 4. **Validate Request**: Ensure change request is valid
 5. **Generate IDs**: Create new feature/use case IDs if needed
-6. **Apply Changes**: Modify document content
-7. **Update Traceability**: Update PRD→SRS mapping
-8. **Update Metadata**: Increment version, update timestamps
-9. **Add Annotations**: Mark changes with [NEW], [MODIFIED]
-10. **Verify Consistency**: Run post-update validation
-11. **Write Output**: Save updated document and changelog
+6. **Apply Changes to English Version**: Modify English document content
+7. **Apply Changes to Korean Version**: Translate and apply changes following Bilingual Output Policy
+8. **Update Traceability**: Update PRD→SRS mapping
+9. **Update Metadata**: Increment version, update timestamps (both versions)
+10. **Add Annotations**: Mark changes with [NEW]/[신규], [MODIFIED]/[수정됨]
+11. **Verify Consistency**: Run post-update validation on both versions
+12. **Write Output**: Save updated documents (EN and KR) and changelog
 
 ## Update Modes
 
@@ -314,6 +316,48 @@ update_result:
 | Update interface | Minor (x.Y.z) | 1.1.2 → 1.2.0 |
 | Update traceability | Patch (x.y.Z) | 1.2.0 → 1.2.1 |
 
+## Bilingual Output Policy
+
+All document updates MUST be applied to both language versions:
+
+1. **English Version** (`*.md`): Primary document, used for technical implementation
+2. **Korean Version** (`*.kr.md`): Localized document for Korean stakeholders
+
+### Update Order
+
+1. Apply changes to English version first
+2. Apply equivalent changes to Korean version, translating new content while preserving:
+   - Document structure and formatting
+   - Technical terms (keep original + Korean translation in parentheses)
+   - Code blocks and examples (unchanged)
+   - IDs and references (unchanged)
+   - Table structures and markdown syntax
+
+### Translation Guidelines for Updates
+
+- **New Features**: Translate title and description, keep IDs as-is
+- **New Use Cases**: Translate title and flow descriptions, keep step structure
+- **Annotations**: Translate [NEW] → [신규], [MODIFIED] → [수정됨]
+- **Field Names**: Translate consistently (Description → 설명, Priority → 우선순위)
+
+### Example Update
+
+English:
+```markdown
+### SF-015: Notification Feature [NEW]
+- **Linked PRD**: FR-015
+- **Description**: Handles email notifications
+- **Added**: 2024-01-15
+```
+
+Korean:
+```markdown
+### SF-015: 알림 기능 (Notification Feature) [신규]
+- **연결된 PRD**: FR-015
+- **설명**: 이메일 알림 처리
+- **추가일**: 2024-01-15
+```
+
 ## Best Practices
 
 - Always read current document state before making changes
@@ -322,6 +366,7 @@ update_result:
 - Include change reason for audit trail
 - Link all features to PRD requirements
 - Run consistency checks after every update
+- Apply changes to both English and Korean versions simultaneously
 
 ## Related Agents
 
