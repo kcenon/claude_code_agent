@@ -22,6 +22,8 @@ import type {
   LogQueryFilter,
   LogQueryResult,
 } from './types.js';
+import { tryJsonParse } from '../utils/SafeJsonParser.js';
+import { LogEntrySchema } from '../schemas/common.js';
 
 /**
  * Default log directory
@@ -665,10 +667,11 @@ export class Logger {
       for (let i = lines.length - 1; i >= 0 && entries.length < limit; i--) {
         const line = lines[i];
         if (line !== undefined && line.trim() !== '') {
-          try {
-            entries.push(JSON.parse(line) as LogEntry);
-          } catch {
-            // Skip malformed lines
+          const entry = tryJsonParse(line, LogEntrySchema, {
+            context: 'log entry',
+          });
+          if (entry) {
+            entries.push(entry);
           }
         }
       }
@@ -731,10 +734,11 @@ export class Logger {
         const lines = content.trim().split('\n');
         for (const line of lines) {
           if (line.trim() !== '') {
-            try {
-              entries.push(JSON.parse(line) as LogEntry);
-            } catch {
-              // Skip malformed lines
+            const entry = tryJsonParse(line, LogEntrySchema, {
+              context: 'log entry',
+            });
+            if (entry) {
+              entries.push(entry);
             }
           }
         }
@@ -835,10 +839,11 @@ export class Logger {
         const lines = content.trim().split('\n');
         for (const line of lines) {
           if (line.trim() !== '') {
-            try {
-              entries.push(JSON.parse(line) as LogEntry);
-            } catch {
-              // Skip malformed lines
+            const entry = tryJsonParse(line, LogEntrySchema, {
+              context: 'log entry',
+            });
+            if (entry) {
+              entries.push(entry);
             }
           }
         }

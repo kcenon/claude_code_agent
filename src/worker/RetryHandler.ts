@@ -32,6 +32,8 @@ import {
   OperationTimeoutError,
   MaxRetriesExceededError,
 } from './errors.js';
+import { tryJsonParse } from '../utils/SafeJsonParser.js';
+import { ProgressCheckpointSchema } from '../schemas/common.js';
 
 /**
  * Retry handler configuration
@@ -398,7 +400,9 @@ export class RetryHandler {
       }
 
       const content = await readFile(filePath, 'utf-8');
-      return JSON.parse(content) as ProgressCheckpoint;
+      return tryJsonParse(content, ProgressCheckpointSchema, {
+        context: filePath,
+      });
     } catch {
       return null;
     }

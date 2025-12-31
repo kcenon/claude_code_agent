@@ -12,6 +12,8 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import type { AuditEvent, AuditLogEntry, AuditLoggerOptions, AuditEventType } from './types.js';
+import { tryJsonParse } from '../utils/SafeJsonParser.js';
+import { AuditLogEntrySchema } from '../schemas/common.js';
 
 /**
  * Default log directory
@@ -394,10 +396,11 @@ export class AuditLogger {
       for (let i = lines.length - 1; i >= 0 && entries.length < limit; i--) {
         const line = lines[i];
         if (line !== undefined && line.trim() !== '') {
-          try {
-            entries.push(JSON.parse(line) as AuditLogEntry);
-          } catch {
-            // Skip malformed lines
+          const entry = tryJsonParse(line, AuditLogEntrySchema, {
+            context: 'audit log entry',
+          });
+          if (entry) {
+            entries.push(entry);
           }
         }
       }
