@@ -459,12 +459,19 @@ export async function withRetryResult<T>(
   try {
     const value = await withRetry(operation, options);
 
+    // TODO(P2): Track actual retry attempts from withRetry
+    // Currently totalAttempts is hardcoded to 1 because withRetry doesn't expose
+    // the attempt count on success. Consider refactoring withRetry to return
+    // attempt metadata or use a shared context object.
+    // TODO(P2): Propagate attempt details from withRetry
+    // The attempts array should contain retry history but withRetry doesn't
+    // currently expose this information on successful completion.
     return {
       success: true,
       value,
-      totalAttempts: 1, // Will be updated in production with actual tracking
+      totalAttempts: 1,
       totalDurationMs: Date.now() - startTime,
-      attempts: [], // Simplified for now
+      attempts: [],
     };
   } catch (error) {
     const caughtError = error instanceof Error ? error : new Error(String(error));

@@ -15,6 +15,18 @@
  * TOCTOU (Time-of-Check-Time-of-Use) race conditions. This is more reliable
  * than rename() which silently overwrites existing files on POSIX systems.
  *
+ * FIXME(P1): Lock stealing may cause data corruption under high contention
+ * When a lock is stolen after lockStealThresholdMs, the original holder may
+ * still be writing data. Should implement cooperative lock release or use
+ * proper distributed locking for production multi-process deployments.
+ *
+ * TODO(P2): Add lock heartbeat mechanism
+ * Holders should periodically update lock timestamp to indicate liveness.
+ * Stale locks from crashed processes could be safely cleaned up.
+ *
+ * TODO(P3): Support configurable serialization format per file
+ * Currently hardcoded YAML/JSON based on file extension. Allow override.
+ *
  * Features:
  * - Atomic lock acquisition using hard links (EEXIST on collision)
  * - Automatic retry with exponential backoff and jitter
