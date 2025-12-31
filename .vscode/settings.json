@@ -1,0 +1,61 @@
+{
+  "todo-tree.general.tags": [
+    "TODO",
+    "FIXME",
+    "HACK",
+    "NOTE",
+    "BUG",
+    "XXX"
+  ],
+  "todo-tree.highlights.defaultHighlight": {
+    "icon": "alert",
+    "type": "text-and-comment",
+    "foreground": "#FFFFFF",
+    "background": "#FF8C00",
+    "opacity": 50,
+    "iconColour": "#FF8C00"
+  },
+  "todo-tree.highlights.customHighlight": {
+    "TODO": {
+      "icon": "checklist",
+      "background": "#2196F3",
+      "iconColour": "#2196F3",
+      "rulerColour": "#2196F3"
+    },
+    "FIXME": {
+      "icon": "flame",
+      "background": "#FF5722",
+      "iconColour": "#FF5722",
+      "rulerColour": "#FF5722"
+    },
+    "HACK": {
+      "icon": "tools",
+      "background": "#9C27B0",
+      "iconColour": "#9C27B0",
+      "rulerColour": "#9C27B0"
+    },
+    "NOTE": {
+      "icon": "note",
+      "background": "#4CAF50",
+      "iconColour": "#4CAF50",
+      "rulerColour": "#4CAF50"
+    },
+    "BUG": {
+      "icon": "bug",
+      "background": "#F44336",
+      "iconColour": "#F44336",
+      "rulerColour": "#F44336"
+    }
+  },
+  "todo-tree.general.statusBar": "tags",
+  "todo-tree.tree.showCountsInTree": true,
+  "todo-tree.tree.groupedByTag": true,
+  "todo-tree.filtering.excludeGlobs": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/coverage/**",
+    "**/.git/**"
+  ],
+  "todo-tree.regex.regex": "(//|#|<!--|;|/\\*|^|^[ \\t]*(-|\\d+.))\\s*($TAGS)(?:\\(([^)]+)\\))?:?",
+  "todo-tree.regex.regexCaseSensitive": false
+}

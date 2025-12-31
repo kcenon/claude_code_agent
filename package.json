@@ -26,7 +26,12 @@
     "format": "prettier --write 'src/**/*.ts'",
     "format:check": "prettier --check 'src/**/*.ts'",
     "clean": "rm -rf dist",
-    "prepare": "npm run build"
+    "prepare": "npm run build",
+    "todo": "grep -rn 'TODO(' src/ --include='*.ts' | sort",
+    "todo:fixme": "grep -rn 'FIXME(' src/ --include='*.ts' | sort",
+    "todo:hack": "grep -rn 'HACK' src/ --include='*.ts' | sort",
+    "todo:all": "grep -rn -E '(TODO|FIXME|HACK)' src/ --include='*.ts' | sort",
+    "todo:count": "echo 'TODO:' && grep -r 'TODO(' src/ --include='*.ts' | wc -l && echo 'FIXME:' && grep -r 'FIXME(' src/ --include='*.ts' | wc -l && echo 'HACK:' && grep -r 'HACK' src/ --include='*.ts' | wc -l"
   },
   "keywords": [
     "claude",

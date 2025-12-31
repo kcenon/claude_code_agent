@@ -12,7 +12,9 @@ out/
 
 # IDE and Editor
 .idea/
-.vscode/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
 *.swp
 *.swo
 *~
