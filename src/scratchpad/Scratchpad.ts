@@ -4,10 +4,49 @@
  * Implements the Scratchpad pattern for inter-agent communication
  * by providing structured file operations with:
  * - Atomic writes (write to temp, then rename)
- * - File locking for concurrent access
+ * - File locking for concurrent access with TOCTOU-safe implementation
  * - YAML/JSON/Markdown helper functions
  * - Project ID management
  * - Path traversal prevention via InputValidator
+ *
+ * ## File Locking
+ *
+ * The file locking mechanism uses an atomic link()+unlink() pattern to prevent
+ * TOCTOU (Time-of-Check-Time-of-Use) race conditions. This is more reliable
+ * than rename() which silently overwrites existing files on POSIX systems.
+ *
+ * Features:
+ * - Atomic lock acquisition using hard links (EEXIST on collision)
+ * - Automatic retry with exponential backoff and jitter
+ * - Generation counter to prevent ABA problems during lock stealing
+ * - Configurable timeout, retry attempts, and steal threshold
+ * - Custom error classes: LockContentionError, LockStolenError, LockTimeoutError
+ *
+ * @example
+ * ```typescript
+ * const scratchpad = new Scratchpad({
+ *   basePath: '.ad-sdlc/scratchpad',
+ *   lockRetryAttempts: 10,
+ *   lockRetryDelayMs: 100,
+ *   lockTimeout: 5000,
+ * });
+ *
+ * // Using withLock for automatic lock management
+ * const result = await scratchpad.withLock('/path/to/file', async () => {
+ *   const data = await scratchpad.readJson('/path/to/file');
+ *   data.counter += 1;
+ *   await scratchpad.writeJson('/path/to/file', data);
+ *   return data;
+ * });
+ *
+ * // Manual lock management
+ * try {
+ *   await scratchpad.acquireLock('/path/to/file', 'worker-1');
+ *   // ... do work ...
+ * } finally {
+ *   await scratchpad.releaseLock('/path/to/file', 'worker-1');
+ * }
+ * ```
  */
 
 import * as fs from 'node:fs';
