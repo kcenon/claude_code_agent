@@ -50,7 +50,7 @@ import {
   ResultPersistenceError,
 } from './errors.js';
 import { getCommandSanitizer } from '../security/index.js';
-import { safeJsonParse, tryJsonParse } from '../utils/SafeJsonParser.js';
+import { safeJsonParse, tryJsonParse, tryGetProjectRoot } from '../utils/index.js';
 import {
   GitHubPRDataSchema,
   GitHubPRDataArraySchema,
@@ -86,7 +86,8 @@ export class PRReviewerAgent {
 
   constructor(config: PRReviewerAgentConfig = {}) {
     this.config = {
-      projectRoot: config.projectRoot ?? DEFAULT_PR_REVIEWER_CONFIG.projectRoot,
+      projectRoot:
+        config.projectRoot ?? tryGetProjectRoot() ?? DEFAULT_PR_REVIEWER_CONFIG.projectRoot,
       resultsPath: config.resultsPath ?? DEFAULT_PR_REVIEWER_CONFIG.resultsPath,
       autoMerge: config.autoMerge ?? DEFAULT_PR_REVIEWER_CONFIG.autoMerge,
       mergeStrategy: config.mergeStrategy ?? DEFAULT_PR_REVIEWER_CONFIG.mergeStrategy,
