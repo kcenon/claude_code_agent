@@ -4,6 +4,21 @@
  * Implements code generation, test writing, and self-verification
  * based on Work Orders from the Controller Agent.
  *
+ * TODO(P1): Add checkpoint/resume capability for long-running implementations
+ * If a worker crashes mid-implementation, all progress is lost. Should persist
+ * intermediate state to allow resuming from last successful step.
+ *
+ * TODO(P2): Implement parallel test execution
+ * Test runs are sequential which is slow for large test suites. Consider
+ * running independent test files in parallel.
+ *
+ * FIXME(P1): Retry policy doesn't distinguish between transient and permanent errors
+ * Currently retries all errors equally. Transient errors (network, timeout) should
+ * retry immediately while permanent errors (compilation, type errors) need code fixes.
+ *
+ * HACK: Using string concatenation for commit messages
+ * Should use a proper template system but it's simpler for now.
+ *
  * @module worker/WorkerAgent
  */
 

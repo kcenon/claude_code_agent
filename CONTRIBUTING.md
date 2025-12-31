@@ -99,6 +99,60 @@ This ensures clean git history and proper accountability for all contributions.
 - Run formatter: `npm run format`
 - Ensure all tests pass: `npm test`
 
+### Technical Debt Comments
+
+We use standardized comment markers to track technical debt in the codebase. These markers help identify areas that need improvement and ensure debt is visible and actionable.
+
+#### Comment Types
+
+| Marker | Purpose | When to Use |
+|--------|---------|-------------|
+| `TODO(priority)` | Future improvements | Features to add, optimizations to make |
+| `FIXME(priority)` | Known bugs or issues | Code that works but has problems |
+| `HACK` | Temporary workarounds | Quick fixes that need proper solutions |
+| `NOTE` | Important context | Non-obvious behavior explanations |
+
+#### Priority Levels
+
+- **P1** - Critical: Must fix before next release
+- **P2** - High: Should fix soon
+- **P3** - Medium: Fix when convenient
+- **P4** - Low: Nice to have
+
+#### Format
+
+```typescript
+// TODO(P2): Add caching to reduce API calls
+// Description of what needs to be done and why.
+// Optional: link to related issue #123
+
+// FIXME(P1): Race condition when multiple workers access same file
+// Current workaround is retry logic, but proper locking is needed.
+
+// HACK: Using setTimeout to wait for external service
+// Should implement proper event-driven approach.
+```
+
+#### Guidelines
+
+1. **Always include priority** - Helps with triage and planning
+2. **Explain why** - Not just what, but why it's needed
+3. **Link issues when applicable** - Use `#issue-number` for tracking
+4. **Keep comments updated** - Remove when fixed, update if scope changes
+5. **Be specific** - Vague comments like "TODO: fix this" are not helpful
+
+#### Viewing Technical Debt
+
+```bash
+# List all TODOs
+npm run todo
+
+# List all TODOs, FIXMEs, and HACKs
+npm run todo:all
+
+# VS Code users: Install "Todo Tree" extension for sidebar view
+```
+
 ### Testing
 
 - Write tests for new features

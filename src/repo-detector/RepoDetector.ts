@@ -482,13 +482,19 @@ export class RepoDetector {
   /**
    * Run a Git command with timeout using safe execution
    * Uses execFileSync to bypass shell and prevent command injection
+   *
+   * HACK: Simple whitespace splitting for command arguments
+   * This works for current use cases but will break for arguments containing
+   * spaces (e.g., commit messages, file paths with spaces). For now, all
+   * callers use simple single-word arguments so this is acceptable.
+   * TODO(P2): Use proper shell argument parsing or accept args array directly
    */
   private runGitCommand(
     rootPath: string,
     command: string
   ): { success: boolean; output: string; error?: string } {
     const sanitizer = getCommandSanitizer();
-    // Split command string into arguments array
+    // HACK: Simple split - doesn't handle quoted strings or escaped spaces
     const args = command.split(/\s+/).filter((arg) => arg.length > 0);
 
     const result = sanitizer.execGitSync(args, {
@@ -506,13 +512,16 @@ export class RepoDetector {
   /**
    * Run a gh CLI command with timeout using safe execution
    * Uses execFileSync to bypass shell and prevent command injection
+   *
+   * HACK: Simple whitespace splitting for command arguments
+   * Same limitation as runGitCommand - doesn't handle quoted arguments.
    */
   private runGhCommand(
     rootPath: string,
     command: string
   ): { success: boolean; output: string; error?: string } {
     const sanitizer = getCommandSanitizer();
-    // Split command string into arguments array
+    // HACK: Simple split - same issue as runGitCommand
     const args = command.split(/\s+/).filter((arg) => arg.length > 0);
 
     const result = sanitizer.execGhSync(args, {

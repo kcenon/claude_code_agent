@@ -7,6 +7,16 @@
  * - Correlation ID tracking
  * - Agent context in all logs
  * - File rotation
+ *
+ * TODO(P2): Add log aggregation support
+ * Enable sending logs to external services (ELK stack, CloudWatch, etc.)
+ * for centralized log management in production deployments.
+ *
+ * TODO(P2): Implement log compression for archived files
+ * Old log files should be gzipped to save disk space.
+ *
+ * TODO(P3): Add structured query language for log search
+ * Implement a simple DSL for complex log queries (e.g., "level:ERROR AND agent:worker").
  */
 
 import * as fs from 'node:fs';

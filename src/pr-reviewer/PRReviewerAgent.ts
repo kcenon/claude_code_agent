@@ -4,6 +4,18 @@
  * Implements PR creation, automated code review, quality gate enforcement,
  * and feedback generation based on Worker Agent implementation results.
  *
+ * TODO(P1): Add support for multi-file review comments via GitHub API
+ * Currently, the gh CLI doesn't support line-level PR comments natively.
+ * Should use GitHub REST API directly for proper diff-attached comments.
+ *
+ * TODO(P2): Implement incremental review for large PRs
+ * PRs with many changed files should be reviewed in batches to avoid
+ * timeout issues and provide better feedback granularity.
+ *
+ * FIXME(P2): CI poll interval may cause rate limiting on GitHub API
+ * The waitForCI method polls every ciPollInterval ms which may hit
+ * GitHub API rate limits for long-running CI pipelines.
+ *
  * @module pr-reviewer/PRReviewerAgent
  */
 

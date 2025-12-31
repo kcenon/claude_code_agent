@@ -4,6 +4,10 @@
  * Provides validation functions with detailed error messages
  * for workflow.yaml and agents.yaml configuration files.
  *
+ * FIXME(P3): Zod error messages are sometimes not user-friendly
+ * Custom error messages should be added for common validation failures
+ * to provide better guidance on how to fix configuration issues.
+ *
  * @module config/validation
  */
 

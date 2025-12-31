@@ -6,6 +6,21 @@
  * - Warning thresholds at configurable percentages
  * - Hard limits with graceful handling
  * - Cost-based budget controls
+ *
+ * TODO(P1): Implement per-agent budget isolation
+ * Currently all agents share a single global budget. For better cost control,
+ * each agent type should have its own budget allocation. Consider:
+ * - Per-agent budget quotas (e.g., collector: 10%, worker: 60%)
+ * - Agent-specific warning thresholds
+ * - Budget transfer between agents when needed
+ *
+ * TODO(P2): Add budget persistence across sessions
+ * Budget state is lost when the process restarts. Consider persisting
+ * cumulative usage to the scratchpad for cost tracking over time.
+ *
+ * TODO(P3): Add budget forecasting based on historical usage
+ * Predict budget exhaustion time based on usage patterns to provide
+ * early warnings before hitting hard limits.
  */
 
 import type { AlertSeverity } from './types.js';

@@ -6,6 +6,13 @@
  * - Argument sanitization
  * - Shell metacharacter prevention
  * - Safe execution using execFile (bypasses shell)
+ *
+ * TODO(P2): Add command execution auditing/logging
+ * Track all executed commands for security auditing and debugging.
+ * Consider integration with the Logger module.
+ *
+ * TODO(P3): Support async command whitelist updates
+ * Allow adding/removing commands from whitelist at runtime without restart.
  */
 
 import {
