@@ -76,7 +76,7 @@ export class JsonValidationError extends Error {
   /**
    * Context information (e.g., file path)
    */
-  public readonly context?: string;
+  public readonly context: string | undefined;
 
   /**
    * Structured field errors
@@ -134,7 +134,7 @@ export class JsonSyntaxError extends Error {
   /**
    * Context information
    */
-  public readonly context?: string;
+  public readonly context: string | undefined;
 
   /**
    * Original parse error

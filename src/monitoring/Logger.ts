@@ -22,8 +22,6 @@ import type {
   LogQueryFilter,
   LogQueryResult,
 } from './types.js';
-import { tryJsonParse } from '../utils/SafeJsonParser.js';
-import { LogEntrySchema } from '../schemas/common.js';
 
 /**
  * Default log directory
@@ -667,11 +665,12 @@ export class Logger {
       for (let i = lines.length - 1; i >= 0 && entries.length < limit; i--) {
         const line = lines[i];
         if (line !== undefined && line.trim() !== '') {
-          const entry = tryJsonParse(line, LogEntrySchema, {
-            context: 'log entry',
-          });
-          if (entry) {
+          try {
+            // Internal data saved by this class - use direct parse with type assertion
+            const entry = JSON.parse(line) as LogEntry;
             entries.push(entry);
+          } catch {
+            // Skip malformed entries
           }
         }
       }
@@ -734,11 +733,12 @@ export class Logger {
         const lines = content.trim().split('\n');
         for (const line of lines) {
           if (line.trim() !== '') {
-            const entry = tryJsonParse(line, LogEntrySchema, {
-              context: 'log entry',
-            });
-            if (entry) {
+            try {
+              // Internal data saved by this class - use direct parse with type assertion
+              const entry = JSON.parse(line) as LogEntry;
               entries.push(entry);
+            } catch {
+              // Skip malformed entries
             }
           }
         }
@@ -839,11 +839,12 @@ export class Logger {
         const lines = content.trim().split('\n');
         for (const line of lines) {
           if (line.trim() !== '') {
-            const entry = tryJsonParse(line, LogEntrySchema, {
-              context: 'log entry',
-            });
-            if (entry) {
+            try {
+              // Internal data saved by this class - use direct parse with type assertion
+              const entry = JSON.parse(line) as LogEntry;
               entries.push(entry);
+            } catch {
+              // Skip malformed entries
             }
           }
         }

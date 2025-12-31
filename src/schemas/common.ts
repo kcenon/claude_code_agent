@@ -25,11 +25,11 @@ export const PackageJsonPartialSchema = z
     version: z.string().optional(),
     description: z.string().optional(),
     main: z.string().optional(),
-    scripts: z.record(z.string()).optional(),
-    dependencies: z.record(z.string()).optional(),
-    devDependencies: z.record(z.string()).optional(),
-    peerDependencies: z.record(z.string()).optional(),
-    engines: z.record(z.string()).optional(),
+    scripts: z.record(z.string(), z.string()).optional(),
+    dependencies: z.record(z.string(), z.string()).optional(),
+    devDependencies: z.record(z.string(), z.string()).optional(),
+    peerDependencies: z.record(z.string(), z.string()).optional(),
+    engines: z.record(z.string(), z.string()).optional(),
     type: z.enum(['module', 'commonjs']).optional(),
   })
   .loose()
@@ -93,7 +93,7 @@ export type DependencyNode = z.infer<typeof DependencyNodeSchema>;
  */
 export const DependencyGraphSchema = z
   .object({
-    nodes: z.record(DependencyNodeSchema).optional(),
+    nodes: z.record(z.string(), DependencyNodeSchema).optional(),
     edges: z
       .array(
         z.object({
@@ -219,13 +219,18 @@ export type ControllerState = z.infer<typeof ControllerStateSchema>;
 export const LogEntrySchema = z
   .object({
     timestamp: z.string(),
-    level: z.string(),
+    level: z.enum(['DEBUG', 'INFO', 'WARN', 'ERROR']),
     message: z.string(),
-    context: z.record(z.unknown()).optional(),
+    correlationId: z.string(),
+    agent: z.string().optional(),
+    stage: z.string().optional(),
+    projectId: z.string().optional(),
+    durationMs: z.number().optional(),
+    context: z.record(z.string(), z.unknown()).optional(),
     error: z
       .object({
-        name: z.string().optional(),
-        message: z.string().optional(),
+        name: z.string(),
+        message: z.string(),
         stack: z.string().optional(),
       })
       .optional(),
@@ -242,12 +247,26 @@ export type LogEntry = z.infer<typeof LogEntrySchema>;
  */
 export const AuditLogEntrySchema = z
   .object({
-    timestamp: z.string(),
+    type: z.enum([
+      'api_key_used',
+      'github_issue_created',
+      'github_pr_created',
+      'github_pr_merged',
+      'file_created',
+      'file_deleted',
+      'file_modified',
+      'secret_accessed',
+      'validation_failed',
+      'security_violation',
+    ]),
+    actor: z.string(),
+    resource: z.string(),
     action: z.string(),
-    actor: z.string().optional(),
-    resource: z.string().optional(),
-    outcome: z.enum(['success', 'failure', 'error']).optional(),
-    details: z.record(z.unknown()).optional(),
+    result: z.enum(['success', 'failure', 'blocked']),
+    details: z.record(z.string(), z.unknown()).optional(),
+    timestamp: z.string(),
+    correlationId: z.string(),
+    sessionId: z.string().optional(),
   })
   .loose()
   .describe('AuditLogEntry');
@@ -268,7 +287,7 @@ export const PriorityAnalysisSchema = z
     issueId: z.string().optional(),
     priority: z.number().optional(),
     score: z.number().optional(),
-    factors: z.record(z.number()).optional(),
+    factors: z.record(z.string(), z.number()).optional(),
     dependencies: z.array(z.string()).optional(),
   })
   .loose()
