@@ -31,6 +31,8 @@ import {
 import type { AnalysisScope } from './analysis-orchestrator/types.js';
 import { StatusService } from './status/index.js';
 import type { OutputFormat } from './status/types.js';
+import { initializeProject, isProjectInitialized } from './utils/index.js';
+import { resolve } from 'node:path';
 
 const program = new Command();
 
@@ -434,6 +436,15 @@ program
       const continueOnError = cmdOptions['continueOnError'] !== false;
       const outputFormat =
         typeof cmdOptions['outputFormat'] === 'string' ? cmdOptions['outputFormat'] : 'yaml';
+
+      // Initialize project context for centralized path management
+      if (!isProjectInitialized()) {
+        try {
+          initializeProject(resolve(projectPath), { silent: true });
+        } catch {
+          // Ignore initialization errors - modules will fallback to process.cwd()
+        }
+      }
 
       // Validate scope
       const validScopes = ['full', 'documents_only', 'code_only', 'comparison'];
