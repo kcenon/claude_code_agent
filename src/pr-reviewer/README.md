@@ -41,7 +41,7 @@ console.log(`PR #${result.pullRequest.number}: ${result.pullRequest.url}`);
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `projectRoot` | string | `process.cwd()` | Project root directory |
+| `projectRoot` | string | ProjectContext or `process.cwd()` | Project root directory (uses ProjectContext if initialized) |
 | `resultsPath` | string | `.ad-sdlc/scratchpad/progress` | Path to implementation results |
 | `autoMerge` | boolean | `false` | Enable auto-merge on approval |
 | `mergeStrategy` | 'merge' \| 'squash' \| 'rebase' | `'squash'` | Git merge strategy |
@@ -184,7 +184,7 @@ class PRCreator {
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `projectRoot` | string | `process.cwd()` | Project root directory |
+| `projectRoot` | string | ProjectContext or `process.cwd()` | Project root directory (uses ProjectContext if initialized) |
 | `baseBranch` | string | `'main'` | Base branch for PRs |
 | `enableDraftPR` | boolean | `true` | Enable draft PR creation |
 | `draftThreshold` | number | `70` | Coverage threshold for draft |
@@ -276,7 +276,7 @@ class MergeDecision {
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `projectRoot` | string | `process.cwd()` | Project root directory |
+| `projectRoot` | string | ProjectContext or `process.cwd()` | Project root directory (uses ProjectContext if initialized) |
 | `mergeStrategy` | 'merge' \| 'squash' \| 'rebase' | `'squash'` | Git merge strategy |
 | `deleteBranchOnMerge` | boolean | `true` | Delete branch after merge |
 | `commandTimeout` | number | `30000` | Command timeout (ms) |
