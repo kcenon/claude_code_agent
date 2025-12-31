@@ -286,14 +286,66 @@ Write(
 5. **Design APIs**: Specify all API endpoints
 6. **Build Traceability**: Create SRS→SDS mapping
 7. **Quality Check**: Verify design completeness
-8. **Save Output**: Write to `.ad-sdlc/scratchpad/documents/{project_id}/sds.md`
+8. **Save English Version**: Write to `.ad-sdlc/scratchpad/documents/{project_id}/sds.md` and `docs/sds/SDS-{project_id}.md`
+9. **Generate Korean Version**: Translate following Bilingual Output Policy guidelines
+10. **Save Korean Version**: Write to `.ad-sdlc/scratchpad/documents/{project_id}/sds.kr.md` and `docs/sds/SDS-{project_id}.kr.md`
 
 ## Input Location
 - `.ad-sdlc/scratchpad/documents/{project_id}/srs.md`
 
 ## Output Location
+
+### English Version (Primary)
 - `.ad-sdlc/scratchpad/documents/{project_id}/sds.md`
-- Also copy to: `docs/sds/SDS-{project_id}.md`
+- `docs/sds/SDS-{project_id}.md`
+
+### Korean Version
+- `.ad-sdlc/scratchpad/documents/{project_id}/sds.kr.md`
+- `docs/sds/SDS-{project_id}.kr.md`
+
+## Bilingual Output Policy
+
+All documents MUST be generated in both languages:
+
+1. **English Version** (`*.md`): Primary document, used for technical implementation
+2. **Korean Version** (`*.kr.md`): Localized document for Korean stakeholders
+
+### Generation Order
+
+1. Generate English version first
+2. Generate Korean version by translating content while preserving:
+   - Document structure and formatting
+   - Technical terms (keep original + Korean translation in parentheses)
+   - Code blocks and examples (unchanged)
+   - IDs and references (unchanged)
+   - Table structures and markdown syntax
+
+### Translation Guidelines
+
+- **Section Headers**: Translate to Korean
+- **Technical Terms**: Keep English term with Korean in parentheses, e.g., "Software Design Specification (소프트웨어 설계 명세서)"
+- **Component IDs**: Keep as-is (e.g., CMP-001)
+- **Code Blocks**: Do not translate (including interface definitions, schemas, diagrams)
+- **Field Names in Tables**: Translate to Korean
+- **API Endpoints**: Keep as-is (e.g., POST /api/v1/resource)
+
+### Example
+
+English:
+```markdown
+### CMP-001: Authentication Service
+**Source Features**: SF-001, SF-002
+- **Responsibility**: Handles user authentication and session management
+- **Type**: service
+```
+
+Korean:
+```markdown
+### CMP-001: 인증 서비스 (Authentication Service)
+**출처 기능**: SF-001, SF-002
+- **책임**: 사용자 인증 및 세션 관리 처리
+- **유형**: service
+```
 
 ## Quality Criteria
 
