@@ -231,12 +231,14 @@ describe('Scratchpad', () => {
     });
 
     it('should return null for missing file with allowMissing', async () => {
-      const result = await scratchpad.readYaml('/nonexistent.yaml', { allowMissing: true });
+      // Use relative path within basePath to test file-not-found behavior
+      const result = await scratchpad.readYaml('nonexistent.yaml', { allowMissing: true });
       expect(result).toBeNull();
     });
 
     it('should throw for missing file without allowMissing', async () => {
-      await expect(scratchpad.readYaml('/nonexistent.yaml')).rejects.toThrow();
+      // Use relative path within basePath to test file-not-found behavior
+      await expect(scratchpad.readYaml('nonexistent.yaml')).rejects.toThrow();
     });
   });
 
@@ -262,7 +264,8 @@ describe('Scratchpad', () => {
     });
 
     it('should return null for missing file with allowMissing', async () => {
-      const result = await scratchpad.readJson('/nonexistent.json', { allowMissing: true });
+      // Use relative path within basePath to test file-not-found behavior
+      const result = await scratchpad.readJson('nonexistent.json', { allowMissing: true });
       expect(result).toBeNull();
     });
   });
@@ -289,7 +292,8 @@ describe('Scratchpad', () => {
     });
 
     it('should return null for missing file with allowMissing', async () => {
-      const result = await scratchpad.readMarkdown('/nonexistent.md', { allowMissing: true });
+      // Use relative path within basePath to test file-not-found behavior
+      const result = await scratchpad.readMarkdown('nonexistent.md', { allowMissing: true });
       expect(result).toBeNull();
     });
   });
@@ -300,7 +304,8 @@ describe('Scratchpad', () => {
       await scratchpad.atomicWrite(filePath, 'content');
 
       expect(await scratchpad.exists(filePath)).toBe(true);
-      expect(await scratchpad.exists('/nonexistent')).toBe(false);
+      // Use relative path within basePath to test non-existent file
+      expect(await scratchpad.exists('nonexistent')).toBe(false);
     });
 
     it('should check if file exists (sync)', () => {
@@ -308,7 +313,8 @@ describe('Scratchpad', () => {
       scratchpad.atomicWriteSync(filePath, 'content');
 
       expect(scratchpad.existsSync(filePath)).toBe(true);
-      expect(scratchpad.existsSync('/nonexistent')).toBe(false);
+      // Use relative path within basePath to test non-existent file
+      expect(scratchpad.existsSync('nonexistent')).toBe(false);
     });
 
     it('should delete file', async () => {
@@ -571,29 +577,35 @@ describe('Scratchpad Error Handling', () => {
   });
 
   it('should throw on missing YAML file without allowMissing', async () => {
-    await expect(scratchpad.readYaml('/nonexistent.yaml')).rejects.toThrow();
+    // Use relative path within basePath to test file-not-found behavior
+    await expect(scratchpad.readYaml('nonexistent.yaml')).rejects.toThrow();
   });
 
   it('should throw on missing JSON file without allowMissing', async () => {
-    await expect(scratchpad.readJson('/nonexistent.json')).rejects.toThrow();
+    // Use relative path within basePath to test file-not-found behavior
+    await expect(scratchpad.readJson('nonexistent.json')).rejects.toThrow();
   });
 
   it('should throw on missing Markdown file without allowMissing', async () => {
-    await expect(scratchpad.readMarkdown('/nonexistent.md')).rejects.toThrow();
+    // Use relative path within basePath to test file-not-found behavior
+    await expect(scratchpad.readMarkdown('nonexistent.md')).rejects.toThrow();
   });
 
   it('should return null for missing YAML (sync) with allowMissing', () => {
-    const result = scratchpad.readYamlSync('/nonexistent.yaml', { allowMissing: true });
+    // Use relative path within basePath to test file-not-found behavior
+    const result = scratchpad.readYamlSync('nonexistent.yaml', { allowMissing: true });
     expect(result).toBeNull();
   });
 
   it('should return null for missing JSON (sync) with allowMissing', () => {
-    const result = scratchpad.readJsonSync('/nonexistent.json', { allowMissing: true });
+    // Use relative path within basePath to test file-not-found behavior
+    const result = scratchpad.readJsonSync('nonexistent.json', { allowMissing: true });
     expect(result).toBeNull();
   });
 
   it('should return null for missing Markdown (sync) with allowMissing', () => {
-    const result = scratchpad.readMarkdownSync('/nonexistent.md', { allowMissing: true });
+    // Use relative path within basePath to test file-not-found behavior
+    const result = scratchpad.readMarkdownSync('nonexistent.md', { allowMissing: true });
     expect(result).toBeNull();
   });
 

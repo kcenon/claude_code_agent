@@ -3,17 +3,14 @@
  *
  * Implements automated fix strategies for different types of CI failures.
  * Supports lint, type, test, build, and dependency fixes.
+ * Uses SecureFileOps for path traversal prevention.
  *
  * @module ci-fixer/FixStrategies
  */
 
-import { readFile, writeFile } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
-import { join } from 'node:path';
-
 import type { AppliedFix, CIFailure, CIFailureCategory, VerificationResult } from './types.js';
 import { LintFixError, TypeFixError } from './errors.js';
-import { getCommandSanitizer } from '../security/index.js';
+import { getCommandSanitizer, createSecureFileOps, type SecureFileOps } from '../security/index.js';
 
 /**
  * Command execution result
@@ -45,11 +42,14 @@ export class FixStrategies {
   private readonly projectRoot: string;
   private readonly timeout: number;
   private readonly dryRun: boolean;
+  private readonly fileOps: SecureFileOps;
 
   constructor(options: FixStrategyOptions) {
     this.projectRoot = options.projectRoot;
     this.timeout = options.timeout ?? 120000; // 2 minutes default
     this.dryRun = options.dryRun ?? false;
+    // Initialize secure file operations with project root validation
+    this.fileOps = createSecureFileOps({ projectRoot: this.projectRoot });
   }
 
   // ==========================================================================
@@ -171,15 +171,15 @@ export class FixStrategies {
 
   /**
    * Attempt to fix a single type error
+   * Uses SecureFileOps for path traversal prevention
    */
   private async attemptTypeErrorFix(failure: CIFailure): Promise<AppliedFix> {
     if (failure.file === undefined) {
       throw new TypeFixError('unknown', 0, 'No file path provided');
     }
 
-    const filePath = join(this.projectRoot, failure.file);
-
-    if (!existsSync(filePath)) {
+    // Use SecureFileOps for path validation
+    if (!this.fileOps.existsSync(failure.file)) {
       throw new TypeFixError(failure.file, failure.line ?? 0, 'File not found');
     }
 
@@ -187,7 +187,7 @@ export class FixStrategies {
       return this.createDryRunResult('type', failure.file, `Would fix: ${failure.message}`);
     }
 
-    const content = await readFile(filePath, 'utf-8');
+    const content = await this.fileOps.readFile(failure.file);
     const lines = content.split('\n');
 
     // Try different fix strategies based on error message
@@ -207,7 +207,7 @@ export class FixStrategies {
       };
     }
 
-    await writeFile(filePath, fixedContent, 'utf-8');
+    await this.fileOps.writeFile(failure.file, fixedContent);
 
     return {
       type: 'type',
@@ -694,11 +694,11 @@ export class FixStrategies {
 
   /**
    * Check if a command/script exists
+   * Uses SecureFileOps for path traversal prevention
    */
   private async commandExists(npmScript: string): Promise<boolean> {
     try {
-      const packageJsonPath = join(this.projectRoot, 'package.json');
-      const packageJson = JSON.parse(await readFile(packageJsonPath, 'utf-8')) as {
+      const packageJson = JSON.parse(await this.fileOps.readFile('package.json')) as {
         scripts?: Record<string, string>;
       };
 
