@@ -21,7 +21,7 @@ import type {
   PullRequest,
 } from './types.js';
 import { getCommandSanitizer } from '../security/index.js';
-import { tryJsonParse } from '../utils/SafeJsonParser.js';
+import { tryJsonParse, tryGetProjectRoot } from '../utils/index.js';
 import {
   GitHubMergeInfoSchema,
   GitHubReviewsResponseSchema,
@@ -72,7 +72,7 @@ export class MergeDecision {
 
   constructor(config: MergeDecisionConfig = {}) {
     this.config = {
-      projectRoot: config.projectRoot ?? DEFAULT_CONFIG.projectRoot,
+      projectRoot: config.projectRoot ?? tryGetProjectRoot() ?? DEFAULT_CONFIG.projectRoot,
       mergeStrategy: config.mergeStrategy ?? DEFAULT_CONFIG.mergeStrategy,
       deleteBranchOnMerge: config.deleteBranchOnMerge ?? DEFAULT_CONFIG.deleteBranchOnMerge,
       commandTimeout: config.commandTimeout ?? DEFAULT_CONFIG.commandTimeout,

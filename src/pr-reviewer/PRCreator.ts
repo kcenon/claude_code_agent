@@ -25,7 +25,7 @@ import type {
 import type { ImplementationResult, FileChange } from '../worker/types.js';
 import { PRCreationError, BranchNamingError } from './errors.js';
 import { getCommandSanitizer } from '../security/index.js';
-import { safeJsonParse, tryJsonParse } from '../utils/SafeJsonParser.js';
+import { safeJsonParse, tryJsonParse, tryGetProjectRoot } from '../utils/index.js';
 import { GitHubPRDataSchema, GitHubPRDataArraySchema } from '../schemas/github.js';
 
 /**
@@ -80,7 +80,8 @@ export class PRCreator {
 
   constructor(config: PRCreatorConfig = {}) {
     this.config = {
-      projectRoot: config.projectRoot ?? DEFAULT_PR_CREATOR_CONFIG.projectRoot,
+      projectRoot:
+        config.projectRoot ?? tryGetProjectRoot() ?? DEFAULT_PR_CREATOR_CONFIG.projectRoot,
       baseBranch: config.baseBranch ?? DEFAULT_PR_CREATOR_CONFIG.baseBranch,
       enableDraftPR: config.enableDraftPR ?? DEFAULT_PR_CREATOR_CONFIG.enableDraftPR,
       draftThreshold: config.draftThreshold ?? DEFAULT_PR_CREATOR_CONFIG.draftThreshold,

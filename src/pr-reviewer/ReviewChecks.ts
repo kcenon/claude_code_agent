@@ -17,7 +17,7 @@ import type {
   FileChange,
 } from './types.js';
 import { getCommandSanitizer } from '../security/index.js';
-import { tryJsonParse } from '../utils/SafeJsonParser.js';
+import { tryJsonParse, tryGetProjectRoot } from '../utils/index.js';
 import { SecurityAuditResultSchema } from '../schemas/github.js';
 
 /**
@@ -69,7 +69,7 @@ export class ReviewChecks {
   private readonly maxComplexity: number;
 
   constructor(options: ReviewChecksOptions = {}) {
-    this.projectRoot = options.projectRoot ?? process.cwd();
+    this.projectRoot = options.projectRoot ?? tryGetProjectRoot() ?? process.cwd();
     this.enableTestingChecks = options.enableTestingChecks ?? true;
     this.enableStaticAnalysis = options.enableStaticAnalysis ?? true;
     this.enableDependencyCheck = options.enableDependencyCheck ?? true;
