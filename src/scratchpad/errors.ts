@@ -16,6 +16,7 @@ export class LockError extends Error {
     this.name = 'LockError';
     this.filePath = filePath;
     // Maintains proper stack trace for where error was thrown (only available on V8)
+    /* v8 ignore next 3 */
     if (typeof Error.captureStackTrace === 'function') {
       Error.captureStackTrace(this, this.constructor);
     }
