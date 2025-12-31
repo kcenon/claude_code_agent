@@ -26,6 +26,8 @@
 
 | 에이전트 | 파일 | 설명 |
 |----------|------|------|
+| Project Initializer | [project-initializer.md](./project-initializer.md) | .ad-sdlc 디렉토리 구조 및 설정 파일 생성 |
+| Mode Detector | [mode-detector.md](./mode-detector.md) | Greenfield vs Enhancement 모드 감지 |
 | GitHub Repo Setup | [github-repo-setup.md](./github-repo-setup.md) | GitHub 저장소 생성 및 구성 |
 
 ### 실행 파이프라인
