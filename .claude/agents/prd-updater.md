@@ -105,7 +105,8 @@ change_request:
 
 | File | Path | Format | Description |
 |------|------|--------|-------------|
-| Updated PRD | `docs/prd/PRD-{id}.md` | Markdown | Updated PRD document |
+| Updated PRD (EN) | `docs/prd/PRD-{id}.md` | Markdown | Updated PRD document (English) |
+| Updated PRD (KR) | `docs/prd/PRD-{id}.kr.md` | Markdown | Updated PRD document (Korean) |
 | Changelog | `.ad-sdlc/scratchpad/documents/{project_id}/prd_changelog.md` | Markdown | Changes made |
 | Update Result | `.ad-sdlc/scratchpad/documents/{project_id}/prd_update_result.yaml` | YAML | Structured update result |
 
@@ -195,16 +196,17 @@ update_result:
 
 ### Step-by-Step Process
 
-1. **Load Document**: Read existing PRD from docs/prd/
+1. **Load Documents**: Read existing PRD from docs/prd/ (both English and Korean versions)
 2. **Parse Structure**: Extract all sections and requirements
 3. **Validate Request**: Ensure change request is valid
 4. **Check Conflicts**: Detect any requirement conflicts
 5. **Generate IDs**: Create new requirement IDs if needed
-6. **Apply Changes**: Modify document content
-7. **Update Metadata**: Increment version, update timestamps
-8. **Add Annotations**: Mark changes with [NEW], [MODIFIED], [DEPRECATED]
-9. **Verify Consistency**: Run post-update validation
-10. **Write Output**: Save updated document and changelog
+6. **Apply Changes to English Version**: Modify English document content
+7. **Apply Changes to Korean Version**: Translate and apply changes following Bilingual Output Policy
+8. **Update Metadata**: Increment version, update timestamps (both versions)
+9. **Add Annotations**: Mark changes with [NEW], [MODIFIED], [DEPRECATED]
+10. **Verify Consistency**: Run post-update validation on both versions
+11. **Write Output**: Save updated documents (EN and KR) and changelog
 
 ## Update Modes
 
@@ -365,6 +367,48 @@ change_request:
 | Multiple changes | Minor (x.Y.z) | 1.0.0 → 1.1.0 |
 | Breaking change | Major (X.y.z) | 1.2.0 → 2.0.0 |
 
+## Bilingual Output Policy
+
+All document updates MUST be applied to both language versions:
+
+1. **English Version** (`*.md`): Primary document, used for technical implementation
+2. **Korean Version** (`*.kr.md`): Localized document for Korean stakeholders
+
+### Update Order
+
+1. Apply changes to English version first
+2. Apply equivalent changes to Korean version, translating new content while preserving:
+   - Document structure and formatting
+   - Technical terms (keep original + Korean translation in parentheses)
+   - Code blocks and examples (unchanged)
+   - IDs and references (unchanged)
+   - Table structures and markdown syntax
+
+### Translation Guidelines for Updates
+
+- **New Requirements**: Translate title and description, keep IDs as-is
+- **Modified Content**: Translate the updated content following existing patterns
+- **Annotations**: Translate [NEW] → [신규], [MODIFIED] → [수정됨], [DEPRECATED] → [폐기됨]
+- **Change Reasons**: Translate to Korean
+
+### Example Update
+
+English:
+```markdown
+### FR-015: User Notification System [NEW]
+- **Description**: System shall send email notifications
+- **Added**: 2024-01-15
+- **Change Reason**: Added per Enhancement Request #123
+```
+
+Korean:
+```markdown
+### FR-015: 사용자 알림 시스템 (User Notification System) [신규]
+- **설명**: 시스템은 이메일 알림을 전송해야 합니다
+- **추가일**: 2024-01-15
+- **변경 사유**: 개선 요청 #123에 따라 추가됨
+```
+
 ## Best Practices
 
 - Always read current document state before making changes
@@ -373,6 +417,7 @@ change_request:
 - Include change reason for audit trail
 - Update traceability links when IDs change
 - Run consistency checks after every update
+- Apply changes to both English and Korean versions simultaneously
 
 ## Related Agents
 
