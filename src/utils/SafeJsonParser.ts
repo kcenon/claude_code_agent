@@ -83,20 +83,13 @@ export class JsonValidationError extends Error {
    */
   public readonly fieldErrors: readonly JsonFieldError[];
 
-  constructor(
-    rawJson: string,
-    schemaName: string,
-    zodError: ZodError,
-    context?: string
-  ) {
+  constructor(rawJson: string, schemaName: string, zodError: ZodError, context?: string) {
     const fieldErrors = zodError.issues.map((issue) => ({
       path: issue.path.join('.') || '(root)',
       message: issue.message,
     }));
 
-    const formattedErrors = fieldErrors
-      .map((e) => `  - ${e.path}: ${e.message}`)
-      .join('\n');
+    const formattedErrors = fieldErrors.map((e) => `  - ${e.path}: ${e.message}`).join('\n');
 
     const contextInfo = context !== undefined && context !== '' ? ` (${context})` : '';
     super(`JSON validation failed for ${schemaName}${contextInfo}:\n${formattedErrors}`);

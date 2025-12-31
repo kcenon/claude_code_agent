@@ -138,7 +138,9 @@ export type GitHubCheckResult = z.infer<typeof GitHubCheckResultSchema>;
 /**
  * Array of check results
  */
-export const GitHubCheckResultArraySchema = z.array(GitHubCheckResultSchema).describe('GitHubCheckResultArray');
+export const GitHubCheckResultArraySchema = z
+  .array(GitHubCheckResultSchema)
+  .describe('GitHubCheckResultArray');
 
 // ============================================================
 // Repository Schemas

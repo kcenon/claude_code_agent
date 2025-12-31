@@ -37,7 +37,6 @@ interface CommandResult {
   exitCode: number;
 }
 
-
 /**
  * Default PR creator configuration
  */
