@@ -41,6 +41,12 @@ export interface ScratchpadOptions {
   readonly lockTimeout?: number;
   /** Project root directory for path validation (default: process.cwd()) */
   readonly projectRoot?: string;
+  /** Number of retry attempts when lock is contended (default: 10) */
+  readonly lockRetryAttempts?: number;
+  /** Base delay in ms between retries (default: 100) */
+  readonly lockRetryDelayMs?: number;
+  /** Time in ms after which expired lock can be stolen (default: 5000) */
+  readonly lockStealThresholdMs?: number;
 }
 
 /**
@@ -255,6 +261,32 @@ export interface FileLock {
   readonly acquiredAt: string;
   /** Lock expiration timestamp */
   readonly expiresAt: string;
+  /** Lock generation counter for detecting concurrent modifications (ABA problem prevention) */
+  readonly generation?: number;
+}
+
+/**
+ * Lock configuration options
+ */
+export interface LockConfig {
+  /** Number of retry attempts when lock is contended (default: 10) */
+  readonly lockRetryAttempts?: number;
+  /** Base delay in ms between retries (default: 100) */
+  readonly lockRetryDelayMs?: number;
+  /** Time in ms after which expired lock can be stolen (default: 5000) */
+  readonly lockStealThresholdMs?: number;
+}
+
+/**
+ * Options for lock acquisition
+ */
+export interface LockOptions {
+  /** Lock holder ID */
+  readonly holderId?: string;
+  /** Custom retry attempts for this lock operation */
+  readonly retryAttempts?: number;
+  /** Custom retry delay for this lock operation */
+  readonly retryDelayMs?: number;
 }
 
 /**

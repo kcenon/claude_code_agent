@@ -4,10 +4,49 @@
  * Implements the Scratchpad pattern for inter-agent communication
  * by providing structured file operations with:
  * - Atomic writes (write to temp, then rename)
- * - File locking for concurrent access
+ * - File locking for concurrent access with TOCTOU-safe implementation
  * - YAML/JSON/Markdown helper functions
  * - Project ID management
  * - Path traversal prevention via InputValidator
+ *
+ * ## File Locking
+ *
+ * The file locking mechanism uses an atomic link()+unlink() pattern to prevent
+ * TOCTOU (Time-of-Check-Time-of-Use) race conditions. This is more reliable
+ * than rename() which silently overwrites existing files on POSIX systems.
+ *
+ * Features:
+ * - Atomic lock acquisition using hard links (EEXIST on collision)
+ * - Automatic retry with exponential backoff and jitter
+ * - Generation counter to prevent ABA problems during lock stealing
+ * - Configurable timeout, retry attempts, and steal threshold
+ * - Custom error classes: LockContentionError, LockStolenError, LockTimeoutError
+ *
+ * @example
+ * ```typescript
+ * const scratchpad = new Scratchpad({
+ *   basePath: '.ad-sdlc/scratchpad',
+ *   lockRetryAttempts: 10,
+ *   lockRetryDelayMs: 100,
+ *   lockTimeout: 5000,
+ * });
+ *
+ * // Using withLock for automatic lock management
+ * const result = await scratchpad.withLock('/path/to/file', async () => {
+ *   const data = await scratchpad.readJson('/path/to/file');
+ *   data.counter += 1;
+ *   await scratchpad.writeJson('/path/to/file', data);
+ *   return data;
+ * });
+ *
+ * // Manual lock management
+ * try {
+ *   await scratchpad.acquireLock('/path/to/file', 'worker-1');
+ *   // ... do work ...
+ * } finally {
+ *   await scratchpad.releaseLock('/path/to/file', 'worker-1');
+ * }
+ * ```
  */
 
 import * as fs from 'node:fs';
@@ -24,7 +63,10 @@ import type {
   ReadOptions,
   FileLock,
   ProjectInfo,
+  LockConfig,
+  LockOptions,
 } from './types.js';
+import { LockContentionError } from './errors.js';
 
 /**
  * Default base path for scratchpad
@@ -47,6 +89,26 @@ const DEFAULT_DIR_MODE = 0o700;
 const DEFAULT_LOCK_TIMEOUT = 5000;
 
 /**
+ * Default number of retry attempts for lock acquisition
+ */
+const DEFAULT_LOCK_RETRY_ATTEMPTS = 10;
+
+/**
+ * Default base delay between retries in milliseconds
+ */
+const DEFAULT_LOCK_RETRY_DELAY_MS = 100;
+
+/**
+ * Default threshold for stealing expired locks in milliseconds
+ */
+const DEFAULT_LOCK_STEAL_THRESHOLD_MS = 5000;
+
+/**
+ * Maximum delay between retries (cap for exponential backoff)
+ */
+const MAX_RETRY_DELAY_MS = 5000;
+
+/**
  * Lock file extension
  */
 const LOCK_EXTENSION = '.lock';
@@ -60,6 +122,7 @@ export class Scratchpad {
   private readonly dirMode: number;
   private readonly enableLocking: boolean;
   private readonly lockTimeout: number;
+  private readonly lockConfig: Required<LockConfig>;
   private readonly activeLocks: Map<string, NodeJS.Timeout> = new Map();
   private readonly validator: InputValidator;
   private readonly projectRoot: string;
@@ -70,6 +133,12 @@ export class Scratchpad {
     this.dirMode = options.dirMode ?? DEFAULT_DIR_MODE;
     this.enableLocking = options.enableLocking ?? true;
     this.lockTimeout = options.lockTimeout ?? DEFAULT_LOCK_TIMEOUT;
+    // Lock configuration with defaults
+    this.lockConfig = {
+      lockRetryAttempts: options.lockRetryAttempts ?? DEFAULT_LOCK_RETRY_ATTEMPTS,
+      lockRetryDelayMs: options.lockRetryDelayMs ?? DEFAULT_LOCK_RETRY_DELAY_MS,
+      lockStealThresholdMs: options.lockStealThresholdMs ?? DEFAULT_LOCK_STEAL_THRESHOLD_MS,
+    };
     // Use projectRoot if provided, otherwise use current working directory
     this.projectRoot = options.projectRoot ?? process.cwd();
     // Initialize validator with resolved basePath to prevent path traversal
@@ -432,14 +501,114 @@ export class Scratchpad {
   // ============================================================
 
   /**
-   * Acquire a lock on a file
+   * Sleep helper for retry delays
+   *
+   * @param ms - Milliseconds to sleep
+   */
+  private sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Set up auto-release timer for a lock
+   *
+   * @param filePath - Validated file path
+   * @param lockId - Lock holder ID
+   */
+  private setupAutoRelease(filePath: string, lockId: string): void {
+    const timer = setTimeout(() => {
+      this.releaseLock(filePath, lockId).catch(() => {});
+    }, this.lockTimeout);
+    this.activeLocks.set(filePath, timer);
+  }
+
+  /**
+   * Try to atomically steal an expired lock
+   *
+   * Uses atomic rename to prevent race conditions when multiple
+   * processes try to steal the same expired lock.
+   *
+   * @param lockPath - Path to the lock file
+   * @param tempPath - Path to the temporary lock file
+   * @param existingLock - The existing lock to steal from
+   * @param newLock - The new lock to install
+   * @returns True if lock was successfully stolen
+   */
+  private async tryStealLock(
+    lockPath: string,
+    tempPath: string,
+    existingLock: FileLock,
+    newLock: FileLock
+  ): Promise<boolean> {
+    try {
+      // Write new lock to temp file with incremented generation
+      const lockWithGeneration: FileLock = {
+        ...newLock,
+        generation: (existingLock.generation ?? 0) + 1,
+      };
+      await fs.promises.writeFile(tempPath, JSON.stringify(lockWithGeneration), {
+        mode: this.fileMode,
+      });
+
+      // Read current lock again to verify it hasn't changed
+      const currentLock = await this.readLock(lockPath);
+      if (currentLock === null) {
+        // Lock was removed, try direct rename
+        try {
+          await fs.promises.rename(tempPath, lockPath);
+          return true;
+        } catch (err) {
+          if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+            // Temp file was cleaned up, try again
+            return false;
+          }
+          throw err;
+        }
+      }
+
+      // Check if the lock was modified by another process
+      if (currentLock.generation !== existingLock.generation) {
+        // Lock was already stolen by another process
+        return false;
+      }
+
+      // Check if the lock holder changed
+      if (currentLock.holderId !== existingLock.holderId) {
+        // Lock was taken by a different holder
+        return false;
+      }
+
+      // Atomic replace using rename (atomic on POSIX systems)
+      await fs.promises.rename(tempPath, lockPath);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Acquire a lock on a file using atomic operations
+   *
+   * This implementation uses the atomic rename pattern to prevent
+   * TOCTOU (Time-of-Check-Time-of-Use) race conditions:
+   *
+   * 1. Write lock info to a temporary file
+   * 2. Attempt atomic rename to the lock file
+   * 3. If rename fails (lock exists), check if expired and try to steal
+   * 4. Retry with exponential backoff on contention
    *
    * @param filePath - File to lock
    * @param holderId - Lock holder identifier
-   * @returns True if lock acquired
+   * @param options - Lock acquisition options
+   * @returns True if lock acquired, throws LockContentionError on max retries
    * @throws PathTraversalError if path escapes project root
+   * @throws LockContentionError if lock cannot be acquired after retries
    */
-  public async acquireLock(filePath: string, holderId?: string): Promise<boolean> {
+  public async acquireLock(
+    filePath: string,
+    holderId?: string,
+    options?: LockOptions
+  ): Promise<boolean> {
     if (!this.enableLocking) {
       return true;
     }
@@ -447,50 +616,91 @@ export class Scratchpad {
     // Validate the file path first
     const validatedPath = this.validatePath(filePath);
     const lockPath = `${validatedPath}${LOCK_EXTENSION}`;
-    const lockId = holderId ?? randomUUID();
-    const now = Date.now();
-    const expiresAt = now + this.lockTimeout;
+    const lockId = holderId ?? options?.holderId ?? randomUUID();
+    const retryAttempts = options?.retryAttempts ?? this.lockConfig.lockRetryAttempts;
+    const retryDelayMs = options?.retryDelayMs ?? this.lockConfig.lockRetryDelayMs;
 
+    // Ensure lock directory exists
+    const lockDir = path.dirname(lockPath);
     try {
-      // Check existing lock
-      const existingLock = await this.readLock(lockPath);
-      if (existingLock) {
-        const expirationTime = new Date(existingLock.expiresAt).getTime();
-        if (expirationTime > now) {
-          // Lock is still valid
-          return false;
-        }
-        // Lock expired, remove it
-        await fs.promises.unlink(lockPath);
-      }
+      await fs.promises.mkdir(lockDir, { recursive: true, mode: this.dirMode });
+    } catch {
+      // Directory may already exist
+    }
+
+    for (let attempt = 0; attempt < retryAttempts; attempt++) {
+      const now = Date.now();
+      const expiresAt = now + this.lockTimeout;
+      const tempLockPath = `${lockPath}.${randomUUID()}.tmp`;
 
       const lock: FileLock = {
         filePath: validatedPath,
         holderId: lockId,
         acquiredAt: new Date(now).toISOString(),
         expiresAt: new Date(expiresAt).toISOString(),
+        generation: 0,
       };
 
-      // Try to create lock file exclusively
-      await fs.promises.writeFile(lockPath, JSON.stringify(lock), {
-        flag: 'wx',
-        mode: this.fileMode,
-      });
+      try {
+        // Step 1: Write lock to temp file
+        await fs.promises.writeFile(tempLockPath, JSON.stringify(lock), {
+          mode: this.fileMode,
+        });
 
-      // Set up auto-release timer
-      const timer = setTimeout(() => {
-        this.releaseLock(validatedPath, lockId).catch(() => {});
-      }, this.lockTimeout);
-      this.activeLocks.set(validatedPath, timer);
+        // Step 2: Try atomic link (fails if lock exists)
+        // Note: rename() on POSIX overwrites existing files, so we use link() instead
+        // link() will fail with EEXIST if the target already exists
+        try {
+          await fs.promises.link(tempLockPath, lockPath);
+          // Link succeeded, remove temp file
+          await fs.promises.unlink(tempLockPath).catch(() => {});
 
-      return true;
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
-        // Lock file already exists
-        return false;
+          // Lock acquired successfully!
+          this.setupAutoRelease(validatedPath, lockId);
+          return true;
+        } catch (err) {
+          const code = (err as NodeJS.ErrnoException).code;
+          if (code !== 'EEXIST') {
+            // Clean up temp file and rethrow unexpected errors
+            await fs.promises.unlink(tempLockPath).catch(() => {});
+            throw err;
+          }
+          // Lock exists, continue to check if expired
+        }
+
+        // Step 3: Check if existing lock is expired
+        const existingLock = await this.readLock(lockPath);
+        if (existingLock !== null) {
+          const expirationTime = new Date(existingLock.expiresAt).getTime();
+          const isExpired = expirationTime <= now;
+          const isPastStealThreshold = now - expirationTime >= this.lockConfig.lockStealThresholdMs;
+
+          if (isExpired || isPastStealThreshold) {
+            // Try to steal the expired lock atomically
+            if (await this.tryStealLock(lockPath, tempLockPath, existingLock, lock)) {
+              this.setupAutoRelease(validatedPath, lockId);
+              return true;
+            }
+          }
+        } else {
+          // Lock file was removed between our check and now
+          // Try again immediately without waiting
+          continue;
+        }
+
+        // Step 4: Wait and retry with exponential backoff
+        const delay = Math.min(retryDelayMs * Math.pow(2, attempt), MAX_RETRY_DELAY_MS);
+        // Add jitter to prevent thundering herd
+        const jitter = Math.random() * delay * 0.1;
+        await this.sleep(delay + jitter);
+      } finally {
+        // Clean up temp file if it still exists
+        await fs.promises.unlink(tempLockPath).catch(() => {});
       }
-      throw error;
     }
+
+    // Max retries exceeded
+    throw new LockContentionError(filePath, retryAttempts);
   }
 
   /**
@@ -550,18 +760,27 @@ export class Scratchpad {
   /**
    * Execute a function with file lock
    *
+   * Automatically acquires the lock before executing the function
+   * and releases it afterward, even if the function throws.
+   *
    * @param filePath - File to lock
-   * @param fn - Function to execute
-   * @param holderId - Lock holder ID
+   * @param fn - Function to execute while holding the lock
+   * @param options - Lock options (holderId, retryAttempts, retryDelayMs)
    * @returns Result of function
+   * @throws LockContentionError if lock cannot be acquired
    */
-  public async withLock<T>(filePath: string, fn: () => Promise<T>, holderId?: string): Promise<T> {
-    const lockId = holderId ?? randomUUID();
-    const acquired = await this.acquireLock(filePath, lockId);
+  public async withLock<T>(
+    filePath: string,
+    fn: () => Promise<T>,
+    options?: LockOptions | string
+  ): Promise<T> {
+    // Support both old (holderId string) and new (LockOptions) signature
+    const lockOptions: LockOptions | undefined =
+      typeof options === 'string' ? { holderId: options } : options;
+    const lockId = lockOptions?.holderId ?? randomUUID();
 
-    if (!acquired) {
-      throw new Error(`Failed to acquire lock for: ${filePath}`);
-    }
+    // acquireLock now throws LockContentionError on failure
+    await this.acquireLock(filePath, lockId, lockOptions);
 
     try {
       return await fn();

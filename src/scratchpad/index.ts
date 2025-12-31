@@ -21,6 +21,9 @@
 
 export { Scratchpad, getScratchpad, resetScratchpad } from './Scratchpad.js';
 
+// Error classes
+export { LockError, LockContentionError, LockStolenError, LockTimeoutError } from './errors.js';
+
 export type {
   ScratchpadSection,
   ProgressSubsection,
@@ -30,6 +33,8 @@ export type {
   ProjectInfo,
   ClarificationEntry,
   FileLock,
+  LockConfig,
+  LockOptions,
   AtomicWriteOptions,
   ReadOptions,
 } from './types.js';

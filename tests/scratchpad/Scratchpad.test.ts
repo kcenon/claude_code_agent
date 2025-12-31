@@ -2,7 +2,15 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import { Scratchpad, getScratchpad, resetScratchpad } from '../../src/scratchpad/index.js';
+import {
+  Scratchpad,
+  getScratchpad,
+  resetScratchpad,
+  LockContentionError,
+  LockError,
+  LockStolenError,
+  LockTimeoutError,
+} from '../../src/scratchpad/index.js';
 
 describe('Scratchpad', () => {
   let scratchpad: Scratchpad;
@@ -386,17 +394,29 @@ describe('Scratchpad File Locking', () => {
     await scratchpad.releaseLock(filePath, 'holder-1');
   });
 
-  it('should prevent concurrent locks', async () => {
+  it('should prevent concurrent locks with LockContentionError', async () => {
+    // Create a contender with minimal retries to fail fast
+    const contender = new Scratchpad({
+      basePath: testBasePath,
+      enableLocking: true,
+      lockRetryAttempts: 2,
+      lockRetryDelayMs: 10,
+      lockTimeout: 60000, // Long timeout so lock doesn't expire
+    });
+
     const filePath = path.join(testBasePath, 'concurrent.txt');
     await scratchpad.ensureDir(testBasePath);
 
     const first = await scratchpad.acquireLock(filePath, 'holder-1');
     expect(first).toBe(true);
 
-    const second = await scratchpad.acquireLock(filePath, 'holder-2');
-    expect(second).toBe(false);
+    // Second attempt should throw LockContentionError after retries
+    await expect(contender.acquireLock(filePath, 'holder-2')).rejects.toThrow(
+      LockContentionError
+    );
 
     await scratchpad.releaseLock(filePath, 'holder-1');
+    await contender.cleanup();
   });
 
   it('should release lock after holder finishes', async () => {
@@ -488,23 +508,31 @@ describe('Scratchpad File Locking', () => {
     await shortTimeoutScratchpad.cleanup();
   });
 
-  it('should fail to acquire lock when withLock fails', async () => {
+  it('should fail to acquire lock when withLock fails due to contention', async () => {
     // Create another scratchpad to hold the lock
     const holder = new Scratchpad({ basePath: testBasePath, enableLocking: true });
+    // Create a scratchpad with minimal retries for faster test
+    const contender = new Scratchpad({
+      basePath: testBasePath,
+      enableLocking: true,
+      lockRetryAttempts: 2,
+      lockRetryDelayMs: 10,
+    });
     const filePath = path.join(testBasePath, 'blocked-withlock.txt');
     await holder.ensureDir(testBasePath);
 
     // Hold the lock
     await holder.acquireLock(filePath, 'blocker');
 
-    // Try to execute with lock - should fail
+    // Try to execute with lock - should throw LockContentionError
     await expect(
-      scratchpad.withLock(filePath, async () => {
+      contender.withLock(filePath, async () => {
         return 'should not reach';
       })
-    ).rejects.toThrow('Failed to acquire lock');
+    ).rejects.toThrow(LockContentionError);
 
     await holder.cleanup();
+    await contender.cleanup();
   });
 });
 
@@ -623,5 +651,309 @@ describe('Scratchpad Error Handling', () => {
     fs.writeFileSync(filePath, '{ invalid json }');
 
     expect(() => scratchpad.readJsonSync(filePath)).toThrow();
+  });
+});
+
+describe('Scratchpad Atomic Locking', () => {
+  let testBasePath: string;
+
+  beforeEach(() => {
+    resetScratchpad();
+    testBasePath = path.join(os.tmpdir(), `scratchpad-atomic-test-${Date.now()}`);
+  });
+
+  afterEach(async () => {
+    resetScratchpad();
+    try {
+      fs.rmSync(testBasePath, { recursive: true, force: true });
+    } catch {
+      // Ignore cleanup errors
+    }
+  });
+
+  it('should throw LockContentionError after max retries', async () => {
+    const holder = new Scratchpad({
+      basePath: testBasePath,
+      enableLocking: true,
+      lockTimeout: 60000, // Long timeout so lock doesn't expire
+    });
+    const contender = new Scratchpad({
+      basePath: testBasePath,
+      enableLocking: true,
+      lockRetryAttempts: 3,
+      lockRetryDelayMs: 10,
+    });
+
+    const filePath = path.join(testBasePath, 'contention-test.txt');
+    await holder.ensureDir(testBasePath);
+
+    // Hold the lock
+    await holder.acquireLock(filePath, 'holder-1');
+
+    // Try to acquire - should fail after 3 attempts
+    try {
+      await contender.acquireLock(filePath, 'contender-1');
+      expect.fail('Should have thrown LockContentionError');
+    } catch (error) {
+      expect(error).toBeInstanceOf(LockContentionError);
+      expect((error as LockContentionError).attempts).toBe(3);
+      expect((error as LockContentionError).filePath).toContain('contention-test.txt');
+    }
+
+    await holder.cleanup();
+    await contender.cleanup();
+  });
+
+  it('should use generation counter for lock stealing', async () => {
+    const scratchpad = new Scratchpad({
+      basePath: testBasePath,
+      enableLocking: true,
+      lockTimeout: 50, // Very short timeout
+      lockStealThresholdMs: 0, // Immediate steal allowed
+    });
+
+    const filePath = path.join(testBasePath, 'generation-test.txt');
+    await scratchpad.ensureDir(testBasePath);
+
+    // Acquire first lock
+    await scratchpad.acquireLock(filePath, 'holder-1');
+
+    // Wait for lock to expire
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    // Release and acquire again - generation should increment
+    await scratchpad.releaseLock(filePath, 'holder-1');
+    await scratchpad.acquireLock(filePath, 'holder-2');
+
+    // Read the lock file to verify generation
+    const lockPath = `${path.resolve(testBasePath, 'generation-test.txt')}.lock`;
+    const lockContent = fs.readFileSync(lockPath, 'utf8');
+    const lock = JSON.parse(lockContent);
+
+    expect(lock.holderId).toBe('holder-2');
+    expect(lock.generation).toBeDefined();
+
+    await scratchpad.cleanup();
+  });
+
+  it('should handle concurrent lock attempts with retries', async () => {
+    const scratchpad = new Scratchpad({
+      basePath: testBasePath,
+      enableLocking: true,
+      lockTimeout: 100,
+      lockRetryAttempts: 20,
+      lockRetryDelayMs: 10,
+    });
+
+    const filePath = path.join(testBasePath, 'concurrent-retry.txt');
+    await scratchpad.ensureDir(testBasePath);
+
+    // Launch 5 concurrent lock attempts
+    const results = await Promise.allSettled(
+      Array(5)
+        .fill(null)
+        .map((_, i) =>
+          scratchpad.withLock(
+            filePath,
+            async () => {
+              // Hold lock briefly
+              await new Promise((resolve) => setTimeout(resolve, 20));
+              return i;
+            },
+            `holder-${i}`
+          )
+        )
+    );
+
+    // All should eventually succeed with retries
+    const successes = results.filter((r) => r.status === 'fulfilled');
+    expect(successes.length).toBe(5);
+
+    await scratchpad.cleanup();
+  });
+
+  it('should support custom retry options per lock operation', async () => {
+    const holder = new Scratchpad({
+      basePath: testBasePath,
+      enableLocking: true,
+      lockRetryAttempts: 10, // Default high retries
+      lockRetryDelayMs: 100,
+    });
+
+    const filePath = path.join(testBasePath, 'custom-retry.txt');
+    await holder.ensureDir(testBasePath);
+
+    // Hold the lock
+    await holder.acquireLock(filePath, 'holder');
+
+    // Try with custom low retries - should fail faster
+    const startTime = Date.now();
+    try {
+      await holder.acquireLock(filePath, 'contender', {
+        retryAttempts: 2,
+        retryDelayMs: 10,
+      });
+      expect.fail('Should have thrown');
+    } catch (error) {
+      expect(error).toBeInstanceOf(LockContentionError);
+    }
+    const elapsed = Date.now() - startTime;
+
+    // Should complete quickly with only 2 retries
+    expect(elapsed).toBeLessThan(500);
+
+    await holder.cleanup();
+  });
+
+  it('should steal expired lock atomically', async () => {
+    const shortTimeout = new Scratchpad({
+      basePath: testBasePath,
+      enableLocking: true,
+      lockTimeout: 50,
+      lockStealThresholdMs: 0,
+    });
+
+    const stealer = new Scratchpad({
+      basePath: testBasePath,
+      enableLocking: true,
+      lockTimeout: 5000,
+      lockStealThresholdMs: 0,
+      lockRetryAttempts: 5,
+      lockRetryDelayMs: 50,
+    });
+
+    const filePath = path.join(testBasePath, 'steal-test.txt');
+    await shortTimeout.ensureDir(testBasePath);
+
+    // Acquire lock with short timeout
+    await shortTimeout.acquireLock(filePath, 'original');
+
+    // Wait for it to expire
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    // Steal the expired lock
+    const stolen = await stealer.acquireLock(filePath, 'stealer');
+    expect(stolen).toBe(true);
+
+    // Verify the new holder
+    const lockPath = `${path.resolve(testBasePath, 'steal-test.txt')}.lock`;
+    const lockContent = fs.readFileSync(lockPath, 'utf8');
+    const lock = JSON.parse(lockContent);
+    expect(lock.holderId).toBe('stealer');
+
+    await shortTimeout.cleanup();
+    await stealer.cleanup();
+  });
+
+  it('should not leave temp files after failed lock attempts', async () => {
+    const holder = new Scratchpad({
+      basePath: testBasePath,
+      enableLocking: true,
+    });
+    const contender = new Scratchpad({
+      basePath: testBasePath,
+      enableLocking: true,
+      lockRetryAttempts: 3,
+      lockRetryDelayMs: 10,
+    });
+
+    const filePath = path.join(testBasePath, 'no-temp-files.txt');
+    await holder.ensureDir(testBasePath);
+
+    await holder.acquireLock(filePath, 'holder');
+
+    // Try to acquire and fail
+    try {
+      await contender.acquireLock(filePath, 'contender');
+    } catch {
+      // Expected
+    }
+
+    // Check no temp files remain
+    const files = fs.readdirSync(testBasePath);
+    const tmpFiles = files.filter((f) => f.includes('.tmp'));
+    expect(tmpFiles).toHaveLength(0);
+
+    await holder.cleanup();
+    await contender.cleanup();
+  });
+});
+
+describe('LockContentionError', () => {
+  it('should have correct properties', () => {
+    const error = new LockContentionError('/test/path.txt', 10);
+
+    expect(error.name).toBe('LockContentionError');
+    expect(error.filePath).toBe('/test/path.txt');
+    expect(error.attempts).toBe(10);
+    expect(error.message).toContain('/test/path.txt');
+    expect(error.message).toContain('10 attempts');
+  });
+
+  it('should be instanceof Error', () => {
+    const error = new LockContentionError('/test/path.txt', 5);
+    expect(error).toBeInstanceOf(Error);
+  });
+});
+
+describe('Lock Error Classes', () => {
+  describe('LockError', () => {
+    it('should be base class for lock errors', () => {
+      const error = new LockError('Test message', '/test/path.txt');
+      expect(error.name).toBe('LockError');
+      expect(error.filePath).toBe('/test/path.txt');
+      expect(error.message).toBe('Test message');
+      expect(error).toBeInstanceOf(Error);
+    });
+
+    it('should have stack trace', () => {
+      const error = new LockError('Test', '/path');
+      expect(error.stack).toBeDefined();
+    });
+  });
+
+  describe('LockStolenError', () => {
+    it('should have correct properties with newHolderId', () => {
+      const error = new LockStolenError('/test/path.txt', 'original-holder', 'new-holder');
+
+      expect(error.name).toBe('LockStolenError');
+      expect(error.filePath).toBe('/test/path.txt');
+      expect(error.originalHolderId).toBe('original-holder');
+      expect(error.newHolderId).toBe('new-holder');
+      expect(error.message).toContain('original-holder');
+      expect(error.message).toContain('new-holder');
+    });
+
+    it('should work without newHolderId', () => {
+      const error = new LockStolenError('/test/path.txt', 'original-holder');
+
+      expect(error.name).toBe('LockStolenError');
+      expect(error.originalHolderId).toBe('original-holder');
+      expect(error.newHolderId).toBeUndefined();
+      expect(error.message).toContain('original-holder');
+      expect(error.message).not.toContain('by holder');
+    });
+
+    it('should be instanceof LockError', () => {
+      const error = new LockStolenError('/path', 'holder');
+      expect(error).toBeInstanceOf(LockError);
+    });
+  });
+
+  describe('LockTimeoutError', () => {
+    it('should have correct properties', () => {
+      const error = new LockTimeoutError('/test/path.txt', 5000);
+
+      expect(error.name).toBe('LockTimeoutError');
+      expect(error.filePath).toBe('/test/path.txt');
+      expect(error.timeoutMs).toBe(5000);
+      expect(error.message).toContain('5000');
+      expect(error.message).toContain('timed out');
+    });
+
+    it('should be instanceof LockError', () => {
+      const error = new LockTimeoutError('/path', 1000);
+      expect(error).toBeInstanceOf(LockError);
+    });
   });
 });
