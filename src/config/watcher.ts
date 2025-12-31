@@ -12,6 +12,7 @@ import { existsSync } from 'node:fs';
 import { ConfigWatchError } from './errors.js';
 import { validateConfigFile, getConfigDir, getAllConfigFilePaths } from './loader.js';
 import type { WatchOptions, FileChangeCallback } from './types.js';
+import { tryGetProjectRoot } from '../utils/index.js';
 
 // ============================================================
 // Debounce Utility
@@ -69,7 +70,7 @@ export class ConfigWatcher {
   private baseDir: string;
 
   constructor(baseDir?: string) {
-    this.baseDir = baseDir ?? process.cwd();
+    this.baseDir = baseDir ?? tryGetProjectRoot() ?? process.cwd();
   }
 
   /**

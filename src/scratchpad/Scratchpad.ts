@@ -54,6 +54,7 @@ import * as path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import * as yaml from 'js-yaml';
 import { InputValidator } from '../security/index.js';
+import { tryGetProjectRoot } from '../utils/index.js';
 import type {
   ScratchpadOptions,
   ScratchpadSection,
@@ -139,8 +140,8 @@ export class Scratchpad {
       lockRetryDelayMs: options.lockRetryDelayMs ?? DEFAULT_LOCK_RETRY_DELAY_MS,
       lockStealThresholdMs: options.lockStealThresholdMs ?? DEFAULT_LOCK_STEAL_THRESHOLD_MS,
     };
-    // Use projectRoot if provided, otherwise use current working directory
-    this.projectRoot = options.projectRoot ?? process.cwd();
+    // Use projectRoot if provided, then try ProjectContext, fallback to cwd
+    this.projectRoot = options.projectRoot ?? tryGetProjectRoot() ?? process.cwd();
     // Initialize validator with resolved basePath to prevent path traversal
     // The basePath is resolved against projectRoot for relative paths
     const resolvedBasePath = path.isAbsolute(this.basePath)

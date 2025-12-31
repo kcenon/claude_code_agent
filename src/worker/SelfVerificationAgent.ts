@@ -21,6 +21,7 @@ import type {
 import { DEFAULT_SELF_VERIFICATION_CONFIG } from './types.js';
 import { EscalationRequiredError, CommandTimeoutError } from './errors.js';
 import { getCommandSanitizer } from '../security/index.js';
+import { tryGetProjectRoot } from '../utils/index.js';
 
 /**
  * Command execution result
@@ -44,7 +45,8 @@ export class SelfVerificationAgent {
 
   constructor(config: SelfVerificationConfig = {}) {
     this.config = {
-      projectRoot: config.projectRoot ?? DEFAULT_SELF_VERIFICATION_CONFIG.projectRoot,
+      projectRoot:
+        config.projectRoot ?? tryGetProjectRoot() ?? DEFAULT_SELF_VERIFICATION_CONFIG.projectRoot,
       testCommand: config.testCommand ?? DEFAULT_SELF_VERIFICATION_CONFIG.testCommand,
       lintCommand: config.lintCommand ?? DEFAULT_SELF_VERIFICATION_CONFIG.lintCommand,
       buildCommand: config.buildCommand ?? DEFAULT_SELF_VERIFICATION_CONFIG.buildCommand,

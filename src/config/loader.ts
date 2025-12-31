@@ -12,6 +12,7 @@ import { existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import yaml from 'js-yaml';
 import { ConfigParseError, ConfigNotFoundError } from './errors.js';
+import { tryGetProjectRoot } from '../utils/index.js';
 import {
   validateWorkflowConfig,
   validateAgentsConfig,
@@ -53,7 +54,7 @@ const CONFIG_FILES: Record<ConfigFileType, string> = {
  * Get the configuration directory path
  */
 export function getConfigDir(baseDir?: string): string {
-  return resolve(baseDir ?? process.cwd(), DEFAULT_CONFIG_DIR);
+  return resolve(baseDir ?? tryGetProjectRoot() ?? process.cwd(), DEFAULT_CONFIG_DIR);
 }
 
 /**
