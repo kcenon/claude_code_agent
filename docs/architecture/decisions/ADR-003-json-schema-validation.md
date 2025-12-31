@@ -129,3 +129,60 @@ The migration covered:
 - Scratchpad module
 
 Some files with custom validation logic (e.g., `PriorityAnalyzer.validateGraph()`) were intentionally left unchanged as they have specialized validation needs.
+
+---
+
+## Implementation Notes (2025-12-31 Update)
+
+### Zod 4.x Breaking Changes
+
+The `z.record()` API changed in Zod 4.x:
+
+```typescript
+// Zod 3.x (deprecated)
+z.record(z.string())  // key type was implicit
+
+// Zod 4.x (current)
+z.record(z.string(), z.string())  // explicit key and value schemas
+```
+
+All schemas using `z.record()` were updated to use the 2-argument form.
+
+### Internal vs External Data Validation
+
+**Key Distinction**: Schema validation is primarily valuable for **external data** where shape is unknown:
+
+| Data Source | Validation Approach | Rationale |
+|-------------|-------------------|-----------|
+| GitHub CLI output | `safeJsonParse()` with schema | External API, shape may change |
+| npm audit output | `safeJsonParse()` with schema | External tool output |
+| File-based state persistence | `JSON.parse() as T` | Internal data, saved by the same class |
+| Checkpoint files | `JSON.parse() as T` | Internal data format |
+
+For internal data (state files written and read by the same class), schema validation adds overhead without benefit since the data format is controlled by the application.
+
+### TypeScript `exactOptionalPropertyTypes` Compatibility
+
+When using `exactOptionalPropertyTypes: true` in TypeScript config:
+
+- Zod's `.optional()` produces `T | undefined`
+- TypeScript's `prop?: T` means "T if present, but not undefined"
+
+**Solution**: Use explicit `prop: T | undefined` instead of `prop?: T` when the property may explicitly hold `undefined`:
+
+```typescript
+// Instead of:
+public readonly context?: string;
+
+// Use:
+public readonly context: string | undefined;
+```
+
+### Schema-Interface Alignment
+
+Ensure Zod schemas match existing TypeScript interfaces. When schemas and interfaces diverge:
+
+1. **Option A**: Update schema to match interface (preferred for external data)
+2. **Option B**: Use `JSON.parse() as T` for internal data (preferred for internal persistence)
+
+The choice depends on whether runtime validation provides value for the specific use case.
