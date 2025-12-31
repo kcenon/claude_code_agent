@@ -673,8 +673,7 @@ export class Scratchpad {
         if (existingLock !== null) {
           const expirationTime = new Date(existingLock.expiresAt).getTime();
           const isExpired = expirationTime <= now;
-          const isPastStealThreshold =
-            now - expirationTime >= this.lockConfig.lockStealThresholdMs;
+          const isPastStealThreshold = now - expirationTime >= this.lockConfig.lockStealThresholdMs;
 
           if (isExpired || isPastStealThreshold) {
             // Try to steal the expired lock atomically

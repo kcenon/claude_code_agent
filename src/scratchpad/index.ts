@@ -22,12 +22,7 @@
 export { Scratchpad, getScratchpad, resetScratchpad } from './Scratchpad.js';
 
 // Error classes
-export {
-  LockError,
-  LockContentionError,
-  LockStolenError,
-  LockTimeoutError,
-} from './errors.js';
+export { LockError, LockContentionError, LockStolenError, LockTimeoutError } from './errors.js';
 
 export type {
   ScratchpadSection,

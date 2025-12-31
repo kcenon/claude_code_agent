@@ -78,10 +78,7 @@ export class LockTimeoutError extends LockError {
   public readonly timeoutMs: number;
 
   constructor(filePath: string, timeoutMs: number) {
-    super(
-      `Lock operation for "${filePath}" timed out after ${String(timeoutMs)}ms.`,
-      filePath
-    );
+    super(`Lock operation for "${filePath}" timed out after ${String(timeoutMs)}ms.`, filePath);
     this.name = 'LockTimeoutError';
     this.timeoutMs = timeoutMs;
   }
