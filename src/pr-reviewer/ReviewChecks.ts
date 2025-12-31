@@ -1081,20 +1081,20 @@ export class ReviewChecks {
             low: 0,
           };
 
-          const hasCriticalOrHigh = (vulnCounts.critical ?? 0) > 0 || (vulnCounts.high ?? 0) > 0;
+          const hasCriticalOrHigh = vulnCounts.critical > 0 || vulnCounts.high > 0;
 
           items.push({
             name: 'Dependency vulnerabilities',
             passed: !hasCriticalOrHigh,
             description: 'Check for vulnerable dependencies',
-            details: `Critical: ${String(vulnCounts.critical ?? 0)}, High: ${String(vulnCounts.high ?? 0)}, Moderate: ${String(vulnCounts.moderate ?? 0)}, Low: ${String(vulnCounts.low ?? 0)}`,
+            details: `Critical: ${String(vulnCounts.critical)}, High: ${String(vulnCounts.high)}, Moderate: ${String(vulnCounts.moderate)}, Low: ${String(vulnCounts.low)}`,
           });
 
           if (hasCriticalOrHigh) {
             comments.push({
               file: 'package.json',
               line: 1,
-              comment: `Security vulnerabilities found in dependencies. Critical: ${String(vulnCounts.critical ?? 0)}, High: ${String(vulnCounts.high ?? 0)}. Run 'npm audit fix' to resolve.`,
+              comment: `Security vulnerabilities found in dependencies. Critical: ${String(vulnCounts.critical)}, High: ${String(vulnCounts.high)}. Run 'npm audit fix' to resolve.`,
               severity: 'critical',
               resolved: false,
               suggestedFix: "Run 'npm audit fix' or update affected packages manually",

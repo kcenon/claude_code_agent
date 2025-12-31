@@ -7,7 +7,7 @@
  * @module utils/SafeJsonParser
  */
 
-import { z, ZodSchema, ZodError } from 'zod';
+import { z, ZodError } from 'zod';
 import * as fs from 'fs';
 
 // ============================================================
@@ -161,7 +161,7 @@ export class JsonSyntaxError extends Error {
 /**
  * Get schema name from Zod schema
  */
-function getSchemaName(schema: ZodSchema): string {
+function getSchemaName(schema: z.ZodType): string {
   // Try to get description first
   if ('description' in schema && typeof schema.description === 'string') {
     return schema.description;
@@ -191,7 +191,7 @@ function getSchemaName(schema: ZodSchema): string {
  */
 export function safeJsonParse<T>(
   jsonString: string,
-  schema: ZodSchema<T>,
+  schema: z.ZodType<T>,
   options?: SafeJsonParseOptions<T>
 ): T {
   const schemaName = getSchemaName(schema);
@@ -244,7 +244,7 @@ export function safeJsonParse<T>(
  */
 export function tryJsonParse<T>(
   jsonString: string,
-  schema: ZodSchema<T>,
+  schema: z.ZodType<T>,
   options?: Pick<SafeJsonParseOptions<T>, 'context'>
 ): T | undefined {
   try {
@@ -275,7 +275,7 @@ export function tryJsonParse<T>(
  */
 export async function safeJsonParseFile<T>(
   filePath: string,
-  schema: ZodSchema<T>,
+  schema: z.ZodType<T>,
   options?: Omit<SafeJsonParseOptions<T>, 'context'>
 ): Promise<T> {
   const content = await fs.promises.readFile(filePath, 'utf-8');
@@ -297,7 +297,7 @@ export async function safeJsonParseFile<T>(
  */
 export function safeJsonParseFileSync<T>(
   filePath: string,
-  schema: ZodSchema<T>,
+  schema: z.ZodType<T>,
   options?: Omit<SafeJsonParseOptions<T>, 'context'>
 ): T {
   const content = fs.readFileSync(filePath, 'utf-8');
@@ -314,7 +314,7 @@ export function safeJsonParseFileSync<T>(
  * Useful for external API responses where we only care about specific fields
  *
  * @param schema - Base Zod object schema
- * @returns Schema with passthrough enabled
+ * @returns Schema with loose mode enabled
  *
  * @example
  * ```typescript
@@ -327,8 +327,8 @@ export function safeJsonParseFileSync<T>(
  */
 export function lenientSchema<T extends z.ZodRawShape>(
   schema: z.ZodObject<T>
-): z.ZodObject<T, 'passthrough'> {
-  return schema.passthrough();
+): ReturnType<typeof schema.loose> {
+  return schema.loose();
 }
 
 /**

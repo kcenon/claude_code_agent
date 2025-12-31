@@ -2,7 +2,7 @@
  * Zod schemas for GitHub API responses
  *
  * Provides runtime validation for data received from GitHub CLI commands.
- * These schemas support lenient parsing with .passthrough() to handle
+ * These schemas support lenient parsing with .loose() to handle
  * unknown fields from API responses.
  *
  * @module schemas/github
@@ -45,7 +45,7 @@ export const GitHubPRDataSchema = z
       )
       .optional(),
   })
-  .passthrough()
+  .loose()
   .describe('GitHubPRData');
 
 export type GitHubPRData = z.infer<typeof GitHubPRDataSchema>;
@@ -77,7 +77,7 @@ export const GitHubMergeInfoSchema = z
       )
       .optional(),
   })
-  .passthrough()
+  .loose()
   .describe('GitHubMergeInfo');
 
 export type GitHubMergeInfo = z.infer<typeof GitHubMergeInfoSchema>;
@@ -98,7 +98,7 @@ export const GitHubReviewSchema = z
     body: z.string(),
     submittedAt: z.string(),
   })
-  .passthrough()
+  .loose()
   .describe('GitHubReview');
 
 export type GitHubReview = z.infer<typeof GitHubReviewSchema>;
@@ -110,7 +110,7 @@ export const GitHubReviewsResponseSchema = z
   .object({
     reviews: z.array(GitHubReviewSchema).optional(),
   })
-  .passthrough()
+  .loose()
   .describe('GitHubReviewsResponse');
 
 export type GitHubReviewsResponse = z.infer<typeof GitHubReviewsResponseSchema>;
@@ -130,7 +130,7 @@ export const GitHubCheckResultSchema = z
     status: z.string(),
     conclusion: z.string().nullable().optional(),
   })
-  .passthrough()
+  .loose()
   .describe('GitHubCheckResult');
 
 export type GitHubCheckResult = z.infer<typeof GitHubCheckResultSchema>;
@@ -162,7 +162,7 @@ export const GitHubRepoInfoSchema = z
       .optional(),
     url: z.string().optional(),
   })
-  .passthrough()
+  .loose()
   .describe('GitHubRepoInfo');
 
 export type GitHubRepoInfo = z.infer<typeof GitHubRepoInfoSchema>;
@@ -188,7 +188,7 @@ export const SecurityAuditResultSchema = z
       })
       .optional(),
   })
-  .passthrough()
+  .loose()
   .describe('SecurityAuditResult');
 
 export type SecurityAuditResult = z.infer<typeof SecurityAuditResultSchema>;
@@ -223,7 +223,7 @@ export const GitHubRunDataSchema = z
       )
       .optional(),
   })
-  .passthrough()
+  .loose()
   .describe('GitHubRunData');
 
 export type GitHubRunData = z.infer<typeof GitHubRunDataSchema>;

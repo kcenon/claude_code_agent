@@ -26,7 +26,7 @@ import type { ImplementationResult, FileChange } from '../worker/types.js';
 import { PRCreationError, BranchNamingError } from './errors.js';
 import { getCommandSanitizer } from '../security/index.js';
 import { safeJsonParse, tryJsonParse } from '../utils/SafeJsonParser.js';
-import { GitHubPRDataSchema, GitHubPRDataArraySchema, type GitHubPRData } from '../schemas/github.js';
+import { GitHubPRDataSchema, GitHubPRDataArraySchema } from '../schemas/github.js';
 
 /**
  * Command execution result

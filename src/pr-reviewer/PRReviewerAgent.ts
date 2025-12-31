@@ -55,7 +55,6 @@ import {
   GitHubPRDataSchema,
   GitHubPRDataArraySchema,
   GitHubCheckResultArraySchema,
-  type GitHubPRData,
 } from '../schemas/github.js';
 
 /**

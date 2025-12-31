@@ -16,7 +16,7 @@ import { z } from 'zod';
 /**
  * Partial package.json schema for commonly used fields
  *
- * Uses .passthrough() to allow unknown fields since package.json
+ * Uses .loose() to allow unknown fields since package.json
  * can contain many tool-specific configurations.
  */
 export const PackageJsonPartialSchema = z
@@ -32,7 +32,7 @@ export const PackageJsonPartialSchema = z
     engines: z.record(z.string()).optional(),
     type: z.enum(['module', 'commonjs']).optional(),
   })
-  .passthrough()
+  .loose()
   .describe('PackageJsonPartial');
 
 export type PackageJsonPartial = z.infer<typeof PackageJsonPartialSchema>;
@@ -46,7 +46,7 @@ export const PackageJsonVersionSchema = z
   .object({
     version: z.string().optional(),
   })
-  .passthrough()
+  .loose()
   .describe('PackageJsonVersion');
 
 export type PackageJsonVersion = z.infer<typeof PackageJsonVersionSchema>;
@@ -104,7 +104,7 @@ export const DependencyGraphSchema = z
       .optional(),
     root: z.string().optional(),
   })
-  .passthrough()
+  .loose()
   .describe('DependencyGraph');
 
 export type DependencyGraph = z.infer<typeof DependencyGraphSchema>;
@@ -128,7 +128,7 @@ export const ProgressCheckpointSchema = z
     retryCount: z.number().optional(),
     error: z.string().optional(),
   })
-  .passthrough()
+  .loose()
   .describe('ProgressCheckpoint');
 
 export type ProgressCheckpoint = z.infer<typeof ProgressCheckpointSchema>;
@@ -149,7 +149,7 @@ export const ProgressReportSchema = z
     errors: z.array(z.string()).optional(),
     lastUpdated: z.string().optional(),
   })
-  .passthrough()
+  .loose()
   .describe('ProgressReport');
 
 export type ProgressReport = z.infer<typeof ProgressReportSchema>;
@@ -202,7 +202,7 @@ export const ControllerStateSchema = z
     completedIssues: z.number().optional().default(0),
     failedIssues: z.number().optional().default(0),
   })
-  .passthrough()
+  .loose()
   .describe('ControllerState');
 
 export type ControllerState = z.infer<typeof ControllerStateSchema>;
@@ -230,7 +230,7 @@ export const LogEntrySchema = z
       })
       .optional(),
   })
-  .passthrough()
+  .loose()
   .describe('LogEntry');
 
 export type LogEntry = z.infer<typeof LogEntrySchema>;
@@ -249,7 +249,7 @@ export const AuditLogEntrySchema = z
     outcome: z.enum(['success', 'failure', 'error']).optional(),
     details: z.record(z.unknown()).optional(),
   })
-  .passthrough()
+  .loose()
   .describe('AuditLogEntry');
 
 export type AuditLogEntry = z.infer<typeof AuditLogEntrySchema>;
@@ -271,7 +271,7 @@ export const PriorityAnalysisSchema = z
     factors: z.record(z.number()).optional(),
     dependencies: z.array(z.string()).optional(),
   })
-  .passthrough()
+  .loose()
   .describe('PriorityAnalysis');
 
 export type PriorityAnalysis = z.infer<typeof PriorityAnalysisSchema>;
