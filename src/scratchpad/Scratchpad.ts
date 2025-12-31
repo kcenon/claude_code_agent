@@ -751,6 +751,7 @@ export class Scratchpad {
   private async readLock(lockPath: string): Promise<FileLock | null> {
     try {
       const content = await fs.promises.readFile(lockPath, 'utf8');
+      // Internal data saved by this class - use direct parse with type assertion
       return JSON.parse(content) as FileLock;
     } catch {
       return null;

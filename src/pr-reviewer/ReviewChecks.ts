@@ -17,6 +17,8 @@ import type {
   FileChange,
 } from './types.js';
 import { getCommandSanitizer } from '../security/index.js';
+import { tryJsonParse } from '../utils/SafeJsonParser.js';
+import { SecurityAuditResultSchema } from '../schemas/github.js';
 
 /**
  * Review Checks Options
@@ -1068,45 +1070,31 @@ export class ReviewChecks {
         });
       } else {
         try {
-          const auditResult = JSON.parse(result.stdout) as {
-            metadata?: {
-              vulnerabilities?: {
-                critical?: number;
-                high?: number;
-                moderate?: number;
-                low?: number;
-              };
-            };
-            vulnerabilities?: Record<
-              string,
-              {
-                severity: string;
-                via: Array<{ title?: string; url?: string } | string>;
-              }
-            >;
-          };
+          const auditResult = tryJsonParse(result.stdout, SecurityAuditResultSchema, {
+            context: 'npm audit output',
+          });
 
-          const vulnCounts = auditResult.metadata?.vulnerabilities ?? {
+          const vulnCounts = auditResult?.vulnerabilities ?? {
             critical: 0,
             high: 0,
             moderate: 0,
             low: 0,
           };
 
-          const hasCriticalOrHigh = (vulnCounts.critical ?? 0) > 0 || (vulnCounts.high ?? 0) > 0;
+          const hasCriticalOrHigh = vulnCounts.critical > 0 || vulnCounts.high > 0;
 
           items.push({
             name: 'Dependency vulnerabilities',
             passed: !hasCriticalOrHigh,
             description: 'Check for vulnerable dependencies',
-            details: `Critical: ${String(vulnCounts.critical ?? 0)}, High: ${String(vulnCounts.high ?? 0)}, Moderate: ${String(vulnCounts.moderate ?? 0)}, Low: ${String(vulnCounts.low ?? 0)}`,
+            details: `Critical: ${String(vulnCounts.critical)}, High: ${String(vulnCounts.high)}, Moderate: ${String(vulnCounts.moderate)}, Low: ${String(vulnCounts.low)}`,
           });
 
           if (hasCriticalOrHigh) {
             comments.push({
               file: 'package.json',
               line: 1,
-              comment: `Security vulnerabilities found in dependencies. Critical: ${String(vulnCounts.critical ?? 0)}, High: ${String(vulnCounts.high ?? 0)}. Run 'npm audit fix' to resolve.`,
+              comment: `Security vulnerabilities found in dependencies. Critical: ${String(vulnCounts.critical)}, High: ${String(vulnCounts.high)}. Run 'npm audit fix' to resolve.`,
               severity: 'critical',
               resolved: false,
               suggestedFix: "Run 'npm audit fix' or update affected packages manually",

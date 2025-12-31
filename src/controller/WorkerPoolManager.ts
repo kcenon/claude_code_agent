@@ -561,6 +561,7 @@ export class WorkerPoolManager {
 
     try {
       const content = await readFile(statePath, 'utf-8');
+      // Internal data saved by this class - use direct parse with type assertion
       const state = JSON.parse(content) as ControllerState;
 
       if (state.projectId !== projectId) {

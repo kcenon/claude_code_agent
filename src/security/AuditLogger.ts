@@ -395,9 +395,11 @@ export class AuditLogger {
         const line = lines[i];
         if (line !== undefined && line.trim() !== '') {
           try {
-            entries.push(JSON.parse(line) as AuditLogEntry);
+            // Internal data saved by this class - use direct parse with type assertion
+            const entry = JSON.parse(line) as AuditLogEntry;
+            entries.push(entry);
           } catch {
-            // Skip malformed lines
+            // Skip malformed entries
           }
         }
       }

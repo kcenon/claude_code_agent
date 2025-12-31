@@ -398,6 +398,7 @@ export class RetryHandler {
       }
 
       const content = await readFile(filePath, 'utf-8');
+      // Internal data saved by this class - use direct parse with type assertion
       return JSON.parse(content) as ProgressCheckpoint;
     } catch {
       return null;

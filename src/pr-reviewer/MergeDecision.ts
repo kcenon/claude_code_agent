@@ -21,25 +21,12 @@ import type {
   PullRequest,
 } from './types.js';
 import { getCommandSanitizer } from '../security/index.js';
-
-/**
- * GitHub PR merge info from API
- */
-interface GitHubMergeInfo {
-  mergeable: boolean | null;
-  mergeableState?: string;
-  files?: Array<{ filename: string; status: string }>;
-}
-
-/**
- * GitHub review from API
- */
-interface GitHubReview {
-  author: { login: string };
-  state: string;
-  body: string;
-  submittedAt: string;
-}
+import { tryJsonParse } from '../utils/SafeJsonParser.js';
+import {
+  GitHubMergeInfoSchema,
+  GitHubReviewsResponseSchema,
+  type GitHubReview,
+} from '../schemas/github.js';
 
 /**
  * Command execution result
@@ -110,7 +97,18 @@ export class MergeDecision {
         };
       }
 
-      const data = JSON.parse(result.stdout) as GitHubMergeInfo;
+      const data = tryJsonParse(result.stdout, GitHubMergeInfoSchema, {
+        context: 'gh pr view merge info',
+      });
+      if (!data) {
+        return {
+          hasConflicts: false,
+          conflictingFiles: [],
+          mergeable: false,
+          mergeableState: 'unknown',
+        };
+      }
+
       const mergeableState = this.mapMergeableState(data.mergeableState);
       const hasConflicts = mergeableState === 'dirty';
 
@@ -151,8 +149,10 @@ export class MergeDecision {
         return [];
       }
 
-      const data = JSON.parse(result.stdout) as { reviews?: GitHubReview[] };
-      const reviews = data.reviews ?? [];
+      const data = tryJsonParse(result.stdout, GitHubReviewsResponseSchema, {
+        context: 'gh pr view reviews',
+      });
+      const reviews = data?.reviews ?? [];
 
       // Filter for blocking reviews (CHANGES_REQUESTED)
       const blockingReviews: BlockingReview[] = [];

@@ -666,9 +666,11 @@ export class Logger {
         const line = lines[i];
         if (line !== undefined && line.trim() !== '') {
           try {
-            entries.push(JSON.parse(line) as LogEntry);
+            // Internal data saved by this class - use direct parse with type assertion
+            const entry = JSON.parse(line) as LogEntry;
+            entries.push(entry);
           } catch {
-            // Skip malformed lines
+            // Skip malformed entries
           }
         }
       }
@@ -732,9 +734,11 @@ export class Logger {
         for (const line of lines) {
           if (line.trim() !== '') {
             try {
-              entries.push(JSON.parse(line) as LogEntry);
+              // Internal data saved by this class - use direct parse with type assertion
+              const entry = JSON.parse(line) as LogEntry;
+              entries.push(entry);
             } catch {
-              // Skip malformed lines
+              // Skip malformed entries
             }
           }
         }
@@ -836,9 +840,11 @@ export class Logger {
         for (const line of lines) {
           if (line.trim() !== '') {
             try {
-              entries.push(JSON.parse(line) as LogEntry);
+              // Internal data saved by this class - use direct parse with type assertion
+              const entry = JSON.parse(line) as LogEntry;
+              entries.push(entry);
             } catch {
-              // Skip malformed lines
+              // Skip malformed entries
             }
           }
         }

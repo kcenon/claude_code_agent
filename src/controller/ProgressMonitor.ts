@@ -712,6 +712,7 @@ export class ProgressMonitor {
 
     try {
       const content = await readFile(jsonPath, 'utf-8');
+      // Internal data saved by this class - use direct parse with type assertion
       return JSON.parse(content) as ProgressReport;
     } catch (error) {
       throw new ProgressReportPersistenceError('load', error instanceof Error ? error : undefined);

@@ -10,6 +10,8 @@ import * as path from 'path';
 import * as yaml from 'js-yaml';
 import { randomUUID } from 'crypto';
 import { getCommandSanitizer } from '../security/index.js';
+import { tryJsonParse } from '../utils/SafeJsonParser.js';
+import { GitHubRepoInfoSchema } from '../schemas/github.js';
 
 import type {
   RepoDetectorConfig,
@@ -307,14 +309,15 @@ export class RepoDetector {
       );
 
       if (ghResult.success && ghResult.output) {
-        const repoInfo = JSON.parse(ghResult.output) as {
-          nameWithOwner?: string;
-          url?: string;
-          visibility?: string;
-          defaultBranchRef?: { name?: string };
-        };
+        const repoInfo = tryJsonParse(ghResult.output, GitHubRepoInfoSchema, {
+          context: 'gh repo view output',
+        });
+        if (!repoInfo) {
+          throw new Error('Failed to parse repo info');
+        }
 
-        const [owner, name] = (repoInfo.nameWithOwner ?? '/').split('/');
+        const nameWithOwner = `${repoInfo.owner.login}/${repoInfo.name}`;
+        const [owner, name] = nameWithOwner.split('/');
 
         return {
           exists: true,
@@ -322,7 +325,7 @@ export class RepoDetector {
           owner: owner ?? null,
           name: name ?? null,
           url: repoInfo.url ?? null,
-          visibility: (repoInfo.visibility?.toLowerCase() ?? null) as RepositoryVisibility,
+          visibility: (repoInfo.isPrivate === true ? 'private' : 'public') as RepositoryVisibility,
           defaultBranch: repoInfo.defaultBranchRef?.name ?? null,
         };
       }
