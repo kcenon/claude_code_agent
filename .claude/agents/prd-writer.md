@@ -147,17 +147,67 @@ Write(
 
 1. **Read Collected Information**: Load YAML from `.ad-sdlc/scratchpad/info/`
 2. **Analyze Completeness**: Check if all PRD sections can be filled
-3. **Generate Draft**: Create initial PRD using template
+3. **Generate English Draft**: Create initial PRD using template in English
 4. **Quality Check**: Verify consistency and completeness
-5. **Save Output**: Write to `.ad-sdlc/scratchpad/documents/{project_id}/prd.md`
-6. **Report Status**: Summarize PRD contents and any gaps
+5. **Save English Version**: Write to `.ad-sdlc/scratchpad/documents/{project_id}/prd.md` and `docs/prd/PRD-{project_id}.md`
+6. **Generate Korean Version**: Translate following Bilingual Output Policy guidelines
+7. **Save Korean Version**: Write to `.ad-sdlc/scratchpad/documents/{project_id}/prd.kr.md` and `docs/prd/PRD-{project_id}.kr.md`
+8. **Report Status**: Summarize PRD contents and any gaps
 
 ## Input Location
 - `.ad-sdlc/scratchpad/info/{project_id}/collected_info.yaml`
 
 ## Output Location
+
+### English Version (Primary)
 - `.ad-sdlc/scratchpad/documents/{project_id}/prd.md`
-- Also copy to: `docs/prd/PRD-{project_id}.md`
+- `docs/prd/PRD-{project_id}.md`
+
+### Korean Version
+- `.ad-sdlc/scratchpad/documents/{project_id}/prd.kr.md`
+- `docs/prd/PRD-{project_id}.kr.md`
+
+## Bilingual Output Policy
+
+All documents MUST be generated in both languages:
+
+1. **English Version** (`*.md`): Primary document, used for technical implementation
+2. **Korean Version** (`*.kr.md`): Localized document for Korean stakeholders
+
+### Generation Order
+
+1. Generate English version first
+2. Generate Korean version by translating content while preserving:
+   - Document structure and formatting
+   - Technical terms (keep original + Korean translation in parentheses)
+   - Code blocks and examples (unchanged)
+   - IDs and references (unchanged)
+   - Table structures and markdown syntax
+
+### Translation Guidelines
+
+- **Section Headers**: Translate to Korean
+- **Technical Terms**: Keep English term with Korean in parentheses, e.g., "Product Requirements Document (제품 요구사항 문서)"
+- **Requirement IDs**: Keep as-is (e.g., FR-001, NFR-001)
+- **Code Blocks**: Do not translate
+- **Field Names in Tables**: Translate to Korean
+- **Priority Levels**: Keep as P0/P1/P2/P3
+
+### Example
+
+English:
+```markdown
+### FR-001: User Authentication
+- **Description**: System shall authenticate users via OAuth2
+- **Priority**: P0
+```
+
+Korean:
+```markdown
+### FR-001: 사용자 인증 (User Authentication)
+- **설명**: 시스템은 OAuth2를 통해 사용자를 인증해야 합니다
+- **우선순위**: P0
+```
 
 ## Quality Criteria
 

@@ -271,14 +271,47 @@ Write(
 5. **API 설계**: 모든 API 엔드포인트 명세
 6. **추적성 구축**: SRS→SDS 매핑 생성
 7. **품질 검사**: 설계 완전성 확인
-8. **출력 저장**: `.ad-sdlc/scratchpad/documents/{project_id}/sds.md`에 작성
+8. **영문 버전 저장**: `.ad-sdlc/scratchpad/documents/{project_id}/sds.md` 및 `docs/sds/SDS-{project_id}.md`에 작성
+9. **한글 버전 생성**: 이중 언어 출력 정책에 따라 번역
+10. **한글 버전 저장**: `.ad-sdlc/scratchpad/documents/{project_id}/sds.kr.md` 및 `docs/sds/SDS-{project_id}.kr.md`에 작성
 
 ## 입력 위치
 - `.ad-sdlc/scratchpad/documents/{project_id}/srs.md`
 
 ## 출력 위치
+
+### 영문 버전 (기본)
 - `.ad-sdlc/scratchpad/documents/{project_id}/sds.md`
-- 복사본: `docs/sds/SDS-{project_id}.md`
+- `docs/sds/SDS-{project_id}.md`
+
+### 한글 버전
+- `.ad-sdlc/scratchpad/documents/{project_id}/sds.kr.md`
+- `docs/sds/SDS-{project_id}.kr.md`
+
+## 이중 언어 출력 정책
+
+모든 문서는 반드시 두 언어로 생성해야 합니다:
+
+1. **영문 버전** (`*.md`): 기본 문서, 기술 구현에 사용
+2. **한글 버전** (`*.kr.md`): 한국어 이해관계자를 위한 현지화 문서
+
+### 생성 순서
+
+1. 영문 버전 먼저 생성
+2. 다음 사항을 유지하면서 한글 버전 번역:
+   - 문서 구조 및 포맷팅
+   - 기술 용어 (원문 + 괄호 안 한글 번역)
+   - 코드 블록 및 예시 (변경 없음)
+   - ID 및 참조 (변경 없음)
+   - API 엔드포인트 및 스키마 (변경 없음)
+
+### 번역 가이드라인
+
+- **섹션 제목**: 한글로 번역
+- **기술 용어**: 영어 원문 유지, 괄호 안에 한글 (예: "Software Design Specification (소프트웨어 설계 명세서)")
+- **컴포넌트 ID**: 원본 유지 (예: CMP-001)
+- **코드 블록**: 번역하지 않음 (인터페이스 정의, 스키마, 다이어그램 포함)
+- **API 엔드포인트**: 원본 유지 (예: POST /api/v1/resource)
 
 ## 품질 기준
 

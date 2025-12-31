@@ -143,7 +143,8 @@ change_request:
 
 | File | Path | Format | Description |
 |------|------|--------|-------------|
-| Updated SDS | `docs/sds/SDS-{id}.md` | Markdown | Updated SDS document |
+| Updated SDS (EN) | `docs/sds/SDS-{id}.md` | Markdown | Updated SDS document (English) |
+| Updated SDS (KR) | `docs/sds/SDS-{id}.kr.md` | Markdown | Updated SDS document (Korean) |
 | Changelog | `.ad-sdlc/scratchpad/documents/{project_id}/sds_changelog.md` | Markdown | Changes made |
 | Update Result | `.ad-sdlc/scratchpad/documents/{project_id}/sds_update_result.yaml` | YAML | Structured update result |
 
@@ -251,18 +252,19 @@ update_result:
 
 ### Step-by-Step Process
 
-1. **Load Document**: Read existing SDS from docs/sds/
+1. **Load Documents**: Read existing SDS from docs/sds/ (both English and Korean versions)
 2. **Parse Structure**: Extract all sections, components, and APIs
 3. **Load Context**: Read SRS update results for new features
 4. **Validate Request**: Ensure change request is valid
 5. **Generate IDs**: Create new component/API IDs if needed
-6. **Apply Changes**: Modify document content
-7. **Update Traceability**: Update SRS→SDS mapping
-8. **Update Dependencies**: Adjust inter-component relationships
-9. **Update Metadata**: Increment version, update timestamps
-10. **Add Annotations**: Mark changes with [NEW], [MODIFIED]
-11. **Verify Consistency**: Run post-update validation
-12. **Write Output**: Save updated document and changelog
+6. **Apply Changes to English Version**: Modify English document content
+7. **Apply Changes to Korean Version**: Translate and apply changes following Bilingual Output Policy
+8. **Update Traceability**: Update SRS→SDS mapping
+9. **Update Dependencies**: Adjust inter-component relationships
+10. **Update Metadata**: Increment version, update timestamps (both versions)
+11. **Add Annotations**: Mark changes with [NEW]/[신규], [MODIFIED]/[수정됨]
+12. **Verify Consistency**: Run post-update validation on both versions
+13. **Write Output**: Save updated documents (EN and KR) and changelog
 
 ## Update Modes
 
@@ -403,6 +405,51 @@ fields:
 | Breaking API change | Major (X.y.z) | 1.3.0 → 2.0.0 |
 | Update traceability | Patch (x.y.Z) | 1.0.0 → 1.0.1 |
 
+## Bilingual Output Policy
+
+All document updates MUST be applied to both language versions:
+
+1. **English Version** (`*.md`): Primary document, used for technical implementation
+2. **Korean Version** (`*.kr.md`): Localized document for Korean stakeholders
+
+### Update Order
+
+1. Apply changes to English version first
+2. Apply equivalent changes to Korean version, translating new content while preserving:
+   - Document structure and formatting
+   - Technical terms (keep original + Korean translation in parentheses)
+   - Code blocks and examples (unchanged)
+   - IDs and references (unchanged)
+   - Table structures and markdown syntax
+   - API endpoints and schemas (unchanged)
+
+### Translation Guidelines for Updates
+
+- **New Components**: Translate name and responsibility, keep IDs and interfaces as-is
+- **New APIs**: Keep endpoint paths, translate descriptions only
+- **Annotations**: Translate [NEW] → [신규], [MODIFIED] → [수정됨]
+- **Architecture Terms**: Keep technical terms with Korean translation
+
+### Example Update
+
+English:
+```markdown
+### CMP-015: Notification Service [NEW]
+**Source Features**: SF-015
+- **Responsibility**: Handles email and push notifications
+- **Type**: service
+- **Added**: 2024-01-15
+```
+
+Korean:
+```markdown
+### CMP-015: 알림 서비스 (Notification Service) [신규]
+**출처 기능**: SF-015
+- **책임**: 이메일 및 푸시 알림 처리
+- **유형**: service
+- **추가일**: 2024-01-15
+```
+
 ## Best Practices
 
 - Always read current document state before making changes
@@ -413,6 +460,7 @@ fields:
 - Validate interface compatibility before updates
 - Run consistency checks after every update
 - Document architectural decisions in ADR section
+- Apply changes to both English and Korean versions simultaneously
 
 ## Component ID Generation
 
