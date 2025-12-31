@@ -28,8 +28,24 @@ global_settings:
 
   # Execution settings
   default_model: "sonnet"              # Default Claude model
-  approval_gates: true                 # Require human approval
   parallel_workers: 5                  # Max concurrent workers
+
+  # Approval mode for pipeline execution
+  # - "auto": No prompts, fully automated (default)
+  # - "manual": Approval required at every gate
+  # - "critical": Only critical stages require approval
+  # - "custom": Use individual approval_gates settings
+  approval_mode: "auto"
+
+  # Individual approval gates (only used when approval_mode is "custom")
+  approval_gates:
+    after_collection: false
+    after_prd: false
+    after_srs: false
+    after_github_repo_setup: false
+    after_sds: false
+    after_issues: false
+    before_merge: false
 
   # Retry policy
   retry:
@@ -306,8 +322,31 @@ notifications:
 | `output_dir` | string | "docs" | Where to save generated documents |
 | `scratchpad_dir` | string | ".ad-sdlc/scratchpad" | Inter-agent state location |
 | `default_model` | string | "sonnet" | Default Claude model |
-| `approval_gates` | boolean | true | Enable human approval |
 | `parallel_workers` | number | 5 | Max concurrent workers |
+| `approval_mode` | string | "auto" | Pipeline approval mode (see below) |
+
+### Approval Mode
+
+Controls when the pipeline pauses for human approval:
+
+| Mode | Description | Use Case |
+|------|-------------|----------|
+| `auto` | No approval prompts, fully automated | CI/CD, scripts, automation |
+| `manual` | Approval required at every gate | Interactive development, review-heavy workflows |
+| `critical` | Only critical stages require approval | Balanced automation with key checkpoints |
+| `custom` | Use individual `approval_gates` settings | Fine-grained control |
+
+**Individual Approval Gates** (used when `approval_mode: "custom"`):
+
+| Gate | Description |
+|------|-------------|
+| `after_collection` | After requirements collection |
+| `after_prd` | After PRD generation |
+| `after_srs` | After SRS generation |
+| `after_github_repo_setup` | After GitHub repository setup |
+| `after_sds` | After SDS generation |
+| `after_issues` | After issue generation |
+| `before_merge` | Before merging PRs |
 
 ### Retry Policy
 
@@ -351,28 +390,28 @@ quality_gates:
 
 ## Examples
 
-### Minimal Configuration
+### Minimal Configuration (Automated)
 
 ```yaml
 schema_version: "1.0"
 
 global_settings:
   project_root: "."
-  approval_gates: false  # No approval for quick runs
+  approval_mode: "auto"  # Default, fully automated
 
 pipelines:
   greenfield:
     enabled: true
 ```
 
-### High-Quality Configuration
+### High-Quality Configuration (Manual Review)
 
 ```yaml
 schema_version: "1.0"
 
 global_settings:
   default_model: "opus"  # Use best model
-  approval_gates: true
+  approval_mode: "manual"  # Review every stage
 
 quality_gates:
   code:
@@ -387,6 +426,43 @@ github:
     require_approvals: 1
 ```
 
+### CI/CD Configuration
+
+```yaml
+schema_version: "1.0"
+
+global_settings:
+  approval_mode: "auto"  # No human intervention
+  parallel_workers: 10
+
+quality_gates:
+  code:
+    coverage_threshold: 80
+    require_lint_pass: true
+    require_build_pass: true
+```
+
+### Custom Approval Gates
+
+```yaml
+schema_version: "1.0"
+
+global_settings:
+  approval_mode: "custom"  # Use individual gates
+  approval_gates:
+    after_collection: false
+    after_prd: true         # Review PRD
+    after_srs: false
+    after_github_repo_setup: false
+    after_sds: true         # Review SDS
+    after_issues: false
+    before_merge: true      # Final review before merge
+
+quality_gates:
+  code:
+    coverage_threshold: 80
+```
+
 ### Fast Development Configuration
 
 ```yaml
@@ -394,7 +470,7 @@ schema_version: "1.0"
 
 global_settings:
   default_model: "haiku"  # Fastest model
-  approval_gates: false
+  approval_mode: "auto"
   parallel_workers: 10
 
 quality_gates:
