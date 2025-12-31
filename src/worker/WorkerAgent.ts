@@ -41,6 +41,7 @@ import {
   GitOperationError,
 } from './errors.js';
 import { getCommandSanitizer, createSecureFileOps, type SecureFileOps } from '../security/index.js';
+import { tryGetProjectRoot } from '../utils/index.js';
 
 /**
  * Command execution result
@@ -68,7 +69,8 @@ export class WorkerAgent {
 
   constructor(config: WorkerAgentConfig = {}, testGeneratorConfig?: TestGeneratorConfig) {
     this.config = {
-      projectRoot: config.projectRoot ?? DEFAULT_WORKER_AGENT_CONFIG.projectRoot,
+      projectRoot:
+        config.projectRoot ?? tryGetProjectRoot() ?? DEFAULT_WORKER_AGENT_CONFIG.projectRoot,
       resultsPath: config.resultsPath ?? DEFAULT_WORKER_AGENT_CONFIG.resultsPath,
       maxRetries: config.maxRetries ?? DEFAULT_WORKER_AGENT_CONFIG.maxRetries,
       testCommand: config.testCommand ?? DEFAULT_WORKER_AGENT_CONFIG.testCommand,

@@ -13,6 +13,7 @@ import * as yaml from 'js-yaml';
 import { ZodError } from 'zod';
 import { AgentFrontmatterSchema, RECOMMENDED_SECTIONS, AGENT_SCHEMA_VERSION } from './schemas.js';
 import { FrontmatterParseError, FrontmatterValidationError } from './errors.js';
+import { tryGetProjectRoot } from '../utils/index.js';
 import type {
   AgentFrontmatter,
   AgentValidationError,
@@ -219,7 +220,7 @@ export function validateAgentFile(
       const registryPath =
         options.registryPath !== undefined && options.registryPath !== ''
           ? path.resolve(options.registryPath)
-          : path.resolve(process.cwd(), DEFAULT_REGISTRY_PATH);
+          : path.resolve(tryGetProjectRoot() ?? process.cwd(), DEFAULT_REGISTRY_PATH);
 
       const registry = loadAgentRegistry(registryPath);
       const registryErrors = checkRegistryConsistency(
@@ -270,7 +271,7 @@ export function validateAllAgents(options: ValidateAgentOptions = {}): AgentVali
   const agentsDir =
     options.agentsDir !== undefined && options.agentsDir !== ''
       ? path.resolve(options.agentsDir)
-      : path.resolve(process.cwd(), DEFAULT_AGENTS_DIR);
+      : path.resolve(tryGetProjectRoot() ?? process.cwd(), DEFAULT_AGENTS_DIR);
 
   const results: AgentValidationResult[] = [];
   let validCount = 0;
