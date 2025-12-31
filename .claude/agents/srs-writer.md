@@ -220,14 +220,66 @@ Write(
 4. **Define Interfaces**: Specify all system interfaces
 5. **Build Traceability**: Create PRD→SRS mapping
 6. **Quality Check**: Verify completeness and consistency
-7. **Save Output**: Write to `.ad-sdlc/scratchpad/documents/{project_id}/srs.md`
+7. **Save English Version**: Write to `.ad-sdlc/scratchpad/documents/{project_id}/srs.md` and `docs/srs/SRS-{project_id}.md`
+8. **Generate Korean Version**: Translate following Bilingual Output Policy guidelines
+9. **Save Korean Version**: Write to `.ad-sdlc/scratchpad/documents/{project_id}/srs.kr.md` and `docs/srs/SRS-{project_id}.kr.md`
 
 ## Input Location
 - `.ad-sdlc/scratchpad/documents/{project_id}/prd.md`
 
 ## Output Location
+
+### English Version (Primary)
 - `.ad-sdlc/scratchpad/documents/{project_id}/srs.md`
-- Also copy to: `docs/srs/SRS-{project_id}.md`
+- `docs/srs/SRS-{project_id}.md`
+
+### Korean Version
+- `.ad-sdlc/scratchpad/documents/{project_id}/srs.kr.md`
+- `docs/srs/SRS-{project_id}.kr.md`
+
+## Bilingual Output Policy
+
+All documents MUST be generated in both languages:
+
+1. **English Version** (`*.md`): Primary document, used for technical implementation
+2. **Korean Version** (`*.kr.md`): Localized document for Korean stakeholders
+
+### Generation Order
+
+1. Generate English version first
+2. Generate Korean version by translating content while preserving:
+   - Document structure and formatting
+   - Technical terms (keep original + Korean translation in parentheses)
+   - Code blocks and examples (unchanged)
+   - IDs and references (unchanged)
+   - Table structures and markdown syntax
+
+### Translation Guidelines
+
+- **Section Headers**: Translate to Korean
+- **Technical Terms**: Keep English term with Korean in parentheses, e.g., "Software Requirements Specification (소프트웨어 요구사항 명세서)"
+- **Feature IDs**: Keep as-is (e.g., SF-001, UC-001)
+- **Code Blocks**: Do not translate
+- **Field Names in Tables**: Translate to Korean
+- **Priority Levels**: Keep as P0/P1/P2/P3
+
+### Example
+
+English:
+```markdown
+### SF-001: User Login Feature
+**Source**: FR-001
+- **Description**: Handles user authentication via OAuth2
+- **Priority**: P0
+```
+
+Korean:
+```markdown
+### SF-001: 사용자 로그인 기능 (User Login Feature)
+**출처**: FR-001
+- **설명**: OAuth2를 통한 사용자 인증 처리
+- **우선순위**: P0
+```
 
 ## Quality Criteria
 
