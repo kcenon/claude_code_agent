@@ -7,6 +7,9 @@ import {
   getScratchpad,
   resetScratchpad,
   LockContentionError,
+  LockError,
+  LockStolenError,
+  LockTimeoutError,
 } from '../../src/scratchpad/index.js';
 
 describe('Scratchpad', () => {
@@ -890,5 +893,67 @@ describe('LockContentionError', () => {
   it('should be instanceof Error', () => {
     const error = new LockContentionError('/test/path.txt', 5);
     expect(error).toBeInstanceOf(Error);
+  });
+});
+
+describe('Lock Error Classes', () => {
+  describe('LockError', () => {
+    it('should be base class for lock errors', () => {
+      const error = new LockError('Test message', '/test/path.txt');
+      expect(error.name).toBe('LockError');
+      expect(error.filePath).toBe('/test/path.txt');
+      expect(error.message).toBe('Test message');
+      expect(error).toBeInstanceOf(Error);
+    });
+
+    it('should have stack trace', () => {
+      const error = new LockError('Test', '/path');
+      expect(error.stack).toBeDefined();
+    });
+  });
+
+  describe('LockStolenError', () => {
+    it('should have correct properties with newHolderId', () => {
+      const error = new LockStolenError('/test/path.txt', 'original-holder', 'new-holder');
+
+      expect(error.name).toBe('LockStolenError');
+      expect(error.filePath).toBe('/test/path.txt');
+      expect(error.originalHolderId).toBe('original-holder');
+      expect(error.newHolderId).toBe('new-holder');
+      expect(error.message).toContain('original-holder');
+      expect(error.message).toContain('new-holder');
+    });
+
+    it('should work without newHolderId', () => {
+      const error = new LockStolenError('/test/path.txt', 'original-holder');
+
+      expect(error.name).toBe('LockStolenError');
+      expect(error.originalHolderId).toBe('original-holder');
+      expect(error.newHolderId).toBeUndefined();
+      expect(error.message).toContain('original-holder');
+      expect(error.message).not.toContain('by holder');
+    });
+
+    it('should be instanceof LockError', () => {
+      const error = new LockStolenError('/path', 'holder');
+      expect(error).toBeInstanceOf(LockError);
+    });
+  });
+
+  describe('LockTimeoutError', () => {
+    it('should have correct properties', () => {
+      const error = new LockTimeoutError('/test/path.txt', 5000);
+
+      expect(error.name).toBe('LockTimeoutError');
+      expect(error.filePath).toBe('/test/path.txt');
+      expect(error.timeoutMs).toBe(5000);
+      expect(error.message).toContain('5000');
+      expect(error.message).toContain('timed out');
+    });
+
+    it('should be instanceof LockError', () => {
+      const error = new LockTimeoutError('/path', 1000);
+      expect(error).toBeInstanceOf(LockError);
+    });
   });
 });
