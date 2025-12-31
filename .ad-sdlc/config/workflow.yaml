@@ -13,15 +13,24 @@ global:
   output_docs_dir: "docs"
   log_level: "INFO"  # DEBUG, INFO, WARN, ERROR
 
+  # Approval mode for pipeline execution
+  # - "auto": No approval prompts, fully automated execution (default)
+  # - "manual": Approval required at every gate
+  # - "critical": Only critical stages require approval (before_merge, after_sds)
+  # - "custom": Use individual approval_gates settings below
+  approval_mode: "auto"
+
   # Human-in-the-loop approval gates
+  # Only used when approval_mode is "custom"
+  # Set to true to enable manual review at each stage
   approval_gates:
-    after_collection: true
-    after_prd: true
-    after_srs: true
-    after_github_repo_setup: true
-    after_sds: true
-    after_issues: true
-    before_merge: false  # Auto-merge if all checks pass
+    after_collection: false
+    after_prd: false
+    after_srs: false
+    after_github_repo_setup: false
+    after_sds: false
+    after_issues: false
+    before_merge: false
 
   # Retry policy for agents
   retry_policy:
