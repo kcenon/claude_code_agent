@@ -34,6 +34,7 @@ This documentation provides a comprehensive reference guide for developing AI Ag
 |---|----------|-------------|
 | 06 | [Configuration Guide](06_configuration.md) | Permissions, environment variables, model settings |
 | 07 | [Security Guide](07_security.md) | Isolation, credential protection, auditing |
+| -- | [Headless Execution](../headless-execution.md) | CI/CD integration and automation scripts |
 
 ### Advanced
 
