@@ -17,6 +17,8 @@ import type {
   FileChange,
 } from './types.js';
 import { getCommandSanitizer } from '../security/index.js';
+import { tryJsonParse } from '../utils/SafeJsonParser.js';
+import { SecurityAuditResultSchema } from '../schemas/github.js';
 
 /**
  * Review Checks Options
@@ -1068,25 +1070,11 @@ export class ReviewChecks {
         });
       } else {
         try {
-          const auditResult = JSON.parse(result.stdout) as {
-            metadata?: {
-              vulnerabilities?: {
-                critical?: number;
-                high?: number;
-                moderate?: number;
-                low?: number;
-              };
-            };
-            vulnerabilities?: Record<
-              string,
-              {
-                severity: string;
-                via: Array<{ title?: string; url?: string } | string>;
-              }
-            >;
-          };
+          const auditResult = tryJsonParse(result.stdout, SecurityAuditResultSchema, {
+            context: 'npm audit output',
+          });
 
-          const vulnCounts = auditResult.metadata?.vulnerabilities ?? {
+          const vulnCounts = auditResult?.vulnerabilities ?? {
             critical: 0,
             high: 0,
             moderate: 0,

@@ -10,6 +10,8 @@
 import { mkdir, writeFile, readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { safeJsonParse } from '../utils/SafeJsonParser.js';
+import { ProgressReportSchema } from '../schemas/common.js';
 
 import type {
   WorkerPoolStatus,
@@ -712,7 +714,9 @@ export class ProgressMonitor {
 
     try {
       const content = await readFile(jsonPath, 'utf-8');
-      return JSON.parse(content) as ProgressReport;
+      return safeJsonParse(content, ProgressReportSchema, {
+        context: jsonPath,
+      });
     } catch (error) {
       throw new ProgressReportPersistenceError('load', error instanceof Error ? error : undefined);
     }

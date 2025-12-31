@@ -10,6 +10,8 @@
 import { mkdir, writeFile, readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
+import { safeJsonParse } from '../utils/SafeJsonParser.js';
+import { ControllerStateSchema } from '../schemas/common.js';
 
 import type {
   WorkerInfo,
@@ -561,7 +563,9 @@ export class WorkerPoolManager {
 
     try {
       const content = await readFile(statePath, 'utf-8');
-      const state = JSON.parse(content) as ControllerState;
+      const state = safeJsonParse(content, ControllerStateSchema, {
+        context: statePath,
+      });
 
       if (state.projectId !== projectId) {
         return null;

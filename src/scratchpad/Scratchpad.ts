@@ -67,6 +67,8 @@ import type {
   LockOptions,
 } from './types.js';
 import { LockContentionError } from './errors.js';
+import { tryJsonParse } from '../utils/SafeJsonParser.js';
+import { FileLockSchema } from '../schemas/common.js';
 
 /**
  * Default base path for scratchpad
@@ -751,7 +753,9 @@ export class Scratchpad {
   private async readLock(lockPath: string): Promise<FileLock | null> {
     try {
       const content = await fs.promises.readFile(lockPath, 'utf8');
-      return JSON.parse(content) as FileLock;
+      return tryJsonParse(content, FileLockSchema, {
+        context: lockPath,
+      });
     } catch {
       return null;
     }
