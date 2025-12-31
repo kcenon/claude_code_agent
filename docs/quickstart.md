@@ -188,6 +188,7 @@ claude "Add OAuth2 authentication with Google and GitHub providers"
 ### Learn More
 
 - **[Use Cases](use-cases.md)** - Common scenarios and patterns
+- **[Headless Execution](headless-execution.md)** - CI/CD and automation guide
 - **[FAQ](faq.md)** - Frequently asked questions
 - **[Configuration](reference/06_configuration.md)** - Advanced configuration
 - **[System Architecture](system-architecture.md)** - How it all works
