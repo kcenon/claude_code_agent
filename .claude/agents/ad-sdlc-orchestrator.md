@@ -119,17 +119,18 @@ orchestration_result:
 Execute for new projects without existing documentation or codebase:
 
 ```
-1. mode-detector     → Confirm greenfield mode
-2. collector         → Gather user requirements
-3. prd-writer        → Generate PRD (approval gate)
-4. srs-writer        → Generate SRS (approval gate)
-5. repo-detector     → Check for existing repository
-6. github-repo-setup → Create GitHub repository (if needed)
-7. sds-writer        → Generate SDS (approval gate)
-8. issue-generator   → Create GitHub issues (approval gate)
-9. controller        → Orchestrate work distribution
-10. worker           → Implement features
-11. pr-reviewer      → Review and process PRs
+1. project-initializer → Create .ad-sdlc directory structure
+2. mode-detector       → Confirm greenfield mode
+3. collector           → Gather user requirements
+4. prd-writer          → Generate PRD (approval gate)
+5. srs-writer          → Generate SRS (approval gate)
+6. repo-detector       → Check for existing repository
+7. github-repo-setup   → Create GitHub repository (if needed)
+8. sds-writer          → Generate SDS (approval gate)
+9. issue-generator     → Create GitHub issues (approval gate)
+10. controller         → Orchestrate work distribution
+11. worker             → Implement features
+12. pr-reviewer        → Review and process PRs
 ```
 
 ### Enhancement Pipeline
@@ -137,19 +138,20 @@ Execute for new projects without existing documentation or codebase:
 Execute for existing projects with documentation and codebase:
 
 ```
-1. mode-detector       → Confirm enhancement mode
-2. document-reader     → Analyze existing docs (parallel start)
-3. codebase-analyzer   → Analyze codebase (parallel)
-4. code-reader         → Extract code structure (parallel)
-5. impact-analyzer     → Assess change impact
-6. prd-updater         → Update PRD (approval gate)
-7. srs-updater         → Update SRS (approval gate)
-8. sds-updater         → Update SDS (approval gate)
-9. issue-generator     → Create GitHub issues (approval gate)
-10. controller         → Assign work orders
-11. worker             → Implement changes
-12. regression-tester  → Verify no regressions
-13. pr-reviewer        → Review and merge
+1. project-initializer → Create .ad-sdlc directory structure (if needed)
+2. mode-detector       → Confirm enhancement mode
+3. document-reader     → Analyze existing docs (parallel start)
+4. codebase-analyzer   → Analyze codebase (parallel)
+5. code-reader         → Extract code structure (parallel)
+6. impact-analyzer     → Assess change impact
+7. prd-updater         → Update PRD (approval gate)
+8. srs-updater         → Update SRS (approval gate)
+9. sds-updater         → Update SDS (approval gate)
+10. issue-generator    → Create GitHub issues (approval gate)
+11. controller         → Assign work orders
+12. worker             → Implement changes
+13. regression-tester  → Verify no regressions
+14. pr-reviewer        → Review and merge
 ```
 
 ### Import Pipeline
@@ -157,11 +159,12 @@ Execute for existing projects with documentation and codebase:
 Execute for projects with existing GitHub issues that need implementation:
 
 ```
-1. mode-detector     → Confirm import mode (or auto-detect)
-2. issue-reader      → Import and parse GitHub issues
-3. controller        → Prioritize and assign work orders
-4. worker            → Implement assigned issues (can be parallel)
-5. pr-reviewer       → Review and process PRs
+1. project-initializer → Create .ad-sdlc directory structure (if needed)
+2. mode-detector       → Confirm import mode (or auto-detect)
+3. issue-reader        → Import and parse GitHub issues
+4. controller          → Prioritize and assign work orders
+5. worker              → Implement assigned issues (can be parallel)
+6. pr-reviewer         → Review and process PRs
 ```
 
 ### Import Mode Detection
@@ -198,10 +201,11 @@ import_options:
 │                   Orchestrator Main Workflow                     │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│  1. INITIALIZE                                                  │
-│     ├─ Check project directory exists                           │
-│     ├─ Initialize scratchpad directories                        │
-│     └─ Start orchestration log                                  │
+│  1. PROJECT INITIALIZATION                                      │
+│     ├─ Call project-initializer subagent                        │
+│     ├─ Create .ad-sdlc directory structure                      │
+│     ├─ Generate default config files if needed                  │
+│     └─ Update .gitignore with AD-SDLC entries                   │
 │                                                                 │
 │  2. DETECT MODE                                                 │
 │     ├─ Call mode-detector subagent                              │
@@ -519,20 +523,21 @@ orchestration:
 
 | Agent | Relationship | Data Exchange |
 |-------|--------------|---------------|
-| mode-detector | First call | Mode detection result |
-| collector | Greenfield stage 2 | Collected requirements |
-| prd-writer | Greenfield stage 3 | PRD document |
-| srs-writer | Greenfield stage 4 | SRS document |
-| sds-writer | Greenfield stage 7 | SDS document |
+| project-initializer | First call (all pipelines) | Directory structure, config files |
+| mode-detector | Second call (all pipelines) | Mode detection result |
+| collector | Greenfield stage 3 | Collected requirements |
+| prd-writer | Greenfield stage 4 | PRD document |
+| srs-writer | Greenfield stage 5 | SRS document |
+| sds-writer | Greenfield stage 8 | SDS document |
 | issue-generator | Greenfield/Enhancement | GitHub issues |
-| issue-reader | Import stage 2 | Imported GitHub issues |
+| issue-reader | Import stage 3 | Imported GitHub issues |
 | controller | All pipelines | Work orders |
 | worker | All pipelines | Implementation |
 | pr-reviewer | Final stage | PR reviews |
-| document-reader | Enhancement stage 2 | Existing doc state |
-| codebase-analyzer | Enhancement stage 3 | Code analysis |
-| impact-analyzer | Enhancement stage 5 | Impact report |
-| regression-tester | Enhancement stage 12 | Test results |
+| document-reader | Enhancement stage 3 | Existing doc state |
+| codebase-analyzer | Enhancement stage 4 | Code analysis |
+| impact-analyzer | Enhancement stage 6 | Impact report |
+| regression-tester | Enhancement stage 13 | Test results |
 
 ## Notes
 

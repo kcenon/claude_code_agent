@@ -51,6 +51,36 @@ agents:
   # ---------------------------------------------------------------------------
   # Infrastructure Agents (Pre-pipeline)
   # ---------------------------------------------------------------------------
+  project-initializer:
+    id: "project-initializer"
+    name: "Project Initializer Agent"
+    korean_name: "프로젝트 초기화 에이전트"
+    description: "Creates .ad-sdlc directory structure and initial configuration files"
+    definition_file: ".claude/agents/project-initializer.md"
+    category: "infrastructure"
+    order: -2  # Before mode-detector
+
+    capabilities:
+      - "directory_creation"
+      - "config_generation"
+      - "gitignore_management"
+      - "idempotent_initialization"
+
+    io:
+      inputs:
+        - project_path
+      outputs:
+        - initialization_result.yaml
+
+    metrics:
+      avg_duration_seconds: 5
+      success_rate: 0.99
+
+    token_budget:
+      default_limit: 10000
+      cost_limit_usd: 0.10
+      model_preference: "haiku"
+
   mode-detector:
     id: "mode-detector"
     name: "Mode Detector Agent"
@@ -671,6 +701,14 @@ categories:
       - ad-sdlc-orchestrator
     execution_mode: "sequential"
 
+  infrastructure:
+    name: "Infrastructure"
+    description: "Pre-pipeline agents that setup and detect project state"
+    agents:
+      - project-initializer
+      - mode-detector
+    execution_mode: "sequential"
+
   project_setup:
     name: "Project Setup"
     description: "Agents that setup project infrastructure"
@@ -751,6 +789,10 @@ categories:
 # =============================================================================
 relationships:
   dependencies:
+    mode-detector:
+      requires: [project-initializer]
+    collector:
+      requires: [mode-detector]
     prd-writer:
       requires: [collector]
     srs-writer:
@@ -787,6 +829,10 @@ relationships:
       requires: [codebase-analyzer, worker]
 
   data_flow:
+    - from: project-initializer
+      to: mode-detector
+      data: initialization_result.yaml
+
     - from: collector
       to: prd-writer
       data: collected_info.yaml

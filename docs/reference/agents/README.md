@@ -50,6 +50,7 @@ This directory contains detailed reference documentation for all AD-SDLC agents.
 
 | Agent | File | Description |
 |-------|------|-------------|
+| Project Initializer | [project-initializer.md](./project-initializer.md) | Creates .ad-sdlc directory structure and config files |
 | Mode Detector | [mode-detector.md](./mode-detector.md) | Detects greenfield vs enhancement mode |
 | Repo Detector | [repo-detector.md](./repo-detector.md) | Detects existing vs new repository |
 | GitHub Repo Setup | [github-repo-setup.md](./github-repo-setup.md) | Creates and configures GitHub repository |
@@ -172,46 +173,50 @@ AD-SDLC Orchestrator
 ### Agent Execution Order (Greenfield)
 
 ```
-1. Mode Detector
-2. Collector
-3. PRD Writer
-4. SRS Writer
-5. Repo Detector
-6. GitHub Repo Setup  (conditional: skipped if existing repo)
-7. SDS Writer
-8. Issue Generator
-9. Controller
-10. Worker(s) [parallel]
-11. PR Reviewer
+1. Project Initializer  # Creates .ad-sdlc directory structure
+2. Mode Detector
+3. Collector
+4. PRD Writer
+5. SRS Writer
+6. Repo Detector
+7. GitHub Repo Setup  (conditional: skipped if existing repo)
+8. SDS Writer
+9. Issue Generator
+10. Controller
+11. Worker(s) [parallel]
+12. PR Reviewer
 ```
 
 ### Agent Execution Order (Enhancement)
 
 ```
-1. Document Reader  ┐
+1. Project Initializer  # Creates .ad-sdlc directory structure (if needed)
+2. Mode Detector
+3. Document Reader  ┐
    Codebase Analyzer├── [parallel]
    Code Reader      ┘
-2. Doc-Code Comparator
-3. Impact Analyzer
-4. PRD Updater
-5. SRS Updater
-6. SDS Updater
-7. Issue Generator
-8. Controller
-9. Worker(s)        ┐
-   Regression Tester├── [parallel]
-10. PR Reviewer     ┘
-11. CI Fixer        # On CI failure (delegated from PR Reviewer)
+4. Doc-Code Comparator
+5. Impact Analyzer
+6. PRD Updater
+7. SRS Updater
+8. SDS Updater
+9. Issue Generator
+10. Controller
+11. Worker(s)        ┐
+    Regression Tester├── [parallel]
+12. PR Reviewer      ┘
+13. CI Fixer         # On CI failure (delegated from PR Reviewer)
 ```
 
 ### Agent Execution Order (Import)
 
 ```
-1. Mode Detector    # Confirms import mode (auto-detect or explicit)
-2. Issue Reader     # Imports existing GitHub issues (with optional filters)
-3. Controller       # Orchestrates work distribution
-4. Worker(s) [parallel]
-5. PR Reviewer
+1. Project Initializer  # Creates .ad-sdlc directory structure (if needed)
+2. Mode Detector        # Confirms import mode (auto-detect or explicit)
+3. Issue Reader         # Imports existing GitHub issues (with optional filters)
+4. Controller           # Orchestrates work distribution
+5. Worker(s) [parallel]
+6. PR Reviewer
 ```
 
 **Import Mode Detection Keywords:**
@@ -239,6 +244,7 @@ AD-SDLC Orchestrator
 | Agent | Tools |
 |-------|-------|
 | AD-SDLC Orchestrator | Read, Write, Glob, Grep, Bash, Task |
+| Project Initializer | Read, Write, Bash, Glob |
 | Mode Detector | Read, Glob |
 | Repo Detector | Read, Bash (git, gh), Glob |
 | GitHub Repo Setup | Read, Write, Edit, Bash (gh, git), Glob, Grep |
