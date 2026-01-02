@@ -702,10 +702,7 @@ export class AnalysisOrchestratorAgent {
 
         if (retryCount <= this.config.maxRetries) {
           // Exponential backoff with cap at 30 seconds
-          const delay = Math.min(
-            this.config.retryDelayMs * Math.pow(2, retryCount - 1),
-            30000
-          );
+          const delay = Math.min(this.config.retryDelayMs * Math.pow(2, retryCount - 1), 30000);
           await this.delay(delay);
         }
       }
