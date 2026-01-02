@@ -763,11 +763,7 @@ export class AnalysisOrchestratorAgent {
    * Get timeout for a specific stage
    */
   private getStageTimeout(stageName: PipelineStageName): number {
-    const stageTimeout = this.stageTimeouts[stageName];
-    if (stageTimeout !== undefined) {
-      return stageTimeout;
-    }
-    return this.config.stageTimeoutMs;
+    return this.stageTimeouts[stageName];
   }
 
   private async runStageExecutor(
