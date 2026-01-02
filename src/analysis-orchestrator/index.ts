@@ -35,6 +35,8 @@ export type {
   AnalysisReport,
   // Configuration types
   AnalysisOrchestratorConfig,
+  StageTimeoutConfig,
+  CircuitBreakerConfig,
   // Input types
   AnalysisInput,
   // Session types
@@ -48,7 +50,11 @@ export type {
 } from './types.js';
 
 // Constants
-export { DEFAULT_ORCHESTRATOR_CONFIG } from './types.js';
+export {
+  DEFAULT_ORCHESTRATOR_CONFIG,
+  DEFAULT_STAGE_TIMEOUTS,
+  DEFAULT_CIRCUIT_BREAKER_CONFIG,
+} from './types.js';
 
 // Error exports
 export {
@@ -59,6 +65,7 @@ export {
   InvalidProjectStructureError,
   StageExecutionError,
   StageTimeoutError,
+  CircuitOpenError,
   InvalidPipelineStateError,
   StageDependencyError,
   OutputWriteError,
