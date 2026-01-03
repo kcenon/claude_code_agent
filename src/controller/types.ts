@@ -490,7 +490,7 @@ export interface ProgressReport {
 export interface ProgressMonitorConfig {
   /** Polling interval in milliseconds (default: 30000 = 30 seconds) */
   readonly pollingInterval?: number;
-  /** Threshold for stuck worker detection in milliseconds (default: 120000 = 2 minutes) */
+  /** Threshold for stuck worker detection in milliseconds (default: 1800000 = 30 minutes) */
   readonly stuckWorkerThreshold?: number;
   /** Maximum number of recent activities to track (default: 50) */
   readonly maxRecentActivities?: number;
@@ -503,13 +503,13 @@ export interface ProgressMonitorConfig {
 /**
  * Default progress monitor configuration
  *
- * Note: stuckWorkerThreshold reduced from 30 minutes to 2 minutes
- * since WorkerHealthMonitor now provides faster zombie detection
- * via heartbeat mechanism.
+ * Note: For faster zombie detection, use WorkerHealthMonitor which
+ * provides heartbeat-based detection with configurable thresholds.
+ * The stuckWorkerThreshold here is for progress monitoring purposes.
  */
 export const DEFAULT_PROGRESS_MONITOR_CONFIG: Required<ProgressMonitorConfig> = {
   pollingInterval: 30000, // 30 seconds
-  stuckWorkerThreshold: 120000, // 2 minutes (reduced from 30 minutes)
+  stuckWorkerThreshold: 1800000, // 30 minutes
   maxRecentActivities: 50,
   reportPath: '.ad-sdlc/scratchpad/progress',
   enableNotifications: true,
