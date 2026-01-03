@@ -368,7 +368,9 @@ export class WorkerRestartError extends ControllerError {
 
   constructor(workerId: string, attemptCount: number, cause?: Error) {
     const causeMessage = cause !== undefined ? `: ${cause.message}` : '';
-    super(`Failed to restart worker ${workerId} after ${String(attemptCount)} attempts${causeMessage}`);
+    super(
+      `Failed to restart worker ${workerId} after ${String(attemptCount)} attempts${causeMessage}`
+    );
     this.name = 'WorkerRestartError';
     this.workerId = workerId;
     this.attemptCount = attemptCount;

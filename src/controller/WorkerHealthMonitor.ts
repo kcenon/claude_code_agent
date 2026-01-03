@@ -19,10 +19,7 @@ import type {
   WorkerInfo,
 } from './types.js';
 import { DEFAULT_HEALTH_CHECK_CONFIG } from './types.js';
-import {
-  HealthMonitorAlreadyRunningError,
-  HealthMonitorNotRunningError,
-} from './errors.js';
+import { HealthMonitorAlreadyRunningError, HealthMonitorNotRunningError } from './errors.js';
 
 /**
  * Internal mutable worker health state
@@ -39,10 +36,7 @@ interface MutableWorkerHealthState {
 /**
  * Callback type for zombie worker handling
  */
-export type ZombieWorkerHandler = (
-  workerId: string,
-  currentTask: string | null
-) => Promise<void>;
+export type ZombieWorkerHandler = (workerId: string, currentTask: string | null) => Promise<void>;
 
 /**
  * Callback type for worker restart
@@ -86,8 +80,7 @@ export class WorkerHealthMonitor {
       memoryThresholdBytes:
         config.memoryThresholdBytes ?? DEFAULT_HEALTH_CHECK_CONFIG.memoryThresholdBytes,
       maxRestarts: config.maxRestarts ?? DEFAULT_HEALTH_CHECK_CONFIG.maxRestarts,
-      restartCooldownMs:
-        config.restartCooldownMs ?? DEFAULT_HEALTH_CHECK_CONFIG.restartCooldownMs,
+      restartCooldownMs: config.restartCooldownMs ?? DEFAULT_HEALTH_CHECK_CONFIG.restartCooldownMs,
     };
 
     this.workerStates = new Map();
@@ -204,9 +197,7 @@ export class WorkerHealthMonitor {
   /**
    * Perform periodic health check on all workers
    */
-  private async performHealthCheck(
-    getActiveWorkers: () => readonly WorkerInfo[]
-  ): Promise<void> {
+  private async performHealthCheck(getActiveWorkers: () => readonly WorkerInfo[]): Promise<void> {
     const now = Date.now();
     const activeWorkers = getActiveWorkers();
 
@@ -226,10 +217,7 @@ export class WorkerHealthMonitor {
   /**
    * Check health of a single worker
    */
-  private async checkWorkerHealth(
-    state: MutableWorkerHealthState,
-    now: number
-  ): Promise<void> {
+  private async checkWorkerHealth(state: MutableWorkerHealthState, now: number): Promise<void> {
     // Skip workers that are already being restarted
     if (state.healthStatus === 'restarting') {
       return;
@@ -242,9 +230,7 @@ export class WorkerHealthMonitor {
     } else {
       // Calculate missed heartbeats based on time since last heartbeat
       const timeSinceHeartbeat = now - state.lastHeartbeat.timestamp;
-      const expectedHeartbeats = Math.floor(
-        timeSinceHeartbeat / this.config.heartbeatIntervalMs
-      );
+      const expectedHeartbeats = Math.floor(timeSinceHeartbeat / this.config.heartbeatIntervalMs);
 
       if (expectedHeartbeats > 0) {
         state.missedHeartbeats = expectedHeartbeats;
@@ -324,10 +310,7 @@ export class WorkerHealthMonitor {
     const now = Date.now();
 
     // Check restart cooldown
-    if (
-      state.lastRestartAt !== null &&
-      now - state.lastRestartAt < this.config.restartCooldownMs
-    ) {
+    if (state.lastRestartAt !== null && now - state.lastRestartAt < this.config.restartCooldownMs) {
       return; // Still in cooldown
     }
 
