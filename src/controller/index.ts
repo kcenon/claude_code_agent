@@ -10,6 +10,12 @@
 export { PriorityAnalyzer } from './PriorityAnalyzer.js';
 export { WorkerPoolManager } from './WorkerPoolManager.js';
 export { ProgressMonitor } from './ProgressMonitor.js';
+export { WorkerHealthMonitor } from './WorkerHealthMonitor.js';
+export type {
+  ZombieWorkerHandler,
+  WorkerRestartHandler,
+  TaskReassignmentHandler,
+} from './WorkerHealthMonitor.js';
 
 export type {
   // Priority Analyzer types
@@ -50,6 +56,15 @@ export type {
   ProgressEventType,
   ProgressEvent,
   ProgressEventCallback,
+  // Worker Health Check types
+  WorkerHealthStatus,
+  WorkerHeartbeat,
+  HealthCheckConfig,
+  WorkerHealthInfo,
+  HealthMonitorStatus,
+  HealthEventType,
+  HealthEvent,
+  HealthEventCallback,
 } from './types.js';
 
 export {
@@ -57,6 +72,7 @@ export {
   DEFAULT_ANALYZER_CONFIG,
   DEFAULT_WORKER_POOL_CONFIG,
   DEFAULT_PROGRESS_MONITOR_CONFIG,
+  DEFAULT_HEALTH_CHECK_CONFIG,
 } from './types.js';
 
 export {
@@ -84,4 +100,11 @@ export {
   ProgressMonitorNotRunningError,
   ProgressReportGenerationError,
   ProgressReportPersistenceError,
+  // Worker Health Check errors
+  HealthMonitorAlreadyRunningError,
+  HealthMonitorNotRunningError,
+  ZombieWorkerError,
+  WorkerRestartError,
+  MaxRestartsExceededError,
+  TaskReassignmentError,
 } from './errors.js';

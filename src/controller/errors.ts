@@ -307,3 +307,110 @@ export class ProgressReportPersistenceError extends ControllerError {
     this.cause = cause;
   }
 }
+
+// ============================================================================
+// Worker Health Check Errors
+// ============================================================================
+
+/**
+ * Error thrown when health monitor is already running
+ */
+export class HealthMonitorAlreadyRunningError extends ControllerError {
+  constructor() {
+    super('Health monitor is already running');
+    this.name = 'HealthMonitorAlreadyRunningError';
+  }
+}
+
+/**
+ * Error thrown when health monitor is not running
+ */
+export class HealthMonitorNotRunningError extends ControllerError {
+  constructor() {
+    super('Health monitor is not running');
+    this.name = 'HealthMonitorNotRunningError';
+  }
+}
+
+/**
+ * Error thrown when a zombie worker is detected
+ */
+export class ZombieWorkerError extends ControllerError {
+  /** The worker ID that became zombie */
+  public readonly workerId: string;
+  /** Number of missed heartbeats */
+  public readonly missedHeartbeats: number;
+  /** The task that was being processed */
+  public readonly currentTask: string | undefined;
+
+  constructor(workerId: string, missedHeartbeats: number, currentTask?: string) {
+    const taskMessage = currentTask !== undefined ? ` (processing ${currentTask})` : '';
+    super(
+      `Worker ${workerId} became zombie after ${String(missedHeartbeats)} missed heartbeats${taskMessage}`
+    );
+    this.name = 'ZombieWorkerError';
+    this.workerId = workerId;
+    this.missedHeartbeats = missedHeartbeats;
+    this.currentTask = currentTask;
+  }
+}
+
+/**
+ * Error thrown when worker restart fails
+ */
+export class WorkerRestartError extends ControllerError {
+  /** The worker ID that failed to restart */
+  public readonly workerId: string;
+  /** Number of restart attempts */
+  public readonly attemptCount: number;
+  /** The underlying error */
+  public readonly cause: Error | undefined;
+
+  constructor(workerId: string, attemptCount: number, cause?: Error) {
+    const causeMessage = cause !== undefined ? `: ${cause.message}` : '';
+    super(
+      `Failed to restart worker ${workerId} after ${String(attemptCount)} attempts${causeMessage}`
+    );
+    this.name = 'WorkerRestartError';
+    this.workerId = workerId;
+    this.attemptCount = attemptCount;
+    this.cause = cause;
+  }
+}
+
+/**
+ * Error thrown when max restarts exceeded
+ */
+export class MaxRestartsExceededError extends ControllerError {
+  /** The worker ID */
+  public readonly workerId: string;
+  /** Maximum restart limit */
+  public readonly maxRestarts: number;
+
+  constructor(workerId: string, maxRestarts: number) {
+    super(`Worker ${workerId} exceeded maximum restart limit of ${String(maxRestarts)}`);
+    this.name = 'MaxRestartsExceededError';
+    this.workerId = workerId;
+    this.maxRestarts = maxRestarts;
+  }
+}
+
+/**
+ * Error thrown when task reassignment fails
+ */
+export class TaskReassignmentError extends ControllerError {
+  /** The task/issue ID that failed to reassign */
+  public readonly taskId: string;
+  /** The original worker ID */
+  public readonly fromWorkerId: string;
+  /** Reason for failure */
+  public readonly reason: string;
+
+  constructor(taskId: string, fromWorkerId: string, reason: string) {
+    super(`Failed to reassign task ${taskId} from worker ${fromWorkerId}: ${reason}`);
+    this.name = 'TaskReassignmentError';
+    this.taskId = taskId;
+    this.fromWorkerId = fromWorkerId;
+    this.reason = reason;
+  }
+}

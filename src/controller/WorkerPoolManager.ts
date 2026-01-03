@@ -11,9 +11,14 @@
  * - Database-backed state management
  * - File-based locking via Scratchpad's withLock
  *
- * TODO(P2): Implement worker health checks with heartbeat mechanism
- * Workers can become unresponsive without the pool knowing. Add periodic
- * health checks to detect and recover from stuck workers.
+ * DONE(P2): Worker health checks implemented via WorkerHealthMonitor
+ * See WorkerHealthMonitor.ts for heartbeat-based zombie detection
+ * and automatic worker recovery. Integration methods added:
+ * - markWorkerZombie(): Mark worker as zombie
+ * - getWorkerTask(): Get current worker task
+ * - reassignTask(): Reassign task from zombie worker
+ * - respawnWorker(): Reset worker to healthy state
+ * - getActiveWorkers(): Get workers for health monitoring
  *
  * TODO(P3): Add worker pool metrics and observability
  * Expose metrics like worker utilization, queue depth, average task duration
@@ -645,5 +650,96 @@ export class WorkerPoolManager {
       worker.completedTasks = 0;
       delete worker.lastError;
     }
+  }
+
+  // ============================================================================
+  // Worker Health Check Support Methods
+  // ============================================================================
+
+  /**
+   * Mark a worker as zombie and remove from active pool
+   * @param workerId Worker to mark as zombie
+   * @returns The issue ID that was being processed, if any
+   */
+  public markWorkerZombie(workerId: string): string | null {
+    const worker = this.workers.get(workerId);
+    if (worker === undefined) {
+      throw new WorkerNotFoundError(workerId);
+    }
+
+    const currentIssue = worker.currentIssue;
+
+    // Mark worker as error state (closest equivalent to zombie)
+    worker.status = 'error';
+    worker.lastError = 'Worker became unresponsive (zombie)';
+
+    return currentIssue;
+  }
+
+  /**
+   * Get the current task/issue assigned to a worker
+   * @param workerId Worker ID to check
+   * @returns The issue ID being processed, or null if idle
+   */
+  public getWorkerTask(workerId: string): string | null {
+    const worker = this.workers.get(workerId);
+    if (worker === undefined) {
+      throw new WorkerNotFoundError(workerId);
+    }
+
+    return worker.currentIssue;
+  }
+
+  /**
+   * Reassign a task from one worker to another available worker
+   * @param issueId Issue to reassign
+   * @returns The new worker ID if reassigned, null if no worker available
+   */
+  public reassignTask(issueId: string): string | null {
+    // Find the work order
+    const workOrder = this.findOrderByIssueId(issueId);
+    if (workOrder === undefined) {
+      return null;
+    }
+
+    // Find available worker
+    const availableWorkerId = this.getAvailableSlot();
+    if (availableWorkerId === null) {
+      // Re-queue the task for later processing
+      const order = this.workOrders.get(workOrder.orderId);
+      if (order !== undefined) {
+        this.enqueue(issueId, order.priority);
+      }
+      return null;
+    }
+
+    // Assign to new worker
+    this.assignWork(availableWorkerId, workOrder);
+
+    return availableWorkerId;
+  }
+
+  /**
+   * Respawn a worker (reset to idle state for health recovery)
+   * @param workerId Worker to respawn
+   */
+  public respawnWorker(workerId: string): void {
+    const worker = this.workers.get(workerId);
+    if (worker === undefined) {
+      throw new WorkerNotFoundError(workerId);
+    }
+
+    // Reset worker to idle state
+    worker.status = 'idle';
+    worker.currentIssue = null;
+    worker.startedAt = null;
+    delete worker.lastError;
+  }
+
+  /**
+   * Get all active workers (for health monitoring)
+   */
+  public getActiveWorkers(): readonly WorkerInfo[] {
+    return Array.from(this.workers.values()).map((w) => this.toWorkerInfo(w));
   }
 }

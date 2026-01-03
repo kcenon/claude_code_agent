@@ -480,6 +480,8 @@ export interface ProgressReport {
   readonly bottlenecks: readonly Bottleneck[];
   /** Recent activity log */
   readonly recentActivity: readonly RecentActivity[];
+  /** Worker health status (optional, from WorkerHealthMonitor) */
+  readonly workerHealth?: HealthMonitorStatus;
 }
 
 /**
@@ -500,6 +502,10 @@ export interface ProgressMonitorConfig {
 
 /**
  * Default progress monitor configuration
+ *
+ * Note: For faster zombie detection, use WorkerHealthMonitor which
+ * provides heartbeat-based detection with configurable thresholds.
+ * The stuckWorkerThreshold here is for progress monitoring purposes.
  */
 export const DEFAULT_PROGRESS_MONITOR_CONFIG: Required<ProgressMonitorConfig> = {
   pollingInterval: 30000, // 30 seconds
@@ -536,3 +542,134 @@ export interface ProgressEvent {
  * Progress event callback
  */
 export type ProgressEventCallback = (event: ProgressEvent) => void | Promise<void>;
+
+// ============================================================================
+// Worker Health Check Types
+// ============================================================================
+
+/**
+ * Worker health status
+ */
+export type WorkerHealthStatus = 'healthy' | 'degraded' | 'zombie' | 'restarting';
+
+/**
+ * Worker heartbeat signal
+ */
+export interface WorkerHeartbeat {
+  /** Worker unique identifier */
+  readonly workerId: string;
+  /** Timestamp of heartbeat */
+  readonly timestamp: number;
+  /** Current task being processed */
+  readonly currentTask?: string;
+  /** Task progress (0-100) */
+  readonly progress?: number;
+  /** Memory usage in bytes */
+  readonly memoryUsage: number;
+  /** CPU usage percentage (0-100) */
+  readonly cpuUsage?: number;
+  /** Worker status */
+  readonly status: 'idle' | 'busy' | 'draining';
+}
+
+/**
+ * Health check configuration
+ */
+export interface HealthCheckConfig {
+  /** Heartbeat interval in ms (default: 10000) */
+  readonly heartbeatIntervalMs?: number;
+  /** Health check interval in ms (default: 30000) */
+  readonly healthCheckIntervalMs?: number;
+  /** Missed heartbeats before zombie (default: 3) */
+  readonly missedHeartbeatThreshold?: number;
+  /** Memory threshold in bytes (default: 1GB) */
+  readonly memoryThresholdBytes?: number;
+  /** Max worker restarts (default: 3) */
+  readonly maxRestarts?: number;
+  /** Restart cooldown in ms (default: 60000) */
+  readonly restartCooldownMs?: number;
+}
+
+/**
+ * Default health check configuration
+ */
+export const DEFAULT_HEALTH_CHECK_CONFIG: Required<HealthCheckConfig> = {
+  heartbeatIntervalMs: 10000, // 10 seconds
+  healthCheckIntervalMs: 30000, // 30 seconds
+  missedHeartbeatThreshold: 3,
+  memoryThresholdBytes: 1073741824, // 1GB
+  maxRestarts: 3,
+  restartCooldownMs: 60000, // 1 minute
+} as const;
+
+/**
+ * Worker health information
+ */
+export interface WorkerHealthInfo {
+  /** Worker ID */
+  readonly workerId: string;
+  /** Current health status */
+  readonly healthStatus: WorkerHealthStatus;
+  /** Last heartbeat timestamp */
+  readonly lastHeartbeat: number | null;
+  /** Number of missed heartbeats */
+  readonly missedHeartbeats: number;
+  /** Current memory usage in bytes */
+  readonly memoryUsage: number;
+  /** Restart count */
+  readonly restartCount: number;
+  /** Last restart timestamp */
+  readonly lastRestartAt: number | null;
+}
+
+/**
+ * Health monitor status snapshot
+ */
+export interface HealthMonitorStatus {
+  /** Whether monitoring is active */
+  readonly isActive: boolean;
+  /** Total workers being monitored */
+  readonly totalWorkers: number;
+  /** Healthy worker count */
+  readonly healthyCount: number;
+  /** Degraded worker count */
+  readonly degradedCount: number;
+  /** Zombie worker count */
+  readonly zombieCount: number;
+  /** Workers in restart state */
+  readonly restartingCount: number;
+  /** Individual worker health info */
+  readonly workers: readonly WorkerHealthInfo[];
+}
+
+/**
+ * Health event types for notifications
+ */
+export type HealthEventType =
+  | 'heartbeat_received'
+  | 'heartbeat_missed'
+  | 'zombie_detected'
+  | 'worker_restarting'
+  | 'worker_restarted'
+  | 'worker_restart_failed'
+  | 'task_reassigned'
+  | 'memory_threshold_exceeded';
+
+/**
+ * Health event for notifications
+ */
+export interface HealthEvent {
+  /** Event type */
+  readonly type: HealthEventType;
+  /** Event timestamp */
+  readonly timestamp: string;
+  /** Worker ID involved */
+  readonly workerId: string;
+  /** Additional event data */
+  readonly data: Record<string, unknown>;
+}
+
+/**
+ * Health event callback
+ */
+export type HealthEventCallback = (event: HealthEvent) => void | Promise<void>;
