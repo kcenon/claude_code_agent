@@ -826,9 +826,19 @@ describe('Multi-Agent Orchestration', () => {
       const graphPath = path.join(testDir, 'circular-graph.json');
       fs.writeFileSync(graphPath, JSON.stringify(graph, null, 2));
 
-      // When/Then: Should throw CircularDependencyError
+      // When: Analyze graph with cycles
       const loadedGraph = await analyzer.loadGraph(graphPath);
-      expect(() => analyzer.analyze(loadedGraph)).toThrow('Circular dependency');
+      const result = analyzer.analyze(loadedGraph);
+
+      // Then: Should detect cycles gracefully without throwing
+      expect(result.cycles.length).toBeGreaterThan(0);
+      expect(result.blockedByCycle.length).toBeGreaterThan(0);
+      expect(analyzer.hasCycles()).toBe(true);
+
+      // All nodes in the cycle should be blocked
+      expect(result.blockedByCycle).toContain('ISS-001');
+      expect(result.blockedByCycle).toContain('ISS-002');
+      expect(result.blockedByCycle).toContain('ISS-003');
     });
   });
 

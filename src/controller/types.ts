@@ -138,6 +138,25 @@ export interface PrioritizedQueue {
 }
 
 /**
+ * Cycle status for graceful cycle handling
+ */
+export type CycleStatus = 'detected' | 'breaking' | 'resolved' | 'escalated';
+
+/**
+ * Information about a detected circular dependency
+ */
+export interface CycleInfo {
+  /** Node IDs forming the cycle (includes closing node) */
+  readonly nodes: readonly string[];
+  /** When the cycle was detected */
+  readonly detectedAt: Date;
+  /** Current status of cycle handling */
+  readonly status: CycleStatus;
+  /** If cycle was broken, which edge was removed */
+  readonly breakpoint?: string;
+}
+
+/**
  * Graph analysis result
  */
 export interface GraphAnalysisResult {
@@ -153,6 +172,10 @@ export interface GraphAnalysisResult {
   readonly prioritizedQueue: PrioritizedQueue;
   /** Graph statistics */
   readonly statistics: GraphStatistics;
+  /** Detected cycles (empty if no cycles) */
+  readonly cycles: readonly CycleInfo[];
+  /** Issue IDs blocked by circular dependencies */
+  readonly blockedByCycle: readonly string[];
 }
 
 /**

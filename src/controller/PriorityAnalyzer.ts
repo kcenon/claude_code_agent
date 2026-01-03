@@ -21,10 +21,10 @@ import type {
   GraphStatistics,
   PriorityAnalyzerConfig,
   IssueStatus,
+  CycleInfo,
 } from './types.js';
 import { DEFAULT_ANALYZER_CONFIG } from './types.js';
 import {
-  CircularDependencyError,
   EmptyGraphError,
   GraphNotFoundError,
   GraphParseError,
@@ -46,6 +46,7 @@ interface InternalNode {
   priorityScore: number;
   isOnCriticalPath: boolean;
   longestPath: number;
+  isBlockedByCycle: boolean;
 }
 
 /**
@@ -55,6 +56,8 @@ export class PriorityAnalyzer {
   private readonly config: Required<PriorityAnalyzerConfig>;
   private nodes: Map<string, InternalNode> = new Map();
   private criticalPathIds: Set<string> = new Set();
+  private detectedCycles: CycleInfo[] = [];
+  private blockedByCycleIds: Set<string> = new Set();
 
   constructor(config: PriorityAnalyzerConfig = {}) {
     this.config = {
@@ -273,10 +276,16 @@ export class PriorityAnalyzer {
 
   /**
    * Analyze a dependency graph and compute prioritization
+   *
+   * Gracefully handles circular dependencies by:
+   * 1. Detecting all cycles without throwing
+   * 2. Marking cyclic nodes as blocked
+   * 3. Propagating blocking to dependent nodes
+   * 4. Continuing analysis for non-blocked nodes
+   *
    * @param graph - The dependency graph to analyze
-   * @returns Complete analysis result
+   * @returns Complete analysis result including cycle information
    * @throws EmptyGraphError if graph has no nodes
-   * @throws CircularDependencyError if cycles are detected
    */
   public analyze(graph: RawDependencyGraph): GraphAnalysisResult {
     if (graph.nodes.length === 0) {
@@ -307,6 +316,8 @@ export class PriorityAnalyzer {
       criticalPath: this.buildCriticalPath(),
       prioritizedQueue,
       statistics,
+      cycles: [...this.detectedCycles],
+      blockedByCycle: Array.from(this.blockedByCycleIds),
     };
   }
 
@@ -316,6 +327,8 @@ export class PriorityAnalyzer {
   private reset(): void {
     this.nodes.clear();
     this.criticalPathIds.clear();
+    this.detectedCycles = [];
+    this.blockedByCycleIds.clear();
   }
 
   /**
@@ -335,6 +348,7 @@ export class PriorityAnalyzer {
         priorityScore: 0,
         isOnCriticalPath: false,
         longestPath: 0,
+        isBlockedByCycle: false,
       });
     }
 
@@ -353,7 +367,8 @@ export class PriorityAnalyzer {
 
   /**
    * Detect circular dependencies using DFS
-   * @throws CircularDependencyError if a cycle is detected
+   * Instead of throwing, cycles are recorded and nodes are marked as blocked.
+   * This allows partial execution of non-cyclic nodes.
    */
   private detectCycles(): void {
     for (const node of this.nodes.values()) {
@@ -366,10 +381,14 @@ export class PriorityAnalyzer {
         this.dfsDetectCycle(node, []);
       }
     }
+
+    // After detecting all cycles, propagate blocking to dependent nodes
+    this.propagateBlocking();
   }
 
   /**
    * DFS helper for cycle detection
+   * Records cycles instead of throwing exceptions
    */
   private dfsDetectCycle(node: InternalNode, path: string[]): void {
     node.visited = true;
@@ -383,13 +402,52 @@ export class PriorityAnalyzer {
       if (!depNode.visited) {
         this.dfsDetectCycle(depNode, [...path]);
       } else if (depNode.inStack) {
+        // Found a cycle - record it instead of throwing
         const cycleStart = path.indexOf(depId);
-        const cycle = [...path.slice(cycleStart), depId];
-        throw new CircularDependencyError(cycle);
+        const cycleNodes = [...path.slice(cycleStart), depId];
+
+        // Record the cycle
+        this.detectedCycles.push({
+          nodes: cycleNodes,
+          detectedAt: new Date(),
+          status: 'detected',
+        });
+
+        // Mark all nodes in the cycle as blocked
+        for (const cycleNodeId of cycleNodes) {
+          this.blockedByCycleIds.add(cycleNodeId);
+          const cycleNode = this.nodes.get(cycleNodeId);
+          if (cycleNode !== undefined) {
+            cycleNode.isBlockedByCycle = true;
+          }
+        }
       }
     }
 
     node.inStack = false;
+  }
+
+  /**
+   * Propagate blocking status to nodes that depend on blocked nodes
+   * A node is blocked if any of its dependencies are blocked by a cycle
+   */
+  private propagateBlocking(): void {
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const node of this.nodes.values()) {
+        if (node.isBlockedByCycle) continue;
+
+        for (const depId of node.dependencies) {
+          if (this.blockedByCycleIds.has(depId)) {
+            node.isBlockedByCycle = true;
+            this.blockedByCycleIds.add(node.id);
+            changed = true;
+            break;
+          }
+        }
+      }
+    }
   }
 
   /**
@@ -881,5 +939,54 @@ export class PriorityAnalyzer {
       byPriority,
       byStatus,
     };
+  }
+
+  // ============================================================================
+  // Cycle Detection Public API
+  // ============================================================================
+
+  /**
+   * Get all detected cycles in the graph
+   * @returns Array of cycle information
+   */
+  public getCycles(): readonly CycleInfo[] {
+    return [...this.detectedCycles];
+  }
+
+  /**
+   * Check if the graph has any circular dependencies
+   * @returns true if cycles were detected
+   */
+  public hasCycles(): boolean {
+    return this.detectedCycles.length > 0;
+  }
+
+  /**
+   * Check if a specific issue is blocked by a circular dependency
+   * @param issueId - The issue ID to check
+   * @returns true if the issue is blocked by a cycle
+   */
+  public isBlockedByCycle(issueId: string): boolean {
+    return this.blockedByCycleIds.has(issueId);
+  }
+
+  /**
+   * Get all issue IDs that are blocked by circular dependencies
+   * This includes both nodes directly in cycles and nodes that depend on cyclic nodes
+   * @returns Array of blocked issue IDs
+   */
+  public getBlockedByCycle(): readonly string[] {
+    return Array.from(this.blockedByCycleIds);
+  }
+
+  /**
+   * Get issues that can be executed (not blocked by cycles)
+   * @returns Array of executable issue IDs sorted by priority
+   */
+  public getExecutableIssues(): readonly string[] {
+    return Array.from(this.nodes.values())
+      .filter((n) => !n.isBlockedByCycle)
+      .sort((a, b) => b.priorityScore - a.priorityScore)
+      .map((n) => n.id);
   }
 }
