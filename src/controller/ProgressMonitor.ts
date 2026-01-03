@@ -24,6 +24,7 @@ import type {
   ProgressEventType,
   ProgressEventCallback,
   WorkQueueEntry,
+  HealthMonitorStatus,
 } from './types.js';
 import { DEFAULT_PROGRESS_MONITOR_CONFIG } from './types.js';
 import {
@@ -59,6 +60,11 @@ interface MutableRecentActivity {
  * Monitors worker pool progress at regular intervals, detects bottlenecks,
  * and generates progress reports.
  */
+/**
+ * Function type to get health monitor status
+ */
+type GetHealthStatusFn = () => HealthMonitorStatus;
+
 export class ProgressMonitor {
   private readonly config: Required<ProgressMonitorConfig>;
   private readonly sessionId: string;
@@ -74,6 +80,8 @@ export class ProgressMonitor {
   private completedCount: number;
   private failedCount: number;
   private lastWorkerStatus: Map<string, { status: string; currentIssue: string | null }>;
+
+  private getHealthStatus?: GetHealthStatusFn;
 
   constructor(sessionId: string, config: ProgressMonitorConfig = {}) {
     this.config = {
@@ -558,6 +566,14 @@ export class ProgressMonitor {
   }
 
   /**
+   * Set a health status provider function
+   * This allows integration with WorkerHealthMonitor
+   */
+  public setHealthStatusProvider(provider: GetHealthStatusFn): void {
+    this.getHealthStatus = provider;
+  }
+
+  /**
    * Generate a progress report
    */
   public generateReport(
@@ -565,7 +581,7 @@ export class ProgressMonitor {
     workerStatus: WorkerPoolStatus,
     bottlenecks: readonly Bottleneck[]
   ): ProgressReport {
-    return {
+    const report: ProgressReport = {
       sessionId: this.sessionId,
       generatedAt: new Date().toISOString(),
       metrics,
@@ -573,6 +589,16 @@ export class ProgressMonitor {
       bottlenecks,
       recentActivity: this.recentActivities.map((a) => ({ ...a })),
     };
+
+    // Include health status if available
+    if (this.getHealthStatus !== undefined) {
+      return {
+        ...report,
+        workerHealth: this.getHealthStatus(),
+      };
+    }
+
+    return report;
   }
 
   /**
@@ -618,6 +644,32 @@ export class ProgressMonitor {
       );
     }
     lines.push('');
+
+    // Worker Health (if available)
+    if (report.workerHealth !== undefined) {
+      lines.push('## Worker Health');
+      lines.push('');
+      lines.push('| Status | Count |');
+      lines.push('|--------|-------|');
+      lines.push(`| Healthy | ${String(report.workerHealth.healthyCount)} |`);
+      lines.push(`| Degraded | ${String(report.workerHealth.degradedCount)} |`);
+      lines.push(`| Zombie | ${String(report.workerHealth.zombieCount)} |`);
+      lines.push(`| Restarting | ${String(report.workerHealth.restartingCount)} |`);
+      lines.push('');
+
+      if (report.workerHealth.zombieCount > 0) {
+        lines.push('### Zombie Workers');
+        lines.push('');
+        for (const w of report.workerHealth.workers) {
+          if (w.healthStatus === 'zombie') {
+            lines.push(
+              `- **${w.workerId}**: ${String(w.missedHeartbeats)} missed heartbeats, ${String(w.restartCount)} restarts`
+            );
+          }
+        }
+        lines.push('');
+      }
+    }
 
     // Bottlenecks
     lines.push('## Bottlenecks');
