@@ -149,7 +149,46 @@ result.statistics;
 //   byPriority: { P0: 1, P1: 1, P2: 0, P3: 0 },
 //   byStatus: { pending: 1, completed: 1, ... }
 // }
+
+// Cycle information (graceful handling)
+result.cycles;        // Detected cycles (empty if none)
+result.blockedByCycle; // Issue IDs blocked by circular dependencies
 ```
+
+### Graceful Cycle Handling
+
+The analyzer handles circular dependencies gracefully without throwing exceptions. When cycles are detected, the affected nodes are marked as blocked, but non-cyclic nodes continue to be processed normally.
+
+```typescript
+const result = analyzer.analyze(graph);
+
+// Check for cycles
+if (analyzer.hasCycles()) {
+  console.log('Cycles detected:', result.cycles.length);
+
+  // Get cycle information
+  for (const cycle of result.cycles) {
+    console.log(`Cycle: ${cycle.nodes.join(' -> ')}`);
+    console.log(`Detected at: ${cycle.detectedAt}`);
+    console.log(`Status: ${cycle.status}`);
+  }
+
+  // Get blocked nodes
+  const blocked = analyzer.getBlockedByCycle();
+  console.log(`Blocked issues: ${blocked.join(', ')}`);
+
+  // Check specific issue
+  if (analyzer.isBlockedByCycle('ISS-001')) {
+    console.log('ISS-001 is blocked by a cycle');
+  }
+}
+
+// Get executable issues (not blocked by cycles)
+const executable = analyzer.getExecutableIssues();
+console.log(`Can execute: ${executable.join(', ')}`);
+```
+
+This graceful handling allows partial execution of non-cyclic tasks while reporting the cycles for manual resolution.
 
 ### Getting Next Executable Issue
 
@@ -240,7 +279,6 @@ import {
   GraphNotFoundError,
   GraphParseError,
   GraphValidationError,
-  CircularDependencyError,
   IssueNotFoundError,
   EmptyGraphError,
 } from 'ad-sdlc';
@@ -248,13 +286,18 @@ import {
 try {
   const graph = await analyzer.loadGraph('path/to/graph.json');
   const result = analyzer.analyze(graph);
+
+  // Note: Circular dependencies are handled gracefully (not thrown)
+  if (result.cycles.length > 0) {
+    console.warn('Detected cycles:', result.cycles.map(c => c.nodes.join(' -> ')));
+  }
 } catch (error) {
   if (error instanceof GraphNotFoundError) {
     console.error('File not found:', error.path);
-  } else if (error instanceof CircularDependencyError) {
-    console.error('Circular dependency:', error.cycle.join(' -> '));
   } else if (error instanceof GraphValidationError) {
     console.error('Validation errors:', error.errors);
+  } else if (error instanceof EmptyGraphError) {
+    console.error('Graph has no issues to process');
   }
 }
 ```
@@ -338,6 +381,15 @@ interface GraphAnalysisResult {
   readonly criticalPath: CriticalPath;
   readonly prioritizedQueue: PrioritizedQueue;
   readonly statistics: GraphStatistics;
+  readonly cycles: readonly CycleInfo[];      // Detected cycles
+  readonly blockedByCycle: readonly string[]; // Blocked issue IDs
+}
+
+interface CycleInfo {
+  readonly nodes: readonly string[];    // Cycle node IDs
+  readonly detectedAt: Date;            // Detection timestamp
+  readonly status: CycleStatus;         // 'detected' | 'breaking' | 'resolved' | 'escalated'
+  readonly breakpoint?: string;         // If broken, which edge was removed
 }
 ```
 

@@ -181,7 +181,7 @@ describe('PriorityAnalyzer', () => {
       expect(result.parallelGroups.length).toBe(3);
     });
 
-    it('should detect circular dependencies', () => {
+    it('should gracefully handle circular dependencies', () => {
       const nodes = [createNode('ISS-001'), createNode('ISS-002'), createNode('ISS-003')];
       const edges: DependencyEdge[] = [
         { from: 'ISS-001', to: 'ISS-003' },
@@ -190,7 +190,13 @@ describe('PriorityAnalyzer', () => {
       ];
       const graph = createGraph(nodes, edges);
 
-      expect(() => analyzer.analyze(graph)).toThrow(CircularDependencyError);
+      // Should not throw - graceful cycle handling
+      const result = analyzer.analyze(graph);
+
+      // Should detect the cycle
+      expect(result.cycles.length).toBeGreaterThan(0);
+      expect(result.blockedByCycle.length).toBeGreaterThan(0);
+      expect(analyzer.hasCycles()).toBe(true);
     });
 
     it('should calculate depths correctly', () => {
@@ -660,6 +666,177 @@ describe('PriorityAnalyzer', () => {
 
       expect(issue1?.isOnCriticalPath).toBe(true);
       expect(issue2?.isOnCriticalPath).toBe(true);
+    });
+  });
+
+  describe('cycle detection and isolation', () => {
+    it('should detect simple cycle and mark nodes as blocked', () => {
+      const nodes = [createNode('A'), createNode('B')];
+      const edges: DependencyEdge[] = [
+        { from: 'A', to: 'B' },
+        { from: 'B', to: 'A' },
+      ];
+      const graph = createGraph(nodes, edges);
+
+      const result = analyzer.analyze(graph);
+
+      expect(result.cycles.length).toBe(1);
+      expect(result.blockedByCycle).toContain('A');
+      expect(result.blockedByCycle).toContain('B');
+      expect(analyzer.isBlockedByCycle('A')).toBe(true);
+      expect(analyzer.isBlockedByCycle('B')).toBe(true);
+    });
+
+    it('should allow non-cyclic nodes to be processed normally', () => {
+      // Graph: A -> B -> C (valid chain), D -> E -> D (cycle)
+      const nodes = [
+        createNode('A'),
+        createNode('B'),
+        createNode('C'),
+        createNode('D'),
+        createNode('E'),
+      ];
+      const edges: DependencyEdge[] = [
+        { from: 'B', to: 'A' },
+        { from: 'C', to: 'B' },
+        { from: 'D', to: 'E' },
+        { from: 'E', to: 'D' },
+      ];
+      const graph = createGraph(nodes, edges);
+
+      const result = analyzer.analyze(graph);
+
+      // Cycle detection
+      expect(result.cycles.length).toBeGreaterThan(0);
+
+      // D and E are in cycle, blocked
+      expect(analyzer.isBlockedByCycle('D')).toBe(true);
+      expect(analyzer.isBlockedByCycle('E')).toBe(true);
+
+      // A, B, C are NOT blocked (valid chain)
+      expect(analyzer.isBlockedByCycle('A')).toBe(false);
+      expect(analyzer.isBlockedByCycle('B')).toBe(false);
+      expect(analyzer.isBlockedByCycle('C')).toBe(false);
+
+      // Executable issues should include A, B, C
+      const executable = analyzer.getExecutableIssues();
+      expect(executable).toContain('A');
+      expect(executable).toContain('B');
+      expect(executable).toContain('C');
+      expect(executable).not.toContain('D');
+      expect(executable).not.toContain('E');
+    });
+
+    it('should propagate blocking to nodes dependent on cycle', () => {
+      // Graph: A -> B -> C -> A (cycle), D -> C (depends on cyclic node)
+      const nodes = [
+        createNode('A'),
+        createNode('B'),
+        createNode('C'),
+        createNode('D'),
+      ];
+      const edges: DependencyEdge[] = [
+        { from: 'A', to: 'C' },
+        { from: 'B', to: 'A' },
+        { from: 'C', to: 'B' },
+        { from: 'D', to: 'C' }, // D depends on C which is in cycle
+      ];
+      const graph = createGraph(nodes, edges);
+
+      const result = analyzer.analyze(graph);
+
+      // A, B, C are in cycle
+      expect(analyzer.isBlockedByCycle('A')).toBe(true);
+      expect(analyzer.isBlockedByCycle('B')).toBe(true);
+      expect(analyzer.isBlockedByCycle('C')).toBe(true);
+
+      // D depends on C which is blocked, so D is also blocked
+      expect(analyzer.isBlockedByCycle('D')).toBe(true);
+      expect(result.blockedByCycle).toContain('D');
+    });
+
+    it('should return cycle information with correct structure', () => {
+      const nodes = [createNode('X'), createNode('Y'), createNode('Z')];
+      const edges: DependencyEdge[] = [
+        { from: 'X', to: 'Z' },
+        { from: 'Y', to: 'X' },
+        { from: 'Z', to: 'Y' },
+      ];
+      const graph = createGraph(nodes, edges);
+
+      const result = analyzer.analyze(graph);
+
+      expect(result.cycles.length).toBeGreaterThan(0);
+      const cycle = result.cycles[0];
+      expect(cycle).toBeDefined();
+      expect(cycle?.nodes.length).toBeGreaterThan(0);
+      expect(cycle?.detectedAt).toBeInstanceOf(Date);
+      expect(cycle?.status).toBe('detected');
+    });
+
+    it('should handle graph with no cycles', () => {
+      const nodes = [createNode('A'), createNode('B'), createNode('C')];
+      const edges: DependencyEdge[] = [
+        { from: 'B', to: 'A' },
+        { from: 'C', to: 'B' },
+      ];
+      const graph = createGraph(nodes, edges);
+
+      const result = analyzer.analyze(graph);
+
+      expect(result.cycles.length).toBe(0);
+      expect(result.blockedByCycle.length).toBe(0);
+      expect(analyzer.hasCycles()).toBe(false);
+      expect(analyzer.getCycles()).toHaveLength(0);
+    });
+
+    it('should handle multiple independent cycles', () => {
+      // Graph: A -> B -> A (cycle 1), C -> D -> C (cycle 2), E (standalone)
+      const nodes = [
+        createNode('A'),
+        createNode('B'),
+        createNode('C'),
+        createNode('D'),
+        createNode('E'),
+      ];
+      const edges: DependencyEdge[] = [
+        { from: 'A', to: 'B' },
+        { from: 'B', to: 'A' },
+        { from: 'C', to: 'D' },
+        { from: 'D', to: 'C' },
+      ];
+      const graph = createGraph(nodes, edges);
+
+      const result = analyzer.analyze(graph);
+
+      // Should detect multiple cycles
+      expect(result.cycles.length).toBeGreaterThanOrEqual(2);
+
+      // All cyclic nodes are blocked
+      expect(analyzer.isBlockedByCycle('A')).toBe(true);
+      expect(analyzer.isBlockedByCycle('B')).toBe(true);
+      expect(analyzer.isBlockedByCycle('C')).toBe(true);
+      expect(analyzer.isBlockedByCycle('D')).toBe(true);
+
+      // E is standalone, not blocked
+      expect(analyzer.isBlockedByCycle('E')).toBe(false);
+      expect(analyzer.getExecutableIssues()).toContain('E');
+    });
+
+    it('should provide getBlockedByCycle method', () => {
+      const nodes = [createNode('A'), createNode('B'), createNode('C')];
+      const edges: DependencyEdge[] = [
+        { from: 'A', to: 'B' },
+        { from: 'B', to: 'A' },
+      ];
+      const graph = createGraph(nodes, edges);
+
+      analyzer.analyze(graph);
+
+      const blocked = analyzer.getBlockedByCycle();
+      expect(blocked).toContain('A');
+      expect(blocked).toContain('B');
+      expect(blocked).not.toContain('C');
     });
   });
 });

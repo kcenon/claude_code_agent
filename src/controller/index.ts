@@ -32,6 +32,8 @@ export type {
   GraphAnalysisResult,
   GraphStatistics,
   PriorityAnalyzerConfig,
+  CycleInfo,
+  CycleStatus,
   // Worker Pool types
   WorkerStatus,
   WorkerInfo,
