@@ -22,7 +22,6 @@ import { DEFAULT_HEALTH_CHECK_CONFIG } from './types.js';
 import {
   HealthMonitorAlreadyRunningError,
   HealthMonitorNotRunningError,
-  MaxRestartsExceededError,
 } from './errors.js';
 
 /**
@@ -340,7 +339,9 @@ export class WorkerHealthMonitor {
         reason: 'max_restarts_exceeded',
       });
 
-      throw new MaxRestartsExceededError(state.workerId, this.config.maxRestarts);
+      // Don't throw - just log and leave worker in zombie state
+      // The caller should check for this condition via getZombieWorkers()
+      return;
     }
 
     // Mark as restarting
