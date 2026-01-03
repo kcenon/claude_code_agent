@@ -1154,9 +1154,10 @@ export class StateManager {
       throw new CheckpointNotFoundError(checkpointId, projectId);
     }
 
-    // Validate checkpoint data
+    // Validate checkpoint data - runtime check for corrupted data
     const validationErrors: string[] = [];
-    if (!checkpoint.data.meta.currentState) {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- runtime safety check
+    if (checkpoint.data.meta.currentState === undefined) {
       validationErrors.push('Missing state in checkpoint data');
     }
     if (typeof checkpoint.data.meta.version !== 'number') {
@@ -1350,7 +1351,7 @@ export class StateManager {
       return [];
     }
 
-    return PIPELINE_STAGES.slice(fromIdx + 1, toIdx) as ProjectState[];
+    return [...PIPELINE_STAGES.slice(fromIdx + 1, toIdx)];
   }
 
   /**
@@ -1539,7 +1540,7 @@ export class StateManager {
           reason,
           timestamp: now,
         },
-        `Recovery: ${currentState} → ${toState}${reason ? ` (${reason})` : ''}`
+        `Recovery: ${currentState} → ${toState}${reason !== undefined && reason !== '' ? ` (${reason})` : ''}`
       );
     }
 
