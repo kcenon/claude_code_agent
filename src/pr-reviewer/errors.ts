@@ -211,6 +211,66 @@ export class CICheckFailedError extends PRReviewerError {
   }
 }
 
+/**
+ * Error when circuit breaker is open and blocking operations
+ */
+export class CircuitOpenError extends PRReviewerError {
+  public readonly lastFailureTime: number;
+  public readonly failures: number;
+
+  constructor(failures: number, lastFailureTime: number) {
+    super(
+      `CI circuit breaker is open after ${String(failures)} consecutive failures`,
+      'CIRCUIT_OPEN'
+    );
+    this.name = 'CircuitOpenError';
+    this.failures = failures;
+    this.lastFailureTime = lastFailureTime;
+  }
+}
+
+/**
+ * Error when CI polling exceeds maximum attempts
+ */
+export class CIMaxPollsExceededError extends PRReviewerError {
+  public readonly prNumber: number;
+  public readonly pollCount: number;
+
+  constructor(prNumber: number, pollCount: number) {
+    super(
+      `CI polling exceeded maximum attempts (${String(pollCount)}) for PR #${String(prNumber)}`,
+      'CI_MAX_POLLS_EXCEEDED'
+    );
+    this.name = 'CIMaxPollsExceededError';
+    this.prNumber = prNumber;
+    this.pollCount = pollCount;
+  }
+}
+
+/**
+ * Error when a terminal CI failure is detected
+ */
+export class CITerminalFailureError extends PRReviewerError {
+  public readonly prNumber: number;
+  public readonly checkName: string;
+  public readonly errorMessage?: string;
+
+  constructor(prNumber: number, checkName: string, errorMessage?: string) {
+    const messageSuffix =
+      errorMessage !== undefined && errorMessage !== '' ? ` - ${errorMessage}` : '';
+    super(
+      `Terminal CI failure detected for PR #${String(prNumber)}: ${checkName}${messageSuffix}`,
+      'CI_TERMINAL_FAILURE'
+    );
+    this.name = 'CITerminalFailureError';
+    this.prNumber = prNumber;
+    this.checkName = checkName;
+    if (errorMessage !== undefined) {
+      this.errorMessage = errorMessage;
+    }
+  }
+}
+
 // ============================================================================
 // Quality Gate Errors
 // ============================================================================
