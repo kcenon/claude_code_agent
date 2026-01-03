@@ -139,3 +139,107 @@ export class WatchError extends StateManagerError {
     Object.setPrototypeOf(this, WatchError.prototype);
   }
 }
+
+// ============================================================
+// Recovery Error Classes (Issue #218)
+// ============================================================
+
+/**
+ * Error when attempting invalid skip operation
+ */
+export class InvalidSkipError extends StateManagerError {
+  readonly fromState: ProjectState;
+  readonly toState: ProjectState;
+
+  constructor(fromState: ProjectState, toState: ProjectState, projectId?: string) {
+    const message = `Cannot skip from '${fromState}' to '${toState}': not allowed by transition rules`;
+    super(message, 'INVALID_SKIP', projectId);
+    this.name = 'InvalidSkipError';
+    this.fromState = fromState;
+    this.toState = toState;
+    Object.setPrototypeOf(this, InvalidSkipError.prototype);
+  }
+}
+
+/**
+ * Error when trying to skip required stages without force flag
+ */
+export class RequiredStageSkipError extends StateManagerError {
+  readonly requiredStages: readonly ProjectState[];
+
+  constructor(requiredStages: readonly ProjectState[], projectId?: string) {
+    const stageList = requiredStages.join(', ');
+    const message = `Cannot skip required stages: ${stageList}. Use forceSkipRequired option to override.`;
+    super(message, 'REQUIRED_STAGE_SKIP', projectId);
+    this.name = 'RequiredStageSkipError';
+    this.requiredStages = requiredStages;
+    Object.setPrototypeOf(this, RequiredStageSkipError.prototype);
+  }
+}
+
+/**
+ * Error when checkpoint is not found
+ */
+export class CheckpointNotFoundError extends StateManagerError {
+  readonly checkpointId: string;
+
+  constructor(checkpointId: string, projectId?: string) {
+    const message = `Checkpoint '${checkpointId}' not found`;
+    super(message, 'CHECKPOINT_NOT_FOUND', projectId);
+    this.name = 'CheckpointNotFoundError';
+    this.checkpointId = checkpointId;
+    Object.setPrototypeOf(this, CheckpointNotFoundError.prototype);
+  }
+}
+
+/**
+ * Error when checkpoint validation fails
+ */
+export class CheckpointValidationError extends StateManagerError {
+  readonly checkpointId: string;
+  readonly validationErrors: readonly string[];
+
+  constructor(checkpointId: string, validationErrors: readonly string[], projectId?: string) {
+    const errorList = validationErrors.join('; ');
+    const message = `Checkpoint '${checkpointId}' validation failed: ${errorList}`;
+    super(message, 'CHECKPOINT_VALIDATION_FAILED', projectId);
+    this.name = 'CheckpointValidationError';
+    this.checkpointId = checkpointId;
+    this.validationErrors = validationErrors;
+    Object.setPrototypeOf(this, CheckpointValidationError.prototype);
+  }
+}
+
+/**
+ * Error when admin override authorization fails
+ */
+export class AdminAuthorizationError extends StateManagerError {
+  readonly action: string;
+  readonly authorizedBy: string;
+
+  constructor(action: string, authorizedBy: string, projectId?: string) {
+    const message = `Admin override authorization failed for action '${action}' by '${authorizedBy}'`;
+    super(message, 'ADMIN_AUTH_FAILED', projectId);
+    this.name = 'AdminAuthorizationError';
+    this.action = action;
+    this.authorizedBy = authorizedBy;
+    Object.setPrototypeOf(this, AdminAuthorizationError.prototype);
+  }
+}
+
+/**
+ * Error when recovery operation fails
+ */
+export class RecoveryError extends StateManagerError {
+  readonly recoveryType: string;
+  readonly reason: string;
+
+  constructor(recoveryType: string, reason: string, projectId?: string) {
+    const message = `Recovery operation '${recoveryType}' failed: ${reason}`;
+    super(message, 'RECOVERY_FAILED', projectId);
+    this.name = 'RecoveryError';
+    this.recoveryType = recoveryType;
+    this.reason = reason;
+    Object.setPrototypeOf(this, RecoveryError.prototype);
+  }
+}

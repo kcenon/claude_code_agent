@@ -30,6 +30,20 @@ export type {
   UpdateOptions,
   ReadStateOptions,
   StateWithMetadata,
+  // Recovery types (Issue #218)
+  EnhancedTransitionRule,
+  StateCheckpoint,
+  CheckpointData,
+  CheckpointMetadata,
+  CheckpointTrigger,
+  SkipOptions,
+  SkipResult,
+  AdminOverride,
+  AdminOverrideAction,
+  RecoveryAuditEntry,
+  RestoreResult,
+  CheckpointOptions,
+  PartialCompletion,
 } from './types.js';
 
 // Errors
@@ -43,4 +57,11 @@ export {
   LockAcquisitionError,
   HistoryError,
   WatchError,
+  // Recovery errors (Issue #218)
+  InvalidSkipError,
+  RequiredStageSkipError,
+  CheckpointNotFoundError,
+  CheckpointValidationError,
+  AdminAuthorizationError,
+  RecoveryError,
 } from './errors.js';
