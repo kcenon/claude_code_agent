@@ -68,10 +68,7 @@ export class IntelligentCIPoller {
   private readonly circuitBreaker: CICircuitBreaker;
   private readonly listeners: PollerEventListener[] = [];
 
-  constructor(
-    config: Partial<IntelligentPollerConfig> = {},
-    circuitBreaker?: CICircuitBreaker
-  ) {
+  constructor(config: Partial<IntelligentPollerConfig> = {}, circuitBreaker?: CICircuitBreaker) {
     this.config = {
       initialIntervalMs:
         config.initialIntervalMs ?? DEFAULT_INTELLIGENT_POLLER_CONFIG.initialIntervalMs,
@@ -423,9 +420,7 @@ export function createStatusChecker(
 
     // Determine overall state
     const hasPending = checks.some((c) => c.status === 'pending' || c.status === 'running');
-    const hasFailure = checks.some(
-      (c) => c.status === 'failed' || c.conclusion === 'failure'
-    );
+    const hasFailure = checks.some((c) => c.status === 'failed' || c.conclusion === 'failure');
     const allPassed = checks.every(
       (c) => c.status === 'passed' || c.status === 'skipped' || c.conclusion === 'success'
     );
