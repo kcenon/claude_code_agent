@@ -737,5 +737,120 @@ describe('AnalysisOrchestratorAgent', () => {
       const result = await agent.execute();
       expect(result.success).toBe(true);
     });
+
+    it('should execute with zero minSuccessRatio', async () => {
+      const agent = new AnalysisOrchestratorAgent({
+        parallelExecution: true,
+        parallelExecutionConfig: {
+          allowPartialResults: true,
+          minSuccessRatio: 0,
+        },
+      });
+
+      const input: AnalysisInput = {
+        projectPath: tempDir,
+        scope: 'full',
+      };
+      await agent.startAnalysis(input);
+
+      const result = await agent.execute();
+      expect(result.success).toBe(true);
+    });
+
+    it('should execute with specific required stages', async () => {
+      const agent = new AnalysisOrchestratorAgent({
+        parallelExecution: true,
+        parallelExecutionConfig: {
+          failFast: true,
+          requiredStages: ['document_reader'],
+        },
+      });
+
+      const input: AnalysisInput = {
+        projectPath: tempDir,
+        scope: 'full',
+      };
+      await agent.startAnalysis(input);
+
+      const result = await agent.execute();
+      expect(result.success).toBe(true);
+    });
+
+    it('should execute code_only scope without parallel stages', async () => {
+      const agent = new AnalysisOrchestratorAgent({
+        parallelExecution: true,
+        parallelExecutionConfig: {
+          parallelExecutionTimeoutMs: 300000,
+        },
+      });
+
+      const input: AnalysisInput = {
+        projectPath: tempDir,
+        scope: 'code_only',
+      };
+      await agent.startAnalysis(input);
+
+      const result = await agent.execute();
+      expect(result.success).toBe(true);
+    });
+
+    it('should execute documents_only scope with single parallel stage', async () => {
+      const agent = new AnalysisOrchestratorAgent({
+        parallelExecution: true,
+        parallelExecutionConfig: {
+          parallelExecutionTimeoutMs: 300000,
+        },
+      });
+
+      const input: AnalysisInput = {
+        projectPath: tempDir,
+        scope: 'documents_only',
+      };
+      await agent.startAnalysis(input);
+
+      const result = await agent.execute();
+      expect(result.success).toBe(true);
+    });
+
+    it('should handle very short timeout with graceful degradation', async () => {
+      const agent = new AnalysisOrchestratorAgent({
+        parallelExecution: true,
+        continueOnError: true,
+        parallelExecutionConfig: {
+          parallelExecutionTimeoutMs: 1, // 1ms - very short
+          allowPartialResults: true,
+          minSuccessRatio: 0,
+        },
+      });
+
+      const input: AnalysisInput = {
+        projectPath: tempDir,
+        scope: 'full',
+      };
+      await agent.startAnalysis(input);
+
+      // Should not throw, just complete with whatever results are available
+      const result = await agent.execute();
+      expect(result).toBeDefined();
+    });
+
+    it('should execute with comparison scope and parallel execution', async () => {
+      const agent = new AnalysisOrchestratorAgent({
+        parallelExecution: true,
+        parallelExecutionConfig: {
+          parallelExecutionTimeoutMs: 300000,
+          failFast: false,
+        },
+      });
+
+      const input: AnalysisInput = {
+        projectPath: tempDir,
+        scope: 'comparison',
+      };
+      await agent.startAnalysis(input);
+
+      const result = await agent.execute();
+      expect(result.success).toBe(true);
+    });
   });
 });
