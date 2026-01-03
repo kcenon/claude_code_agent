@@ -280,9 +280,9 @@ export interface CheckpointMetadata {
   /** How this checkpoint was triggered */
   readonly triggeredBy: CheckpointTrigger;
   /** Reason for creating checkpoint */
-  readonly reason?: string;
+  readonly reason?: string | undefined;
   /** User/agent that created the checkpoint */
-  readonly createdBy?: string;
+  readonly createdBy?: string | undefined;
   /** Related transition (if any) */
   readonly transition?: {
     readonly from: ProjectState;
@@ -313,7 +313,7 @@ export interface SkipResult {
   /** Stages that were skipped */
   readonly skippedStages: readonly ProjectState[];
   /** Checkpoint ID if created */
-  readonly checkpointId?: string;
+  readonly checkpointId?: string | undefined;
   /** Timestamp of skip */
   readonly timestamp: string;
 }
@@ -367,7 +367,7 @@ export interface RecoveryAuditEntry {
   /** Additional details */
   readonly details: Record<string, unknown>;
   /** User/agent that performed the action */
-  readonly performedBy?: string;
+  readonly performedBy?: string | undefined;
 }
 
 /**

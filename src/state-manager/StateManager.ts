@@ -28,6 +28,14 @@ import type {
   UpdateOptions,
   ReadStateOptions,
   StateWithMetadata,
+  EnhancedTransitionRule,
+  StateCheckpoint,
+  CheckpointTrigger,
+  SkipOptions,
+  SkipResult,
+  AdminOverride,
+  RecoveryAuditEntry,
+  RestoreResult,
 } from './types.js';
 import {
   InvalidTransitionError,
@@ -35,6 +43,10 @@ import {
   ProjectNotFoundError,
   ProjectExistsError,
   LockAcquisitionError,
+  InvalidSkipError,
+  RequiredStageSkipError,
+  CheckpointNotFoundError,
+  CheckpointValidationError,
 } from './errors.js';
 
 /**
@@ -60,6 +72,167 @@ const VALID_TRANSITIONS: ReadonlyMap<ProjectState, readonly ProjectState[]> = ne
 ]);
 
 /**
+ * Enhanced transition rules with recovery paths, skip capability, and stage requirements
+ *
+ * Defines extended transition rules that include:
+ * - Normal flow: standard forward transitions
+ * - Recovery flow: allowed backward transitions for error recovery
+ * - Skip-to: states that can be skipped to (for optional stages)
+ * - Required flag: whether the stage is mandatory
+ * - Min completion: minimum % to proceed from partial state
+ */
+const ENHANCED_TRANSITIONS: ReadonlyMap<ProjectState, EnhancedTransitionRule> = new Map([
+  [
+    'collecting',
+    {
+      normal: ['clarifying', 'prd_drafting'],
+      recovery: [],
+      skipTo: ['prd_drafting'], // Can skip clarifying
+      required: true,
+    },
+  ],
+  [
+    'clarifying',
+    {
+      normal: ['prd_drafting'],
+      recovery: ['collecting'],
+      skipTo: [],
+      required: false, // Optional clarification stage
+    },
+  ],
+  [
+    'prd_drafting',
+    {
+      normal: ['prd_approved'],
+      recovery: ['collecting', 'clarifying'],
+      skipTo: [],
+      required: true,
+    },
+  ],
+  [
+    'prd_approved',
+    {
+      normal: ['srs_drafting'],
+      recovery: ['prd_drafting', 'clarifying'],
+      skipTo: ['sds_drafting'], // Can skip SRS for simple projects
+      required: true,
+    },
+  ],
+  [
+    'srs_drafting',
+    {
+      normal: ['srs_approved'],
+      recovery: ['prd_approved', 'prd_drafting'],
+      skipTo: ['sds_drafting'], // Can skip to SDS
+      required: false, // Optional for simple projects
+      minCompletion: 50,
+    },
+  ],
+  [
+    'srs_approved',
+    {
+      normal: ['sds_drafting'],
+      recovery: ['srs_drafting', 'prd_approved'],
+      skipTo: ['issues_creating'], // Can skip SDS
+      required: false, // Optional for simple projects
+    },
+  ],
+  [
+    'sds_drafting',
+    {
+      normal: ['sds_approved'],
+      recovery: ['srs_approved', 'srs_drafting'],
+      skipTo: ['issues_creating'], // Can skip if SDS not needed
+      required: false, // Optional for simple projects
+      minCompletion: 50,
+    },
+  ],
+  [
+    'sds_approved',
+    {
+      normal: ['issues_creating'],
+      recovery: ['sds_drafting', 'srs_approved'],
+      skipTo: [],
+      required: false,
+    },
+  ],
+  [
+    'issues_creating',
+    {
+      normal: ['issues_created'],
+      recovery: ['sds_approved', 'srs_approved'],
+      skipTo: [],
+      required: true,
+    },
+  ],
+  [
+    'issues_created',
+    {
+      normal: ['implementing'],
+      recovery: ['issues_creating', 'sds_approved'],
+      skipTo: [],
+      required: true,
+    },
+  ],
+  [
+    'implementing',
+    {
+      normal: ['pr_review'],
+      recovery: ['issues_created', 'issues_creating'],
+      skipTo: [],
+      required: true,
+      minCompletion: 25,
+    },
+  ],
+  [
+    'pr_review',
+    {
+      normal: ['merged'],
+      recovery: ['implementing', 'issues_created'],
+      skipTo: [],
+      required: true,
+    },
+  ],
+  [
+    'merged',
+    {
+      normal: [],
+      recovery: [],
+      skipTo: [],
+      required: true,
+    },
+  ],
+  [
+    'cancelled',
+    {
+      normal: [],
+      recovery: [],
+      skipTo: [],
+      required: false,
+    },
+  ],
+]);
+
+/**
+ * Ordered list of pipeline stages for calculating skip ranges
+ */
+const PIPELINE_STAGES: readonly ProjectState[] = [
+  'collecting',
+  'clarifying',
+  'prd_drafting',
+  'prd_approved',
+  'srs_drafting',
+  'srs_approved',
+  'sds_drafting',
+  'sds_approved',
+  'issues_creating',
+  'issues_created',
+  'implementing',
+  'pr_review',
+  'merged',
+];
+
+/**
  * Default options for StateManager
  */
 const DEFAULT_OPTIONS: Required<StateManagerOptions> = {
@@ -79,6 +252,21 @@ const STATE_META_FILE = '_state_meta.json';
  * State history file name
  */
 const STATE_HISTORY_FILE = '_state_history.json';
+
+/**
+ * Checkpoints file name
+ */
+const CHECKPOINTS_FILE = '_checkpoints.json';
+
+/**
+ * Recovery audit log file name
+ */
+const RECOVERY_AUDIT_FILE = '_recovery_audit.json';
+
+/**
+ * Default maximum number of checkpoints to retain
+ */
+const DEFAULT_MAX_CHECKPOINTS = 10;
 
 /**
  * Internal state metadata structure
@@ -821,6 +1009,611 @@ export class StateManager {
     };
 
     await this.scratchpad.writeJson(metaPath, updatedMeta);
+  }
+
+  /**
+   * Get checkpoints file path
+   */
+  private getCheckpointsPath(projectId: string): string {
+    return path.join(this.scratchpad.getProjectPath('progress', projectId), CHECKPOINTS_FILE);
+  }
+
+  /**
+   * Get recovery audit file path
+   */
+  private getAuditPath(projectId: string): string {
+    return path.join(this.scratchpad.getProjectPath('progress', projectId), RECOVERY_AUDIT_FILE);
+  }
+
+  // ============================================================
+  // Checkpoint System (Issue #218)
+  // ============================================================
+
+  /**
+   * Create a checkpoint for the current project state
+   *
+   * @param projectId - Project identifier
+   * @param trigger - What triggered this checkpoint
+   * @param reason - Optional reason for the checkpoint
+   * @returns Checkpoint ID
+   */
+  async createCheckpoint(
+    projectId: string,
+    trigger: CheckpointTrigger = 'manual',
+    reason?: string
+  ): Promise<string> {
+    const exists = await this.projectExists(projectId);
+    if (!exists) {
+      throw new ProjectNotFoundError(projectId);
+    }
+
+    const meta = await this.getMeta(projectId);
+    const checkpointId = randomUUID();
+    const now = new Date().toISOString();
+
+    // Collect section states
+    const sections: Partial<Record<ScratchpadSection, unknown>> = {};
+    const sectionNames: ScratchpadSection[] = ['info', 'documents', 'issues', 'progress'];
+
+    for (const section of sectionNames) {
+      try {
+        const statePath = this.getSectionStatePath(section, projectId);
+        const sectionState = await this.scratchpad.readYaml(statePath, { allowMissing: true });
+        if (sectionState !== null) {
+          sections[section] = sectionState;
+        }
+      } catch {
+        // Ignore sections that don't exist
+      }
+    }
+
+    const checkpoint: StateCheckpoint = {
+      id: checkpointId,
+      state: meta.currentState,
+      timestamp: now,
+      data: {
+        meta: {
+          currentState: meta.currentState,
+          version: meta.version,
+        },
+        sections,
+      },
+      metadata: {
+        triggeredBy: trigger,
+        reason,
+      },
+    };
+
+    // Load existing checkpoints
+    const checkpointsPath = this.getCheckpointsPath(projectId);
+    const existing = await this.scratchpad.readJson<StateCheckpoint[]>(checkpointsPath, {
+      allowMissing: true,
+    });
+
+    const checkpoints = existing ?? [];
+    checkpoints.unshift(checkpoint);
+
+    // Prune old checkpoints
+    while (checkpoints.length > DEFAULT_MAX_CHECKPOINTS) {
+      checkpoints.pop();
+    }
+
+    await this.scratchpad.writeJson(checkpointsPath, checkpoints);
+
+    // Record in audit log
+    await this.recordAudit(projectId, {
+      id: randomUUID(),
+      projectId,
+      type: 'checkpoint_created',
+      timestamp: now,
+      fromState: meta.currentState,
+      toState: meta.currentState,
+      details: { checkpointId, trigger, reason },
+    });
+
+    return checkpointId;
+  }
+
+  /**
+   * Get all available checkpoints for a project
+   *
+   * @param projectId - Project identifier
+   * @returns List of checkpoints (newest first)
+   */
+  async getCheckpoints(projectId: string): Promise<StateCheckpoint[]> {
+    const exists = await this.projectExists(projectId);
+    if (!exists) {
+      throw new ProjectNotFoundError(projectId);
+    }
+
+    const checkpointsPath = this.getCheckpointsPath(projectId);
+    const checkpoints = await this.scratchpad.readJson<StateCheckpoint[]>(checkpointsPath, {
+      allowMissing: true,
+    });
+
+    return checkpoints ?? [];
+  }
+
+  /**
+   * Restore project state from a checkpoint
+   *
+   * @param projectId - Project identifier
+   * @param checkpointId - Checkpoint ID to restore
+   * @returns Restore result
+   */
+  async restoreCheckpoint(projectId: string, checkpointId: string): Promise<RestoreResult> {
+    const exists = await this.projectExists(projectId);
+    if (!exists) {
+      throw new ProjectNotFoundError(projectId);
+    }
+
+    const checkpoints = await this.getCheckpoints(projectId);
+    const checkpoint = checkpoints.find((c) => c.id === checkpointId);
+
+    if (!checkpoint) {
+      throw new CheckpointNotFoundError(checkpointId, projectId);
+    }
+
+    // Validate checkpoint data
+    const validationErrors: string[] = [];
+    if (!checkpoint.data.meta.currentState) {
+      validationErrors.push('Missing state in checkpoint data');
+    }
+    if (typeof checkpoint.data.meta.version !== 'number') {
+      validationErrors.push('Invalid version in checkpoint data');
+    }
+
+    if (validationErrors.length > 0) {
+      throw new CheckpointValidationError(checkpointId, validationErrors, projectId);
+    }
+
+    const meta = await this.getMeta(projectId);
+    const previousState = meta.currentState;
+    const now = new Date().toISOString();
+
+    // Restore state metadata
+    const metaPath = this.getMetaPath(projectId);
+    const restoredMeta: StateMeta = {
+      currentState: checkpoint.state,
+      version: meta.version + 1,
+      createdAt: meta.createdAt,
+      updatedAt: now,
+    };
+    await this.scratchpad.writeJson(metaPath, restoredMeta);
+
+    // Restore section states
+    for (const [section, sectionData] of Object.entries(checkpoint.data.sections)) {
+      if (sectionData !== undefined) {
+        const statePath = this.getSectionStatePath(section as ScratchpadSection, projectId);
+        await this.scratchpad.writeYaml(statePath, sectionData as object);
+      }
+    }
+
+    // Record in audit log
+    await this.recordAudit(projectId, {
+      id: randomUUID(),
+      projectId,
+      type: 'checkpoint_restored',
+      timestamp: now,
+      fromState: previousState,
+      toState: checkpoint.state,
+      details: { checkpointId, checkpointTimestamp: checkpoint.timestamp },
+    });
+
+    // Record in history
+    if (this.options.enableHistory) {
+      await this.addHistoryEntry(
+        'progress',
+        projectId,
+        {
+          restore: { from: previousState, to: checkpoint.state },
+          checkpointId,
+          timestamp: now,
+        },
+        `Restored from checkpoint: ${checkpoint.state}`
+      );
+    }
+
+    return {
+      success: true,
+      restoredState: checkpoint.state,
+      restoredAt: now,
+      checkpointId,
+    };
+  }
+
+  // ============================================================
+  // Skip-Forward Capability (Issue #218)
+  // ============================================================
+
+  /**
+   * Skip forward to a target state, bypassing intermediate stages
+   *
+   * @param projectId - Project identifier
+   * @param targetState - Target state to skip to
+   * @param options - Skip options
+   * @returns Skip result
+   */
+  async skipTo(
+    projectId: string,
+    targetState: ProjectState,
+    options: SkipOptions
+  ): Promise<SkipResult> {
+    const exists = await this.projectExists(projectId);
+    if (!exists) {
+      throw new ProjectNotFoundError(projectId);
+    }
+
+    const meta = await this.getMeta(projectId);
+    const currentState = meta.currentState;
+    const now = new Date().toISOString();
+
+    // Check if skip is allowed
+    const rule = ENHANCED_TRANSITIONS.get(currentState);
+    if (!rule || !rule.skipTo.includes(targetState)) {
+      throw new InvalidSkipError(currentState, targetState, projectId);
+    }
+
+    // Get stages that would be skipped
+    const skippedStages = this.getStagesBetween(currentState, targetState);
+
+    // Check for required stages
+    const requiredSkipped = skippedStages.filter((stage) => {
+      const stageRule = ENHANCED_TRANSITIONS.get(stage);
+      return stageRule?.required === true;
+    });
+
+    if (requiredSkipped.length > 0 && options.forceSkipRequired !== true) {
+      throw new RequiredStageSkipError(requiredSkipped, projectId);
+    }
+
+    // Create checkpoint before skip if requested
+    let checkpointId: string | undefined;
+    if (options.createCheckpoint !== false) {
+      checkpointId = await this.createCheckpoint(projectId, 'skip', options.reason);
+    }
+
+    // Perform the skip transition
+    const metaPath = this.getMetaPath(projectId);
+    const lockId = randomUUID();
+
+    try {
+      const acquired = await this.scratchpad.acquireLock(metaPath, lockId);
+      if (!acquired) {
+        throw new LockAcquisitionError(metaPath, projectId);
+      }
+
+      const newMeta: StateMeta = {
+        ...meta,
+        currentState: targetState,
+        version: meta.version + 1,
+        updatedAt: now,
+      };
+
+      await this.scratchpad.writeJson(metaPath, newMeta);
+    } finally {
+      await this.scratchpad.releaseLock(metaPath, lockId);
+    }
+
+    // Record in audit log
+    await this.recordAudit(projectId, {
+      id: randomUUID(),
+      projectId,
+      type: 'skip_forward',
+      timestamp: now,
+      fromState: currentState,
+      toState: targetState,
+      details: {
+        skippedStages,
+        reason: options.reason,
+        forceSkipRequired: options.forceSkipRequired,
+        approvedBy: options.approvedBy,
+        checkpointId,
+      },
+      performedBy: options.approvedBy,
+    });
+
+    // Record in history
+    if (this.options.enableHistory) {
+      await this.addHistoryEntry(
+        'progress',
+        projectId,
+        {
+          skip: { from: currentState, to: targetState },
+          skippedStages,
+          timestamp: now,
+        },
+        `Skip forward: ${currentState} → ${targetState} (skipped: ${skippedStages.join(', ')})`
+      );
+    }
+
+    return {
+      success: true,
+      skippedStages,
+      checkpointId,
+      timestamp: now,
+    };
+  }
+
+  /**
+   * Get the stages between two states in the pipeline
+   *
+   * @param from - Starting state
+   * @param to - Target state
+   * @returns Array of states between from and to (exclusive)
+   */
+  getStagesBetween(from: ProjectState, to: ProjectState): ProjectState[] {
+    const fromIdx = PIPELINE_STAGES.indexOf(from);
+    const toIdx = PIPELINE_STAGES.indexOf(to);
+
+    if (fromIdx === -1 || toIdx === -1 || fromIdx >= toIdx) {
+      return [];
+    }
+
+    return PIPELINE_STAGES.slice(fromIdx + 1, toIdx) as ProjectState[];
+  }
+
+  /**
+   * Check if a stage is required
+   *
+   * @param state - State to check
+   * @returns True if the stage is required
+   */
+  isStageRequired(state: ProjectState): boolean {
+    const rule = ENHANCED_TRANSITIONS.get(state);
+    return rule?.required === true;
+  }
+
+  /**
+   * Get skip-to options for a state
+   *
+   * @param from - Current state
+   * @returns Array of states that can be skipped to
+   */
+  getSkipOptions(from: ProjectState): readonly ProjectState[] {
+    const rule = ENHANCED_TRANSITIONS.get(from);
+    return rule?.skipTo ?? [];
+  }
+
+  // ============================================================
+  // Admin Override (Issue #218)
+  // ============================================================
+
+  /**
+   * Perform an admin override operation
+   *
+   * @param projectId - Project identifier
+   * @param override - Override specification
+   */
+  async adminOverride(projectId: string, override: AdminOverride): Promise<TransitionResult> {
+    const exists = await this.projectExists(projectId);
+    if (!exists) {
+      throw new ProjectNotFoundError(projectId);
+    }
+
+    const meta = await this.getMeta(projectId);
+    const previousState = meta.currentState;
+    const now = new Date().toISOString();
+
+    // Create checkpoint before override
+    await this.createCheckpoint(projectId, 'recovery', `Admin override: ${override.reason}`);
+
+    // Record in audit log first
+    await this.recordAudit(projectId, {
+      id: randomUUID(),
+      projectId,
+      type: 'admin_override',
+      timestamp: now,
+      fromState: previousState,
+      toState: override.targetState,
+      details: {
+        action: override.action,
+        reason: override.reason,
+      },
+      performedBy: override.authorizedBy,
+    });
+
+    // Perform the override
+    const metaPath = this.getMetaPath(projectId);
+    const lockId = randomUUID();
+
+    try {
+      const acquired = await this.scratchpad.acquireLock(metaPath, lockId);
+      if (!acquired) {
+        throw new LockAcquisitionError(metaPath, projectId);
+      }
+
+      const newMeta: StateMeta = {
+        ...meta,
+        currentState: override.targetState,
+        version: meta.version + 1,
+        updatedAt: now,
+      };
+
+      await this.scratchpad.writeJson(metaPath, newMeta);
+    } finally {
+      await this.scratchpad.releaseLock(metaPath, lockId);
+    }
+
+    // Record in history
+    if (this.options.enableHistory) {
+      await this.addHistoryEntry(
+        'progress',
+        projectId,
+        {
+          adminOverride: {
+            from: previousState,
+            to: override.targetState,
+            action: override.action,
+          },
+          timestamp: now,
+        },
+        `Admin override (${override.action}): ${previousState} → ${override.targetState}`
+      );
+    }
+
+    return {
+      success: true,
+      previousState,
+      newState: override.targetState,
+      timestamp: now,
+    };
+  }
+
+  // ============================================================
+  // Recovery Transition (Issue #218)
+  // ============================================================
+
+  /**
+   * Perform a recovery transition (go back to a previous state)
+   *
+   * @param projectId - Project identifier
+   * @param toState - Target recovery state
+   * @param reason - Reason for recovery
+   * @returns Transition result
+   */
+  async recoverTo(
+    projectId: string,
+    toState: ProjectState,
+    reason?: string
+  ): Promise<TransitionResult> {
+    const exists = await this.projectExists(projectId);
+    if (!exists) {
+      throw new ProjectNotFoundError(projectId);
+    }
+
+    const meta = await this.getMeta(projectId);
+    const currentState = meta.currentState;
+
+    // Check if recovery transition is valid
+    const rule = ENHANCED_TRANSITIONS.get(currentState);
+    if (!rule || !rule.recovery.includes(toState)) {
+      throw new InvalidTransitionError(currentState, toState, projectId);
+    }
+
+    const now = new Date().toISOString();
+
+    // Create checkpoint before recovery
+    await this.createCheckpoint(projectId, 'recovery', reason);
+
+    // Perform the recovery transition
+    const metaPath = this.getMetaPath(projectId);
+    const lockId = randomUUID();
+
+    try {
+      const acquired = await this.scratchpad.acquireLock(metaPath, lockId);
+      if (!acquired) {
+        throw new LockAcquisitionError(metaPath, projectId);
+      }
+
+      const newMeta: StateMeta = {
+        ...meta,
+        currentState: toState,
+        version: meta.version + 1,
+        updatedAt: now,
+      };
+
+      await this.scratchpad.writeJson(metaPath, newMeta);
+    } finally {
+      await this.scratchpad.releaseLock(metaPath, lockId);
+    }
+
+    // Record in audit log
+    await this.recordAudit(projectId, {
+      id: randomUUID(),
+      projectId,
+      type: 'recovery_transition',
+      timestamp: now,
+      fromState: currentState,
+      toState,
+      details: { reason },
+    });
+
+    // Record in history
+    if (this.options.enableHistory) {
+      await this.addHistoryEntry(
+        'progress',
+        projectId,
+        {
+          recovery: { from: currentState, to: toState },
+          reason,
+          timestamp: now,
+        },
+        `Recovery: ${currentState} → ${toState}${reason ? ` (${reason})` : ''}`
+      );
+    }
+
+    return {
+      success: true,
+      previousState: currentState,
+      newState: toState,
+      timestamp: now,
+    };
+  }
+
+  /**
+   * Get recovery options for current state
+   *
+   * @param from - Current state
+   * @returns Array of valid recovery states
+   */
+  getRecoveryOptions(from: ProjectState): readonly ProjectState[] {
+    const rule = ENHANCED_TRANSITIONS.get(from);
+    return rule?.recovery ?? [];
+  }
+
+  /**
+   * Get the enhanced transition rule for a state
+   *
+   * @param state - State to get rule for
+   * @returns Enhanced transition rule or undefined
+   */
+  getEnhancedTransitionRule(state: ProjectState): EnhancedTransitionRule | undefined {
+    return ENHANCED_TRANSITIONS.get(state);
+  }
+
+  // ============================================================
+  // Audit Logging (Issue #218)
+  // ============================================================
+
+  /**
+   * Record an audit entry
+   */
+  private async recordAudit(projectId: string, entry: RecoveryAuditEntry): Promise<void> {
+    const auditPath = this.getAuditPath(projectId);
+    const existing = await this.scratchpad.readJson<RecoveryAuditEntry[]>(auditPath, {
+      allowMissing: true,
+    });
+
+    const entries = existing ?? [];
+    entries.unshift(entry);
+
+    // Keep last 100 audit entries
+    while (entries.length > 100) {
+      entries.pop();
+    }
+
+    await this.scratchpad.writeJson(auditPath, entries);
+  }
+
+  /**
+   * Get recovery audit log for a project
+   *
+   * @param projectId - Project identifier
+   * @returns Array of audit entries (newest first)
+   */
+  async getRecoveryAuditLog(projectId: string): Promise<RecoveryAuditEntry[]> {
+    const exists = await this.projectExists(projectId);
+    if (!exists) {
+      throw new ProjectNotFoundError(projectId);
+    }
+
+    const auditPath = this.getAuditPath(projectId);
+    const entries = await this.scratchpad.readJson<RecoveryAuditEntry[]>(auditPath, {
+      allowMissing: true,
+    });
+
+    return entries ?? [];
   }
 
   /**
