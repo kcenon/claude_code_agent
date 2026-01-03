@@ -264,12 +264,14 @@ export interface WorkerPoolConfig {
   readonly workerTimeout?: number;
   /** Path to store work orders (default: '.ad-sdlc/scratchpad/progress') */
   readonly workOrdersPath?: string;
+  /** Bounded queue configuration (optional, enables queue limits when provided) */
+  readonly queueConfig?: BoundedQueueConfig;
 }
 
 /**
  * Default worker pool configuration
  */
-export const DEFAULT_WORKER_POOL_CONFIG: Required<WorkerPoolConfig> = {
+export const DEFAULT_WORKER_POOL_CONFIG: Required<Omit<WorkerPoolConfig, 'queueConfig'>> = {
   maxWorkers: 5,
   workerTimeout: 600000, // 10 minutes
   workOrdersPath: '.ad-sdlc/scratchpad/progress',
@@ -821,3 +823,135 @@ export interface HealthEvent {
  * Health event callback
  */
 export type HealthEventCallback = (event: HealthEvent) => void | Promise<void>;
+
+// ============================================================================
+// Bounded Work Queue Types
+// ============================================================================
+
+/**
+ * Rejection policy when queue is full
+ */
+export type QueueRejectionPolicy = 'reject' | 'drop-oldest' | 'drop-lowest-priority';
+
+/**
+ * Bounded work queue configuration
+ */
+export interface BoundedQueueConfig {
+  /** Maximum queue size (default: 1000) */
+  readonly maxSize?: number;
+  /** Soft limit percentage for warning (default: 0.8) */
+  readonly softLimitRatio?: number;
+  /** Rejection policy when full (default: 'reject') */
+  readonly rejectionPolicy?: QueueRejectionPolicy;
+  /** Backpressure threshold percentage (default: 0.6) */
+  readonly backpressureThreshold?: number;
+  /** Max memory usage in bytes (default: 100MB) */
+  readonly maxMemoryBytes?: number;
+  /** Enable dead letter queue (default: true) */
+  readonly enableDeadLetter?: boolean;
+  /** Maximum dead letter queue size (default: 100) */
+  readonly maxDeadLetterSize?: number;
+  /** Maximum backpressure delay in ms (default: 5000) */
+  readonly maxBackpressureDelayMs?: number;
+}
+
+/**
+ * Default bounded queue configuration
+ */
+export const DEFAULT_BOUNDED_QUEUE_CONFIG: Required<BoundedQueueConfig> = {
+  maxSize: 1000,
+  softLimitRatio: 0.8,
+  rejectionPolicy: 'reject',
+  backpressureThreshold: 0.6,
+  maxMemoryBytes: 104857600, // 100MB
+  enableDeadLetter: true,
+  maxDeadLetterSize: 100,
+  maxBackpressureDelayMs: 5000,
+} as const;
+
+/**
+ * Reason for queue rejection
+ */
+export type QueueRejectionReason =
+  | 'queue_full'
+  | 'memory_limit'
+  | 'lower_priority_than_queue';
+
+/**
+ * Result of enqueue operation
+ */
+export interface EnqueueResult {
+  /** Whether the enqueue was successful */
+  readonly success: boolean;
+  /** Task ID if successful */
+  readonly taskId?: string | undefined;
+  /** Rejection reason if failed */
+  readonly reason?: QueueRejectionReason | undefined;
+  /** Whether backpressure was applied */
+  readonly backpressureApplied?: boolean | undefined;
+  /** Delay applied in milliseconds */
+  readonly delayMs?: number | undefined;
+}
+
+/**
+ * Dead letter queue entry
+ */
+export interface DeadLetterEntry extends WorkQueueEntry {
+  /** Timestamp when moved to dead letter queue */
+  readonly movedAt: string;
+  /** Reason for moving to dead letter queue */
+  readonly reason: string;
+}
+
+/**
+ * Queue status snapshot
+ */
+export interface QueueStatus {
+  /** Current queue size */
+  readonly size: number;
+  /** Maximum queue size */
+  readonly maxSize: number;
+  /** Queue utilization ratio (0-1) */
+  readonly utilizationRatio: number;
+  /** Whether backpressure is currently active */
+  readonly backpressureActive: boolean;
+  /** Estimated memory usage in bytes */
+  readonly memoryUsage: number;
+  /** Dead letter queue size */
+  readonly deadLetterSize: number;
+  /** Whether soft limit warning is active */
+  readonly softLimitWarning: boolean;
+}
+
+/**
+ * Queue event types for notifications
+ */
+export type QueueEventType =
+  | 'task_enqueued'
+  | 'task_dequeued'
+  | 'task_rejected'
+  | 'backpressure_activated'
+  | 'backpressure_deactivated'
+  | 'soft_limit_warning'
+  | 'hard_limit_reached'
+  | 'memory_limit_warning'
+  | 'task_moved_to_dead_letter';
+
+/**
+ * Queue event for notifications
+ */
+export interface QueueEvent {
+  /** Event type */
+  readonly type: QueueEventType;
+  /** Event timestamp */
+  readonly timestamp: string;
+  /** Task/Issue ID involved */
+  readonly taskId?: string | undefined;
+  /** Additional event data */
+  readonly data: Record<string, unknown>;
+}
+
+/**
+ * Queue event callback
+ */
+export type QueueEventCallback = (event: QueueEvent) => void | Promise<void>;
