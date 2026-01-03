@@ -50,6 +50,13 @@ console.log(`PR #${result.pullRequest.number}: ${result.pullRequest.url}`);
 | `maxComplexity` | number | `10` | Maximum complexity score |
 | `ciTimeout` | number | `600000` | CI wait timeout (ms) |
 | `ciPollInterval` | number | `10000` | CI poll interval (ms) |
+| `ciPollIntervalMs` | number | `10000` | Initial CI poll interval (ms) |
+| `maxCiPollIntervalMs` | number | `60000` | Max CI poll interval after backoff (ms) |
+| `ciPollBackoffMultiplier` | number | `1.5` | Backoff multiplier for polling |
+| `maxCiPolls` | number | `60` | Maximum number of poll attempts |
+| `ciCircuitBreakerThreshold` | number | `3` | Failures before circuit opens |
+| `ciCircuitBreakerResetMs` | number | `300000` | Time before circuit breaker reset (ms) |
+| `ciFailFastOnTerminal` | boolean | `true` | Fast-fail on terminal errors |
 
 ### Example Configuration
 
@@ -60,6 +67,99 @@ const reviewer = new PRReviewerAgent({
   coverageThreshold: 85,
   maxComplexity: 8,
 });
+```
+
+## Circuit Breaker and Intelligent CI Polling
+
+The PR Reviewer Agent implements a circuit breaker pattern for CI/CD polling operations, providing:
+
+### Circuit Breaker
+
+Prevents continuous polling when CI is consistently failing:
+
+- **CLOSED State**: Normal operation, CI checks pass through
+- **OPEN State**: Circuit tripped after consecutive failures, requests fail immediately
+- **HALF-OPEN State**: Testing recovery after timeout, limited requests allowed
+
+```typescript
+// Circuit breaker is automatically integrated
+const reviewer = new PRReviewerAgent({
+  ciCircuitBreakerThreshold: 3,  // Open after 3 failures
+  ciCircuitBreakerResetMs: 300000, // Reset after 5 minutes
+});
+
+// Access circuit breaker for monitoring
+const status = reviewer.getCircuitBreaker().getStatus();
+console.log(`State: ${status.state}, Failures: ${status.failures}`);
+
+// Manual reset if needed
+reviewer.resetCircuitBreaker();
+```
+
+### Intelligent Polling
+
+Exponential backoff with jitter for efficient CI polling:
+
+```typescript
+const reviewer = new PRReviewerAgent({
+  ciPollIntervalMs: 10000,      // Start at 10s
+  maxCiPollIntervalMs: 60000,   // Max 60s between polls
+  ciPollBackoffMultiplier: 1.5, // 1.5x increase per poll
+  maxCiPolls: 60,               // Maximum 60 polls
+});
+
+// Poll CI status with full circuit breaker support
+const result = await reviewer.pollCIStatus(prNumber);
+if (!result.success) {
+  console.log(`Polling failed: ${result.reason}`);
+}
+```
+
+### Failure Classification
+
+CI failures are classified for intelligent handling:
+
+| Type | Description | Examples | Action |
+|------|-------------|----------|--------|
+| `terminal` | Cannot be auto-fixed | Config errors, auth failures | Fail fast |
+| `transient` | May be auto-fixed | Test failures, lint errors | Retry/delegate |
+| `persistent` | Needs investigation | Unknown failures | Circuit break |
+
+```typescript
+// Terminal failure patterns (fast-fail)
+- Configuration errors
+- Authorization/permission issues
+- Syntax/parse errors
+- Missing dependencies
+
+// Transient failure patterns (can retry)
+- Test failures
+- Lint errors
+- Build failures
+- Timeout errors
+```
+
+### Circuit Breaker Error Handling
+
+```typescript
+import {
+  CircuitOpenError,
+  CIMaxPollsExceededError,
+  CITerminalFailureError,
+} from './pr-reviewer';
+
+try {
+  await reviewer.review('WO-001');
+} catch (error) {
+  if (error instanceof CircuitOpenError) {
+    console.log(`Circuit open after ${error.failures} failures`);
+    console.log(`Wait ${reviewer.getCircuitBreaker().getTimeUntilReset()}ms before retry`);
+  } else if (error instanceof CITerminalFailureError) {
+    console.log(`Terminal failure in ${error.checkName}: ${error.errorMessage}`);
+  } else if (error instanceof CIMaxPollsExceededError) {
+    console.log(`Exceeded ${error.pollCount} polls for PR #${error.prNumber}`);
+  }
+}
 ```
 
 ## Quality Gates
