@@ -638,3 +638,313 @@ class Controller {
     }
   }
 }
+```
+
+## ProgressMonitor
+
+Monitors worker progress and detects stuck workers with configurable thresholds, automatic recovery actions, and escalation system.
+
+### Basic Usage
+
+```typescript
+import { ProgressMonitor } from 'ad-sdlc';
+
+// Create monitor with default configuration
+const monitor = new ProgressMonitor();
+
+// Or with custom configuration
+const customMonitor = new ProgressMonitor({
+  checkIntervalMs: 10000,        // Check every 10 seconds
+  stuckWorkerThreshold: 300000,  // 5 minutes (backward compatible)
+  stuckWorkerConfig: {
+    warningThresholdMs: 180000,  // 3 minutes - warning level
+    stuckThresholdMs: 300000,    // 5 minutes - stuck level
+    criticalThresholdMs: 600000, // 10 minutes - critical level
+    autoRecoveryEnabled: true,
+    maxRecoveryAttempts: 3,
+    deadlineExtensionMs: 60000,
+    pauseOnCritical: false,
+  },
+});
+```
+
+### Event Handling
+
+```typescript
+// Subscribe to progress events
+monitor.onEvent((event) => {
+  switch (event.type) {
+    case 'worker_warning':
+      console.log(`Worker ${event.workerId} approaching threshold`);
+      break;
+    case 'worker_stuck':
+      console.log(`Worker ${event.workerId} is stuck on ${event.issueId}`);
+      break;
+    case 'worker_critical':
+      console.error(`CRITICAL: Worker ${event.workerId} needs intervention`);
+      break;
+    case 'recovery_attempted':
+      console.log(`Recovery action: ${event.action} for ${event.workerId}`);
+      break;
+    case 'recovery_succeeded':
+      console.log(`Recovery successful for ${event.workerId}`);
+      break;
+    case 'recovery_failed':
+      console.error(`Recovery failed for ${event.workerId}: ${event.error}`);
+      break;
+  }
+});
+```
+
+### Monitoring Workers
+
+```typescript
+import type { WorkerInfo } from 'ad-sdlc';
+
+// Get worker information from WorkerPoolManager
+const workers: WorkerInfo[] = pool.getStatus().workers;
+
+// Check for stuck workers and get escalations
+const escalations = await monitor.checkWorkers(workers);
+
+for (const escalation of escalations) {
+  console.log(`${escalation.level}: Worker ${escalation.workerId}`);
+  console.log(`Duration: ${escalation.durationMs}ms`);
+  console.log(`Issue: ${escalation.issueId}`);
+  console.log(`Recommended action: ${escalation.recommendedAction}`);
+}
+```
+
+### Progress Monitor Configuration
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `checkIntervalMs` | number | 30000 | Interval between checks (30 seconds) |
+| `stuckWorkerThreshold` | number | 300000 | Threshold in milliseconds (5 minutes, deprecated) |
+| `stuckWorkerConfig` | StuckWorkerConfig | See below | Detailed stuck worker configuration |
+
+## StuckWorkerHandler
+
+Handles stuck worker detection with progressive escalation and automatic recovery actions.
+
+### Escalation Levels
+
+| Level | Default Threshold | Description |
+|-------|-------------------|-------------|
+| `warning` | 3 minutes | Worker approaching stuck threshold |
+| `stuck` | 5 minutes | Worker is stuck, recovery actions initiated |
+| `critical` | 10 minutes | Worker requires manual intervention |
+
+### Configuration
+
+```typescript
+import { StuckWorkerHandler, DEFAULT_STUCK_WORKER_CONFIG } from 'ad-sdlc';
+
+// Use default configuration
+const handler = new StuckWorkerHandler();
+
+// Or customize thresholds
+const customHandler = new StuckWorkerHandler({
+  warningThresholdMs: 180000,   // 3 minutes
+  stuckThresholdMs: 300000,     // 5 minutes
+  criticalThresholdMs: 600000,  // 10 minutes
+  autoRecoveryEnabled: true,
+  maxRecoveryAttempts: 3,
+  deadlineExtensionMs: 60000,   // 1 minute extension
+  pauseOnCritical: false,
+  taskThresholds: {
+    // Per-task-type thresholds
+    build: {
+      warning: 300000,   // 5 minutes
+      stuck: 600000,     // 10 minutes
+      critical: 900000,  // 15 minutes
+    },
+    test: {
+      warning: 600000,   // 10 minutes
+      stuck: 1200000,    // 20 minutes
+      critical: 1800000, // 30 minutes
+    },
+  },
+});
+```
+
+### Recovery Actions
+
+The handler implements progressive recovery based on attempt count:
+
+| Attempt | Action | Description |
+|---------|--------|-------------|
+| 1st | `extend_deadline` | Extend the task deadline |
+| 2nd | `reassign_task` | Reassign task to different worker |
+| 3rd | `restart_worker` | Restart the stuck worker |
+| Max exceeded | `escalate_critical` | Escalate to manual intervention |
+
+### Setting Recovery Handlers
+
+```typescript
+// Deadline extension handler
+handler.setDeadlineExtendHandler(async (workerId, issueId, extensionMs) => {
+  console.log(`Extending deadline for ${workerId} by ${extensionMs}ms`);
+  // Implement deadline extension logic
+});
+
+// Task reassignment handler
+handler.setTaskReassignHandler(async (issueId, fromWorkerId) => {
+  console.log(`Reassigning ${issueId} from ${fromWorkerId}`);
+  // Implement task reassignment logic
+  return 'worker-2'; // Return new worker ID
+});
+
+// Worker restart handler
+handler.setWorkerRestartHandler(async (workerId) => {
+  console.log(`Restarting worker ${workerId}`);
+  // Implement worker restart logic
+});
+
+// Critical escalation handler
+handler.setCriticalEscalationHandler(async (escalation) => {
+  console.error('CRITICAL:', escalation);
+  // Implement critical escalation (e.g., send alert, pause pipeline)
+});
+
+// Pipeline pause handler (when pauseOnCritical is true)
+handler.setPipelinePauseHandler(async (reason) => {
+  console.log(`Pausing pipeline: ${reason}`);
+  // Implement pipeline pause logic
+});
+```
+
+### Worker Tracking
+
+```typescript
+// Track a worker
+handler.trackWorker('worker-1', 'issue-1', Date.now(), 'build');
+
+// Check workers and get escalations
+const escalations = await handler.checkWorkers(workers);
+
+// Untrack a worker (e.g., when task completes)
+handler.untrackWorker('worker-1');
+
+// Get all tracked workers
+const tracked = handler.getTrackedWorkers();
+
+// Get threshold for specific task type
+const threshold = handler.getThresholdForTask('build');
+console.log(`Warning: ${threshold.warning}ms`);
+console.log(`Stuck: ${threshold.stuck}ms`);
+console.log(`Critical: ${threshold.critical}ms`);
+```
+
+### History and Monitoring
+
+```typescript
+// Get escalation history
+const escalationHistory = handler.getEscalationHistory();
+for (const escalation of escalationHistory) {
+  console.log(`${escalation.timestamp}: ${escalation.level} - ${escalation.workerId}`);
+}
+
+// Get recovery attempt history
+const recoveryHistory = handler.getRecoveryHistory();
+for (const attempt of recoveryHistory) {
+  console.log(`${attempt.action}: ${attempt.success ? 'succeeded' : 'failed'}`);
+  if (!attempt.success && attempt.error) {
+    console.log(`  Error: ${attempt.error}`);
+  }
+}
+
+// Reset all state
+handler.reset();
+```
+
+### Stuck Worker Configuration
+
+```typescript
+interface StuckWorkerConfig {
+  readonly warningThresholdMs?: number;      // Warning level threshold
+  readonly stuckThresholdMs?: number;        // Stuck level threshold
+  readonly criticalThresholdMs?: number;     // Critical level threshold
+  readonly taskThresholds?: Record<string, TaskTypeThreshold>; // Per-task thresholds
+  readonly autoRecoveryEnabled?: boolean;    // Enable automatic recovery
+  readonly maxRecoveryAttempts?: number;     // Maximum recovery attempts
+  readonly deadlineExtensionMs?: number;     // Deadline extension duration
+  readonly pauseOnCritical?: boolean;        // Pause pipeline on critical
+}
+
+interface TaskTypeThreshold {
+  readonly warning: number;
+  readonly stuck: number;
+  readonly critical: number;
+}
+
+const DEFAULT_STUCK_WORKER_CONFIG = {
+  warningThresholdMs: 180000,    // 3 minutes
+  stuckThresholdMs: 300000,      // 5 minutes
+  criticalThresholdMs: 600000,   // 10 minutes
+  taskThresholds: {},
+  autoRecoveryEnabled: true,
+  maxRecoveryAttempts: 3,
+  deadlineExtensionMs: 60000,    // 1 minute
+  pauseOnCritical: false,
+};
+```
+
+### Stuck Worker Error Classes
+
+```typescript
+import {
+  StuckWorkerRecoveryError,
+  StuckWorkerCriticalError,
+  MaxRecoveryAttemptsExceededError,
+} from 'ad-sdlc';
+
+try {
+  await handler.checkWorkers(workers);
+} catch (error) {
+  if (error instanceof StuckWorkerRecoveryError) {
+    console.error(`Recovery failed for ${error.workerId}: attempt ${error.attemptCount}`);
+    console.error(`Issue: ${error.issueId}`);
+    console.error(`Cause: ${error.cause?.message}`);
+  } else if (error instanceof StuckWorkerCriticalError) {
+    console.error(`CRITICAL: Worker ${error.workerId} stuck for ${error.durationMs}ms`);
+    console.error(`Attempts exhausted: ${error.attemptCount}`);
+  } else if (error instanceof MaxRecoveryAttemptsExceededError) {
+    console.error(`Max attempts (${error.maxAttempts}) exceeded for ${error.workerId}`);
+  }
+}
+```
+
+### Integration with ProgressMonitor
+
+```typescript
+import { ProgressMonitor } from 'ad-sdlc';
+
+// ProgressMonitor automatically integrates StuckWorkerHandler
+const monitor = new ProgressMonitor({
+  stuckWorkerConfig: {
+    warningThresholdMs: 180000,
+    stuckThresholdMs: 300000,
+    criticalThresholdMs: 600000,
+    autoRecoveryEnabled: true,
+    maxRecoveryAttempts: 3,
+  },
+});
+
+// Get the underlying StuckWorkerHandler
+const handler = monitor.getStuckWorkerHandler();
+
+// Set recovery handlers through ProgressMonitor
+monitor.setDeadlineExtendHandler(async (workerId, issueId, extensionMs) => {
+  // Handle deadline extension
+});
+
+monitor.setTaskReassignHandler(async (issueId, fromWorkerId) => {
+  // Handle task reassignment
+  return 'new-worker-id';
+});
+
+monitor.setWorkerRestartHandler(async (workerId) => {
+  // Handle worker restart
+});
+```

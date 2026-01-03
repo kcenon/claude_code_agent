@@ -25,13 +25,23 @@ import type {
   ProgressEventCallback,
   WorkQueueEntry,
   HealthMonitorStatus,
+  StuckWorkerConfig,
+  StuckWorkerEscalation,
 } from './types.js';
-import { DEFAULT_PROGRESS_MONITOR_CONFIG } from './types.js';
+import { DEFAULT_PROGRESS_MONITOR_CONFIG, DEFAULT_STUCK_WORKER_CONFIG } from './types.js';
 import {
   ProgressMonitorAlreadyRunningError,
   ProgressMonitorNotRunningError,
   ProgressReportPersistenceError,
 } from './errors.js';
+import {
+  StuckWorkerHandler,
+  type TaskReassignHandler,
+  type WorkerRestartHandler,
+  type DeadlineExtendHandler,
+  type CriticalEscalationHandler,
+  type PipelinePauseHandler,
+} from './StuckWorkerHandler.js';
 
 /**
  * Completion record for ETA calculation
@@ -66,7 +76,11 @@ interface MutableRecentActivity {
 type GetHealthStatusFn = () => HealthMonitorStatus;
 
 export class ProgressMonitor {
-  private readonly config: Required<ProgressMonitorConfig>;
+  private readonly config: Required<Omit<ProgressMonitorConfig, 'stuckWorkerConfig'>> & {
+    stuckWorkerConfig: Required<Omit<StuckWorkerConfig, 'taskThresholds'>> & {
+      taskThresholds: Record<string, import('./types.js').TaskTypeThreshold>;
+    };
+  };
   private readonly sessionId: string;
   private timer: ReturnType<typeof setInterval> | null;
   private isRunning: boolean;
@@ -83,16 +97,55 @@ export class ProgressMonitor {
 
   private getHealthStatus?: GetHealthStatusFn;
 
+  private readonly stuckWorkerHandler: StuckWorkerHandler;
+
   constructor(sessionId: string, config: ProgressMonitorConfig = {}) {
+    const stuckWorkerConfig = config.stuckWorkerConfig ?? {};
+
+    // Support deprecated stuckWorkerThreshold for backward compatibility
+    // eslint-disable-next-line @typescript-eslint/no-deprecated
+    const legacyThreshold = config.stuckWorkerThreshold;
+
+    const effectiveStuckThreshold =
+      stuckWorkerConfig.stuckThresholdMs ??
+      legacyThreshold ??
+      DEFAULT_STUCK_WORKER_CONFIG.stuckThresholdMs;
+
+    const effectiveWarningThreshold =
+      stuckWorkerConfig.warningThresholdMs ??
+      (legacyThreshold !== undefined
+        ? Math.round(legacyThreshold * 0.6)
+        : DEFAULT_STUCK_WORKER_CONFIG.warningThresholdMs);
+
+    const effectiveCriticalThreshold =
+      stuckWorkerConfig.criticalThresholdMs ??
+      (legacyThreshold !== undefined
+        ? legacyThreshold * 2
+        : DEFAULT_STUCK_WORKER_CONFIG.criticalThresholdMs);
+
     this.config = {
       pollingInterval: config.pollingInterval ?? DEFAULT_PROGRESS_MONITOR_CONFIG.pollingInterval,
-      stuckWorkerThreshold:
-        config.stuckWorkerThreshold ?? DEFAULT_PROGRESS_MONITOR_CONFIG.stuckWorkerThreshold,
+      stuckWorkerThreshold: effectiveStuckThreshold,
       maxRecentActivities:
         config.maxRecentActivities ?? DEFAULT_PROGRESS_MONITOR_CONFIG.maxRecentActivities,
       reportPath: config.reportPath ?? DEFAULT_PROGRESS_MONITOR_CONFIG.reportPath,
       enableNotifications:
         config.enableNotifications ?? DEFAULT_PROGRESS_MONITOR_CONFIG.enableNotifications,
+      stuckWorkerConfig: {
+        warningThresholdMs: effectiveWarningThreshold,
+        stuckThresholdMs: effectiveStuckThreshold,
+        criticalThresholdMs: effectiveCriticalThreshold,
+        taskThresholds:
+          stuckWorkerConfig.taskThresholds ?? DEFAULT_STUCK_WORKER_CONFIG.taskThresholds,
+        autoRecoveryEnabled:
+          stuckWorkerConfig.autoRecoveryEnabled ?? DEFAULT_STUCK_WORKER_CONFIG.autoRecoveryEnabled,
+        maxRecoveryAttempts:
+          stuckWorkerConfig.maxRecoveryAttempts ?? DEFAULT_STUCK_WORKER_CONFIG.maxRecoveryAttempts,
+        deadlineExtensionMs:
+          stuckWorkerConfig.deadlineExtensionMs ?? DEFAULT_STUCK_WORKER_CONFIG.deadlineExtensionMs,
+        pauseOnCritical:
+          stuckWorkerConfig.pauseOnCritical ?? DEFAULT_STUCK_WORKER_CONFIG.pauseOnCritical,
+      },
     };
 
     this.sessionId = sessionId;
@@ -108,6 +161,12 @@ export class ProgressMonitor {
     this.completedCount = 0;
     this.failedCount = 0;
     this.lastWorkerStatus = new Map();
+
+    this.stuckWorkerHandler = new StuckWorkerHandler(this.config.stuckWorkerConfig);
+
+    this.stuckWorkerHandler.onEvent((event) => {
+      void this.emitEvent(event.type, event.data);
+    });
   }
 
   /**
@@ -332,37 +391,56 @@ export class ProgressMonitor {
     const bottlenecks: Bottleneck[] = [];
     const now = Date.now();
 
-    // 1. Detect stuck workers (running > threshold)
+    // 1. Detect stuck workers using StuckWorkerHandler (with configurable thresholds)
+    void this.stuckWorkerHandler.checkWorkers(workerStatus.workers);
+
     for (const worker of workerStatus.workers) {
       if (worker.status === 'working' && worker.startedAt !== null) {
         const duration = now - new Date(worker.startedAt).getTime();
-        if (duration > this.config.stuckWorkerThreshold) {
+        const threshold = this.stuckWorkerHandler.getThresholdForTask(null);
+
+        if (duration > threshold.stuck) {
           const bottleneckId = `stuck_worker_${worker.id}`;
 
           if (!this.detectedBottlenecks.has(bottleneckId)) {
+            const severity = duration >= threshold.critical ? 5 : 4;
+            const level = duration >= threshold.critical ? 'critical' : 'stuck';
             const bottleneck = this.createBottleneck(
               'stuck_worker',
-              `Worker ${worker.id} has been working on ${worker.currentIssue ?? 'unknown'} for over ${String(Math.round(duration / 60000))} minutes`,
+              `Worker ${worker.id} has been working on ${worker.currentIssue ?? 'unknown'} for over ${String(Math.round(duration / 60000))} minutes (${level})`,
               worker.currentIssue !== null ? [worker.currentIssue] : [],
-              'Check worker logs and consider manual intervention or timeout',
-              4
+              this.getSuggestedActionForStuckWorker(duration, threshold),
+              severity
             );
             this.detectedBottlenecks.set(bottleneckId, bottleneck);
             bottlenecks.push(bottleneck);
-
-            // Emit worker stuck event
-            void this.emitEvent('worker_stuck', {
-              workerId: worker.id,
-              issueId: worker.currentIssue,
-              durationMinutes: Math.round(duration / 60000),
-            });
           } else {
             const existing = this.detectedBottlenecks.get(bottleneckId);
             if (existing !== undefined) {
               bottlenecks.push(existing);
             }
           }
+        } else if (duration > threshold.warning) {
+          const bottleneckId = `warning_worker_${worker.id}`;
+
+          if (!this.detectedBottlenecks.has(bottleneckId)) {
+            const bottleneck = this.createBottleneck(
+              'stuck_worker',
+              `Worker ${worker.id} approaching stuck threshold (${String(Math.round(duration / 60000))} minutes)`,
+              worker.currentIssue !== null ? [worker.currentIssue] : [],
+              'Monitor progress. Automatic recovery will trigger if threshold exceeded.',
+              2
+            );
+            this.detectedBottlenecks.set(bottleneckId, bottleneck);
+            bottlenecks.push(bottleneck);
+          }
+        } else {
+          this.detectedBottlenecks.delete(`warning_worker_${worker.id}`);
+          this.detectedBottlenecks.delete(`stuck_worker_${worker.id}`);
         }
+      } else {
+        this.detectedBottlenecks.delete(`warning_worker_${worker.id}`);
+        this.detectedBottlenecks.delete(`stuck_worker_${worker.id}`);
       }
     }
 
@@ -454,6 +532,22 @@ export class ProgressMonitor {
     }
 
     return bottlenecks;
+  }
+
+  /**
+   * Get suggested action for stuck worker based on duration
+   */
+  private getSuggestedActionForStuckWorker(
+    duration: number,
+    threshold: import('./types.js').TaskTypeThreshold
+  ): string {
+    if (duration >= threshold.critical) {
+      return 'Manual intervention required. Automatic recovery attempts exhausted.';
+    }
+    if (duration >= threshold.stuck) {
+      return 'Automatic recovery in progress. Check worker logs if issue persists.';
+    }
+    return 'Monitor progress. Recovery will trigger automatically if threshold exceeded.';
   }
 
   /**
@@ -807,6 +901,7 @@ export class ProgressMonitor {
     this.totalIssues = 0;
     this.completedCount = 0;
     this.failedCount = 0;
+    this.stuckWorkerHandler.reset();
   }
 
   /**
@@ -821,5 +916,70 @@ export class ProgressMonitor {
    */
   public getFailedCount(): number {
     return this.failedCount;
+  }
+
+  /**
+   * Get the stuck worker handler instance
+   */
+  public getStuckWorkerHandler(): StuckWorkerHandler {
+    return this.stuckWorkerHandler;
+  }
+
+  /**
+   * Get stuck worker configuration
+   */
+  public getStuckWorkerConfig(): Required<Omit<StuckWorkerConfig, 'taskThresholds'>> & {
+    taskThresholds: Record<string, import('./types.js').TaskTypeThreshold>;
+  } {
+    return this.config.stuckWorkerConfig;
+  }
+
+  /**
+   * Set task reassignment handler for stuck worker recovery
+   */
+  public setTaskReassignHandler(handler: TaskReassignHandler): void {
+    this.stuckWorkerHandler.setTaskReassignHandler(handler);
+  }
+
+  /**
+   * Set worker restart handler for stuck worker recovery
+   */
+  public setWorkerRestartHandler(handler: WorkerRestartHandler): void {
+    this.stuckWorkerHandler.setWorkerRestartHandler(handler);
+  }
+
+  /**
+   * Set deadline extension handler for stuck worker recovery
+   */
+  public setDeadlineExtendHandler(handler: DeadlineExtendHandler): void {
+    this.stuckWorkerHandler.setDeadlineExtendHandler(handler);
+  }
+
+  /**
+   * Set critical escalation handler
+   */
+  public setCriticalEscalationHandler(handler: CriticalEscalationHandler): void {
+    this.stuckWorkerHandler.setCriticalEscalationHandler(handler);
+  }
+
+  /**
+   * Set pipeline pause handler for critical escalations
+   */
+  public setPipelinePauseHandler(handler: PipelinePauseHandler): void {
+    this.stuckWorkerHandler.setPipelinePauseHandler(handler);
+  }
+
+  /**
+   * Get stuck worker escalation history
+   */
+  public getEscalationHistory(): readonly StuckWorkerEscalation[] {
+    return this.stuckWorkerHandler.getEscalationHistory();
+  }
+
+  /**
+   * Get stuck worker recovery history
+   */
+  public getRecoveryHistory(): readonly import('./types.js').StuckWorkerRecoveryAttempt[] {
+    return this.stuckWorkerHandler.getRecoveryHistory();
   }
 }

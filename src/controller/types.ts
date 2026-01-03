@@ -508,12 +508,120 @@ export interface ProgressReport {
 }
 
 /**
+ * Escalation level for stuck worker handling
+ */
+export type StuckWorkerEscalationLevel = 'warning' | 'stuck' | 'critical';
+
+/**
+ * Recovery action types for stuck workers
+ */
+export type StuckWorkerRecoveryAction =
+  | 'extend_deadline'
+  | 'send_warning'
+  | 'reassign_task'
+  | 'restart_worker'
+  | 'escalate_critical';
+
+/**
+ * Per-task-type threshold configuration
+ */
+export interface TaskTypeThreshold {
+  /** Warning threshold in milliseconds */
+  readonly warning: number;
+  /** Stuck threshold in milliseconds */
+  readonly stuck: number;
+  /** Critical threshold in milliseconds */
+  readonly critical: number;
+}
+
+/**
+ * Stuck worker configuration
+ */
+export interface StuckWorkerConfig {
+  /** Warning threshold in milliseconds (default: 180000 = 3 minutes) */
+  readonly warningThresholdMs?: number;
+  /** Stuck threshold in milliseconds (default: 300000 = 5 minutes) */
+  readonly stuckThresholdMs?: number;
+  /** Critical threshold in milliseconds (default: 600000 = 10 minutes) */
+  readonly criticalThresholdMs?: number;
+  /** Per-task-type threshold overrides */
+  readonly taskThresholds?: Record<string, TaskTypeThreshold>;
+  /** Enable automatic recovery (default: true) */
+  readonly autoRecoveryEnabled?: boolean;
+  /** Maximum automatic recovery attempts (default: 3) */
+  readonly maxRecoveryAttempts?: number;
+  /** Deadline extension in milliseconds (default: 60000 = 1 minute) */
+  readonly deadlineExtensionMs?: number;
+  /** Pause pipeline on critical escalation (default: false) */
+  readonly pauseOnCritical?: boolean;
+}
+
+/**
+ * Default stuck worker configuration
+ */
+export const DEFAULT_STUCK_WORKER_CONFIG: Required<Omit<StuckWorkerConfig, 'taskThresholds'>> & {
+  taskThresholds: Record<string, TaskTypeThreshold>;
+} = {
+  warningThresholdMs: 180000, // 3 minutes
+  stuckThresholdMs: 300000, // 5 minutes
+  criticalThresholdMs: 600000, // 10 minutes
+  taskThresholds: {},
+  autoRecoveryEnabled: true,
+  maxRecoveryAttempts: 3,
+  deadlineExtensionMs: 60000, // 1 minute
+  pauseOnCritical: false,
+} as const;
+
+/**
+ * Stuck worker recovery attempt record
+ */
+export interface StuckWorkerRecoveryAttempt {
+  /** Worker ID */
+  readonly workerId: string;
+  /** Issue/task ID */
+  readonly issueId: string;
+  /** Attempt number (1-based) */
+  readonly attemptNumber: number;
+  /** Action taken */
+  readonly action: StuckWorkerRecoveryAction;
+  /** Timestamp of the attempt */
+  readonly timestamp: string;
+  /** Whether the recovery was successful */
+  readonly success: boolean;
+  /** Error message if failed */
+  readonly error?: string;
+}
+
+/**
+ * Stuck worker escalation event
+ */
+export interface StuckWorkerEscalation {
+  /** Worker ID */
+  readonly workerId: string;
+  /** Issue/task ID */
+  readonly issueId: string | null;
+  /** Escalation level */
+  readonly level: StuckWorkerEscalationLevel;
+  /** Duration in milliseconds */
+  readonly durationMs: number;
+  /** Recovery attempts made */
+  readonly recoveryAttempts: number;
+  /** Timestamp */
+  readonly timestamp: string;
+  /** Suggested action */
+  readonly suggestedAction: string;
+}
+
+/**
  * Progress monitor configuration
  */
 export interface ProgressMonitorConfig {
   /** Polling interval in milliseconds (default: 30000 = 30 seconds) */
   readonly pollingInterval?: number;
-  /** Threshold for stuck worker detection in milliseconds (default: 1800000 = 30 minutes) */
+  /**
+   * Threshold for stuck worker detection in milliseconds (default: 300000 = 5 minutes)
+   * @deprecated Use stuckWorkerConfig.stuckThresholdMs instead
+   */
   readonly stuckWorkerThreshold?: number;
   /** Maximum number of recent activities to track (default: 50) */
   readonly maxRecentActivities?: number;
@@ -521,21 +629,30 @@ export interface ProgressMonitorConfig {
   readonly reportPath?: string;
   /** Enable notification hooks */
   readonly enableNotifications?: boolean;
+  /** Stuck worker configuration */
+  readonly stuckWorkerConfig?: StuckWorkerConfig;
 }
 
 /**
  * Default progress monitor configuration
  *
- * Note: For faster zombie detection, use WorkerHealthMonitor which
- * provides heartbeat-based detection with configurable thresholds.
- * The stuckWorkerThreshold here is for progress monitoring purposes.
+ * Note: The stuckWorkerThreshold has been reduced from 30 minutes to 5 minutes
+ * for faster detection. For even faster zombie detection, use WorkerHealthMonitor
+ * which provides heartbeat-based detection.
  */
-export const DEFAULT_PROGRESS_MONITOR_CONFIG: Required<ProgressMonitorConfig> = {
+export const DEFAULT_PROGRESS_MONITOR_CONFIG: Required<
+  Omit<ProgressMonitorConfig, 'stuckWorkerConfig'>
+> & {
+  stuckWorkerConfig: Required<Omit<StuckWorkerConfig, 'taskThresholds'>> & {
+    taskThresholds: Record<string, TaskTypeThreshold>;
+  };
+} = {
   pollingInterval: 30000, // 30 seconds
-  stuckWorkerThreshold: 1800000, // 30 minutes
+  stuckWorkerThreshold: 300000, // 5 minutes (reduced from 30 minutes)
   maxRecentActivities: 50,
   reportPath: '.ad-sdlc/scratchpad/progress',
   enableNotifications: true,
+  stuckWorkerConfig: DEFAULT_STUCK_WORKER_CONFIG,
 } as const;
 
 /**
@@ -547,6 +664,14 @@ export type ProgressEventType =
   | 'bottleneck_resolved'
   | 'milestone_reached'
   | 'worker_stuck'
+  | 'worker_warning'
+  | 'worker_critical'
+  | 'recovery_attempted'
+  | 'recovery_succeeded'
+  | 'recovery_failed'
+  | 'task_reassigned'
+  | 'deadline_extended'
+  | 'critical_escalation'
   | 'all_completed';
 
 /**

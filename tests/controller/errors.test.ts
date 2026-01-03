@@ -12,6 +12,9 @@ import {
   IssueNotFoundError,
   PriorityAnalysisError,
   EmptyGraphError,
+  StuckWorkerRecoveryError,
+  StuckWorkerCriticalError,
+  MaxRecoveryAttemptsExceededError,
 } from '../../src/controller/errors.js';
 
 describe('Controller Error Classes', () => {
@@ -122,6 +125,71 @@ describe('Controller Error Classes', () => {
 
       expect(error.name).toBe('EmptyGraphError');
       expect(error.message).toContain('no issues');
+    });
+  });
+
+  describe('StuckWorkerRecoveryError', () => {
+    it('should create error with workerId, issueId, and attemptCount', () => {
+      const cause = new Error('Recovery failed');
+      const error = new StuckWorkerRecoveryError('worker-1', 'issue-1', 3, cause);
+
+      expect(error.name).toBe('StuckWorkerRecoveryError');
+      expect(error.workerId).toBe('worker-1');
+      expect(error.issueId).toBe('issue-1');
+      expect(error.attemptCount).toBe(3);
+      expect(error.cause).toBe(cause);
+      expect(error.message).toContain('worker-1');
+      expect(error.message).toContain('issue-1');
+      expect(error.message).toContain('3');
+    });
+
+    it('should create error without issueId', () => {
+      const error = new StuckWorkerRecoveryError('worker-1', null, 2);
+
+      expect(error.name).toBe('StuckWorkerRecoveryError');
+      expect(error.issueId).toBeNull();
+      expect(error.message).not.toContain('for task');
+    });
+
+    it('should create error without cause', () => {
+      const error = new StuckWorkerRecoveryError('worker-1', 'issue-1', 1);
+
+      expect(error.cause).toBeUndefined();
+    });
+  });
+
+  describe('StuckWorkerCriticalError', () => {
+    it('should create error with all properties', () => {
+      const error = new StuckWorkerCriticalError('worker-1', 'issue-1', 600000, 3);
+
+      expect(error.name).toBe('StuckWorkerCriticalError');
+      expect(error.workerId).toBe('worker-1');
+      expect(error.issueId).toBe('issue-1');
+      expect(error.durationMs).toBe(600000);
+      expect(error.attemptCount).toBe(3);
+      expect(error.message).toContain('worker-1');
+      expect(error.message).toContain('issue-1');
+      expect(error.message).toContain('10 minutes');
+      expect(error.message).toContain('manual intervention');
+    });
+
+    it('should create error without issueId', () => {
+      const error = new StuckWorkerCriticalError('worker-1', null, 300000, 2);
+
+      expect(error.issueId).toBeNull();
+      expect(error.message).not.toContain('on task');
+    });
+  });
+
+  describe('MaxRecoveryAttemptsExceededError', () => {
+    it('should create error with workerId and maxAttempts', () => {
+      const error = new MaxRecoveryAttemptsExceededError('worker-1', 3);
+
+      expect(error.name).toBe('MaxRecoveryAttemptsExceededError');
+      expect(error.workerId).toBe('worker-1');
+      expect(error.maxAttempts).toBe(3);
+      expect(error.message).toContain('worker-1');
+      expect(error.message).toContain('3');
     });
   });
 });

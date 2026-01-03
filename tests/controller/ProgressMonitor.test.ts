@@ -575,7 +575,7 @@ describe('ProgressMonitor', () => {
   describe('default configuration', () => {
     it('should have correct default values', () => {
       expect(DEFAULT_PROGRESS_MONITOR_CONFIG.pollingInterval).toBe(30000);
-      expect(DEFAULT_PROGRESS_MONITOR_CONFIG.stuckWorkerThreshold).toBe(1800000);
+      expect(DEFAULT_PROGRESS_MONITOR_CONFIG.stuckWorkerThreshold).toBe(300000); // 5 minutes (reduced from 30)
       expect(DEFAULT_PROGRESS_MONITOR_CONFIG.maxRecentActivities).toBe(50);
       expect(DEFAULT_PROGRESS_MONITOR_CONFIG.enableNotifications).toBe(true);
     });
