@@ -12,6 +12,7 @@ export { WorkerPoolManager } from './WorkerPoolManager.js';
 export { ProgressMonitor } from './ProgressMonitor.js';
 export { WorkerHealthMonitor } from './WorkerHealthMonitor.js';
 export { StuckWorkerHandler } from './StuckWorkerHandler.js';
+export { BoundedWorkQueue } from './BoundedWorkQueue.js';
 export type {
   ZombieWorkerHandler,
   WorkerRestartHandler,
@@ -82,6 +83,16 @@ export type {
   HealthEventType,
   HealthEvent,
   HealthEventCallback,
+  // Bounded Work Queue types
+  QueueRejectionPolicy,
+  BoundedQueueConfig,
+  QueueRejectionReason,
+  EnqueueResult,
+  DeadLetterEntry,
+  QueueStatus,
+  QueueEventType,
+  QueueEvent,
+  QueueEventCallback,
 } from './types.js';
 
 export {
@@ -91,6 +102,7 @@ export {
   DEFAULT_PROGRESS_MONITOR_CONFIG,
   DEFAULT_STUCK_WORKER_CONFIG,
   DEFAULT_HEALTH_CHECK_CONFIG,
+  DEFAULT_BOUNDED_QUEUE_CONFIG,
 } from './types.js';
 
 export {
@@ -129,4 +141,9 @@ export {
   StuckWorkerRecoveryError,
   StuckWorkerCriticalError,
   MaxRecoveryAttemptsExceededError,
+  // Bounded Work Queue errors
+  QueueFullError,
+  QueueMemoryLimitError,
+  QueueBackpressureActiveError,
+  TaskPriorityTooLowError,
 } from './errors.js';

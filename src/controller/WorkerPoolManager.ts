@@ -45,6 +45,11 @@ import type {
   WorkerFailureCallback,
   IssueNode,
   AnalyzedIssue,
+  BoundedQueueConfig,
+  EnqueueResult,
+  QueueStatus,
+  QueueEventCallback,
+  DeadLetterEntry,
 } from './types.js';
 import { DEFAULT_WORKER_POOL_CONFIG } from './types.js';
 import {
@@ -55,6 +60,7 @@ import {
   WorkerAssignmentError,
   ControllerStatePersistenceError,
 } from './errors.js';
+import { BoundedWorkQueue } from './BoundedWorkQueue.js';
 
 /**
  * Internal mutable worker state
@@ -73,12 +79,30 @@ interface MutableWorkerInfo {
  *
  * Manages a pool of workers for concurrent task execution.
  * Provides work order creation, assignment, and lifecycle management.
+ *
+ * Now includes bounded queue support with:
+ * - Configurable queue size limits
+ * - Backpressure mechanism
+ * - Rejection policies
+ * - Dead letter queue
+ * - Memory monitoring
  */
+/**
+ * Internal configuration type with optional queueConfig
+ */
+interface InternalWorkerPoolConfig {
+  readonly maxWorkers: number;
+  readonly workerTimeout: number;
+  readonly workOrdersPath: string;
+  readonly queueConfig: BoundedQueueConfig | undefined;
+}
+
 export class WorkerPoolManager {
-  private readonly config: Required<WorkerPoolConfig>;
+  private readonly config: InternalWorkerPoolConfig;
   private readonly workers: Map<string, MutableWorkerInfo>;
   private readonly workOrders: Map<string, WorkOrder>;
-  private readonly workQueue: Map<string, WorkQueueEntry>;
+  private readonly boundedQueue: BoundedWorkQueue | null;
+  private readonly legacyQueue: Map<string, WorkQueueEntry>;
   private readonly completedOrders: Set<string>;
   private readonly failedOrders: Set<string>;
   private workOrderCounter: number;
@@ -91,14 +115,23 @@ export class WorkerPoolManager {
       maxWorkers: config.maxWorkers ?? DEFAULT_WORKER_POOL_CONFIG.maxWorkers,
       workerTimeout: config.workerTimeout ?? DEFAULT_WORKER_POOL_CONFIG.workerTimeout,
       workOrdersPath: config.workOrdersPath ?? DEFAULT_WORKER_POOL_CONFIG.workOrdersPath,
+      queueConfig: config.queueConfig,
     };
 
     this.workers = new Map();
     this.workOrders = new Map();
-    this.workQueue = new Map();
     this.completedOrders = new Set();
     this.failedOrders = new Set();
     this.workOrderCounter = 0;
+
+    // Initialize bounded queue if config provided, otherwise use legacy queue
+    if (config.queueConfig !== undefined) {
+      this.boundedQueue = new BoundedWorkQueue(config.queueConfig);
+      this.legacyQueue = new Map(); // Not used but kept for type safety
+    } else {
+      this.boundedQueue = null;
+      this.legacyQueue = new Map();
+    }
 
     this.initializeWorkers();
   }
@@ -337,7 +370,11 @@ export class WorkerPoolManager {
       worker.startedAt = new Date().toISOString();
 
       // Remove from queue if present
-      this.workQueue.delete(workOrder.issueId);
+      if (this.boundedQueue !== null) {
+        this.boundedQueue.remove(workOrder.issueId);
+      } else {
+        this.legacyQueue.delete(workOrder.issueId);
+      }
     } catch (error) {
       // Rollback on failure
       worker.status = 'idle';
@@ -449,14 +486,37 @@ export class WorkerPoolManager {
 
   /**
    * Add an issue to the work queue
+   *
+   * If bounded queue is enabled, this will apply size limits and backpressure.
+   * Use enqueueBounded() for explicit result handling with bounded queue.
    */
   public enqueue(issueId: string, priorityScore: number): void {
-    this.workQueue.set(issueId, {
-      issueId,
-      priorityScore,
-      queuedAt: new Date().toISOString(),
-      attempts: 0,
-    });
+    if (this.boundedQueue !== null) {
+      // Fire and forget for backward compatibility
+      void this.boundedQueue.enqueue(issueId, priorityScore);
+    } else {
+      this.legacyQueue.set(issueId, {
+        issueId,
+        priorityScore,
+        queuedAt: new Date().toISOString(),
+        attempts: 0,
+      });
+    }
+  }
+
+  /**
+   * Add an issue to the work queue with result handling
+   *
+   * Only available when bounded queue is enabled.
+   * Returns detailed result including success/failure reason and backpressure info.
+   *
+   * @throws Error if bounded queue is not enabled
+   */
+  public async enqueueBounded(issueId: string, priorityScore: number): Promise<EnqueueResult> {
+    if (this.boundedQueue === null) {
+      throw new Error('Bounded queue is not enabled. Configure queueConfig to use this method.');
+    }
+    return await this.boundedQueue.enqueue(issueId, priorityScore);
   }
 
   /**
@@ -464,18 +524,33 @@ export class WorkerPoolManager {
    * @returns The highest priority issue ID, or null if queue is empty
    */
   public dequeue(): string | null {
-    if (this.workQueue.size === 0) {
+    if (this.boundedQueue !== null) {
+      // Synchronous wrapper - bounded queue dequeue is async but we need sync here
+      // For full async support, use dequeueBounded()
+      const entries = this.boundedQueue.getAll();
+      if (entries.length === 0) {
+        return null;
+      }
+      const next = entries[0];
+      if (next !== undefined) {
+        this.boundedQueue.remove(next.issueId);
+        return next.issueId;
+      }
+      return null;
+    }
+
+    if (this.legacyQueue.size === 0) {
       return null;
     }
 
     // Sort by priority score (descending)
-    const sorted = Array.from(this.workQueue.values()).sort(
+    const sorted = Array.from(this.legacyQueue.values()).sort(
       (a, b) => b.priorityScore - a.priorityScore
     );
 
     const next = sorted[0];
     if (next !== undefined) {
-      this.workQueue.delete(next.issueId);
+      this.legacyQueue.delete(next.issueId);
       return next.issueId;
     }
 
@@ -483,24 +558,100 @@ export class WorkerPoolManager {
   }
 
   /**
+   * Get the next issue from the work queue (async version)
+   *
+   * Recommended when using bounded queue for proper event handling.
+   */
+  public async dequeueBounded(): Promise<string | null> {
+    if (this.boundedQueue !== null) {
+      return await this.boundedQueue.dequeue();
+    }
+    return this.dequeue();
+  }
+
+  /**
    * Get the work queue entries
    */
   public getQueue(): readonly WorkQueueEntry[] {
-    return Array.from(this.workQueue.values()).sort((a, b) => b.priorityScore - a.priorityScore);
+    if (this.boundedQueue !== null) {
+      return this.boundedQueue.getAll();
+    }
+    return Array.from(this.legacyQueue.values()).sort((a, b) => b.priorityScore - a.priorityScore);
   }
 
   /**
    * Get the queue size
    */
   public getQueueSize(): number {
-    return this.workQueue.size;
+    if (this.boundedQueue !== null) {
+      return this.boundedQueue.size;
+    }
+    return this.legacyQueue.size;
   }
 
   /**
    * Check if an issue is in the queue
    */
   public isQueued(issueId: string): boolean {
-    return this.workQueue.has(issueId);
+    if (this.boundedQueue !== null) {
+      return this.boundedQueue.has(issueId);
+    }
+    return this.legacyQueue.has(issueId);
+  }
+
+  /**
+   * Get bounded queue status
+   *
+   * Only available when bounded queue is enabled.
+   * Returns detailed status including utilization, backpressure state, memory usage.
+   */
+  public getQueueStatus(): QueueStatus | null {
+    if (this.boundedQueue === null) {
+      return null;
+    }
+    return this.boundedQueue.getStatus();
+  }
+
+  /**
+   * Set event callback for queue notifications
+   *
+   * Only effective when bounded queue is enabled.
+   */
+  public onQueueEvent(callback: QueueEventCallback): void {
+    if (this.boundedQueue !== null) {
+      this.boundedQueue.onEvent(callback);
+    }
+  }
+
+  /**
+   * Check if bounded queue is enabled
+   */
+  public isBoundedQueueEnabled(): boolean {
+    return this.boundedQueue !== null;
+  }
+
+  /**
+   * Get dead letter queue entries
+   *
+   * Only available when bounded queue is enabled.
+   */
+  public getDeadLetterQueue(): readonly DeadLetterEntry[] {
+    if (this.boundedQueue === null) {
+      return [];
+    }
+    return this.boundedQueue.getDeadLetterQueue();
+  }
+
+  /**
+   * Retry a task from the dead letter queue
+   *
+   * Only available when bounded queue is enabled.
+   */
+  public async retryFromDeadLetter(issueId: string): Promise<boolean> {
+    if (this.boundedQueue === null) {
+      return false;
+    }
+    return await this.boundedQueue.retryFromDeadLetter(issueId);
   }
 
   /**
@@ -616,9 +767,16 @@ export class WorkerPoolManager {
     }
 
     // Restore queue
-    this.workQueue.clear();
-    for (const entry of state.workQueue) {
-      this.workQueue.set(entry.issueId, entry);
+    if (this.boundedQueue !== null) {
+      this.boundedQueue.clear();
+      for (const entry of state.workQueue) {
+        void this.boundedQueue.enqueue(entry.issueId, entry.priorityScore);
+      }
+    } else {
+      this.legacyQueue.clear();
+      for (const entry of state.workQueue) {
+        this.legacyQueue.set(entry.issueId, entry);
+      }
     }
 
     // Restore completed/failed orders
@@ -638,7 +796,14 @@ export class WorkerPoolManager {
    */
   public reset(): void {
     this.workOrders.clear();
-    this.workQueue.clear();
+
+    if (this.boundedQueue !== null) {
+      this.boundedQueue.clear();
+      this.boundedQueue.clearDeadLetterQueue();
+    } else {
+      this.legacyQueue.clear();
+    }
+
     this.completedOrders.clear();
     this.failedOrders.clear();
     this.workOrderCounter = 0;

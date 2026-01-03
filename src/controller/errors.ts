@@ -489,3 +489,89 @@ export class MaxRecoveryAttemptsExceededError extends ControllerError {
     this.maxAttempts = maxAttempts;
   }
 }
+
+// ============================================================================
+// Bounded Work Queue Errors
+// ============================================================================
+
+/**
+ * Error thrown when queue is full and cannot accept new tasks
+ */
+export class QueueFullError extends ControllerError {
+  /** The task ID that was rejected */
+  public readonly taskId: string;
+  /** Current queue size */
+  public readonly currentSize: number;
+  /** Maximum queue size */
+  public readonly maxSize: number;
+
+  constructor(taskId: string, currentSize: number, maxSize: number) {
+    super(
+      `Queue is full: cannot enqueue task ${taskId} (current: ${String(currentSize)}, max: ${String(maxSize)})`
+    );
+    this.name = 'QueueFullError';
+    this.taskId = taskId;
+    this.currentSize = currentSize;
+    this.maxSize = maxSize;
+  }
+}
+
+/**
+ * Error thrown when queue memory limit is exceeded
+ */
+export class QueueMemoryLimitError extends ControllerError {
+  /** Current memory usage in bytes */
+  public readonly currentMemory: number;
+  /** Maximum memory limit in bytes */
+  public readonly maxMemory: number;
+
+  constructor(currentMemory: number, maxMemory: number) {
+    super(
+      `Queue memory limit exceeded: ${String(Math.round(currentMemory / 1048576))}MB / ${String(Math.round(maxMemory / 1048576))}MB`
+    );
+    this.name = 'QueueMemoryLimitError';
+    this.currentMemory = currentMemory;
+    this.maxMemory = maxMemory;
+  }
+}
+
+/**
+ * Error thrown when backpressure is active and blocking operations
+ */
+export class QueueBackpressureActiveError extends ControllerError {
+  /** Queue utilization ratio */
+  public readonly utilizationRatio: number;
+  /** Backpressure threshold */
+  public readonly threshold: number;
+
+  constructor(utilizationRatio: number, threshold: number) {
+    super(
+      `Queue backpressure active: utilization ${String(Math.round(utilizationRatio * 100))}% exceeds threshold ${String(Math.round(threshold * 100))}%`
+    );
+    this.name = 'QueueBackpressureActiveError';
+    this.utilizationRatio = utilizationRatio;
+    this.threshold = threshold;
+  }
+}
+
+/**
+ * Error thrown when task priority is too low for queue acceptance
+ */
+export class TaskPriorityTooLowError extends ControllerError {
+  /** The task ID that was rejected */
+  public readonly taskId: string;
+  /** The task's priority score */
+  public readonly taskPriority: number;
+  /** Minimum priority required */
+  public readonly minPriority: number;
+
+  constructor(taskId: string, taskPriority: number, minPriority: number) {
+    super(
+      `Task ${taskId} priority ${String(taskPriority)} is below queue minimum ${String(minPriority)}`
+    );
+    this.name = 'TaskPriorityTooLowError';
+    this.taskId = taskId;
+    this.taskPriority = taskPriority;
+    this.minPriority = minPriority;
+  }
+}
