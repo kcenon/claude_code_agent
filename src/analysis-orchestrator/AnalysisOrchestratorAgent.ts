@@ -780,7 +780,10 @@ export class AnalysisOrchestratorAgent {
           type: 'completed' as const,
           results: settled,
         })),
-        timeoutPromise.then(() => ({ type: 'timeout' as const, results: [] as PromiseSettledResult<ParallelStageResult>[] })),
+        timeoutPromise.then(() => ({
+          type: 'timeout' as const,
+          results: [] as PromiseSettledResult<ParallelStageResult>[],
+        })),
       ]);
 
       const totalDurationMs = Date.now() - startTime;
@@ -849,8 +852,12 @@ export class AnalysisOrchestratorAgent {
         };
       });
 
-      const completed = processedResults.filter((r) => r.status === 'fulfilled' && r.result?.success === true).length;
-      const failed = processedResults.filter((r) => r.status === 'rejected' || (r.status === 'fulfilled' && r.result?.success !== true)).length;
+      const completed = processedResults.filter(
+        (r) => r.status === 'fulfilled' && r.result?.success === true
+      ).length;
+      const failed = processedResults.filter(
+        (r) => r.status === 'rejected' || (r.status === 'fulfilled' && r.result?.success !== true)
+      ).length;
       const timedOut = processedResults.filter((r) => r.status === 'timeout').length;
       const aborted = processedResults.filter((r) => r.status === 'aborted').length;
 
