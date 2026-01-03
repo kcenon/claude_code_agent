@@ -62,8 +62,7 @@ export class BoundedWorkQueue {
         config.backpressureThreshold ?? DEFAULT_BOUNDED_QUEUE_CONFIG.backpressureThreshold,
       maxMemoryBytes: config.maxMemoryBytes ?? DEFAULT_BOUNDED_QUEUE_CONFIG.maxMemoryBytes,
       enableDeadLetter: config.enableDeadLetter ?? DEFAULT_BOUNDED_QUEUE_CONFIG.enableDeadLetter,
-      maxDeadLetterSize:
-        config.maxDeadLetterSize ?? DEFAULT_BOUNDED_QUEUE_CONFIG.maxDeadLetterSize,
+      maxDeadLetterSize: config.maxDeadLetterSize ?? DEFAULT_BOUNDED_QUEUE_CONFIG.maxDeadLetterSize,
       maxBackpressureDelayMs:
         config.maxBackpressureDelayMs ?? DEFAULT_BOUNDED_QUEUE_CONFIG.maxBackpressureDelayMs,
     };
@@ -351,10 +350,7 @@ export class BoundedWorkQueue {
   /**
    * Drop oldest entry to make room for new task
    */
-  private async handleDropOldest(
-    issueId: string,
-    priorityScore: number
-  ): Promise<EnqueueResult> {
+  private async handleDropOldest(issueId: string, priorityScore: number): Promise<EnqueueResult> {
     const oldest = this.getOldestEntry();
     if (oldest === undefined) {
       return { success: false, reason: 'queue_full' };
@@ -428,10 +424,7 @@ export class BoundedWorkQueue {
   /**
    * Move an entry to the dead letter queue
    */
-  private async moveToDeadLetter(
-    entry: MutableWorkQueueEntry,
-    reason: string
-  ): Promise<void> {
+  private async moveToDeadLetter(entry: MutableWorkQueueEntry, reason: string): Promise<void> {
     if (!this.config.enableDeadLetter) {
       return;
     }

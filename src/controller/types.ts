@@ -872,10 +872,7 @@ export const DEFAULT_BOUNDED_QUEUE_CONFIG: Required<BoundedQueueConfig> = {
 /**
  * Reason for queue rejection
  */
-export type QueueRejectionReason =
-  | 'queue_full'
-  | 'memory_limit'
-  | 'lower_priority_than_queue';
+export type QueueRejectionReason = 'queue_full' | 'memory_limit' | 'lower_priority_than_queue';
 
 /**
  * Result of enqueue operation
