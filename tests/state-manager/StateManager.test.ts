@@ -605,3 +605,362 @@ describe('StateManager Error Classes', () => {
     expect(error.projectId).toBeUndefined();
   });
 });
+
+// ============================================================
+// Recovery Features Tests (Issue #218)
+// ============================================================
+
+import {
+  InvalidSkipError,
+  RequiredStageSkipError,
+  CheckpointNotFoundError,
+  CheckpointValidationError,
+} from '../../src/state-manager/index.js';
+
+describe('StateManager Recovery Features', () => {
+  let stateManager: StateManager;
+  let testBasePath: string;
+
+  beforeEach(() => {
+    resetStateManager();
+    testBasePath = path.join(os.tmpdir(), `state-manager-recovery-test-${Date.now()}`);
+    stateManager = new StateManager({
+      basePath: testBasePath,
+      enableLocking: false,
+      enableHistory: true,
+      maxHistoryEntries: 10,
+    });
+  });
+
+  afterEach(async () => {
+    await stateManager.cleanup();
+    resetStateManager();
+    try {
+      fs.rmSync(testBasePath, { recursive: true, force: true });
+    } catch {
+      // Ignore cleanup errors
+    }
+  });
+
+  describe('Enhanced Transition Rules', () => {
+    it('should get enhanced transition rule for a state', async () => {
+      const rule = stateManager.getEnhancedTransitionRule('sds_drafting');
+
+      expect(rule).toBeDefined();
+      expect(rule?.normal).toContain('sds_approved');
+      expect(rule?.recovery).toContain('srs_approved');
+      expect(rule?.skipTo).toContain('issues_creating');
+      expect(rule?.required).toBe(false);
+    });
+
+    it('should correctly identify required stages', () => {
+      expect(stateManager.isStageRequired('collecting')).toBe(true);
+      expect(stateManager.isStageRequired('prd_drafting')).toBe(true);
+      expect(stateManager.isStageRequired('implementing')).toBe(true);
+
+      expect(stateManager.isStageRequired('clarifying')).toBe(false);
+      expect(stateManager.isStageRequired('srs_drafting')).toBe(false);
+      expect(stateManager.isStageRequired('sds_drafting')).toBe(false);
+    });
+
+    it('should get skip options for a state', () => {
+      expect(stateManager.getSkipOptions('prd_approved')).toContain('sds_drafting');
+      expect(stateManager.getSkipOptions('srs_approved')).toContain('issues_creating');
+      expect(stateManager.getSkipOptions('implementing')).toEqual([]);
+    });
+
+    it('should get recovery options for a state', () => {
+      expect(stateManager.getRecoveryOptions('sds_drafting')).toContain('srs_approved');
+      expect(stateManager.getRecoveryOptions('pr_review')).toContain('implementing');
+      expect(stateManager.getRecoveryOptions('collecting')).toEqual([]);
+    });
+
+    it('should calculate stages between two states', () => {
+      const stages = stateManager.getStagesBetween('collecting', 'prd_approved');
+
+      expect(stages).toEqual(['clarifying', 'prd_drafting']);
+    });
+
+    it('should return empty array for invalid stage range', () => {
+      expect(stateManager.getStagesBetween('prd_approved', 'collecting')).toEqual([]);
+      expect(stateManager.getStagesBetween('invalid' as ProjectState, 'collecting')).toEqual([]);
+    });
+  });
+
+  describe('Checkpoint System', () => {
+    beforeEach(async () => {
+      await stateManager.initializeProject('001', 'Test Project');
+    });
+
+    it('should create a checkpoint', async () => {
+      const checkpointId = await stateManager.createCheckpoint('001', 'manual', 'Test checkpoint');
+
+      expect(checkpointId).toBeDefined();
+      expect(typeof checkpointId).toBe('string');
+    });
+
+    it('should get checkpoints', async () => {
+      await stateManager.createCheckpoint('001', 'manual', 'Checkpoint 1');
+      await stateManager.createCheckpoint('001', 'auto', 'Checkpoint 2');
+
+      const checkpoints = await stateManager.getCheckpoints('001');
+
+      expect(checkpoints).toHaveLength(2);
+      expect(checkpoints[0].metadata.reason).toBe('Checkpoint 2');
+      expect(checkpoints[1].metadata.reason).toBe('Checkpoint 1');
+    });
+
+    it('should restore from checkpoint', async () => {
+      // Transition to a later state
+      await stateManager.transitionState('001', 'prd_drafting');
+      const checkpointId = await stateManager.createCheckpoint('001', 'manual');
+      await stateManager.transitionState('001', 'prd_approved');
+
+      // Restore
+      const result = await stateManager.restoreCheckpoint('001', checkpointId);
+
+      expect(result.success).toBe(true);
+      expect(result.restoredState).toBe('prd_drafting');
+
+      const currentState = await stateManager.getCurrentState('001');
+      expect(currentState).toBe('prd_drafting');
+    });
+
+    it('should throw CheckpointNotFoundError for non-existent checkpoint', async () => {
+      await expect(stateManager.restoreCheckpoint('001', 'non-existent')).rejects.toThrow(
+        CheckpointNotFoundError
+      );
+    });
+
+    it('should prune old checkpoints', async () => {
+      // Create more checkpoints than the limit (10)
+      for (let i = 0; i < 15; i++) {
+        await stateManager.createCheckpoint('001', 'manual', `Checkpoint ${i}`);
+      }
+
+      const checkpoints = await stateManager.getCheckpoints('001');
+      expect(checkpoints.length).toBeLessThanOrEqual(10);
+    });
+  });
+
+  describe('Skip-Forward Capability', () => {
+    beforeEach(async () => {
+      await stateManager.initializeProject('001', 'Test Project');
+      await stateManager.transitionState('001', 'prd_drafting');
+      await stateManager.transitionState('001', 'prd_approved');
+    });
+
+    it('should skip to allowed state', async () => {
+      const result = await stateManager.skipTo('001', 'sds_drafting', {
+        reason: 'Simple project, no SRS needed',
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.skippedStages).toContain('srs_drafting');
+      expect(result.skippedStages).toContain('srs_approved');
+      expect(result.checkpointId).toBeDefined();
+
+      const currentState = await stateManager.getCurrentState('001');
+      expect(currentState).toBe('sds_drafting');
+    });
+
+    it('should throw InvalidSkipError for invalid skip target', async () => {
+      await expect(
+        stateManager.skipTo('001', 'merged', { reason: 'Invalid skip' })
+      ).rejects.toThrow(InvalidSkipError);
+    });
+
+    it('should skip without checkpoint when requested', async () => {
+      const result = await stateManager.skipTo('001', 'sds_drafting', {
+        reason: 'No checkpoint needed',
+        createCheckpoint: false,
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.checkpointId).toBeUndefined();
+    });
+
+    it('should record skip in audit log', async () => {
+      await stateManager.skipTo('001', 'sds_drafting', {
+        reason: 'Test skip',
+        approvedBy: 'test-user',
+      });
+
+      const auditLog = await stateManager.getRecoveryAuditLog('001');
+      const skipEntry = auditLog.find((e) => e.type === 'skip_forward');
+
+      expect(skipEntry).toBeDefined();
+      expect(skipEntry?.fromState).toBe('prd_approved');
+      expect(skipEntry?.toState).toBe('sds_drafting');
+      expect(skipEntry?.performedBy).toBe('test-user');
+    });
+  });
+
+  describe('Recovery Transitions', () => {
+    beforeEach(async () => {
+      await stateManager.initializeProject('001', 'Test Project');
+      await stateManager.transitionState('001', 'prd_drafting');
+      await stateManager.transitionState('001', 'prd_approved');
+      await stateManager.transitionState('001', 'srs_drafting');
+    });
+
+    it('should recover to previous state', async () => {
+      const result = await stateManager.recoverTo('001', 'prd_approved', 'Need to revise PRD');
+
+      expect(result.success).toBe(true);
+      expect(result.previousState).toBe('srs_drafting');
+      expect(result.newState).toBe('prd_approved');
+
+      const currentState = await stateManager.getCurrentState('001');
+      expect(currentState).toBe('prd_approved');
+    });
+
+    it('should throw InvalidTransitionError for invalid recovery target', async () => {
+      await expect(stateManager.recoverTo('001', 'collecting', 'Invalid recovery')).rejects.toThrow(
+        InvalidTransitionError
+      );
+    });
+
+    it('should create checkpoint before recovery', async () => {
+      await stateManager.recoverTo('001', 'prd_approved');
+
+      const checkpoints = await stateManager.getCheckpoints('001');
+      const recoveryCheckpoint = checkpoints.find((c) => c.metadata.triggeredBy === 'recovery');
+
+      expect(recoveryCheckpoint).toBeDefined();
+    });
+
+    it('should record recovery in audit log', async () => {
+      await stateManager.recoverTo('001', 'prd_approved', 'Test recovery');
+
+      const auditLog = await stateManager.getRecoveryAuditLog('001');
+      const recoveryEntry = auditLog.find((e) => e.type === 'recovery_transition');
+
+      expect(recoveryEntry).toBeDefined();
+      expect(recoveryEntry?.fromState).toBe('srs_drafting');
+      expect(recoveryEntry?.toState).toBe('prd_approved');
+    });
+  });
+
+  describe('Admin Override', () => {
+    beforeEach(async () => {
+      await stateManager.initializeProject('001', 'Test Project');
+    });
+
+    it('should perform admin override', async () => {
+      const result = await stateManager.adminOverride('001', {
+        action: 'force_transition',
+        targetState: 'implementing',
+        reason: 'Emergency fix needed',
+        authorizedBy: 'admin@example.com',
+        timestamp: new Date().toISOString(),
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.newState).toBe('implementing');
+
+      const currentState = await stateManager.getCurrentState('001');
+      expect(currentState).toBe('implementing');
+    });
+
+    it('should create checkpoint before admin override', async () => {
+      await stateManager.adminOverride('001', {
+        action: 'force_transition',
+        targetState: 'pr_review',
+        reason: 'Skip to review',
+        authorizedBy: 'admin',
+        timestamp: new Date().toISOString(),
+      });
+
+      const checkpoints = await stateManager.getCheckpoints('001');
+      expect(checkpoints.length).toBeGreaterThan(0);
+    });
+
+    it('should record admin override in audit log', async () => {
+      await stateManager.adminOverride('001', {
+        action: 'manual_correction',
+        targetState: 'issues_created',
+        reason: 'Manual correction',
+        authorizedBy: 'super-admin',
+        timestamp: new Date().toISOString(),
+      });
+
+      const auditLog = await stateManager.getRecoveryAuditLog('001');
+      const overrideEntry = auditLog.find((e) => e.type === 'admin_override');
+
+      expect(overrideEntry).toBeDefined();
+      expect(overrideEntry?.performedBy).toBe('super-admin');
+      expect(overrideEntry?.details).toHaveProperty('action', 'manual_correction');
+    });
+  });
+
+  describe('Audit Logging', () => {
+    beforeEach(async () => {
+      await stateManager.initializeProject('001', 'Test Project');
+    });
+
+    it('should get empty audit log for new project', async () => {
+      const auditLog = await stateManager.getRecoveryAuditLog('001');
+      expect(auditLog).toEqual([]);
+    });
+
+    it('should accumulate audit entries', async () => {
+      await stateManager.createCheckpoint('001', 'manual');
+      await stateManager.transitionState('001', 'prd_drafting');
+      await stateManager.createCheckpoint('001', 'auto');
+
+      const auditLog = await stateManager.getRecoveryAuditLog('001');
+      const checkpointEntries = auditLog.filter((e) => e.type === 'checkpoint_created');
+
+      expect(checkpointEntries.length).toBe(2);
+    });
+
+    it('should throw ProjectNotFoundError for non-existent project', async () => {
+      await expect(stateManager.getRecoveryAuditLog('non-existent')).rejects.toThrow(
+        ProjectNotFoundError
+      );
+    });
+  });
+});
+
+describe('Recovery Error Classes', () => {
+  it('should create InvalidSkipError with correct properties', () => {
+    const error = new InvalidSkipError('collecting', 'merged', '001');
+
+    expect(error.name).toBe('InvalidSkipError');
+    expect(error.code).toBe('INVALID_SKIP');
+    expect(error.fromState).toBe('collecting');
+    expect(error.toState).toBe('merged');
+    expect(error.projectId).toBe('001');
+  });
+
+  it('should create RequiredStageSkipError with correct properties', () => {
+    const error = new RequiredStageSkipError(['prd_drafting', 'implementing'], '001');
+
+    expect(error.name).toBe('RequiredStageSkipError');
+    expect(error.code).toBe('REQUIRED_STAGE_SKIP');
+    expect(error.requiredStages).toEqual(['prd_drafting', 'implementing']);
+    expect(error.message).toContain('prd_drafting');
+    expect(error.message).toContain('implementing');
+  });
+
+  it('should create CheckpointNotFoundError with correct properties', () => {
+    const error = new CheckpointNotFoundError('checkpoint-123', '001');
+
+    expect(error.name).toBe('CheckpointNotFoundError');
+    expect(error.code).toBe('CHECKPOINT_NOT_FOUND');
+    expect(error.checkpointId).toBe('checkpoint-123');
+    expect(error.projectId).toBe('001');
+  });
+
+  it('should create CheckpointValidationError with correct properties', () => {
+    const errors = ['Missing state', 'Invalid version'];
+    const error = new CheckpointValidationError('checkpoint-456', errors, '001');
+
+    expect(error.name).toBe('CheckpointValidationError');
+    expect(error.code).toBe('CHECKPOINT_VALIDATION_FAILED');
+    expect(error.checkpointId).toBe('checkpoint-456');
+    expect(error.validationErrors).toEqual(errors);
+    expect(error.message).toContain('Missing state');
+  });
+});
