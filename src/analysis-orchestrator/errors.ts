@@ -336,11 +336,7 @@ export class InsufficientPartialResultsError extends AnalysisOrchestratorError {
   public readonly minSuccessRatio: number;
   public readonly actualRatio: number;
 
-  constructor(
-    successCount: number,
-    totalCount: number,
-    minSuccessRatio: number
-  ) {
+  constructor(successCount: number, totalCount: number, minSuccessRatio: number) {
     const actualRatio = totalCount > 0 ? successCount / totalCount : 0;
     super(
       `Insufficient partial results: ${String(successCount)}/${String(totalCount)} succeeded ` +
