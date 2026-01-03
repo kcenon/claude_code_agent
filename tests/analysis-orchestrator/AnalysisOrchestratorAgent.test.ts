@@ -455,5 +455,111 @@ describe('AnalysisOrchestratorAgent', () => {
       const result = await agent.execute();
       expect(result.success).toBe(true);
     });
+
+    it('should accept custom stageTimeouts config', () => {
+      const agent = new AnalysisOrchestratorAgent({
+        stageTimeouts: {
+          document_reader: 120000, // 2 minutes
+          code_reader: 180000, // 3 minutes
+        },
+      });
+      expect(agent).toBeInstanceOf(AnalysisOrchestratorAgent);
+    });
+
+    it('should accept custom circuitBreaker config', () => {
+      const agent = new AnalysisOrchestratorAgent({
+        circuitBreaker: {
+          failureThreshold: 5,
+          resetTimeoutMs: 120000,
+          enabled: true,
+        },
+      });
+      expect(agent).toBeInstanceOf(AnalysisOrchestratorAgent);
+    });
+
+    it('should allow disabling circuitBreaker', () => {
+      const agent = new AnalysisOrchestratorAgent({
+        circuitBreaker: {
+          enabled: false,
+        },
+      });
+      expect(agent).toBeInstanceOf(AnalysisOrchestratorAgent);
+    });
+  });
+
+  describe('timeout enforcement', () => {
+    it('should execute stages with timeout configuration', async () => {
+      const agent = new AnalysisOrchestratorAgent({
+        stageTimeoutMs: 300000, // 5 minutes default
+        stageTimeouts: {
+          document_reader: 600000, // 10 minutes
+          code_reader: 900000, // 15 minutes
+        },
+      });
+
+      const input: AnalysisInput = {
+        projectPath: tempDir,
+        scope: 'full',
+      };
+      await agent.startAnalysis(input);
+
+      const result = await agent.execute();
+      expect(result.success).toBe(true);
+    });
+
+    it('should complete execution within reasonable time', async () => {
+      const startTime = Date.now();
+
+      const input: AnalysisInput = {
+        projectPath: tempDir,
+        scope: 'full',
+      };
+      await agent.startAnalysis(input);
+
+      const result = await agent.execute();
+      const duration = Date.now() - startTime;
+
+      expect(result.success).toBe(true);
+      // Should complete quickly since we're using placeholder outputs
+      expect(duration).toBeLessThan(5000);
+    });
+  });
+
+  describe('circuit breaker', () => {
+    it('should execute with circuit breaker enabled', async () => {
+      const agent = new AnalysisOrchestratorAgent({
+        circuitBreaker: {
+          failureThreshold: 3,
+          resetTimeoutMs: 60000,
+          enabled: true,
+        },
+      });
+
+      const input: AnalysisInput = {
+        projectPath: tempDir,
+        scope: 'full',
+      };
+      await agent.startAnalysis(input);
+
+      const result = await agent.execute();
+      expect(result.success).toBe(true);
+    });
+
+    it('should execute with circuit breaker disabled', async () => {
+      const agent = new AnalysisOrchestratorAgent({
+        circuitBreaker: {
+          enabled: false,
+        },
+      });
+
+      const input: AnalysisInput = {
+        projectPath: tempDir,
+        scope: 'full',
+      };
+      await agent.startAnalysis(input);
+
+      const result = await agent.execute();
+      expect(result.success).toBe(true);
+    });
   });
 });

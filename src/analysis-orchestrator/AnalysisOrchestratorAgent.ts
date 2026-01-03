@@ -19,6 +19,7 @@ import type {
   AnalysisResultStatus,
   AnalysisScope,
   AnalysisSession,
+  CircuitBreakerConfig,
   CodeAnalysisSummary,
   ComparisonSummary,
   DocumentAnalysisSummary,
@@ -29,17 +30,24 @@ import type {
   PipelineStatistics,
   PipelineStatus,
   StageResult,
+  StageTimeoutConfig,
 } from './types.js';
-import { DEFAULT_ORCHESTRATOR_CONFIG } from './types.js';
+import {
+  DEFAULT_CIRCUIT_BREAKER_CONFIG,
+  DEFAULT_ORCHESTRATOR_CONFIG,
+  DEFAULT_STAGE_TIMEOUTS,
+} from './types.js';
 import {
   AnalysisInProgressError,
   AnalysisNotFoundError,
+  CircuitOpenError,
   InvalidProjectPathError,
   NoActiveSessionError,
   OutputWriteError,
   PipelineFailedError,
   StageDependencyError,
   StageExecutionError,
+  StageTimeoutError,
   StateReadError,
 } from './errors.js';
 
@@ -65,6 +73,121 @@ function toSafeString(value: unknown, defaultValue: string = ''): string {
 }
 
 /**
+ * Circuit breaker state
+ */
+type CircuitState = 'closed' | 'open' | 'half-open';
+
+/**
+ * Stage Circuit Breaker for managing stage failure states
+ *
+ * Implements the circuit breaker pattern to prevent repeated calls
+ * to failing stages and allow recovery time.
+ */
+class StageCircuitBreaker {
+  private readonly failures = new Map<PipelineStageName, number>();
+  private readonly openUntil = new Map<PipelineStageName, number>();
+  private readonly lastSuccess = new Map<PipelineStageName, number>();
+  private readonly config: Required<CircuitBreakerConfig>;
+
+  constructor(config?: CircuitBreakerConfig) {
+    this.config = {
+      ...DEFAULT_CIRCUIT_BREAKER_CONFIG,
+      ...config,
+    };
+  }
+
+  /**
+   * Record a failure for a stage
+   */
+  recordFailure(stageName: PipelineStageName): void {
+    if (!this.config.enabled) return;
+
+    const count = (this.failures.get(stageName) ?? 0) + 1;
+    this.failures.set(stageName, count);
+
+    if (count >= this.config.failureThreshold) {
+      this.openUntil.set(stageName, Date.now() + this.config.resetTimeoutMs);
+    }
+  }
+
+  /**
+   * Record a success for a stage (resets failure count)
+   */
+  recordSuccess(stageName: PipelineStageName): void {
+    if (!this.config.enabled) return;
+
+    this.failures.delete(stageName);
+    this.openUntil.delete(stageName);
+    this.lastSuccess.set(stageName, Date.now());
+  }
+
+  /**
+   * Check if the circuit is open for a stage
+   */
+  isOpen(stageName: PipelineStageName): boolean {
+    if (!this.config.enabled) return false;
+
+    const openTime = this.openUntil.get(stageName);
+    if (openTime === undefined) return false;
+
+    if (Date.now() > openTime) {
+      // Half-open: allow one attempt
+      this.openUntil.delete(stageName);
+      return false;
+    }
+    return true;
+  }
+
+  /**
+   * Get circuit state for a stage
+   */
+  getState(stageName: PipelineStageName): CircuitState {
+    if (!this.config.enabled) return 'closed';
+
+    const openTime = this.openUntil.get(stageName);
+    if (openTime === undefined) return 'closed';
+
+    if (Date.now() > openTime) {
+      return 'half-open';
+    }
+    return 'open';
+  }
+
+  /**
+   * Get failure count for a stage
+   */
+  getFailureCount(stageName: PipelineStageName): number {
+    return this.failures.get(stageName) ?? 0;
+  }
+
+  /**
+   * Get remaining time until circuit closes (in ms)
+   */
+  getRemainingResetTime(stageName: PipelineStageName): number {
+    const openTime = this.openUntil.get(stageName);
+    if (openTime === undefined) return 0;
+    return Math.max(0, openTime - Date.now());
+  }
+
+  /**
+   * Manually reset circuit for a stage
+   */
+  reset(stageName: PipelineStageName): void {
+    this.failures.delete(stageName);
+    this.openUntil.delete(stageName);
+  }
+
+  /**
+   * Reset all circuits
+   */
+  resetAll(): void {
+    this.failures.clear();
+    this.openUntil.clear();
+    this.lastSuccess.clear();
+  }
+}
+
+/**
  * Analysis Orchestrator Agent class
  *
  * Responsible for:
@@ -76,12 +199,20 @@ function toSafeString(value: unknown, defaultValue: string = ''): string {
  */
 export class AnalysisOrchestratorAgent {
   private readonly config: Required<AnalysisOrchestratorConfig>;
+  private readonly circuitBreaker: StageCircuitBreaker;
+  private readonly stageTimeouts: Required<StageTimeoutConfig>;
+  private readonly cleanupTimers = new Map<PipelineStageName, NodeJS.Timeout>();
   private session: AnalysisSession | null = null;
 
   constructor(config: AnalysisOrchestratorConfig = {}) {
     this.config = {
       ...DEFAULT_ORCHESTRATOR_CONFIG,
       ...config,
+    };
+    this.circuitBreaker = new StageCircuitBreaker(config.circuitBreaker);
+    this.stageTimeouts = {
+      ...DEFAULT_STAGE_TIMEOUTS,
+      ...config.stageTimeouts,
     };
   }
 
@@ -519,19 +650,60 @@ export class AnalysisOrchestratorAgent {
     let retryCount = 0;
     let lastError: string | null = null;
 
+    // Check circuit breaker before attempting execution
+    if (this.circuitBreaker.isOpen(stageName)) {
+      const failureCount = this.circuitBreaker.getFailureCount(stageName);
+      const resetTime = this.circuitBreaker.getRemainingResetTime(stageName);
+      throw new CircuitOpenError(stageName, failureCount, resetTime);
+    }
+
     while (retryCount <= this.config.maxRetries) {
       try {
-        const result = await this.runStageExecutor(stageName, pipelineState, previousResults);
+        // Execute with timeout
+        const result = await this.executeStageWithTimeout(
+          stageName,
+          pipelineState,
+          previousResults
+        );
+
+        // Record success for circuit breaker
+        this.circuitBreaker.recordSuccess(stageName);
+
         return {
           ...result,
           retryCount,
         };
       } catch (error) {
-        lastError = error instanceof Error ? error.message : String(error);
+        // Record failure for circuit breaker
+        this.circuitBreaker.recordFailure(stageName);
+
+        // Check if circuit breaker opened during retries
+        if (this.circuitBreaker.isOpen(stageName)) {
+          const failureCount = this.circuitBreaker.getFailureCount(stageName);
+          const resetTime = this.circuitBreaker.getRemainingResetTime(stageName);
+          return {
+            stage: stageName,
+            success: false,
+            outputPath: null,
+            error: `Circuit breaker opened after ${String(failureCount)} failures. Reset in ${String(resetTime)}ms.`,
+            durationMs: Date.now() - startTime,
+            retryCount,
+          };
+        }
+
+        // Handle timeout errors specifically
+        if (error instanceof StageTimeoutError) {
+          lastError = `Stage timed out after ${String(error.timeoutMs)}ms`;
+        } else {
+          lastError = error instanceof Error ? error.message : String(error);
+        }
+
         retryCount++;
 
         if (retryCount <= this.config.maxRetries) {
-          await this.delay(this.config.retryDelayMs * retryCount);
+          // Exponential backoff with cap at 30 seconds
+          const delay = Math.min(this.config.retryDelayMs * Math.pow(2, retryCount - 1), 30000);
+          await this.delay(delay);
         }
       }
     }
@@ -544,6 +716,51 @@ export class AnalysisOrchestratorAgent {
       durationMs: Date.now() - startTime,
       retryCount,
     };
+  }
+
+  /**
+   * Execute a stage with timeout enforcement
+   */
+  private async executeStageWithTimeout(
+    stageName: PipelineStageName,
+    pipelineState: PipelineState,
+    previousResults: StageResult[]
+  ): Promise<StageResult> {
+    const timeout = this.getStageTimeout(stageName);
+    const startTime = new Date();
+
+    // Create timeout promise
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      const timer = setTimeout(() => {
+        reject(new StageTimeoutError(stageName, timeout, startTime));
+      }, timeout);
+
+      // Store timer for cleanup
+      this.cleanupTimers.set(stageName, timer);
+    });
+
+    try {
+      // Race between execution and timeout
+      const result = await Promise.race([
+        this.runStageExecutor(stageName, pipelineState, previousResults),
+        timeoutPromise,
+      ]);
+      return result;
+    } finally {
+      // Clean up timer
+      const timer = this.cleanupTimers.get(stageName);
+      if (timer !== undefined) {
+        clearTimeout(timer);
+        this.cleanupTimers.delete(stageName);
+      }
+    }
+  }
+
+  /**
+   * Get timeout for a specific stage
+   */
+  private getStageTimeout(stageName: PipelineStageName): number {
+    return this.stageTimeouts[stageName];
   }
 
   private async runStageExecutor(

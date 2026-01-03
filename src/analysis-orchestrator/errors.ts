@@ -95,12 +95,34 @@ export class StageExecutionError extends AnalysisOrchestratorError {
 export class StageTimeoutError extends AnalysisOrchestratorError {
   public readonly stage: PipelineStageName;
   public readonly timeoutMs: number;
+  public readonly startTime: Date;
 
-  constructor(stage: PipelineStageName, timeoutMs: number) {
+  constructor(stage: PipelineStageName, timeoutMs: number, startTime?: Date) {
     super(`Stage "${stage}" timed out after ${String(timeoutMs)}ms`);
     this.name = 'StageTimeoutError';
     this.stage = stage;
     this.timeoutMs = timeoutMs;
+    this.startTime = startTime ?? new Date();
+  }
+}
+
+/**
+ * Error thrown when circuit breaker is open for a stage
+ */
+export class CircuitOpenError extends AnalysisOrchestratorError {
+  public readonly stage: PipelineStageName;
+  public readonly failureCount: number;
+  public readonly resetTimeMs: number;
+
+  constructor(stage: PipelineStageName, failureCount: number, resetTimeMs: number) {
+    super(
+      `Circuit breaker is open for stage "${stage}" after ${String(failureCount)} consecutive failures. ` +
+        `Will retry after ${String(resetTimeMs)}ms.`
+    );
+    this.name = 'CircuitOpenError';
+    this.stage = stage;
+    this.failureCount = failureCount;
+    this.resetTimeMs = resetTimeMs;
   }
 }
 

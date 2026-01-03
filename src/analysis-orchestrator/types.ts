@@ -214,6 +214,32 @@ export interface AnalysisReport {
 }
 
 /**
+ * Per-stage timeout configuration
+ */
+export interface StageTimeoutConfig {
+  /** Timeout for document_reader stage in milliseconds */
+  readonly document_reader?: number;
+  /** Timeout for code_reader stage in milliseconds */
+  readonly code_reader?: number;
+  /** Timeout for comparator stage in milliseconds */
+  readonly comparator?: number;
+  /** Timeout for issue_generator stage in milliseconds */
+  readonly issue_generator?: number;
+}
+
+/**
+ * Circuit breaker configuration
+ */
+export interface CircuitBreakerConfig {
+  /** Number of consecutive failures before opening circuit (default: 3) */
+  readonly failureThreshold?: number;
+  /** Time in ms before attempting to close circuit (default: 60000) */
+  readonly resetTimeoutMs?: number;
+  /** Whether circuit breaker is enabled (default: true) */
+  readonly enabled?: boolean;
+}
+
+/**
  * Analysis orchestrator configuration
  */
 export interface AnalysisOrchestratorConfig {
@@ -227,11 +253,34 @@ export interface AnalysisOrchestratorConfig {
   readonly maxRetries?: number;
   /** Retry delay in milliseconds */
   readonly retryDelayMs?: number;
-  /** Timeout per stage in milliseconds */
+  /** Default timeout per stage in milliseconds */
   readonly stageTimeoutMs?: number;
+  /** Per-stage timeout overrides */
+  readonly stageTimeouts?: StageTimeoutConfig;
+  /** Circuit breaker configuration */
+  readonly circuitBreaker?: CircuitBreakerConfig;
   /** Output format for reports */
   readonly outputFormat?: OutputFormat;
 }
+
+/**
+ * Default per-stage timeout values
+ */
+export const DEFAULT_STAGE_TIMEOUTS: Required<StageTimeoutConfig> = {
+  document_reader: 600000, // 10 minutes for large docs
+  code_reader: 900000, // 15 minutes for large codebases
+  comparator: 300000, // 5 minutes
+  issue_generator: 300000, // 5 minutes
+} as const;
+
+/**
+ * Default circuit breaker configuration
+ */
+export const DEFAULT_CIRCUIT_BREAKER_CONFIG: Required<CircuitBreakerConfig> = {
+  failureThreshold: 3,
+  resetTimeoutMs: 60000, // 1 minute
+  enabled: true,
+} as const;
 
 /**
  * Default configuration values
@@ -242,7 +291,9 @@ export const DEFAULT_ORCHESTRATOR_CONFIG: Required<AnalysisOrchestratorConfig> =
   continueOnError: true,
   maxRetries: 3,
   retryDelayMs: 1000,
-  stageTimeoutMs: 300000, // 5 minutes
+  stageTimeoutMs: 300000, // 5 minutes (default fallback)
+  stageTimeouts: DEFAULT_STAGE_TIMEOUTS,
+  circuitBreaker: DEFAULT_CIRCUIT_BREAKER_CONFIG,
   outputFormat: 'yaml',
 } as const;
 

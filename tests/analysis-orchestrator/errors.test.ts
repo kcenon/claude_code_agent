@@ -12,6 +12,7 @@ import {
   InvalidProjectStructureError,
   StageExecutionError,
   StageTimeoutError,
+  CircuitOpenError,
   InvalidPipelineStateError,
   StageDependencyError,
   OutputWriteError,
@@ -101,6 +102,39 @@ describe('StageTimeoutError', () => {
     expect(error.stage).toBe('comparator');
     expect(error.timeoutMs).toBe(30000);
     expect(error.name).toBe('StageTimeoutError');
+  });
+
+  it('should use provided startTime', () => {
+    const startTime = new Date('2024-01-01T00:00:00.000Z');
+    const error = new StageTimeoutError('document_reader', 60000, startTime);
+    expect(error.startTime).toBe(startTime);
+  });
+
+  it('should use current time as default startTime', () => {
+    const before = new Date();
+    const error = new StageTimeoutError('code_reader', 120000);
+    const after = new Date();
+    expect(error.startTime.getTime()).toBeGreaterThanOrEqual(before.getTime());
+    expect(error.startTime.getTime()).toBeLessThanOrEqual(after.getTime());
+  });
+});
+
+describe('CircuitOpenError', () => {
+  it('should include stage, failure count, and reset time', () => {
+    const error = new CircuitOpenError('document_reader', 3, 60000);
+    expect(error.message).toContain('document_reader');
+    expect(error.message).toContain('3');
+    expect(error.message).toContain('60000');
+    expect(error.stage).toBe('document_reader');
+    expect(error.failureCount).toBe(3);
+    expect(error.resetTimeMs).toBe(60000);
+    expect(error.name).toBe('CircuitOpenError');
+  });
+
+  it('should be instance of AnalysisOrchestratorError', () => {
+    const error = new CircuitOpenError('code_reader', 5, 30000);
+    expect(error).toBeInstanceOf(AnalysisOrchestratorError);
+    expect(error).toBeInstanceOf(Error);
   });
 });
 
@@ -218,6 +252,7 @@ describe('Error inheritance', () => {
       new InvalidProjectStructureError('path', []),
       new StageExecutionError('document_reader', 'reason'),
       new StageTimeoutError('document_reader', 1000),
+      new CircuitOpenError('document_reader', 3, 60000),
       new InvalidPipelineStateError('op', 'current', 'expected'),
       new StageDependencyError('comparator', [], []),
       new OutputWriteError('path', 'reason'),
