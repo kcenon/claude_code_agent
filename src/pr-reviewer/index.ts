@@ -28,6 +28,13 @@ export type { ReviewChecksOptions } from './ReviewChecks.js';
 export { MergeDecision } from './MergeDecision.js';
 export type { MergeDecisionConfig } from './MergeDecision.js';
 
+// Circuit breaker and intelligent polling
+export { CICircuitBreaker } from './CICircuitBreaker.js';
+export type { CircuitBreakerEvent, CircuitBreakerEventListener } from './CICircuitBreaker.js';
+
+export { IntelligentCIPoller, createStatusChecker } from './IntelligentCIPoller.js';
+export type { CIStatusChecker, PollerEvent, PollerEventListener } from './IntelligentCIPoller.js';
+
 // Error classes
 export {
   PRReviewerError,
@@ -42,6 +49,9 @@ export {
   ReviewCommentError,
   CITimeoutError,
   CICheckFailedError,
+  CircuitOpenError,
+  CIMaxPollsExceededError,
+  CITerminalFailureError,
   QualityGateFailedError,
   CoverageBelowThresholdError,
   SecurityVulnerabilityError,
@@ -111,6 +121,16 @@ export type {
   CIFixDelegationConfig,
   CIFixDelegationResult,
 
+  // Circuit breaker types
+  CircuitState,
+  FailureType,
+  CICheckFailure,
+  CircuitBreakerConfig,
+  CircuitBreakerStatus,
+  IntelligentPollerConfig,
+  CIPollResult,
+  EnhancedCIConfig,
+
   // Re-exported
   ImplementationResult,
 } from './types.js';
@@ -120,4 +140,7 @@ export {
   DEFAULT_PR_REVIEWER_CONFIG,
   DEFAULT_QUALITY_GATE_CONFIG,
   DEFAULT_CI_FIX_DELEGATION_CONFIG,
+  DEFAULT_CIRCUIT_BREAKER_CONFIG,
+  DEFAULT_INTELLIGENT_POLLER_CONFIG,
+  DEFAULT_ENHANCED_CI_CONFIG,
 } from './types.js';

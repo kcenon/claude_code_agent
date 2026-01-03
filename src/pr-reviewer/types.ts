@@ -654,5 +654,152 @@ export interface CIFixDelegationResult {
   readonly delegatedAt: string;
 }
 
+// ============================================================================
+// Circuit Breaker Types
+// ============================================================================
+
+/**
+ * Circuit breaker state
+ */
+export type CircuitState = 'closed' | 'open' | 'half-open';
+
+/**
+ * Failure type classification for intelligent handling
+ */
+export type FailureType = 'transient' | 'persistent' | 'terminal';
+
+/**
+ * CI check failure details
+ */
+export interface CICheckFailure {
+  /** Check name */
+  readonly name: string;
+  /** Failure type classification */
+  readonly failureType: FailureType;
+  /** Error message if available */
+  readonly errorMessage?: string;
+  /** Whether this failure is recoverable */
+  readonly recoverable: boolean;
+}
+
+/**
+ * Circuit breaker configuration
+ */
+export interface CircuitBreakerConfig {
+  /** Number of failures before opening circuit (default: 3) */
+  readonly failureThreshold: number;
+  /** Number of successes needed to close circuit from half-open (default: 2) */
+  readonly successThreshold: number;
+  /** Time in ms before attempting to recover from open state (default: 300000 = 5min) */
+  readonly resetTimeoutMs: number;
+  /** Time window in ms to track failures (default: 600000 = 10min) */
+  readonly failureWindowMs: number;
+}
+
+/**
+ * Default circuit breaker configuration
+ */
+export const DEFAULT_CIRCUIT_BREAKER_CONFIG: CircuitBreakerConfig = {
+  failureThreshold: 3,
+  successThreshold: 2,
+  resetTimeoutMs: 300000,
+  failureWindowMs: 600000,
+} as const;
+
+/**
+ * Circuit breaker status
+ */
+export interface CircuitBreakerStatus {
+  /** Current state */
+  readonly state: CircuitState;
+  /** Number of consecutive failures */
+  readonly failures: number;
+  /** Number of consecutive successes in half-open */
+  readonly successes: number;
+  /** Last failure timestamp */
+  readonly lastFailureTime: number;
+  /** Last state change timestamp */
+  readonly lastStateChangeTime: number;
+}
+
+/**
+ * Intelligent CI poller configuration
+ */
+export interface IntelligentPollerConfig {
+  /** Initial poll interval in ms (default: 10000) */
+  readonly initialIntervalMs: number;
+  /** Maximum poll interval after backoff in ms (default: 60000) */
+  readonly maxIntervalMs: number;
+  /** Backoff multiplier (default: 1.5) */
+  readonly backoffMultiplier: number;
+  /** Maximum jitter in ms to add to intervals (default: 2000) */
+  readonly maxJitterMs: number;
+  /** Maximum number of polls before giving up (default: 60) */
+  readonly maxPolls: number;
+  /** Whether to fail fast on terminal errors (default: true) */
+  readonly failFastOnTerminal: boolean;
+}
+
+/**
+ * Default intelligent poller configuration
+ */
+export const DEFAULT_INTELLIGENT_POLLER_CONFIG: IntelligentPollerConfig = {
+  initialIntervalMs: 10000,
+  maxIntervalMs: 60000,
+  backoffMultiplier: 1.5,
+  maxJitterMs: 2000,
+  maxPolls: 60,
+  failFastOnTerminal: true,
+} as const;
+
+/**
+ * CI poll result
+ */
+export interface CIPollResult {
+  /** Whether CI completed successfully */
+  readonly success: boolean;
+  /** Reason for failure if not successful */
+  readonly reason?: 'timeout' | 'circuit_open' | 'max_polls_exceeded' | 'terminal_failure';
+  /** Failure details if failed */
+  readonly failureDetails?: CICheckFailure;
+  /** Number of polls performed */
+  readonly pollCount: number;
+  /** Total time spent polling in ms */
+  readonly elapsedMs: number;
+}
+
+/**
+ * Enhanced PR reviewer configuration with circuit breaker
+ */
+export interface EnhancedCIConfig {
+  /** Initial CI poll interval in ms (default: 10000) */
+  readonly ciPollIntervalMs?: number;
+  /** Maximum CI poll interval after backoff in ms (default: 60000) */
+  readonly maxCiPollIntervalMs?: number;
+  /** Backoff multiplier for polling (default: 1.5) */
+  readonly ciPollBackoffMultiplier?: number;
+  /** Maximum poll attempts (default: 60) */
+  readonly maxCiPolls?: number;
+  /** Circuit breaker failure threshold (default: 3) */
+  readonly ciCircuitBreakerThreshold?: number;
+  /** Circuit breaker reset timeout in ms (default: 300000) */
+  readonly ciCircuitBreakerResetMs?: number;
+  /** Fast-fail on terminal errors (default: true) */
+  readonly ciFailFastOnTerminal?: boolean;
+}
+
+/**
+ * Default enhanced CI configuration
+ */
+export const DEFAULT_ENHANCED_CI_CONFIG: Required<EnhancedCIConfig> = {
+  ciPollIntervalMs: 10000,
+  maxCiPollIntervalMs: 60000,
+  ciPollBackoffMultiplier: 1.5,
+  maxCiPolls: 60,
+  ciCircuitBreakerThreshold: 3,
+  ciCircuitBreakerResetMs: 300000,
+  ciFailFastOnTerminal: true,
+} as const;
+
 // Re-export types from worker for convenience
 export type { ImplementationResult, FileChange } from '../worker/types.js';
