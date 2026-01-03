@@ -22,6 +22,9 @@ import {
   PipelineFailedError,
   InvalidConfigurationError,
   SubAgentSpawnError,
+  ParallelExecutionTimeoutError,
+  CriticalStageFailureError,
+  InsufficientPartialResultsError,
 } from '../../src/analysis-orchestrator/errors.js';
 
 describe('AnalysisOrchestratorError', () => {
@@ -243,6 +246,80 @@ describe('SubAgentSpawnError', () => {
   });
 });
 
+describe('ParallelExecutionTimeoutError', () => {
+  it('should include stages and timeout', () => {
+    const stages = ['document_reader', 'code_reader'] as const;
+    const error = new ParallelExecutionTimeoutError(stages, 600000);
+    expect(error.message).toContain('600000');
+    expect(error.message).toContain('document_reader');
+    expect(error.message).toContain('code_reader');
+    expect(error.stages).toEqual(stages);
+    expect(error.timeoutMs).toBe(600000);
+    expect(error.completedStages).toEqual([]);
+    expect(error.name).toBe('ParallelExecutionTimeoutError');
+  });
+
+  it('should show completed stages in message', () => {
+    const stages = ['document_reader', 'code_reader'] as const;
+    const completed = ['document_reader'] as const;
+    const error = new ParallelExecutionTimeoutError(stages, 300000, completed);
+    expect(error.message).toContain('document_reader');
+    expect(error.completedStages).toEqual(completed);
+  });
+
+  it('should show pending stages correctly', () => {
+    const stages = ['document_reader', 'code_reader'] as const;
+    const completed = ['document_reader'] as const;
+    const error = new ParallelExecutionTimeoutError(stages, 300000, completed);
+    expect(error.message).toContain('Pending stages: code_reader');
+    expect(error.message).toContain('Completed stages: document_reader');
+  });
+});
+
+describe('CriticalStageFailureError', () => {
+  it('should include stage, reason, and aborted stages', () => {
+    const abortedStages = ['code_reader'] as const;
+    const error = new CriticalStageFailureError('document_reader', 'Parse failed', abortedStages);
+    expect(error.message).toContain('document_reader');
+    expect(error.message).toContain('Parse failed');
+    expect(error.message).toContain('code_reader');
+    expect(error.stage).toBe('document_reader');
+    expect(error.reason).toBe('Parse failed');
+    expect(error.abortedStages).toEqual(abortedStages);
+    expect(error.name).toBe('CriticalStageFailureError');
+  });
+
+  it('should handle empty aborted stages', () => {
+    const error = new CriticalStageFailureError('document_reader', 'Failed');
+    expect(error.abortedStages).toEqual([]);
+    expect(error.message).toContain('Aborted stages: none');
+  });
+});
+
+describe('InsufficientPartialResultsError', () => {
+  it('should include success count, total, and ratios', () => {
+    const error = new InsufficientPartialResultsError(1, 4, 0.5);
+    expect(error.message).toContain('1/4');
+    expect(error.message).toContain('25.0%');
+    expect(error.message).toContain('50.0%');
+    expect(error.successCount).toBe(1);
+    expect(error.totalCount).toBe(4);
+    expect(error.minSuccessRatio).toBe(0.5);
+    expect(error.actualRatio).toBe(0.25);
+    expect(error.name).toBe('InsufficientPartialResultsError');
+  });
+
+  it('should handle zero total count', () => {
+    const error = new InsufficientPartialResultsError(0, 0, 0.5);
+    expect(error.actualRatio).toBe(0);
+  });
+
+  it('should calculate actual ratio correctly', () => {
+    const error = new InsufficientPartialResultsError(3, 4, 0.75);
+    expect(error.actualRatio).toBe(0.75);
+  });
+});
+
 describe('Error inheritance', () => {
   it('all errors should be instances of Error', () => {
     const errors = [
@@ -262,6 +339,9 @@ describe('Error inheritance', () => {
       new PipelineFailedError('id', []),
       new InvalidConfigurationError('field', 'value', 'reason'),
       new SubAgentSpawnError('type', 'reason'),
+      new ParallelExecutionTimeoutError(['document_reader'], 1000),
+      new CriticalStageFailureError('document_reader', 'failed'),
+      new InsufficientPartialResultsError(1, 2, 0.75),
     ];
 
     for (const error of errors) {

@@ -562,4 +562,180 @@ describe('AnalysisOrchestratorAgent', () => {
       expect(result.success).toBe(true);
     });
   });
+
+  describe('parallel execution with timeout', () => {
+    it('should execute parallel stages with default timeout config', async () => {
+      const agent = new AnalysisOrchestratorAgent({
+        parallelExecution: true,
+      });
+
+      const input: AnalysisInput = {
+        projectPath: tempDir,
+        scope: 'full',
+      };
+      await agent.startAnalysis(input);
+
+      const result = await agent.execute();
+      expect(result.success).toBe(true);
+      expect(result.pipelineState.stages.length).toBeGreaterThan(0);
+    });
+
+    it('should accept custom parallelExecutionConfig', async () => {
+      const agent = new AnalysisOrchestratorAgent({
+        parallelExecution: true,
+        parallelExecutionConfig: {
+          parallelExecutionTimeoutMs: 120000, // 2 minutes
+          failFast: false,
+          allowPartialResults: true,
+          minSuccessRatio: 0.5,
+        },
+      });
+
+      const input: AnalysisInput = {
+        projectPath: tempDir,
+        scope: 'full',
+      };
+      await agent.startAnalysis(input);
+
+      const result = await agent.execute();
+      expect(result.success).toBe(true);
+    });
+
+    it('should execute with fail-fast enabled', async () => {
+      const agent = new AnalysisOrchestratorAgent({
+        parallelExecution: true,
+        parallelExecutionConfig: {
+          failFast: true,
+          requiredStages: ['document_reader', 'code_reader'],
+        },
+      });
+
+      const input: AnalysisInput = {
+        projectPath: tempDir,
+        scope: 'full',
+      };
+      await agent.startAnalysis(input);
+
+      const result = await agent.execute();
+      expect(result.success).toBe(true);
+    });
+
+    it('should execute with partial results allowed', async () => {
+      const agent = new AnalysisOrchestratorAgent({
+        parallelExecution: true,
+        parallelExecutionConfig: {
+          allowPartialResults: true,
+          minSuccessRatio: 0.5,
+        },
+      });
+
+      const input: AnalysisInput = {
+        projectPath: tempDir,
+        scope: 'full',
+      };
+      await agent.startAnalysis(input);
+
+      const result = await agent.execute();
+      expect(result.success).toBe(true);
+    });
+
+    it('should execute with partial results disabled', async () => {
+      const agent = new AnalysisOrchestratorAgent({
+        parallelExecution: true,
+        parallelExecutionConfig: {
+          allowPartialResults: false,
+        },
+      });
+
+      const input: AnalysisInput = {
+        projectPath: tempDir,
+        scope: 'full',
+      };
+      await agent.startAnalysis(input);
+
+      const result = await agent.execute();
+      expect(result.success).toBe(true);
+    });
+
+    it('should complete parallel stages within reasonable time', async () => {
+      const startTime = Date.now();
+      const agent = new AnalysisOrchestratorAgent({
+        parallelExecution: true,
+        parallelExecutionConfig: {
+          parallelExecutionTimeoutMs: 60000, // 1 minute
+        },
+      });
+
+      const input: AnalysisInput = {
+        projectPath: tempDir,
+        scope: 'full',
+      };
+      await agent.startAnalysis(input);
+
+      const result = await agent.execute();
+      const duration = Date.now() - startTime;
+
+      expect(result.success).toBe(true);
+      // Should complete much faster than timeout since we use placeholder outputs
+      expect(duration).toBeLessThan(10000); // 10 seconds max
+    });
+
+    it('should handle sequential fallback when parallel is disabled', async () => {
+      const agent = new AnalysisOrchestratorAgent({
+        parallelExecution: false,
+      });
+
+      const input: AnalysisInput = {
+        projectPath: tempDir,
+        scope: 'full',
+      };
+      await agent.startAnalysis(input);
+
+      const result = await agent.execute();
+      expect(result.success).toBe(true);
+      // All stages should still complete
+      const completedStages = result.pipelineState.stages.filter(
+        (s) => s.status === 'completed'
+      ).length;
+      expect(completedStages).toBe(result.pipelineState.stages.length);
+    });
+
+    it('should handle empty required stages with fail-fast', async () => {
+      const agent = new AnalysisOrchestratorAgent({
+        parallelExecution: true,
+        parallelExecutionConfig: {
+          failFast: true,
+          requiredStages: [], // Empty means all are considered critical
+        },
+      });
+
+      const input: AnalysisInput = {
+        projectPath: tempDir,
+        scope: 'full',
+      };
+      await agent.startAnalysis(input);
+
+      const result = await agent.execute();
+      expect(result.success).toBe(true);
+    });
+
+    it('should execute with custom minimum success ratio', async () => {
+      const agent = new AnalysisOrchestratorAgent({
+        parallelExecution: true,
+        parallelExecutionConfig: {
+          allowPartialResults: true,
+          minSuccessRatio: 0.75, // 75% required
+        },
+      });
+
+      const input: AnalysisInput = {
+        projectPath: tempDir,
+        scope: 'full',
+      };
+      await agent.startAnalysis(input);
+
+      const result = await agent.execute();
+      expect(result.success).toBe(true);
+    });
+  });
 });

@@ -240,6 +240,63 @@ export interface CircuitBreakerConfig {
 }
 
 /**
+ * Parallel execution configuration
+ */
+export interface ParallelExecutionConfig {
+  /** Timeout for entire parallel group in milliseconds (default: 600000 = 10 min) */
+  readonly parallelExecutionTimeoutMs?: number;
+  /** Use fail-fast mode - abort remaining stages when critical stage fails (default: false) */
+  readonly failFast?: boolean;
+  /** Stages required for pipeline to continue (default: all parallel stages) */
+  readonly requiredStages?: readonly PipelineStageName[];
+  /** Allow continuation with partial results (default: true) */
+  readonly allowPartialResults?: boolean;
+  /** Minimum success ratio for partial results (0.0 to 1.0, default: 0.5) */
+  readonly minSuccessRatio?: number;
+}
+
+/**
+ * Parallel stage execution status
+ */
+export type ParallelStageStatus = 'fulfilled' | 'rejected' | 'timeout' | 'aborted';
+
+/**
+ * Result of a single parallel stage execution
+ */
+export interface ParallelStageResult {
+  /** Stage name */
+  readonly stage: PipelineStageName;
+  /** Execution status */
+  readonly status: ParallelStageStatus;
+  /** Stage result if fulfilled */
+  readonly result: StageResult | null;
+  /** Error message if rejected/timeout/aborted */
+  readonly error: string | null;
+  /** Duration in milliseconds */
+  readonly durationMs: number;
+}
+
+/**
+ * Aggregated result of parallel stage execution
+ */
+export interface ParallelExecutionResult {
+  /** Individual stage results */
+  readonly results: readonly ParallelStageResult[];
+  /** Number of stages completed successfully */
+  readonly completed: number;
+  /** Number of stages that failed */
+  readonly failed: number;
+  /** Number of stages that timed out */
+  readonly timedOut: number;
+  /** Number of stages that were aborted */
+  readonly aborted: number;
+  /** Whether minimum requirements are met to continue */
+  readonly canContinue: boolean;
+  /** Total duration in milliseconds */
+  readonly totalDurationMs: number;
+}
+
+/**
  * Analysis orchestrator configuration
  */
 export interface AnalysisOrchestratorConfig {
@@ -259,6 +316,8 @@ export interface AnalysisOrchestratorConfig {
   readonly stageTimeouts?: StageTimeoutConfig;
   /** Circuit breaker configuration */
   readonly circuitBreaker?: CircuitBreakerConfig;
+  /** Parallel execution configuration */
+  readonly parallelExecutionConfig?: ParallelExecutionConfig;
   /** Output format for reports */
   readonly outputFormat?: OutputFormat;
 }
@@ -283,6 +342,17 @@ export const DEFAULT_CIRCUIT_BREAKER_CONFIG: Required<CircuitBreakerConfig> = {
 } as const;
 
 /**
+ * Default parallel execution configuration
+ */
+export const DEFAULT_PARALLEL_EXECUTION_CONFIG: Required<ParallelExecutionConfig> = {
+  parallelExecutionTimeoutMs: 600000, // 10 minutes
+  failFast: false,
+  requiredStages: [],
+  allowPartialResults: true,
+  minSuccessRatio: 0.5,
+} as const;
+
+/**
  * Default configuration values
  */
 export const DEFAULT_ORCHESTRATOR_CONFIG: Required<AnalysisOrchestratorConfig> = {
@@ -294,6 +364,7 @@ export const DEFAULT_ORCHESTRATOR_CONFIG: Required<AnalysisOrchestratorConfig> =
   stageTimeoutMs: 300000, // 5 minutes (default fallback)
   stageTimeouts: DEFAULT_STAGE_TIMEOUTS,
   circuitBreaker: DEFAULT_CIRCUIT_BREAKER_CONFIG,
+  parallelExecutionConfig: DEFAULT_PARALLEL_EXECUTION_CONFIG,
   outputFormat: 'yaml',
 } as const;
 

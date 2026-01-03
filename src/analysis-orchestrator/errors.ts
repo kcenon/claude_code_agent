@@ -276,3 +276,80 @@ export class SubAgentSpawnError extends AnalysisOrchestratorError {
     this.reason = reason;
   }
 }
+
+/**
+ * Error thrown when parallel stage execution times out
+ */
+export class ParallelExecutionTimeoutError extends AnalysisOrchestratorError {
+  public readonly stages: readonly PipelineStageName[];
+  public readonly timeoutMs: number;
+  public readonly completedStages: readonly PipelineStageName[];
+
+  constructor(
+    stages: readonly PipelineStageName[],
+    timeoutMs: number,
+    completedStages: readonly PipelineStageName[] = []
+  ) {
+    const pendingStages = stages.filter((s) => !completedStages.includes(s));
+    super(
+      `Parallel execution timed out after ${String(timeoutMs)}ms. ` +
+        `Pending stages: ${pendingStages.join(', ')}. ` +
+        `Completed stages: ${completedStages.length > 0 ? completedStages.join(', ') : 'none'}.`
+    );
+    this.name = 'ParallelExecutionTimeoutError';
+    this.stages = stages;
+    this.timeoutMs = timeoutMs;
+    this.completedStages = completedStages;
+  }
+}
+
+/**
+ * Error thrown when a critical stage fails in fail-fast mode
+ */
+export class CriticalStageFailureError extends AnalysisOrchestratorError {
+  public readonly stage: PipelineStageName;
+  public readonly reason: string;
+  public readonly abortedStages: readonly PipelineStageName[];
+
+  constructor(
+    stage: PipelineStageName,
+    reason: string,
+    abortedStages: readonly PipelineStageName[] = []
+  ) {
+    super(
+      `Critical stage "${stage}" failed: ${reason}. ` +
+        `Aborted stages: ${abortedStages.length > 0 ? abortedStages.join(', ') : 'none'}.`
+    );
+    this.name = 'CriticalStageFailureError';
+    this.stage = stage;
+    this.reason = reason;
+    this.abortedStages = abortedStages;
+  }
+}
+
+/**
+ * Error thrown when partial results are insufficient
+ */
+export class InsufficientPartialResultsError extends AnalysisOrchestratorError {
+  public readonly successCount: number;
+  public readonly totalCount: number;
+  public readonly minSuccessRatio: number;
+  public readonly actualRatio: number;
+
+  constructor(
+    successCount: number,
+    totalCount: number,
+    minSuccessRatio: number
+  ) {
+    const actualRatio = totalCount > 0 ? successCount / totalCount : 0;
+    super(
+      `Insufficient partial results: ${String(successCount)}/${String(totalCount)} succeeded ` +
+        `(${(actualRatio * 100).toFixed(1)}%), minimum required: ${(minSuccessRatio * 100).toFixed(1)}%.`
+    );
+    this.name = 'InsufficientPartialResultsError';
+    this.successCount = successCount;
+    this.totalCount = totalCount;
+    this.minSuccessRatio = minSuccessRatio;
+    this.actualRatio = actualRatio;
+  }
+}

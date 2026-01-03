@@ -89,6 +89,63 @@ ad-sdlc analyze --project /path/to/project --output-format json
 | `parallelExecution` | boolean | `true` | Execute independent stages in parallel |
 | `continueOnError` | boolean | `true` | Continue pipeline on non-critical errors |
 | `maxRetries` | number | `3` | Maximum retry attempts for failed stages |
+| `stageTimeoutMs` | number | `300000` | Default timeout per stage (5 minutes) |
+| `stageTimeouts` | object | See below | Per-stage timeout overrides |
+| `circuitBreaker` | object | See below | Circuit breaker configuration |
+| `parallelExecutionConfig` | object | See below | Parallel execution configuration |
+
+### Parallel Execution Configuration
+
+The orchestrator supports advanced parallel execution with timeout protection, fail-fast behavior, and partial result handling:
+
+```typescript
+const orchestrator = new AnalysisOrchestratorAgent({
+  parallelExecution: true,
+  parallelExecutionConfig: {
+    parallelExecutionTimeoutMs: 600000, // 10 minutes total timeout
+    failFast: true,                      // Abort on critical stage failure
+    requiredStages: ['document_reader'], // Critical stages for fail-fast
+    allowPartialResults: true,           // Continue with partial results
+    minSuccessRatio: 0.5,               // 50% stages must succeed
+  },
+});
+```
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `parallelExecutionTimeoutMs` | number | `600000` | Timeout for entire parallel group (10 min) |
+| `failFast` | boolean | `false` | Abort remaining stages when critical stage fails |
+| `requiredStages` | string[] | `[]` | Stages required for pipeline to continue |
+| `allowPartialResults` | boolean | `true` | Continue with partial results |
+| `minSuccessRatio` | number | `0.5` | Minimum success ratio for partial results |
+
+### Stage Timeouts
+
+Individual stage timeouts can be configured:
+
+```typescript
+const orchestrator = new AnalysisOrchestratorAgent({
+  stageTimeouts: {
+    document_reader: 600000,   // 10 minutes for large documents
+    code_reader: 900000,       // 15 minutes for large codebases
+    comparator: 300000,        // 5 minutes
+    issue_generator: 300000,   // 5 minutes
+  },
+});
+```
+
+### Circuit Breaker
+
+The circuit breaker prevents repeated calls to failing stages:
+
+```typescript
+const orchestrator = new AnalysisOrchestratorAgent({
+  circuitBreaker: {
+    failureThreshold: 3,     // Open after 3 consecutive failures
+    resetTimeoutMs: 60000,   // Try again after 1 minute
+    enabled: true,
+  },
+});
 
 ## Analysis Scopes
 
@@ -259,9 +316,14 @@ import {
   AnalysisInProgressError,
   InvalidProjectPathError,
   StageExecutionError,
+  StageTimeoutError,
   StageDependencyError,
   PipelineFailedError,
   AnalysisNotFoundError,
+  CircuitOpenError,
+  ParallelExecutionTimeoutError,
+  CriticalStageFailureError,
+  InsufficientPartialResultsError,
 } from 'ad-sdlc';
 
 try {
@@ -273,6 +335,14 @@ try {
     console.error(`Analysis already in progress: ${error.analysisId}`);
   } else if (error instanceof StageExecutionError) {
     console.error(`Stage ${error.stage} failed: ${error.reason}`);
+  } else if (error instanceof StageTimeoutError) {
+    console.error(`Stage ${error.stage} timed out after ${error.timeoutMs}ms`);
+  } else if (error instanceof ParallelExecutionTimeoutError) {
+    console.error(`Parallel execution timed out. Pending: ${error.stages.join(', ')}`);
+  } else if (error instanceof CriticalStageFailureError) {
+    console.error(`Critical stage ${error.stage} failed: ${error.reason}`);
+  } else if (error instanceof CircuitOpenError) {
+    console.error(`Circuit breaker open for ${error.stage}. Reset in ${error.resetTimeMs}ms`);
   } else if (error instanceof PipelineFailedError) {
     console.error(`Pipeline failed. Failed stages: ${error.failedStages.join(', ')}`);
   }
