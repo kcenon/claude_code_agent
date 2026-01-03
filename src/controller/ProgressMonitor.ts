@@ -102,21 +102,25 @@ export class ProgressMonitor {
   constructor(sessionId: string, config: ProgressMonitorConfig = {}) {
     const stuckWorkerConfig = config.stuckWorkerConfig ?? {};
 
+    // Support deprecated stuckWorkerThreshold for backward compatibility
+    // eslint-disable-next-line @typescript-eslint/no-deprecated
+    const legacyThreshold = config.stuckWorkerThreshold;
+
     const effectiveStuckThreshold =
       stuckWorkerConfig.stuckThresholdMs ??
-      config.stuckWorkerThreshold ??
+      legacyThreshold ??
       DEFAULT_STUCK_WORKER_CONFIG.stuckThresholdMs;
 
     const effectiveWarningThreshold =
       stuckWorkerConfig.warningThresholdMs ??
-      (config.stuckWorkerThreshold !== undefined
-        ? Math.round(config.stuckWorkerThreshold * 0.6)
+      (legacyThreshold !== undefined
+        ? Math.round(legacyThreshold * 0.6)
         : DEFAULT_STUCK_WORKER_CONFIG.warningThresholdMs);
 
     const effectiveCriticalThreshold =
       stuckWorkerConfig.criticalThresholdMs ??
-      (config.stuckWorkerThreshold !== undefined
-        ? config.stuckWorkerThreshold * 2
+      (legacyThreshold !== undefined
+        ? legacyThreshold * 2
         : DEFAULT_STUCK_WORKER_CONFIG.criticalThresholdMs);
 
     this.config = {

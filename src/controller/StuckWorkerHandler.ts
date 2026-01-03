@@ -380,14 +380,11 @@ export class StuckWorkerHandler {
       return 'restart_worker';
     }
 
-    if (level === 'critical') {
-      if (attempts < this.config.maxRecoveryAttempts) {
-        return 'restart_worker';
-      }
-      return 'escalate_critical';
+    // level === 'critical' (exhaustive check after 'warning' and 'stuck')
+    if (attempts < this.config.maxRecoveryAttempts) {
+      return 'restart_worker';
     }
-
-    return 'send_warning';
+    return 'escalate_critical';
   }
 
   /**
