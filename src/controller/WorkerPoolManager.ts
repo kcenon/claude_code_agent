@@ -11,9 +11,14 @@
  * - Database-backed state management
  * - File-based locking via Scratchpad's withLock
  *
- * TODO(P2): Implement worker health checks with heartbeat mechanism
- * Workers can become unresponsive without the pool knowing. Add periodic
- * health checks to detect and recover from stuck workers.
+ * DONE(P2): Worker health checks implemented via WorkerHealthMonitor
+ * See WorkerHealthMonitor.ts for heartbeat-based zombie detection
+ * and automatic worker recovery. Integration methods added:
+ * - markWorkerZombie(): Mark worker as zombie
+ * - getWorkerTask(): Get current worker task
+ * - reassignTask(): Reassign task from zombie worker
+ * - respawnWorker(): Reset worker to healthy state
+ * - getActiveWorkers(): Get workers for health monitoring
  *
  * TODO(P3): Add worker pool metrics and observability
  * Expose metrics like worker utilization, queue depth, average task duration
