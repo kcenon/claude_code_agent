@@ -414,3 +414,78 @@ export class TaskReassignmentError extends ControllerError {
     this.reason = reason;
   }
 }
+
+// ============================================================================
+// Stuck Worker Recovery Errors
+// ============================================================================
+
+/**
+ * Error thrown when stuck worker recovery fails
+ */
+export class StuckWorkerRecoveryError extends ControllerError {
+  /** The worker ID */
+  public readonly workerId: string;
+  /** The issue/task ID */
+  public readonly issueId: string | null;
+  /** Number of recovery attempts made */
+  public readonly attemptCount: number;
+  /** The underlying error */
+  public readonly cause: Error | undefined;
+
+  constructor(workerId: string, issueId: string | null, attemptCount: number, cause?: Error) {
+    const issueMessage = issueId !== null ? ` for task ${issueId}` : '';
+    const causeMessage = cause !== undefined ? `: ${cause.message}` : '';
+    super(
+      `Failed to recover stuck worker ${workerId}${issueMessage} after ${String(attemptCount)} attempts${causeMessage}`
+    );
+    this.name = 'StuckWorkerRecoveryError';
+    this.workerId = workerId;
+    this.issueId = issueId;
+    this.attemptCount = attemptCount;
+    this.cause = cause;
+  }
+}
+
+/**
+ * Error thrown when stuck worker escalation reaches critical level
+ */
+export class StuckWorkerCriticalError extends ControllerError {
+  /** The worker ID */
+  public readonly workerId: string;
+  /** The issue/task ID */
+  public readonly issueId: string | null;
+  /** Duration the worker has been stuck (in milliseconds) */
+  public readonly durationMs: number;
+  /** Number of recovery attempts made */
+  public readonly attemptCount: number;
+
+  constructor(workerId: string, issueId: string | null, durationMs: number, attemptCount: number) {
+    const issueMessage = issueId !== null ? ` on task ${issueId}` : '';
+    const minutes = Math.round(durationMs / 60000);
+    super(
+      `Worker ${workerId}${issueMessage} stuck for ${String(minutes)} minutes after ${String(attemptCount)} recovery attempts - manual intervention required`
+    );
+    this.name = 'StuckWorkerCriticalError';
+    this.workerId = workerId;
+    this.issueId = issueId;
+    this.durationMs = durationMs;
+    this.attemptCount = attemptCount;
+  }
+}
+
+/**
+ * Error thrown when max recovery attempts exceeded
+ */
+export class MaxRecoveryAttemptsExceededError extends ControllerError {
+  /** The worker ID */
+  public readonly workerId: string;
+  /** Maximum recovery attempts allowed */
+  public readonly maxAttempts: number;
+
+  constructor(workerId: string, maxAttempts: number) {
+    super(`Worker ${workerId} exceeded maximum recovery attempts of ${String(maxAttempts)}`);
+    this.name = 'MaxRecoveryAttemptsExceededError';
+    this.workerId = workerId;
+    this.maxAttempts = maxAttempts;
+  }
+}
