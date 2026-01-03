@@ -24,6 +24,9 @@ import type {
   ComparisonSummary,
   DocumentAnalysisSummary,
   IssuesSummary,
+  ParallelExecutionConfig,
+  ParallelExecutionResult,
+  ParallelStageResult,
   PipelineStage,
   PipelineStageName,
   PipelineState,
@@ -35,6 +38,7 @@ import type {
 import {
   DEFAULT_CIRCUIT_BREAKER_CONFIG,
   DEFAULT_ORCHESTRATOR_CONFIG,
+  DEFAULT_PARALLEL_EXECUTION_CONFIG,
   DEFAULT_STAGE_TIMEOUTS,
 } from './types.js';
 import {
@@ -201,7 +205,9 @@ export class AnalysisOrchestratorAgent {
   private readonly config: Required<AnalysisOrchestratorConfig>;
   private readonly circuitBreaker: StageCircuitBreaker;
   private readonly stageTimeouts: Required<StageTimeoutConfig>;
+  private readonly parallelExecutionConfig: Required<ParallelExecutionConfig>;
   private readonly cleanupTimers = new Map<PipelineStageName, NodeJS.Timeout>();
+  private readonly abortControllers = new Map<string, AbortController>();
   private session: AnalysisSession | null = null;
 
   constructor(config: AnalysisOrchestratorConfig = {}) {
@@ -213,6 +219,10 @@ export class AnalysisOrchestratorAgent {
     this.stageTimeouts = {
       ...DEFAULT_STAGE_TIMEOUTS,
       ...config.stageTimeouts,
+    };
+    this.parallelExecutionConfig = {
+      ...DEFAULT_PARALLEL_EXECUTION_CONFIG,
+      ...config.parallelExecutionConfig,
     };
   }
 
@@ -605,12 +615,35 @@ export class AnalysisOrchestratorAgent {
       }
     }
 
-    // Execute parallel stages
+    // Execute parallel stages with timeout and partial result handling
     if (parallelStages.length > 0) {
-      const parallelResults = await Promise.all(
-        parallelStages.map((stageName) => this.executeStage(stageName, pipelineState, results))
+      const parallelExecutionResult = await this.executeParallelStages(
+        parallelStages,
+        pipelineState,
+        results
       );
-      results.push(...parallelResults);
+
+      // Convert parallel results to stage results
+      for (const parallelResult of parallelExecutionResult.results) {
+        if (parallelResult.result !== null) {
+          results.push(parallelResult.result);
+        } else {
+          // Create failed result for stages that didn't complete
+          results.push({
+            stage: parallelResult.stage,
+            success: false,
+            outputPath: null,
+            error: parallelResult.error ?? `Stage ${parallelResult.status}`,
+            durationMs: parallelResult.durationMs,
+            retryCount: 0,
+          });
+        }
+      }
+
+      // Check if we can continue with partial results
+      if (!parallelExecutionResult.canContinue && !this.config.continueOnError) {
+        return results;
+      }
     }
 
     // Execute sequential stages
@@ -639,6 +672,283 @@ export class AnalysisOrchestratorAgent {
     }
 
     return results;
+  }
+
+  /**
+   * Execute parallel stages with timeout, fail-fast, and partial result handling
+   */
+  private async executeParallelStages(
+    parallelStages: PipelineStageName[],
+    pipelineState: PipelineState,
+    existingResults: StageResult[]
+  ): Promise<ParallelExecutionResult> {
+    const startTime = Date.now();
+    const timeout = this.parallelExecutionConfig.parallelExecutionTimeoutMs;
+    const executionId = randomUUID();
+
+    // Create abort controller for fail-fast support
+    const abortController = new AbortController();
+    this.abortControllers.set(executionId, abortController);
+
+    // Track completed stages for timeout error reporting
+    const completedStages: PipelineStageName[] = [];
+    const stageStartTimes = new Map<PipelineStageName, number>();
+
+    try {
+      // Create timeout promise
+      const timeoutPromise = new Promise<'timeout'>((resolve) => {
+        const timer = setTimeout(() => {
+          abortController.abort();
+          resolve('timeout');
+        }, timeout);
+
+        // Clean up timer on abort
+        abortController.signal.addEventListener('abort', () => {
+          clearTimeout(timer);
+        });
+      });
+
+      // Create stage execution promises with abort signal support
+      const stagePromises = parallelStages.map(async (stageName): Promise<ParallelStageResult> => {
+        const stageStartTime = Date.now();
+        stageStartTimes.set(stageName, stageStartTime);
+
+        try {
+          // Check if already aborted
+          if (abortController.signal.aborted) {
+            return {
+              stage: stageName,
+              status: 'aborted',
+              result: null,
+              error: 'Execution aborted due to fail-fast or timeout',
+              durationMs: Date.now() - stageStartTime,
+            };
+          }
+
+          const result = await this.executeStageWithAbort(
+            stageName,
+            pipelineState,
+            existingResults,
+            abortController.signal
+          );
+
+          completedStages.push(stageName);
+
+          // Check for fail-fast on critical stage failure
+          if (
+            !result.success &&
+            this.parallelExecutionConfig.failFast &&
+            this.isCriticalParallelStage(stageName)
+          ) {
+            abortController.abort();
+          }
+
+          return {
+            stage: stageName,
+            status: result.success ? 'fulfilled' : 'rejected',
+            result,
+            error: result.error,
+            durationMs: Date.now() - stageStartTime,
+          };
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+
+          // Check for abort error
+          if (error instanceof Error && error.name === 'AbortError') {
+            return {
+              stage: stageName,
+              status: 'aborted',
+              result: null,
+              error: 'Execution aborted',
+              durationMs: Date.now() - stageStartTime,
+            };
+          }
+
+          return {
+            stage: stageName,
+            status: 'rejected',
+            result: null,
+            error: errorMessage,
+            durationMs: Date.now() - stageStartTime,
+          };
+        }
+      });
+
+      // Race between Promise.allSettled and timeout
+      const raceResult = await Promise.race([
+        Promise.allSettled(stagePromises).then((settled) => ({
+          type: 'completed' as const,
+          results: settled,
+        })),
+        timeoutPromise.then(() => ({
+          type: 'timeout' as const,
+          results: [] as PromiseSettledResult<ParallelStageResult>[],
+        })),
+      ]);
+
+      const totalDurationMs = Date.now() - startTime;
+
+      if (raceResult.type === 'timeout') {
+        // Handle timeout - collect any results that completed
+        const partialResults: ParallelStageResult[] = parallelStages.map((stageName) => {
+          if (completedStages.includes(stageName)) {
+            // This stage completed, but we don't have the result anymore
+            // In practice, the promises might have completed by now
+            return {
+              stage: stageName,
+              status: 'fulfilled' as const,
+              result: null,
+              error: null,
+              durationMs: Date.now() - (stageStartTimes.get(stageName) ?? startTime),
+            };
+          }
+          return {
+            stage: stageName,
+            status: 'timeout' as const,
+            result: null,
+            error: `Stage timed out after ${String(timeout)}ms`,
+            durationMs: timeout,
+          };
+        });
+
+        const timedOutCount = partialResults.filter((r) => r.status === 'timeout').length;
+        const completedCount = partialResults.filter((r) => r.status === 'fulfilled').length;
+
+        return {
+          results: partialResults,
+          completed: completedCount,
+          failed: 0,
+          timedOut: timedOutCount,
+          aborted: 0,
+          canContinue: this.checkPartialResultsSufficient(completedCount, parallelStages.length),
+          totalDurationMs,
+        };
+      }
+
+      // Process settled results
+      const processedResults: ParallelStageResult[] = raceResult.results.map((settled, index) => {
+        const stageName = parallelStages[index];
+        if (stageName === undefined) {
+          // This should never happen, but handle it gracefully
+          return {
+            stage: 'document_reader' as PipelineStageName,
+            status: 'rejected' as const,
+            result: null,
+            error: 'Internal error: stage index out of bounds',
+            durationMs: 0,
+          };
+        }
+
+        if (settled.status === 'fulfilled') {
+          return settled.value;
+        }
+        // Rejected promise (unexpected)
+        return {
+          stage: stageName,
+          status: 'rejected' as const,
+          result: null,
+          error: settled.reason instanceof Error ? settled.reason.message : String(settled.reason),
+          durationMs: Date.now() - (stageStartTimes.get(stageName) ?? startTime),
+        };
+      });
+
+      const completed = processedResults.filter(
+        (r) => r.status === 'fulfilled' && r.result?.success === true
+      ).length;
+      const failed = processedResults.filter(
+        (r) => r.status === 'rejected' || (r.status === 'fulfilled' && r.result?.success !== true)
+      ).length;
+      const timedOut = processedResults.filter((r) => r.status === 'timeout').length;
+      const aborted = processedResults.filter((r) => r.status === 'aborted').length;
+
+      return {
+        results: processedResults,
+        completed,
+        failed,
+        timedOut,
+        aborted,
+        canContinue: this.checkPartialResultsSufficient(completed, parallelStages.length),
+        totalDurationMs,
+      };
+    } finally {
+      // Clean up abort controller
+      this.abortControllers.delete(executionId);
+    }
+  }
+
+  /**
+   * Execute a stage with abort signal support
+   */
+  private async executeStageWithAbort(
+    stageName: PipelineStageName,
+    pipelineState: PipelineState,
+    previousResults: StageResult[],
+    signal: AbortSignal
+  ): Promise<StageResult> {
+    // Check if already aborted
+    if (signal.aborted) {
+      return {
+        stage: stageName,
+        success: false,
+        outputPath: null,
+        error: 'Execution aborted before start',
+        durationMs: 0,
+        retryCount: 0,
+      };
+    }
+
+    // Wrap the existing executeStage with abort signal check
+    return new Promise((resolve, reject) => {
+      const abortHandler = (): void => {
+        const abortError = new Error('AbortError');
+        abortError.name = 'AbortError';
+        reject(abortError);
+      };
+
+      signal.addEventListener('abort', abortHandler, { once: true });
+
+      this.executeStage(stageName, pipelineState, previousResults)
+        .then((result) => {
+          signal.removeEventListener('abort', abortHandler);
+          resolve(result);
+        })
+        .catch((error: unknown) => {
+          signal.removeEventListener('abort', abortHandler);
+          if (error instanceof Error) {
+            reject(error);
+          } else {
+            reject(new Error(String(error)));
+          }
+        });
+    });
+  }
+
+  /**
+   * Check if a stage is critical for fail-fast purposes
+   */
+  private isCriticalParallelStage(stageName: PipelineStageName): boolean {
+    const requiredStages = this.parallelExecutionConfig.requiredStages;
+    if (requiredStages.length === 0) {
+      // If no required stages specified, all parallel stages are considered critical
+      return true;
+    }
+    return requiredStages.includes(stageName);
+  }
+
+  /**
+   * Check if partial results are sufficient to continue
+   */
+  private checkPartialResultsSufficient(successCount: number, totalCount: number): boolean {
+    if (!this.parallelExecutionConfig.allowPartialResults) {
+      return successCount === totalCount;
+    }
+
+    if (totalCount === 0) {
+      return true;
+    }
+
+    const ratio = successCount / totalCount;
+    return ratio >= this.parallelExecutionConfig.minSuccessRatio;
   }
 
   private async executeStage(
