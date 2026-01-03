@@ -218,3 +218,194 @@ export interface StateWithMetadata<T> {
   /** History (if requested) */
   readonly history: StateHistory<T> | undefined;
 }
+
+// ============================================================
+// Enhanced Recovery Types (Issue #218)
+// ============================================================
+
+/**
+ * Enhanced transition rule with recovery paths
+ */
+export interface EnhancedTransitionRule {
+  /** Target states for normal forward flow */
+  readonly normal: readonly ProjectState[];
+  /** Target states for recovery/backward flow */
+  readonly recovery: readonly ProjectState[];
+  /** States that can be skipped to from this state */
+  readonly skipTo: readonly ProjectState[];
+  /** Is this stage required for completion? */
+  readonly required: boolean;
+  /** Minimum completion percentage to proceed (for partial completion) */
+  readonly minCompletion?: number;
+}
+
+/**
+ * Checkpoint trigger type
+ */
+export type CheckpointTrigger = 'auto' | 'manual' | 'recovery' | 'skip';
+
+/**
+ * State checkpoint for recovery
+ */
+export interface StateCheckpoint {
+  /** Unique checkpoint ID */
+  readonly id: string;
+  /** Project state at checkpoint */
+  readonly state: ProjectState;
+  /** Checkpoint creation timestamp */
+  readonly timestamp: string;
+  /** Full state data at checkpoint */
+  readonly data: CheckpointData;
+  /** Checkpoint metadata */
+  readonly metadata: CheckpointMetadata;
+}
+
+/**
+ * Checkpoint data structure
+ */
+export interface CheckpointData {
+  /** State metadata */
+  readonly meta: {
+    readonly currentState: ProjectState;
+    readonly version: number;
+  };
+  /** Section states at checkpoint time */
+  readonly sections: Partial<Record<ScratchpadSection, unknown>>;
+}
+
+/**
+ * Checkpoint metadata
+ */
+export interface CheckpointMetadata {
+  /** How this checkpoint was triggered */
+  readonly triggeredBy: CheckpointTrigger;
+  /** Reason for creating checkpoint */
+  readonly reason?: string;
+  /** User/agent that created the checkpoint */
+  readonly createdBy?: string;
+  /** Related transition (if any) */
+  readonly transition?: {
+    readonly from: ProjectState;
+    readonly to: ProjectState;
+  };
+}
+
+/**
+ * Options for skip-forward operation
+ */
+export interface SkipOptions {
+  /** Reason for skipping */
+  readonly reason: string;
+  /** Force skip even required stages (requires admin) */
+  readonly forceSkipRequired?: boolean;
+  /** User/agent approving the skip */
+  readonly approvedBy?: string;
+  /** Create checkpoint before skip */
+  readonly createCheckpoint?: boolean;
+}
+
+/**
+ * Result of skip-forward operation
+ */
+export interface SkipResult {
+  /** Whether skip was successful */
+  readonly success: boolean;
+  /** Stages that were skipped */
+  readonly skippedStages: readonly ProjectState[];
+  /** Checkpoint ID if created */
+  readonly checkpointId?: string;
+  /** Timestamp of skip */
+  readonly timestamp: string;
+}
+
+/**
+ * Admin override action types
+ */
+export type AdminOverrideAction =
+  | 'force_transition'
+  | 'force_skip'
+  | 'restore_checkpoint'
+  | 'manual_correction';
+
+/**
+ * Admin override request
+ */
+export interface AdminOverride {
+  /** Type of override action */
+  readonly action: AdminOverrideAction;
+  /** Target state for the override */
+  readonly targetState: ProjectState;
+  /** Reason for the override */
+  readonly reason: string;
+  /** User/agent authorizing the override */
+  readonly authorizedBy: string;
+  /** Override timestamp */
+  readonly timestamp: string;
+}
+
+/**
+ * Recovery audit entry for logging
+ */
+export interface RecoveryAuditEntry {
+  /** Unique audit entry ID */
+  readonly id: string;
+  /** Project ID */
+  readonly projectId: string;
+  /** Audit entry type */
+  readonly type:
+    | 'checkpoint_created'
+    | 'checkpoint_restored'
+    | 'skip_forward'
+    | 'admin_override'
+    | 'recovery_transition';
+  /** Timestamp */
+  readonly timestamp: string;
+  /** Previous state */
+  readonly fromState: ProjectState;
+  /** New state */
+  readonly toState: ProjectState;
+  /** Additional details */
+  readonly details: Record<string, unknown>;
+  /** User/agent that performed the action */
+  readonly performedBy?: string;
+}
+
+/**
+ * Result of checkpoint restore operation
+ */
+export interface RestoreResult {
+  /** Whether restore was successful */
+  readonly success: boolean;
+  /** State restored to */
+  readonly restoredState: ProjectState;
+  /** Timestamp of restore */
+  readonly restoredAt: string;
+  /** Checkpoint that was restored */
+  readonly checkpointId: string;
+}
+
+/**
+ * Options for checkpoint operations
+ */
+export interface CheckpointOptions {
+  /** Maximum number of checkpoints to retain */
+  readonly maxCheckpoints?: number;
+  /** Auto-create checkpoints on transitions */
+  readonly autoCheckpoint?: boolean;
+}
+
+/**
+ * Partial completion tracking
+ */
+export interface PartialCompletion {
+  /** State in partial completion */
+  readonly state: ProjectState;
+  /** Completion percentage (0-100) */
+  readonly percentage: number;
+  /** Items completed */
+  readonly completedItems: readonly string[];
+  /** Items remaining */
+  readonly remainingItems: readonly string[];
+  /** Last update timestamp */
+  readonly lastUpdated: string;
+}
