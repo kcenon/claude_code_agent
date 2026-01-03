@@ -38,10 +38,7 @@ interface TrackedWorkerState {
 /**
  * Callback type for task reassignment
  */
-export type TaskReassignHandler = (
-  taskId: string,
-  fromWorkerId: string
-) => Promise<string | null>;
+export type TaskReassignHandler = (taskId: string, fromWorkerId: string) => Promise<string | null>;
 
 /**
  * Callback type for worker restart
@@ -336,24 +333,25 @@ export class StuckWorkerHandler {
       }
     }
 
-    const attempt: StuckWorkerRecoveryAttempt = errorMessage !== undefined
-      ? {
-          workerId: state.workerId,
-          issueId: state.issueId ?? 'unknown',
-          attemptNumber: state.recoveryAttempts,
-          action,
-          timestamp: new Date().toISOString(),
-          success,
-          error: errorMessage,
-        }
-      : {
-          workerId: state.workerId,
-          issueId: state.issueId ?? 'unknown',
-          attemptNumber: state.recoveryAttempts,
-          action,
-          timestamp: new Date().toISOString(),
-          success,
-        };
+    const attempt: StuckWorkerRecoveryAttempt =
+      errorMessage !== undefined
+        ? {
+            workerId: state.workerId,
+            issueId: state.issueId ?? 'unknown',
+            attemptNumber: state.recoveryAttempts,
+            action,
+            timestamp: new Date().toISOString(),
+            success,
+            error: errorMessage,
+          }
+        : {
+            workerId: state.workerId,
+            issueId: state.issueId ?? 'unknown',
+            attemptNumber: state.recoveryAttempts,
+            action,
+            timestamp: new Date().toISOString(),
+            success,
+          };
     this.recoveryHistory.push(attempt);
   }
 
@@ -495,7 +493,11 @@ export class StuckWorkerHandler {
     duration: number
   ): Promise<void> {
     const eventType: ProgressEventType =
-      level === 'warning' ? 'worker_warning' : level === 'critical' ? 'worker_critical' : 'worker_stuck';
+      level === 'warning'
+        ? 'worker_warning'
+        : level === 'critical'
+          ? 'worker_critical'
+          : 'worker_stuck';
 
     await this.emitEvent(eventType, {
       workerId: state.workerId,

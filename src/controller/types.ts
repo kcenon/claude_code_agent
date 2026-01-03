@@ -640,7 +640,9 @@ export interface ProgressMonitorConfig {
  * for faster detection. For even faster zombie detection, use WorkerHealthMonitor
  * which provides heartbeat-based detection.
  */
-export const DEFAULT_PROGRESS_MONITOR_CONFIG: Required<Omit<ProgressMonitorConfig, 'stuckWorkerConfig'>> & {
+export const DEFAULT_PROGRESS_MONITOR_CONFIG: Required<
+  Omit<ProgressMonitorConfig, 'stuckWorkerConfig'>
+> & {
   stuckWorkerConfig: Required<Omit<StuckWorkerConfig, 'taskThresholds'>> & {
     taskThresholds: Record<string, TaskTypeThreshold>;
   };

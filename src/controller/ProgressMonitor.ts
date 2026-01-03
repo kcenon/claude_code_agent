@@ -135,7 +135,8 @@ export class ProgressMonitor {
         warningThresholdMs: effectiveWarningThreshold,
         stuckThresholdMs: effectiveStuckThreshold,
         criticalThresholdMs: effectiveCriticalThreshold,
-        taskThresholds: stuckWorkerConfig.taskThresholds ?? DEFAULT_STUCK_WORKER_CONFIG.taskThresholds,
+        taskThresholds:
+          stuckWorkerConfig.taskThresholds ?? DEFAULT_STUCK_WORKER_CONFIG.taskThresholds,
         autoRecoveryEnabled:
           stuckWorkerConfig.autoRecoveryEnabled ?? DEFAULT_STUCK_WORKER_CONFIG.autoRecoveryEnabled,
         maxRecoveryAttempts:
