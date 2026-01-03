@@ -191,6 +191,121 @@ const watcher = stateManager.watchState('001', (event) => {
 watcher.unsubscribe();
 ```
 
+## Recovery Features
+
+The State Manager includes advanced recovery capabilities for handling failed transitions and enabling flexible pipeline management.
+
+### Enhanced Transition Rules
+
+Each state has extended rules defining normal, recovery, and skip paths:
+
+```typescript
+// Get enhanced transition rule for a state
+const rule = stateManager.getEnhancedTransitionRule('sds_drafting');
+// {
+//   normal: ['sds_approved'],
+//   recovery: ['srs_approved', 'srs_drafting'],
+//   skipTo: ['issues_creating'],
+//   required: false,
+//   minCompletion: 50
+// }
+
+// Check if a stage is required
+stateManager.isStageRequired('prd_drafting'); // true
+stateManager.isStageRequired('srs_drafting'); // false
+
+// Get skip options from current state
+stateManager.getSkipOptions('prd_approved'); // ['sds_drafting']
+
+// Get recovery options from current state
+stateManager.getRecoveryOptions('sds_drafting'); // ['srs_approved', 'srs_drafting']
+```
+
+### Checkpoint System
+
+Create and restore snapshots of project state:
+
+```typescript
+// Create a checkpoint
+const checkpointId = await stateManager.createCheckpoint(
+  '001',
+  'manual',  // trigger: 'auto' | 'manual' | 'recovery' | 'skip'
+  'Before major changes'
+);
+
+// Get all checkpoints
+const checkpoints = await stateManager.getCheckpoints('001');
+
+// Restore from a checkpoint
+const result = await stateManager.restoreCheckpoint('001', checkpointId);
+console.log(result.restoredState); // State restored to
+```
+
+### Skip-Forward Capability
+
+Skip optional stages when appropriate:
+
+```typescript
+// Skip from prd_approved directly to sds_drafting
+const result = await stateManager.skipTo('001', 'sds_drafting', {
+  reason: 'Simple project, SRS not needed',
+  approvedBy: 'project-lead',
+  createCheckpoint: true,  // Default: true
+});
+
+console.log(result.skippedStages); // ['srs_drafting', 'srs_approved']
+
+// Calculate stages between two states
+const stages = stateManager.getStagesBetween('collecting', 'prd_approved');
+// ['clarifying', 'prd_drafting']
+```
+
+### Recovery Transitions
+
+Go back to previous states when issues are found:
+
+```typescript
+// Recover to a previous state (must be in recovery options)
+const result = await stateManager.recoverTo(
+  '001',
+  'prd_approved',
+  'Need to revise requirements'
+);
+
+// This automatically creates a checkpoint before recovery
+```
+
+### Admin Override
+
+Emergency operations for special circumstances:
+
+```typescript
+// Force transition to any state
+await stateManager.adminOverride('001', {
+  action: 'force_transition',  // or 'force_skip', 'manual_correction'
+  targetState: 'implementing',
+  reason: 'Emergency hotfix needed',
+  authorizedBy: 'admin@example.com',
+  timestamp: new Date().toISOString(),
+});
+```
+
+### Audit Logging
+
+All recovery operations are logged for auditing:
+
+```typescript
+// Get recovery audit log
+const auditLog = await stateManager.getRecoveryAuditLog('001');
+
+// Each entry includes:
+// - type: 'checkpoint_created' | 'checkpoint_restored' | 'skip_forward' | 'admin_override' | 'recovery_transition'
+// - fromState, toState
+// - timestamp
+// - details
+// - performedBy
+```
+
 ## Error Handling
 
 The State Manager provides specific error types:
@@ -206,6 +321,13 @@ import {
   LockAcquisitionError,   // Could not acquire lock
   HistoryError,           // History operation failed
   WatchError,             // Watch operation failed
+  // Recovery errors
+  InvalidSkipError,       // Invalid skip target
+  RequiredStageSkipError, // Trying to skip required stages
+  CheckpointNotFoundError,// Checkpoint not found
+  CheckpointValidationError, // Invalid checkpoint data
+  AdminAuthorizationError,// Admin auth failed
+  RecoveryError,          // General recovery failure
 } from 'ad-sdlc';
 
 try {
