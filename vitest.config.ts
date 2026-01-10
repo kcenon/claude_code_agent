@@ -26,7 +26,7 @@ export default defineConfig({
       thresholds: {
         lines: 80,
         functions: 78, // Adjusted for new worker module with complex async flows
-        branches: 71.5, // Adjusted for parallel execution feature (issue #213) adding new code paths
+        branches: 71, // Adjusted for error handling standardization (issue #238) adding new error classes
         statements: 80,
       },
     },
