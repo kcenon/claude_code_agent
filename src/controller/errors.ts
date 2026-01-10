@@ -2,16 +2,29 @@
  * Controller module error definitions
  *
  * Custom error classes for dependency graph analysis and prioritization operations.
+ * All errors extend AppError for standardized error handling.
+ *
+ * @module controller/errors
  */
+
+import { AppError, ErrorCodes, ErrorSeverity } from '../errors/index.js';
+import type { AppErrorOptions } from '../errors/index.js';
 
 /**
  * Base error class for controller errors
  */
-export class ControllerError extends Error {
-  constructor(message: string) {
-    super(message);
+export class ControllerError extends AppError {
+  constructor(
+    code: string,
+    message: string,
+    options: AppErrorOptions = {}
+  ) {
+    super(code, message, {
+      severity: options.severity ?? ErrorSeverity.HIGH,
+      category: options.category ?? 'recoverable',
+      ...options,
+    });
     this.name = 'ControllerError';
-    Object.setPrototypeOf(this, new.target.prototype);
   }
 }
 
@@ -23,7 +36,11 @@ export class GraphNotFoundError extends ControllerError {
   public readonly path: string;
 
   constructor(path: string) {
-    super(`Dependency graph file not found: ${path}`);
+    super(ErrorCodes.CTL_GRAPH_NOT_FOUND, `Dependency graph file not found: ${path}`, {
+      context: { path },
+      severity: ErrorSeverity.HIGH,
+      category: 'fatal',
+    });
     this.name = 'GraphNotFoundError';
     this.path = path;
   }
@@ -35,15 +52,24 @@ export class GraphNotFoundError extends ControllerError {
 export class GraphParseError extends ControllerError {
   /** The path of the file that failed to parse */
   public readonly path: string;
-  /** The underlying parse error */
-  public readonly cause: Error | undefined;
 
   constructor(path: string, cause?: Error) {
     const causeMessage = cause !== undefined ? `: ${cause.message}` : '';
-    super(`Failed to parse dependency graph at ${path}${causeMessage}`);
+    const options: AppErrorOptions = {
+      context: { path },
+      severity: ErrorSeverity.HIGH,
+      category: 'fatal',
+    };
+    if (cause !== undefined) {
+      options.cause = cause;
+    }
+    super(
+      ErrorCodes.CTL_GRAPH_PARSE_ERROR,
+      `Failed to parse dependency graph at ${path}${causeMessage}`,
+      options
+    );
     this.name = 'GraphParseError';
     this.path = path;
-    this.cause = cause;
   }
 }
 
@@ -55,7 +81,15 @@ export class GraphValidationError extends ControllerError {
   public readonly errors: readonly string[];
 
   constructor(errors: readonly string[]) {
-    super(`Dependency graph validation failed: ${errors.join('; ')}`);
+    super(
+      ErrorCodes.CTL_GRAPH_VALIDATION_ERROR,
+      `Dependency graph validation failed: ${errors.join('; ')}`,
+      {
+        context: { errors, errorCount: errors.length },
+        severity: ErrorSeverity.HIGH,
+        category: 'fatal',
+      }
+    );
     this.name = 'GraphValidationError';
     this.errors = errors;
   }
@@ -69,7 +103,15 @@ export class CircularDependencyError extends ControllerError {
   public readonly cycle: readonly string[];
 
   constructor(cycle: readonly string[]) {
-    super(`Circular dependency detected: ${cycle.join(' -> ')}`);
+    super(
+      ErrorCodes.CTL_CIRCULAR_DEPENDENCY,
+      `Circular dependency detected: ${cycle.join(' -> ')}`,
+      {
+        context: { cycle, cycleLength: cycle.length },
+        severity: ErrorSeverity.HIGH,
+        category: 'fatal',
+      }
+    );
     this.name = 'CircularDependencyError';
     this.cycle = cycle;
   }
@@ -82,14 +124,26 @@ export class IssueNotFoundError extends ControllerError {
   /** The issue ID that was not found */
   public readonly issueId: string;
   /** Context where the issue was referenced */
-  public readonly context: string | undefined;
+  public readonly referenceContext: string | undefined;
 
-  constructor(issueId: string, context?: string) {
-    const contextMessage = context !== undefined ? ` (referenced in ${context})` : '';
-    super(`Issue not found: ${issueId}${contextMessage}`);
+  constructor(issueId: string, referenceContext?: string) {
+    const contextMessage = referenceContext !== undefined ? ` (referenced in ${referenceContext})` : '';
+    const options: AppErrorOptions = {
+      context: { issueId },
+      severity: ErrorSeverity.MEDIUM,
+      category: 'recoverable',
+    };
+    if (referenceContext !== undefined) {
+      options.context = { ...options.context, referenceContext };
+    }
+    super(
+      ErrorCodes.CTL_ISSUE_NOT_FOUND,
+      `Issue not found: ${issueId}${contextMessage}`,
+      options
+    );
     this.name = 'IssueNotFoundError';
     this.issueId = issueId;
-    this.context = context;
+    this.referenceContext = referenceContext;
   }
 }
 
@@ -102,7 +156,19 @@ export class PriorityAnalysisError extends ControllerError {
 
   constructor(message: string, issueId?: string) {
     const issueMessage = issueId !== undefined ? ` for issue ${issueId}` : '';
-    super(`Priority analysis failed${issueMessage}: ${message}`);
+    const options: AppErrorOptions = {
+      context: {},
+      severity: ErrorSeverity.MEDIUM,
+      category: 'recoverable',
+    };
+    if (issueId !== undefined) {
+      options.context = { issueId };
+    }
+    super(
+      ErrorCodes.CTL_PRIORITY_ANALYSIS_ERROR,
+      `Priority analysis failed${issueMessage}: ${message}`,
+      options
+    );
     this.name = 'PriorityAnalysisError';
     this.issueId = issueId;
   }
@@ -113,7 +179,10 @@ export class PriorityAnalysisError extends ControllerError {
  */
 export class EmptyGraphError extends ControllerError {
   constructor() {
-    super('Dependency graph contains no issues');
+    super(ErrorCodes.CTL_EMPTY_GRAPH, 'Dependency graph contains no issues', {
+      severity: ErrorSeverity.MEDIUM,
+      category: 'fatal',
+    });
     this.name = 'EmptyGraphError';
   }
 }
@@ -127,7 +196,10 @@ export class EmptyGraphError extends ControllerError {
  */
 export class NoAvailableWorkerError extends ControllerError {
   constructor() {
-    super('No available worker in the pool');
+    super(ErrorCodes.CTL_NO_AVAILABLE_WORKER, 'No available worker in the pool', {
+      severity: ErrorSeverity.MEDIUM,
+      category: 'transient',
+    });
     this.name = 'NoAvailableWorkerError';
   }
 }
@@ -140,7 +212,11 @@ export class WorkerNotFoundError extends ControllerError {
   public readonly workerId: string;
 
   constructor(workerId: string) {
-    super(`Worker not found: ${workerId}`);
+    super(ErrorCodes.CTL_WORKER_NOT_FOUND, `Worker not found: ${workerId}`, {
+      context: { workerId },
+      severity: ErrorSeverity.MEDIUM,
+      category: 'recoverable',
+    });
     this.name = 'WorkerNotFoundError';
     this.workerId = workerId;
   }
@@ -156,7 +232,15 @@ export class WorkerNotAvailableError extends ControllerError {
   public readonly currentStatus: string;
 
   constructor(workerId: string, currentStatus: string) {
-    super(`Worker ${workerId} is not available (current status: ${currentStatus})`);
+    super(
+      ErrorCodes.CTL_WORKER_NOT_AVAILABLE,
+      `Worker ${workerId} is not available (current status: ${currentStatus})`,
+      {
+        context: { workerId, currentStatus },
+        severity: ErrorSeverity.MEDIUM,
+        category: 'transient',
+      }
+    );
     this.name = 'WorkerNotAvailableError';
     this.workerId = workerId;
     this.currentStatus = currentStatus;
@@ -171,7 +255,11 @@ export class WorkOrderNotFoundError extends ControllerError {
   public readonly orderId: string;
 
   constructor(orderId: string) {
-    super(`Work order not found: ${orderId}`);
+    super(ErrorCodes.CTL_WORK_ORDER_NOT_FOUND, `Work order not found: ${orderId}`, {
+      context: { orderId },
+      severity: ErrorSeverity.MEDIUM,
+      category: 'recoverable',
+    });
     this.name = 'WorkOrderNotFoundError';
     this.orderId = orderId;
   }
@@ -183,15 +271,24 @@ export class WorkOrderNotFoundError extends ControllerError {
 export class WorkOrderCreationError extends ControllerError {
   /** The issue ID for which work order creation failed */
   public readonly issueId: string;
-  /** The underlying error */
-  public readonly cause: Error | undefined;
 
   constructor(issueId: string, cause?: Error) {
     const causeMessage = cause !== undefined ? `: ${cause.message}` : '';
-    super(`Failed to create work order for issue ${issueId}${causeMessage}`);
+    const options: AppErrorOptions = {
+      context: { issueId },
+      severity: ErrorSeverity.HIGH,
+      category: 'recoverable',
+    };
+    if (cause !== undefined) {
+      options.cause = cause;
+    }
+    super(
+      ErrorCodes.CTL_WORK_ORDER_CREATION_ERROR,
+      `Failed to create work order for issue ${issueId}${causeMessage}`,
+      options
+    );
     this.name = 'WorkOrderCreationError';
     this.issueId = issueId;
-    this.cause = cause;
   }
 }
 
@@ -203,16 +300,25 @@ export class WorkerAssignmentError extends ControllerError {
   public readonly workerId: string;
   /** The issue ID that failed to be assigned */
   public readonly issueId: string;
-  /** The underlying error */
-  public readonly cause: Error | undefined;
 
   constructor(workerId: string, issueId: string, cause?: Error) {
     const causeMessage = cause !== undefined ? `: ${cause.message}` : '';
-    super(`Failed to assign issue ${issueId} to worker ${workerId}${causeMessage}`);
+    const options: AppErrorOptions = {
+      context: { workerId, issueId },
+      severity: ErrorSeverity.HIGH,
+      category: 'recoverable',
+    };
+    if (cause !== undefined) {
+      options.cause = cause;
+    }
+    super(
+      ErrorCodes.CTL_WORKER_ASSIGNMENT_ERROR,
+      `Failed to assign issue ${issueId} to worker ${workerId}${causeMessage}`,
+      options
+    );
     this.name = 'WorkerAssignmentError';
     this.workerId = workerId;
     this.issueId = issueId;
-    this.cause = cause;
   }
 }
 
@@ -222,15 +328,24 @@ export class WorkerAssignmentError extends ControllerError {
 export class ControllerStatePersistenceError extends ControllerError {
   /** The operation that failed */
   public readonly operation: 'save' | 'load';
-  /** The underlying error */
-  public readonly cause: Error | undefined;
 
   constructor(operation: 'save' | 'load', cause?: Error) {
     const causeMessage = cause !== undefined ? `: ${cause.message}` : '';
-    super(`Failed to ${operation} controller state${causeMessage}`);
+    const options: AppErrorOptions = {
+      context: { operation },
+      severity: ErrorSeverity.HIGH,
+      category: 'recoverable',
+    };
+    if (cause !== undefined) {
+      options.cause = cause;
+    }
+    super(
+      ErrorCodes.CTL_STATE_PERSISTENCE_ERROR,
+      `Failed to ${operation} controller state${causeMessage}`,
+      options
+    );
     this.name = 'ControllerStatePersistenceError';
     this.operation = operation;
-    this.cause = cause;
   }
 }
 
@@ -244,7 +359,15 @@ export class DependenciesNotResolvedError extends ControllerError {
   public readonly unresolvedDependencies: readonly string[];
 
   constructor(issueId: string, unresolvedDependencies: readonly string[]) {
-    super(`Issue ${issueId} has unresolved dependencies: ${unresolvedDependencies.join(', ')}`);
+    super(
+      ErrorCodes.CTL_DEPENDENCIES_NOT_RESOLVED,
+      `Issue ${issueId} has unresolved dependencies: ${unresolvedDependencies.join(', ')}`,
+      {
+        context: { issueId, unresolvedDependencies, count: unresolvedDependencies.length },
+        severity: ErrorSeverity.MEDIUM,
+        category: 'recoverable',
+      }
+    );
     this.name = 'DependenciesNotResolvedError';
     this.issueId = issueId;
     this.unresolvedDependencies = unresolvedDependencies;
@@ -260,7 +383,10 @@ export class DependenciesNotResolvedError extends ControllerError {
  */
 export class ProgressMonitorAlreadyRunningError extends ControllerError {
   constructor() {
-    super('Progress monitor is already running');
+    super(ErrorCodes.CTL_PROGRESS_MONITOR_RUNNING, 'Progress monitor is already running', {
+      severity: ErrorSeverity.LOW,
+      category: 'recoverable',
+    });
     this.name = 'ProgressMonitorAlreadyRunningError';
   }
 }
@@ -270,7 +396,10 @@ export class ProgressMonitorAlreadyRunningError extends ControllerError {
  */
 export class ProgressMonitorNotRunningError extends ControllerError {
   constructor() {
-    super('Progress monitor is not running');
+    super(ErrorCodes.CTL_PROGRESS_MONITOR_NOT_RUNNING, 'Progress monitor is not running', {
+      severity: ErrorSeverity.LOW,
+      category: 'recoverable',
+    });
     this.name = 'ProgressMonitorNotRunningError';
   }
 }
@@ -279,14 +408,21 @@ export class ProgressMonitorNotRunningError extends ControllerError {
  * Error thrown when progress report generation fails
  */
 export class ProgressReportGenerationError extends ControllerError {
-  /** The underlying error */
-  public readonly cause: Error | undefined;
-
   constructor(cause?: Error) {
     const causeMessage = cause !== undefined ? `: ${cause.message}` : '';
-    super(`Failed to generate progress report${causeMessage}`);
+    const options: AppErrorOptions = {
+      severity: ErrorSeverity.MEDIUM,
+      category: 'recoverable',
+    };
+    if (cause !== undefined) {
+      options.cause = cause;
+    }
+    super(
+      ErrorCodes.CTL_PROGRESS_REPORT_ERROR,
+      `Failed to generate progress report${causeMessage}`,
+      options
+    );
     this.name = 'ProgressReportGenerationError';
-    this.cause = cause;
   }
 }
 
@@ -296,15 +432,24 @@ export class ProgressReportGenerationError extends ControllerError {
 export class ProgressReportPersistenceError extends ControllerError {
   /** The operation that failed */
   public readonly operation: 'save' | 'load';
-  /** The underlying error */
-  public readonly cause: Error | undefined;
 
   constructor(operation: 'save' | 'load', cause?: Error) {
     const causeMessage = cause !== undefined ? `: ${cause.message}` : '';
-    super(`Failed to ${operation} progress report${causeMessage}`);
+    const options: AppErrorOptions = {
+      context: { operation },
+      severity: ErrorSeverity.MEDIUM,
+      category: 'recoverable',
+    };
+    if (cause !== undefined) {
+      options.cause = cause;
+    }
+    super(
+      ErrorCodes.CTL_PROGRESS_PERSISTENCE_ERROR,
+      `Failed to ${operation} progress report${causeMessage}`,
+      options
+    );
     this.name = 'ProgressReportPersistenceError';
     this.operation = operation;
-    this.cause = cause;
   }
 }
 
@@ -317,7 +462,10 @@ export class ProgressReportPersistenceError extends ControllerError {
  */
 export class HealthMonitorAlreadyRunningError extends ControllerError {
   constructor() {
-    super('Health monitor is already running');
+    super(ErrorCodes.CTL_HEALTH_MONITOR_RUNNING, 'Health monitor is already running', {
+      severity: ErrorSeverity.LOW,
+      category: 'recoverable',
+    });
     this.name = 'HealthMonitorAlreadyRunningError';
   }
 }
@@ -327,7 +475,10 @@ export class HealthMonitorAlreadyRunningError extends ControllerError {
  */
 export class HealthMonitorNotRunningError extends ControllerError {
   constructor() {
-    super('Health monitor is not running');
+    super(ErrorCodes.CTL_HEALTH_MONITOR_NOT_RUNNING, 'Health monitor is not running', {
+      severity: ErrorSeverity.LOW,
+      category: 'recoverable',
+    });
     this.name = 'HealthMonitorNotRunningError';
   }
 }
@@ -345,8 +496,18 @@ export class ZombieWorkerError extends ControllerError {
 
   constructor(workerId: string, missedHeartbeats: number, currentTask?: string) {
     const taskMessage = currentTask !== undefined ? ` (processing ${currentTask})` : '';
+    const options: AppErrorOptions = {
+      context: { workerId, missedHeartbeats },
+      severity: ErrorSeverity.HIGH,
+      category: 'recoverable',
+    };
+    if (currentTask !== undefined) {
+      options.context = { ...options.context, currentTask };
+    }
     super(
-      `Worker ${workerId} became zombie after ${String(missedHeartbeats)} missed heartbeats${taskMessage}`
+      ErrorCodes.CTL_ZOMBIE_WORKER,
+      `Worker ${workerId} became zombie after ${String(missedHeartbeats)} missed heartbeats${taskMessage}`,
+      options
     );
     this.name = 'ZombieWorkerError';
     this.workerId = workerId;
@@ -363,18 +524,25 @@ export class WorkerRestartError extends ControllerError {
   public readonly workerId: string;
   /** Number of restart attempts */
   public readonly attemptCount: number;
-  /** The underlying error */
-  public readonly cause: Error | undefined;
 
   constructor(workerId: string, attemptCount: number, cause?: Error) {
     const causeMessage = cause !== undefined ? `: ${cause.message}` : '';
+    const options: AppErrorOptions = {
+      context: { workerId, attemptCount },
+      severity: ErrorSeverity.HIGH,
+      category: 'recoverable',
+    };
+    if (cause !== undefined) {
+      options.cause = cause;
+    }
     super(
-      `Failed to restart worker ${workerId} after ${String(attemptCount)} attempts${causeMessage}`
+      ErrorCodes.CTL_WORKER_RESTART_ERROR,
+      `Failed to restart worker ${workerId} after ${String(attemptCount)} attempts${causeMessage}`,
+      options
     );
     this.name = 'WorkerRestartError';
     this.workerId = workerId;
     this.attemptCount = attemptCount;
-    this.cause = cause;
   }
 }
 
@@ -388,7 +556,15 @@ export class MaxRestartsExceededError extends ControllerError {
   public readonly maxRestarts: number;
 
   constructor(workerId: string, maxRestarts: number) {
-    super(`Worker ${workerId} exceeded maximum restart limit of ${String(maxRestarts)}`);
+    super(
+      ErrorCodes.CTL_MAX_RESTARTS_EXCEEDED,
+      `Worker ${workerId} exceeded maximum restart limit of ${String(maxRestarts)}`,
+      {
+        context: { workerId, maxRestarts },
+        severity: ErrorSeverity.CRITICAL,
+        category: 'fatal',
+      }
+    );
     this.name = 'MaxRestartsExceededError';
     this.workerId = workerId;
     this.maxRestarts = maxRestarts;
@@ -407,7 +583,15 @@ export class TaskReassignmentError extends ControllerError {
   public readonly reason: string;
 
   constructor(taskId: string, fromWorkerId: string, reason: string) {
-    super(`Failed to reassign task ${taskId} from worker ${fromWorkerId}: ${reason}`);
+    super(
+      ErrorCodes.CTL_TASK_REASSIGNMENT_ERROR,
+      `Failed to reassign task ${taskId} from worker ${fromWorkerId}: ${reason}`,
+      {
+        context: { taskId, fromWorkerId, reason },
+        severity: ErrorSeverity.HIGH,
+        category: 'recoverable',
+      }
+    );
     this.name = 'TaskReassignmentError';
     this.taskId = taskId;
     this.fromWorkerId = fromWorkerId;
@@ -429,20 +613,30 @@ export class StuckWorkerRecoveryError extends ControllerError {
   public readonly issueId: string | null;
   /** Number of recovery attempts made */
   public readonly attemptCount: number;
-  /** The underlying error */
-  public readonly cause: Error | undefined;
 
   constructor(workerId: string, issueId: string | null, attemptCount: number, cause?: Error) {
     const issueMessage = issueId !== null ? ` for task ${issueId}` : '';
     const causeMessage = cause !== undefined ? `: ${cause.message}` : '';
+    const options: AppErrorOptions = {
+      context: { workerId, attemptCount },
+      severity: ErrorSeverity.HIGH,
+      category: 'recoverable',
+    };
+    if (issueId !== null) {
+      options.context = { ...options.context, issueId };
+    }
+    if (cause !== undefined) {
+      options.cause = cause;
+    }
     super(
-      `Failed to recover stuck worker ${workerId}${issueMessage} after ${String(attemptCount)} attempts${causeMessage}`
+      ErrorCodes.CTL_STUCK_WORKER_RECOVERY_ERROR,
+      `Failed to recover stuck worker ${workerId}${issueMessage} after ${String(attemptCount)} attempts${causeMessage}`,
+      options
     );
     this.name = 'StuckWorkerRecoveryError';
     this.workerId = workerId;
     this.issueId = issueId;
     this.attemptCount = attemptCount;
-    this.cause = cause;
   }
 }
 
@@ -462,8 +656,18 @@ export class StuckWorkerCriticalError extends ControllerError {
   constructor(workerId: string, issueId: string | null, durationMs: number, attemptCount: number) {
     const issueMessage = issueId !== null ? ` on task ${issueId}` : '';
     const minutes = Math.round(durationMs / 60000);
+    const options: AppErrorOptions = {
+      context: { workerId, durationMs, attemptCount, minutes },
+      severity: ErrorSeverity.CRITICAL,
+      category: 'fatal',
+    };
+    if (issueId !== null) {
+      options.context = { ...options.context, issueId };
+    }
     super(
-      `Worker ${workerId}${issueMessage} stuck for ${String(minutes)} minutes after ${String(attemptCount)} recovery attempts - manual intervention required`
+      ErrorCodes.CTL_STUCK_WORKER_CRITICAL,
+      `Worker ${workerId}${issueMessage} stuck for ${String(minutes)} minutes after ${String(attemptCount)} recovery attempts - manual intervention required`,
+      options
     );
     this.name = 'StuckWorkerCriticalError';
     this.workerId = workerId;
@@ -483,7 +687,15 @@ export class MaxRecoveryAttemptsExceededError extends ControllerError {
   public readonly maxAttempts: number;
 
   constructor(workerId: string, maxAttempts: number) {
-    super(`Worker ${workerId} exceeded maximum recovery attempts of ${String(maxAttempts)}`);
+    super(
+      ErrorCodes.CTL_MAX_RECOVERY_EXCEEDED,
+      `Worker ${workerId} exceeded maximum recovery attempts of ${String(maxAttempts)}`,
+      {
+        context: { workerId, maxAttempts },
+        severity: ErrorSeverity.CRITICAL,
+        category: 'fatal',
+      }
+    );
     this.name = 'MaxRecoveryAttemptsExceededError';
     this.workerId = workerId;
     this.maxAttempts = maxAttempts;
@@ -507,7 +719,13 @@ export class QueueFullError extends ControllerError {
 
   constructor(taskId: string, currentSize: number, maxSize: number) {
     super(
-      `Queue is full: cannot enqueue task ${taskId} (current: ${String(currentSize)}, max: ${String(maxSize)})`
+      ErrorCodes.CTL_QUEUE_FULL,
+      `Queue is full: cannot enqueue task ${taskId} (current: ${String(currentSize)}, max: ${String(maxSize)})`,
+      {
+        context: { taskId, currentSize, maxSize },
+        severity: ErrorSeverity.HIGH,
+        category: 'transient',
+      }
     );
     this.name = 'QueueFullError';
     this.taskId = taskId;
@@ -527,7 +745,13 @@ export class QueueMemoryLimitError extends ControllerError {
 
   constructor(currentMemory: number, maxMemory: number) {
     super(
-      `Queue memory limit exceeded: ${String(Math.round(currentMemory / 1048576))}MB / ${String(Math.round(maxMemory / 1048576))}MB`
+      ErrorCodes.CTL_QUEUE_MEMORY_LIMIT,
+      `Queue memory limit exceeded: ${String(Math.round(currentMemory / 1048576))}MB / ${String(Math.round(maxMemory / 1048576))}MB`,
+      {
+        context: { currentMemory, maxMemory, currentMB: Math.round(currentMemory / 1048576), maxMB: Math.round(maxMemory / 1048576) },
+        severity: ErrorSeverity.HIGH,
+        category: 'transient',
+      }
     );
     this.name = 'QueueMemoryLimitError';
     this.currentMemory = currentMemory;
@@ -546,7 +770,13 @@ export class QueueBackpressureActiveError extends ControllerError {
 
   constructor(utilizationRatio: number, threshold: number) {
     super(
-      `Queue backpressure active: utilization ${String(Math.round(utilizationRatio * 100))}% exceeds threshold ${String(Math.round(threshold * 100))}%`
+      ErrorCodes.CTL_QUEUE_BACKPRESSURE,
+      `Queue backpressure active: utilization ${String(Math.round(utilizationRatio * 100))}% exceeds threshold ${String(Math.round(threshold * 100))}%`,
+      {
+        context: { utilizationRatio, threshold, utilizationPercent: Math.round(utilizationRatio * 100), thresholdPercent: Math.round(threshold * 100) },
+        severity: ErrorSeverity.MEDIUM,
+        category: 'transient',
+      }
     );
     this.name = 'QueueBackpressureActiveError';
     this.utilizationRatio = utilizationRatio;
@@ -567,7 +797,13 @@ export class TaskPriorityTooLowError extends ControllerError {
 
   constructor(taskId: string, taskPriority: number, minPriority: number) {
     super(
-      `Task ${taskId} priority ${String(taskPriority)} is below queue minimum ${String(minPriority)}`
+      ErrorCodes.CTL_TASK_PRIORITY_LOW,
+      `Task ${taskId} priority ${String(taskPriority)} is below queue minimum ${String(minPriority)}`,
+      {
+        context: { taskId, taskPriority, minPriority },
+        severity: ErrorSeverity.LOW,
+        category: 'recoverable',
+      }
     );
     this.name = 'TaskPriorityTooLowError';
     this.taskId = taskId;
