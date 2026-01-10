@@ -11,6 +11,55 @@ The State Manager provides a structured way to manage project state throughout t
 - **Watch Mode**: Real-time notifications for state changes
 - **File Locking**: Safe concurrent access to state files
 
+## Architecture
+
+The State Manager follows the **Facade Pattern**, coordinating five focused sub-modules:
+
+```
+┌───────────────────────────────────────────────────────────────┐
+│                      StateManager (Facade)                     │
+│                    Coordinates all sub-modules                 │
+└───────────────────────────────────────────────────────────────┘
+                               │
+        ┌──────────┬──────────┼──────────┬──────────┐
+        ▼          ▼          ▼          ▼          ▼
+  ┌──────────┐┌──────────┐┌──────────┐┌──────────┐┌──────────┐
+  │  State   ││  State   ││  State   ││  State   ││  State   │
+  │ Machine  ││Persistence││ History  ││ Watcher  ││ Recovery │
+  └──────────┘└──────────┘└──────────┘└──────────┘└──────────┘
+```
+
+| Module | Responsibility | Size |
+|--------|----------------|------|
+| **StateMachine** | State transitions, validation rules | ~8KB |
+| **StatePersistence** | File I/O, locking, CRUD | ~14KB |
+| **StateHistory** | History tracking, checkpoints | ~11KB |
+| **StateWatcher** | File watching, notifications | ~7KB |
+| **StateRecovery** | Skip, recovery, admin override | ~12KB |
+
+### Direct Module Access
+
+For advanced use cases, sub-modules can be imported directly:
+
+```typescript
+import {
+  StateMachine,           // State transition logic
+  StatePersistence,       // File I/O operations
+  StateHistoryManager,    // History and checkpoints
+  StateWatcherManager,    // File watching
+  StateRecovery,          // Recovery operations
+  VALID_TRANSITIONS,      // Transition map constant
+  ENHANCED_TRANSITIONS,   // Enhanced rules constant
+  PIPELINE_STAGES,        // Pipeline stage order
+} from 'ad-sdlc';
+
+// Example: Use StateMachine directly for validation
+const stateMachine = new StateMachine();
+if (stateMachine.isValidTransition('collecting', 'prd_drafting')) {
+  console.log('Direct skip to PRD drafting is allowed');
+}
+```
+
 ## Installation
 
 The State Manager is included in the main package:
