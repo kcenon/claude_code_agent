@@ -8,3 +8,4 @@ export * from './test-environment.js';
 export * from './pipeline-runner.js';
 export * from './verification.js';
 export * from './fixtures.js';
+export * from './github-mock.js';
