@@ -14,11 +14,7 @@ import type { AppErrorOptions } from '../errors/index.js';
  * Base error class for controller errors
  */
 export class ControllerError extends AppError {
-  constructor(
-    code: string,
-    message: string,
-    options: AppErrorOptions = {}
-  ) {
+  constructor(code: string, message: string, options: AppErrorOptions = {}) {
     super(code, message, {
       severity: options.severity ?? ErrorSeverity.HIGH,
       category: options.category ?? 'recoverable',
@@ -127,7 +123,8 @@ export class IssueNotFoundError extends ControllerError {
   public readonly referenceContext: string | undefined;
 
   constructor(issueId: string, referenceContext?: string) {
-    const contextMessage = referenceContext !== undefined ? ` (referenced in ${referenceContext})` : '';
+    const contextMessage =
+      referenceContext !== undefined ? ` (referenced in ${referenceContext})` : '';
     const options: AppErrorOptions = {
       context: { issueId },
       severity: ErrorSeverity.MEDIUM,
@@ -136,11 +133,7 @@ export class IssueNotFoundError extends ControllerError {
     if (referenceContext !== undefined) {
       options.context = { ...options.context, referenceContext };
     }
-    super(
-      ErrorCodes.CTL_ISSUE_NOT_FOUND,
-      `Issue not found: ${issueId}${contextMessage}`,
-      options
-    );
+    super(ErrorCodes.CTL_ISSUE_NOT_FOUND, `Issue not found: ${issueId}${contextMessage}`, options);
     this.name = 'IssueNotFoundError';
     this.issueId = issueId;
     this.referenceContext = referenceContext;
@@ -748,7 +741,12 @@ export class QueueMemoryLimitError extends ControllerError {
       ErrorCodes.CTL_QUEUE_MEMORY_LIMIT,
       `Queue memory limit exceeded: ${String(Math.round(currentMemory / 1048576))}MB / ${String(Math.round(maxMemory / 1048576))}MB`,
       {
-        context: { currentMemory, maxMemory, currentMB: Math.round(currentMemory / 1048576), maxMB: Math.round(maxMemory / 1048576) },
+        context: {
+          currentMemory,
+          maxMemory,
+          currentMB: Math.round(currentMemory / 1048576),
+          maxMB: Math.round(maxMemory / 1048576),
+        },
         severity: ErrorSeverity.HIGH,
         category: 'transient',
       }
@@ -773,7 +771,12 @@ export class QueueBackpressureActiveError extends ControllerError {
       ErrorCodes.CTL_QUEUE_BACKPRESSURE,
       `Queue backpressure active: utilization ${String(Math.round(utilizationRatio * 100))}% exceeds threshold ${String(Math.round(threshold * 100))}%`,
       {
-        context: { utilizationRatio, threshold, utilizationPercent: Math.round(utilizationRatio * 100), thresholdPercent: Math.round(threshold * 100) },
+        context: {
+          utilizationRatio,
+          threshold,
+          utilizationPercent: Math.round(utilizationRatio * 100),
+          thresholdPercent: Math.round(threshold * 100),
+        },
         severity: ErrorSeverity.MEDIUM,
         category: 'transient',
       }

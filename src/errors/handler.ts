@@ -148,8 +148,7 @@ export class ErrorHandler {
    * Get suggested action based on error
    */
   static getSuggestedAction(error: Error): string {
-    const appError =
-      error instanceof AppError ? error : AppError.normalize(error);
+    const appError = error instanceof AppError ? error : AppError.normalize(error);
     const category = appError.category;
 
     switch (category) {
@@ -167,12 +166,8 @@ export class ErrorHandler {
   /**
    * Create extended error information
    */
-  static createErrorInfo(
-    error: Error,
-    additionalContext: ErrorContext = {}
-  ): ErrorInfo {
-    const appError =
-      error instanceof AppError ? error : AppError.normalize(error);
+  static createErrorInfo(error: Error, additionalContext: ErrorContext = {}): ErrorInfo {
+    const appError = error instanceof AppError ? error : AppError.normalize(error);
 
     const info: ErrorInfo = {
       category: appError.category,
@@ -213,10 +208,7 @@ export class ErrorHandler {
   /**
    * Log error to console with appropriate level
    */
-  private static log(
-    error: AppError,
-    level: 'debug' | 'info' | 'warn' | 'error' = 'error'
-  ): void {
+  private static log(error: AppError, level: 'debug' | 'info' | 'warn' | 'error' = 'error'): void {
     const formatted = error.format('log');
     switch (level) {
       case 'debug':
@@ -253,8 +245,7 @@ export class ErrorHandler {
     code: string,
     defaultContext: ErrorContext = {}
   ): (error: unknown) => AppError {
-    return (error: unknown) =>
-      AppError.wrap(error, code, { context: defaultContext });
+    return (error: unknown) => AppError.wrap(error, code, { context: defaultContext });
   }
 
   /**
@@ -293,11 +284,7 @@ export class ErrorHandler {
   /**
    * Execute a function and wrap any thrown error (sync version)
    */
-  static wrapSync<T>(
-    fn: () => T,
-    code: string,
-    context: ErrorContext = {}
-  ): T {
+  static wrapSync<T>(fn: () => T, code: string, context: ErrorContext = {}): T {
     try {
       return fn();
     } catch (error) {

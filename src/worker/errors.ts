@@ -97,7 +97,11 @@ export class FileReadError extends WorkerError {
     if (cause !== undefined) {
       options.cause = cause;
     }
-    super(ErrorCodes.WRK_FILE_READ_ERROR, `Failed to read file ${filePath}${causeMessage}`, options);
+    super(
+      ErrorCodes.WRK_FILE_READ_ERROR,
+      `Failed to read file ${filePath}${causeMessage}`,
+      options
+    );
     this.name = 'FileReadError';
     this.filePath = filePath;
   }
