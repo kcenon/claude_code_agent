@@ -560,4 +560,272 @@ describe('WorkerPoolManager', () => {
       expect(status.errorWorkers).toBe(1);
     });
   });
+
+  describe('distributed lock support', () => {
+    let distributedManager: WorkerPoolManager;
+    let distributedTestDir: string;
+
+    beforeEach(async () => {
+      distributedTestDir = join(tmpdir(), `worker-pool-distributed-test-${Date.now()}`);
+      distributedManager = new WorkerPoolManager({
+        maxWorkers: 3,
+        workOrdersPath: distributedTestDir,
+        distributedLock: {
+          enabled: true,
+          lockTimeout: 5000,
+          lockRetryAttempts: 5,
+          lockRetryDelayMs: 50,
+        },
+      });
+    });
+
+    afterEach(async () => {
+      await distributedManager.cleanupDistributedLock();
+      if (existsSync(distributedTestDir)) {
+        await rm(distributedTestDir, { recursive: true, force: true });
+      }
+    });
+
+    describe('configuration', () => {
+      it('should detect distributed lock enabled', () => {
+        expect(distributedManager.isDistributedLockEnabled()).toBe(true);
+      });
+
+      it('should detect distributed lock disabled when not configured', () => {
+        expect(manager.isDistributedLockEnabled()).toBe(false);
+      });
+
+      it('should generate unique lock holder ID', () => {
+        const holderId1 = distributedManager.getLockHolderId();
+        const otherManager = new WorkerPoolManager({
+          maxWorkers: 2,
+          workOrdersPath: distributedTestDir,
+          distributedLock: { enabled: true },
+        });
+        const holderId2 = otherManager.getLockHolderId();
+
+        expect(holderId1).toBeDefined();
+        expect(holderId2).toBeDefined();
+        expect(holderId1).not.toBe(holderId2);
+      });
+
+      it('should use custom holder ID prefix', () => {
+        const customManager = new WorkerPoolManager({
+          maxWorkers: 2,
+          workOrdersPath: distributedTestDir,
+          distributedLock: {
+            enabled: true,
+            holderIdPrefix: 'custom-prefix',
+          },
+        });
+
+        expect(customManager.getLockHolderId()).toContain('custom-prefix-');
+      });
+    });
+
+    describe('assignWorkWithLock', () => {
+      it('should assign work with lock protection', async () => {
+        const order = await distributedManager.createWorkOrder(createIssueNode('ISS-001'));
+        await distributedManager.assignWorkWithLock('worker-1', order);
+
+        const worker = distributedManager.getWorker('worker-1');
+        expect(worker.status).toBe('working');
+        expect(worker.currentIssue).toBe('ISS-001');
+      });
+
+      it('should work without lock when disabled', async () => {
+        const order = await manager.createWorkOrder(createIssueNode('ISS-001'));
+        await manager.assignWorkWithLock('worker-1', order);
+
+        const worker = manager.getWorker('worker-1');
+        expect(worker.status).toBe('working');
+      });
+    });
+
+    describe('completeWorkWithLock', () => {
+      it('should complete work with lock protection', async () => {
+        const order = await distributedManager.createWorkOrder(createIssueNode('ISS-001'));
+        await distributedManager.assignWorkWithLock('worker-1', order);
+
+        const result: WorkOrderResult = {
+          orderId: 'WO-001',
+          success: true,
+          completedAt: new Date().toISOString(),
+          filesModified: [],
+        };
+
+        await distributedManager.completeWorkWithLock('worker-1', result);
+
+        const worker = distributedManager.getWorker('worker-1');
+        expect(worker.status).toBe('idle');
+        expect(distributedManager.getCompletedOrders()).toContain('WO-001');
+      });
+    });
+
+    describe('failWorkWithLock', () => {
+      it('should fail work with lock protection', async () => {
+        const order = await distributedManager.createWorkOrder(createIssueNode('ISS-001'));
+        await distributedManager.assignWorkWithLock('worker-1', order);
+
+        await distributedManager.failWorkWithLock('worker-1', 'WO-001', new Error('Test failure'));
+
+        const worker = distributedManager.getWorker('worker-1');
+        expect(worker.status).toBe('error');
+        expect(distributedManager.getFailedOrders()).toContain('WO-001');
+      });
+    });
+
+    describe('createWorkOrderWithLock', () => {
+      it('should create work order with lock protection', async () => {
+        const order = await distributedManager.createWorkOrderWithLock(
+          createIssueNode('ISS-001', 'P0')
+        );
+
+        expect(order.orderId).toBe('WO-001');
+        expect(order.issueId).toBe('ISS-001');
+        expect(order.priority).toBe(100);
+      });
+
+      it('should maintain order ID uniqueness with locks', async () => {
+        const [order1, order2] = await Promise.all([
+          distributedManager.createWorkOrderWithLock(createIssueNode('ISS-001')),
+          distributedManager.createWorkOrderWithLock(createIssueNode('ISS-002')),
+        ]);
+
+        // Both orders should be created with unique IDs
+        expect(order1.orderId).not.toBe(order2.orderId);
+      });
+    });
+
+    describe('queue operations with lock', () => {
+      it('should enqueue with lock protection', async () => {
+        await distributedManager.enqueueWithLock('ISS-001', 100);
+        await distributedManager.enqueueWithLock('ISS-002', 75);
+
+        expect(distributedManager.getQueueSize()).toBe(2);
+        expect(distributedManager.isQueued('ISS-001')).toBe(true);
+        expect(distributedManager.isQueued('ISS-002')).toBe(true);
+      });
+
+      it('should dequeue with lock protection', async () => {
+        await distributedManager.enqueueWithLock('ISS-001', 50);
+        await distributedManager.enqueueWithLock('ISS-002', 100);
+
+        const dequeued = await distributedManager.dequeueWithLock();
+        expect(dequeued).toBe('ISS-002'); // Highest priority
+        expect(distributedManager.getQueueSize()).toBe(1);
+      });
+
+      it('should return null when dequeuing empty queue', async () => {
+        const result = await distributedManager.dequeueWithLock();
+        expect(result).toBeNull();
+      });
+    });
+
+    describe('getAvailableSlotWithLock', () => {
+      it('should get available slot with lock', async () => {
+        const slot = await distributedManager.getAvailableSlotWithLock();
+        expect(slot).toBeDefined();
+        expect(slot).toMatch(/^worker-\d+$/);
+      });
+
+      it('should return null when no slots available', async () => {
+        // Fill all slots
+        for (let i = 1; i <= 3; i++) {
+          const order = await distributedManager.createWorkOrder(createIssueNode(`ISS-00${i}`));
+          distributedManager.assignWork(`worker-${i}`, order);
+        }
+
+        const slot = await distributedManager.getAvailableSlotWithLock();
+        expect(slot).toBeNull();
+      });
+    });
+
+    describe('worker management with lock', () => {
+      it('should release worker with lock', async () => {
+        const order = await distributedManager.createWorkOrder(createIssueNode('ISS-001'));
+        await distributedManager.assignWorkWithLock('worker-1', order);
+
+        await distributedManager.releaseWorkerWithLock('worker-1');
+
+        const worker = distributedManager.getWorker('worker-1');
+        expect(worker.status).toBe('idle');
+      });
+
+      it('should reset worker with lock', async () => {
+        const order = await distributedManager.createWorkOrder(createIssueNode('ISS-001'));
+        await distributedManager.assignWorkWithLock('worker-1', order);
+        await distributedManager.failWorkWithLock('worker-1', 'WO-001', new Error('Test'));
+
+        await distributedManager.resetWorkerWithLock('worker-1');
+
+        const worker = distributedManager.getWorker('worker-1');
+        expect(worker.status).toBe('idle');
+        expect(worker.lastError).toBeUndefined();
+      });
+    });
+
+    describe('state persistence with lock', () => {
+      it('should save state with lock protection', async () => {
+        const order = await distributedManager.createWorkOrder(createIssueNode('ISS-001'));
+        await distributedManager.assignWorkWithLock('worker-1', order);
+
+        await distributedManager.saveStateWithLock('test-project');
+
+        const statePath = join(distributedTestDir, 'controller_state.json');
+        expect(existsSync(statePath)).toBe(true);
+      });
+
+      it('should load state with lock protection', async () => {
+        const order = await distributedManager.createWorkOrder(createIssueNode('ISS-001'));
+        await distributedManager.assignWorkWithLock('worker-1', order);
+        await distributedManager.saveStateWithLock('test-project');
+
+        const state = await distributedManager.loadStateWithLock('test-project');
+
+        expect(state).not.toBeNull();
+        expect(state?.projectId).toBe('test-project');
+      });
+    });
+
+    describe('synchronizeState', () => {
+      it('should synchronize state when distributed lock enabled', async () => {
+        // Create some state
+        const order = await distributedManager.createWorkOrder(createIssueNode('ISS-001'));
+        await distributedManager.assignWorkWithLock('worker-1', order);
+
+        const result: WorkOrderResult = {
+          orderId: 'WO-001',
+          success: true,
+          completedAt: new Date().toISOString(),
+          filesModified: [],
+        };
+        await distributedManager.completeWorkWithLock('worker-1', result);
+
+        // Synchronize should succeed
+        const synced = await distributedManager.synchronizeState('test-project');
+        expect(synced).toBe(true);
+      });
+
+      it('should return false when distributed lock disabled', async () => {
+        const synced = await manager.synchronizeState('test-project');
+        expect(synced).toBe(false);
+      });
+    });
+
+    describe('cleanupDistributedLock', () => {
+      it('should cleanup without error', async () => {
+        await expect(distributedManager.cleanupDistributedLock()).resolves.not.toThrow();
+      });
+
+      it('should be safe to call multiple times', async () => {
+        await distributedManager.cleanupDistributedLock();
+        await expect(distributedManager.cleanupDistributedLock()).resolves.not.toThrow();
+      });
+
+      it('should be safe when distributed lock disabled', async () => {
+        await expect(manager.cleanupDistributedLock()).resolves.not.toThrow();
+      });
+    });
+  });
 });
