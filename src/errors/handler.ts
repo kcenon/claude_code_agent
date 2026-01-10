@@ -55,6 +55,7 @@ const ERROR_CATEGORY_MAP: Record<string, ErrorCategory> = {
 /**
  * Centralized error handling utility
  */
+// eslint-disable-next-line @typescript-eslint/no-extraneous-class
 export class ErrorHandler {
   /**
    * Handle an error with logging and optional output
@@ -217,8 +218,21 @@ export class ErrorHandler {
     level: 'debug' | 'info' | 'warn' | 'error' = 'error'
   ): void {
     const formatted = error.format('log');
-    const logMethod = console[level] ?? console.error;
-    logMethod(formatted);
+    switch (level) {
+      case 'debug':
+        console.debug(formatted);
+        break;
+      case 'info':
+        console.info(formatted);
+        break;
+      case 'warn':
+        console.warn(formatted);
+        break;
+      case 'error':
+      default:
+        console.error(formatted);
+        break;
+    }
   }
 
   /**

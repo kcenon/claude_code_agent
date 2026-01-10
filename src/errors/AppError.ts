@@ -154,7 +154,10 @@ export class AppError extends Error {
    * Get description for this error code
    */
   getCodeDescription(): string {
-    return ErrorCodeDescriptions[this.code as ErrorCode] ?? 'Unknown error code';
+    if (this.code in ErrorCodeDescriptions) {
+      return ErrorCodeDescriptions[this.code as ErrorCode];
+    }
+    return 'Unknown error code';
   }
 
   /**
