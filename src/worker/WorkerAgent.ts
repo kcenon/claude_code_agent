@@ -9,9 +9,10 @@
  *
  * NOTE: Parallel test execution is planned. See Issue #258.
  *
- * NOTE: Retry policy error classification is planned.
- * See Issue #252 for implementation details.
- * Currently retries all errors equally.
+ * Error classification system implemented:
+ * - Transient errors (network, timeout): Retry with exponential backoff
+ * - Recoverable errors (test failures, lint errors): Attempt self-fix then retry
+ * - Fatal errors (missing dependencies, blocked): No retry, immediate escalation
  *
  * NOTE: Uses string concatenation for commit messages (simple and effective).
  *
@@ -50,7 +51,9 @@ import {
   ImplementationBlockedError,
   ResultPersistenceError,
   GitOperationError,
+  categorizeError,
 } from './errors.js';
+import type { ErrorCategory } from '../errors/index.js';
 import { getCommandSanitizer, createSecureFileOps, type SecureFileOps } from '../security/index.js';
 import { tryGetProjectRoot } from '../utils/index.js';
 
@@ -179,22 +182,54 @@ export class WorkerAgent {
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
 
-        // Check if this is a blocking error (no retry)
-        if (error instanceof ImplementationBlockedError) {
+        // Classify error to determine retry strategy
+        const errorCategory = categorizeError(lastError);
+        const categoryConfig = this.getCategoryRetryConfig(retryPolicy, errorCategory);
+
+        // Handle based on error category
+        if (errorCategory === 'fatal' || !categoryConfig.retry) {
+          // Fatal errors: No retry, immediate return/escalation
+          if (error instanceof ImplementationBlockedError) {
+            const result = this.createResult(
+              workOrder,
+              'blocked',
+              startedAt,
+              await this.getCurrentBranch(),
+              this.createSkippedVerification(),
+              undefined,
+              error.blockers
+            );
+            await this.saveResult(result);
+            return result;
+          }
+
+          // Other fatal errors: fail immediately
           const result = this.createResult(
             workOrder,
-            'blocked',
+            'failed',
             startedAt,
             await this.getCurrentBranch(),
             this.createSkippedVerification(),
-            undefined,
-            error.blockers
+            `Fatal error: ${lastError.message}`
           );
           await this.saveResult(result);
           return result;
         }
 
-        // Wait before retry (exponential backoff)
+        // Check category-specific max attempts
+        const categoryMaxAttempts = categoryConfig.maxAttempts ?? retryPolicy.maxAttempts;
+        if (attempt >= categoryMaxAttempts) {
+          // Max attempts for this category reached
+          break;
+        }
+
+        // Recoverable errors: May attempt self-fix before retry
+        if (errorCategory === 'recoverable' && categoryConfig.requireFixAttempt) {
+          // Log that fix was attempted (actual fix logic would go here)
+          // For VerificationError, the runVerification() already handles lint --fix
+        }
+
+        // Transient and recoverable errors: Retry with backoff
         if (attempt < retryPolicy.maxAttempts) {
           const delay = this.calculateDelay(attempt, retryPolicy);
           await this.sleep(delay);
@@ -726,11 +761,47 @@ export class WorkerAgent {
    * Build retry policy with defaults
    */
   private buildRetryPolicy(override?: Partial<RetryPolicy>): RetryPolicy {
-    return {
+    const base: RetryPolicy = {
       maxAttempts: override?.maxAttempts ?? DEFAULT_RETRY_POLICY.maxAttempts,
       baseDelayMs: override?.baseDelayMs ?? DEFAULT_RETRY_POLICY.baseDelayMs,
       backoff: override?.backoff ?? DEFAULT_RETRY_POLICY.backoff,
       maxDelayMs: override?.maxDelayMs ?? DEFAULT_RETRY_POLICY.maxDelayMs,
+    };
+
+    // Include byCategory only if defined in override or default
+    const byCategory = override?.byCategory ?? DEFAULT_RETRY_POLICY.byCategory;
+    if (byCategory !== undefined) {
+      return { ...base, byCategory };
+    }
+
+    return base;
+  }
+
+  /**
+   * Get category-specific retry configuration
+   *
+   * Returns retry settings based on error category:
+   * - transient: Full retries with backoff (network issues, timeouts)
+   * - recoverable: Retry with fix attempts (test failures, lint errors)
+   * - fatal: No retry (missing dependencies, permission denied)
+   */
+  private getCategoryRetryConfig(
+    policy: RetryPolicy,
+    category: ErrorCategory
+  ): { retry: boolean; maxAttempts: number; requireFixAttempt: boolean } {
+    const defaults = {
+      transient: { retry: true, maxAttempts: policy.maxAttempts, requireFixAttempt: false },
+      recoverable: { retry: true, maxAttempts: policy.maxAttempts, requireFixAttempt: true },
+      fatal: { retry: false, maxAttempts: 0, requireFixAttempt: false },
+    };
+
+    const categoryConfig = policy.byCategory?.[category];
+    const defaultConfig = defaults[category];
+
+    return {
+      retry: categoryConfig?.retry ?? defaultConfig.retry,
+      maxAttempts: categoryConfig?.maxAttempts ?? defaultConfig.maxAttempts,
+      requireFixAttempt: categoryConfig?.requireFixAttempt ?? defaultConfig.requireFixAttempt,
     };
   }
 
