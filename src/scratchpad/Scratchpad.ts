@@ -718,10 +718,7 @@ export class Scratchpad {
 
           if (isExpired || isPastStealThreshold) {
             // Step 3a: Try cooperative release first (only once per holder)
-            if (
-              useCooperativeRelease &&
-              cooperativeReleaseAttempted !== existingLock.holderId
-            ) {
+            if (useCooperativeRelease && cooperativeReleaseAttempted !== existingLock.holderId) {
               cooperativeReleaseAttempted = existingLock.holderId;
               const wasReleased = await this.tryCooperativeRelease(
                 lockPath,
@@ -957,12 +954,7 @@ export class Scratchpad {
     timeoutMs: number
   ): Promise<boolean> {
     // Create release request
-    const request = await this.createReleaseRequest(
-      lockPath,
-      existingLock,
-      requesterId,
-      timeoutMs
-    );
+    const request = await this.createReleaseRequest(lockPath, existingLock, requesterId, timeoutMs);
 
     if (request === null) {
       return false;
