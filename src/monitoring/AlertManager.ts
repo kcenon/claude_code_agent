@@ -8,13 +8,8 @@
  * - Alert history tracking
  * - Custom alert handlers
  *
- * FIXME(P2): Alert condition strings are not type-safe
- * The 'condition' field uses strings like "error_rate > 10%" which are
- * not validated at compile time. Should use a proper DSL or typed objects.
- *
- * TODO(P2): Add alert escalation for unacknowledged alerts
- * Critical alerts that remain unacknowledged should escalate to higher
- * severity or additional notification channels.
+ * NOTE: Alert condition type safety and escalation are planned.
+ * See Issue #253 for implementation details.
  */
 
 import * as fs from 'node:fs';

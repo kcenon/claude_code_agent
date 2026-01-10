@@ -19,12 +19,8 @@
  * See Issue #251 for fix details.
  * For production multi-process deployments, use proper distributed locking.
  *
- * TODO(P2): Add lock heartbeat mechanism
- * Holders should periodically update lock timestamp to indicate liveness.
- * Stale locks from crashed processes could be safely cleaned up.
- *
- * TODO(P3): Support configurable serialization format per file
- * Currently hardcoded YAML/JSON based on file extension. Allow override.
+ * NOTE: Lock heartbeat and configurable serialization are planned.
+ * See Issues #260 and #261 for implementation details.
  *
  * Features:
  * - Atomic lock acquisition using hard links (EEXIST on collision)

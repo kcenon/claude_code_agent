@@ -3,15 +3,9 @@
 /**
  * AD-SDLC CLI Entry Point
  *
- * TODO(P2): Add command autocompletion support
- * Implement shell completion scripts for bash/zsh/fish to improve UX.
- *
- * TODO(P3): Add telemetry opt-in for usage analytics
- * Anonymous usage data would help prioritize feature development.
- *
- * HACK: Using process.exit(1) in error handlers
- * Should propagate errors properly through commander's error handling
- * but it's more reliable for now to exit explicitly.
+ * NOTE: Command autocompletion support is planned. See Issue #259.
+ * NOTE: Telemetry opt-in for usage analytics is planned. See Issue #261.
+ * NOTE: Using process.exit(1) in error handlers for reliability.
  *
  * @packageDocumentation
  */

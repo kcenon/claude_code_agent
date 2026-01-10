@@ -8,13 +8,8 @@
  * - Consistent error handling
  * - Support for both async and sync operations
  *
- * FIXME(P2): allowedExternalDirs can be bypassed with symlinks
- * If a path within projectRoot is a symlink to an external location,
- * the current validation may not catch it. Should resolve symlinks
- * before validation.
- *
- * TODO(P3): Add file change watching with security filters
- * Watch for unauthorized file modifications within the project.
+ * NOTE: Symlink bypass fix and file change watching are planned.
+ * See Issue #255 for implementation details.
  */
 
 import * as fs from 'node:fs';

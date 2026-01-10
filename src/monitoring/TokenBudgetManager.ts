@@ -11,13 +11,8 @@
  * See Issue #248 for implementation details.
  * Currently all agents share a single global budget.
  *
- * TODO(P2): Add budget persistence across sessions
- * Budget state is lost when the process restarts. Consider persisting
- * cumulative usage to the scratchpad for cost tracking over time.
- *
- * TODO(P3): Add budget forecasting based on historical usage
- * Predict budget exhaustion time based on usage patterns to provide
- * early warnings before hitting hard limits.
+ * NOTE: Budget persistence and forecasting are planned.
+ * See Issue #253 for implementation details.
  */
 
 import type { AlertSeverity } from './types.js';

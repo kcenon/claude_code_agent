@@ -4,12 +4,8 @@
  * Handles loading and parsing of YAML configuration files
  * with proper error handling and validation.
  *
- * TODO(P2): Add configuration caching to avoid repeated file reads
- * Currently each loadConfig call reads from disk. For frequently accessed
- * configs, consider implementing an in-memory cache with TTL.
- *
- * TODO(P3): Support environment-specific configuration overrides
- * Allow config files like workflow.development.yaml to override base config.
+ * NOTE: Configuration caching and environment-specific overrides are planned.
+ * See Issue #256 for implementation details.
  *
  * @module config/loader
  */

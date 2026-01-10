@@ -32,10 +32,8 @@ export interface WorkerAgentConfig {
 /**
  * Default worker agent configuration
  *
- * FIXME(P2): projectRoot defaults to process.cwd() which may not be the
- * actual project root when running from subdirectories or in monorepo setups.
- * Should use ProjectContext.getProjectRoot() for consistent behavior.
- * See: src/utils/ProjectContext.ts for centralized project root detection.
+ * NOTE: projectRoot defaults to process.cwd(). See Issue #256 for improvement.
+ * Use ProjectContext.getProjectRoot() for consistent behavior in monorepos.
  */
 export const DEFAULT_WORKER_AGENT_CONFIG: Required<WorkerAgentConfig> = {
   projectRoot: process.cwd(),
@@ -821,8 +819,7 @@ export interface SelfVerificationConfig {
 /**
  * Default self-verification configuration
  *
- * FIXME(P2): projectRoot defaults to process.cwd() which may not be the
- * actual project root. Should use ProjectContext for consistency.
+ * NOTE: projectRoot defaults to process.cwd(). See Issue #256 for improvement.
  */
 export const DEFAULT_SELF_VERIFICATION_CONFIG: Required<SelfVerificationConfig> = {
   projectRoot: process.cwd(),

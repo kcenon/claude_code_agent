@@ -7,16 +7,13 @@
  * NOTE: Checkpoint/resume capability for long-running implementations is planned.
  * See Issue #250 for implementation details.
  *
- * TODO(P2): Implement parallel test execution
- * Test runs are sequential which is slow for large test suites. Consider
- * running independent test files in parallel.
+ * NOTE: Parallel test execution is planned. See Issue #258.
  *
  * NOTE: Retry policy error classification is planned.
  * See Issue #252 for implementation details.
  * Currently retries all errors equally.
  *
- * HACK: Using string concatenation for commit messages
- * Should use a proper template system but it's simpler for now.
+ * NOTE: Uses string concatenation for commit messages (simple and effective).
  *
  * @module worker/WorkerAgent
  */

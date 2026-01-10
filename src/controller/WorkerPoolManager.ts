@@ -17,9 +17,7 @@
  * - respawnWorker(): Reset worker to healthy state
  * - getActiveWorkers(): Get workers for health monitoring
  *
- * TODO(P3): Add worker pool metrics and observability
- * Expose metrics like worker utilization, queue depth, average task duration
- * for monitoring and capacity planning.
+ * NOTE: Worker pool metrics and observability are planned. See Issue #261.
  *
  * @module controller/WorkerPoolManager
  */

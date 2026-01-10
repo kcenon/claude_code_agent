@@ -158,7 +158,7 @@ export class DocumentReaderAgent {
         features,
         useCases,
         components,
-        apis: [], // TODO: Extract APIs from SDS
+        apis: [], // API extraction from SDS not yet implemented
         traceability: {
           prdToSrs,
           srsToSds,

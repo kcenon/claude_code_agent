@@ -8,13 +8,8 @@
  * See Issue #249 for implementation details.
  * Currently uses gh CLI which doesn't support line-level comments natively.
  *
- * TODO(P2): Implement incremental review for large PRs
- * PRs with many changed files should be reviewed in batches to avoid
- * timeout issues and provide better feedback granularity.
- *
- * FIXME(P2): CI poll interval may cause rate limiting on GitHub API
- * The waitForCI method polls every ciPollInterval ms which may hit
- * GitHub API rate limits for long-running CI pipelines.
+ * NOTE: Incremental review and CI poll rate limiting fixes are planned.
+ * See Issue #254 for implementation details.
  *
  * @module pr-reviewer/PRReviewerAgent
  */
