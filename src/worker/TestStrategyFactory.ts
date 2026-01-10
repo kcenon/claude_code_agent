@@ -95,9 +95,7 @@ export class TestStrategyFactory {
   /**
    * Generate test suites for classes
    */
-  public generateClassSuites(
-    analysis: CodeAnalysis
-  ): readonly TestSuiteBlock[] {
+  public generateClassSuites(analysis: CodeAnalysis): readonly TestSuiteBlock[] {
     const suites: TestSuiteBlock[] = [];
 
     for (const classInfo of analysis.classes) {
@@ -113,9 +111,7 @@ export class TestStrategyFactory {
   /**
    * Generate test suites for functions
    */
-  public generateFunctionSuites(
-    analysis: CodeAnalysis
-  ): readonly TestSuiteBlock[] {
+  public generateFunctionSuites(analysis: CodeAnalysis): readonly TestSuiteBlock[] {
     const suites: TestSuiteBlock[] = [];
 
     for (const funcInfo of analysis.functions) {
@@ -170,7 +166,11 @@ export class TestStrategyFactory {
 
     // Happy path: default initialization
     testCases.push({
-      name: this.assertionBuilder.formatTestName('initialize_with_defaults', 'no_arguments_provided', this.config),
+      name: this.assertionBuilder.formatTestName(
+        'initialize_with_defaults',
+        'no_arguments_provided',
+        this.config
+      ),
       category: 'happy_path',
       priority: 'high',
       description: `${classInfo.name} should initialize with default values when no arguments provided`,
@@ -184,7 +184,11 @@ export class TestStrategyFactory {
     // Happy path: custom configuration
     if (classInfo.constructorParams.length > 0) {
       testCases.push({
-        name: this.assertionBuilder.formatTestName('initialize_with_custom_config', 'valid_arguments_provided', this.config),
+        name: this.assertionBuilder.formatTestName(
+          'initialize_with_custom_config',
+          'valid_arguments_provided',
+          this.config
+        ),
         category: 'happy_path',
         priority: 'high',
         description: `${classInfo.name} should initialize with custom values when arguments provided`,
@@ -200,7 +204,11 @@ export class TestStrategyFactory {
     const optionalParams = classInfo.constructorParams.filter((p) => p.isOptional);
     if (optionalParams.length > 0 && this.config.includeEdgeCases) {
       testCases.push({
-        name: this.assertionBuilder.formatTestName('handle_optional_params', 'partial_arguments_provided', this.config),
+        name: this.assertionBuilder.formatTestName(
+          'handle_optional_params',
+          'partial_arguments_provided',
+          this.config
+        ),
         category: 'edge_case',
         priority: 'medium',
         description: `${classInfo.name} should handle partial configuration correctly`,
@@ -254,7 +262,11 @@ export class TestStrategyFactory {
       // Empty/null input
       if (method.params.length > 0) {
         testCases.push({
-          name: this.assertionBuilder.formatTestName('handle_empty_input', 'empty_data_provided', this.config),
+          name: this.assertionBuilder.formatTestName(
+            'handle_empty_input',
+            'empty_data_provided',
+            this.config
+          ),
           category: 'edge_case',
           priority: 'medium',
           description: `${method.name} should handle empty input gracefully`,
@@ -268,7 +280,11 @@ export class TestStrategyFactory {
 
       // Boundary values
       testCases.push({
-        name: this.assertionBuilder.formatTestName('handle_boundary_values', 'boundary_input_provided', this.config),
+        name: this.assertionBuilder.formatTestName(
+          'handle_boundary_values',
+          'boundary_input_provided',
+          this.config
+        ),
         category: 'edge_case',
         priority: 'medium',
         description: `${method.name} should handle boundary values correctly`,
@@ -285,7 +301,11 @@ export class TestStrategyFactory {
     // Error handling
     if (this.config.includeErrorHandling) {
       testCases.push({
-        name: this.assertionBuilder.formatTestName('throw_error', 'invalid_input_provided', this.config),
+        name: this.assertionBuilder.formatTestName(
+          'throw_error',
+          'invalid_input_provided',
+          this.config
+        ),
         category: 'error_handling',
         priority: 'high',
         description: `${method.name} should throw error for invalid input`,
@@ -336,7 +356,11 @@ export class TestStrategyFactory {
     // Edge cases
     if (this.config.includeEdgeCases && func.params.length > 0) {
       testCases.push({
-        name: this.assertionBuilder.formatTestName('handle_empty_input', 'empty_data_provided', this.config),
+        name: this.assertionBuilder.formatTestName(
+          'handle_empty_input',
+          'empty_data_provided',
+          this.config
+        ),
         category: 'edge_case',
         priority: 'medium',
         description: `${func.name} should handle empty input`,

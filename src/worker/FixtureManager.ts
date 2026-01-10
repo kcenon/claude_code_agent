@@ -218,10 +218,7 @@ export class FixtureManager implements IFixtureManager {
   /**
    * Generate class setup code
    */
-  public generateClassSetup(
-    classInfo: ClassInfo,
-    dependencies: readonly DependencyInfo[]
-  ): string {
+  public generateClassSetup(classInfo: ClassInfo, dependencies: readonly DependencyInfo[]): string {
     const lines: string[] = [];
     lines.push(`let instance: ${classInfo.name};`);
 
@@ -306,9 +303,7 @@ export class FixtureManager implements IFixtureManager {
       return '{}';
     }
 
-    const mockProps = imports
-      .map((importName) => `  ${importName}: vi.fn()`)
-      .join(',\n');
+    const mockProps = imports.map((importName) => `  ${importName}: vi.fn()`).join(',\n');
 
     return `{\n${mockProps}\n}`;
   }

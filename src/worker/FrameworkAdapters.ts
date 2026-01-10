@@ -28,9 +28,21 @@ export interface IFrameworkAdapter {
   /** Format a complete test suite into file content */
   formatTestSuite(suite: TestSuite, patterns: CodePatterns): string;
   /** Format a test suite block (describe block) */
-  formatSuiteBlock(suite: TestSuiteBlock, indent: string, quote: string, semi: string, depth: number): string;
+  formatSuiteBlock(
+    suite: TestSuiteBlock,
+    indent: string,
+    quote: string,
+    semi: string,
+    depth: number
+  ): string;
   /** Format a single test case */
-  formatTestCase(testCase: TestCase, indent: string, quote: string, semi: string, depth: number): string;
+  formatTestCase(
+    testCase: TestCase,
+    indent: string,
+    quote: string,
+    semi: string,
+    depth: number
+  ): string;
   /** Generate import statements */
   generateImports(suite: TestSuite, quote: string, semi: string): string;
 }

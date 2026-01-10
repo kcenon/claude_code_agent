@@ -68,7 +68,11 @@ export class TestGenerator {
     this.codeAnalyzer = new CodeAnalyzer();
     this.assertionBuilder = new AssertionBuilder(config);
     this.fixtureManager = new FixtureManager(config);
-    this.strategyFactory = new TestStrategyFactory(config, this.fixtureManager, this.assertionBuilder);
+    this.strategyFactory = new TestStrategyFactory(
+      config,
+      this.fixtureManager,
+      this.assertionBuilder
+    );
     this.adapterFactory = new FrameworkAdapterFactory(config);
   }
 

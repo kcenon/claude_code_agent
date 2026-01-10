@@ -7,12 +7,7 @@
  * @module worker/AssertionBuilder
  */
 
-import type {
-  TestGeneratorConfig,
-  MethodInfo,
-  FunctionInfo,
-  CodeAnalysis,
-} from './types.js';
+import type { TestGeneratorConfig, MethodInfo, FunctionInfo, CodeAnalysis } from './types.js';
 import { DEFAULT_TEST_GENERATOR_CONFIG } from './types.js';
 
 /**

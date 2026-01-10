@@ -15,12 +15,30 @@ export type { RetryHandlerConfig, OperationResult } from './RetryHandler.js';
 
 // Test Generator sub-modules (Issue #237)
 export { CodeAnalyzer } from './CodeAnalyzer.js';
-export { TestStrategyFactory, UnitTestStrategy, IntegrationTestStrategy, E2ETestStrategy } from './TestStrategyFactory.js';
+export {
+  TestStrategyFactory,
+  UnitTestStrategy,
+  IntegrationTestStrategy,
+  E2ETestStrategy,
+} from './TestStrategyFactory.js';
 export type { ITestStrategy, TestContext } from './TestStrategyFactory.js';
 export { AssertionBuilder } from './AssertionBuilder.js';
-export type { IAssertionBuilder, Assertion, ExpectedValue, InferenceContext } from './AssertionBuilder.js';
+export type {
+  IAssertionBuilder,
+  Assertion,
+  ExpectedValue,
+  InferenceContext,
+} from './AssertionBuilder.js';
 export { FixtureManager } from './FixtureManager.js';
-export type { IFixtureManager, FixtureSchema, FixtureProperty, Fixture, Mock, DataSpec, TestData } from './FixtureManager.js';
+export type {
+  IFixtureManager,
+  FixtureSchema,
+  FixtureProperty,
+  Fixture,
+  Mock,
+  DataSpec,
+  TestData,
+} from './FixtureManager.js';
 export {
   FrameworkAdapterFactory,
   VitestAdapter,
