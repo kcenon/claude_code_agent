@@ -287,6 +287,39 @@ export interface LockOptions {
   readonly retryAttempts?: number;
   /** Custom retry delay for this lock operation */
   readonly retryDelayMs?: number;
+  /**
+   * Enable cooperative release before lock stealing.
+   * When true, a release request is sent before stealing expired locks,
+   * giving the original holder time to gracefully release.
+   * Default: true
+   */
+  readonly cooperativeRelease?: boolean;
+  /**
+   * Time in ms to wait for cooperative release response before forceful steal.
+   * Only used when cooperativeRelease is true.
+   * Default: 1000ms
+   */
+  readonly cooperativeReleaseTimeoutMs?: number;
+}
+
+/**
+ * Lock release request information
+ *
+ * Used for cooperative lock release pattern to prevent data corruption.
+ * When a process wants to steal an expired lock, it first creates a
+ * release request to notify the current holder.
+ */
+export interface LockReleaseRequest {
+  /** Locked file path */
+  readonly filePath: string;
+  /** ID of the process requesting release */
+  readonly requesterId: string;
+  /** Request timestamp */
+  readonly requestedAt: string;
+  /** Original lock holder ID (from the expired lock) */
+  readonly originalHolderId: string;
+  /** Request expiration timestamp */
+  readonly expiresAt: string;
 }
 
 /**
