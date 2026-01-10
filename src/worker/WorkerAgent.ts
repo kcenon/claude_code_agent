@@ -217,8 +217,7 @@ export class WorkerAgent {
         }
 
         // Check category-specific max attempts
-        const categoryMaxAttempts = categoryConfig.maxAttempts ?? retryPolicy.maxAttempts;
-        if (attempt >= categoryMaxAttempts) {
+        if (attempt >= categoryConfig.maxAttempts) {
           // Max attempts for this category reached
           break;
         }
