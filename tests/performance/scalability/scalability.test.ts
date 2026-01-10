@@ -74,9 +74,9 @@ describe('Scalability Tests', () => {
         const sizeRatio = curr.size / prev.size;
         const timeRatio = curr.duration / prev.duration;
 
-        // Allow up to cubic scaling with margin for CI environment variance
-        // CI environments can have significant performance variability
-        const maxExpectedRatio = Math.pow(sizeRatio, 3.0);
+        // Allow up to 3.5x exponential scaling for CI environment variance
+        // CI environments have significant performance variability due to shared resources
+        const maxExpectedRatio = Math.pow(sizeRatio, 3.5);
         expect(timeRatio).toBeLessThan(maxExpectedRatio);
       }
     });

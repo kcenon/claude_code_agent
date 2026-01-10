@@ -93,6 +93,8 @@ export type {
   QueueEventType,
   QueueEvent,
   QueueEventCallback,
+  // Distributed Lock types
+  DistributedLockOptions,
 } from './types.js';
 
 export {
@@ -103,6 +105,7 @@ export {
   DEFAULT_STUCK_WORKER_CONFIG,
   DEFAULT_HEALTH_CHECK_CONFIG,
   DEFAULT_BOUNDED_QUEUE_CONFIG,
+  DEFAULT_DISTRIBUTED_LOCK_OPTIONS,
 } from './types.js';
 
 export {

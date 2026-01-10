@@ -255,6 +255,36 @@ export interface WorkerInfo {
 }
 
 /**
+ * Distributed lock options for multi-process deployments
+ */
+export interface DistributedLockOptions {
+  /** Enable distributed locking (default: false for backward compatibility) */
+  readonly enabled: boolean;
+  /** Lock timeout in milliseconds (default: 5000) */
+  readonly lockTimeout?: number;
+  /** Number of retry attempts for lock acquisition (default: 10) */
+  readonly lockRetryAttempts?: number;
+  /** Base delay between retries in milliseconds (default: 100) */
+  readonly lockRetryDelayMs?: number;
+  /** Threshold for stealing expired locks in milliseconds (default: 5000) */
+  readonly lockStealThresholdMs?: number;
+  /** Lock holder ID prefix for this process (default: auto-generated UUID) */
+  readonly holderIdPrefix?: string;
+}
+
+/**
+ * Default distributed lock options
+ */
+export const DEFAULT_DISTRIBUTED_LOCK_OPTIONS: Required<DistributedLockOptions> = {
+  enabled: false,
+  lockTimeout: 5000,
+  lockRetryAttempts: 10,
+  lockRetryDelayMs: 100,
+  lockStealThresholdMs: 5000,
+  holderIdPrefix: 'worker-pool',
+} as const;
+
+/**
  * Worker pool configuration
  */
 export interface WorkerPoolConfig {
@@ -266,12 +296,16 @@ export interface WorkerPoolConfig {
   readonly workOrdersPath?: string;
   /** Bounded queue configuration (optional, enables queue limits when provided) */
   readonly queueConfig?: BoundedQueueConfig;
+  /** Distributed lock configuration for multi-process deployments */
+  readonly distributedLock?: DistributedLockOptions;
 }
 
 /**
  * Default worker pool configuration
  */
-export const DEFAULT_WORKER_POOL_CONFIG: Required<Omit<WorkerPoolConfig, 'queueConfig'>> = {
+export const DEFAULT_WORKER_POOL_CONFIG: Required<
+  Omit<WorkerPoolConfig, 'queueConfig' | 'distributedLock'>
+> = {
   maxWorkers: 5,
   workerTimeout: 600000, // 10 minutes
   workOrdersPath: '.ad-sdlc/scratchpad/progress',

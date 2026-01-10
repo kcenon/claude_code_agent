@@ -550,6 +550,96 @@ for (const worker of status.workers) {
 | `maxWorkers` | number | 5 | Maximum concurrent workers |
 | `workerTimeout` | number | 600000 | Timeout in milliseconds (10 min) |
 | `workOrdersPath` | string | '.ad-sdlc/scratchpad/progress' | State storage path |
+| `distributedLock` | DistributedLockOptions | undefined | Enable distributed locking for multi-process deployments |
+
+### Distributed Lock Support
+
+For multi-process deployments where multiple Node.js processes share the same worker pool, enable distributed locking to ensure state consistency:
+
+```typescript
+import { WorkerPoolManager } from 'ad-sdlc';
+
+const pool = new WorkerPoolManager({
+  maxWorkers: 5,
+  distributedLock: {
+    enabled: true,
+    lockTimeout: 5000,        // Lock timeout in ms
+    lockRetryAttempts: 10,    // Number of retry attempts
+    lockRetryDelayMs: 100,    // Base delay between retries
+    lockStealThresholdMs: 5000, // Threshold for stealing expired locks
+    holderIdPrefix: 'process-1', // Custom prefix for lock holder ID
+  },
+});
+
+// Check if distributed locking is enabled
+console.log(pool.isDistributedLockEnabled());  // true
+
+// Get the unique lock holder ID for this process
+console.log(pool.getLockHolderId());  // 'process-1-abc123...'
+```
+
+#### Thread-Safe Operations
+
+When distributed locking is enabled, use the `*WithLock` methods for thread-safe operations:
+
+```typescript
+// Work assignment with lock
+await pool.assignWorkWithLock(workerId, workOrder);
+await pool.completeWorkWithLock(workerId, result);
+await pool.failWorkWithLock(workerId, orderId, error);
+
+// Work order creation with lock
+const order = await pool.createWorkOrderWithLock(issue);
+
+// Queue operations with lock
+await pool.enqueueWithLock(issueId, priorityScore);
+const nextIssue = await pool.dequeueWithLock();
+
+// Worker slot acquisition with lock
+const slot = await pool.getAvailableSlotWithLock();
+
+// Worker management with lock
+await pool.releaseWorkerWithLock(workerId);
+await pool.resetWorkerWithLock(workerId);
+
+// State persistence with lock
+await pool.saveStateWithLock(projectId);
+const state = await pool.loadStateWithLock(projectId);
+```
+
+#### State Synchronization
+
+For periodic state synchronization across processes:
+
+```typescript
+// Synchronize state with shared storage
+const synced = await pool.synchronizeState('my-project-id');
+if (synced) {
+  console.log('State synchronized successfully');
+}
+```
+
+#### Cleanup
+
+Always clean up distributed lock resources on shutdown:
+
+```typescript
+process.on('SIGINT', async () => {
+  await pool.cleanupDistributedLock();
+  process.exit(0);
+});
+```
+
+#### Distributed Lock Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `enabled` | boolean | false | Enable distributed locking |
+| `lockTimeout` | number | 5000 | Lock timeout in milliseconds |
+| `lockRetryAttempts` | number | 10 | Number of lock acquisition retries |
+| `lockRetryDelayMs` | number | 100 | Base delay between retries |
+| `lockStealThresholdMs` | number | 5000 | Threshold for stealing expired locks |
+| `holderIdPrefix` | string | 'worker-pool' | Prefix for lock holder ID |
 
 ### Work Order Structure
 
