@@ -7,12 +7,9 @@
  * - Hard limits with graceful handling
  * - Cost-based budget controls
  *
- * TODO(P1): Implement per-agent budget isolation
- * Currently all agents share a single global budget. For better cost control,
- * each agent type should have its own budget allocation. Consider:
- * - Per-agent budget quotas (e.g., collector: 10%, worker: 60%)
- * - Agent-specific warning thresholds
- * - Budget transfer between agents when needed
+ * NOTE: Per-agent budget isolation is planned.
+ * See Issue #248 for implementation details.
+ * Currently all agents share a single global budget.
  *
  * TODO(P2): Add budget persistence across sessions
  * Budget state is lost when the process restarts. Consider persisting
