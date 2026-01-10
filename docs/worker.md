@@ -505,6 +505,107 @@ await fs.writeFile(suite.testFile, content, 'utf-8');
 | `analyzeCode(content)` | Analyze source code structure |
 | `generateTestFileContent(suite, patterns)` | Generate test file content |
 | `getConfig()` | Get current configuration |
+| `getCodeAnalyzer()` | Get the CodeAnalyzer sub-module |
+| `getAssertionBuilder()` | Get the AssertionBuilder sub-module |
+| `getFixtureManager()` | Get the FixtureManager sub-module |
+| `getStrategyFactory()` | Get the TestStrategyFactory sub-module |
+| `getAdapterFactory()` | Get the FrameworkAdapterFactory sub-module |
+
+### Modular Architecture (Issue #237)
+
+TestGenerator follows a modular architecture with focused sub-modules:
+
+```
+TestGenerator (Coordinator)
+    ├── CodeAnalyzer        - Source code analysis
+    ├── TestStrategyFactory - Test generation strategies
+    ├── AssertionBuilder    - Assertion and naming logic
+    ├── FixtureManager      - Mocks and fixtures
+    └── FrameworkAdapters   - Jest/Vitest/Mocha output
+```
+
+#### CodeAnalyzer
+
+Analyzes source code structure:
+
+```typescript
+import { CodeAnalyzer } from 'ad-sdlc';
+
+const analyzer = new CodeAnalyzer();
+const analysis = analyzer.analyzeCode(sourceContent);
+
+// Access analyzed elements
+analysis.classes;      // Class information
+analysis.functions;    // Function information
+analysis.dependencies; // Import dependencies
+analysis.exports;      // Export statements
+```
+
+#### TestStrategyFactory
+
+Implements the Strategy pattern for extensible test generation:
+
+```typescript
+import { TestStrategyFactory, UnitTestStrategy } from 'ad-sdlc';
+
+const factory = new TestStrategyFactory(config, fixtureManager, assertionBuilder);
+
+// Register custom strategies
+factory.registerStrategy(new UnitTestStrategy());
+
+// Generate test suites
+const classSuites = factory.generateClassSuites(analysis);
+const functionSuites = factory.generateFunctionSuites(analysis);
+```
+
+#### AssertionBuilder
+
+Handles assertion formatting and test naming:
+
+```typescript
+import { AssertionBuilder } from 'ad-sdlc';
+
+const builder = new AssertionBuilder(config);
+
+// Format test names
+const testName = builder.formatTestName('return_result', 'valid_input', config);
+// Result: "should_return_result_when_valid_input"
+
+// Infer return descriptions
+const desc = builder.inferReturnDescription(methodInfo);
+```
+
+#### FixtureManager
+
+Manages test fixtures and mock generation:
+
+```typescript
+import { FixtureManager } from 'ad-sdlc';
+
+const manager = new FixtureManager(config);
+
+// Generate mocks for dependencies
+const mocks = manager.generateMocksForMethod(methodInfo, dependencies, config);
+
+// Generate class setup code
+const setup = manager.generateClassSetup(classInfo, dependencies);
+```
+
+#### FrameworkAdapters
+
+Provides adapters for different test frameworks:
+
+```typescript
+import { FrameworkAdapterFactory, VitestAdapter, JestAdapter } from 'ad-sdlc';
+
+const factory = new FrameworkAdapterFactory(config);
+
+// Get adapter for a framework
+const adapter = factory.getAdapter('vitest');
+
+// Generate framework-specific output
+const content = adapter.formatTestSuite(suite, patterns);
+```
 
 ### Integration with WorkerAgent
 
