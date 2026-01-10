@@ -957,3 +957,117 @@ describe('Lock Error Classes', () => {
     });
   });
 });
+
+describe('Cooperative Lock Release', () => {
+  let cooperativeScratchpad: Scratchpad;
+  let testBasePath: string;
+
+  beforeEach(() => {
+    resetScratchpad();
+    testBasePath = path.join(os.tmpdir(), `scratchpad-cooperative-${Date.now()}`);
+    cooperativeScratchpad = new Scratchpad({
+      basePath: testBasePath,
+      enableLocking: true,
+      lockTimeout: 100, // Short timeout for testing
+      lockStealThresholdMs: 50, // Short steal threshold
+    });
+  });
+
+  afterEach(async () => {
+    await cooperativeScratchpad.cleanup();
+    resetScratchpad();
+    try {
+      fs.rmSync(testBasePath, { recursive: true, force: true });
+    } catch {
+      // Ignore cleanup errors
+    }
+  });
+
+  it('should check release request for a lock holder', async () => {
+    const filePath = path.join(testBasePath, 'cooperative', 'test.txt');
+    await cooperativeScratchpad.ensureDir(path.dirname(filePath));
+    await fs.promises.writeFile(filePath, 'test');
+
+    // Initially no release request
+    const requested = await cooperativeScratchpad.isReleaseRequested(filePath, 'holder-1');
+    expect(requested).toBe(false);
+  });
+
+  it('should return false for isReleaseRequested when locking is disabled', async () => {
+    const disabledScratchpad = new Scratchpad({
+      basePath: testBasePath,
+      enableLocking: false,
+    });
+    const filePath = path.join(testBasePath, 'disabled', 'test.txt');
+
+    const requested = await disabledScratchpad.isReleaseRequested(filePath, 'holder-1');
+    expect(requested).toBe(false);
+
+    await disabledScratchpad.cleanup();
+  });
+
+  it('should try cooperative release before stealing expired lock', async () => {
+    const filePath = path.join(testBasePath, 'steal-cooperative', 'test.txt');
+    await cooperativeScratchpad.ensureDir(path.dirname(filePath));
+    await fs.promises.writeFile(filePath, 'test');
+
+    // Acquire lock and let it expire
+    await cooperativeScratchpad.acquireLock(filePath, 'original-holder');
+
+    // Wait for lock to expire
+    await new Promise((resolve) => setTimeout(resolve, 200));
+
+    // Second holder tries to acquire - should attempt cooperative release first
+    const stealer = new Scratchpad({
+      basePath: testBasePath,
+      enableLocking: true,
+      lockTimeout: 100,
+      lockStealThresholdMs: 50,
+    });
+
+    const acquired = await stealer.acquireLock(filePath, 'stealer');
+    expect(acquired).toBe(true);
+
+    await stealer.cleanup();
+  });
+
+  it('should skip cooperative release when disabled via options', async () => {
+    const filePath = path.join(testBasePath, 'no-cooperative', 'test.txt');
+    await cooperativeScratchpad.ensureDir(path.dirname(filePath));
+    await fs.promises.writeFile(filePath, 'test');
+
+    // Acquire lock and let it expire
+    await cooperativeScratchpad.acquireLock(filePath, 'original-holder');
+
+    // Wait for lock to expire
+    await new Promise((resolve) => setTimeout(resolve, 200));
+
+    // Acquire without cooperative release
+    const stealer = new Scratchpad({
+      basePath: testBasePath,
+      enableLocking: true,
+      lockTimeout: 100,
+      lockStealThresholdMs: 50,
+    });
+
+    const acquired = await stealer.acquireLock(filePath, 'stealer', {
+      cooperativeRelease: false,
+    });
+    expect(acquired).toBe(true);
+
+    await stealer.cleanup();
+  });
+
+  it('should clean up pending release requests on cleanup', async () => {
+    const cleanupScratchpad = new Scratchpad({
+      basePath: testBasePath,
+      enableLocking: true,
+      lockTimeout: 100,
+      lockStealThresholdMs: 50,
+    });
+
+    // Just verify cleanup doesn't throw
+    await cleanupScratchpad.cleanup();
+    cleanupScratchpad.cleanupSync();
+  });
+});

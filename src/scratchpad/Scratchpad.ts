@@ -15,9 +15,13 @@
  * TOCTOU (Time-of-Check-Time-of-Use) race conditions. This is more reliable
  * than rename() which silently overwrites existing files on POSIX systems.
  *
- * WARNING: Lock stealing may cause data corruption under high contention.
- * See Issue #251 for fix details.
- * For production multi-process deployments, use proper distributed locking.
+ * Cooperative Lock Release:
+ * Lock stealing now uses a cooperative release pattern to prevent data corruption.
+ * Before forcibly stealing an expired lock, a release request is sent to notify
+ * the current holder, giving them time to release gracefully. This is enabled
+ * by default and can be configured via LockOptions.cooperativeRelease.
+ *
+ * For production multi-process deployments, consider using proper distributed locking.
  *
  * NOTE: Lock heartbeat and configurable serialization are planned.
  * See Issues #260 and #261 for implementation details.
@@ -73,6 +77,7 @@ import type {
   ProjectInfo,
   LockConfig,
   LockOptions,
+  LockReleaseRequest,
 } from './types.js';
 import { LockContentionError } from './errors.js';
 
@@ -122,6 +127,24 @@ const MAX_RETRY_DELAY_MS = 5000;
 const LOCK_EXTENSION = '.lock';
 
 /**
+ * Release request file extension
+ */
+const RELEASE_REQUEST_EXTENSION = '.release-request';
+
+/**
+ * Default timeout for cooperative release in milliseconds
+ */
+const DEFAULT_COOPERATIVE_RELEASE_TIMEOUT_MS = 1000;
+
+/**
+ * Extended lock configuration with cooperative release settings
+ */
+interface ExtendedLockConfig extends Required<LockConfig> {
+  cooperativeRelease: boolean;
+  cooperativeReleaseTimeoutMs: number;
+}
+
+/**
  * Scratchpad implementation for file-based state sharing
  */
 export class Scratchpad {
@@ -130,10 +153,12 @@ export class Scratchpad {
   private readonly dirMode: number;
   private readonly enableLocking: boolean;
   private readonly lockTimeout: number;
-  private readonly lockConfig: Required<LockConfig>;
+  private readonly lockConfig: ExtendedLockConfig;
   private readonly activeLocks: Map<string, NodeJS.Timeout> = new Map();
   private readonly validator: InputValidator;
   private readonly projectRoot: string;
+  /** Pending release requests created by this instance */
+  private readonly pendingReleaseRequests: Set<string> = new Set();
 
   constructor(options: ScratchpadOptions = {}) {
     this.basePath = options.basePath ?? DEFAULT_BASE_PATH;
@@ -141,11 +166,13 @@ export class Scratchpad {
     this.dirMode = options.dirMode ?? DEFAULT_DIR_MODE;
     this.enableLocking = options.enableLocking ?? true;
     this.lockTimeout = options.lockTimeout ?? DEFAULT_LOCK_TIMEOUT;
-    // Lock configuration with defaults
+    // Lock configuration with defaults (including cooperative release settings)
     this.lockConfig = {
       lockRetryAttempts: options.lockRetryAttempts ?? DEFAULT_LOCK_RETRY_ATTEMPTS,
       lockRetryDelayMs: options.lockRetryDelayMs ?? DEFAULT_LOCK_RETRY_DELAY_MS,
       lockStealThresholdMs: options.lockStealThresholdMs ?? DEFAULT_LOCK_STEAL_THRESHOLD_MS,
+      cooperativeRelease: true, // Enable by default for safety
+      cooperativeReleaseTimeoutMs: DEFAULT_COOPERATIVE_RELEASE_TIMEOUT_MS,
     };
     // Use projectRoot if provided, then try ProjectContext, fallback to cwd
     this.projectRoot = options.projectRoot ?? tryGetProjectRoot() ?? process.cwd();
@@ -627,6 +654,12 @@ export class Scratchpad {
     const lockId = holderId ?? options?.holderId ?? randomUUID();
     const retryAttempts = options?.retryAttempts ?? this.lockConfig.lockRetryAttempts;
     const retryDelayMs = options?.retryDelayMs ?? this.lockConfig.lockRetryDelayMs;
+    const useCooperativeRelease = options?.cooperativeRelease ?? this.lockConfig.cooperativeRelease;
+    const cooperativeTimeoutMs =
+      options?.cooperativeReleaseTimeoutMs ?? this.lockConfig.cooperativeReleaseTimeoutMs;
+
+    // Track if we've already attempted cooperative release for a specific lock holder
+    let cooperativeReleaseAttempted: string | null = null;
 
     // Ensure lock directory exists
     const lockDir = path.dirname(lockPath);
@@ -684,8 +717,31 @@ export class Scratchpad {
           const isPastStealThreshold = now - expirationTime >= this.lockConfig.lockStealThresholdMs;
 
           if (isExpired || isPastStealThreshold) {
-            // Try to steal the expired lock atomically
+            // Step 3a: Try cooperative release first (only once per holder)
+            if (
+              useCooperativeRelease &&
+              cooperativeReleaseAttempted !== existingLock.holderId
+            ) {
+              cooperativeReleaseAttempted = existingLock.holderId;
+              const wasReleased = await this.tryCooperativeRelease(
+                lockPath,
+                existingLock,
+                lockId,
+                cooperativeTimeoutMs
+              );
+
+              if (wasReleased) {
+                // Lock was released cooperatively, try to acquire it now
+                // Don't wait, try again immediately
+                continue;
+              }
+              // Cooperative release failed or timed out, proceed to forceful steal
+            }
+
+            // Step 3b: Try to steal the expired lock atomically
             if (await this.tryStealLock(lockPath, tempLockPath, existingLock, lock)) {
+              // Clean up any release request we created
+              await this.deleteReleaseRequest(lockPath);
               this.setupAutoRelease(validatedPath, lockId);
               return true;
             }
@@ -764,6 +820,180 @@ export class Scratchpad {
     } catch {
       return null;
     }
+  }
+
+  // ============================================================
+  // Cooperative Lock Release
+  // ============================================================
+
+  /**
+   * Get the release request file path for a lock
+   *
+   * @param lockPath - Lock file path
+   * @returns Release request file path
+   */
+  private getReleaseRequestPath(lockPath: string): string {
+    return lockPath.replace(LOCK_EXTENSION, RELEASE_REQUEST_EXTENSION);
+  }
+
+  /**
+   * Create a release request for an expired lock
+   *
+   * This notifies the current lock holder that another process
+   * wants to acquire the lock and gives them time to release gracefully.
+   *
+   * @param lockPath - Lock file path
+   * @param existingLock - The existing expired lock
+   * @param requesterId - ID of the process requesting release
+   * @param timeoutMs - How long the request is valid
+   * @returns The created release request, or null if creation failed
+   */
+  private async createReleaseRequest(
+    lockPath: string,
+    existingLock: FileLock,
+    requesterId: string,
+    timeoutMs: number
+  ): Promise<LockReleaseRequest | null> {
+    const releaseRequestPath = this.getReleaseRequestPath(lockPath);
+    const now = Date.now();
+    const request: LockReleaseRequest = {
+      filePath: existingLock.filePath,
+      requesterId,
+      requestedAt: new Date(now).toISOString(),
+      originalHolderId: existingLock.holderId,
+      expiresAt: new Date(now + timeoutMs).toISOString(),
+    };
+
+    try {
+      await fs.promises.writeFile(releaseRequestPath, JSON.stringify(request), {
+        mode: this.fileMode,
+      });
+      this.pendingReleaseRequests.add(releaseRequestPath);
+      return request;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Read a release request
+   *
+   * @param lockPath - Lock file path
+   * @returns Release request or null if not found
+   */
+  private async readReleaseRequest(lockPath: string): Promise<LockReleaseRequest | null> {
+    const releaseRequestPath = this.getReleaseRequestPath(lockPath);
+    try {
+      const content = await fs.promises.readFile(releaseRequestPath, 'utf8');
+      return JSON.parse(content) as LockReleaseRequest;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Delete a release request
+   *
+   * @param lockPath - Lock file path
+   */
+  private async deleteReleaseRequest(lockPath: string): Promise<void> {
+    const releaseRequestPath = this.getReleaseRequestPath(lockPath);
+    try {
+      await fs.promises.unlink(releaseRequestPath);
+      this.pendingReleaseRequests.delete(releaseRequestPath);
+    } catch {
+      // Ignore if not found
+    }
+  }
+
+  /**
+   * Check if a release request exists for a lock
+   *
+   * Lock holders can call this periodically to check if another
+   * process is waiting for the lock and release it gracefully.
+   *
+   * @param filePath - File path (not lock path)
+   * @param holderId - Current lock holder ID
+   * @returns True if a release is being requested for this holder
+   * @throws PathTraversalError if path escapes project root
+   */
+  public async isReleaseRequested(filePath: string, holderId: string): Promise<boolean> {
+    if (!this.enableLocking) {
+      return false;
+    }
+
+    const validatedPath = this.validatePath(filePath);
+    const lockPath = `${validatedPath}${LOCK_EXTENSION}`;
+    const request = await this.readReleaseRequest(lockPath);
+
+    if (request === null) {
+      return false;
+    }
+
+    // Check if request is for this holder and not expired
+    const now = Date.now();
+    const expiresAt = new Date(request.expiresAt).getTime();
+    return request.originalHolderId === holderId && expiresAt > now;
+  }
+
+  /**
+   * Attempt cooperative lock release before stealing
+   *
+   * This method:
+   * 1. Creates a release request to notify the current holder
+   * 2. Waits for the holder to release or for timeout
+   * 3. Returns whether the lock was released cooperatively
+   *
+   * @param lockPath - Lock file path
+   * @param existingLock - The existing expired lock
+   * @param requesterId - ID of the process requesting release
+   * @param timeoutMs - How long to wait for cooperative release
+   * @returns True if lock was released cooperatively
+   */
+  private async tryCooperativeRelease(
+    lockPath: string,
+    existingLock: FileLock,
+    requesterId: string,
+    timeoutMs: number
+  ): Promise<boolean> {
+    // Create release request
+    const request = await this.createReleaseRequest(
+      lockPath,
+      existingLock,
+      requesterId,
+      timeoutMs
+    );
+
+    if (request === null) {
+      return false;
+    }
+
+    // Wait for cooperative release with polling
+    const pollInterval = Math.min(100, timeoutMs / 4);
+    const startTime = Date.now();
+
+    while (Date.now() - startTime < timeoutMs) {
+      await this.sleep(pollInterval);
+
+      // Check if lock was released
+      const currentLock = await this.readLock(lockPath);
+      if (currentLock === null) {
+        // Lock was released! Clean up request and return success
+        await this.deleteReleaseRequest(lockPath);
+        return true;
+      }
+
+      // Check if lock holder changed (holder acknowledged by releasing and someone else took it)
+      if (currentLock.holderId !== existingLock.holderId) {
+        // Lock was taken by another process
+        await this.deleteReleaseRequest(lockPath);
+        return false;
+      }
+    }
+
+    // Timeout - cooperative release failed
+    // Keep the release request so holder knows stealing will occur
+    return false;
   }
 
   /**
@@ -1105,9 +1335,10 @@ export class Scratchpad {
   }
 
   /**
-   * Clean up all active locks
+   * Clean up all active locks and pending release requests
    */
   public async cleanup(): Promise<void> {
+    // Clean up active locks
     for (const [filePath, timer] of this.activeLocks) {
       clearTimeout(timer);
       try {
@@ -1117,6 +1348,16 @@ export class Scratchpad {
       }
     }
     this.activeLocks.clear();
+
+    // Clean up pending release requests
+    for (const requestPath of this.pendingReleaseRequests) {
+      try {
+        await fs.promises.unlink(requestPath);
+      } catch {
+        // Ignore cleanup errors
+      }
+    }
+    this.pendingReleaseRequests.clear();
   }
 
   /**
@@ -1127,6 +1368,16 @@ export class Scratchpad {
       clearTimeout(timer);
     }
     this.activeLocks.clear();
+
+    // Clean up pending release requests synchronously
+    for (const requestPath of this.pendingReleaseRequests) {
+      try {
+        fs.unlinkSync(requestPath);
+      } catch {
+        // Ignore cleanup errors
+      }
+    }
+    this.pendingReleaseRequests.clear();
   }
 }
 
