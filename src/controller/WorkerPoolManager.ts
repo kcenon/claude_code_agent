@@ -4,12 +4,9 @@
  * Manages a pool of Worker Agents for parallel task execution.
  * Handles worker spawning, task assignment, and status tracking.
  *
- * TODO(P1): Add distributed lock support for multi-process deployments
- * Currently, the worker pool uses in-memory Maps which don't work across
- * multiple Node.js processes. For horizontal scaling, consider using:
- * - Redis-based locking (redlock algorithm)
- * - Database-backed state management
- * - File-based locking via Scratchpad's withLock
+ * NOTE: Distributed lock support for multi-process deployments is planned.
+ * See Issue #247 for implementation details.
+ * Currently uses in-memory Maps; for horizontal scaling, use Scratchpad's withLock.
  *
  * DONE(P2): Worker health checks implemented via WorkerHealthMonitor
  * See WorkerHealthMonitor.ts for heartbeat-based zombie detection
@@ -20,9 +17,7 @@
  * - respawnWorker(): Reset worker to healthy state
  * - getActiveWorkers(): Get workers for health monitoring
  *
- * TODO(P3): Add worker pool metrics and observability
- * Expose metrics like worker utilization, queue depth, average task duration
- * for monitoring and capacity planning.
+ * NOTE: Worker pool metrics and observability are planned. See Issue #261.
  *
  * @module controller/WorkerPoolManager
  */

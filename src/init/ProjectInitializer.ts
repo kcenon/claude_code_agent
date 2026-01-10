@@ -1,11 +1,8 @@
 /**
  * Project initialization and scaffolding implementation
  *
- * FIXME(P2): Default targetDir uses process.cwd() in constructor
- * Should defer to ProjectContext.tryGetProjectRoot() for consistency.
- *
- * TODO(P3): Add project template versioning
- * Templates should have versions to support migrations when template format changes.
+ * NOTE: Default targetDir and project template versioning improvements are planned.
+ * See Issue #256 for implementation details.
  *
  * @packageDocumentation
  */

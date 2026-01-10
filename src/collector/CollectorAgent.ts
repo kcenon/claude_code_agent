@@ -5,13 +5,8 @@
  * extracts structured data, handles clarification loops, and
  * generates YAML output for downstream agents.
  *
- * TODO(P2): Add support for batch input processing
- * Currently processes one input source at a time. For large document sets,
- * should support batch processing with progress callbacks.
- *
- * FIXME(P2): Session state is lost if startSession fails after project init
- * If initializeProject succeeds but subsequent operations fail, the project
- * directory exists but session is null. Should implement cleanup on partial failure.
+ * NOTE: Batch input processing and session cleanup improvements are planned.
+ * See Issue #257 for implementation details.
  */
 
 import { randomUUID } from 'node:crypto';
