@@ -1,0 +1,139 @@
+name: Performance Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  # Allow manual trigger
+  workflow_dispatch:
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Create perf-results directory
+        run: mkdir -p perf-results
+
+      - name: Run benchmarks
+        run: npm run test:bench
+        continue-on-error: true
+
+      - name: Run performance tests
+        run: npm run test:perf
+
+      - name: Check for regressions
+        id: regression-check
+        run: |
+          npm run perf:check
+          echo "status=$?" >> $GITHUB_OUTPUT
+        continue-on-error: true
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-results
+          path: perf-results/
+          retention-days: 30
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+
+            let comment = '## Performance Test Results\n\n';
+
+            try {
+              const reportPath = './perf-results/performance-report.md';
+              if (fs.existsSync(reportPath)) {
+                const report = fs.readFileSync(reportPath, 'utf8');
+                comment += report;
+              } else {
+                comment += '✅ Performance tests completed. See artifacts for detailed results.';
+              }
+            } catch (error) {
+              comment += `⚠️ Could not read performance report: ${error.message}`;
+            }
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+  memory-profile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run memory profiling tests
+        run: npm run test:memory
+        env:
+          NODE_OPTIONS: '--expose-gc'
+
+      - name: Upload memory profile results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: memory-profile-results
+          path: perf-results/
+          retention-days: 30
+
+  scalability:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run scalability tests
+        run: npm run test:scalability
+        env:
+          NODE_OPTIONS: '--expose-gc'
+
+      - name: Upload scalability results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: scalability-results
+          path: perf-results/
+          retention-days: 30

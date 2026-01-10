@@ -1,0 +1,48 @@
+{
+  "baselines": [
+    {
+      "operation": "analyze-100",
+      "p50": 15,
+      "p95": 30,
+      "maxMemoryMB": 50,
+      "updatedAt": "2026-01-10T00:00:00.000Z"
+    },
+    {
+      "operation": "analyze-500",
+      "p50": 100,
+      "p95": 200,
+      "maxMemoryMB": 100,
+      "updatedAt": "2026-01-10T00:00:00.000Z"
+    },
+    {
+      "operation": "analyze-1000",
+      "p50": 350,
+      "p95": 700,
+      "maxMemoryMB": 200,
+      "updatedAt": "2026-01-10T00:00:00.000Z"
+    },
+    {
+      "operation": "scratchpad-write-small",
+      "p50": 2,
+      "p95": 5,
+      "maxMemoryMB": 20,
+      "updatedAt": "2026-01-10T00:00:00.000Z"
+    },
+    {
+      "operation": "scratchpad-write-large",
+      "p50": 15,
+      "p95": 30,
+      "maxMemoryMB": 50,
+      "updatedAt": "2026-01-10T00:00:00.000Z"
+    },
+    {
+      "operation": "lock-acquire-release",
+      "p50": 5,
+      "p95": 15,
+      "maxMemoryMB": 10,
+      "updatedAt": "2026-01-10T00:00:00.000Z"
+    }
+  ],
+  "updatedAt": "2026-01-10T00:00:00.000Z",
+  "notes": "Initial baseline metrics. Update after running benchmarks on consistent hardware."
+}
