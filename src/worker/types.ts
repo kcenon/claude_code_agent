@@ -6,6 +6,7 @@
  */
 
 import type { WorkOrder, WorkOrderContext, RelatedFile } from '../controller/types.js';
+import type { ErrorCategory } from '../errors/index.js';
 
 /**
  * Worker Agent configuration
@@ -240,8 +241,10 @@ export type CommitType = 'feat' | 'fix' | 'docs' | 'test' | 'refactor' | 'style'
  * - transient: Network issues, API rate limits - retry with backoff
  * - recoverable: Test failures, lint errors - attempt self-fix then retry
  * - fatal: Missing dependencies, permission denied - immediate escalation
+ *
+ * Re-exported from errors module for backward compatibility
  */
-export type ErrorCategory = 'transient' | 'recoverable' | 'fatal';
+export type { ErrorCategory };
 
 /**
  * Extended worker error information

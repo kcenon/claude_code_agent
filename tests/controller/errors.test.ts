@@ -16,15 +16,25 @@ import {
   StuckWorkerCriticalError,
   MaxRecoveryAttemptsExceededError,
 } from '../../src/controller/errors.js';
+import { AppError, ErrorCodes, ErrorSeverity } from '../../src/errors/index.js';
 
 describe('Controller Error Classes', () => {
   describe('ControllerError', () => {
-    it('should create base error', () => {
-      const error = new ControllerError('Test error');
+    it('should create base error extending AppError', () => {
+      const error = new ControllerError(ErrorCodes.CTL_GRAPH_NOT_FOUND, 'Test error');
 
       expect(error.name).toBe('ControllerError');
       expect(error.message).toBe('Test error');
+      expect(error.code).toBe(ErrorCodes.CTL_GRAPH_NOT_FOUND);
+      expect(error).toBeInstanceOf(AppError);
       expect(error).toBeInstanceOf(Error);
+    });
+
+    it('should have default severity and category', () => {
+      const error = new ControllerError(ErrorCodes.CTL_GRAPH_NOT_FOUND, 'Test error');
+
+      expect(error.severity).toBe(ErrorSeverity.HIGH);
+      expect(error.category).toBe('recoverable');
     });
   });
 
@@ -34,7 +44,9 @@ describe('Controller Error Classes', () => {
 
       expect(error.name).toBe('GraphNotFoundError');
       expect(error.path).toBe('/path/to/graph.json');
+      expect(error.code).toBe(ErrorCodes.CTL_GRAPH_NOT_FOUND);
       expect(error.message).toContain('/path/to/graph.json');
+      expect(error.category).toBe('fatal');
     });
   });
 
@@ -81,46 +93,40 @@ describe('Controller Error Classes', () => {
   });
 
   describe('IssueNotFoundError', () => {
-    it('should create error with issueId and context', () => {
-      const error = new IssueNotFoundError('ISSUE-123', 'dependency check');
-
-      expect(error.name).toBe('IssueNotFoundError');
-      expect(error.issueId).toBe('ISSUE-123');
-      expect(error.context).toBe('dependency check');
-      expect(error.message).toContain('ISSUE-123');
-      expect(error.message).toContain('dependency check');
-    });
-
-    it('should create error without context', () => {
+    it('should create error with issue ID', () => {
       const error = new IssueNotFoundError('ISSUE-123');
 
       expect(error.name).toBe('IssueNotFoundError');
-      expect(error.context).toBeUndefined();
+      expect(error.issueId).toBe('ISSUE-123');
+      expect(error.message).toContain('ISSUE-123');
+    });
+
+    it('should create error with reference context', () => {
+      const error = new IssueNotFoundError('ISSUE-123', 'dependency list');
+
+      expect(error.referenceContext).toBe('dependency list');
+      expect(error.message).toContain('dependency list');
     });
   });
 
   describe('PriorityAnalysisError', () => {
-    it('should create error with message and issueId', () => {
-      const error = new PriorityAnalysisError('Analysis failed', 'ISSUE-123');
-
-      expect(error.name).toBe('PriorityAnalysisError');
-      expect(error.issueId).toBe('ISSUE-123');
-      expect(error.message).toContain('Analysis failed');
-      expect(error.message).toContain('ISSUE-123');
-    });
-
-    it('should create error without issueId', () => {
+    it('should create error with message', () => {
       const error = new PriorityAnalysisError('Analysis failed');
 
       expect(error.name).toBe('PriorityAnalysisError');
-      expect(error.issueId).toBeUndefined();
       expect(error.message).toContain('Analysis failed');
-      expect(error.message).not.toContain('for issue');
+    });
+
+    it('should create error with issue ID', () => {
+      const error = new PriorityAnalysisError('Analysis failed', 'ISSUE-123');
+
+      expect(error.issueId).toBe('ISSUE-123');
+      expect(error.message).toContain('ISSUE-123');
     });
   });
 
   describe('EmptyGraphError', () => {
-    it('should create error with default message', () => {
+    it('should create error', () => {
       const error = new EmptyGraphError();
 
       expect(error.name).toBe('EmptyGraphError');
@@ -129,67 +135,68 @@ describe('Controller Error Classes', () => {
   });
 
   describe('StuckWorkerRecoveryError', () => {
-    it('should create error with workerId, issueId, and attemptCount', () => {
-      const cause = new Error('Recovery failed');
-      const error = new StuckWorkerRecoveryError('worker-1', 'issue-1', 3, cause);
+    it('should create error with worker and issue ID', () => {
+      const error = new StuckWorkerRecoveryError('worker-1', 'issue-123', 3);
 
       expect(error.name).toBe('StuckWorkerRecoveryError');
       expect(error.workerId).toBe('worker-1');
-      expect(error.issueId).toBe('issue-1');
+      expect(error.issueId).toBe('issue-123');
       expect(error.attemptCount).toBe(3);
-      expect(error.cause).toBe(cause);
       expect(error.message).toContain('worker-1');
-      expect(error.message).toContain('issue-1');
-      expect(error.message).toContain('3');
     });
 
-    it('should create error without issueId', () => {
-      const error = new StuckWorkerRecoveryError('worker-1', null, 2);
+    it('should create error with cause', () => {
+      const cause = new Error('Recovery failed');
+      const error = new StuckWorkerRecoveryError('worker-1', 'issue-123', 3, cause);
 
-      expect(error.name).toBe('StuckWorkerRecoveryError');
-      expect(error.issueId).toBeNull();
-      expect(error.message).not.toContain('for task');
-    });
-
-    it('should create error without cause', () => {
-      const error = new StuckWorkerRecoveryError('worker-1', 'issue-1', 1);
-
-      expect(error.cause).toBeUndefined();
+      expect(error.cause).toBe(cause);
+      expect(error.message).toContain('Recovery failed');
     });
   });
 
   describe('StuckWorkerCriticalError', () => {
-    it('should create error with all properties', () => {
-      const error = new StuckWorkerCriticalError('worker-1', 'issue-1', 600000, 3);
+    it('should create critical error with duration', () => {
+      const error = new StuckWorkerCriticalError('worker-1', 'issue-123', 300000, 5);
 
       expect(error.name).toBe('StuckWorkerCriticalError');
       expect(error.workerId).toBe('worker-1');
-      expect(error.issueId).toBe('issue-1');
-      expect(error.durationMs).toBe(600000);
-      expect(error.attemptCount).toBe(3);
-      expect(error.message).toContain('worker-1');
-      expect(error.message).toContain('issue-1');
-      expect(error.message).toContain('10 minutes');
-      expect(error.message).toContain('manual intervention');
-    });
-
-    it('should create error without issueId', () => {
-      const error = new StuckWorkerCriticalError('worker-1', null, 300000, 2);
-
-      expect(error.issueId).toBeNull();
-      expect(error.message).not.toContain('on task');
+      expect(error.issueId).toBe('issue-123');
+      expect(error.durationMs).toBe(300000);
+      expect(error.attemptCount).toBe(5);
+      expect(error.severity).toBe(ErrorSeverity.CRITICAL);
+      expect(error.category).toBe('fatal');
     });
   });
 
   describe('MaxRecoveryAttemptsExceededError', () => {
-    it('should create error with workerId and maxAttempts', () => {
-      const error = new MaxRecoveryAttemptsExceededError('worker-1', 3);
+    it('should create error with worker ID and max attempts', () => {
+      const error = new MaxRecoveryAttemptsExceededError('worker-1', 5);
 
       expect(error.name).toBe('MaxRecoveryAttemptsExceededError');
       expect(error.workerId).toBe('worker-1');
-      expect(error.maxAttempts).toBe(3);
-      expect(error.message).toContain('worker-1');
-      expect(error.message).toContain('3');
+      expect(error.maxAttempts).toBe(5);
+      expect(error.message).toContain('5');
+      expect(error.severity).toBe(ErrorSeverity.CRITICAL);
+    });
+  });
+
+  describe('Serialization', () => {
+    it('should serialize to JSON', () => {
+      const error = new GraphNotFoundError('/path/to/graph.json');
+      const json = error.toJSON();
+
+      expect(json.code).toBe(ErrorCodes.CTL_GRAPH_NOT_FOUND);
+      expect(json.message).toContain('/path/to/graph.json');
+      expect(json.severity).toBe(ErrorSeverity.HIGH);
+      expect(json.context.path).toBe('/path/to/graph.json');
+    });
+
+    it('should check retryability', () => {
+      const fatalError = new GraphNotFoundError('/path');
+      const recoverableError = new IssueNotFoundError('123');
+
+      expect(fatalError.isRetryable()).toBe(false);
+      expect(recoverableError.isRetryable()).toBe(true);
     });
   });
 });

@@ -2,25 +2,36 @@
  * State Manager error classes
  *
  * Custom error types for state management operations.
+ * All errors extend AppError for standardized error handling.
  *
  * @module state-manager/errors
  */
 
+import { AppError, ErrorCodes, ErrorSeverity } from '../errors/index.js';
+import type { AppErrorOptions } from '../errors/index.js';
 import type { ProjectState, ValidationError } from './types.js';
 
 /**
  * Base error for state manager operations
  */
-export class StateManagerError extends Error {
-  readonly code: string;
+export class StateManagerError extends AppError {
   readonly projectId: string | undefined;
 
-  constructor(message: string, code: string, projectId?: string) {
-    super(message);
+  constructor(
+    code: string,
+    message: string,
+    options: AppErrorOptions & { projectId?: string } = {}
+  ) {
+    super(code, message, {
+      severity: options.severity ?? ErrorSeverity.MEDIUM,
+      category: options.category ?? 'recoverable',
+      ...options,
+    });
     this.name = 'StateManagerError';
-    this.code = code;
-    this.projectId = projectId;
-    Object.setPrototypeOf(this, StateManagerError.prototype);
+    this.projectId = options.projectId;
+    if (options.projectId !== undefined) {
+      this.context.projectId = options.projectId;
+    }
   }
 }
 
@@ -33,11 +44,18 @@ export class InvalidTransitionError extends StateManagerError {
 
   constructor(fromState: ProjectState, toState: ProjectState, projectId?: string) {
     const message = `Invalid state transition from '${fromState}' to '${toState}'`;
-    super(message, 'INVALID_TRANSITION', projectId);
+    const options: AppErrorOptions & { projectId?: string } = {
+      context: { fromState, toState },
+      severity: ErrorSeverity.MEDIUM,
+      category: 'fatal',
+    };
+    if (projectId !== undefined) {
+      options.projectId = projectId;
+    }
+    super(ErrorCodes.STM_INVALID_TRANSITION, message, options);
     this.name = 'InvalidTransitionError';
     this.fromState = fromState;
     this.toState = toState;
-    Object.setPrototypeOf(this, InvalidTransitionError.prototype);
   }
 }
 
@@ -49,10 +67,14 @@ export class StateNotFoundError extends StateManagerError {
 
   constructor(section: string, projectId: string) {
     const message = `State not found for section '${section}' in project '${projectId}'`;
-    super(message, 'STATE_NOT_FOUND', projectId);
+    super(ErrorCodes.STM_STATE_NOT_FOUND, message, {
+      context: { section },
+      projectId,
+      severity: ErrorSeverity.MEDIUM,
+      category: 'recoverable',
+    });
     this.name = 'StateNotFoundError';
     this.section = section;
-    Object.setPrototypeOf(this, StateNotFoundError.prototype);
   }
 }
 
@@ -62,9 +84,12 @@ export class StateNotFoundError extends StateManagerError {
 export class ProjectNotFoundError extends StateManagerError {
   constructor(projectId: string) {
     const message = `Project '${projectId}' not found`;
-    super(message, 'PROJECT_NOT_FOUND', projectId);
+    super(ErrorCodes.STM_PROJECT_NOT_FOUND, message, {
+      projectId,
+      severity: ErrorSeverity.MEDIUM,
+      category: 'fatal',
+    });
     this.name = 'ProjectNotFoundError';
-    Object.setPrototypeOf(this, ProjectNotFoundError.prototype);
   }
 }
 
@@ -74,9 +99,12 @@ export class ProjectNotFoundError extends StateManagerError {
 export class ProjectExistsError extends StateManagerError {
   constructor(projectId: string) {
     const message = `Project '${projectId}' already exists`;
-    super(message, 'PROJECT_EXISTS', projectId);
+    super(ErrorCodes.STM_PROJECT_EXISTS, message, {
+      projectId,
+      severity: ErrorSeverity.LOW,
+      category: 'recoverable',
+    });
     this.name = 'ProjectExistsError';
-    Object.setPrototypeOf(this, ProjectExistsError.prototype);
   }
 }
 
@@ -89,10 +117,17 @@ export class StateValidationError extends StateManagerError {
   constructor(errors: readonly ValidationError[], projectId?: string) {
     const errorMessages = errors.map((e) => `${e.path}: ${e.message}`).join('; ');
     const message = `State validation failed: ${errorMessages}`;
-    super(message, 'VALIDATION_FAILED', projectId);
+    const options: AppErrorOptions & { projectId?: string } = {
+      context: { errors, errorCount: errors.length },
+      severity: ErrorSeverity.MEDIUM,
+      category: 'fatal',
+    };
+    if (projectId !== undefined) {
+      options.projectId = projectId;
+    }
+    super(ErrorCodes.STM_VALIDATION_FAILED, message, options);
     this.name = 'StateValidationError';
     this.errors = errors;
-    Object.setPrototypeOf(this, StateValidationError.prototype);
   }
 
   /**
@@ -111,10 +146,17 @@ export class LockAcquisitionError extends StateManagerError {
 
   constructor(filePath: string, projectId?: string) {
     const message = `Failed to acquire lock for: ${filePath}`;
-    super(message, 'LOCK_FAILED', projectId);
+    const options: AppErrorOptions & { projectId?: string } = {
+      context: { filePath },
+      severity: ErrorSeverity.HIGH,
+      category: 'transient',
+    };
+    if (projectId !== undefined) {
+      options.projectId = projectId;
+    }
+    super(ErrorCodes.STM_LOCK_FAILED, message, options);
     this.name = 'LockAcquisitionError';
     this.filePath = filePath;
-    Object.setPrototypeOf(this, LockAcquisitionError.prototype);
   }
 }
 
@@ -123,9 +165,15 @@ export class LockAcquisitionError extends StateManagerError {
  */
 export class HistoryError extends StateManagerError {
   constructor(message: string, projectId?: string) {
-    super(message, 'HISTORY_ERROR', projectId);
+    const options: AppErrorOptions & { projectId?: string } = {
+      severity: ErrorSeverity.MEDIUM,
+      category: 'recoverable',
+    };
+    if (projectId !== undefined) {
+      options.projectId = projectId;
+    }
+    super(ErrorCodes.STM_HISTORY_ERROR, message, options);
     this.name = 'HistoryError';
-    Object.setPrototypeOf(this, HistoryError.prototype);
   }
 }
 
@@ -134,9 +182,15 @@ export class HistoryError extends StateManagerError {
  */
 export class WatchError extends StateManagerError {
   constructor(message: string, projectId?: string) {
-    super(message, 'WATCH_ERROR', projectId);
+    const options: AppErrorOptions & { projectId?: string } = {
+      severity: ErrorSeverity.MEDIUM,
+      category: 'recoverable',
+    };
+    if (projectId !== undefined) {
+      options.projectId = projectId;
+    }
+    super(ErrorCodes.STM_WATCH_ERROR, message, options);
     this.name = 'WatchError';
-    Object.setPrototypeOf(this, WatchError.prototype);
   }
 }
 
@@ -153,11 +207,18 @@ export class InvalidSkipError extends StateManagerError {
 
   constructor(fromState: ProjectState, toState: ProjectState, projectId?: string) {
     const message = `Cannot skip from '${fromState}' to '${toState}': not allowed by transition rules`;
-    super(message, 'INVALID_SKIP', projectId);
+    const options: AppErrorOptions & { projectId?: string } = {
+      context: { fromState, toState },
+      severity: ErrorSeverity.MEDIUM,
+      category: 'fatal',
+    };
+    if (projectId !== undefined) {
+      options.projectId = projectId;
+    }
+    super(ErrorCodes.STM_INVALID_SKIP, message, options);
     this.name = 'InvalidSkipError';
     this.fromState = fromState;
     this.toState = toState;
-    Object.setPrototypeOf(this, InvalidSkipError.prototype);
   }
 }
 
@@ -170,10 +231,17 @@ export class RequiredStageSkipError extends StateManagerError {
   constructor(requiredStages: readonly ProjectState[], projectId?: string) {
     const stageList = requiredStages.join(', ');
     const message = `Cannot skip required stages: ${stageList}. Use forceSkipRequired option to override.`;
-    super(message, 'REQUIRED_STAGE_SKIP', projectId);
+    const options: AppErrorOptions & { projectId?: string } = {
+      context: { requiredStages, stageCount: requiredStages.length },
+      severity: ErrorSeverity.MEDIUM,
+      category: 'fatal',
+    };
+    if (projectId !== undefined) {
+      options.projectId = projectId;
+    }
+    super(ErrorCodes.STM_REQUIRED_STAGE_SKIP, message, options);
     this.name = 'RequiredStageSkipError';
     this.requiredStages = requiredStages;
-    Object.setPrototypeOf(this, RequiredStageSkipError.prototype);
   }
 }
 
@@ -185,10 +253,17 @@ export class CheckpointNotFoundError extends StateManagerError {
 
   constructor(checkpointId: string, projectId?: string) {
     const message = `Checkpoint '${checkpointId}' not found`;
-    super(message, 'CHECKPOINT_NOT_FOUND', projectId);
+    const options: AppErrorOptions & { projectId?: string } = {
+      context: { checkpointId },
+      severity: ErrorSeverity.MEDIUM,
+      category: 'recoverable',
+    };
+    if (projectId !== undefined) {
+      options.projectId = projectId;
+    }
+    super(ErrorCodes.STM_CHECKPOINT_NOT_FOUND, message, options);
     this.name = 'CheckpointNotFoundError';
     this.checkpointId = checkpointId;
-    Object.setPrototypeOf(this, CheckpointNotFoundError.prototype);
   }
 }
 
@@ -202,11 +277,18 @@ export class CheckpointValidationError extends StateManagerError {
   constructor(checkpointId: string, validationErrors: readonly string[], projectId?: string) {
     const errorList = validationErrors.join('; ');
     const message = `Checkpoint '${checkpointId}' validation failed: ${errorList}`;
-    super(message, 'CHECKPOINT_VALIDATION_FAILED', projectId);
+    const options: AppErrorOptions & { projectId?: string } = {
+      context: { checkpointId, validationErrors, errorCount: validationErrors.length },
+      severity: ErrorSeverity.MEDIUM,
+      category: 'fatal',
+    };
+    if (projectId !== undefined) {
+      options.projectId = projectId;
+    }
+    super(ErrorCodes.STM_CHECKPOINT_VALIDATION_FAILED, message, options);
     this.name = 'CheckpointValidationError';
     this.checkpointId = checkpointId;
     this.validationErrors = validationErrors;
-    Object.setPrototypeOf(this, CheckpointValidationError.prototype);
   }
 }
 
@@ -219,11 +301,18 @@ export class AdminAuthorizationError extends StateManagerError {
 
   constructor(action: string, authorizedBy: string, projectId?: string) {
     const message = `Admin override authorization failed for action '${action}' by '${authorizedBy}'`;
-    super(message, 'ADMIN_AUTH_FAILED', projectId);
+    const options: AppErrorOptions & { projectId?: string } = {
+      context: { action, authorizedBy },
+      severity: ErrorSeverity.HIGH,
+      category: 'fatal',
+    };
+    if (projectId !== undefined) {
+      options.projectId = projectId;
+    }
+    super(ErrorCodes.STM_ADMIN_AUTH_FAILED, message, options);
     this.name = 'AdminAuthorizationError';
     this.action = action;
     this.authorizedBy = authorizedBy;
-    Object.setPrototypeOf(this, AdminAuthorizationError.prototype);
   }
 }
 
@@ -236,10 +325,17 @@ export class RecoveryError extends StateManagerError {
 
   constructor(recoveryType: string, reason: string, projectId?: string) {
     const message = `Recovery operation '${recoveryType}' failed: ${reason}`;
-    super(message, 'RECOVERY_FAILED', projectId);
+    const options: AppErrorOptions & { projectId?: string } = {
+      context: { recoveryType, reason },
+      severity: ErrorSeverity.HIGH,
+      category: 'recoverable',
+    };
+    if (projectId !== undefined) {
+      options.projectId = projectId;
+    }
+    super(ErrorCodes.STM_RECOVERY_FAILED, message, options);
     this.name = 'RecoveryError';
     this.recoveryType = recoveryType;
     this.reason = reason;
-    Object.setPrototypeOf(this, RecoveryError.prototype);
   }
 }

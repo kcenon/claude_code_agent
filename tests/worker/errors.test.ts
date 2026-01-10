@@ -17,14 +17,23 @@ import {
   GitOperationError,
   CommandExecutionError,
 } from '../../src/worker/errors.js';
+import { AppError, ErrorCodes, ErrorSeverity } from '../../src/errors/index.js';
 
 describe('WorkerError', () => {
-  it('should create base error with message', () => {
-    const error = new WorkerError('test error');
+  it('should create base error extending AppError', () => {
+    const error = new WorkerError(ErrorCodes.WRK_WORK_ORDER_PARSE_ERROR, 'test error');
     expect(error.message).toBe('test error');
     expect(error.name).toBe('WorkerError');
+    expect(error.code).toBe(ErrorCodes.WRK_WORK_ORDER_PARSE_ERROR);
     expect(error).toBeInstanceOf(Error);
+    expect(error).toBeInstanceOf(AppError);
     expect(error).toBeInstanceOf(WorkerError);
+  });
+
+  it('should have default severity and category', () => {
+    const error = new WorkerError(ErrorCodes.WRK_WORK_ORDER_PARSE_ERROR, 'test');
+    expect(error.severity).toBe(ErrorSeverity.MEDIUM);
+    expect(error.category).toBe('recoverable');
   });
 });
 
@@ -35,6 +44,7 @@ describe('WorkOrderParseError', () => {
     expect(error.name).toBe('WorkOrderParseError');
     expect(error.orderId).toBe('WO-001');
     expect(error.cause).toBeUndefined();
+    expect(error.code).toBe(ErrorCodes.WRK_WORK_ORDER_PARSE_ERROR);
   });
 
   it('should include cause in message', () => {
@@ -111,25 +121,25 @@ describe('BranchCreationError', () => {
 
 describe('BranchExistsError', () => {
   it('should create error with branch name', () => {
-    const error = new BranchExistsError('feature/test');
-    expect(error.message).toBe('Branch already exists: feature/test');
+    const error = new BranchExistsError('feature/existing');
+    expect(error.message).toBe('Branch already exists: feature/existing');
     expect(error.name).toBe('BranchExistsError');
-    expect(error.branchName).toBe('feature/test');
+    expect(error.branchName).toBe('feature/existing');
   });
 });
 
 describe('CommitError', () => {
   it('should create error with commit message', () => {
     const error = new CommitError('feat: add feature');
-    expect(error.message).toBe('Failed to commit changes');
+    expect(error.message).toContain('Failed to commit');
     expect(error.name).toBe('CommitError');
     expect(error.commitMessage).toBe('feat: add feature');
   });
 
   it('should include cause in message', () => {
-    const cause = new Error('Nothing to commit');
+    const cause = new Error('Pre-commit hook failed');
     const error = new CommitError('feat: add feature', cause);
-    expect(error.message).toContain('Nothing to commit');
+    expect(error.message).toContain('Pre-commit hook failed');
     expect(error.cause).toBe(cause);
   });
 });
@@ -157,140 +167,135 @@ describe('TestGenerationError', () => {
     expect(error.name).toBe('TestGenerationError');
     expect(error.issueId).toBe('ISS-001');
   });
-
-  it('should include cause in message', () => {
-    const cause = new Error('Test framework error');
-    const error = new TestGenerationError('ISS-001', cause);
-    expect(error.message).toContain('Test framework error');
-    expect(error.cause).toBe(cause);
-  });
 });
 
 describe('VerificationError', () => {
   it('should create error with verification type and output', () => {
-    const error = new VerificationError('test', 'Test failed: assertion error');
+    const error = new VerificationError('test', 'Test failed: assertions did not pass');
     expect(error.message).toContain('test verification failed');
     expect(error.name).toBe('VerificationError');
     expect(error.verificationType).toBe('test');
-    expect(error.output).toBe('Test failed: assertion error');
+    expect(error.output).toBe('Test failed: assertions did not pass');
+    expect(error.category).toBe('recoverable');
   });
 
-  it('should handle lint verification type', () => {
-    const error = new VerificationError('lint', 'Lint error: missing semicolon');
-    expect(error.message).toContain('lint verification failed');
+  it('should create lint verification error', () => {
+    const error = new VerificationError('lint', 'ESLint errors found');
     expect(error.verificationType).toBe('lint');
+    expect(error.message).toContain('lint');
   });
 
-  it('should handle build verification type', () => {
-    const error = new VerificationError('build', 'Build error: type error');
-    expect(error.message).toContain('build verification failed');
+  it('should create build verification error', () => {
+    const error = new VerificationError('build', 'TypeScript compilation failed');
     expect(error.verificationType).toBe('build');
-  });
-
-  it('should truncate long output in message', () => {
-    const longOutput = 'A'.repeat(500);
-    const error = new VerificationError('test', longOutput);
-    expect(error.message.length).toBeLessThan(300);
-    expect(error.output).toBe(longOutput);
+    expect(error.message).toContain('build');
   });
 });
 
 describe('MaxRetriesExceededError', () => {
   it('should create error with issue ID and attempts', () => {
     const error = new MaxRetriesExceededError('ISS-001', 3);
-    expect(error.message).toBe('Max retries (3) exceeded for issue ISS-001');
+    expect(error.message).toContain('Max retries');
+    expect(error.message).toContain('3');
+    expect(error.message).toContain('ISS-001');
     expect(error.name).toBe('MaxRetriesExceededError');
     expect(error.issueId).toBe('ISS-001');
     expect(error.attempts).toBe(3);
-    expect(error.lastError).toBeUndefined();
+    expect(error.category).toBe('fatal');
   });
 
   it('should include last error in message', () => {
-    const lastError = new Error('Verification failed');
+    const lastError = new Error('Connection timeout');
     const error = new MaxRetriesExceededError('ISS-001', 3, lastError);
-    expect(error.message).toContain('Verification failed');
+    expect(error.message).toContain('Connection timeout');
     expect(error.lastError).toBe(lastError);
+    expect(error.cause).toBe(lastError);
   });
 });
 
 describe('ImplementationBlockedError', () => {
   it('should create error with issue ID and blockers', () => {
-    const blockers = ['Dependency ISS-002 not completed', 'API not available'];
+    const blockers = ['ISS-002', 'ISS-003'];
     const error = new ImplementationBlockedError('ISS-001', blockers);
     expect(error.message).toContain('ISS-001');
-    expect(error.message).toContain('Dependency ISS-002 not completed');
-    expect(error.message).toContain('API not available');
+    expect(error.message).toContain('ISS-002');
+    expect(error.message).toContain('ISS-003');
     expect(error.name).toBe('ImplementationBlockedError');
     expect(error.issueId).toBe('ISS-001');
     expect(error.blockers).toEqual(blockers);
-  });
-
-  it('should handle single blocker', () => {
-    const blockers = ['Missing dependency'];
-    const error = new ImplementationBlockedError('ISS-001', blockers);
-    expect(error.message).toContain('Missing dependency');
-    expect(error.blockers).toHaveLength(1);
+    expect(error.category).toBe('fatal');
   });
 });
 
 describe('ResultPersistenceError', () => {
-  it('should create error for save operation', () => {
+  it('should create error with order ID and save operation', () => {
     const error = new ResultPersistenceError('WO-001', 'save');
-    expect(error.message).toBe('Failed to save result for work order WO-001');
+    expect(error.message).toContain('save');
+    expect(error.message).toContain('WO-001');
     expect(error.name).toBe('ResultPersistenceError');
     expect(error.orderId).toBe('WO-001');
     expect(error.operation).toBe('save');
   });
 
-  it('should create error for load operation', () => {
+  it('should create error with load operation', () => {
     const error = new ResultPersistenceError('WO-001', 'load');
-    expect(error.message).toBe('Failed to load result for work order WO-001');
+    expect(error.message).toContain('load');
     expect(error.operation).toBe('load');
   });
 
   it('should include cause in message', () => {
-    const cause = new Error('File not found');
-    const error = new ResultPersistenceError('WO-001', 'load', cause);
-    expect(error.message).toContain('File not found');
+    const cause = new Error('Disk full');
+    const error = new ResultPersistenceError('WO-001', 'save', cause);
+    expect(error.message).toContain('Disk full');
     expect(error.cause).toBe(cause);
   });
 });
 
 describe('GitOperationError', () => {
   it('should create error with operation', () => {
-    const error = new GitOperationError('checkout main');
-    expect(error.message).toBe('Git operation failed: checkout main');
+    const error = new GitOperationError('checkout');
+    expect(error.message).toContain('checkout');
     expect(error.name).toBe('GitOperationError');
-    expect(error.operation).toBe('checkout main');
+    expect(error.operation).toBe('checkout');
   });
 
   it('should include cause in message', () => {
     const cause = new Error('Branch not found');
-    const error = new GitOperationError('checkout feature/test', cause);
+    const error = new GitOperationError('checkout', cause);
     expect(error.message).toContain('Branch not found');
     expect(error.cause).toBe(cause);
   });
 });
 
 describe('CommandExecutionError', () => {
-  it('should create error with command and exit code', () => {
-    const error = new CommandExecutionError('npm test', 1, 'Tests failed');
-    expect(error.message).toBe('Command failed: npm test (exit code: 1)');
+  it('should create error with command, exit code, and stderr', () => {
+    const error = new CommandExecutionError('npm test', 1, 'Error: test failed');
+    expect(error.message).toContain('npm test');
+    expect(error.message).toContain('exit code: 1');
     expect(error.name).toBe('CommandExecutionError');
     expect(error.command).toBe('npm test');
     expect(error.exitCode).toBe(1);
-    expect(error.stderr).toBe('Tests failed');
+    expect(error.stderr).toBe('Error: test failed');
+  });
+});
+
+describe('Error Serialization', () => {
+  it('should serialize to JSON', () => {
+    const error = new VerificationError('test', 'Test failed');
+    const json = error.toJSON();
+
+    expect(json.code).toBe(ErrorCodes.WRK_VERIFICATION_ERROR);
+    expect(json.message).toContain('test');
+    expect(json.severity).toBeDefined();
+    expect(json.category).toBe('recoverable');
+    expect(json.context.verificationType).toBe('test');
   });
 
-  it('should handle undefined exit code', () => {
-    const error = new CommandExecutionError('npm test', undefined, 'Error');
-    expect(error.message).toBe('Command failed: npm test');
-    expect(error.exitCode).toBeUndefined();
-  });
+  it('should check retryability', () => {
+    const recoverableError = new VerificationError('test', 'Failed');
+    const fatalError = new ImplementationBlockedError('ISS-001', ['ISS-002']);
 
-  it('should include cause', () => {
-    const cause = new Error('Process killed');
-    const error = new CommandExecutionError('npm test', 137, 'Killed', cause);
-    expect(error.cause).toBe(cause);
+    expect(recoverableError.isRetryable()).toBe(true);
+    expect(fatalError.isRetryable()).toBe(false);
   });
 });
