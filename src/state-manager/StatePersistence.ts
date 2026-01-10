@@ -285,7 +285,7 @@ export class StatePersistence implements IStatePersistence {
    * @param _options - Update options (unused, kept for interface compatibility)
    * @returns Previous value and whether this was a create operation
    */
-   
+
   async setState<T extends object>(
     section: ScratchpadSection,
     projectId: string,
@@ -326,7 +326,6 @@ export class StatePersistence implements IStatePersistence {
       }
     }
   }
-   
 
   /**
    * Update state for a section (partial update/merge)
@@ -470,11 +469,7 @@ export class StatePersistence implements IStatePersistence {
    * @param projectId - Project identifier
    * @param data - Data to write
    */
-  async writeYaml(
-    section: ScratchpadSection,
-    projectId: string,
-    data: object
-  ): Promise<void> {
+  async writeYaml(section: ScratchpadSection, projectId: string, data: object): Promise<void> {
     const statePath = this.getSectionStatePath(section, projectId);
     await this.scratchpad.writeYaml(statePath, data);
   }

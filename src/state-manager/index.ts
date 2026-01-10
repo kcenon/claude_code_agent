@@ -21,7 +21,12 @@
 export { StateManager, getStateManager, resetStateManager } from './StateManager.js';
 
 // Sub-modules for advanced usage
-export { StateMachine, VALID_TRANSITIONS, ENHANCED_TRANSITIONS, PIPELINE_STAGES } from './StateMachine.js';
+export {
+  StateMachine,
+  VALID_TRANSITIONS,
+  ENHANCED_TRANSITIONS,
+  PIPELINE_STAGES,
+} from './StateMachine.js';
 export type { IStateMachine } from './StateMachine.js';
 
 export { StatePersistence } from './StatePersistence.js';

@@ -407,7 +407,11 @@ export class StateRecovery implements IStateRecovery {
   ): Promise<void> {
     for (const [section, sectionData] of Object.entries(checkpoint.data.sections)) {
       if (sectionData !== undefined) {
-        await this.persistence.writeYaml(section as ScratchpadSection, projectId, sectionData as object);
+        await this.persistence.writeYaml(
+          section as ScratchpadSection,
+          projectId,
+          sectionData as object
+        );
       }
     }
   }

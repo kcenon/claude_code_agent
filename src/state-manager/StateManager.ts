@@ -93,10 +93,7 @@ export class StateManager {
 
     this.persistence = new StatePersistence(this.scratchpad, this.options.enableLocking);
 
-    this.historyManager = new StateHistoryManager(
-      this.scratchpad,
-      this.options.maxHistoryEntries
-    );
+    this.historyManager = new StateHistoryManager(this.scratchpad, this.options.maxHistoryEntries);
 
     this.watcherManager = new StateWatcherManager(this.scratchpad, async (section, projectId) => {
       return this.persistence.readYaml(section, projectId);
