@@ -31,6 +31,7 @@ import type {
   ImplementationResult,
   CodeContext,
 } from '../../src/worker/index.js';
+import { ErrorCodes } from '../../src/errors/index.js';
 
 describe('WorkerAgent', () => {
   let agent: WorkerAgent;
@@ -1078,9 +1079,10 @@ describe('WorkerAgent errors', () => {
 
   describe('WorkerError', () => {
     it('should create error with message', () => {
-      const error = new WorkerError('test error');
+      const error = new WorkerError(ErrorCodes.WRK_WORK_ORDER_PARSE_ERROR, 'test error');
       expect(error.message).toBe('test error');
       expect(error.name).toBe('WorkerError');
+      expect(error.code).toBe(ErrorCodes.WRK_WORK_ORDER_PARSE_ERROR);
       expect(error).toBeInstanceOf(Error);
     });
   });

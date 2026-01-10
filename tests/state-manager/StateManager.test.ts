@@ -15,8 +15,13 @@ import {
   HistoryError,
   WatchError,
   StateManagerError,
+  InvalidSkipError,
+  RequiredStageSkipError,
+  CheckpointNotFoundError,
+  CheckpointValidationError,
 } from '../../src/state-manager/index.js';
 import type { ProjectState, StateChangeEvent } from '../../src/state-manager/index.js';
+import { ErrorCodes } from '../../src/errors/index.js';
 
 describe('StateManager', () => {
   let stateManager: StateManager;
@@ -471,7 +476,7 @@ describe('StateManager Error Classes', () => {
     const error = new InvalidTransitionError('collecting', 'merged', '001');
 
     expect(error.name).toBe('InvalidTransitionError');
-    expect(error.code).toBe('INVALID_TRANSITION');
+    expect(error.code).toBe(ErrorCodes.STM_INVALID_TRANSITION);
     expect(error.fromState).toBe('collecting');
     expect(error.toState).toBe('merged');
     expect(error.projectId).toBe('001');
@@ -483,7 +488,7 @@ describe('StateManager Error Classes', () => {
     const error = new StateNotFoundError('info', '001');
 
     expect(error.name).toBe('StateNotFoundError');
-    expect(error.code).toBe('STATE_NOT_FOUND');
+    expect(error.code).toBe(ErrorCodes.STM_STATE_NOT_FOUND);
     expect(error.section).toBe('info');
     expect(error.projectId).toBe('001');
   });
@@ -492,7 +497,7 @@ describe('StateManager Error Classes', () => {
     const error = new ProjectNotFoundError('001');
 
     expect(error.name).toBe('ProjectNotFoundError');
-    expect(error.code).toBe('PROJECT_NOT_FOUND');
+    expect(error.code).toBe(ErrorCodes.STM_PROJECT_NOT_FOUND);
     expect(error.projectId).toBe('001');
   });
 
@@ -500,7 +505,7 @@ describe('StateManager Error Classes', () => {
     const error = new ProjectExistsError('001');
 
     expect(error.name).toBe('ProjectExistsError');
-    expect(error.code).toBe('PROJECT_EXISTS');
+    expect(error.code).toBe(ErrorCodes.STM_PROJECT_EXISTS);
     expect(error.projectId).toBe('001');
   });
 
@@ -512,7 +517,7 @@ describe('StateManager Error Classes', () => {
     const error = new StateValidationError(validationErrors, '001');
 
     expect(error.name).toBe('StateValidationError');
-    expect(error.code).toBe('VALIDATION_FAILED');
+    expect(error.code).toBe(ErrorCodes.STM_VALIDATION_FAILED);
     expect(error.projectId).toBe('001');
     expect(error.errors).toEqual(validationErrors);
     expect(error.message).toContain('name');
@@ -540,7 +545,7 @@ describe('StateManager Error Classes', () => {
     const error = new LockAcquisitionError('/path/to/file.json', '001');
 
     expect(error.name).toBe('LockAcquisitionError');
-    expect(error.code).toBe('LOCK_FAILED');
+    expect(error.code).toBe(ErrorCodes.STM_LOCK_FAILED);
     expect(error.projectId).toBe('001');
     expect(error.filePath).toBe('/path/to/file.json');
     expect(error.message).toContain('/path/to/file.json');
@@ -550,7 +555,7 @@ describe('StateManager Error Classes', () => {
     const error = new LockAcquisitionError('/path/to/file.json');
 
     expect(error.name).toBe('LockAcquisitionError');
-    expect(error.code).toBe('LOCK_FAILED');
+    expect(error.code).toBe(ErrorCodes.STM_LOCK_FAILED);
     expect(error.projectId).toBeUndefined();
   });
 
@@ -558,7 +563,7 @@ describe('StateManager Error Classes', () => {
     const error = new HistoryError('History operation failed', '001');
 
     expect(error.name).toBe('HistoryError');
-    expect(error.code).toBe('HISTORY_ERROR');
+    expect(error.code).toBe(ErrorCodes.STM_HISTORY_ERROR);
     expect(error.projectId).toBe('001');
     expect(error.message).toBe('History operation failed');
   });
@@ -567,7 +572,7 @@ describe('StateManager Error Classes', () => {
     const error = new HistoryError('History operation failed');
 
     expect(error.name).toBe('HistoryError');
-    expect(error.code).toBe('HISTORY_ERROR');
+    expect(error.code).toBe(ErrorCodes.STM_HISTORY_ERROR);
     expect(error.projectId).toBeUndefined();
   });
 
@@ -575,7 +580,7 @@ describe('StateManager Error Classes', () => {
     const error = new WatchError('Watch operation failed', '001');
 
     expect(error.name).toBe('WatchError');
-    expect(error.code).toBe('WATCH_ERROR');
+    expect(error.code).toBe(ErrorCodes.STM_WATCH_ERROR);
     expect(error.projectId).toBe('001');
     expect(error.message).toBe('Watch operation failed');
   });
@@ -584,24 +589,26 @@ describe('StateManager Error Classes', () => {
     const error = new WatchError('Watch operation failed');
 
     expect(error.name).toBe('WatchError');
-    expect(error.code).toBe('WATCH_ERROR');
+    expect(error.code).toBe(ErrorCodes.STM_WATCH_ERROR);
     expect(error.projectId).toBeUndefined();
   });
 
   it('should create base StateManagerError with correct properties', () => {
-    const error = new StateManagerError('Base error message', 'CUSTOM_CODE', '001');
+    const error = new StateManagerError(ErrorCodes.STM_INVALID_TRANSITION, 'Base error message', {
+      projectId: '001',
+    });
 
     expect(error.name).toBe('StateManagerError');
-    expect(error.code).toBe('CUSTOM_CODE');
+    expect(error.code).toBe(ErrorCodes.STM_INVALID_TRANSITION);
     expect(error.projectId).toBe('001');
     expect(error.message).toBe('Base error message');
   });
 
   it('should create StateManagerError without projectId', () => {
-    const error = new StateManagerError('Base error message', 'CUSTOM_CODE');
+    const error = new StateManagerError(ErrorCodes.STM_INVALID_TRANSITION, 'Base error message');
 
     expect(error.name).toBe('StateManagerError');
-    expect(error.code).toBe('CUSTOM_CODE');
+    expect(error.code).toBe(ErrorCodes.STM_INVALID_TRANSITION);
     expect(error.projectId).toBeUndefined();
   });
 });
@@ -609,13 +616,6 @@ describe('StateManager Error Classes', () => {
 // ============================================================
 // Recovery Features Tests (Issue #218)
 // ============================================================
-
-import {
-  InvalidSkipError,
-  RequiredStageSkipError,
-  CheckpointNotFoundError,
-  CheckpointValidationError,
-} from '../../src/state-manager/index.js';
 
 describe('StateManager Recovery Features', () => {
   let stateManager: StateManager;
@@ -928,7 +928,7 @@ describe('Recovery Error Classes', () => {
     const error = new InvalidSkipError('collecting', 'merged', '001');
 
     expect(error.name).toBe('InvalidSkipError');
-    expect(error.code).toBe('INVALID_SKIP');
+    expect(error.code).toBe(ErrorCodes.STM_INVALID_SKIP);
     expect(error.fromState).toBe('collecting');
     expect(error.toState).toBe('merged');
     expect(error.projectId).toBe('001');
@@ -938,7 +938,7 @@ describe('Recovery Error Classes', () => {
     const error = new RequiredStageSkipError(['prd_drafting', 'implementing'], '001');
 
     expect(error.name).toBe('RequiredStageSkipError');
-    expect(error.code).toBe('REQUIRED_STAGE_SKIP');
+    expect(error.code).toBe(ErrorCodes.STM_REQUIRED_STAGE_SKIP);
     expect(error.requiredStages).toEqual(['prd_drafting', 'implementing']);
     expect(error.message).toContain('prd_drafting');
     expect(error.message).toContain('implementing');
@@ -948,7 +948,7 @@ describe('Recovery Error Classes', () => {
     const error = new CheckpointNotFoundError('checkpoint-123', '001');
 
     expect(error.name).toBe('CheckpointNotFoundError');
-    expect(error.code).toBe('CHECKPOINT_NOT_FOUND');
+    expect(error.code).toBe(ErrorCodes.STM_CHECKPOINT_NOT_FOUND);
     expect(error.checkpointId).toBe('checkpoint-123');
     expect(error.projectId).toBe('001');
   });
@@ -958,7 +958,7 @@ describe('Recovery Error Classes', () => {
     const error = new CheckpointValidationError('checkpoint-456', errors, '001');
 
     expect(error.name).toBe('CheckpointValidationError');
-    expect(error.code).toBe('CHECKPOINT_VALIDATION_FAILED');
+    expect(error.code).toBe(ErrorCodes.STM_CHECKPOINT_VALIDATION_FAILED);
     expect(error.checkpointId).toBe('checkpoint-456');
     expect(error.validationErrors).toEqual(errors);
     expect(error.message).toContain('Missing state');

@@ -15,6 +15,7 @@ import {
   requiresEscalation,
   getSuggestedAction,
 } from '../../src/worker/errors.js';
+import { ErrorCodes } from '../../src/errors/index.js';
 
 describe('RetryHandler', () => {
   let testDir: string;
@@ -300,7 +301,7 @@ describe('Error Categorization', () => {
       const info = createWorkerErrorInfo(verificationError);
 
       expect(info.category).toBe('recoverable');
-      expect(info.code).toBe('VerificationError');
+      expect(info.code).toBe(ErrorCodes.WRK_VERIFICATION_ERROR);
       expect(info.message).toContain('lint verification failed');
       expect(info.retryable).toBe(true);
     });
