@@ -3,16 +3,26 @@
  *
  * Custom error classes for Worker Agent operations including
  * code generation, testing, and verification.
+ * All errors extend AppError for standardized error handling.
+ *
+ * @module worker/errors
  */
+
+import { AppError, ErrorCodes, ErrorSeverity, ErrorHandler } from '../errors/index.js';
+import type { ErrorCategory, AppErrorOptions } from '../errors/index.js';
+import type { WorkerErrorInfo } from './types.js';
 
 /**
  * Base error class for worker errors
  */
-export class WorkerError extends Error {
-  constructor(message: string) {
-    super(message);
+export class WorkerError extends AppError {
+  constructor(code: string, message: string, options: AppErrorOptions = {}) {
+    super(code, message, {
+      severity: options.severity ?? ErrorSeverity.MEDIUM,
+      category: options.category ?? 'recoverable',
+      ...options,
+    });
     this.name = 'WorkerError';
-    Object.setPrototypeOf(this, new.target.prototype);
   }
 }
 
@@ -22,15 +32,24 @@ export class WorkerError extends Error {
 export class WorkOrderParseError extends WorkerError {
   /** The work order ID that failed to parse */
   public readonly orderId: string;
-  /** The underlying error */
-  public readonly cause: Error | undefined;
 
   constructor(orderId: string, cause?: Error) {
     const causeMessage = cause !== undefined ? `: ${cause.message}` : '';
-    super(`Failed to parse work order ${orderId}${causeMessage}`);
+    const options: AppErrorOptions = {
+      context: { orderId },
+      severity: ErrorSeverity.MEDIUM,
+      category: 'fatal',
+    };
+    if (cause !== undefined) {
+      options.cause = cause;
+    }
+    super(
+      ErrorCodes.WRK_WORK_ORDER_PARSE_ERROR,
+      `Failed to parse work order ${orderId}${causeMessage}`,
+      options
+    );
     this.name = 'WorkOrderParseError';
     this.orderId = orderId;
-    this.cause = cause;
   }
 }
 
@@ -40,15 +59,24 @@ export class WorkOrderParseError extends WorkerError {
 export class ContextAnalysisError extends WorkerError {
   /** The issue ID being analyzed */
   public readonly issueId: string;
-  /** The underlying error */
-  public readonly cause: Error | undefined;
 
   constructor(issueId: string, cause?: Error) {
     const causeMessage = cause !== undefined ? `: ${cause.message}` : '';
-    super(`Failed to analyze context for issue ${issueId}${causeMessage}`);
+    const options: AppErrorOptions = {
+      context: { issueId },
+      severity: ErrorSeverity.MEDIUM,
+      category: 'recoverable',
+    };
+    if (cause !== undefined) {
+      options.cause = cause;
+    }
+    super(
+      ErrorCodes.WRK_CONTEXT_ANALYSIS_ERROR,
+      `Failed to analyze context for issue ${issueId}${causeMessage}`,
+      options
+    );
     this.name = 'ContextAnalysisError';
     this.issueId = issueId;
-    this.cause = cause;
   }
 }
 
@@ -58,15 +86,20 @@ export class ContextAnalysisError extends WorkerError {
 export class FileReadError extends WorkerError {
   /** The file path that failed to read */
   public readonly filePath: string;
-  /** The underlying error */
-  public readonly cause: Error | undefined;
 
   constructor(filePath: string, cause?: Error) {
     const causeMessage = cause !== undefined ? `: ${cause.message}` : '';
-    super(`Failed to read file ${filePath}${causeMessage}`);
+    const options: AppErrorOptions = {
+      context: { filePath },
+      severity: ErrorSeverity.MEDIUM,
+      category: 'fatal',
+    };
+    if (cause !== undefined) {
+      options.cause = cause;
+    }
+    super(ErrorCodes.WRK_FILE_READ_ERROR, `Failed to read file ${filePath}${causeMessage}`, options);
     this.name = 'FileReadError';
     this.filePath = filePath;
-    this.cause = cause;
   }
 }
 
@@ -76,15 +109,24 @@ export class FileReadError extends WorkerError {
 export class FileWriteError extends WorkerError {
   /** The file path that failed to write */
   public readonly filePath: string;
-  /** The underlying error */
-  public readonly cause: Error | undefined;
 
   constructor(filePath: string, cause?: Error) {
     const causeMessage = cause !== undefined ? `: ${cause.message}` : '';
-    super(`Failed to write file ${filePath}${causeMessage}`);
+    const options: AppErrorOptions = {
+      context: { filePath },
+      severity: ErrorSeverity.MEDIUM,
+      category: 'fatal',
+    };
+    if (cause !== undefined) {
+      options.cause = cause;
+    }
+    super(
+      ErrorCodes.WRK_FILE_WRITE_ERROR,
+      `Failed to write file ${filePath}${causeMessage}`,
+      options
+    );
     this.name = 'FileWriteError';
     this.filePath = filePath;
-    this.cause = cause;
   }
 }
 
@@ -94,15 +136,24 @@ export class FileWriteError extends WorkerError {
 export class BranchCreationError extends WorkerError {
   /** The branch name that failed to create */
   public readonly branchName: string;
-  /** The underlying error */
-  public readonly cause: Error | undefined;
 
   constructor(branchName: string, cause?: Error) {
     const causeMessage = cause !== undefined ? `: ${cause.message}` : '';
-    super(`Failed to create branch ${branchName}${causeMessage}`);
+    const options: AppErrorOptions = {
+      context: { branchName },
+      severity: ErrorSeverity.HIGH,
+      category: 'recoverable',
+    };
+    if (cause !== undefined) {
+      options.cause = cause;
+    }
+    super(
+      ErrorCodes.WRK_BRANCH_CREATION_ERROR,
+      `Failed to create branch ${branchName}${causeMessage}`,
+      options
+    );
     this.name = 'BranchCreationError';
     this.branchName = branchName;
-    this.cause = cause;
   }
 }
 
@@ -114,7 +165,11 @@ export class BranchExistsError extends WorkerError {
   public readonly branchName: string;
 
   constructor(branchName: string) {
-    super(`Branch already exists: ${branchName}`);
+    super(ErrorCodes.WRK_BRANCH_EXISTS, `Branch already exists: ${branchName}`, {
+      context: { branchName },
+      severity: ErrorSeverity.LOW,
+      category: 'recoverable',
+    });
     this.name = 'BranchExistsError';
     this.branchName = branchName;
   }
@@ -126,15 +181,20 @@ export class BranchExistsError extends WorkerError {
 export class CommitError extends WorkerError {
   /** The commit message */
   public readonly commitMessage: string;
-  /** The underlying error */
-  public readonly cause: Error | undefined;
 
   constructor(commitMessage: string, cause?: Error) {
     const causeMessage = cause !== undefined ? `: ${cause.message}` : '';
-    super(`Failed to commit changes${causeMessage}`);
+    const options: AppErrorOptions = {
+      context: { commitMessage },
+      severity: ErrorSeverity.HIGH,
+      category: 'recoverable',
+    };
+    if (cause !== undefined) {
+      options.cause = cause;
+    }
+    super(ErrorCodes.WRK_COMMIT_ERROR, `Failed to commit changes${causeMessage}`, options);
     this.name = 'CommitError';
     this.commitMessage = commitMessage;
-    this.cause = cause;
   }
 }
 
@@ -144,15 +204,24 @@ export class CommitError extends WorkerError {
 export class CodeGenerationError extends WorkerError {
   /** The issue ID that failed */
   public readonly issueId: string;
-  /** The underlying error */
-  public readonly cause: Error | undefined;
 
   constructor(issueId: string, cause?: Error) {
     const causeMessage = cause !== undefined ? `: ${cause.message}` : '';
-    super(`Failed to generate code for issue ${issueId}${causeMessage}`);
+    const options: AppErrorOptions = {
+      context: { issueId },
+      severity: ErrorSeverity.HIGH,
+      category: 'recoverable',
+    };
+    if (cause !== undefined) {
+      options.cause = cause;
+    }
+    super(
+      ErrorCodes.WRK_CODE_GENERATION_ERROR,
+      `Failed to generate code for issue ${issueId}${causeMessage}`,
+      options
+    );
     this.name = 'CodeGenerationError';
     this.issueId = issueId;
-    this.cause = cause;
   }
 }
 
@@ -162,15 +231,24 @@ export class CodeGenerationError extends WorkerError {
 export class TestGenerationError extends WorkerError {
   /** The issue ID that failed */
   public readonly issueId: string;
-  /** The underlying error */
-  public readonly cause: Error | undefined;
 
   constructor(issueId: string, cause?: Error) {
     const causeMessage = cause !== undefined ? `: ${cause.message}` : '';
-    super(`Failed to generate tests for issue ${issueId}${causeMessage}`);
+    const options: AppErrorOptions = {
+      context: { issueId },
+      severity: ErrorSeverity.MEDIUM,
+      category: 'recoverable',
+    };
+    if (cause !== undefined) {
+      options.cause = cause;
+    }
+    super(
+      ErrorCodes.WRK_TEST_GENERATION_ERROR,
+      `Failed to generate tests for issue ${issueId}${causeMessage}`,
+      options
+    );
     this.name = 'TestGenerationError';
     this.issueId = issueId;
-    this.cause = cause;
   }
 }
 
@@ -182,15 +260,24 @@ export class VerificationError extends WorkerError {
   public readonly verificationType: 'test' | 'lint' | 'build';
   /** The verification output */
   public readonly output: string;
-  /** The underlying error */
-  public readonly cause: Error | undefined;
 
   constructor(verificationType: 'test' | 'lint' | 'build', output: string, cause?: Error) {
-    super(`${verificationType} verification failed: ${output.slice(0, 200)}`);
+    const options: AppErrorOptions = {
+      context: { verificationType, output: output.slice(0, 500) },
+      severity: ErrorSeverity.MEDIUM,
+      category: 'recoverable',
+    };
+    if (cause !== undefined) {
+      options.cause = cause;
+    }
+    super(
+      ErrorCodes.WRK_VERIFICATION_ERROR,
+      `${verificationType} verification failed: ${output.slice(0, 200)}`,
+      options
+    );
     this.name = 'VerificationError';
     this.verificationType = verificationType;
     this.output = output;
-    this.cause = cause;
   }
 }
 
@@ -207,7 +294,19 @@ export class MaxRetriesExceededError extends WorkerError {
 
   constructor(issueId: string, attempts: number, lastError?: Error) {
     const lastErrorMessage = lastError !== undefined ? `: ${lastError.message}` : '';
-    super(`Max retries (${String(attempts)}) exceeded for issue ${issueId}${lastErrorMessage}`);
+    const options: AppErrorOptions = {
+      context: { issueId, attempts },
+      severity: ErrorSeverity.HIGH,
+      category: 'fatal',
+    };
+    if (lastError !== undefined) {
+      options.cause = lastError;
+    }
+    super(
+      ErrorCodes.WRK_MAX_RETRIES_EXCEEDED,
+      `Max retries (${String(attempts)}) exceeded for issue ${issueId}${lastErrorMessage}`,
+      options
+    );
     this.name = 'MaxRetriesExceededError';
     this.issueId = issueId;
     this.attempts = attempts;
@@ -225,7 +324,15 @@ export class ImplementationBlockedError extends WorkerError {
   public readonly blockers: readonly string[];
 
   constructor(issueId: string, blockers: readonly string[]) {
-    super(`Implementation blocked for issue ${issueId}: ${blockers.join(', ')}`);
+    super(
+      ErrorCodes.WRK_IMPLEMENTATION_BLOCKED,
+      `Implementation blocked for issue ${issueId}: ${blockers.join(', ')}`,
+      {
+        context: { issueId, blockers, blockerCount: blockers.length },
+        severity: ErrorSeverity.HIGH,
+        category: 'fatal',
+      }
+    );
     this.name = 'ImplementationBlockedError';
     this.issueId = issueId;
     this.blockers = blockers;
@@ -240,16 +347,25 @@ export class ResultPersistenceError extends WorkerError {
   public readonly orderId: string;
   /** The operation that failed */
   public readonly operation: 'save' | 'load';
-  /** The underlying error */
-  public readonly cause: Error | undefined;
 
   constructor(orderId: string, operation: 'save' | 'load', cause?: Error) {
     const causeMessage = cause !== undefined ? `: ${cause.message}` : '';
-    super(`Failed to ${operation} result for work order ${orderId}${causeMessage}`);
+    const options: AppErrorOptions = {
+      context: { orderId, operation },
+      severity: ErrorSeverity.MEDIUM,
+      category: 'recoverable',
+    };
+    if (cause !== undefined) {
+      options.cause = cause;
+    }
+    super(
+      ErrorCodes.WRK_RESULT_PERSISTENCE_ERROR,
+      `Failed to ${operation} result for work order ${orderId}${causeMessage}`,
+      options
+    );
     this.name = 'ResultPersistenceError';
     this.orderId = orderId;
     this.operation = operation;
-    this.cause = cause;
   }
 }
 
@@ -259,15 +375,24 @@ export class ResultPersistenceError extends WorkerError {
 export class GitOperationError extends WorkerError {
   /** The git operation that failed */
   public readonly operation: string;
-  /** The underlying error */
-  public readonly cause: Error | undefined;
 
   constructor(operation: string, cause?: Error) {
     const causeMessage = cause !== undefined ? `: ${cause.message}` : '';
-    super(`Git operation failed: ${operation}${causeMessage}`);
+    const options: AppErrorOptions = {
+      context: { operation },
+      severity: ErrorSeverity.HIGH,
+      category: 'recoverable',
+    };
+    if (cause !== undefined) {
+      options.cause = cause;
+    }
+    super(
+      ErrorCodes.WRK_GIT_OPERATION_ERROR,
+      `Git operation failed: ${operation}${causeMessage}`,
+      options
+    );
     this.name = 'GitOperationError';
     this.operation = operation;
-    this.cause = cause;
   }
 }
 
@@ -281,17 +406,29 @@ export class CommandExecutionError extends WorkerError {
   public readonly exitCode: number | undefined;
   /** The stderr output */
   public readonly stderr: string;
-  /** The underlying error */
-  public readonly cause: Error | undefined;
 
   constructor(command: string, exitCode: number | undefined, stderr: string, cause?: Error) {
     const exitCodeMessage = exitCode !== undefined ? ` (exit code: ${String(exitCode)})` : '';
-    super(`Command failed: ${command}${exitCodeMessage}`);
+    const options: AppErrorOptions = {
+      context: { command, stderr: stderr.slice(0, 500) },
+      severity: ErrorSeverity.MEDIUM,
+      category: 'recoverable',
+    };
+    if (exitCode !== undefined) {
+      options.context = { ...options.context, exitCode };
+    }
+    if (cause !== undefined) {
+      options.cause = cause;
+    }
+    super(
+      ErrorCodes.WRK_COMMAND_EXECUTION_ERROR,
+      `Command failed: ${command}${exitCodeMessage}`,
+      options
+    );
     this.name = 'CommandExecutionError';
     this.command = command;
     this.exitCode = exitCode;
     this.stderr = stderr;
-    this.cause = cause;
   }
 }
 
@@ -307,15 +444,24 @@ export class TypeCheckError extends WorkerError {
   public readonly errorCount: number;
   /** The type check output */
   public readonly output: string;
-  /** The underlying error */
-  public readonly cause: Error | undefined;
 
   constructor(errorCount: number, output: string, cause?: Error) {
-    super(`Type check failed with ${String(errorCount)} error(s)`);
+    const options: AppErrorOptions = {
+      context: { errorCount, output: output.slice(0, 500) },
+      severity: ErrorSeverity.MEDIUM,
+      category: 'recoverable',
+    };
+    if (cause !== undefined) {
+      options.cause = cause;
+    }
+    super(
+      ErrorCodes.WRK_TYPE_CHECK_ERROR,
+      `Type check failed with ${String(errorCount)} error(s)`,
+      options
+    );
     this.name = 'TypeCheckError';
     this.errorCount = errorCount;
     this.output = output;
-    this.cause = cause;
   }
 }
 
@@ -329,17 +475,26 @@ export class SelfFixError extends WorkerError {
   public readonly iteration: number;
   /** The fix that was attempted */
   public readonly attemptedFix: string;
-  /** The underlying error */
-  public readonly cause: Error | undefined;
 
   constructor(step: string, iteration: number, attemptedFix: string, cause?: Error) {
     const causeMessage = cause !== undefined ? `: ${cause.message}` : '';
-    super(`Self-fix failed for ${step} on iteration ${String(iteration)}${causeMessage}`);
+    const options: AppErrorOptions = {
+      context: { step, iteration, attemptedFix: attemptedFix.slice(0, 200) },
+      severity: ErrorSeverity.MEDIUM,
+      category: 'recoverable',
+    };
+    if (cause !== undefined) {
+      options.cause = cause;
+    }
+    super(
+      ErrorCodes.WRK_SELF_FIX_ERROR,
+      `Self-fix failed for ${step} on iteration ${String(iteration)}${causeMessage}`,
+      options
+    );
     this.name = 'SelfFixError';
     this.step = step;
     this.iteration = iteration;
     this.attemptedFix = attemptedFix;
-    this.cause = cause;
   }
 }
 
@@ -366,8 +521,20 @@ export class EscalationRequiredError extends WorkerError {
     analysis: string
   ) {
     super(
+      ErrorCodes.WRK_ESCALATION_REQUIRED,
       `Escalation required for task ${taskId}: ` +
-        `${String(failedSteps.length)} step(s) failed after ${String(totalAttempts)} fix attempt(s)`
+        `${String(failedSteps.length)} step(s) failed after ${String(totalAttempts)} fix attempt(s)`,
+      {
+        context: {
+          taskId,
+          failedSteps,
+          totalAttempts,
+          errorLogCount: errorLogs.length,
+          analysis: analysis.slice(0, 500),
+        },
+        severity: ErrorSeverity.CRITICAL,
+        category: 'fatal',
+      }
     );
     this.name = 'EscalationRequiredError';
     this.taskId = taskId;
@@ -388,16 +555,25 @@ export class VerificationPipelineError extends WorkerError {
   public readonly exitCode: number;
   /** Output from the failed step */
   public readonly output: string;
-  /** The underlying error */
-  public readonly cause: Error | undefined;
 
   constructor(failedStep: string, exitCode: number, output: string, cause?: Error) {
-    super(`Verification pipeline failed at ${failedStep} (exit code: ${String(exitCode)})`);
+    const options: AppErrorOptions = {
+      context: { failedStep, exitCode, output: output.slice(0, 500) },
+      severity: ErrorSeverity.MEDIUM,
+      category: 'recoverable',
+    };
+    if (cause !== undefined) {
+      options.cause = cause;
+    }
+    super(
+      ErrorCodes.WRK_VERIFICATION_PIPELINE_ERROR,
+      `Verification pipeline failed at ${failedStep} (exit code: ${String(exitCode)})`,
+      options
+    );
     this.name = 'VerificationPipelineError';
     this.failedStep = failedStep;
     this.exitCode = exitCode;
     this.output = output;
-    this.cause = cause;
   }
 }
 
@@ -411,7 +587,15 @@ export class CommandTimeoutError extends WorkerError {
   public readonly timeoutMs: number;
 
   constructor(command: string, timeoutMs: number) {
-    super(`Command timed out after ${String(timeoutMs)}ms: ${command}`);
+    super(
+      ErrorCodes.WRK_COMMAND_TIMEOUT,
+      `Command timed out after ${String(timeoutMs)}ms: ${command}`,
+      {
+        context: { command, timeoutMs },
+        severity: ErrorSeverity.MEDIUM,
+        category: 'transient',
+      }
+    );
     this.name = 'CommandTimeoutError';
     this.command = command;
     this.timeoutMs = timeoutMs;
@@ -430,7 +614,15 @@ export class OperationTimeoutError extends WorkerError {
   public readonly taskId: string;
 
   constructor(taskId: string, operation: string, timeoutMs: number) {
-    super(`Operation "${operation}" timed out after ${String(timeoutMs)}ms for task ${taskId}`);
+    super(
+      ErrorCodes.WRK_OPERATION_TIMEOUT,
+      `Operation "${operation}" timed out after ${String(timeoutMs)}ms for task ${taskId}`,
+      {
+        context: { taskId, operation, timeoutMs },
+        severity: ErrorSeverity.MEDIUM,
+        category: 'transient',
+      }
+    );
     this.name = 'OperationTimeoutError';
     this.taskId = taskId;
     this.operation = operation;
@@ -442,10 +634,8 @@ export class OperationTimeoutError extends WorkerError {
 // Error Categorization (Issue #48)
 // ============================================================================
 
-import type { ErrorCategory, WorkerErrorInfo } from './types.js';
-
 /**
- * Error code mappings for categorization
+ * Error code mappings for categorization (for legacy non-AppError errors)
  */
 const ERROR_CATEGORY_MAP: Record<string, ErrorCategory> = {
   // Transient errors - retry with backoff
@@ -481,6 +671,11 @@ const ERROR_CATEGORY_MAP: Record<string, ErrorCategory> = {
  * @returns The error category
  */
 export function categorizeError(error: Error): ErrorCategory {
+  // AppError already has category
+  if (error instanceof AppError) {
+    return error.category;
+  }
+
   // Check error name first
   if (error.name in ERROR_CATEGORY_MAP) {
     const category = ERROR_CATEGORY_MAP[error.name];
@@ -591,106 +786,23 @@ export function createWorkerErrorInfo(
   error: Error,
   additionalContext: Record<string, unknown> = {}
 ): WorkerErrorInfo {
-  const category = categorizeError(error);
-  const categoryPolicy = getCategoryRetryPolicy(category);
+  // Use ErrorHandler for consistent error info creation
+  const errorInfo = ErrorHandler.createErrorInfo(error, additionalContext);
 
   const result: WorkerErrorInfo = {
-    category,
-    code: getErrorCode(error),
-    message: error.message,
-    context: {
-      ...extractErrorContext(error),
-      ...additionalContext,
-    },
-    retryable: categoryPolicy.retry,
-    suggestedAction: getSuggestedAction(error, category),
+    category: errorInfo.category,
+    code: errorInfo.code,
+    message: errorInfo.message,
+    context: errorInfo.context as Record<string, unknown>,
+    retryable: errorInfo.retryable,
+    suggestedAction: errorInfo.suggestedAction,
   };
 
-  // Only set stackTrace if it exists (exactOptionalPropertyTypes)
-  if (error.stack !== undefined) {
-    return { ...result, stackTrace: error.stack };
+  if (errorInfo.stackTrace !== undefined) {
+    return { ...result, stackTrace: errorInfo.stackTrace };
   }
 
   return result;
-}
-
-/**
- * Get error code from error
- * @param error - The error to get code from
- * @returns Error code string
- */
-function getErrorCode(error: Error): string {
-  // Check for explicit error code
-  const nodeError = error as { code?: string };
-  if (typeof nodeError.code === 'string') {
-    return nodeError.code;
-  }
-
-  // Use error name as code
-  return error.name;
-}
-
-/**
- * Extract context from specific error types
- * @param error - The error to extract context from
- * @returns Context object
- */
-function extractErrorContext(error: Error): Record<string, unknown> {
-  const context: Record<string, unknown> = {};
-
-  if (error instanceof WorkOrderParseError) {
-    context.orderId = error.orderId;
-  } else if (error instanceof ContextAnalysisError) {
-    context.issueId = error.issueId;
-  } else if (error instanceof FileReadError || error instanceof FileWriteError) {
-    context.filePath = error.filePath;
-  } else if (error instanceof BranchCreationError || error instanceof BranchExistsError) {
-    context.branchName = error.branchName;
-  } else if (error instanceof CommitError) {
-    context.commitMessage = error.commitMessage;
-  } else if (error instanceof VerificationError) {
-    context.verificationType = error.verificationType;
-    context.output = error.output.slice(0, 500); // Truncate for context
-  } else if (error instanceof MaxRetriesExceededError) {
-    context.issueId = error.issueId;
-    context.attempts = error.attempts;
-  } else if (error instanceof ImplementationBlockedError) {
-    context.issueId = error.issueId;
-    context.blockers = error.blockers;
-  } else if (error instanceof CommandExecutionError) {
-    context.command = error.command;
-    context.exitCode = error.exitCode;
-  } else if (error instanceof TypeCheckError) {
-    context.errorCount = error.errorCount;
-  } else if (error instanceof EscalationRequiredError) {
-    context.taskId = error.taskId;
-    context.failedSteps = error.failedSteps;
-    context.totalAttempts = error.totalAttempts;
-  } else if (error instanceof OperationTimeoutError) {
-    context.taskId = error.taskId;
-    context.operation = error.operation;
-    context.timeoutMs = error.timeoutMs;
-  }
-
-  return context;
-}
-
-/**
- * Get default retry policy for a category
- * @param category - The error category
- * @returns Category retry policy
- */
-function getCategoryRetryPolicy(category: ErrorCategory): { retry: boolean; maxAttempts: number } {
-  switch (category) {
-    case 'transient':
-      return { retry: true, maxAttempts: 3 };
-    case 'recoverable':
-      return { retry: true, maxAttempts: 3 };
-    case 'fatal':
-      return { retry: false, maxAttempts: 0 };
-    default:
-      return { retry: true, maxAttempts: 3 };
-  }
 }
 
 /**
@@ -699,6 +811,9 @@ function getCategoryRetryPolicy(category: ErrorCategory): { retry: boolean; maxA
  * @returns Whether the error is retryable
  */
 export function isRetryableError(error: Error): boolean {
+  if (error instanceof AppError) {
+    return error.isRetryable();
+  }
   const category = categorizeError(error);
   return category !== 'fatal';
 }
@@ -709,5 +824,8 @@ export function isRetryableError(error: Error): boolean {
  * @returns Whether escalation is required
  */
 export function requiresEscalation(error: Error): boolean {
+  if (error instanceof AppError) {
+    return error.requiresEscalation();
+  }
   return categorizeError(error) === 'fatal';
 }
