@@ -51,8 +51,9 @@ jobs:
           retention-days: 30
 
       - name: Comment on PR
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
         uses: actions/github-script@v7
+        continue-on-error: true
         with:
           script: |
             const fs = require('fs');
@@ -71,7 +72,7 @@ jobs:
               comment += `⚠️ Could not read performance report: ${error.message}`;
             }
 
-            github.rest.issues.createComment({
+            await github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -96,9 +97,7 @@ jobs:
         run: npm ci
 
       - name: Run memory profiling tests
-        run: npm run test:memory
-        env:
-          NODE_OPTIONS: '--expose-gc'
+        run: node --expose-gc ./node_modules/.bin/vitest run --config vitest.perf.config.ts tests/performance/memory/
 
       - name: Upload memory profile results
         uses: actions/upload-artifact@v4
@@ -126,9 +125,7 @@ jobs:
         run: npm ci
 
       - name: Run scalability tests
-        run: npm run test:scalability
-        env:
-          NODE_OPTIONS: '--expose-gc'
+        run: node --expose-gc ./node_modules/.bin/vitest run --config vitest.perf.config.ts tests/performance/scalability/
 
       - name: Upload scalability results
         uses: actions/upload-artifact@v4
