@@ -16,6 +16,15 @@ import {
   ResultPersistenceError,
   GitOperationError,
   CommandExecutionError,
+  CommandTimeoutError,
+  OperationTimeoutError,
+  TypeCheckError,
+  EscalationRequiredError,
+  categorizeError,
+  isRetryableError,
+  requiresEscalation,
+  getSuggestedAction,
+  createWorkerErrorInfo,
 } from '../../src/worker/errors.js';
 import { AppError, ErrorCodes, ErrorSeverity } from '../../src/errors/index.js';
 
@@ -297,5 +306,157 @@ describe('Error Serialization', () => {
 
     expect(recoverableError.isRetryable()).toBe(true);
     expect(fatalError.isRetryable()).toBe(false);
+  });
+});
+
+describe('Error Classification (Issue #252)', () => {
+  describe('categorizeError', () => {
+    it('should categorize transient errors correctly', () => {
+      const timeoutError = new CommandTimeoutError('npm test', 30000);
+      expect(categorizeError(timeoutError)).toBe('transient');
+
+      const operationTimeout = new OperationTimeoutError('task-1', 'build', 60000);
+      expect(categorizeError(operationTimeout)).toBe('transient');
+    });
+
+    it('should categorize recoverable errors correctly', () => {
+      const verificationError = new VerificationError('test', 'Test failed');
+      expect(categorizeError(verificationError)).toBe('recoverable');
+
+      const typeCheckError = new TypeCheckError(5, 'Type errors found');
+      expect(categorizeError(typeCheckError)).toBe('recoverable');
+
+      const testGenError = new TestGenerationError('ISS-001');
+      expect(categorizeError(testGenError)).toBe('recoverable');
+    });
+
+    it('should categorize fatal errors correctly', () => {
+      const blockedError = new ImplementationBlockedError('ISS-001', ['ISS-002']);
+      expect(categorizeError(blockedError)).toBe('fatal');
+
+      const escalationError = new EscalationRequiredError(
+        'task-1',
+        ['test', 'build'],
+        3,
+        ['error1', 'error2'],
+        'Analysis failed'
+      );
+      expect(categorizeError(escalationError)).toBe('fatal');
+    });
+
+    it('should categorize Node.js system errors by code', () => {
+      const econnreset = Object.assign(new Error('Connection reset'), { code: 'ECONNRESET' });
+      expect(categorizeError(econnreset)).toBe('transient');
+
+      const enoent = Object.assign(new Error('File not found'), { code: 'ENOENT' });
+      expect(categorizeError(enoent)).toBe('fatal');
+
+      const eacces = Object.assign(new Error('Permission denied'), { code: 'EACCES' });
+      expect(categorizeError(eacces)).toBe('fatal');
+    });
+
+    it('should categorize errors by message patterns', () => {
+      const networkError = new Error('Network connection failed');
+      expect(categorizeError(networkError)).toBe('transient');
+
+      const timeoutError = new Error('Request timeout after 30s');
+      expect(categorizeError(timeoutError)).toBe('transient');
+
+      const permissionError = new Error('Permission denied for file access');
+      expect(categorizeError(permissionError)).toBe('fatal');
+
+      const testFailError = new Error('Test failed: assertions not met');
+      expect(categorizeError(testFailError)).toBe('recoverable');
+    });
+  });
+
+  describe('isRetryableError', () => {
+    it('should return true for transient errors', () => {
+      const timeoutError = new CommandTimeoutError('npm test', 30000);
+      expect(isRetryableError(timeoutError)).toBe(true);
+    });
+
+    it('should return true for recoverable errors', () => {
+      const verificationError = new VerificationError('test', 'Test failed');
+      expect(isRetryableError(verificationError)).toBe(true);
+    });
+
+    it('should return false for fatal errors', () => {
+      const blockedError = new ImplementationBlockedError('ISS-001', ['ISS-002']);
+      expect(isRetryableError(blockedError)).toBe(false);
+    });
+  });
+
+  describe('requiresEscalation', () => {
+    it('should return true for fatal errors', () => {
+      const blockedError = new ImplementationBlockedError('ISS-001', ['ISS-002']);
+      expect(requiresEscalation(blockedError)).toBe(true);
+    });
+
+    it('should return true for critical severity errors', () => {
+      const escalationError = new EscalationRequiredError(
+        'task-1',
+        ['test'],
+        3,
+        ['error1'],
+        'Analysis'
+      );
+      expect(requiresEscalation(escalationError)).toBe(true);
+    });
+
+    it('should return false for recoverable errors', () => {
+      const verificationError = new VerificationError('test', 'Test failed');
+      expect(requiresEscalation(verificationError)).toBe(false);
+    });
+
+    it('should return false for transient errors', () => {
+      const timeoutError = new CommandTimeoutError('npm test', 30000);
+      expect(requiresEscalation(timeoutError)).toBe(false);
+    });
+  });
+
+  describe('getSuggestedAction', () => {
+    it('should suggest retry for transient errors', () => {
+      const timeoutError = new CommandTimeoutError('npm test', 30000);
+      const action = getSuggestedAction(timeoutError, 'transient');
+      expect(action).toContain('Retry');
+      expect(action).toContain('backoff');
+    });
+
+    it('should suggest fix for recoverable verification errors', () => {
+      const lintError = new VerificationError('lint', 'ESLint errors');
+      const action = getSuggestedAction(lintError, 'recoverable');
+      expect(action).toContain('lint');
+      expect(action).toContain('fix');
+    });
+
+    it('should suggest escalation for fatal errors', () => {
+      const blockedError = new ImplementationBlockedError('ISS-001', ['ISS-002']);
+      const action = getSuggestedAction(blockedError, 'fatal');
+      expect(action).toContain('Escalate');
+      expect(action).toContain('ISS-002');
+    });
+  });
+
+  describe('createWorkerErrorInfo', () => {
+    it('should create complete error info for recoverable error', () => {
+      const error = new VerificationError('test', 'Test assertions failed');
+      const info = createWorkerErrorInfo(error, { taskId: 'task-123' });
+
+      expect(info.category).toBe('recoverable');
+      expect(info.code).toBe(ErrorCodes.WRK_VERIFICATION_ERROR);
+      expect(info.retryable).toBe(true);
+      expect(info.suggestedAction).toBeDefined();
+      expect(info.context).toHaveProperty('taskId', 'task-123');
+    });
+
+    it('should create complete error info for fatal error', () => {
+      const error = new ImplementationBlockedError('ISS-001', ['ISS-002']);
+      const info = createWorkerErrorInfo(error);
+
+      expect(info.category).toBe('fatal');
+      expect(info.retryable).toBe(false);
+      expect(info.suggestedAction).toContain('Escalate');
+    });
   });
 });

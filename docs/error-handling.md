@@ -122,6 +122,97 @@ Errors are categorized to determine handling strategy:
 | `recoverable` | Can be fixed and retried | Yes | Test failures, lint errors |
 | `fatal` | Unrecoverable | No | Missing dependencies, invalid config |
 
+### Category-Based Retry Strategy in WorkerAgent
+
+The `WorkerAgent.implement()` method uses error categorization to apply different retry strategies:
+
+```typescript
+// Error classification determines retry behavior
+const errorCategory = categorizeError(error);
+
+switch (errorCategory) {
+  case 'transient':
+    // Network issues, timeouts - retry with exponential backoff
+    // No fix attempt needed, just wait and retry
+    break;
+
+  case 'recoverable':
+    // Test failures, lint errors - attempt self-fix then retry
+    // For VerificationError, lint --fix may be applied
+    break;
+
+  case 'fatal':
+    // Missing dependencies, permission denied - no retry
+    // Return failed result immediately or escalate
+    break;
+}
+```
+
+### Customizing Retry Policy by Category
+
+You can configure category-specific retry behavior via `RetryPolicy.byCategory`:
+
+```typescript
+const retryPolicy: RetryPolicy = {
+  maxAttempts: 3,
+  baseDelayMs: 1000,
+  backoff: 'exponential',
+  maxDelayMs: 30000,
+  byCategory: {
+    transient: {
+      retry: true,
+      maxAttempts: 5,  // More retries for network issues
+    },
+    recoverable: {
+      retry: true,
+      maxAttempts: 3,
+      requireFixAttempt: true,  // Try self-fix before retry
+    },
+    fatal: {
+      retry: false,
+      maxAttempts: 0,
+      escalateImmediately: true,
+    },
+  },
+};
+
+await workerAgent.implement(workOrder, { retryPolicy });
+```
+
+### Error Classification Functions
+
+The worker module exports functions for error classification:
+
+```typescript
+import {
+  categorizeError,
+  isRetryableError,
+  requiresEscalation,
+  getSuggestedAction,
+  createWorkerErrorInfo,
+} from './worker/errors.js';
+
+// Classify an error
+const category = categorizeError(error);  // 'transient' | 'recoverable' | 'fatal'
+
+// Check if error is retryable
+if (isRetryableError(error)) {
+  await retryOperation();
+}
+
+// Check if immediate escalation is needed
+if (requiresEscalation(error)) {
+  await escalateToController(error);
+}
+
+// Get suggested action for error
+const action = getSuggestedAction(error, category);
+// e.g., "Retry with exponential backoff" or "Run lint --fix"
+
+// Create detailed error info for reporting
+const errorInfo = createWorkerErrorInfo(error, { taskId: 'task-123' });
+```
+
 ---
 
 ## Module Errors
