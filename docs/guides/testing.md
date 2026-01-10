@@ -65,13 +65,21 @@ tests/
     │   ├── fixtures.ts
     │   ├── test-environment.ts
     │   ├── pipeline-runner.ts
-    │   └── verification.ts
+    │   ├── verification.ts
+    │   └── github-mock.ts      # GitHub API mock server
+    ├── fixtures/               # Test fixtures
+    │   └── scalability-fixtures.ts
     ├── analysis-pipeline/      # Analysis Pipeline E2E
     │   ├── analysis-fixtures.ts
     │   └── analysis-pipeline.e2e.test.ts
     ├── enhancement-pipeline/   # Enhancement Pipeline E2E
     │   ├── enhancement-fixtures.ts
     │   └── enhancement-pipeline.e2e.test.ts
+    ├── pipelines/              # Pipeline integration E2E
+    │   ├── greenfield-github.e2e.test.ts
+    │   └── worker-failure.e2e.test.ts
+    ├── scalability/            # Scalability E2E
+    │   └── scalability.e2e.test.ts
     ├── pipeline.e2e.test.ts
     ├── recovery.e2e.test.ts
     ├── error-recovery-edge-cases.e2e.test.ts  # Error recovery & edge cases
@@ -225,6 +233,126 @@ npm run test:e2e -- --run tests/e2e/error-recovery-edge-cases.e2e.test.ts
 - **Missing Dependencies**: Handling missing scratchpad directories
 - **Concurrent Operations**: Multiple operations running simultaneously
 - **Error Message Quality**: Clear and informative error messages
+
+## Scalability E2E Tests
+
+The scalability tests validate system behavior under scale conditions.
+
+### Test Scenarios
+
+| Scenario | Description |
+|----------|-------------|
+| Large Issue Set | Generate and handle 100+ issues |
+| Large Project Structure | Create projects with many files |
+| Memory Usage | Monitor memory during processing |
+| Concurrent Operations | Parallel execution handling |
+| Performance Benchmarks | Timing benchmarks for operations |
+
+### Running Scalability Tests
+
+```bash
+npm run test:e2e -- --run tests/e2e/scalability/
+```
+
+### Scalability Fixtures
+
+```typescript
+import { generateLargeIssueSet, createLargeProject } from './fixtures/scalability-fixtures.js';
+
+// Generate 100 issues with dependencies
+const issues = generateLargeIssueSet(100);
+
+// Create large project structure
+await createLargeProject({
+  baseDir: '/tmp/test-project',
+  issueCount: 100,
+  componentCount: 10,
+  sourceFileCount: 50,
+});
+```
+
+## GitHub Integration E2E Tests
+
+The GitHub integration tests validate pipeline interactions with GitHub API using a mock server.
+
+### Test Scenarios
+
+| Scenario | Description |
+|----------|-------------|
+| Issue Creation | Create issues via GitHub API |
+| Pull Request Flow | Create, review, and merge PRs |
+| CI Check Status | Retrieve and handle CI status |
+| Error Handling | Handle API failures gracefully |
+| Retry Logic | Transient failure recovery |
+
+### Running GitHub Integration Tests
+
+```bash
+npm run test:e2e -- --run tests/e2e/pipelines/
+```
+
+### GitHub Mock Server
+
+The `GitHubMock` class provides a mock HTTP server for GitHub API:
+
+```typescript
+import { GitHubMock, createTestGitHubMock } from './helpers/github-mock.js';
+
+// Create and start mock server
+const githubMock = createTestGitHubMock();
+await githubMock.start();
+
+// Simulate failures
+githubMock.simulateFailure('create_pr', {
+  times: 2,
+  statusCode: 503,
+  errorMessage: 'Service temporarily unavailable',
+});
+
+// Add mock data
+githubMock.addIssue({
+  number: 1,
+  title: 'Test Issue',
+  body: 'Test body',
+  state: 'open',
+  labels: [],
+  assignees: [],
+});
+
+// Stop server
+await githubMock.stop();
+```
+
+### Supported Endpoints
+
+| Endpoint | Methods | Description |
+|----------|---------|-------------|
+| `/repos/:owner/:repo/issues` | GET, POST | List and create issues |
+| `/repos/:owner/:repo/issues/:number` | GET | Get single issue |
+| `/repos/:owner/:repo/pulls` | GET, POST | List and create PRs |
+| `/repos/:owner/:repo/pulls/:number` | GET | Get single PR |
+| `/repos/:owner/:repo/pulls/:number/merge` | PUT | Merge PR |
+| `/repos/:owner/:repo/commits/:sha/check-runs` | GET | Get check runs |
+
+## Worker Failure E2E Tests
+
+Tests for worker execution failure handling and recovery.
+
+### Test Scenarios
+
+| Scenario | Description |
+|----------|-------------|
+| Transient Failures | Retry and recover from temporary failures |
+| Permanent Failures | Fail fast on non-recoverable errors |
+| Rate Limiting | Handle 429 errors appropriately |
+| Parallel Failures | Isolate failures between workers |
+| Recovery State | Track retry attempts and state |
+
+### Running Worker Failure Tests
+
+```bash
+npm run test:e2e -- --run tests/e2e/pipelines/worker-failure.e2e.test.ts
+```
 
 ## Writing Tests
 
