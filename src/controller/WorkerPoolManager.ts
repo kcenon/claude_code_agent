@@ -4,9 +4,17 @@
  * Manages a pool of Worker Agents for parallel task execution.
  * Handles worker spawning, task assignment, and status tracking.
  *
- * NOTE: Distributed lock support for multi-process deployments is planned.
+ * ## Distributed Lock Support
+ *
+ * This module now supports distributed locking for multi-process deployments
+ * using Scratchpad's file-based locking mechanism. Enable distributed locking
+ * by setting `distributedLock.enabled: true` in the configuration.
+ *
+ * When enabled, all state-modifying operations (assignWork, completeWork,
+ * saveState, etc.) will use file locks to ensure consistency across processes.
+ *
+ * DONE(P1): Distributed lock support implemented via Scratchpad's withLock.
  * See Issue #247 for implementation details.
- * Currently uses in-memory Maps; for horizontal scaling, use Scratchpad's withLock.
  *
  * DONE(P2): Worker health checks implemented via WorkerHealthMonitor
  * See WorkerHealthMonitor.ts for heartbeat-based zombie detection
@@ -25,6 +33,7 @@
 import { mkdir, writeFile, readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
+import { randomUUID } from 'node:crypto';
 
 import type {
   WorkerInfo,
@@ -45,8 +54,11 @@ import type {
   QueueStatus,
   QueueEventCallback,
   DeadLetterEntry,
+  DistributedLockOptions,
 } from './types.js';
-import { DEFAULT_WORKER_POOL_CONFIG } from './types.js';
+import { DEFAULT_WORKER_POOL_CONFIG, DEFAULT_DISTRIBUTED_LOCK_OPTIONS } from './types.js';
+import { Scratchpad } from '../scratchpad/Scratchpad.js';
+import type { ScratchpadOptions, LockOptions } from '../scratchpad/types.js';
 import {
   WorkerNotFoundError,
   WorkerNotAvailableError,
@@ -90,6 +102,7 @@ interface InternalWorkerPoolConfig {
   readonly workerTimeout: number;
   readonly workOrdersPath: string;
   readonly queueConfig: BoundedQueueConfig | undefined;
+  readonly distributedLock: Required<DistributedLockOptions>;
 }
 
 export class WorkerPoolManager {
@@ -105,12 +118,34 @@ export class WorkerPoolManager {
   private onCompletionCallback?: WorkerCompletionCallback;
   private onFailureCallback?: WorkerFailureCallback;
 
-  constructor(config: WorkerPoolConfig = {}) {
+  /** Scratchpad instance for distributed locking */
+  private readonly scratchpad: Scratchpad | null;
+  /** Unique holder ID for this process instance */
+  private readonly lockHolderId: string;
+  /** Path to the shared state file for distributed locking */
+  private readonly sharedStatePath: string;
+
+  constructor(config: WorkerPoolConfig = {}, scratchpadOptions?: ScratchpadOptions) {
+    // Merge distributed lock options with defaults
+    const distributedLockConfig: Required<DistributedLockOptions> = {
+      enabled: config.distributedLock?.enabled ?? DEFAULT_DISTRIBUTED_LOCK_OPTIONS.enabled,
+      lockTimeout: config.distributedLock?.lockTimeout ?? DEFAULT_DISTRIBUTED_LOCK_OPTIONS.lockTimeout,
+      lockRetryAttempts:
+        config.distributedLock?.lockRetryAttempts ?? DEFAULT_DISTRIBUTED_LOCK_OPTIONS.lockRetryAttempts,
+      lockRetryDelayMs:
+        config.distributedLock?.lockRetryDelayMs ?? DEFAULT_DISTRIBUTED_LOCK_OPTIONS.lockRetryDelayMs,
+      lockStealThresholdMs:
+        config.distributedLock?.lockStealThresholdMs ?? DEFAULT_DISTRIBUTED_LOCK_OPTIONS.lockStealThresholdMs,
+      holderIdPrefix:
+        config.distributedLock?.holderIdPrefix ?? DEFAULT_DISTRIBUTED_LOCK_OPTIONS.holderIdPrefix,
+    };
+
     this.config = {
       maxWorkers: config.maxWorkers ?? DEFAULT_WORKER_POOL_CONFIG.maxWorkers,
       workerTimeout: config.workerTimeout ?? DEFAULT_WORKER_POOL_CONFIG.workerTimeout,
       workOrdersPath: config.workOrdersPath ?? DEFAULT_WORKER_POOL_CONFIG.workOrdersPath,
       queueConfig: config.queueConfig,
+      distributedLock: distributedLockConfig,
     };
 
     this.workers = new Map();
@@ -118,6 +153,24 @@ export class WorkerPoolManager {
     this.completedOrders = new Set();
     this.failedOrders = new Set();
     this.workOrderCounter = 0;
+
+    // Initialize distributed locking support
+    this.lockHolderId = `${distributedLockConfig.holderIdPrefix}-${randomUUID()}`;
+    this.sharedStatePath = join(this.config.workOrdersPath, 'pool_state.json');
+
+    if (distributedLockConfig.enabled) {
+      // Create Scratchpad instance with lock configuration
+      this.scratchpad = new Scratchpad({
+        basePath: this.config.workOrdersPath,
+        lockTimeout: distributedLockConfig.lockTimeout,
+        lockRetryAttempts: distributedLockConfig.lockRetryAttempts,
+        lockRetryDelayMs: distributedLockConfig.lockRetryDelayMs,
+        lockStealThresholdMs: distributedLockConfig.lockStealThresholdMs,
+        ...scratchpadOptions,
+      });
+    } else {
+      this.scratchpad = null;
+    }
 
     // Initialize bounded queue if config provided, otherwise use legacy queue
     if (config.queueConfig !== undefined) {
@@ -901,5 +954,278 @@ export class WorkerPoolManager {
    */
   public getActiveWorkers(): readonly WorkerInfo[] {
     return Array.from(this.workers.values()).map((w) => this.toWorkerInfo(w));
+  }
+
+  // ============================================================================
+  // Distributed Lock Support Methods
+  // ============================================================================
+
+  /**
+   * Check if distributed locking is enabled
+   */
+  public isDistributedLockEnabled(): boolean {
+    return this.scratchpad !== null && this.config.distributedLock.enabled;
+  }
+
+  /**
+   * Get the lock holder ID for this process instance
+   */
+  public getLockHolderId(): string {
+    return this.lockHolderId;
+  }
+
+  /**
+   * Get lock options for distributed operations
+   */
+  private getLockOptions(): LockOptions {
+    return {
+      holderId: this.lockHolderId,
+      retryAttempts: this.config.distributedLock.lockRetryAttempts,
+      retryDelayMs: this.config.distributedLock.lockRetryDelayMs,
+    };
+  }
+
+  /**
+   * Execute a function with distributed lock protection
+   *
+   * If distributed locking is enabled, wraps the operation in a file lock.
+   * Otherwise, executes the operation directly.
+   *
+   * @param fn - Function to execute
+   * @returns Result of the function
+   */
+  private async withDistributedLock<T>(fn: () => Promise<T>): Promise<T> {
+    if (this.scratchpad === null) {
+      return fn();
+    }
+
+    return this.scratchpad.withLock(this.sharedStatePath, fn, this.getLockOptions());
+  }
+
+  /**
+   * Execute a synchronous function with distributed lock protection (for sync operations)
+   *
+   * NOTE: This wraps the sync function in a Promise for lock acquisition.
+   * Use sparingly as it introduces async overhead for sync operations.
+   *
+   * @param fn - Synchronous function to execute
+   * @returns Result of the function
+   */
+  private async withDistributedLockSync<T>(fn: () => T): Promise<T> {
+    if (this.scratchpad === null) {
+      return fn();
+    }
+
+    return this.scratchpad.withLock(
+      this.sharedStatePath,
+      () => Promise.resolve(fn()),
+      this.getLockOptions()
+    );
+  }
+
+  /**
+   * Assign work to a worker with distributed lock protection
+   *
+   * Thread-safe version of assignWork that acquires a distributed lock
+   * before modifying shared state.
+   *
+   * @param workerId - Worker ID to assign work to
+   * @param workOrder - Work order to assign
+   * @throws WorkerNotFoundError if worker doesn't exist
+   * @throws WorkerNotAvailableError if worker is not idle
+   * @throws LockContentionError if lock cannot be acquired
+   */
+  public async assignWorkWithLock(workerId: string, workOrder: WorkOrder): Promise<void> {
+    await this.withDistributedLockSync(() => {
+      this.assignWork(workerId, workOrder);
+    });
+  }
+
+  /**
+   * Complete work with distributed lock protection
+   *
+   * Thread-safe version of completeWork that ensures atomic state updates
+   * across multiple processes.
+   *
+   * @param workerId - Worker ID that completed work
+   * @param result - Work order result
+   */
+  public async completeWorkWithLock(workerId: string, result: WorkOrderResult): Promise<void> {
+    await this.withDistributedLock(async () => {
+      await this.completeWork(workerId, result);
+    });
+  }
+
+  /**
+   * Fail work with distributed lock protection
+   *
+   * Thread-safe version of failWork that ensures atomic state updates.
+   *
+   * @param workerId - Worker ID that failed
+   * @param orderId - Work order ID
+   * @param error - Error that occurred
+   */
+  public async failWorkWithLock(workerId: string, orderId: string, error: Error): Promise<void> {
+    await this.withDistributedLock(async () => {
+      await this.failWork(workerId, orderId, error);
+    });
+  }
+
+  /**
+   * Create work order with distributed lock protection
+   *
+   * Thread-safe version of createWorkOrder that ensures atomic work order
+   * creation and counter increment across processes.
+   *
+   * @param issue - Issue to create work order for
+   * @param context - Work order context
+   * @returns Created work order
+   */
+  public async createWorkOrderWithLock(
+    issue: IssueNode | AnalyzedIssue,
+    context: Partial<WorkOrderContext> = {}
+  ): Promise<WorkOrder> {
+    return this.withDistributedLock(async () => {
+      return this.createWorkOrder(issue, context);
+    });
+  }
+
+  /**
+   * Enqueue issue with distributed lock protection
+   *
+   * Thread-safe version of enqueue for bounded queue operations.
+   *
+   * @param issueId - Issue ID to enqueue
+   * @param priorityScore - Priority score for ordering
+   */
+  public async enqueueWithLock(issueId: string, priorityScore: number): Promise<void> {
+    await this.withDistributedLockSync(() => {
+      this.enqueue(issueId, priorityScore);
+    });
+  }
+
+  /**
+   * Dequeue issue with distributed lock protection
+   *
+   * Thread-safe version of dequeue that ensures atomic dequeue operations.
+   *
+   * @returns Next issue ID or null if queue is empty
+   */
+  public async dequeueWithLock(): Promise<string | null> {
+    return this.withDistributedLockSync(() => {
+      return this.dequeue();
+    });
+  }
+
+  /**
+   * Get an available worker slot with distributed lock protection
+   *
+   * Thread-safe version that prevents multiple processes from
+   * simultaneously claiming the same worker slot.
+   *
+   * @returns Worker ID if available, null otherwise
+   */
+  public async getAvailableSlotWithLock(): Promise<string | null> {
+    return this.withDistributedLockSync(() => {
+      return this.getAvailableSlot();
+    });
+  }
+
+  /**
+   * Release worker with distributed lock protection
+   *
+   * @param workerId - Worker ID to release
+   */
+  public async releaseWorkerWithLock(workerId: string): Promise<void> {
+    await this.withDistributedLockSync(() => {
+      this.releaseWorker(workerId);
+    });
+  }
+
+  /**
+   * Reset worker with distributed lock protection
+   *
+   * @param workerId - Worker ID to reset
+   */
+  public async resetWorkerWithLock(workerId: string): Promise<void> {
+    await this.withDistributedLockSync(() => {
+      this.resetWorker(workerId);
+    });
+  }
+
+  /**
+   * Save state with distributed lock protection
+   *
+   * Ensures atomic state persistence across multiple processes.
+   *
+   * @param projectId - Project identifier
+   */
+  public async saveStateWithLock(projectId: string): Promise<void> {
+    await this.withDistributedLock(async () => {
+      await this.saveState(projectId);
+    });
+  }
+
+  /**
+   * Load state with distributed lock protection
+   *
+   * Ensures consistent state loading across multiple processes.
+   *
+   * @param projectId - Project identifier
+   * @returns Loaded controller state or null if not found
+   */
+  public async loadStateWithLock(projectId: string): Promise<ControllerState | null> {
+    return this.withDistributedLock(async () => {
+      return this.loadState(projectId);
+    });
+  }
+
+  /**
+   * Synchronize state with shared storage
+   *
+   * When distributed locking is enabled, this method:
+   * 1. Acquires the distributed lock
+   * 2. Loads the latest state from shared storage
+   * 3. Merges with local state (external state takes precedence)
+   * 4. Saves the merged state back
+   *
+   * This is useful for periodic state synchronization in multi-process setups.
+   *
+   * @param projectId - Project identifier
+   * @returns True if synchronization was performed, false if disabled
+   */
+  public async synchronizeState(projectId: string): Promise<boolean> {
+    if (!this.isDistributedLockEnabled()) {
+      return false;
+    }
+
+    await this.withDistributedLock(async () => {
+      const externalState = await this.loadState(projectId);
+      if (externalState !== null) {
+        // Merge external state into local state
+        // External state takes precedence for completed/failed orders
+        for (const orderId of externalState.completedOrders) {
+          this.completedOrders.add(orderId);
+        }
+        for (const orderId of externalState.failedOrders) {
+          this.failedOrders.add(orderId);
+        }
+      }
+      // Save merged state
+      await this.saveState(projectId);
+    });
+
+    return true;
+  }
+
+  /**
+   * Clean up distributed lock resources
+   *
+   * Should be called when shutting down to release any held locks.
+   */
+  public async cleanupDistributedLock(): Promise<void> {
+    if (this.scratchpad !== null) {
+      await this.scratchpad.cleanup();
+    }
   }
 }
