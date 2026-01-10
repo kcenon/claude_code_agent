@@ -121,6 +121,24 @@ const result = await scratchpad.withLock(filePath, async () => {
 });
 ```
 
+### Cooperative Lock Release
+
+When stealing expired locks, the scratchpad uses a cooperative release pattern to prevent data corruption. Before forcibly stealing a lock, a release request is sent to notify the current holder.
+
+```typescript
+// Check if another process is requesting lock release
+const shouldRelease = await scratchpad.isReleaseRequested(filePath, 'current-holder');
+if (shouldRelease) {
+  // Gracefully complete work and release lock
+  await scratchpad.releaseLock(filePath, 'current-holder');
+}
+
+// Disable cooperative release for faster acquisition (use with caution)
+await scratchpad.acquireLock(filePath, 'holder', {
+  cooperativeRelease: false,
+});
+```
+
 ### Schema Validation
 
 ```typescript
@@ -235,9 +253,20 @@ Each has a corresponding `assert*` function that throws on invalid data.
 
 ### Locking
 
-- `acquireLock(path, holderId)` - Acquire file lock
+- `acquireLock(path, holderId, options)` - Acquire file lock
 - `releaseLock(path, holderId)` - Release file lock
-- `withLock(path, fn, holderId)` - Execute with lock
+- `withLock(path, fn, options)` - Execute with lock
+- `isReleaseRequested(path, holderId)` - Check if release is requested
+
+### Lock Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `holderId` | `string` | (auto) | Lock holder identifier |
+| `retryAttempts` | `number` | `10` | Number of retry attempts |
+| `retryDelayMs` | `number` | `100` | Base delay between retries |
+| `cooperativeRelease` | `boolean` | `true` | Enable cooperative release before stealing |
+| `cooperativeReleaseTimeoutMs` | `number` | `1000` | Timeout for cooperative release |
 
 ## Testing
 
