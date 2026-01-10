@@ -129,13 +129,17 @@ export class WorkerPoolManager {
     // Merge distributed lock options with defaults
     const distributedLockConfig: Required<DistributedLockOptions> = {
       enabled: config.distributedLock?.enabled ?? DEFAULT_DISTRIBUTED_LOCK_OPTIONS.enabled,
-      lockTimeout: config.distributedLock?.lockTimeout ?? DEFAULT_DISTRIBUTED_LOCK_OPTIONS.lockTimeout,
+      lockTimeout:
+        config.distributedLock?.lockTimeout ?? DEFAULT_DISTRIBUTED_LOCK_OPTIONS.lockTimeout,
       lockRetryAttempts:
-        config.distributedLock?.lockRetryAttempts ?? DEFAULT_DISTRIBUTED_LOCK_OPTIONS.lockRetryAttempts,
+        config.distributedLock?.lockRetryAttempts ??
+        DEFAULT_DISTRIBUTED_LOCK_OPTIONS.lockRetryAttempts,
       lockRetryDelayMs:
-        config.distributedLock?.lockRetryDelayMs ?? DEFAULT_DISTRIBUTED_LOCK_OPTIONS.lockRetryDelayMs,
+        config.distributedLock?.lockRetryDelayMs ??
+        DEFAULT_DISTRIBUTED_LOCK_OPTIONS.lockRetryDelayMs,
       lockStealThresholdMs:
-        config.distributedLock?.lockStealThresholdMs ?? DEFAULT_DISTRIBUTED_LOCK_OPTIONS.lockStealThresholdMs,
+        config.distributedLock?.lockStealThresholdMs ??
+        DEFAULT_DISTRIBUTED_LOCK_OPTIONS.lockStealThresholdMs,
       holderIdPrefix:
         config.distributedLock?.holderIdPrefix ?? DEFAULT_DISTRIBUTED_LOCK_OPTIONS.holderIdPrefix,
     };
