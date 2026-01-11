@@ -11,6 +11,8 @@ export type {
   FileBackendConfig,
   SQLiteBackendConfig,
   RedisBackendConfig,
+  RedisLockConfig,
+  RedisFallbackConfig,
   ScratchpadBackendConfig,
 } from './types.js';
 
@@ -18,6 +20,7 @@ export type {
 export { FileBackend } from './FileBackend.js';
 export { SQLiteBackend } from './SQLiteBackend.js';
 export { RedisBackend } from './RedisBackend.js';
+export type { RedisLockHandle, AcquireLockOptions } from './RedisBackend.js';
 
 // Factory
 export { BackendFactory } from './BackendFactory.js';

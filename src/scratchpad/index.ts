@@ -22,7 +22,16 @@
 export { Scratchpad, getScratchpad, resetScratchpad } from './Scratchpad.js';
 
 // Error classes
-export { LockError, LockContentionError, LockStolenError, LockTimeoutError } from './errors.js';
+export {
+  LockError,
+  LockContentionError,
+  LockStolenError,
+  LockTimeoutError,
+  RedisError,
+  RedisConnectionError,
+  RedisLockError,
+  RedisLockTimeoutError,
+} from './errors.js';
 
 export type {
   ScratchpadSection,
@@ -134,9 +143,12 @@ export type {
   FileBackendConfig,
   SQLiteBackendConfig,
   RedisBackendConfig,
+  RedisLockConfig,
+  RedisFallbackConfig,
   ScratchpadBackendConfig,
 } from './backends/types.js';
 export { FileBackend } from './backends/FileBackend.js';
 export { SQLiteBackend } from './backends/SQLiteBackend.js';
 export { RedisBackend } from './backends/RedisBackend.js';
+export type { RedisLockHandle, AcquireLockOptions } from './backends/RedisBackend.js';
 export { BackendFactory, BackendCreationError } from './backends/BackendFactory.js';
