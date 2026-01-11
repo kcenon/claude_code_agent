@@ -7,16 +7,17 @@
  * - Hard limits with graceful handling
  * - Cost-based budget controls
  * - Dynamic budget adjustment for reallocation between agents
+ * - Budget persistence across sessions
  *
  * Per-agent budget isolation is implemented via AgentBudgetRegistry.
  * See AgentBudgetRegistry for managing multiple agent budgets with
  * budget transfer capabilities between agents.
- *
- * NOTE: Budget persistence and forecasting are planned.
- * See Issue #253 for implementation details.
  */
 
-import type { AlertSeverity } from './types.js';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import { randomUUID } from 'node:crypto';
+import type { AlertSeverity, BudgetPersistenceState } from './types.js';
 
 /**
  * Budget threshold configuration
@@ -48,6 +49,12 @@ export interface TokenBudgetConfig {
   readonly onLimitReached?: BudgetAction;
   /** Allow override of hard limits */
   readonly allowOverride?: boolean;
+  /** Enable budget persistence across sessions */
+  readonly enablePersistence?: boolean;
+  /** Directory for storing budget state */
+  readonly persistenceDir?: string;
+  /** Session ID for persistence (auto-generated if not provided) */
+  readonly sessionId?: string;
 }
 
 /**
@@ -119,6 +126,7 @@ export interface BudgetCheckResult {
 const DEFAULT_WARNING_THRESHOLDS = [50, 75, 90] as const;
 const DEFAULT_HARD_LIMIT_THRESHOLD = 100;
 const DEFAULT_ON_LIMIT_REACHED = 'pause' as const;
+const DEFAULT_PERSISTENCE_DIR = '.ad-sdlc/budget';
 
 /**
  * TokenBudgetManager class for managing token budgets
@@ -136,6 +144,9 @@ export class TokenBudgetManager {
   private triggeredWarnings: Set<string> = new Set();
   private overrideActive = false;
   private warningHistory: BudgetWarning[] = [];
+  private readonly sessionId: string;
+  private readonly persistenceEnabled: boolean;
+  private readonly persistenceDir: string;
 
   constructor(config: TokenBudgetConfig = {}) {
     this.config = {
@@ -145,6 +156,15 @@ export class TokenBudgetManager {
       onLimitReached: config.onLimitReached ?? DEFAULT_ON_LIMIT_REACHED,
       allowOverride: config.allowOverride ?? true,
     };
+    this.sessionId = config.sessionId ?? randomUUID();
+    this.persistenceEnabled = config.enablePersistence ?? false;
+    this.persistenceDir = config.persistenceDir ?? DEFAULT_PERSISTENCE_DIR;
+
+    // Try to restore from persistence if enabled
+    if (this.persistenceEnabled) {
+      this.ensurePersistenceDir();
+      this.loadFromPersistence();
+    }
   }
 
   /**
@@ -158,7 +178,14 @@ export class TokenBudgetManager {
     this.currentTokens += inputTokens + outputTokens;
     this.currentCostUsd += costUsd;
 
-    return this.checkBudget();
+    const result = this.checkBudget();
+
+    // Auto-save to persistence if enabled
+    if (this.persistenceEnabled) {
+      this.saveToPersistence();
+    }
+
+    return result;
   }
 
   /**
@@ -466,6 +493,227 @@ export class TokenBudgetManager {
     }
 
     return reasons.join('; ') || 'Budget limit exceeded';
+  }
+
+  /**
+   * Ensure the persistence directory exists
+   */
+  private ensurePersistenceDir(): void {
+    if (!fs.existsSync(this.persistenceDir)) {
+      fs.mkdirSync(this.persistenceDir, { recursive: true, mode: 0o755 });
+    }
+  }
+
+  /**
+   * Get the persistence file path for the current session
+   */
+  private getPersistenceFilePath(): string {
+    return path.join(this.persistenceDir, `budget-${this.sessionId}.json`);
+  }
+
+  /**
+   * Save current budget state to persistence
+   */
+  public saveToPersistence(): boolean {
+    if (!this.persistenceEnabled) {
+      return false;
+    }
+
+    try {
+      const state: BudgetPersistenceState = {
+        sessionId: this.sessionId,
+        currentTokens: this.currentTokens,
+        currentCostUsd: this.currentCostUsd,
+        triggeredWarnings: Array.from(this.triggeredWarnings),
+        overrideActive: this.overrideActive,
+        savedAt: new Date().toISOString(),
+        warningHistory: this.warningHistory.map((w) => ({
+          type: w.type,
+          thresholdPercent: w.thresholdPercent,
+          severity: w.severity,
+          message: w.message,
+          timestamp: w.timestamp,
+        })),
+      };
+
+      if (this.config.sessionTokenLimit !== undefined) {
+        (state as { tokenLimit?: number }).tokenLimit = this.config.sessionTokenLimit;
+      }
+      if (this.config.sessionCostLimitUsd !== undefined) {
+        (state as { costLimitUsd?: number }).costLimitUsd = this.config.sessionCostLimitUsd;
+      }
+
+      const filePath = this.getPersistenceFilePath();
+      fs.writeFileSync(filePath, JSON.stringify(state, null, 2), { mode: 0o644 });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Load budget state from persistence
+   */
+  public loadFromPersistence(): boolean {
+    if (!this.persistenceEnabled) {
+      return false;
+    }
+
+    try {
+      const filePath = this.getPersistenceFilePath();
+      if (!fs.existsSync(filePath)) {
+        return false;
+      }
+
+      const content = fs.readFileSync(filePath, 'utf8');
+      const state = JSON.parse(content) as BudgetPersistenceState;
+
+      // Validate session ID matches
+      if (state.sessionId !== this.sessionId) {
+        return false;
+      }
+
+      // Restore state
+      this.currentTokens = state.currentTokens;
+      this.currentCostUsd = state.currentCostUsd;
+      this.triggeredWarnings = new Set(state.triggeredWarnings);
+      this.overrideActive = state.overrideActive;
+      this.warningHistory = state.warningHistory.map((w) => ({
+        type: w.type,
+        thresholdPercent: w.thresholdPercent,
+        severity: w.severity,
+        message: w.message,
+        timestamp: w.timestamp,
+      }));
+
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Delete persisted budget state
+   */
+  public deletePersistence(): boolean {
+    if (!this.persistenceEnabled) {
+      return false;
+    }
+
+    try {
+      const filePath = this.getPersistenceFilePath();
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Get the session ID
+   */
+  public getSessionId(): string {
+    return this.sessionId;
+  }
+
+  /**
+   * Check if persistence is enabled
+   */
+  public isPersistenceEnabled(): boolean {
+    return this.persistenceEnabled;
+  }
+
+  /**
+   * List all persisted budget sessions
+   */
+  public static listPersistedSessions(persistenceDir?: string): string[] {
+    const dir = persistenceDir ?? DEFAULT_PERSISTENCE_DIR;
+
+    if (!fs.existsSync(dir)) {
+      return [];
+    }
+
+    try {
+      const files = fs.readdirSync(dir).filter((f) => f.startsWith('budget-') && f.endsWith('.json'));
+
+      return files.map((f) => f.replace(/^budget-/, '').replace(/\.json$/, ''));
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * Load a specific persisted session
+   */
+  public static loadSession(
+    sessionId: string,
+    persistenceDir?: string
+  ): BudgetPersistenceState | null {
+    const dir = persistenceDir ?? DEFAULT_PERSISTENCE_DIR;
+    const filePath = path.join(dir, `budget-${sessionId}.json`);
+
+    if (!fs.existsSync(filePath)) {
+      return null;
+    }
+
+    try {
+      const content = fs.readFileSync(filePath, 'utf8');
+      return JSON.parse(content) as BudgetPersistenceState;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Delete a specific persisted session
+   */
+  public static deleteSession(sessionId: string, persistenceDir?: string): boolean {
+    const dir = persistenceDir ?? DEFAULT_PERSISTENCE_DIR;
+    const filePath = path.join(dir, `budget-${sessionId}.json`);
+
+    try {
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Clean up old persisted sessions
+   *
+   * Removes sessions older than the specified age (in milliseconds)
+   */
+  public static cleanupOldSessions(olderThanMs: number, persistenceDir?: string): number {
+    const dir = persistenceDir ?? DEFAULT_PERSISTENCE_DIR;
+    const now = Date.now();
+    let deletedCount = 0;
+
+    if (!fs.existsSync(dir)) {
+      return 0;
+    }
+
+    try {
+      const files = fs.readdirSync(dir).filter((f) => f.startsWith('budget-') && f.endsWith('.json'));
+
+      for (const file of files) {
+        const filePath = path.join(dir, file);
+        const stats = fs.statSync(filePath);
+
+        if (now - stats.mtime.getTime() > olderThanMs) {
+          fs.unlinkSync(filePath);
+          deletedCount++;
+        }
+      }
+    } catch {
+      // Ignore cleanup errors
+    }
+
+    return deletedCount;
   }
 }
 

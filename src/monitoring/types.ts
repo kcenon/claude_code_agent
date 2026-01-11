@@ -201,12 +201,16 @@ export interface AlertDefinition {
   readonly description: string;
   /** Severity level */
   readonly severity: AlertSeverity;
-  /** Condition expression */
+  /** Condition expression (legacy string format) */
   readonly condition: string;
+  /** Type-safe condition (preferred over string condition) */
+  readonly conditionTyped?: AlertConditionTyped;
   /** Evaluation window in milliseconds */
   readonly windowMs?: number;
   /** Cooldown period in milliseconds */
   readonly cooldownMs?: number;
+  /** Escalation configuration for unacknowledged alerts */
+  readonly escalation?: AlertEscalationConfig;
 }
 
 /**
@@ -352,4 +356,153 @@ export interface LogQueryResult {
   readonly totalCount: number;
   /** Whether there are more entries */
   readonly hasMore: boolean;
+}
+
+/**
+ * Log aggregation source configuration
+ */
+export interface LogAggregationSource {
+  /** Source identifier */
+  readonly id: string;
+  /** Source type */
+  readonly type: 'file' | 'directory' | 'stream';
+  /** Source path for file/directory types */
+  readonly path?: string;
+  /** Optional filter to apply to entries from this source */
+  readonly filter?: LogQueryFilter;
+}
+
+/**
+ * Log aggregation options
+ */
+export interface LogAggregationOptions {
+  /** Output destination path */
+  readonly outputPath?: string;
+  /** Whether to enable compression for aggregated output */
+  readonly compress?: boolean;
+  /** Whether to deduplicate entries by correlationId + timestamp */
+  readonly deduplicate?: boolean;
+  /** Sort order for aggregated entries */
+  readonly sortOrder?: 'asc' | 'desc';
+}
+
+/**
+ * Log compression options
+ */
+export interface LogCompressionOptions {
+  /** Compression algorithm */
+  readonly algorithm?: 'gzip' | 'none';
+  /** Compression level (1-9 for gzip) */
+  readonly level?: number;
+  /** Whether to delete original after compression */
+  readonly deleteOriginal?: boolean;
+}
+
+/**
+ * Alert condition operator types for type-safe conditions
+ */
+export type AlertConditionOperator =
+  | '>'
+  | '>='
+  | '<'
+  | '<='
+  | '='
+  | '!='
+  | 'contains'
+  | 'not_contains';
+
+/**
+ * Alert condition metric types
+ */
+export type AlertConditionMetric =
+  | 'no_progress_for'
+  | 'error_rate'
+  | 'session_tokens'
+  | 'agent_p95_latency'
+  | 'test_coverage'
+  | 'agent_status'
+  | 'custom';
+
+/**
+ * Type-safe alert condition
+ */
+export interface AlertConditionTyped {
+  /** Metric to evaluate */
+  readonly metric: AlertConditionMetric;
+  /** Comparison operator */
+  readonly operator: AlertConditionOperator;
+  /** Threshold value */
+  readonly threshold: number | string;
+  /** Unit for the threshold (e.g., 'm' for minutes, '%' for percentage) */
+  readonly unit?: string;
+  /** Custom metric name when metric is 'custom' */
+  readonly customMetric?: string;
+}
+
+/**
+ * Alert escalation configuration
+ */
+export interface AlertEscalationConfig {
+  /** Time in milliseconds after which to escalate if not acknowledged */
+  readonly escalateAfterMs: number;
+  /** Severity to escalate to */
+  readonly escalateTo: AlertSeverity;
+  /** Maximum number of escalations */
+  readonly maxEscalations?: number;
+  /** Notification targets for escalation */
+  readonly notifyTargets?: readonly string[];
+}
+
+/**
+ * Alert with escalation tracking
+ */
+export interface AlertEventWithEscalation extends AlertEvent {
+  /** Whether the alert has been acknowledged */
+  readonly acknowledged?: boolean;
+  /** Timestamp when acknowledged */
+  readonly acknowledgedAt?: string;
+  /** Current escalation level (0 = initial) */
+  readonly escalationLevel?: number;
+  /** Last escalation timestamp */
+  readonly lastEscalatedAt?: string;
+}
+
+/**
+ * Token budget persistence state
+ */
+export interface BudgetPersistenceState {
+  /** Session ID */
+  readonly sessionId: string;
+  /** Current token count */
+  readonly currentTokens: number;
+  /** Current cost in USD */
+  readonly currentCostUsd: number;
+  /** Token limit if set */
+  readonly tokenLimit?: number;
+  /** Cost limit if set */
+  readonly costLimitUsd?: number;
+  /** Triggered warning keys */
+  readonly triggeredWarnings: readonly string[];
+  /** Override active flag */
+  readonly overrideActive: boolean;
+  /** Timestamp of last save */
+  readonly savedAt: string;
+  /** Warning history */
+  readonly warningHistory: readonly BudgetWarningPersisted[];
+}
+
+/**
+ * Persisted budget warning (without Date objects)
+ */
+export interface BudgetWarningPersisted {
+  /** Warning type */
+  readonly type: 'token' | 'cost';
+  /** Threshold percentage that was exceeded */
+  readonly thresholdPercent: number;
+  /** Severity level */
+  readonly severity: AlertSeverity;
+  /** Warning message */
+  readonly message: string;
+  /** Timestamp of warning (ISO string) */
+  readonly timestamp: string;
 }

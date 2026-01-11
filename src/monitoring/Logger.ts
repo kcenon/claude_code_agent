@@ -7,13 +7,13 @@
  * - Correlation ID tracking
  * - Agent context in all logs
  * - File rotation
- *
- * NOTE: Log aggregation, compression, and query language are planned.
- * See Issue #253 for implementation details.
+ * - Log aggregation from multiple sources
+ * - Log compression for archived files
  */
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import * as zlib from 'node:zlib';
 import { randomUUID } from 'node:crypto';
 import type {
   LogEntry,
@@ -24,6 +24,9 @@ import type {
   MaskingPattern,
   LogQueryFilter,
   LogQueryResult,
+  LogAggregationSource,
+  LogAggregationOptions,
+  LogCompressionOptions,
 } from './types.js';
 
 /**
@@ -947,6 +950,262 @@ export class Logger {
    */
   public getMaskingPatternNames(): string[] {
     return this.maskingPatterns.map((p) => p.name);
+  }
+
+  /**
+   * Aggregate logs from multiple sources into a single output
+   *
+   * Supports file, directory, and in-memory stream sources.
+   * Can deduplicate entries and sort by timestamp.
+   */
+  public aggregateLogs(
+    sources: readonly LogAggregationSource[],
+    options: LogAggregationOptions = {}
+  ): LogEntry[] {
+    const allEntries: LogEntry[] = [];
+
+    for (const source of sources) {
+      const entries = this.loadEntriesFromSource(source);
+      allEntries.push(...entries);
+    }
+
+    // Deduplicate if requested
+    let result = options.deduplicate === true ? this.deduplicateEntries(allEntries) : allEntries;
+
+    // Sort by timestamp
+    const sortOrder = options.sortOrder ?? 'desc';
+    result = result.sort((a, b) => {
+      const timeA = new Date(a.timestamp).getTime();
+      const timeB = new Date(b.timestamp).getTime();
+      return sortOrder === 'asc' ? timeA - timeB : timeB - timeA;
+    });
+
+    // Write to output if path specified
+    if (options.outputPath !== undefined) {
+      this.writeAggregatedOutput(result, options.outputPath, options.compress === true);
+    }
+
+    return result;
+  }
+
+  /**
+   * Load log entries from a source
+   */
+  private loadEntriesFromSource(source: LogAggregationSource): LogEntry[] {
+    const entries: LogEntry[] = [];
+
+    try {
+      if (source.type === 'file' && source.path !== undefined) {
+        const content = fs.readFileSync(source.path, 'utf8');
+        entries.push(...this.parseLogLines(content));
+      } else if (source.type === 'directory' && source.path !== undefined) {
+        if (fs.existsSync(source.path)) {
+          const files = fs
+            .readdirSync(source.path)
+            .filter((f) => f.endsWith('.jsonl') || f.endsWith('.jsonl.gz'))
+            .map((f) => path.join(source.path as string, f));
+
+          for (const file of files) {
+            const content = file.endsWith('.gz')
+              ? this.readCompressedFile(file)
+              : fs.readFileSync(file, 'utf8');
+            entries.push(...this.parseLogLines(content));
+          }
+        }
+      }
+
+      // Apply filter if specified
+      if (source.filter !== undefined) {
+        return this.applyFilter(entries, source.filter);
+      }
+    } catch {
+      // Ignore source read errors
+    }
+
+    return entries;
+  }
+
+  /**
+   * Parse log lines into entries
+   */
+  private parseLogLines(content: string): LogEntry[] {
+    const entries: LogEntry[] = [];
+    const lines = content.trim().split('\n');
+
+    for (const line of lines) {
+      if (line.trim() !== '') {
+        try {
+          const entry = JSON.parse(line) as LogEntry;
+          entries.push(entry);
+        } catch {
+          // Skip malformed entries
+        }
+      }
+    }
+
+    return entries;
+  }
+
+  /**
+   * Deduplicate entries by correlationId + timestamp
+   */
+  private deduplicateEntries(entries: LogEntry[]): LogEntry[] {
+    const seen = new Set<string>();
+    const unique: LogEntry[] = [];
+
+    for (const entry of entries) {
+      const key = `${entry.correlationId}-${entry.timestamp}-${entry.message}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        unique.push(entry);
+      }
+    }
+
+    return unique;
+  }
+
+  /**
+   * Write aggregated output to file
+   */
+  private writeAggregatedOutput(entries: LogEntry[], outputPath: string, compress: boolean): void {
+    const content = entries.map((e) => JSON.stringify(e)).join('\n') + '\n';
+
+    if (compress) {
+      const compressed = zlib.gzipSync(Buffer.from(content, 'utf8'), { level: 6 });
+      const gzPath = outputPath.endsWith('.gz') ? outputPath : `${outputPath}.gz`;
+      fs.writeFileSync(gzPath, compressed, { mode: 0o644 });
+    } else {
+      fs.writeFileSync(outputPath, content, { mode: 0o644 });
+    }
+  }
+
+  /**
+   * Read a gzip compressed log file
+   */
+  private readCompressedFile(filePath: string): string {
+    const compressed = fs.readFileSync(filePath);
+    const decompressed = zlib.gunzipSync(compressed);
+    return decompressed.toString('utf8');
+  }
+
+  /**
+   * Compress a log file
+   *
+   * Compresses the specified log file using gzip compression.
+   * Optionally deletes the original file after compression.
+   */
+  public compressLogFile(filePath: string, options: LogCompressionOptions = {}): string | null {
+    const algorithm = options.algorithm ?? 'gzip';
+    const level = options.level ?? 6;
+    const deleteOriginal = options.deleteOriginal ?? false;
+
+    if (algorithm === 'none') {
+      return null;
+    }
+
+    if (!fs.existsSync(filePath)) {
+      return null;
+    }
+
+    try {
+      const content = fs.readFileSync(filePath);
+      const compressed = zlib.gzipSync(content, { level });
+      const outputPath = `${filePath}.gz`;
+
+      fs.writeFileSync(outputPath, compressed, { mode: 0o644 });
+
+      if (deleteOriginal) {
+        fs.unlinkSync(filePath);
+      }
+
+      return outputPath;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Compress old log files that exceed the retention threshold
+   *
+   * Compresses log files older than the specified age (in milliseconds).
+   * Useful for archiving old logs to save disk space.
+   */
+  public compressOldLogFiles(olderThanMs: number, options: LogCompressionOptions = {}): string[] {
+    const compressedFiles: string[] = [];
+    const now = Date.now();
+
+    try {
+      const files = fs
+        .readdirSync(this.logDir)
+        .filter((f) => f.startsWith('app-') && f.endsWith('.jsonl'))
+        .map((f) => ({
+          name: f,
+          path: path.join(this.logDir, f),
+          mtime: fs.statSync(path.join(this.logDir, f)).mtime.getTime(),
+        }))
+        .filter((f) => now - f.mtime > olderThanMs && f.path !== this.currentLogFile);
+
+      for (const file of files) {
+        const compressed = this.compressLogFile(file.path, options);
+        if (compressed !== null) {
+          compressedFiles.push(compressed);
+        }
+      }
+    } catch {
+      // Ignore compression errors
+    }
+
+    return compressedFiles;
+  }
+
+  /**
+   * Decompress a gzip compressed log file
+   */
+  public decompressLogFile(compressedPath: string, outputPath?: string): string | null {
+    if (!fs.existsSync(compressedPath) || !compressedPath.endsWith('.gz')) {
+      return null;
+    }
+
+    try {
+      const content = this.readCompressedFile(compressedPath);
+      const outPath = outputPath ?? compressedPath.replace(/\.gz$/, '');
+      fs.writeFileSync(outPath, content, { mode: 0o644 });
+      return outPath;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Get aggregated logs from all log files including compressed ones
+   */
+  public getAggregatedLogs(filter?: LogQueryFilter, limit = 1000): LogEntry[] {
+    const mainSource: LogAggregationSource = {
+      id: 'main-logs',
+      type: 'directory',
+      path: this.logDir,
+    };
+    if (filter !== undefined) {
+      (mainSource as { filter?: LogQueryFilter }).filter = filter;
+    }
+
+    const sources: LogAggregationSource[] = [mainSource];
+
+    // Include agent logs if enabled
+    if (this.agentLogConfig.enabled === true) {
+      const agentSource: LogAggregationSource = {
+        id: 'agent-logs',
+        type: 'directory',
+        path: this.getAgentLogsDir(),
+      };
+      if (filter !== undefined) {
+        (agentSource as { filter?: LogQueryFilter }).filter = filter;
+      }
+      sources.push(agentSource);
+    }
+
+    const entries = this.aggregateLogs(sources, { deduplicate: true, sortOrder: 'desc' });
+    return entries.slice(0, limit);
   }
 }
 
