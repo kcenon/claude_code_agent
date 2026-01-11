@@ -204,4 +204,79 @@ describe('TokenBudgetManager', () => {
       expect(instance1).toBe(instance2);
     });
   });
+
+  describe('budget adjustment', () => {
+    describe('adjustTokenLimit', () => {
+      it('should adjust token limit and return previous value', () => {
+        const previousLimit = manager.adjustTokenLimit(15000);
+
+        expect(previousLimit).toBe(10000);
+        expect(manager.getTokenLimit()).toBe(15000);
+      });
+
+      it('should allow removing token limit', () => {
+        manager.adjustTokenLimit(undefined);
+
+        expect(manager.getTokenLimit()).toBeUndefined();
+      });
+
+      it('should affect budget checks after adjustment', () => {
+        manager.recordUsage(9000, 500, 0.5);
+
+        // At 9500/10000 = 95%, would be blocked
+        const resultBefore = manager.checkBudget();
+        expect(resultBefore.allowed).toBe(true);
+
+        // Reduce limit to 9000, now at 9500/9000 = 105%, should block
+        manager.adjustTokenLimit(9000);
+        const resultAfter = manager.checkBudget();
+        expect(resultAfter.allowed).toBe(false);
+      });
+
+      it('should allow increasing limit to unblock', () => {
+        manager.recordUsage(10000, 500, 0.5);
+        expect(manager.checkBudget().allowed).toBe(false);
+
+        manager.adjustTokenLimit(15000);
+        expect(manager.checkBudget().allowed).toBe(true);
+      });
+    });
+
+    describe('adjustCostLimit', () => {
+      it('should adjust cost limit and return previous value', () => {
+        const previousLimit = manager.adjustCostLimit(2.0);
+
+        expect(previousLimit).toBe(1.0);
+        expect(manager.getCostLimit()).toBe(2.0);
+      });
+
+      it('should allow removing cost limit', () => {
+        manager.adjustCostLimit(undefined);
+
+        expect(manager.getCostLimit()).toBeUndefined();
+      });
+    });
+
+    describe('getTokenLimit', () => {
+      it('should return current token limit', () => {
+        expect(manager.getTokenLimit()).toBe(10000);
+      });
+
+      it('should return undefined when no limit set', () => {
+        const unlimitedManager = new TokenBudgetManager({});
+        expect(unlimitedManager.getTokenLimit()).toBeUndefined();
+      });
+    });
+
+    describe('getCostLimit', () => {
+      it('should return current cost limit', () => {
+        expect(manager.getCostLimit()).toBe(1.0);
+      });
+
+      it('should return undefined when no limit set', () => {
+        const unlimitedManager = new TokenBudgetManager({});
+        expect(unlimitedManager.getCostLimit()).toBeUndefined();
+      });
+    });
+  });
 });

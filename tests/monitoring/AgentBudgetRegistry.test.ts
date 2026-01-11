@@ -289,4 +289,178 @@ describe('AgentBudgetRegistry', () => {
       expect(DEFAULT_PIPELINE_BUDGET.warningThreshold).toBe(0.8);
     });
   });
+
+  describe('budget transfer', () => {
+    describe('token budget transfer', () => {
+      it('should transfer tokens between agents', () => {
+        registry.getAgentBudget('worker-1', { agentTokenLimit: 1000 });
+        registry.getAgentBudget('worker-2', { agentTokenLimit: 500 });
+
+        const result = registry.transferTokenBudget('worker-1', 'worker-2', 200);
+
+        expect(result.success).toBe(true);
+        expect(result.tokensTransferred).toBe(200);
+        expect(result.sourceNewLimit).toBe(800);
+        expect(result.targetNewLimit).toBe(700);
+      });
+
+      it('should fail for non-existent source agent', () => {
+        registry.getAgentBudget('worker-1', { agentTokenLimit: 1000 });
+
+        const result = registry.transferTokenBudget('non-existent', 'worker-1', 100);
+
+        expect(result.success).toBe(false);
+        expect(result.error).toContain('not found');
+      });
+
+      it('should fail for non-existent target agent', () => {
+        registry.getAgentBudget('worker-1', { agentTokenLimit: 1000 });
+
+        const result = registry.transferTokenBudget('worker-1', 'non-existent', 100);
+
+        expect(result.success).toBe(false);
+        expect(result.error).toContain('not found');
+      });
+
+      it('should fail for same source and target', () => {
+        registry.getAgentBudget('worker-1', { agentTokenLimit: 1000 });
+
+        const result = registry.transferTokenBudget('worker-1', 'worker-1', 100);
+
+        expect(result.success).toBe(false);
+        expect(result.error).toContain('same agent');
+      });
+
+      it('should fail for negative amount', () => {
+        registry.getAgentBudget('worker-1', { agentTokenLimit: 1000 });
+        registry.getAgentBudget('worker-2', { agentTokenLimit: 500 });
+
+        const result = registry.transferTokenBudget('worker-1', 'worker-2', -100);
+
+        expect(result.success).toBe(false);
+        expect(result.error).toContain('positive');
+      });
+
+      it('should fail when insufficient budget available', () => {
+        registry.getAgentBudget('worker-1', { agentTokenLimit: 1000 });
+        registry.getAgentBudget('worker-2', { agentTokenLimit: 500 });
+        registry.recordAgentUsage('worker-1', 900, 50, 0.01);
+
+        const result = registry.transferTokenBudget('worker-1', 'worker-2', 200);
+
+        expect(result.success).toBe(false);
+        expect(result.error).toContain('Insufficient');
+      });
+
+      it('should fail when source has no token limit', () => {
+        registry.getAgentBudget('worker-1');
+        registry.getAgentBudget('worker-2', { agentTokenLimit: 500 });
+
+        const result = registry.transferTokenBudget('worker-1', 'worker-2', 100);
+
+        expect(result.success).toBe(false);
+        expect(result.error).toContain('no token limit');
+      });
+
+      it('should handle transfer to agent without limit', () => {
+        registry.getAgentBudget('worker-1', { agentTokenLimit: 1000 });
+        registry.getAgentBudget('worker-2');
+
+        const result = registry.transferTokenBudget('worker-1', 'worker-2', 200);
+
+        expect(result.success).toBe(true);
+        expect(result.targetNewLimit).toBe(200);
+      });
+    });
+
+    describe('cost budget transfer', () => {
+      it('should transfer cost between agents', () => {
+        registry.getAgentBudget('worker-1', { agentCostLimitUsd: 1.0 });
+        registry.getAgentBudget('worker-2', { agentCostLimitUsd: 0.5 });
+
+        const result = registry.transferCostBudget('worker-1', 'worker-2', 0.3);
+
+        expect(result.success).toBe(true);
+        expect(result.costTransferred).toBe(0.3);
+        expect(result.sourceNewLimit).toBe(0.7);
+        expect(result.targetNewLimit).toBe(0.8);
+      });
+
+      it('should fail for non-existent agents', () => {
+        registry.getAgentBudget('worker-1', { agentCostLimitUsd: 1.0 });
+
+        const result = registry.transferCostBudget('worker-1', 'non-existent', 0.1);
+
+        expect(result.success).toBe(false);
+        expect(result.error).toContain('not found');
+      });
+
+      it('should fail when source has no cost limit', () => {
+        registry.getAgentBudget('worker-1');
+        registry.getAgentBudget('worker-2', { agentCostLimitUsd: 0.5 });
+
+        const result = registry.transferCostBudget('worker-1', 'worker-2', 0.1);
+
+        expect(result.success).toBe(false);
+        expect(result.error).toContain('no cost limit');
+      });
+    });
+
+    describe('transfer history', () => {
+      it('should record successful transfers', () => {
+        registry.getAgentBudget('worker-1', { agentTokenLimit: 1000 });
+        registry.getAgentBudget('worker-2', { agentTokenLimit: 500 });
+
+        registry.transferTokenBudget('worker-1', 'worker-2', 200);
+
+        const history = registry.getTransferHistory();
+        expect(history.length).toBe(1);
+        expect(history[0]!.fromAgent).toBe('worker-1');
+        expect(history[0]!.toAgent).toBe('worker-2');
+        expect(history[0]!.tokens).toBe(200);
+        expect(history[0]!.success).toBe(true);
+      });
+
+      it('should not record failed transfers', () => {
+        registry.getAgentBudget('worker-1', { agentTokenLimit: 100 });
+        registry.getAgentBudget('worker-2', { agentTokenLimit: 500 });
+        registry.recordAgentUsage('worker-1', 90, 5, 0.01);
+
+        registry.transferTokenBudget('worker-1', 'worker-2', 200);
+
+        const history = registry.getTransferHistory();
+        expect(history.length).toBe(0);
+      });
+
+      it('should clear transfer history', () => {
+        registry.getAgentBudget('worker-1', { agentTokenLimit: 1000 });
+        registry.getAgentBudget('worker-2', { agentTokenLimit: 500 });
+
+        registry.transferTokenBudget('worker-1', 'worker-2', 200);
+        expect(registry.getTransferHistory().length).toBe(1);
+
+        registry.clearTransferHistory();
+        expect(registry.getTransferHistory().length).toBe(0);
+      });
+
+      it('should track multiple transfers', () => {
+        registry.getAgentBudget('worker-1', {
+          agentTokenLimit: 1000,
+          agentCostLimitUsd: 1.0,
+        });
+        registry.getAgentBudget('worker-2', {
+          agentTokenLimit: 500,
+          agentCostLimitUsd: 0.5,
+        });
+
+        registry.transferTokenBudget('worker-1', 'worker-2', 100);
+        registry.transferCostBudget('worker-1', 'worker-2', 0.2);
+
+        const history = registry.getTransferHistory();
+        expect(history.length).toBe(2);
+        expect(history[0]!.tokens).toBe(100);
+        expect(history[1]!.costUsd).toBe(0.2);
+      });
+    });
+  });
 });
