@@ -42,6 +42,35 @@ export interface ReviewChecksOptions {
   readonly testCommand?: string;
   /** Maximum allowed cyclomatic complexity per function (default: 10) */
   readonly maxComplexity?: number;
+  /** Maximum number of files to process in a single batch for large PRs (default: 50) */
+  readonly batchSize?: number;
+  /** Enable incremental review mode for large PRs (default: true) */
+  readonly enableIncrementalReview?: boolean;
+  /** Threshold for enabling incremental review (number of files, default: 20) */
+  readonly incrementalReviewThreshold?: number;
+}
+
+/**
+ * Incremental review progress callback
+ */
+export type IncrementalReviewProgressCallback = (progress: IncrementalReviewProgress) => void;
+
+/**
+ * Incremental review progress information
+ */
+export interface IncrementalReviewProgress {
+  /** Current batch number (1-indexed) */
+  readonly currentBatch: number;
+  /** Total number of batches */
+  readonly totalBatches: number;
+  /** Files processed so far */
+  readonly filesProcessed: number;
+  /** Total files to process */
+  readonly totalFiles: number;
+  /** Comments found so far */
+  readonly commentsFound: number;
+  /** Current batch file paths */
+  readonly currentBatchFiles: readonly string[];
 }
 
 /**
@@ -67,6 +96,9 @@ export class ReviewChecks {
   private readonly enableDependencyCheck: boolean;
   private readonly testCommand: string;
   private readonly maxComplexity: number;
+  private readonly batchSize: number;
+  private readonly enableIncrementalReview: boolean;
+  private readonly incrementalReviewThreshold: number;
 
   constructor(options: ReviewChecksOptions = {}) {
     this.projectRoot = options.projectRoot ?? tryGetProjectRoot() ?? process.cwd();
@@ -75,6 +107,9 @@ export class ReviewChecks {
     this.enableDependencyCheck = options.enableDependencyCheck ?? true;
     this.testCommand = options.testCommand ?? 'npm test';
     this.maxComplexity = options.maxComplexity ?? 10;
+    this.batchSize = options.batchSize ?? 50;
+    this.enableIncrementalReview = options.enableIncrementalReview ?? true;
+    this.incrementalReviewThreshold = options.incrementalReviewThreshold ?? 20;
   }
 
   /**
@@ -139,6 +174,200 @@ export class ReviewChecks {
     const metrics = await this.calculateMetrics(changes, testingChecks);
 
     return { comments, checklist, metrics };
+  }
+
+  /**
+   * Run incremental review checks on large PRs
+   *
+   * Processes file changes in batches to avoid memory issues and provide
+   * progress feedback for large PRs. Falls back to standard review if the
+   * number of files is below the threshold.
+   *
+   * @param changes - File changes to review
+   * @param onProgress - Optional callback for progress updates
+   * @returns Review results accumulated across all batches
+   */
+  public async runIncrementalChecks(
+    changes: readonly FileChange[],
+    onProgress?: IncrementalReviewProgressCallback
+  ): Promise<{
+    comments: ReviewComment[];
+    checklist: ReviewChecklist;
+    metrics: QualityMetrics;
+    isIncremental: boolean;
+    batchCount: number;
+  }> {
+    // Check if incremental review is needed
+    const nonDeleteChanges = changes.filter((c) => c.changeType !== 'delete');
+    if (
+      !this.enableIncrementalReview ||
+      nonDeleteChanges.length < this.incrementalReviewThreshold
+    ) {
+      // Use standard review for small PRs
+      const result = await this.runAllChecks(changes);
+      return {
+        ...result,
+        isIncremental: false,
+        batchCount: 1,
+      };
+    }
+
+    // Split changes into batches
+    const batches = this.splitIntoBatches(changes, this.batchSize);
+    const totalBatches = batches.length;
+
+    // Accumulate results across batches
+    const allComments: ReviewComment[] = [];
+    const securityItems: SecurityCheckItem[] = [];
+    const qualityItems: SecurityCheckItem[] = [];
+    const testingItems: SecurityCheckItem[] = [];
+    const performanceItems: SecurityCheckItem[] = [];
+    const documentationItems: SecurityCheckItem[] = [];
+
+    // Run dependency vulnerability check once (project-wide)
+    if (this.enableDependencyCheck) {
+      const depCheck = await this.runDependencyVulnerabilityCheck();
+      securityItems.push(...depCheck.items);
+      allComments.push(...depCheck.comments);
+    }
+
+    // Run testing checks once (project-wide)
+    const testingChecks = this.enableTestingChecks
+      ? await this.runTestingChecks()
+      : this.getDefaultTestingChecks();
+    testingItems.push(...testingChecks.items);
+
+    let filesProcessed = 0;
+
+    // Process each batch
+    for (let i = 0; i < batches.length; i++) {
+      const batch = batches[i];
+      if (batch === undefined) continue;
+
+      const batchFilePaths = batch.map((c) => c.filePath);
+
+      // Report progress
+      if (onProgress !== undefined) {
+        onProgress({
+          currentBatch: i + 1,
+          totalBatches,
+          filesProcessed,
+          totalFiles: changes.length,
+          commentsFound: allComments.length,
+          currentBatchFiles: batchFilePaths,
+        });
+      }
+
+      // Run security checks for this batch
+      const securityChecks = await this.runSecurityChecks(batch);
+      securityItems.push(...securityChecks.items);
+      allComments.push(...securityChecks.comments);
+
+      // Run static analysis for this batch
+      if (this.enableStaticAnalysis) {
+        const staticChecks = await this.runStaticAnalysisChecks(batch);
+        qualityItems.push(...staticChecks.items);
+        allComments.push(...staticChecks.comments);
+      }
+
+      // Run quality checks for this batch
+      const qualityChecks = await this.runQualityChecks(batch);
+      qualityItems.push(...qualityChecks.items);
+      allComments.push(...qualityChecks.comments);
+
+      // Run anti-pattern checks for this batch
+      const antiPatternChecks = await this.runAntiPatternChecks(batch);
+      qualityItems.push(...antiPatternChecks.items);
+      allComments.push(...antiPatternChecks.comments);
+
+      // Run performance checks for this batch
+      const performanceChecks = await this.runPerformanceChecks(batch);
+      performanceItems.push(...performanceChecks.items);
+      allComments.push(...performanceChecks.comments);
+
+      // Run documentation checks for this batch
+      const docChecks = await this.runDocumentationChecks(batch);
+      documentationItems.push(...docChecks.items);
+      allComments.push(...docChecks.comments);
+
+      filesProcessed += batch.length;
+    }
+
+    // Report final progress
+    if (onProgress !== undefined) {
+      onProgress({
+        currentBatch: totalBatches,
+        totalBatches,
+        filesProcessed: changes.length,
+        totalFiles: changes.length,
+        commentsFound: allComments.length,
+        currentBatchFiles: [],
+      });
+    }
+
+    // Merge duplicate security/quality items (keep worst result)
+    const checklist: ReviewChecklist = {
+      security: this.mergeCheckItems(securityItems),
+      quality: this.mergeCheckItems(qualityItems),
+      testing: testingItems,
+      performance: this.mergeCheckItems(performanceItems),
+      documentation: this.mergeCheckItems(documentationItems),
+    };
+
+    // Calculate metrics across all changes
+    const metrics = await this.calculateMetrics(changes, testingChecks);
+
+    return {
+      comments: allComments,
+      checklist,
+      metrics,
+      isIncremental: true,
+      batchCount: totalBatches,
+    };
+  }
+
+  /**
+   * Split file changes into batches
+   */
+  private splitIntoBatches(
+    changes: readonly FileChange[],
+    batchSize: number
+  ): readonly FileChange[][] {
+    const batches: FileChange[][] = [];
+    for (let i = 0; i < changes.length; i += batchSize) {
+      batches.push(changes.slice(i, i + batchSize) as FileChange[]);
+    }
+    return batches;
+  }
+
+  /**
+   * Merge duplicate check items, keeping the worst result for each check name
+   */
+  private mergeCheckItems(items: readonly SecurityCheckItem[]): SecurityCheckItem[] {
+    const itemMap = new Map<string, SecurityCheckItem>();
+
+    for (const item of items) {
+      const existing = itemMap.get(item.name);
+      if (existing === undefined) {
+        itemMap.set(item.name, item);
+      } else {
+        // Keep the failing result if either failed
+        if (!item.passed && existing.passed) {
+          itemMap.set(item.name, item);
+        } else if (!item.passed && !existing.passed) {
+          // Merge details if both failed
+          const mergedDetails = [existing.details, item.details]
+            .filter((d): d is string => d !== undefined)
+            .join('; ');
+          itemMap.set(item.name, {
+            ...item,
+            details: mergedDetails.length > 0 ? mergedDetails : undefined,
+          });
+        }
+      }
+    }
+
+    return Array.from(itemMap.values());
   }
 
   /**

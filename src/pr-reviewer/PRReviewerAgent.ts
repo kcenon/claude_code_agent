@@ -7,8 +7,10 @@
  * Multi-file review comments are supported via GitHub REST API.
  * Line-level comments are attached directly to the diff using GitHubReviewClient.
  *
- * NOTE: Incremental review and CI poll rate limiting fixes are planned.
- * See Issue #254 for implementation details.
+ * Features:
+ * - Incremental review for large PRs (processes files in batches)
+ * - Intelligent CI polling with exponential backoff and circuit breaker
+ * - Rate limiting protection for GitHub API calls
  *
  * @module pr-reviewer/PRReviewerAgent
  */
@@ -39,6 +41,7 @@ import type {
   CIFixDelegationResult,
   CIPollResult,
   EnhancedCIConfig,
+  IncrementalReviewProgress,
 } from './types.js';
 import { DEFAULT_PR_REVIEWER_CONFIG, DEFAULT_ENHANCED_CI_CONFIG } from './types.js';
 import type { CIFixHandoff } from '../ci-fixer/types.js';
@@ -267,6 +270,10 @@ export class PRReviewerAgent {
   /**
    * Main review entry point
    * Processes an implementation result and returns the review result
+   *
+   * Supports incremental review for large PRs when enableIncrementalReview
+   * is not explicitly set to false. Large PRs are processed in batches
+   * to prevent memory issues and provide progress feedback.
    */
   public async review(workOrderId: string, options: PRReviewOptions = {}): Promise<PRReviewResult> {
     const startedAt = new Date().toISOString();
@@ -282,8 +289,16 @@ export class PRReviewerAgent {
       await this.waitForCI(pullRequest.number);
     }
 
-    // 4. Perform code review
-    const { comments, metrics } = await this.reviewChecks.runAllChecks(implResult.changes);
+    // 4. Perform code review (use incremental review for large PRs)
+    const useIncremental = options.enableIncrementalReview !== false;
+    const reviewResult = useIncremental
+      ? await this.reviewChecks.runIncrementalChecks(
+          implResult.changes,
+          this.createProgressCallback(options.onReviewProgress)
+        )
+      : await this.reviewChecks.runAllChecks(implResult.changes);
+
+    const { comments, metrics } = reviewResult;
 
     // 5. Gather check results
     const checks = this.getCheckResults(implResult);
@@ -350,7 +365,24 @@ export class PRReviewerAgent {
   }
 
   /**
+   * Create a progress callback that adapts the external callback format
+   */
+  private createProgressCallback(
+    externalCallback?: (progress: IncrementalReviewProgress) => void
+  ): ((progress: IncrementalReviewProgress) => void) | undefined {
+    if (externalCallback === undefined) {
+      return undefined;
+    }
+    return (progress: IncrementalReviewProgress) => {
+      externalCallback(progress);
+    };
+  }
+
+  /**
    * Review from implementation result file path
+   *
+   * Supports incremental review for large PRs when enableIncrementalReview
+   * is not explicitly set to false.
    */
   public async reviewFromFile(
     resultPath: string,
@@ -369,8 +401,16 @@ export class PRReviewerAgent {
       await this.waitForCI(pullRequest.number);
     }
 
-    // Perform code review
-    const { comments, metrics } = await this.reviewChecks.runAllChecks(implResult.changes);
+    // Perform code review (use incremental review for large PRs)
+    const useIncremental = options.enableIncrementalReview !== false;
+    const reviewResult = useIncremental
+      ? await this.reviewChecks.runIncrementalChecks(
+          implResult.changes,
+          this.createProgressCallback(options.onReviewProgress)
+        )
+      : await this.reviewChecks.runAllChecks(implResult.changes);
+
+    const { comments, metrics } = reviewResult;
 
     // Gather check results
     const checks = this.getCheckResults(implResult);

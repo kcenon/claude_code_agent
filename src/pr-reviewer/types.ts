@@ -368,6 +368,33 @@ export interface PRReviewOptions {
   readonly forceApprove?: boolean;
   /** Dry run (don't actually merge/comment) */
   readonly dryRun?: boolean;
+  /** Enable incremental review for large PRs (default: true) */
+  readonly enableIncrementalReview?: boolean;
+  /** Progress callback for incremental review */
+  readonly onReviewProgress?: IncrementalReviewProgressCallback;
+}
+
+/**
+ * Incremental review progress callback type
+ */
+export type IncrementalReviewProgressCallback = (progress: IncrementalReviewProgress) => void;
+
+/**
+ * Incremental review progress information
+ */
+export interface IncrementalReviewProgress {
+  /** Current batch number (1-indexed) */
+  readonly currentBatch: number;
+  /** Total number of batches */
+  readonly totalBatches: number;
+  /** Files processed so far */
+  readonly filesProcessed: number;
+  /** Total files to process */
+  readonly totalFiles: number;
+  /** Comments found so far */
+  readonly commentsFound: number;
+  /** Current batch file paths */
+  readonly currentBatchFiles: readonly string[];
 }
 
 // ============================================================================

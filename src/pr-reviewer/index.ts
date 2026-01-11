@@ -23,7 +23,11 @@ export { QualityGate } from './QualityGate.js';
 export type { QualityGateOptions } from './QualityGate.js';
 
 export { ReviewChecks } from './ReviewChecks.js';
-export type { ReviewChecksOptions } from './ReviewChecks.js';
+export type {
+  ReviewChecksOptions,
+  IncrementalReviewProgressCallback as ReviewChecksProgressCallback,
+  IncrementalReviewProgress as ReviewChecksProgress,
+} from './ReviewChecks.js';
 
 export { MergeDecision } from './MergeDecision.js';
 export type { MergeDecisionConfig } from './MergeDecision.js';
@@ -111,6 +115,10 @@ export type {
   // Result types
   PRReviewResult,
   PRReviewOptions,
+
+  // Incremental review types
+  IncrementalReviewProgress,
+  IncrementalReviewProgressCallback,
 
   // GitHub API types
   GitHubStatusCheck,
