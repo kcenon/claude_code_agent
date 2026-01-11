@@ -224,7 +224,9 @@ export class ElasticsearchTransport extends BaseTransport {
       const errorMessages = failedItems
         .map((item) => item.index?.error?.reason ?? 'Unknown error')
         .slice(0, 3);
-      throw new Error(`Bulk indexing failed for ${String(failedItems.length)} items: ${errorMessages.join(', ')}`);
+      throw new Error(
+        `Bulk indexing failed for ${String(failedItems.length)} items: ${errorMessages.join(', ')}`
+      );
     }
   }
 
