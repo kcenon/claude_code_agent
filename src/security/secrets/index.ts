@@ -64,3 +64,9 @@ export {
   AllProvidersFailedError,
   InvalidSecretConfigError,
 } from './errors.js';
+
+// Base implementation
+export { BaseSecretProvider } from './BaseSecretProvider.js';
+
+// Provider implementations
+export { LocalProvider } from './LocalProvider.js';
