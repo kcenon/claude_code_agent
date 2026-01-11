@@ -75,6 +75,8 @@ export class AppError extends Error {
 
   /**
    * Serialize error for logging or transmission
+   *
+   * @returns Serialized error object suitable for JSON.stringify
    */
   toJSON(): SerializedError {
     const result: SerializedError = {
@@ -111,6 +113,9 @@ export class AppError extends Error {
 
   /**
    * Create AppError from serialized JSON
+   *
+   * @param json - Serialized error object
+   * @returns Reconstructed AppError instance
    */
   static fromJSON(json: SerializedError): AppError {
     const options: AppErrorOptions = {
@@ -134,6 +139,9 @@ export class AppError extends Error {
 
   /**
    * Format error for output
+   *
+   * @param style - Output format: 'log' | 'cli' | 'json'
+   * @returns Formatted error string
    */
   format(style: ErrorFormatStyle = 'log'): string {
     switch (style) {
@@ -152,6 +160,8 @@ export class AppError extends Error {
 
   /**
    * Get description for this error code
+   *
+   * @returns Human-readable description of the error code
    */
   getCodeDescription(): string {
     if (this.code in ErrorCodeDescriptions) {
@@ -162,6 +172,8 @@ export class AppError extends Error {
 
   /**
    * Check if error is retryable based on category
+   *
+   * @returns True if the error category allows retry
    */
   isRetryable(): boolean {
     return this.category !== 'fatal';
@@ -169,6 +181,8 @@ export class AppError extends Error {
 
   /**
    * Check if error requires immediate escalation
+   *
+   * @returns True if the error is fatal or critical severity
    */
   requiresEscalation(): boolean {
     return this.category === 'fatal' || this.severity === Severity.CRITICAL;
@@ -176,6 +190,9 @@ export class AppError extends Error {
 
   /**
    * Create a new error with additional context
+   *
+   * @param additionalContext - Context to merge with existing context
+   * @returns New AppError instance with merged context
    */
   withContext(additionalContext: ErrorContext): AppError {
     const options: AppErrorOptions = {
@@ -191,6 +208,11 @@ export class AppError extends Error {
 
   /**
    * Wrap an existing error with AppError
+   *
+   * @param error - Original error to wrap
+   * @param code - Error code to use
+   * @param options - Additional error options
+   * @returns AppError wrapping the original error
    */
   static wrap(error: unknown, code: string, options: AppErrorOptions = {}): AppError {
     if (error instanceof AppError) {
@@ -208,6 +230,9 @@ export class AppError extends Error {
 
   /**
    * Check if an error is an AppError
+   *
+   * @param error - Error to check
+   * @returns True if error is an AppError instance
    */
   static isAppError(error: unknown): error is AppError {
     return error instanceof AppError;
@@ -215,6 +240,9 @@ export class AppError extends Error {
 
   /**
    * Normalize any error to AppError
+   *
+   * @param error - Any error value to normalize
+   * @returns Existing AppError or new AppError wrapping the original
    */
   static normalize(error: unknown): AppError {
     if (error instanceof AppError) {
