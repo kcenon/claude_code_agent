@@ -3,6 +3,15 @@
  *
  * Performs automated code review checks including security analysis,
  * code quality assessment, and best practice verification.
+ *
+ * Features:
+ * - Security vulnerability detection (secrets, SQL injection, XSS)
+ * - Code quality analysis (SOLID principles, complexity, duplication)
+ * - Anti-pattern detection (magic numbers, god classes, path traversal)
+ * - Incremental review for large PRs (batch processing with progress)
+ * - TypeScript static analysis and dependency vulnerability checks
+ *
+ * @module pr-reviewer/ReviewChecks
  */
 
 import { readFile } from 'node:fs/promises';
