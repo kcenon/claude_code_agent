@@ -9,6 +9,7 @@ The module includes:
 - **WorkerAgent** - Main class that processes Work Orders to implement code changes
 - **TestGenerator** - Generates comprehensive unit tests from source code
 - **SelfVerificationAgent** - Self-verification loop with automatic fix attempts (UC-013)
+- **CheckpointManager** - Checkpoint/resume capability for long-running implementations
 - **Context Analysis** - Analyzes related files and detects code patterns
 - **Branch Management** - Creates feature branches with automatic prefix detection
 - **Verification** - Runs tests, lint, and build to verify implementation
@@ -23,11 +24,13 @@ import {
   WorkerAgent,
   TestGenerator,
   SelfVerificationAgent,
+  CheckpointManager,
   DEFAULT_WORKER_AGENT_CONFIG,
   DEFAULT_CODE_PATTERNS,
   DEFAULT_RETRY_POLICY,
   DEFAULT_TEST_GENERATOR_CONFIG,
   DEFAULT_SELF_VERIFICATION_CONFIG,
+  DEFAULT_CHECKPOINT_CONFIG,
 } from 'ad-sdlc';
 ```
 
@@ -872,6 +875,148 @@ try {
   }
 }
 ```
+
+## CheckpointManager
+
+The CheckpointManager class provides checkpoint/resume capability for long-running implementations. If a worker crashes mid-implementation, it can resume from the last successful step instead of starting over.
+
+### Basic Usage
+
+```typescript
+import { CheckpointManager } from 'ad-sdlc';
+
+// Create manager with default configuration
+const manager = new CheckpointManager();
+
+// Check for existing checkpoint
+const checkpoint = await manager.loadCheckpoint('WO-001');
+if (checkpoint) {
+  console.log(`Resuming from: ${checkpoint.currentStep}`);
+  console.log(`Attempt: ${checkpoint.attemptNumber}`);
+}
+```
+
+### Custom Configuration
+
+```typescript
+const manager = new CheckpointManager({
+  projectRoot: '/path/to/project',
+  checkpointPath: 'checkpoints', // Relative to projectRoot
+  enabled: true,
+});
+```
+
+### Configuration Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `projectRoot` | `string` | `process.cwd()` | Project root directory |
+| `checkpointPath` | `string` | `.ad-sdlc/scratchpad/checkpoints` | Checkpoint storage path |
+| `enabled` | `boolean` | `true` | Enable checkpointing |
+
+### Saving Checkpoints
+
+```typescript
+const state = {
+  context: {
+    workOrder: workOrder,
+    branchName: 'feature/my-branch',
+  },
+  fileChanges: [...],
+  testsCreated: { 'test.spec.ts': 5 },
+  commits: [...],
+};
+
+await manager.saveCheckpoint(
+  'WO-001',           // workOrderId
+  'TASK-001',         // taskId
+  'code_generation',  // current step
+  1,                  // attempt number
+  state               // checkpoint state
+);
+```
+
+### Loading and Resuming
+
+```typescript
+// Load checkpoint
+const checkpoint = await manager.loadCheckpoint('WO-001');
+
+if (checkpoint && checkpoint.resumable) {
+  // Extract saved state
+  const state = manager.extractState(checkpoint);
+
+  // Determine next step to execute
+  const nextStep = manager.getNextStep(checkpoint.currentStep);
+
+  console.log(`Resume from ${nextStep}`);
+}
+```
+
+### Resumable Steps
+
+Not all steps are safe to resume from. The following steps are considered resumable:
+
+| Step | Resumable | Notes |
+|------|-----------|-------|
+| `context_analysis` | Yes | Analysis can be re-run safely |
+| `branch_creation` | Yes | Branch may already exist |
+| `code_generation` | Yes | Files are written incrementally |
+| `test_generation` | Yes | Tests are written incrementally |
+| `verification` | No | Should re-run from code_generation |
+| `commit` | No | Should re-run verification first |
+| `result_persistence` | No | Near completion, restart is fine |
+
+### Checkpoint Cleanup
+
+```typescript
+// Delete checkpoint after successful completion
+await manager.deleteCheckpoint('WO-001');
+
+// List all existing checkpoints
+const checkpoints = await manager.listCheckpoints();
+
+// Clean up old checkpoints (older than 24 hours)
+const cleaned = await manager.cleanupOldCheckpoints(24 * 60 * 60 * 1000);
+console.log(`Cleaned up ${cleaned} old checkpoints`);
+```
+
+### Integration with WorkerAgent
+
+WorkerAgent automatically uses CheckpointManager for checkpoint/resume:
+
+```typescript
+import { WorkerAgent } from 'ad-sdlc';
+
+const agent = new WorkerAgent(
+  { projectRoot: '/path/to/project' },
+  undefined, // TestGenerator config
+  { enabled: true } // CheckpointManager config
+);
+
+// Check if there's a checkpoint to resume from
+if (await agent.hasCheckpoint('WO-001')) {
+  console.log('Will resume from checkpoint');
+}
+
+// implement() automatically saves checkpoints and resumes if available
+const result = await agent.implement(workOrder);
+```
+
+### CheckpointManager Methods
+
+| Method | Description |
+|--------|-------------|
+| `saveCheckpoint(workOrderId, taskId, step, attempt, state)` | Save checkpoint for current state |
+| `loadCheckpoint(workOrderId)` | Load existing checkpoint |
+| `hasCheckpoint(workOrderId)` | Check if checkpoint exists |
+| `deleteCheckpoint(workOrderId)` | Delete checkpoint |
+| `extractState(checkpoint)` | Extract state from checkpoint |
+| `getNextStep(lastCompletedStep)` | Get next step to execute |
+| `listCheckpoints()` | List all checkpoint IDs |
+| `cleanupOldCheckpoints(maxAgeMs)` | Clean up expired checkpoints |
+| `isEnabled()` | Check if checkpointing is enabled |
+| `getConfig()` | Get current configuration |
 
 ## RetryHandler
 
