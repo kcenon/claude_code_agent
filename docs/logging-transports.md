@@ -417,6 +417,184 @@ console.log(health);
 // }
 ```
 
+## Unified Logger Class
+
+The `Logger` class provides a unified interface for logging with multi-transport support. It manages multiple transports and provides features like sensitive data masking, correlation tracking, and runtime reconfiguration.
+
+### Basic Usage
+
+```typescript
+import { Logger, getLogger } from 'ad-sdlc';
+
+// Create a logger with multiple transports
+const logger = new Logger({
+  minLevel: 'INFO',
+  transports: [
+    { type: 'console', format: 'pretty', colors: true },
+    { type: 'file', path: './logs' },
+  ],
+});
+
+await logger.initialize();
+
+// Log messages
+logger.info('Application started', { version: '1.0.0' });
+logger.warn('Cache miss', { key: 'user:123' });
+logger.error('Request failed', new Error('Connection refused'), { url: '/api/data' });
+
+await logger.close();
+```
+
+### Environment-Based Configuration
+
+```typescript
+import { Logger, getLoggerFromEnv } from 'ad-sdlc';
+
+// Environment variables:
+// LOG_LEVEL=INFO
+// LOG_TRANSPORTS=console,file
+// LOG_FILE_PATH=./logs
+// LOG_CONSOLE_FORMAT=json
+
+const logger = Logger.fromEnvironment();
+await logger.initialize();
+
+// Or use the global singleton
+const globalLogger = getLoggerFromEnv();
+```
+
+### Logger Configuration Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `minLevel` | `LogLevel` | `'INFO'` | Minimum log level |
+| `transports` | `TransportConfig[]` | `[]` | Transport configurations |
+| `enableMasking` | `boolean` | `true` | Enable sensitive data masking |
+| `maskingPatterns` | `MaskingPattern[]` | Default patterns | Custom masking patterns |
+| `correlationId` | `string` | Auto-generated | Default correlation ID |
+| `defaultContext` | `Record<string, unknown>` | `{}` | Context added to all logs |
+
+### Context Management
+
+```typescript
+const logger = new Logger({ transports: [{ type: 'console' }] });
+await logger.initialize();
+
+// Set context for all subsequent logs
+logger.setCorrelationId('req-12345');
+logger.setAgent('worker-1');
+logger.setStage('implementation');
+logger.setProjectId('proj-001');
+
+// Set distributed tracing context
+logger.setTraceContext('trace-123', 'span-456', 'parent-789');
+
+// Generate new correlation ID
+const newCorrelationId = logger.newCorrelationId();
+```
+
+### Child Loggers
+
+Create child loggers with inherited context:
+
+```typescript
+const parentLogger = new Logger({
+  transports: [{ type: 'console' }],
+});
+await parentLogger.initialize();
+
+parentLogger.setCorrelationId('main-request');
+
+const childLogger = parentLogger.child({
+  agent: 'worker-agent',
+  stage: 'processing',
+});
+
+childLogger.info('Processing started'); // Inherits correlation ID
+```
+
+### Runtime Reconfiguration
+
+Add transports or masking patterns at runtime:
+
+```typescript
+const logger = new Logger({ transports: [{ type: 'console' }] });
+await logger.initialize();
+
+// Add a new transport
+await logger.addTransport({ type: 'file', path: './logs' });
+
+// Remove a transport
+await logger.removeTransport('console');
+
+// Add custom masking pattern
+await logger.reconfigure({
+  maskingPatterns: [
+    { name: 'custom-secret', pattern: /SECRET_[A-Z]+/g },
+  ],
+});
+```
+
+### Health Monitoring
+
+```typescript
+const logger = new Logger({
+  transports: [
+    { type: 'console' },
+    { type: 'elasticsearch', nodes: ['http://localhost:9200'] },
+  ],
+});
+await logger.initialize();
+
+const health = logger.getHealth();
+// {
+//   state: 'ready',
+//   transports: Map { 'console' => { ... }, 'elasticsearch' => { ... } },
+//   totalLogs: 150,
+//   failedLogs: 2,
+//   lastLogTime: Date
+// }
+```
+
+### Sensitive Data Masking
+
+The logger automatically masks sensitive data:
+
+```typescript
+const logger = new Logger({
+  transports: [{ type: 'console' }],
+  enableMasking: true,
+});
+
+// API keys, tokens, and secrets are automatically masked
+logger.info('Auth: ghp_1234567890123456789012345678901234ab');
+// Output: Auth: ***REDACTED***
+
+// Custom patterns can be added
+await logger.reconfigure({
+  maskingPatterns: [
+    { name: 'internal-id', pattern: /INT-\d{8}/g, replacement: '[INTERNAL]' },
+  ],
+});
+```
+
+### Global Logger Instance
+
+```typescript
+import { getLogger, getLoggerFromEnv, resetLogger } from 'ad-sdlc';
+
+// Get or create global logger
+const logger = getLogger({
+  transports: [{ type: 'console' }],
+});
+
+// Or from environment variables
+const envLogger = getLoggerFromEnv();
+
+// Reset global instance (useful for testing)
+resetLogger();
+```
+
 ## Best Practices
 
 1. **Use buffering for remote transports** - Enable batching to reduce network overhead
@@ -424,3 +602,6 @@ console.log(health);
 3. **Set minimum log levels per transport** - Console: INFO, File: DEBUG, Elasticsearch: INFO
 4. **Monitor transport health** - Track pending logs and failed attempts
 5. **Use correlation IDs** - Enable request tracing across services
+6. **Use the unified Logger class** - Simplifies multi-transport management
+7. **Enable sensitive data masking** - Protect credentials and tokens in logs
+8. **Use child loggers** - Maintain context inheritance for related operations
