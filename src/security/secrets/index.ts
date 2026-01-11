@@ -73,3 +73,10 @@ export { LocalProvider } from './LocalProvider.js';
 export { AWSSecretsManagerProvider } from './AWSSecretsManagerProvider.js';
 export { VaultProvider } from './VaultProvider.js';
 export { AzureKeyVaultProvider } from './AzureKeyVaultProvider.js';
+
+// Secret Manager
+export {
+  ProviderSecretManager,
+  getProviderSecretManager,
+  resetProviderSecretManager,
+} from './ProviderSecretManager.js';
