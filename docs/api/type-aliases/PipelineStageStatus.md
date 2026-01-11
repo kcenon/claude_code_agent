@@ -1,0 +1,13 @@
+[**AD-SDLC API Reference v0.0.1**](../README.md)
+
+***
+
+[AD-SDLC API Reference](../globals.md) / PipelineStageStatus
+
+# Type Alias: PipelineStageStatus
+
+> **PipelineStageStatus** = `"pending"` \| `"running"` \| `"completed"` \| `"failed"` \| `"skipped"`
+
+Defined in: [src/analysis-orchestrator/types.ts:25](https://github.com/kcenon/claude_code_agent/blob/cde634e050ae021d7f064b981e2a4704cd4d07b8/src/analysis-orchestrator/types.ts#L25)
+
+Pipeline stage status
