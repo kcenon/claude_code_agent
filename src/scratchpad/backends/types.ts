@@ -41,6 +41,28 @@ export interface SQLiteBackendConfig {
 }
 
 /**
+ * Distributed lock configuration
+ */
+export interface RedisLockConfig {
+  /** Default lock TTL in seconds (default: 30) */
+  readonly lockTtl?: number;
+  /** Lock acquisition timeout in milliseconds (default: 10000) */
+  readonly lockTimeout?: number;
+  /** Retry interval for lock acquisition in milliseconds (default: 100) */
+  readonly lockRetryInterval?: number;
+}
+
+/**
+ * Fallback configuration for Redis backend
+ */
+export interface RedisFallbackConfig {
+  /** Enable fallback to file backend on connection failure (default: false) */
+  readonly enabled?: boolean;
+  /** File backend configuration for fallback */
+  readonly fileConfig?: FileBackendConfig;
+}
+
+/**
  * Redis backend configuration
  */
 export interface RedisBackendConfig {
@@ -60,6 +82,10 @@ export interface RedisBackendConfig {
   readonly connectTimeout?: number;
   /** Maximum retry attempts on connection failure (default: 3) */
   readonly maxRetries?: number;
+  /** Distributed lock configuration */
+  readonly lock?: RedisLockConfig;
+  /** Fallback configuration for connection failures */
+  readonly fallback?: RedisFallbackConfig;
 }
 
 /**

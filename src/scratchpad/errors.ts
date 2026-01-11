@@ -84,3 +84,67 @@ export class LockTimeoutError extends LockError {
     this.timeoutMs = timeoutMs;
   }
 }
+
+/**
+ * Base class for Redis-related errors
+ */
+export class RedisError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'RedisError';
+    /* v8 ignore next 3 */
+    if (typeof Error.captureStackTrace === 'function') {
+      Error.captureStackTrace(this, this.constructor);
+    }
+  }
+}
+
+/**
+ * Error thrown when Redis connection fails
+ */
+export class RedisConnectionError extends RedisError {
+  /** Host that failed to connect */
+  public readonly host: string;
+  /** Port that failed to connect */
+  public readonly port: number;
+
+  constructor(host: string, port: number, cause?: Error) {
+    const causeMsg = cause !== undefined ? `: ${cause.message}` : '';
+    super(`Failed to connect to Redis at ${host}:${String(port)}${causeMsg}`);
+    this.name = 'RedisConnectionError';
+    this.host = host;
+    this.port = port;
+    this.cause = cause;
+  }
+}
+
+/**
+ * Error thrown when Redis distributed lock acquisition fails
+ */
+export class RedisLockError extends RedisError {
+  /** Lock key that failed */
+  public readonly lockKey: string;
+
+  constructor(lockKey: string, message: string) {
+    super(message);
+    this.name = 'RedisLockError';
+    this.lockKey = lockKey;
+  }
+}
+
+/**
+ * Error thrown when Redis lock acquisition times out
+ */
+export class RedisLockTimeoutError extends RedisLockError {
+  /** Timeout duration in milliseconds */
+  public readonly timeoutMs: number;
+
+  constructor(lockKey: string, timeoutMs: number) {
+    super(
+      lockKey,
+      `Failed to acquire Redis lock "${lockKey}" within ${String(timeoutMs)}ms timeout.`
+    );
+    this.name = 'RedisLockTimeoutError';
+    this.timeoutMs = timeoutMs;
+  }
+}
