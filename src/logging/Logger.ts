@@ -723,7 +723,10 @@ function isValidLogLevel(level: string): level is LogLevel {
 /**
  * Create transport configuration from environment variables
  */
-function createTransportConfigFromEnv(transportName: string, prefix: string): TransportConfig | null {
+function createTransportConfigFromEnv(
+  transportName: string,
+  prefix: string
+): TransportConfig | null {
   switch (transportName) {
     case 'console':
       return {

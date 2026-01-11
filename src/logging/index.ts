@@ -27,19 +27,9 @@
  */
 
 // Export Logger class and utilities
-export {
-  Logger,
-  getLogger,
-  getLoggerFromEnv,
-  resetLogger,
-} from './Logger.js';
+export { Logger, getLogger, getLoggerFromEnv, resetLogger } from './Logger.js';
 
-export type {
-  LoggerConfig,
-  EnvironmentConfig,
-  LoggerState,
-  LoggerHealth,
-} from './Logger.js';
+export type { LoggerConfig, EnvironmentConfig, LoggerState, LoggerHealth } from './Logger.js';
 
 // Export all transport-related types and classes
 export * from './transports/index.js';
