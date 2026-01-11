@@ -28,6 +28,9 @@ export type { ReviewChecksOptions } from './ReviewChecks.js';
 export { MergeDecision } from './MergeDecision.js';
 export type { MergeDecisionConfig } from './MergeDecision.js';
 
+// GitHub Review Client for multi-file line-level comments
+export { GitHubReviewClient, getGitHubReviewClient, resetGitHubReviewClient } from './GitHubReviewClient.js';
+
 // Circuit breaker and intelligent polling
 export { CICircuitBreaker } from './CICircuitBreaker.js';
 export type { CircuitBreakerEvent, CircuitBreakerEventListener } from './CICircuitBreaker.js';
@@ -131,6 +134,14 @@ export type {
   CIPollResult,
   EnhancedCIConfig,
 
+  // GitHub Review Client types
+  DiffPosition,
+  LineReviewComment,
+  MultiFileReviewRequest,
+  ReviewCommentResult,
+  MultiFileReviewResult,
+  GitHubReviewClientConfig,
+
   // Re-exported
   ImplementationResult,
 } from './types.js';
@@ -143,4 +154,5 @@ export {
   DEFAULT_CIRCUIT_BREAKER_CONFIG,
   DEFAULT_INTELLIGENT_POLLER_CONFIG,
   DEFAULT_ENHANCED_CI_CONFIG,
+  DEFAULT_GITHUB_REVIEW_CLIENT_CONFIG,
 } from './types.js';
