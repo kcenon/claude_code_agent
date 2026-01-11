@@ -39,6 +39,7 @@ export { BaseTransport } from './BaseTransport.js';
 export { ConsoleTransport } from './ConsoleTransport.js';
 export { FileTransport } from './FileTransport.js';
 export { ElasticsearchTransport } from './ElasticsearchTransport.js';
+export { CloudWatchTransport } from './CloudWatchTransport.js';
 
 // Type definitions
 export type {
