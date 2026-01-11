@@ -182,7 +182,7 @@ async function loadRawConfig(baseDir?: string): Promise<RawScratchpadConfig | un
 
   try {
     const content = await readFile(filePath, 'utf-8');
-    const config = yaml.load(content) as RawWorkflowConfig;
+    const config = yaml.load(content) as RawWorkflowConfig | undefined;
     return config?.scratchpad;
   } catch {
     // Return undefined if file can't be parsed
@@ -210,7 +210,7 @@ function convertToBackendConfig(raw: RawScratchpadConfig): ScratchpadBackendConf
   const config: Record<string, unknown> = {};
 
   // Backend type
-  if (raw.backend && ['file', 'sqlite', 'redis'].includes(raw.backend)) {
+  if (raw.backend !== undefined && raw.backend !== '' && ['file', 'sqlite', 'redis'].includes(raw.backend)) {
     config.backend = raw.backend as BackendType;
   }
 
@@ -302,7 +302,7 @@ function applyEnvVarOverrides(config: ScratchpadBackendConfig): ScratchpadBacken
 
   // Check for backend type override
   const backendType = process.env['SCRATCHPAD_BACKEND'];
-  if (backendType && ['file', 'sqlite', 'redis'].includes(backendType)) {
+  if (backendType !== undefined && backendType !== '' && ['file', 'sqlite', 'redis'].includes(backendType)) {
     result.backend = backendType as BackendType;
   }
 
@@ -312,26 +312,32 @@ function applyEnvVarOverrides(config: ScratchpadBackendConfig): ScratchpadBacken
   const redisPassword = getEnvValue(ENV_VAR_MAPPINGS.redis.password, 'string');
   const redisDb = getEnvValue(ENV_VAR_MAPPINGS.redis.db, 'number');
 
-  if (redisHost || redisPort || redisPassword || redisDb !== undefined) {
+  const hasRedisOverride =
+    redisHost !== undefined ||
+    redisPort !== undefined ||
+    redisPassword !== undefined ||
+    redisDb !== undefined;
+
+  if (hasRedisOverride) {
     const existingRedis = (config.redis ?? {}) as Record<string, unknown>;
     const redisOverrides: Record<string, unknown> = {};
-    if (redisHost) redisOverrides.host = redisHost;
-    if (redisPort) redisOverrides.port = redisPort;
-    if (redisPassword) redisOverrides.password = redisPassword;
+    if (redisHost !== undefined) redisOverrides.host = redisHost;
+    if (redisPort !== undefined) redisOverrides.port = redisPort;
+    if (redisPassword !== undefined) redisOverrides.password = redisPassword;
     if (redisDb !== undefined) redisOverrides.db = redisDb;
     result.redis = { ...existingRedis, ...redisOverrides };
   }
 
   // Apply SQLite env vars
   const sqlitePath = getEnvValue(ENV_VAR_MAPPINGS.sqlite.dbPath, 'string');
-  if (sqlitePath) {
+  if (sqlitePath !== undefined && sqlitePath !== '') {
     const existingSqlite = (config.sqlite ?? {}) as Record<string, unknown>;
     result.sqlite = { ...existingSqlite, dbPath: sqlitePath };
   }
 
   // Apply file backend env vars
   const filePath = getEnvValue(ENV_VAR_MAPPINGS.file.basePath, 'string');
-  if (filePath) {
+  if (filePath !== undefined && filePath !== '') {
     const existingFile = (config.file ?? {}) as Record<string, unknown>;
     result.file = { ...existingFile, basePath: filePath };
   }
