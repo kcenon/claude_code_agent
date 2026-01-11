@@ -460,9 +460,7 @@ export class AlertManager {
     }, this.escalationCheckIntervalMs);
 
     // Ensure timer doesn't prevent process exit
-    if (this.escalationTimer.unref !== undefined) {
-      this.escalationTimer.unref();
-    }
+    this.escalationTimer.unref();
   }
 
   /**
@@ -489,9 +487,10 @@ export class AlertManager {
 
       const escalation = alertDef.escalation;
       const eventTime = new Date(event.timestamp).getTime();
-      const lastEscalatedTime = event.lastEscalatedAt
-        ? new Date(event.lastEscalatedAt).getTime()
-        : eventTime;
+      const lastEscalatedTime =
+        event.lastEscalatedAt !== undefined && event.lastEscalatedAt !== ''
+          ? new Date(event.lastEscalatedAt).getTime()
+          : eventTime;
 
       const timeSinceLastEscalation = now - lastEscalatedTime;
       const currentLevel = event.escalationLevel ?? 0;
@@ -590,9 +589,10 @@ export class AlertManager {
         continue;
       }
 
-      const lastEscalatedTime = event.lastEscalatedAt
-        ? new Date(event.lastEscalatedAt).getTime()
-        : new Date(event.timestamp).getTime();
+      const lastEscalatedTime =
+        event.lastEscalatedAt !== undefined && event.lastEscalatedAt !== ''
+          ? new Date(event.lastEscalatedAt).getTime()
+          : new Date(event.timestamp).getTime();
 
       const timeSinceLastEscalation = now - lastEscalatedTime;
       const timeToEscalation = alertDef.escalation.escalateAfterMs - timeSinceLastEscalation;
