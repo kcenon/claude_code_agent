@@ -70,3 +70,6 @@ export { BaseSecretProvider } from './BaseSecretProvider.js';
 
 // Provider implementations
 export { LocalProvider } from './LocalProvider.js';
+export { AWSSecretsManagerProvider } from './AWSSecretsManagerProvider.js';
+export { VaultProvider } from './VaultProvider.js';
+export { AzureKeyVaultProvider } from './AzureKeyVaultProvider.js';
