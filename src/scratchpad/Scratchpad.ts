@@ -66,6 +66,8 @@ import { randomUUID } from 'node:crypto';
 import * as yaml from 'js-yaml';
 import { InputValidator } from '../security/index.js';
 import { tryGetProjectRoot } from '../utils/index.js';
+import { FileBackend } from './backends/FileBackend.js';
+import type { IScratchpadBackend } from './backends/IScratchpadBackend.js';
 import type {
   ScratchpadOptions,
   ScratchpadSection,
@@ -159,6 +161,10 @@ export class Scratchpad {
   private readonly projectRoot: string;
   /** Pending release requests created by this instance */
   private readonly pendingReleaseRequests: Set<string> = new Set();
+  /** File backend for storage operations */
+  private readonly backend: IScratchpadBackend;
+  /** Whether the backend has been initialized */
+  private backendInitialized = false;
 
   constructor(options: ScratchpadOptions = {}) {
     this.basePath = options.basePath ?? DEFAULT_BASE_PATH;
@@ -182,6 +188,14 @@ export class Scratchpad {
       ? this.basePath
       : path.resolve(this.projectRoot, this.basePath);
     this.validator = new InputValidator({ basePath: resolvedBasePath });
+
+    // Initialize file backend with raw format (no extension manipulation)
+    this.backend = new FileBackend({
+      basePath: resolvedBasePath,
+      fileMode: this.fileMode,
+      dirMode: this.dirMode,
+      format: 'raw',
+    });
   }
 
   // ============================================================
@@ -197,6 +211,41 @@ export class Scratchpad {
    */
   private validatePath(filePath: string): string {
     return this.validator.validateFilePath(filePath);
+  }
+
+  // ============================================================
+  // Backend Operations
+  // ============================================================
+
+  /**
+   * Ensure the backend is initialized
+   */
+  private async ensureBackendInitialized(): Promise<void> {
+    if (!this.backendInitialized) {
+      await this.backend.initialize();
+      this.backendInitialized = true;
+    }
+  }
+
+  /**
+   * Convert a file path to section and key for backend operations
+   *
+   * @param filePath - Full file path
+   * @returns Object with section (directory relative to basePath) and key (filename)
+   */
+  private pathToSectionKey(filePath: string): { section: string; key: string } {
+    const resolvedBasePath = path.isAbsolute(this.basePath)
+      ? this.basePath
+      : path.resolve(this.projectRoot, this.basePath);
+
+    // Get the path relative to basePath
+    const relativePath = path.relative(resolvedBasePath, filePath);
+
+    // Split into directory (section) and filename (key)
+    const section = path.dirname(relativePath);
+    const key = path.basename(relativePath);
+
+    return { section: section === '.' ? '' : section, key };
   }
 
   // ============================================================
@@ -433,6 +482,8 @@ export class Scratchpad {
   /**
    * Write content atomically (write to temp file, then rename)
    *
+   * Uses FileBackend internally for atomic write operations.
+   *
    * @param filePath - Target file path
    * @param content - Content to write
    * @param options - Write options
@@ -445,31 +496,18 @@ export class Scratchpad {
   ): Promise<void> {
     // Validate path before any file operations
     const validatedPath = this.validatePath(filePath);
-    const { createDirs = true, mode = this.fileMode, encoding = 'utf8' } = options;
+    const { createDirs = true } = options;
 
-    const dir = path.dirname(validatedPath);
-    const tempPath = `${validatedPath}.${randomUUID()}.tmp`;
-
-    try {
-      // Create parent directories if needed
-      if (createDirs) {
-        await this.ensureDir(dir);
-      }
-
-      // Write to temporary file
-      await fs.promises.writeFile(tempPath, content, { encoding, mode });
-
-      // Atomically rename to target
-      await fs.promises.rename(tempPath, validatedPath);
-    } catch (error) {
-      // Clean up temp file on error
-      try {
-        await fs.promises.unlink(tempPath);
-      } catch {
-        // Ignore cleanup errors
-      }
-      throw error;
+    // Create parent directories if needed
+    if (createDirs) {
+      const dir = path.dirname(validatedPath);
+      await this.ensureDir(dir);
     }
+
+    // Use backend for atomic write
+    await this.ensureBackendInitialized();
+    const { section, key } = this.pathToSectionKey(validatedPath);
+    await this.backend.write(section, key, content);
   }
 
   /**
@@ -1036,10 +1074,22 @@ export class Scratchpad {
    */
   public async readYaml<T>(filePath: string, options: ReadOptions = {}): Promise<T | null> {
     const validatedPath = this.validatePath(filePath);
-    const { encoding = 'utf8', allowMissing = false } = options;
+    const { allowMissing = false } = options;
 
     try {
-      const content = await fs.promises.readFile(validatedPath, encoding);
+      await this.ensureBackendInitialized();
+      const { section, key } = this.pathToSectionKey(validatedPath);
+      const content = await this.backend.read<string>(section, key);
+
+      if (content === null) {
+        if (allowMissing) {
+          return null;
+        }
+        const error = new Error(`ENOENT: no such file or directory, open '${validatedPath}'`);
+        (error as NodeJS.ErrnoException).code = 'ENOENT';
+        throw error;
+      }
+
       return yaml.load(content) as T;
     } catch (error) {
       if (allowMissing && (error as NodeJS.ErrnoException).code === 'ENOENT') {
@@ -1122,10 +1172,22 @@ export class Scratchpad {
    */
   public async readJson<T>(filePath: string, options: ReadOptions = {}): Promise<T | null> {
     const validatedPath = this.validatePath(filePath);
-    const { encoding = 'utf8', allowMissing = false } = options;
+    const { allowMissing = false } = options;
 
     try {
-      const content = await fs.promises.readFile(validatedPath, encoding);
+      await this.ensureBackendInitialized();
+      const { section, key } = this.pathToSectionKey(validatedPath);
+      const content = await this.backend.read<string>(section, key);
+
+      if (content === null) {
+        if (allowMissing) {
+          return null;
+        }
+        const error = new Error(`ENOENT: no such file or directory, open '${validatedPath}'`);
+        (error as NodeJS.ErrnoException).code = 'ENOENT';
+        throw error;
+      }
+
       return JSON.parse(content) as T;
     } catch (error) {
       if (allowMissing && (error as NodeJS.ErrnoException).code === 'ENOENT') {
@@ -1202,10 +1264,23 @@ export class Scratchpad {
    */
   public async readMarkdown(filePath: string, options: ReadOptions = {}): Promise<string | null> {
     const validatedPath = this.validatePath(filePath);
-    const { encoding = 'utf8', allowMissing = false } = options;
+    const { allowMissing = false } = options;
 
     try {
-      return await fs.promises.readFile(validatedPath, encoding);
+      await this.ensureBackendInitialized();
+      const { section, key } = this.pathToSectionKey(validatedPath);
+      const content = await this.backend.read<string>(section, key);
+
+      if (content === null) {
+        if (allowMissing) {
+          return null;
+        }
+        const error = new Error(`ENOENT: no such file or directory, open '${validatedPath}'`);
+        (error as NodeJS.ErrnoException).code = 'ENOENT';
+        throw error;
+      }
+
+      return content;
     } catch (error) {
       if (allowMissing && (error as NodeJS.ErrnoException).code === 'ENOENT') {
         return null;
@@ -1279,12 +1354,9 @@ export class Scratchpad {
    */
   public async exists(filePath: string): Promise<boolean> {
     const validatedPath = this.validatePath(filePath);
-    try {
-      await fs.promises.access(validatedPath, fs.constants.F_OK);
-      return true;
-    } catch {
-      return false;
-    }
+    await this.ensureBackendInitialized();
+    const { section, key } = this.pathToSectionKey(validatedPath);
+    return this.backend.exists(section, key);
   }
 
   /**
@@ -1312,7 +1384,14 @@ export class Scratchpad {
    */
   public async deleteFile(filePath: string): Promise<void> {
     const validatedPath = this.validatePath(filePath);
-    await fs.promises.unlink(validatedPath);
+    await this.ensureBackendInitialized();
+    const { section, key } = this.pathToSectionKey(validatedPath);
+    const deleted = await this.backend.delete(section, key);
+    if (!deleted) {
+      const error = new Error(`ENOENT: no such file or directory, unlink '${validatedPath}'`);
+      (error as NodeJS.ErrnoException).code = 'ENOENT';
+      throw error;
+    }
   }
 
   /**
@@ -1327,7 +1406,7 @@ export class Scratchpad {
   }
 
   /**
-   * Clean up all active locks and pending release requests
+   * Clean up all active locks, pending release requests, and close backend
    */
   public async cleanup(): Promise<void> {
     // Clean up active locks
@@ -1350,6 +1429,12 @@ export class Scratchpad {
       }
     }
     this.pendingReleaseRequests.clear();
+
+    // Close backend
+    if (this.backendInitialized) {
+      await this.backend.close();
+      this.backendInitialized = false;
+    }
   }
 
   /**
