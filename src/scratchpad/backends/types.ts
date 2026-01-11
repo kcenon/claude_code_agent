@@ -19,8 +19,13 @@ export interface FileBackendConfig {
   readonly fileMode?: number;
   /** Directory permission mode (default: 0o700) */
   readonly dirMode?: number;
-  /** File format for serialization (default: 'yaml') */
-  readonly format?: 'yaml' | 'json';
+  /**
+   * File format for serialization (default: 'yaml')
+   * - 'yaml': YAML serialization with .yaml extension
+   * - 'json': JSON serialization with .json extension
+   * - 'raw': No serialization, no extension added (key includes extension)
+   */
+  readonly format?: 'yaml' | 'json' | 'raw';
 }
 
 /**

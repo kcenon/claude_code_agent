@@ -24,9 +24,10 @@ const DEFAULT_FORMAT = 'yaml';
 /**
  * File extension for each format
  */
-const FORMAT_EXTENSIONS: Record<'yaml' | 'json', string> = {
+const FORMAT_EXTENSIONS: Record<'yaml' | 'json' | 'raw', string> = {
   yaml: '.yaml',
   json: '.json',
+  raw: '',
 };
 
 /**
@@ -41,7 +42,7 @@ export class FileBackend implements IScratchpadBackend {
   private readonly basePath: string;
   private readonly fileMode: number;
   private readonly dirMode: number;
-  private readonly format: 'yaml' | 'json';
+  private readonly format: 'yaml' | 'json' | 'raw';
   private readonly extension: string;
 
   constructor(config: FileBackendConfig = {}) {
@@ -70,6 +71,9 @@ export class FileBackend implements IScratchpadBackend {
    * Serialize data to string
    */
   private serialize(data: unknown): string {
+    if (this.format === 'raw') {
+      return typeof data === 'string' ? data : JSON.stringify(data, null, 2);
+    }
     if (this.format === 'json') {
       return JSON.stringify(data, null, 2);
     }
@@ -84,6 +88,9 @@ export class FileBackend implements IScratchpadBackend {
    * Deserialize string to data
    */
   private deserialize(content: string): unknown {
+    if (this.format === 'raw') {
+      return content;
+    }
     if (this.format === 'json') {
       return JSON.parse(content) as unknown;
     }
