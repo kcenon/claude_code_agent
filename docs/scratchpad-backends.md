@@ -319,6 +319,45 @@ async function migrateData(
 }
 ```
 
+## Testing
+
+All backends have comprehensive test coverage:
+
+### Running Tests
+
+```bash
+# Run all backend tests
+npm test tests/scratchpad/backends/
+
+# Run specific backend tests
+npm test tests/scratchpad/backends/FileBackend.test.ts
+npm test tests/scratchpad/backends/SQLiteBackend.test.ts
+npm test tests/scratchpad/backends/RedisBackend.test.ts
+npm test tests/scratchpad/backends/BackendFactory.test.ts
+npm test tests/scratchpad/backends/integration.test.ts
+```
+
+### Redis Tests
+
+Redis tests require a running Redis server. If Redis is not available, tests are automatically skipped:
+
+```bash
+# Start Redis with Docker
+docker run -d -p 6379:6379 redis:7-alpine
+
+# Set custom Redis host/port
+REDIS_HOST=localhost REDIS_PORT=6379 npm test tests/scratchpad/backends/RedisBackend.test.ts
+```
+
+### Integration Tests
+
+Integration tests verify:
+- IScratchpadBackend interface compliance across all backends
+- Data migration between backends
+- Concurrent operations
+- Error handling consistency
+- Health check functionality
+
 ## Dependencies
 
 - **File Backend**: No additional dependencies
