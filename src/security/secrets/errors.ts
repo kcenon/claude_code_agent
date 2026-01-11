@@ -26,7 +26,7 @@ export class SecretProviderError extends SecurityError {
  * Error thrown when a provider fails to initialize
  */
 export class ProviderInitializationError extends SecretProviderError {
-  public readonly cause?: Error;
+  public readonly cause: Error | undefined;
 
   constructor(providerName: string, reason: string, cause?: Error) {
     super(`Failed to initialize provider '${providerName}': ${reason}`, providerName, 'PROVIDER_INIT_ERROR');
@@ -40,7 +40,7 @@ export class ProviderInitializationError extends SecretProviderError {
  * Error thrown when a provider is not available (circuit breaker open)
  */
 export class ProviderUnavailableError extends SecretProviderError {
-  public readonly retryAfterMs?: number;
+  public readonly retryAfterMs: number | undefined;
 
   constructor(providerName: string, retryAfterMs?: number) {
     const message = retryAfterMs
@@ -58,7 +58,7 @@ export class ProviderUnavailableError extends SecretProviderError {
  */
 export class SecretRetrievalError extends SecretProviderError {
   public readonly secretName: string;
-  public readonly cause?: Error;
+  public readonly cause: Error | undefined;
 
   constructor(providerName: string, secretName: string, reason: string, cause?: Error) {
     super(`Failed to retrieve secret '${secretName}' from '${providerName}': ${reason}`, providerName, 'SECRET_RETRIEVAL_ERROR');
@@ -109,7 +109,7 @@ export class AllProvidersFailedError extends SecurityError {
  * Error thrown when configuration is invalid
  */
 export class InvalidSecretConfigError extends SecurityError {
-  public readonly configPath?: string;
+  public readonly configPath: string | undefined;
 
   constructor(message: string, configPath?: string) {
     super(`Invalid secret configuration: ${message}`, 'INVALID_SECRET_CONFIG');

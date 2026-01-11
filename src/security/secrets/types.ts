@@ -19,9 +19,9 @@ export interface Secret {
   /** The secret value */
   readonly value: string;
   /** Secret version identifier (provider-specific) */
-  readonly version?: string;
+  readonly version?: string | undefined;
   /** When the secret expires (for dynamic secrets) */
-  readonly expiresAt?: Date;
+  readonly expiresAt?: Date | undefined;
   /** Additional metadata from the provider */
   readonly metadata?: Record<string, string>;
 }
@@ -47,11 +47,11 @@ export interface ProviderHealth {
   /** Whether the provider is currently healthy */
   readonly healthy: boolean;
   /** Last successful secret retrieval time */
-  readonly lastAccessTime?: Date;
+  readonly lastAccessTime?: Date | undefined;
   /** Last error time if any */
-  readonly lastErrorTime?: Date;
+  readonly lastErrorTime?: Date | undefined;
   /** Last error message if any */
-  readonly lastError?: string;
+  readonly lastError?: string | undefined;
   /** Number of cached secrets */
   readonly cachedSecrets: number;
   /** Number of failed retrieval attempts */
@@ -188,7 +188,7 @@ export interface CircuitBreakerStatus {
   /** Number of consecutive successes (in half-open state) */
   readonly successCount: number;
   /** When the circuit was last opened */
-  readonly lastFailureTime?: Date;
+  readonly lastFailureTime?: Date | undefined;
   /** When to next attempt (if circuit is open) */
-  readonly nextAttemptTime?: Date;
+  readonly nextAttemptTime?: Date | undefined;
 }

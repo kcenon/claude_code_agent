@@ -11,9 +11,11 @@ import type { Secret, AzureKeyVaultConfig } from './types.js';
 import { BaseSecretProvider } from './BaseSecretProvider.js';
 import { SecretRetrievalError, ProviderInitializationError } from './errors.js';
 
-// Azure SDK types - dynamically imported
-type SecretClient = import('@azure/keyvault-secrets').SecretClient;
-type TokenCredential = import('@azure/identity').TokenCredential;
+// Azure SDK types (any to avoid requiring the module at compile time)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AzureSecretClient = any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AzureTokenCredential = any;
 
 /**
  * Azure Key Vault provider for retrieving secrets
@@ -41,12 +43,12 @@ type TokenCredential = import('@azure/identity').TokenCredential;
  * ```
  */
 export class AzureKeyVaultProvider extends BaseSecretProvider {
-  private client: SecretClient | null = null;
+  private client: AzureSecretClient = null;
   private readonly vaultUrl: string;
   private readonly useManagedIdentity: boolean;
-  private readonly tenantId?: string;
-  private readonly clientId?: string;
-  private readonly clientSecret?: string;
+  private readonly azureTenantId: string | undefined;
+  private readonly azureClientId: string | undefined;
+  private readonly azureClientSecret: string | undefined;
 
   /**
    * Create a new AzureKeyVaultProvider instance
@@ -57,19 +59,20 @@ export class AzureKeyVaultProvider extends BaseSecretProvider {
     super('azure-keyvault', config);
     this.vaultUrl = config.vaultUrl;
     this.useManagedIdentity = config.useManagedIdentity ?? false;
-    this.tenantId = config.tenantId;
-    this.clientId = config.clientId;
-    this.clientSecret = config.clientSecret;
+    this.azureTenantId = config.tenantId;
+    this.azureClientId = config.clientId;
+    this.azureClientSecret = config.clientSecret;
   }
 
   /**
    * Initialize the Azure Key Vault client
    */
   protected async doInitialize(): Promise<void> {
-    let SecretClient: typeof import('@azure/keyvault-secrets').SecretClient;
-    let credential: TokenCredential;
+    let SecretClient: new (vaultUrl: string, credential: AzureTokenCredential) => AzureSecretClient;
+    let credential: AzureTokenCredential;
 
     try {
+      // @ts-expect-error - Optional dependency, may not be installed
       const keyvaultModule = await import('@azure/keyvault-secrets');
       SecretClient = keyvaultModule.SecretClient;
     } catch {
@@ -82,18 +85,21 @@ export class AzureKeyVaultProvider extends BaseSecretProvider {
     try {
       if (this.useManagedIdentity) {
         // Use managed identity (works in Azure environments)
+        // @ts-expect-error - Optional dependency, may not be installed
         const { ManagedIdentityCredential } = await import('@azure/identity');
         credential = new ManagedIdentityCredential();
       } else if (
-        this.tenantId !== undefined &&
-        this.clientId !== undefined &&
-        this.clientSecret !== undefined
+        this.azureTenantId !== undefined &&
+        this.azureClientId !== undefined &&
+        this.azureClientSecret !== undefined
       ) {
         // Use service principal
+        // @ts-expect-error - Optional dependency, may not be installed
         const { ClientSecretCredential } = await import('@azure/identity');
-        credential = new ClientSecretCredential(this.tenantId, this.clientId, this.clientSecret);
+        credential = new ClientSecretCredential(this.azureTenantId, this.azureClientId, this.azureClientSecret);
       } else {
         // Use default Azure credential chain
+        // @ts-expect-error - Optional dependency, may not be installed
         const { DefaultAzureCredential } = await import('@azure/identity');
         credential = new DefaultAzureCredential();
       }

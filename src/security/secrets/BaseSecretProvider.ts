@@ -82,7 +82,7 @@ export abstract class BaseSecretProvider implements ISecretProvider {
    * Configuration values
    */
   protected readonly cacheTTL: number;
-  protected readonly prefix?: string;
+  protected readonly prefix: string | undefined;
 
   /**
    * Health tracking
@@ -144,7 +144,7 @@ export abstract class BaseSecretProvider implements ISecretProvider {
       throw new Error(`Provider ${this.name} is not ready (state: ${this.state})`);
     }
 
-    const fullName = this.prefix ? `${this.prefix}/${name}` : name;
+    const fullName = this.prefix !== undefined ? `${this.prefix}/${name}` : name;
     const cacheKey = `${fullName}:${version ?? 'latest'}`;
 
     // Check cache first
@@ -260,7 +260,7 @@ export abstract class BaseSecretProvider implements ISecretProvider {
   /**
    * Handle an error by tracking it
    */
-  protected handleError(context: string, error: unknown): void {
+  protected handleError(_context: string, error: unknown): void {
     this.lastErrorTime = new Date();
     this.lastError = error instanceof Error ? error.message : String(error);
   }

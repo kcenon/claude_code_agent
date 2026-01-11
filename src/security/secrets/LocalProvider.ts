@@ -35,7 +35,7 @@ import { BaseSecretProvider } from './BaseSecretProvider.js';
  * ```
  */
 export class LocalProvider extends BaseSecretProvider {
-  private readonly envPrefix?: string;
+  private readonly envPrefix: string | undefined;
 
   /**
    * Create a new LocalProvider instance
@@ -107,9 +107,9 @@ export class LocalProvider extends BaseSecretProvider {
    */
   private toEnvName(name: string): string {
     // Replace common separators with underscore and convert to uppercase
-    const baseName = name.replace(/[/.:-]/g, '_').toUpperCase();
+    const baseName = name.replace(/[\/.:@-]/g, '_').toUpperCase();
 
     // Add prefix if configured
-    return this.envPrefix ? `${this.envPrefix}${baseName}` : baseName;
+    return this.envPrefix !== undefined ? `${this.envPrefix}${baseName}` : baseName;
   }
 }

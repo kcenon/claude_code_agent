@@ -1,19 +1,12 @@
 /**
  * SecretProviderFactory - Creates secret providers from configuration
  *
- * This factory creates appropriate secret provider instances based on
- * configuration settings, with support for environment variable substitution.
- *
  * @module security/secrets
  */
 
 import type { ISecretProvider } from './ISecretProvider.js';
 import type {
   SecretProviderConfig,
-  LocalProviderConfig,
-  AWSSecretsManagerConfig,
-  VaultProviderConfig,
-  AzureKeyVaultConfig,
   SecretManagerConfig,
 } from './types.js';
 import { LocalProvider } from './LocalProvider.js';
@@ -23,58 +16,24 @@ import { AzureKeyVaultProvider } from './AzureKeyVaultProvider.js';
 import { ProviderSecretManager } from './ProviderSecretManager.js';
 import { InvalidSecretConfigError } from './errors.js';
 
-/**
- * Environment variable substitution pattern
- * Matches ${VAR_NAME} or ${VAR_NAME:-default_value}
- */
-const ENV_VAR_PATTERN = /\$\{([A-Z_][A-Z0-9_]*)(?::-([^}]*))?\}/gi;
+const ENV_VAR_PATTERN = /\${([A-Z_][A-Z0-9_]*)(?::-([^}]*))?}/gi;
 
-/**
- * Factory for creating secret providers from configuration
- *
- * @example
- * ```typescript
- * const factory = new SecretProviderFactory();
- *
- * // Create a single provider
- * const provider = factory.createProvider({
- *   type: 'aws-secrets-manager',
- *   region: '${AWS_REGION:-us-east-1}',
- * });
- *
- * // Create manager with all configured providers
- * const manager = await factory.createManager({
- *   envFallback: true,
- *   providers: [
- *     { type: 'aws-secrets-manager', region: 'us-east-1' },
- *     { type: 'local' },
- *   ],
- * });
- * ```
- */
 export class SecretProviderFactory {
-  /**
-   * Create a provider from configuration
-   *
-   * @param config - Provider configuration
-   * @returns The created provider (not initialized)
-   */
   public createProvider(config: SecretProviderConfig): ISecretProvider {
-    // Resolve environment variables in config
     const resolvedConfig = this.resolveEnvVars(config);
 
     switch (resolvedConfig.type) {
       case 'local':
-        return new LocalProvider(resolvedConfig as LocalProviderConfig);
+        return new LocalProvider(resolvedConfig);
 
       case 'aws-secrets-manager':
-        return new AWSSecretsManagerProvider(resolvedConfig as AWSSecretsManagerConfig);
+        return new AWSSecretsManagerProvider(resolvedConfig);
 
       case 'vault':
-        return new VaultProvider(resolvedConfig as VaultProviderConfig);
+        return new VaultProvider(resolvedConfig);
 
       case 'azure-keyvault':
-        return new AzureKeyVaultProvider(resolvedConfig as AzureKeyVaultConfig);
+        return new AzureKeyVaultProvider(resolvedConfig);
 
       default: {
         const unknownConfig = resolvedConfig as { type: string };
@@ -83,19 +42,11 @@ export class SecretProviderFactory {
     }
   }
 
-  /**
-   * Create a ProviderSecretManager with configured providers
-   *
-   * @param config - Manager configuration
-   * @returns Initialized ProviderSecretManager
-   */
   public async createManager(config: SecretManagerConfig): Promise<ProviderSecretManager> {
     const manager = new ProviderSecretManager(config);
 
-    // Add configured providers
     if (config.providers !== undefined) {
       for (const providerConfig of config.providers) {
-        // Skip disabled providers
         if (providerConfig.enabled === false) {
           continue;
         }
@@ -108,24 +59,14 @@ export class SecretProviderFactory {
     return manager;
   }
 
-  /**
-   * Resolve environment variable placeholders in configuration
-   *
-   * Supports:
-   * - ${VAR_NAME} - Required variable
-   * - ${VAR_NAME:-default} - Variable with default value
-   *
-   * @param config - Configuration object with potential env var placeholders
-   * @returns Configuration with resolved values
-   */
-  private resolveEnvVars<T extends Record<string, unknown>>(config: T): T {
-    const resolved: Record<string, unknown> = {};
+  private resolveEnvVars<T extends SecretProviderConfig>(config: T): T {
+    const resolved = {} as Record<string, unknown>;
 
     for (const [key, value] of Object.entries(config)) {
       if (typeof value === 'string') {
         resolved[key] = this.resolveEnvVarString(value);
       } else if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
-        resolved[key] = this.resolveEnvVars(value as Record<string, unknown>);
+        resolved[key] = this.resolveEnvVarsObject(value as Record<string, unknown>);
       } else {
         resolved[key] = value;
       }
@@ -134,9 +75,22 @@ export class SecretProviderFactory {
     return resolved as T;
   }
 
-  /**
-   * Resolve environment variable placeholders in a string
-   */
+  private resolveEnvVarsObject(obj: Record<string, unknown>): Record<string, unknown> {
+    const resolved: Record<string, unknown> = {};
+
+    for (const [key, value] of Object.entries(obj)) {
+      if (typeof value === 'string') {
+        resolved[key] = this.resolveEnvVarString(value);
+      } else if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+        resolved[key] = this.resolveEnvVarsObject(value as Record<string, unknown>);
+      } else {
+        resolved[key] = value;
+      }
+    }
+
+    return resolved;
+  }
+
   private resolveEnvVarString(value: string): string {
     return value.replace(ENV_VAR_PATTERN, (_match, varName: string, defaultValue?: string) => {
       const envValue = process.env[varName];
@@ -149,20 +103,13 @@ export class SecretProviderFactory {
         return defaultValue;
       }
 
-      // Return empty string if variable not found and no default
       return '';
     });
   }
 }
 
-/**
- * Singleton factory instance
- */
 let factoryInstance: SecretProviderFactory | null = null;
 
-/**
- * Get the singleton factory instance
- */
 export function getSecretProviderFactory(): SecretProviderFactory {
   if (factoryInstance === null) {
     factoryInstance = new SecretProviderFactory();
@@ -170,12 +117,6 @@ export function getSecretProviderFactory(): SecretProviderFactory {
   return factoryInstance;
 }
 
-/**
- * Create a ProviderSecretManager from configuration file content
- *
- * @param config - Parsed configuration object
- * @returns Initialized ProviderSecretManager
- */
 export async function createManagerFromConfig(
   config: SecretManagerConfig
 ): Promise<ProviderSecretManager> {

@@ -9,12 +9,11 @@
 
 import type { Secret, AWSSecretsManagerConfig } from './types.js';
 import { BaseSecretProvider } from './BaseSecretProvider.js';
-import { SecretRetrievalError } from './errors.js';
+import { SecretRetrievalError, ProviderInitializationError } from './errors.js';
 
-// AWS SDK types - dynamically imported
-type SecretsManagerClient = import('@aws-sdk/client-secrets-manager').SecretsManagerClient;
-type GetSecretValueCommand = import('@aws-sdk/client-secrets-manager').GetSecretValueCommand;
-type ListSecretsCommand = import('@aws-sdk/client-secrets-manager').ListSecretsCommand;
+// AWS SDK client type (any to avoid requiring the module at compile time)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AWSSecretsManagerClient = any;
 
 /**
  * AWS Secrets Manager provider for retrieving secrets from AWS
@@ -43,14 +42,14 @@ type ListSecretsCommand = import('@aws-sdk/client-secrets-manager').ListSecretsC
  * ```
  */
 export class AWSSecretsManagerProvider extends BaseSecretProvider {
-  private client: SecretsManagerClient | null = null;
+  private client: AWSSecretsManagerClient = null;
   private readonly region: string;
-  private readonly credentials?: {
+  private readonly awsCredentials: {
     readonly accessKeyId: string;
     readonly secretAccessKey: string;
     readonly sessionToken?: string;
-  };
-  private readonly healthCheckSecret?: string;
+  } | undefined;
+  private readonly healthCheckSecret: string | undefined;
 
   /**
    * Create a new AWSSecretsManagerProvider instance
@@ -60,7 +59,7 @@ export class AWSSecretsManagerProvider extends BaseSecretProvider {
   constructor(config: AWSSecretsManagerConfig) {
     super('aws-secrets-manager', config);
     this.region = config.region;
-    this.credentials = config.credentials;
+    this.awsCredentials = config.credentials;
     this.healthCheckSecret = config.healthCheckSecret;
   }
 
@@ -68,7 +67,18 @@ export class AWSSecretsManagerProvider extends BaseSecretProvider {
    * Initialize the AWS Secrets Manager client
    */
   protected async doInitialize(): Promise<void> {
-    const { SecretsManagerClient } = await import('@aws-sdk/client-secrets-manager');
+    let SecretsManagerClient: new (config: unknown) => AWSSecretsManagerClient;
+    
+    try {
+      // @ts-expect-error - Optional dependency, may not be installed
+      const awsModule = await import('@aws-sdk/client-secrets-manager');
+      SecretsManagerClient = awsModule.SecretsManagerClient;
+    } catch {
+      throw new ProviderInitializationError(
+        this.name,
+        '@aws-sdk/client-secrets-manager package is not installed. Run: npm install @aws-sdk/client-secrets-manager'
+      );
+    }
 
     const clientConfig: {
       region: string;
@@ -82,12 +92,19 @@ export class AWSSecretsManagerProvider extends BaseSecretProvider {
     };
 
     // Only set credentials if explicitly provided (otherwise use IAM role)
-    if (this.credentials !== undefined) {
-      clientConfig.credentials = {
-        accessKeyId: this.credentials.accessKeyId,
-        secretAccessKey: this.credentials.secretAccessKey,
-        sessionToken: this.credentials.sessionToken,
+    if (this.awsCredentials !== undefined) {
+      const creds: {
+        accessKeyId: string;
+        secretAccessKey: string;
+        sessionToken?: string;
+      } = {
+        accessKeyId: this.awsCredentials.accessKeyId,
+        secretAccessKey: this.awsCredentials.secretAccessKey,
       };
+      if (this.awsCredentials.sessionToken !== undefined) {
+        creds.sessionToken = this.awsCredentials.sessionToken;
+      }
+      clientConfig.credentials = creds;
     }
 
     this.client = new SecretsManagerClient(clientConfig);
@@ -107,13 +124,17 @@ export class AWSSecretsManagerProvider extends BaseSecretProvider {
       throw new Error('AWS Secrets Manager client not initialized');
     }
 
+    // @ts-expect-error - Optional dependency, may not be installed
     const { GetSecretValueCommand } = await import('@aws-sdk/client-secrets-manager');
 
     try {
-      const command: GetSecretValueCommand = new GetSecretValueCommand({
+      const commandInput: { SecretId: string; VersionId?: string } = {
         SecretId: name,
-        VersionId: version,
-      });
+      };
+      if (version !== undefined) {
+        commandInput.VersionId = version;
+      }
+      const command = new GetSecretValueCommand(commandInput);
 
       const response = await this.client.send(command);
 
@@ -160,12 +181,12 @@ export class AWSSecretsManagerProvider extends BaseSecretProvider {
     }
 
     try {
-      const { ListSecretsCommand } = await import('@aws-sdk/client-secrets-manager');
+      // @ts-expect-error - Optional dependency, may not be installed
+      const { ListSecretsCommand, GetSecretValueCommand } = await import('@aws-sdk/client-secrets-manager');
 
       // If a specific health check secret is configured, try to access it
       if (this.healthCheckSecret !== undefined) {
-        const { GetSecretValueCommand } = await import('@aws-sdk/client-secrets-manager');
-        const command: GetSecretValueCommand = new GetSecretValueCommand({
+        const command = new GetSecretValueCommand({
           SecretId: this.healthCheckSecret,
         });
         await this.client.send(command);
@@ -173,7 +194,7 @@ export class AWSSecretsManagerProvider extends BaseSecretProvider {
       }
 
       // Otherwise, just list secrets to verify connectivity
-      const command: ListSecretsCommand = new ListSecretsCommand({
+      const command = new ListSecretsCommand({
         MaxResults: 1,
       });
       await this.client.send(command);

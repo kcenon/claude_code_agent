@@ -18,7 +18,6 @@ import type {
 import {
   SecretNotFoundInProvidersError,
   AllProvidersFailedError,
-  ProviderUnavailableError,
 } from './errors.js';
 
 /**
@@ -37,8 +36,8 @@ interface CircuitBreakerInstance {
   state: CircuitBreakerState;
   failureCount: number;
   successCount: number;
-  lastFailureTime?: Date;
-  nextAttemptTime?: Date;
+  lastFailureTime: Date | undefined;
+  nextAttemptTime: Date | undefined;
 }
 
 /**
@@ -107,6 +106,8 @@ export class ProviderSecretManager {
       state: 'closed',
       failureCount: 0,
       successCount: 0,
+      lastFailureTime: undefined,
+      nextAttemptTime: undefined,
     });
 
     this.initialized = true;
@@ -280,22 +281,26 @@ export class ProviderSecretManager {
       const healthy = await provider.healthCheck();
       const cb = this.circuitBreakers.get(provider.name);
 
+      const circuitBreakerStatus: CircuitBreakerStatus = cb
+        ? {
+            state: cb.state,
+            failureCount: cb.failureCount,
+            successCount: cb.successCount,
+            lastFailureTime: cb.lastFailureTime,
+            nextAttemptTime: cb.nextAttemptTime,
+          }
+        : {
+            state: 'closed' as CircuitBreakerState,
+            failureCount: 0,
+            successCount: 0,
+            lastFailureTime: undefined,
+            nextAttemptTime: undefined,
+          };
+
       providerHealth.push({
         name: provider.name,
         healthy,
-        circuitBreaker: cb
-          ? {
-              state: cb.state,
-              failureCount: cb.failureCount,
-              successCount: cb.successCount,
-              lastFailureTime: cb.lastFailureTime,
-              nextAttemptTime: cb.nextAttemptTime,
-            }
-          : {
-              state: 'closed' as CircuitBreakerState,
-              failureCount: 0,
-              successCount: 0,
-            },
+        circuitBreaker: circuitBreakerStatus,
       });
     }
 
@@ -347,7 +352,7 @@ export class ProviderSecretManager {
    * Convert a secret name to environment variable format
    */
   private toEnvName(name: string): string {
-    return name.replace(/[/.:-]/g, '_').toUpperCase();
+    return name.replace(/[\/.:@-]/g, '_').toUpperCase();
   }
 
   /**
