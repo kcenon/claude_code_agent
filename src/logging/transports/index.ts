@@ -35,6 +35,10 @@ export type { ILogTransport, TransportState, TransportHealth } from './ILogTrans
 // Base implementation
 export { BaseTransport } from './BaseTransport.js';
 
+// Transport implementations
+export { ConsoleTransport } from './ConsoleTransport.js';
+export { FileTransport } from './FileTransport.js';
+
 // Type definitions
 export type {
   LogLevel,
