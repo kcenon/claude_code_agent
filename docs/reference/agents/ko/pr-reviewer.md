@@ -156,6 +156,43 @@ pr_review_result:
 └─────────────────────────────────────────────────────────────┘
 ```
 
+## 대규모 PR의 증분 리뷰
+
+대규모 PR의 경우 파일을 배치로 처리하여 메모리 문제를 방지하고 진행 상황 피드백을 제공합니다:
+
+```typescript
+import { PRReviewerAgent } from 'ad-sdlc';
+
+const agent = new PRReviewerAgent();
+
+// 증분 리뷰 진행 상황 추적
+const result = await agent.review('WO-001', {
+  enableIncrementalReview: true,
+  onReviewProgress: (progress) => {
+    console.log(`배치 ${progress.currentBatch}/${progress.totalBatches}`);
+    console.log(`처리된 파일: ${progress.filesProcessed}/${progress.totalFiles}`);
+    console.log(`발견된 코멘트: ${progress.commentsFound}`);
+  },
+});
+```
+
+### 증분 리뷰 설정
+
+| 옵션 | 타입 | 기본값 | 설명 |
+|------|------|--------|------|
+| `enableIncrementalReview` | boolean | `true` | 대규모 PR에 대한 배치 처리 활성화 |
+| `incrementalReviewThreshold` | number | `20` | 증분 모드 활성화 파일 수 임계값 |
+| `batchSize` | number | `50` | 증분 모드에서 배치당 파일 수 |
+| `onReviewProgress` | function | undefined | 증분 리뷰 진행 상황 콜백 |
+
+### 작동 방식
+
+1. PR의 파일 수가 임계값(기본 20개)을 초과하면 증분 리뷰 활성화
+2. 파일을 배치로 분할 (기본 배치 크기 50개)
+3. 각 배치에서 보안, 품질, 성능, 문서 검사 수행
+4. 배치 간 검사 결과 병합 (가장 나쁜 결과 유지)
+5. 진행 콜백을 통해 실시간 피드백 제공
+
 ## 품질 게이트
 
 ```yaml

@@ -772,4 +772,165 @@ describe('ReviewChecks', () => {
       expect(dupCheck).toBeDefined();
     }, 15000);
   });
+
+  describe('incremental review', () => {
+    it('should use standard review for small PRs', async () => {
+      const checks = new ReviewChecks({
+        projectRoot: testDir,
+        enableTestingChecks: false,
+        enableStaticAnalysis: false,
+        enableDependencyCheck: false,
+        enableIncrementalReview: true,
+        incrementalReviewThreshold: 20,
+      });
+
+      await setupTestFile('src/test.ts', 'export const x = 1;');
+
+      const changes: FileChange[] = [
+        createFileChange({ filePath: 'src/test.ts' }),
+      ];
+
+      const result = await checks.runIncrementalChecks(changes);
+
+      expect(result.isIncremental).toBe(false);
+      expect(result.batchCount).toBe(1);
+      expect(result).toHaveProperty('comments');
+      expect(result).toHaveProperty('checklist');
+      expect(result).toHaveProperty('metrics');
+    }, 15000);
+
+    it('should use incremental review for large PRs', async () => {
+      const checks = new ReviewChecks({
+        projectRoot: testDir,
+        enableTestingChecks: false,
+        enableStaticAnalysis: false,
+        enableDependencyCheck: false,
+        enableIncrementalReview: true,
+        incrementalReviewThreshold: 5,
+        batchSize: 3,
+      });
+
+      // Create multiple test files
+      for (let i = 0; i < 10; i++) {
+        await setupTestFile(`src/file${i}.ts`, `export const x${i} = ${i};`);
+      }
+
+      const changes: FileChange[] = [];
+      for (let i = 0; i < 10; i++) {
+        changes.push(createFileChange({ filePath: `src/file${i}.ts` }));
+      }
+
+      const result = await checks.runIncrementalChecks(changes);
+
+      expect(result.isIncremental).toBe(true);
+      expect(result.batchCount).toBeGreaterThan(1);
+      expect(result).toHaveProperty('comments');
+      expect(result).toHaveProperty('checklist');
+      expect(result).toHaveProperty('metrics');
+    }, 30000);
+
+    it('should report progress during incremental review', async () => {
+      const checks = new ReviewChecks({
+        projectRoot: testDir,
+        enableTestingChecks: false,
+        enableStaticAnalysis: false,
+        enableDependencyCheck: false,
+        enableIncrementalReview: true,
+        incrementalReviewThreshold: 3,
+        batchSize: 2,
+      });
+
+      // Create test files
+      for (let i = 0; i < 5; i++) {
+        await setupTestFile(`src/file${i}.ts`, `export const x${i} = ${i};`);
+      }
+
+      const changes: FileChange[] = [];
+      for (let i = 0; i < 5; i++) {
+        changes.push(createFileChange({ filePath: `src/file${i}.ts` }));
+      }
+
+      const progressReports: Array<{
+        currentBatch: number;
+        totalBatches: number;
+        filesProcessed: number;
+      }> = [];
+
+      await checks.runIncrementalChecks(changes, (progress) => {
+        progressReports.push({
+          currentBatch: progress.currentBatch,
+          totalBatches: progress.totalBatches,
+          filesProcessed: progress.filesProcessed,
+        });
+      });
+
+      expect(progressReports.length).toBeGreaterThan(0);
+      expect(progressReports[0]?.currentBatch).toBe(1);
+      expect(progressReports[progressReports.length - 1]?.totalBatches).toBeGreaterThan(1);
+    }, 30000);
+
+    it('should respect enableIncrementalReview=false', async () => {
+      const checks = new ReviewChecks({
+        projectRoot: testDir,
+        enableTestingChecks: false,
+        enableStaticAnalysis: false,
+        enableDependencyCheck: false,
+        enableIncrementalReview: false,
+        incrementalReviewThreshold: 3,
+        batchSize: 2,
+      });
+
+      // Create test files
+      for (let i = 0; i < 5; i++) {
+        await setupTestFile(`src/file${i}.ts`, `export const x${i} = ${i};`);
+      }
+
+      const changes: FileChange[] = [];
+      for (let i = 0; i < 5; i++) {
+        changes.push(createFileChange({ filePath: `src/file${i}.ts` }));
+      }
+
+      const result = await checks.runIncrementalChecks(changes);
+
+      // Should not use incremental review even with many files
+      expect(result.isIncremental).toBe(false);
+      expect(result.batchCount).toBe(1);
+    }, 15000);
+
+    it('should merge check items correctly across batches', async () => {
+      const checks = new ReviewChecks({
+        projectRoot: testDir,
+        enableTestingChecks: false,
+        enableStaticAnalysis: false,
+        enableDependencyCheck: false,
+        enableIncrementalReview: true,
+        incrementalReviewThreshold: 3,
+        batchSize: 2,
+      });
+
+      // Create test files with issues
+      for (let i = 0; i < 4; i++) {
+        await setupTestFile(`src/file${i}.ts`, `
+          const apiKey = "secret-key-${i}";
+          export const x${i} = apiKey;
+        `);
+      }
+
+      const changes: FileChange[] = [];
+      for (let i = 0; i < 4; i++) {
+        changes.push(createFileChange({ filePath: `src/file${i}.ts` }));
+      }
+
+      const result = await checks.runIncrementalChecks(changes);
+
+      expect(result.isIncremental).toBe(true);
+      // Comments should be accumulated across batches
+      expect(result.comments.length).toBeGreaterThan(0);
+      // Security check items should be merged (not duplicated)
+      const secretCheckItems = result.checklist.security.filter(
+        (item) => item.name === 'No hardcoded secrets'
+      );
+      expect(secretCheckItems.length).toBe(1);
+    }, 30000);
+  });
 });
