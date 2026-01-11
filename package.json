@@ -37,7 +37,9 @@
     "todo:fixme": "grep -rn 'FIXME(' src/ --include='*.ts' | sort",
     "todo:hack": "grep -rn 'HACK' src/ --include='*.ts' | sort",
     "todo:all": "grep -rn -E '(TODO|FIXME|HACK)' src/ --include='*.ts' | sort",
-    "todo:count": "echo 'TODO:' && grep -r 'TODO(' src/ --include='*.ts' | wc -l && echo 'FIXME:' && grep -r 'FIXME(' src/ --include='*.ts' | wc -l && echo 'HACK:' && grep -r 'HACK' src/ --include='*.ts' | wc -l"
+    "todo:count": "echo 'TODO:' && grep -r 'TODO(' src/ --include='*.ts' | wc -l && echo 'FIXME:' && grep -r 'FIXME(' src/ --include='*.ts' | wc -l && echo 'HACK:' && grep -r 'HACK' src/ --include='*.ts' | wc -l",
+    "docs": "typedoc",
+    "docs:watch": "typedoc --watch"
   },
   "keywords": [
     "claude",
@@ -71,7 +73,10 @@
     "@vitest/coverage-v8": "^4.0.16",
     "eslint": "^9.0.0",
     "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-jsdoc": "^62.0.0",
     "prettier": "^3.0.0",
+    "typedoc": "^0.28.15",
+    "typedoc-plugin-markdown": "^4.9.0",
     "typescript": "^5.3.0",
     "typescript-eslint": "^8.51.0",
     "vitest": "^4.0.16"
