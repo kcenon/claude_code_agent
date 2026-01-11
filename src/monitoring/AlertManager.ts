@@ -750,7 +750,8 @@ export class AlertManager {
     }
 
     // Use typed condition if available, otherwise parse string condition
-    const condition = alertDef.conditionTyped ?? AlertManager.parseConditionString(alertDef.condition);
+    const condition =
+      alertDef.conditionTyped ?? AlertManager.parseConditionString(alertDef.condition);
     if (condition === null) {
       // If we can't parse the condition, fire the alert
       return this.fire(name, message, context);

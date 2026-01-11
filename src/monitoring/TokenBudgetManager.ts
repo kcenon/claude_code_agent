@@ -636,7 +636,9 @@ export class TokenBudgetManager {
     }
 
     try {
-      const files = fs.readdirSync(dir).filter((f) => f.startsWith('budget-') && f.endsWith('.json'));
+      const files = fs
+        .readdirSync(dir)
+        .filter((f) => f.startsWith('budget-') && f.endsWith('.json'));
 
       return files.map((f) => f.replace(/^budget-/, '').replace(/\.json$/, ''));
     } catch {
@@ -698,7 +700,9 @@ export class TokenBudgetManager {
     }
 
     try {
-      const files = fs.readdirSync(dir).filter((f) => f.startsWith('budget-') && f.endsWith('.json'));
+      const files = fs
+        .readdirSync(dir)
+        .filter((f) => f.startsWith('budget-') && f.endsWith('.json'));
 
       for (const file of files) {
         const filePath = path.join(dir, file);
