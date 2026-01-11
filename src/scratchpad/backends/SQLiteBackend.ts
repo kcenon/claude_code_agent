@@ -160,7 +160,7 @@ export class SQLiteBackend implements IScratchpadBackend {
 
       return Promise.resolve(JSON.parse(row.value) as T);
     } catch (error) {
-      return Promise.reject(error);
+      return Promise.reject(error instanceof Error ? error : new Error(String(error)));
     }
   }
 
@@ -173,7 +173,7 @@ export class SQLiteBackend implements IScratchpadBackend {
       stmtWrite.run(section, key, serialized);
       return Promise.resolve();
     } catch (error) {
-      return Promise.reject(error);
+      return Promise.reject(error instanceof Error ? error : new Error(String(error)));
     }
   }
 
@@ -184,7 +184,7 @@ export class SQLiteBackend implements IScratchpadBackend {
       const result = stmtDelete.run(section, key);
       return Promise.resolve(result.changes > 0);
     } catch (error) {
-      return Promise.reject(error);
+      return Promise.reject(error instanceof Error ? error : new Error(String(error)));
     }
   }
 
@@ -195,7 +195,7 @@ export class SQLiteBackend implements IScratchpadBackend {
       const rows = stmtList.all(section) as Array<{ key: string }>;
       return Promise.resolve(rows.map((row) => row.key));
     } catch (error) {
-      return Promise.reject(error);
+      return Promise.reject(error instanceof Error ? error : new Error(String(error)));
     }
   }
 
@@ -206,7 +206,7 @@ export class SQLiteBackend implements IScratchpadBackend {
       const result = stmtExists.get(section, key);
       return Promise.resolve(result !== undefined);
     } catch (error) {
-      return Promise.reject(error);
+      return Promise.reject(error instanceof Error ? error : new Error(String(error)));
     }
   }
 
@@ -229,7 +229,7 @@ export class SQLiteBackend implements IScratchpadBackend {
       executeBatch();
       return Promise.resolve();
     } catch (error) {
-      return Promise.reject(error);
+      return Promise.reject(error instanceof Error ? error : new Error(String(error)));
     }
   }
 
