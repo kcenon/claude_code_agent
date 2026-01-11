@@ -94,6 +94,12 @@ export const WorkerErrorCodes = {
   // Self-fix errors (060-069)
   WRK_SELF_FIX_ERROR: 'WRK-060',
   WRK_ESCALATION_REQUIRED: 'WRK-061',
+
+  // Checkpoint errors (070-079)
+  WRK_CHECKPOINT_SAVE_ERROR: 'WRK-070',
+  WRK_CHECKPOINT_LOAD_ERROR: 'WRK-071',
+  WRK_CHECKPOINT_INVALID: 'WRK-072',
+  WRK_CHECKPOINT_EXPIRED: 'WRK-073',
 } as const;
 
 /**
@@ -313,6 +319,10 @@ export const ErrorCodeDescriptions: Record<ErrorCode, string> = {
   [ErrorCodes.WRK_OPERATION_TIMEOUT]: 'Operation timed out',
   [ErrorCodes.WRK_SELF_FIX_ERROR]: 'Self-fix attempt failed',
   [ErrorCodes.WRK_ESCALATION_REQUIRED]: 'Escalation required',
+  [ErrorCodes.WRK_CHECKPOINT_SAVE_ERROR]: 'Failed to save checkpoint',
+  [ErrorCodes.WRK_CHECKPOINT_LOAD_ERROR]: 'Failed to load checkpoint',
+  [ErrorCodes.WRK_CHECKPOINT_INVALID]: 'Invalid checkpoint',
+  [ErrorCodes.WRK_CHECKPOINT_EXPIRED]: 'Checkpoint expired',
 
   // State Manager
   [ErrorCodes.STM_INVALID_TRANSITION]: 'Invalid state transition',

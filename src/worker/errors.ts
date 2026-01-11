@@ -635,6 +635,120 @@ export class OperationTimeoutError extends WorkerError {
 }
 
 // ============================================================================
+// Checkpoint Errors (Issue #250)
+// ============================================================================
+
+/**
+ * Error thrown when checkpoint save fails
+ */
+export class CheckpointSaveError extends WorkerError {
+  /** The work order ID */
+  public readonly workOrderId: string;
+  /** The step being checkpointed */
+  public readonly step: string;
+
+  constructor(workOrderId: string, step: string, cause?: Error) {
+    const causeMessage = cause !== undefined ? `: ${cause.message}` : '';
+    const options: AppErrorOptions = {
+      context: { workOrderId, step },
+      severity: ErrorSeverity.MEDIUM,
+      category: 'recoverable',
+    };
+    if (cause !== undefined) {
+      options.cause = cause;
+    }
+    super(
+      ErrorCodes.WRK_CHECKPOINT_SAVE_ERROR,
+      `Failed to save checkpoint for ${workOrderId} at step ${step}${causeMessage}`,
+      options
+    );
+    this.name = 'CheckpointSaveError';
+    this.workOrderId = workOrderId;
+    this.step = step;
+  }
+}
+
+/**
+ * Error thrown when checkpoint load fails
+ */
+export class CheckpointLoadError extends WorkerError {
+  /** The work order ID */
+  public readonly workOrderId: string;
+
+  constructor(workOrderId: string, cause?: Error) {
+    const causeMessage = cause !== undefined ? `: ${cause.message}` : '';
+    const options: AppErrorOptions = {
+      context: { workOrderId },
+      severity: ErrorSeverity.LOW,
+      category: 'recoverable',
+    };
+    if (cause !== undefined) {
+      options.cause = cause;
+    }
+    super(
+      ErrorCodes.WRK_CHECKPOINT_LOAD_ERROR,
+      `Failed to load checkpoint for ${workOrderId}${causeMessage}`,
+      options
+    );
+    this.name = 'CheckpointLoadError';
+    this.workOrderId = workOrderId;
+  }
+}
+
+/**
+ * Error thrown when checkpoint is invalid or corrupted
+ */
+export class CheckpointInvalidError extends WorkerError {
+  /** The work order ID */
+  public readonly workOrderId: string;
+  /** Reason the checkpoint is invalid */
+  public readonly reason: string;
+
+  constructor(workOrderId: string, reason: string) {
+    super(
+      ErrorCodes.WRK_CHECKPOINT_INVALID,
+      `Invalid checkpoint for ${workOrderId}: ${reason}`,
+      {
+        context: { workOrderId, reason },
+        severity: ErrorSeverity.LOW,
+        category: 'recoverable',
+      }
+    );
+    this.name = 'CheckpointInvalidError';
+    this.workOrderId = workOrderId;
+    this.reason = reason;
+  }
+}
+
+/**
+ * Error thrown when checkpoint is too old to resume from
+ */
+export class CheckpointExpiredError extends WorkerError {
+  /** The work order ID */
+  public readonly workOrderId: string;
+  /** Checkpoint timestamp */
+  public readonly checkpointTimestamp: string;
+  /** Age in milliseconds */
+  public readonly ageMs: number;
+
+  constructor(workOrderId: string, checkpointTimestamp: string, ageMs: number) {
+    super(
+      ErrorCodes.WRK_CHECKPOINT_EXPIRED,
+      `Checkpoint for ${workOrderId} expired (age: ${Math.round(ageMs / 1000 / 60)} minutes)`,
+      {
+        context: { workOrderId, checkpointTimestamp, ageMs },
+        severity: ErrorSeverity.LOW,
+        category: 'recoverable',
+      }
+    );
+    this.name = 'CheckpointExpiredError';
+    this.workOrderId = workOrderId;
+    this.checkpointTimestamp = checkpointTimestamp;
+    this.ageMs = ageMs;
+  }
+}
+
+// ============================================================================
 // Error Categorization (Issue #48)
 // ============================================================================
 
