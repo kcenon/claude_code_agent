@@ -772,6 +772,9 @@ export class PriorityAnalyzer {
 
   /**
    * Check if all dependencies of an issue are resolved
+   *
+   * @param issueId - The issue ID to check
+   * @returns True if all dependencies are completed, false otherwise
    */
   public areDependenciesResolved(issueId: string): boolean {
     const node = this.nodes.get(issueId);
@@ -809,6 +812,10 @@ export class PriorityAnalyzer {
 
   /**
    * Get direct dependencies for an issue
+   *
+   * @param issueId - The issue ID to get dependencies for
+   * @returns Array of issue IDs that this issue depends on
+   * @throws IssueNotFoundError if issue does not exist
    */
   public getDependencies(issueId: string): readonly string[] {
     const node = this.nodes.get(issueId);
@@ -819,7 +826,11 @@ export class PriorityAnalyzer {
   }
 
   /**
-   * Get direct dependents for an issue
+   * Get direct dependents for an issue (issues that depend on this one)
+   *
+   * @param issueId - The issue ID to get dependents for
+   * @returns Array of issue IDs that depend on this issue
+   * @throws IssueNotFoundError if issue does not exist
    */
   public getDependents(issueId: string): readonly string[] {
     const node = this.nodes.get(issueId);
@@ -830,7 +841,11 @@ export class PriorityAnalyzer {
   }
 
   /**
-   * Get all transitive dependencies for an issue
+   * Get all transitive dependencies for an issue (direct and indirect)
+   *
+   * @param issueId - The issue ID to get transitive dependencies for
+   * @returns Array of issue IDs that this issue depends on (directly or transitively)
+   * @throws IssueNotFoundError if issue does not exist
    */
   public getTransitiveDependencies(issueId: string): readonly string[] {
     const node = this.nodes.get(issueId);
@@ -861,6 +876,11 @@ export class PriorityAnalyzer {
 
   /**
    * Check if issue A depends on issue B (directly or transitively)
+   *
+   * @param issueA - The issue ID to check dependencies for
+   * @param issueB - The issue ID to check as a potential dependency
+   * @returns True if issueA depends on issueB, false otherwise
+   * @throws IssueNotFoundError if issueA does not exist
    */
   public dependsOn(issueA: string, issueB: string): boolean {
     const transitive = this.getTransitiveDependencies(issueA);
