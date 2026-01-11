@@ -801,5 +801,106 @@ export const DEFAULT_ENHANCED_CI_CONFIG: Required<EnhancedCIConfig> = {
   ciFailFastOnTerminal: true,
 } as const;
 
+// ============================================================================
+// GitHub Review Client Types
+// ============================================================================
+
+/**
+ * GitHub diff line position information
+ */
+export interface DiffPosition {
+  /** File path relative to repository root */
+  readonly path: string;
+  /** Line number in the file */
+  readonly line: number;
+  /** Side of the diff ('LEFT' for deletion, 'RIGHT' for addition) */
+  readonly side: 'LEFT' | 'RIGHT';
+  /** Position in the diff hunk (calculated from diff) */
+  readonly position?: number;
+}
+
+/**
+ * Line-level review comment for GitHub PR
+ */
+export interface LineReviewComment {
+  /** File path relative to repository root */
+  readonly path: string;
+  /** Line number in the new file */
+  readonly line: number;
+  /** Comment body (markdown supported) */
+  readonly body: string;
+  /** Side of the diff ('RIGHT' for new content) */
+  readonly side?: 'LEFT' | 'RIGHT';
+  /** Suggested changes in GitHub suggestion format */
+  readonly suggestion?: string;
+}
+
+/**
+ * Multi-file review submission request
+ */
+export interface MultiFileReviewRequest {
+  /** PR number */
+  readonly prNumber: number;
+  /** Overall review body */
+  readonly body: string;
+  /** Review event type */
+  readonly event: 'APPROVE' | 'REQUEST_CHANGES' | 'COMMENT';
+  /** Line-level comments for multiple files */
+  readonly comments: readonly LineReviewComment[];
+}
+
+/**
+ * Result of a single review comment submission
+ */
+export interface ReviewCommentResult {
+  /** Whether the comment was successfully posted */
+  readonly success: boolean;
+  /** Comment ID if successful */
+  readonly commentId?: number;
+  /** File path the comment was added to */
+  readonly path: string;
+  /** Line number the comment was added to */
+  readonly line: number;
+  /** Error message if failed */
+  readonly error?: string;
+}
+
+/**
+ * Result of multi-file review submission
+ */
+export interface MultiFileReviewResult {
+  /** Whether the overall review was submitted */
+  readonly reviewSubmitted: boolean;
+  /** Review ID if submitted */
+  readonly reviewId?: number;
+  /** Results for each individual comment */
+  readonly commentResults: readonly ReviewCommentResult[];
+  /** Number of successfully posted comments */
+  readonly successCount: number;
+  /** Number of failed comments */
+  readonly failureCount: number;
+}
+
+/**
+ * GitHub Review Client configuration
+ */
+export interface GitHubReviewClientConfig {
+  /** Project root directory */
+  readonly projectRoot?: string;
+  /** Whether to continue on individual comment failures (default: true) */
+  readonly continueOnCommentFailure?: boolean;
+  /** Whether to use batch review API when possible (default: true) */
+  readonly useBatchReview?: boolean;
+}
+
+/**
+ * Default GitHub Review Client configuration
+ */
+export const DEFAULT_GITHUB_REVIEW_CLIENT_CONFIG: Required<GitHubReviewClientConfig> = {
+  projectRoot: process.cwd(),
+  continueOnCommentFailure: true,
+  useBatchReview: true,
+} as const;
+
 // Re-export types from worker for convenience
 export type { ImplementationResult, FileChange } from '../worker/types.js';

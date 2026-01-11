@@ -7,6 +7,7 @@ The PR Reviewer module provides automated Pull Request creation, code review, qu
 The module includes:
 
 - **PRReviewerAgent** - Main class that creates PRs, performs reviews, and enforces quality gates
+- **GitHubReviewClient** - Enables multi-file, line-level review comments via GitHub REST API
 - **QualityGate** - Enforces configurable thresholds for coverage, complexity, and security
 - **ReviewChecks** - Performs automated security, quality, performance, and documentation checks
 - **Error Classes** - Specific error types for different failure modes
@@ -18,12 +19,15 @@ The PR Reviewer module is included in the main `ad-sdlc` package:
 ```typescript
 import {
   PRReviewerAgent,
+  GitHubReviewClient,
   QualityGate,
   ReviewChecks,
   getPRReviewerAgent,
   resetPRReviewerAgent,
+  getGitHubReviewClient,
   DEFAULT_PR_REVIEWER_CONFIG,
   DEFAULT_QUALITY_GATE_CONFIG,
+  DEFAULT_GITHUB_REVIEW_CLIENT_CONFIG,
 } from 'ad-sdlc';
 ```
 
@@ -69,6 +73,68 @@ const agent = new PRReviewerAgent({
   coverageThreshold: 85,
   maxComplexity: 8,
 });
+```
+
+## GitHubReviewClient
+
+Enables multi-file, line-level review comments using the GitHub REST API. This addresses the limitation of the `gh` CLI which only supports general PR comments, not diff-attached line comments.
+
+### Basic Usage
+
+```typescript
+import { GitHubReviewClient } from 'ad-sdlc';
+
+const client = new GitHubReviewClient({
+  projectRoot: '/path/to/project',
+  useBatchReview: true,
+});
+
+// Submit a review with line-level comments
+const result = await client.submitMultiFileReview({
+  prNumber: 123,
+  body: 'Overall review comment',
+  event: 'REQUEST_CHANGES',
+  comments: [
+    { path: 'src/feature.ts', line: 42, body: 'Consider using const here' },
+    { path: 'src/utils.ts', line: 15, body: 'Add error handling' },
+  ],
+});
+
+console.log(`Review submitted: ${result.reviewSubmitted}`);
+console.log(`Comments: ${result.successCount} succeeded, ${result.failureCount} failed`);
+```
+
+### Configuration
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `projectRoot` | string | `process.cwd()` | Project root directory |
+| `continueOnCommentFailure` | boolean | `true` | Continue posting remaining comments if one fails |
+| `useBatchReview` | boolean | `true` | Use batch review API for efficiency |
+
+### Converting Review Comments
+
+```typescript
+// Convert internal review comment to GitHub API format
+const lineComment = GitHubReviewClient.convertToLineComment(
+  'src/file.ts',  // path
+  42,             // line
+  'major',        // severity (critical, major, minor, suggestion)
+  'This needs to be fixed',  // comment
+  'const x = 1;'  // suggested fix (optional)
+);
+```
+
+### Integration with PRReviewerAgent
+
+The `PRReviewerAgent` automatically uses `GitHubReviewClient` to submit line-level comments. If the GitHub API fails, it falls back to using the `gh` CLI with general PR comments.
+
+```typescript
+const agent = new PRReviewerAgent();
+const result = await agent.review('WO-001');
+
+// Access the client directly if needed
+const client = agent.getGitHubReviewClient();
 ```
 
 ## QualityGate
