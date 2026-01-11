@@ -4,8 +4,11 @@
  * Implements code generation, test writing, and self-verification
  * based on Work Orders from the Controller Agent.
  *
- * NOTE: Checkpoint/resume capability for long-running implementations is planned.
- * See Issue #250 for implementation details.
+ * Checkpoint/resume capability:
+ * - Automatically saves checkpoint after each step
+ * - Can resume from last checkpoint if worker crashes
+ * - Use resumeFromCheckpoint option to resume interrupted work
+ * - Checkpoints expire after 24 hours by default
  *
  * NOTE: Parallel test execution is planned. See Issue #258.
  *
@@ -39,9 +42,15 @@ import type {
   WorkOrder,
   TestGeneratorConfig,
   TestGenerationResult,
+  WorkerStep,
 } from './types.js';
 import { DEFAULT_WORKER_AGENT_CONFIG, DEFAULT_RETRY_POLICY } from './types.js';
 import { TestGenerator } from './TestGenerator.js';
+import {
+  CheckpointManager,
+  type CheckpointManagerConfig,
+  type CheckpointState,
+} from './CheckpointManager.js';
 import {
   ContextAnalysisError,
   BranchCreationError,
@@ -67,6 +76,19 @@ interface CommandResult {
 }
 
 /**
+ * Checkpoint resume state
+ * Internal type for restoring worker state from checkpoint
+ */
+interface CheckpointResumeState {
+  readonly fileChanges: readonly FileChange[];
+  readonly testsCreated: ReadonlyMap<string, number> | Record<string, number>;
+  readonly commits: readonly CommitInfo[];
+  readonly testGenerationResult: TestGenerationResult | null;
+  readonly branchName: string | null;
+  readonly attemptNumber: number;
+}
+
+/**
  * Worker Agent
  *
  * Processes Work Orders to implement code changes, generate tests,
@@ -79,9 +101,15 @@ export class WorkerAgent {
   private readonly commits: CommitInfo[];
   private readonly testGenerator: TestGenerator;
   private readonly fileOps: SecureFileOps;
+  private readonly checkpointManager: CheckpointManager;
   private lastTestGenerationResult: TestGenerationResult | null;
+  private currentBranchName: string | null;
 
-  constructor(config: WorkerAgentConfig = {}, testGeneratorConfig?: TestGeneratorConfig) {
+  constructor(
+    config: WorkerAgentConfig = {},
+    testGeneratorConfig?: TestGeneratorConfig,
+    checkpointConfig?: CheckpointManagerConfig
+  ) {
     this.config = {
       projectRoot:
         config.projectRoot ?? tryGetProjectRoot() ?? DEFAULT_WORKER_AGENT_CONFIG.projectRoot,
@@ -99,13 +127,22 @@ export class WorkerAgent {
     this.commits = [];
     this.testGenerator = new TestGenerator(testGeneratorConfig);
     this.lastTestGenerationResult = null;
+    this.currentBranchName = null;
     // Initialize secure file operations with project root validation
     this.fileOps = createSecureFileOps({ projectRoot: this.config.projectRoot });
+    // Initialize checkpoint manager for resume capability
+    this.checkpointManager = new CheckpointManager({
+      projectRoot: this.config.projectRoot,
+      ...checkpointConfig,
+    });
   }
 
   /**
    * Main implementation entry point
    * Processes a Work Order and returns the implementation result
+   *
+   * @param workOrder - Work order to process
+   * @param options - Execution options including resume capability
    */
   public async implement(
     workOrder: WorkOrder,
@@ -117,15 +154,34 @@ export class WorkerAgent {
     let lastError: Error | undefined;
     let attempt = 0;
 
-    // Reset state for new implementation
-    this.resetState();
+    // Check for existing checkpoint and determine resume state
+    const { resumeStep, resumeState } = await this.checkForResume(workOrder.orderId);
+
+    // Reset or restore state based on resume
+    if (resumeState !== null) {
+      this.restoreState(resumeState);
+      attempt = resumeState.attemptNumber;
+    } else {
+      this.resetState();
+    }
 
     while (attempt < retryPolicy.maxAttempts) {
       attempt++;
 
       try {
-        // 1. Analyze context
-        const codeContext = await this.analyzeContext(workOrder);
+        // Determine starting step based on resume
+        const startStep = resumeStep ?? 'context_analysis';
+        let codeContext: CodeContext;
+        let branchName: string;
+
+        // 1. Analyze context (skip if resuming past this step)
+        if (this.shouldExecuteStep('context_analysis', startStep)) {
+          codeContext = await this.analyzeContext(workOrder);
+          await this.saveCheckpoint(workOrder, 'context_analysis', attempt);
+        } else {
+          // Restore context from checkpoint
+          codeContext = await this.analyzeContext(workOrder);
+        }
 
         const executionContext: ExecutionContext = {
           workOrder,
@@ -135,21 +191,33 @@ export class WorkerAgent {
           attemptNumber: attempt,
         };
 
-        // 2. Create feature branch
-        const branchName = await this.createBranch(workOrder);
+        // 2. Create feature branch (skip if resuming past this step)
+        if (this.shouldExecuteStep('branch_creation', startStep)) {
+          branchName = await this.createBranch(workOrder);
+          this.currentBranchName = branchName;
+          await this.saveCheckpoint(workOrder, 'branch_creation', attempt);
+        } else {
+          branchName = this.currentBranchName ?? (await this.getCurrentBranch());
+        }
 
-        // 3. Generate code (this would be implemented by the actual AI/LLM)
-        // For now, we create a placeholder that demonstrates the structure
-        await this.generateCode(executionContext);
+        // 3. Generate code (skip if resuming past this step)
+        if (this.shouldExecuteStep('code_generation', startStep)) {
+          await this.generateCode(executionContext);
+          await this.saveCheckpoint(workOrder, 'code_generation', attempt);
+        }
 
         // 4. Generate tests (if not skipped)
-        if (options.skipTests !== true) {
+        if (options.skipTests !== true && this.shouldExecuteStep('test_generation', startStep)) {
           await this.generateTests(executionContext);
+          await this.saveCheckpoint(workOrder, 'test_generation', attempt);
         }
 
         // 5. Run verification (if not skipped)
         let verification: VerificationResult;
-        if (options.skipVerification !== true) {
+        if (
+          options.skipVerification !== true &&
+          this.shouldExecuteStep('verification', startStep)
+        ) {
           verification = await this.runVerification();
 
           if (!verification.testsPassed || !verification.lintPassed || !verification.buildPassed) {
@@ -158,13 +226,15 @@ export class WorkerAgent {
               verification.testsOutput || verification.lintOutput || verification.buildOutput
             );
           }
+          await this.saveCheckpoint(workOrder, 'verification', attempt);
         } else {
           verification = this.createSkippedVerification();
         }
 
         // 6. Commit changes (if not dry run)
-        if (options.dryRun !== true) {
+        if (options.dryRun !== true && this.shouldExecuteStep('commit', startStep)) {
           await this.commitChanges(workOrder);
+          await this.saveCheckpoint(workOrder, 'commit', attempt);
         }
 
         // 7. Create and save result
@@ -177,6 +247,9 @@ export class WorkerAgent {
         );
 
         await this.saveResult(result);
+
+        // Clean up checkpoint on success
+        await this.checkpointManager.deleteCheckpoint(workOrder.orderId);
 
         return result;
       } catch (error) {
@@ -200,6 +273,8 @@ export class WorkerAgent {
               error.blockers
             );
             await this.saveResult(result);
+            // Clean up checkpoint on terminal state
+            await this.checkpointManager.deleteCheckpoint(workOrder.orderId);
             return result;
           }
 
@@ -213,6 +288,8 @@ export class WorkerAgent {
             `Fatal error: ${lastError.message}`
           );
           await this.saveResult(result);
+          // Clean up checkpoint on terminal state
+          await this.checkpointManager.deleteCheckpoint(workOrder.orderId);
           return result;
         }
 
@@ -236,8 +313,158 @@ export class WorkerAgent {
       }
     }
 
+    // Max retries exceeded - clean up checkpoint
+    await this.checkpointManager.deleteCheckpoint(workOrder.orderId);
+
     // Max retries exceeded
     throw new MaxRetriesExceededError(workOrder.issueId, attempt, lastError);
+  }
+
+  /**
+   * Check if there's a checkpoint to resume from
+   *
+   * @param workOrderId - Work order ID
+   * @returns Resume step and state, or null if no checkpoint
+   */
+  private async checkForResume(
+    workOrderId: string
+  ): Promise<{ resumeStep: WorkerStep | null; resumeState: CheckpointResumeState | null }> {
+    const checkpoint = await this.checkpointManager.loadCheckpoint(workOrderId);
+    if (checkpoint === null || !checkpoint.resumable) {
+      return { resumeStep: null, resumeState: null };
+    }
+
+    const state = this.checkpointManager.extractState(checkpoint);
+    if (state === null) {
+      return { resumeStep: null, resumeState: null };
+    }
+
+    const nextStep = this.checkpointManager.getNextStep(checkpoint.currentStep);
+    return {
+      resumeStep: nextStep,
+      resumeState: {
+        fileChanges: state.fileChanges,
+        testsCreated: state.testsCreated,
+        commits: state.commits,
+        testGenerationResult: state.testGenerationResult as TestGenerationResult | null,
+        branchName: state.context?.branchName ?? null,
+        attemptNumber: checkpoint.attemptNumber,
+      },
+    };
+  }
+
+  /**
+   * Restore state from checkpoint
+   *
+   * @param state - State to restore
+   */
+  private restoreState(state: CheckpointResumeState): void {
+    this.fileChanges.clear();
+    for (const change of state.fileChanges) {
+      this.fileChanges.set(change.filePath, change);
+    }
+
+    this.testsCreated.clear();
+    const testsCreated = state.testsCreated;
+    if (testsCreated instanceof Map) {
+      const mapRef = testsCreated as ReadonlyMap<string, number>;
+      mapRef.forEach((value, key) => {
+        this.testsCreated.set(key, value);
+      });
+    } else {
+      const entries = Object.entries(testsCreated) as [string, number][];
+      for (const [key, value] of entries) {
+        this.testsCreated.set(key, value);
+      }
+    }
+
+    this.commits.length = 0;
+    this.commits.push(...state.commits);
+    this.lastTestGenerationResult = state.testGenerationResult ?? null;
+    this.currentBranchName = state.branchName ?? null;
+  }
+
+  /**
+   * Save checkpoint for current state
+   *
+   * @param workOrder - Current work order
+   * @param step - Current step
+   * @param attempt - Current attempt number
+   */
+  private async saveCheckpoint(
+    workOrder: WorkOrder,
+    step: WorkerStep,
+    attempt: number
+  ): Promise<void> {
+    // Build context object properly to satisfy exactOptionalPropertyTypes
+    const context: CheckpointState['context'] =
+      this.currentBranchName !== null
+        ? { workOrder, branchName: this.currentBranchName }
+        : { workOrder };
+
+    // Build state with required fields
+    const baseState: CheckpointState = {
+      context,
+      fileChanges: Array.from(this.fileChanges.values()),
+      testsCreated: Object.fromEntries(this.testsCreated),
+      commits: [...this.commits],
+    };
+
+    // Add optional testGenerationResult if present
+    const state: CheckpointState =
+      this.lastTestGenerationResult !== null
+        ? { ...baseState, testGenerationResult: this.lastTestGenerationResult }
+        : baseState;
+
+    await this.checkpointManager.saveCheckpoint(
+      workOrder.orderId,
+      workOrder.issueId,
+      step,
+      attempt,
+      state
+    );
+  }
+
+  /**
+   * Determine if a step should be executed based on resume state
+   *
+   * @param step - Step to check
+   * @param resumeFromStep - Step to resume from (null if not resuming)
+   * @returns True if step should be executed
+   */
+  private shouldExecuteStep(step: WorkerStep, resumeFromStep: WorkerStep): boolean {
+    const stepOrder: WorkerStep[] = [
+      'context_analysis',
+      'branch_creation',
+      'code_generation',
+      'test_generation',
+      'verification',
+      'commit',
+      'result_persistence',
+    ];
+
+    const stepIndex = stepOrder.indexOf(step);
+    const resumeIndex = stepOrder.indexOf(resumeFromStep);
+
+    // Execute if step is at or after resume point
+    return stepIndex >= resumeIndex;
+  }
+
+  /**
+   * Check if a checkpoint exists for a work order
+   *
+   * @param workOrderId - Work order ID
+   * @returns True if checkpoint exists
+   */
+  public async hasCheckpoint(workOrderId: string): Promise<boolean> {
+    return this.checkpointManager.hasCheckpoint(workOrderId);
+  }
+
+  /**
+   * Get the checkpoint manager for external access
+   */
+  public getCheckpointManager(): CheckpointManager {
+    return this.checkpointManager;
   }
 
   /**
@@ -953,6 +1180,7 @@ export class WorkerAgent {
     this.testsCreated.clear();
     this.commits.length = 0;
     this.lastTestGenerationResult = null;
+    this.currentBranchName = null;
   }
 
   /**

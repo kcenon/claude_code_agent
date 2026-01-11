@@ -12,6 +12,8 @@ export { TestGenerator } from './TestGenerator.js';
 export { SelfVerificationAgent } from './SelfVerificationAgent.js';
 export { RetryHandler } from './RetryHandler.js';
 export type { RetryHandlerConfig, OperationResult } from './RetryHandler.js';
+export { CheckpointManager, DEFAULT_CHECKPOINT_CONFIG } from './CheckpointManager.js';
+export type { CheckpointManagerConfig, CheckpointState } from './CheckpointManager.js';
 
 // Test Generator sub-modules (Issue #237)
 export { CodeAnalyzer } from './CodeAnalyzer.js';
@@ -151,6 +153,11 @@ export {
   VerificationPipelineError,
   CommandTimeoutError,
   OperationTimeoutError,
+  // Checkpoint errors (Issue #250)
+  CheckpointSaveError,
+  CheckpointLoadError,
+  CheckpointInvalidError,
+  CheckpointExpiredError,
   // Error categorization functions (Issue #48)
   categorizeError,
   createWorkerErrorInfo,
