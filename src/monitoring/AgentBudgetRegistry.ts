@@ -7,6 +7,7 @@
  * - Category-based default inheritance
  * - Pipeline-level aggregation
  * - Budget exceeded callbacks
+ * - Budget transfer between agents for dynamic reallocation
  */
 
 import { TokenBudgetManager, type BudgetStatus } from './TokenBudgetManager.js';
@@ -51,6 +52,44 @@ interface AgentBudgetEntry {
 }
 
 /**
+ * Result of a budget transfer operation
+ */
+export interface BudgetTransferResult {
+  /** Whether the transfer was successful */
+  readonly success: boolean;
+  /** Error message if transfer failed */
+  readonly error?: string;
+  /** Amount of tokens transferred */
+  readonly tokensTransferred?: number;
+  /** Amount of cost transferred in USD */
+  readonly costTransferred?: number;
+  /** Source agent's new token limit */
+  readonly sourceNewLimit?: number;
+  /** Target agent's new token limit */
+  readonly targetNewLimit?: number;
+  /** Timestamp of the transfer */
+  readonly timestamp: string;
+}
+
+/**
+ * Budget transfer record for history tracking
+ */
+export interface BudgetTransferRecord {
+  /** Source agent name */
+  readonly fromAgent: string;
+  /** Target agent name */
+  readonly toAgent: string;
+  /** Tokens transferred */
+  readonly tokens?: number;
+  /** Cost transferred in USD */
+  readonly costUsd?: number;
+  /** Timestamp of the transfer */
+  readonly timestamp: string;
+  /** Whether transfer was successful */
+  readonly success: boolean;
+}
+
+/**
  * AgentBudgetRegistry class for managing per-agent budget instances
  */
 export class AgentBudgetRegistry {
@@ -63,6 +102,7 @@ export class AgentBudgetRegistry {
   private readonly onPipelineBudgetExceeded:
     | ((status: PipelineBudgetStatus) => void | Promise<void>)
     | undefined;
+  private readonly transferHistory: BudgetTransferRecord[] = [];
 
   constructor(config: AgentBudgetRegistryConfig = {}) {
     this.pipelineConfig = {
@@ -404,6 +444,198 @@ export class AgentBudgetRegistry {
     }
 
     return lines.join('\n');
+  }
+
+  /**
+   * Transfer budget tokens from one agent to another
+   *
+   * Reallocates token budget between agents. The source agent's limit is reduced
+   * and the target agent's limit is increased by the specified amount.
+   *
+   * @param fromAgent - Name of the source agent
+   * @param toAgent - Name of the target agent
+   * @param tokens - Number of tokens to transfer
+   * @returns Result of the transfer operation
+   */
+  public transferTokenBudget(
+    fromAgent: string,
+    toAgent: string,
+    tokens: number
+  ): BudgetTransferResult {
+    const timestamp = new Date().toISOString();
+
+    if (tokens <= 0) {
+      return this.createTransferResult(false, 'Transfer amount must be positive', timestamp);
+    }
+
+    if (fromAgent === toAgent) {
+      return this.createTransferResult(false, 'Cannot transfer to same agent', timestamp);
+    }
+
+    const sourceEntry = this.agentBudgets.get(fromAgent);
+    const targetEntry = this.agentBudgets.get(toAgent);
+
+    if (sourceEntry === undefined) {
+      return this.createTransferResult(false, `Source agent "${fromAgent}" not found`, timestamp);
+    }
+
+    if (targetEntry === undefined) {
+      return this.createTransferResult(false, `Target agent "${toAgent}" not found`, timestamp);
+    }
+
+    const sourceLimit = sourceEntry.manager.getTokenLimit();
+    if (sourceLimit === undefined) {
+      return this.createTransferResult(
+        false,
+        `Source agent "${fromAgent}" has no token limit to transfer`,
+        timestamp
+      );
+    }
+
+    const sourceUsed = sourceEntry.manager.getStatus().currentTokens;
+    const availableToTransfer = sourceLimit - sourceUsed;
+
+    if (tokens > availableToTransfer) {
+      return this.createTransferResult(
+        false,
+        `Insufficient available budget: requested ${String(tokens)}, available ${String(availableToTransfer)}`,
+        timestamp
+      );
+    }
+
+    const newSourceLimit = sourceLimit - tokens;
+    const currentTargetLimit = targetEntry.manager.getTokenLimit() ?? 0;
+    const newTargetLimit = currentTargetLimit + tokens;
+
+    sourceEntry.manager.adjustTokenLimit(newSourceLimit);
+    targetEntry.manager.adjustTokenLimit(newTargetLimit);
+
+    const record: BudgetTransferRecord = {
+      fromAgent,
+      toAgent,
+      tokens,
+      timestamp,
+      success: true,
+    };
+    this.transferHistory.push(record);
+
+    return {
+      success: true,
+      tokensTransferred: tokens,
+      sourceNewLimit: newSourceLimit,
+      targetNewLimit: newTargetLimit,
+      timestamp,
+    };
+  }
+
+  /**
+   * Transfer budget cost from one agent to another
+   *
+   * Reallocates cost budget between agents.
+   *
+   * @param fromAgent - Name of the source agent
+   * @param toAgent - Name of the target agent
+   * @param costUsd - Amount of cost budget to transfer in USD
+   * @returns Result of the transfer operation
+   */
+  public transferCostBudget(
+    fromAgent: string,
+    toAgent: string,
+    costUsd: number
+  ): BudgetTransferResult {
+    const timestamp = new Date().toISOString();
+
+    if (costUsd <= 0) {
+      return this.createTransferResult(false, 'Transfer amount must be positive', timestamp);
+    }
+
+    if (fromAgent === toAgent) {
+      return this.createTransferResult(false, 'Cannot transfer to same agent', timestamp);
+    }
+
+    const sourceEntry = this.agentBudgets.get(fromAgent);
+    const targetEntry = this.agentBudgets.get(toAgent);
+
+    if (sourceEntry === undefined) {
+      return this.createTransferResult(false, `Source agent "${fromAgent}" not found`, timestamp);
+    }
+
+    if (targetEntry === undefined) {
+      return this.createTransferResult(false, `Target agent "${toAgent}" not found`, timestamp);
+    }
+
+    const sourceLimit = sourceEntry.manager.getCostLimit();
+    if (sourceLimit === undefined) {
+      return this.createTransferResult(
+        false,
+        `Source agent "${fromAgent}" has no cost limit to transfer`,
+        timestamp
+      );
+    }
+
+    const sourceUsed = sourceEntry.manager.getStatus().currentCostUsd;
+    const availableToTransfer = sourceLimit - sourceUsed;
+
+    if (costUsd > availableToTransfer) {
+      return this.createTransferResult(
+        false,
+        `Insufficient available budget: requested $${String(costUsd)}, available $${String(availableToTransfer)}`,
+        timestamp
+      );
+    }
+
+    const newSourceLimit = sourceLimit - costUsd;
+    const currentTargetLimit = targetEntry.manager.getCostLimit() ?? 0;
+    const newTargetLimit = currentTargetLimit + costUsd;
+
+    sourceEntry.manager.adjustCostLimit(newSourceLimit);
+    targetEntry.manager.adjustCostLimit(newTargetLimit);
+
+    const record: BudgetTransferRecord = {
+      fromAgent,
+      toAgent,
+      costUsd,
+      timestamp,
+      success: true,
+    };
+    this.transferHistory.push(record);
+
+    return {
+      success: true,
+      costTransferred: costUsd,
+      sourceNewLimit: newSourceLimit,
+      targetNewLimit: newTargetLimit,
+      timestamp,
+    };
+  }
+
+  /**
+   * Get the history of budget transfers
+   */
+  public getTransferHistory(): readonly BudgetTransferRecord[] {
+    return this.transferHistory;
+  }
+
+  /**
+   * Clear transfer history
+   */
+  public clearTransferHistory(): void {
+    this.transferHistory.length = 0;
+  }
+
+  /**
+   * Helper to create transfer result for failed transfers
+   */
+  private createTransferResult(
+    success: false,
+    error: string,
+    timestamp: string
+  ): BudgetTransferResult {
+    return {
+      success,
+      error,
+      timestamp,
+    };
   }
 }
 

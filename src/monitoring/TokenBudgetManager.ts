@@ -6,10 +6,11 @@
  * - Warning thresholds at configurable percentages
  * - Hard limits with graceful handling
  * - Cost-based budget controls
+ * - Dynamic budget adjustment for reallocation between agents
  *
- * NOTE: Per-agent budget isolation is planned.
- * See Issue #248 for implementation details.
- * Currently all agents share a single global budget.
+ * Per-agent budget isolation is implemented via AgentBudgetRegistry.
+ * See AgentBudgetRegistry for managing multiple agent budgets with
+ * budget transfer capabilities between agents.
  *
  * NOTE: Budget persistence and forecasting are planned.
  * See Issue #253 for implementation details.
@@ -331,6 +332,56 @@ export class TokenBudgetManager {
    */
   public getWarningHistory(): readonly BudgetWarning[] {
     return this.warningHistory;
+  }
+
+  /**
+   * Adjust the token limit dynamically
+   *
+   * Used for budget reallocation between agents.
+   *
+   * @param newLimit - The new token limit (must be positive or undefined to remove limit)
+   * @returns The previous limit value
+   */
+  public adjustTokenLimit(newLimit: number | undefined): number | undefined {
+    const previousLimit = this.config.sessionTokenLimit;
+    if (newLimit === undefined) {
+      delete (this.config as { sessionTokenLimit?: number }).sessionTokenLimit;
+    } else {
+      (this.config as { sessionTokenLimit?: number }).sessionTokenLimit = newLimit;
+    }
+    return previousLimit;
+  }
+
+  /**
+   * Adjust the cost limit dynamically
+   *
+   * Used for budget reallocation between agents.
+   *
+   * @param newLimit - The new cost limit in USD (must be positive or undefined to remove limit)
+   * @returns The previous limit value
+   */
+  public adjustCostLimit(newLimit: number | undefined): number | undefined {
+    const previousLimit = this.config.sessionCostLimitUsd;
+    if (newLimit === undefined) {
+      delete (this.config as { sessionCostLimitUsd?: number }).sessionCostLimitUsd;
+    } else {
+      (this.config as { sessionCostLimitUsd?: number }).sessionCostLimitUsd = newLimit;
+    }
+    return previousLimit;
+  }
+
+  /**
+   * Get current token limit
+   */
+  public getTokenLimit(): number | undefined {
+    return this.config.sessionTokenLimit;
+  }
+
+  /**
+   * Get current cost limit
+   */
+  public getCostLimit(): number | undefined {
+    return this.config.sessionCostLimitUsd;
   }
 
   /**

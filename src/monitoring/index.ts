@@ -147,7 +147,11 @@ export {
   getAgentBudgetRegistry,
   resetAgentBudgetRegistry,
 } from './AgentBudgetRegistry.js';
-export type { AgentBudgetRegistryConfig } from './AgentBudgetRegistry.js';
+export type {
+  AgentBudgetRegistryConfig,
+  BudgetTransferResult,
+  BudgetTransferRecord,
+} from './AgentBudgetRegistry.js';
 
 // BudgetAggregator
 export {
