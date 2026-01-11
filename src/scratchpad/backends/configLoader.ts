@@ -106,16 +106,19 @@ const ENV_VAR_MAPPINGS = {
  */
 export function resolveEnvVars(value: string): string {
   // Pattern: ${VAR_NAME} or ${VAR_NAME:-default}
-  return value.replace(/\$\{(\w+)(?::-([^}]*))?\}/g, (match, name: string, defaultValue?: string) => {
-    const envValue = process.env[name];
-    if (envValue !== undefined) {
-      return envValue;
+  return value.replace(
+    /\$\{(\w+)(?::-([^}]*))?\}/g,
+    (match, name: string, defaultValue?: string) => {
+      const envValue = process.env[name];
+      if (envValue !== undefined) {
+        return envValue;
+      }
+      if (defaultValue !== undefined) {
+        return defaultValue;
+      }
+      return match; // Keep original if no env var and no default
     }
-    if (defaultValue !== undefined) {
-      return defaultValue;
-    }
-    return match; // Keep original if no env var and no default
-  });
+  );
 }
 
 /**
@@ -210,7 +213,11 @@ function convertToBackendConfig(raw: RawScratchpadConfig): ScratchpadBackendConf
   const config: Record<string, unknown> = {};
 
   // Backend type
-  if (raw.backend !== undefined && raw.backend !== '' && ['file', 'sqlite', 'redis'].includes(raw.backend)) {
+  if (
+    raw.backend !== undefined &&
+    raw.backend !== '' &&
+    ['file', 'sqlite', 'redis'].includes(raw.backend)
+  ) {
     config.backend = raw.backend as BackendType;
   }
 
@@ -302,7 +309,11 @@ function applyEnvVarOverrides(config: ScratchpadBackendConfig): ScratchpadBacken
 
   // Check for backend type override
   const backendType = process.env['SCRATCHPAD_BACKEND'];
-  if (backendType !== undefined && backendType !== '' && ['file', 'sqlite', 'redis'].includes(backendType)) {
+  if (
+    backendType !== undefined &&
+    backendType !== '' &&
+    ['file', 'sqlite', 'redis'].includes(backendType)
+  ) {
     result.backend = backendType as BackendType;
   }
 
