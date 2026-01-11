@@ -96,7 +96,7 @@ export class ConsoleTransport extends BaseTransport {
    * Check if stdout is a TTY (supports colors)
    */
   private isTTY(): boolean {
-    return process.stdout.isTTY ?? false;
+    return process.stdout.isTTY;
   }
 
   /**
@@ -113,11 +113,12 @@ export class ConsoleTransport extends BaseTransport {
    *
    * @param entries - Log entries to output
    */
-  protected async doLog(entries: TransportLogEntry[]): Promise<void> {
+  protected doLog(entries: TransportLogEntry[]): Promise<void> {
     for (const entry of entries) {
       const output = this.formatEntry(entry);
       this.writeToConsole(entry.level, output);
     }
+    return Promise.resolve();
   }
 
   /**
@@ -253,10 +254,11 @@ export class ConsoleTransport extends BaseTransport {
 
     // Duration
     if (entry.durationMs !== undefined) {
+      const duration = String(entry.durationMs);
       if (this.colors) {
-        parts.push(`${COLORS.dim}${entry.durationMs}ms${COLORS.reset}`);
+        parts.push(`${COLORS.dim}${duration}ms${COLORS.reset}`);
       } else {
-        parts.push(`${entry.durationMs}ms`);
+        parts.push(`${duration}ms`);
       }
     }
 

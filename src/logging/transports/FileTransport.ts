@@ -14,11 +14,6 @@ import { BaseTransport } from './BaseTransport.js';
 import type { TransportLogEntry, FileTransportConfig } from './types.js';
 
 /**
- * Default log directory
- */
-const DEFAULT_LOG_DIR = '.ad-sdlc/logs';
-
-/**
  * Default max file size (10MB)
  */
 const DEFAULT_MAX_FILE_SIZE = 10 * 1024 * 1024;
@@ -120,7 +115,7 @@ export class FileTransport extends BaseTransport {
   constructor(config: FileTransportConfig) {
     super('file', config);
 
-    this.logDir = config.path ?? DEFAULT_LOG_DIR;
+    this.logDir = config.path;
     this.maxFileSize = config.maxFileSize ?? DEFAULT_MAX_FILE_SIZE;
     this.maxFiles = config.maxFiles ?? DEFAULT_MAX_FILES;
     this.fileNamePattern = config.fileNamePattern ?? DEFAULT_FILE_NAME_PATTERN;
@@ -247,7 +242,7 @@ export class FileTransport extends BaseTransport {
    */
   private getDateString(): string {
     const now = new Date();
-    const year = now.getFullYear();
+    const year = String(now.getFullYear());
     const month = String(now.getMonth() + 1).padStart(2, '0');
     const day = String(now.getDate()).padStart(2, '0');
     const hours = String(now.getHours()).padStart(2, '0');
