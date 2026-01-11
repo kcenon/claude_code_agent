@@ -64,6 +64,17 @@ console.log(`PR #${result.pullRequest.number}: ${result.pullRequest.url}`);
 | `ciTimeout` | number | `600000` | CI wait timeout (ms) |
 | `ciPollInterval` | number | `10000` | CI poll interval (ms) |
 
+### Review Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `skipCIWait` | boolean | `false` | Skip waiting for CI completion |
+| `skipSecurityScan` | boolean | `false` | Skip security vulnerability scan |
+| `forceApprove` | boolean | `false` | Bypass quality gates |
+| `dryRun` | boolean | `false` | Don't modify PR or merge |
+| `enableIncrementalReview` | boolean | `true` | Use batch processing for large PRs |
+| `onReviewProgress` | function | undefined | Progress callback for incremental review |
+
 ### Example Configuration
 
 ```typescript
@@ -178,7 +189,7 @@ console.log(`Warnings: ${result.warnings.join(', ')}`);
 
 ## ReviewChecks
 
-Performs automated code review checks on changed files.
+Performs automated code review checks on changed files with support for incremental review of large PRs.
 
 ### Basic Usage
 
@@ -196,6 +207,44 @@ const result = await checks.runAllChecks(fileChanges);
 console.log(`Comments: ${result.comments.length}`);
 console.log(`Metrics: Coverage ${result.metrics.codeCoverage}%`);
 ```
+
+### Incremental Review for Large PRs
+
+For PRs with many file changes, use incremental review to process files in batches with progress feedback:
+
+```typescript
+import { ReviewChecks } from 'ad-sdlc';
+
+const checks = new ReviewChecks({
+  projectRoot: '/path/to/project',
+  enableIncrementalReview: true,
+  incrementalReviewThreshold: 20, // Enable for PRs with 20+ files
+  batchSize: 50, // Process 50 files per batch
+});
+
+const result = await checks.runIncrementalChecks(fileChanges, (progress) => {
+  console.log(`Batch ${progress.currentBatch}/${progress.totalBatches}`);
+  console.log(`Files processed: ${progress.filesProcessed}/${progress.totalFiles}`);
+  console.log(`Comments found: ${progress.commentsFound}`);
+});
+
+console.log(`Incremental: ${result.isIncremental}`);
+console.log(`Batches: ${result.batchCount}`);
+```
+
+### Configuration Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `projectRoot` | string | `process.cwd()` | Project root directory |
+| `enableSecurityScan` | boolean | `true` | Enable security vulnerability scanning |
+| `enableTestingChecks` | boolean | `true` | Enable test execution checks |
+| `enableStaticAnalysis` | boolean | `true` | Enable TypeScript type checking |
+| `enableDependencyCheck` | boolean | `true` | Enable npm audit for vulnerabilities |
+| `maxComplexity` | number | `10` | Maximum allowed cyclomatic complexity |
+| `enableIncrementalReview` | boolean | `true` | Enable batch processing for large PRs |
+| `incrementalReviewThreshold` | number | `20` | File count threshold for incremental mode |
+| `batchSize` | number | `50` | Files per batch in incremental mode |
 
 ### Security Checks
 
