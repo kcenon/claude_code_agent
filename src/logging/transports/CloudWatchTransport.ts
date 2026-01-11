@@ -171,7 +171,7 @@ export class CloudWatchTransport extends BaseTransport {
         clientConfig.credentials = {
           accessKeyId: creds.accessKeyId,
           secretAccessKey: creds.secretAccessKey,
-          sessionToken: creds.sessionToken,
+          ...(creds.sessionToken !== undefined && { sessionToken: creds.sessionToken }),
         };
       }
     }
