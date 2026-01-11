@@ -38,6 +38,7 @@ export { BaseTransport } from './BaseTransport.js';
 // Transport implementations
 export { ConsoleTransport } from './ConsoleTransport.js';
 export { FileTransport } from './FileTransport.js';
+export { ElasticsearchTransport } from './ElasticsearchTransport.js';
 
 // Type definitions
 export type {
