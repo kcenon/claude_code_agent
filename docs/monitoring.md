@@ -59,6 +59,12 @@ import {
   getLatencyOptimizer,
   getParallelExecutionTuner,
   getResponseTimeBenchmarks,
+  // Alert types
+  AlertConditionOperator,
+  AlertConditionMetric,
+  AlertConditionTyped,
+  AlertEscalationConfig,
+  AlertEventWithEscalation,
 } from 'ad-sdlc';
 ```
 
