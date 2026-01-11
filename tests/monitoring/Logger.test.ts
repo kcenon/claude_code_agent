@@ -757,4 +757,214 @@ describe('Logger', () => {
       }
     });
   });
+
+  describe('log aggregation', () => {
+    let aggregationDir: string;
+
+    beforeEach(() => {
+      aggregationDir = fs.mkdtempSync(path.join(os.tmpdir(), 'log-agg-'));
+    });
+
+    afterEach(() => {
+      if (fs.existsSync(aggregationDir)) {
+        fs.rmSync(aggregationDir, { recursive: true, force: true });
+      }
+    });
+
+    it('should aggregate logs from a file source', () => {
+      const sourceFile = path.join(aggregationDir, 'source.jsonl');
+      const entry = { timestamp: new Date().toISOString(), level: 'INFO', message: 'Test', correlationId: 'test-1' };
+      fs.writeFileSync(sourceFile, JSON.stringify(entry) + '\n');
+
+      const result = logger.aggregateLogs([{ type: 'file', path: sourceFile }]);
+      expect(result.length).toBe(1);
+      expect(result[0]?.message).toBe('Test');
+    });
+
+    it('should aggregate logs from a directory source', () => {
+      const entry1 = { timestamp: new Date().toISOString(), level: 'INFO', message: 'Entry 1', correlationId: 'test-1' };
+      const entry2 = { timestamp: new Date().toISOString(), level: 'WARN', message: 'Entry 2', correlationId: 'test-2' };
+
+      fs.writeFileSync(path.join(aggregationDir, 'log1.jsonl'), JSON.stringify(entry1) + '\n');
+      fs.writeFileSync(path.join(aggregationDir, 'log2.jsonl'), JSON.stringify(entry2) + '\n');
+
+      const result = logger.aggregateLogs([{ type: 'directory', path: aggregationDir }]);
+      expect(result.length).toBe(2);
+    });
+
+    it('should deduplicate entries when requested', () => {
+      const entry = { timestamp: '2024-01-01T00:00:00Z', level: 'INFO', message: 'Duplicate', correlationId: 'dup-1' };
+      const file1 = path.join(aggregationDir, 'dup1.jsonl');
+      const file2 = path.join(aggregationDir, 'dup2.jsonl');
+
+      fs.writeFileSync(file1, JSON.stringify(entry) + '\n');
+      fs.writeFileSync(file2, JSON.stringify(entry) + '\n');
+
+      const result = logger.aggregateLogs(
+        [{ type: 'file', path: file1 }, { type: 'file', path: file2 }],
+        { deduplicate: true }
+      );
+
+      expect(result.length).toBe(1);
+    });
+
+    it('should sort entries by timestamp ascending', () => {
+      const older = { timestamp: '2024-01-01T00:00:00Z', level: 'INFO', message: 'Older', correlationId: 'old' };
+      const newer = { timestamp: '2024-01-02T00:00:00Z', level: 'INFO', message: 'Newer', correlationId: 'new' };
+
+      const file = path.join(aggregationDir, 'sorted.jsonl');
+      fs.writeFileSync(file, JSON.stringify(newer) + '\n' + JSON.stringify(older) + '\n');
+
+      const result = logger.aggregateLogs([{ type: 'file', path: file }], { sortOrder: 'asc' });
+      expect(result[0]?.message).toBe('Older');
+      expect(result[1]?.message).toBe('Newer');
+    });
+
+    it('should sort entries by timestamp descending by default', () => {
+      const older = { timestamp: '2024-01-01T00:00:00Z', level: 'INFO', message: 'Older', correlationId: 'old' };
+      const newer = { timestamp: '2024-01-02T00:00:00Z', level: 'INFO', message: 'Newer', correlationId: 'new' };
+
+      const file = path.join(aggregationDir, 'sorted.jsonl');
+      fs.writeFileSync(file, JSON.stringify(older) + '\n' + JSON.stringify(newer) + '\n');
+
+      const result = logger.aggregateLogs([{ type: 'file', path: file }]);
+      expect(result[0]?.message).toBe('Newer');
+      expect(result[1]?.message).toBe('Older');
+    });
+
+    it('should write aggregated output to file', () => {
+      const entry = { timestamp: new Date().toISOString(), level: 'INFO', message: 'Output test', correlationId: 'out-1' };
+      const sourceFile = path.join(aggregationDir, 'source.jsonl');
+      const outputFile = path.join(aggregationDir, 'output.jsonl');
+
+      fs.writeFileSync(sourceFile, JSON.stringify(entry) + '\n');
+      logger.aggregateLogs([{ type: 'file', path: sourceFile }], { outputPath: outputFile });
+
+      expect(fs.existsSync(outputFile)).toBe(true);
+      const content = fs.readFileSync(outputFile, 'utf8');
+      expect(content).toContain('Output test');
+    });
+
+    it('should write compressed aggregated output', () => {
+      const entry = { timestamp: new Date().toISOString(), level: 'INFO', message: 'Compress test', correlationId: 'comp-1' };
+      const sourceFile = path.join(aggregationDir, 'source.jsonl');
+      const outputFile = path.join(aggregationDir, 'output.jsonl');
+
+      fs.writeFileSync(sourceFile, JSON.stringify(entry) + '\n');
+      logger.aggregateLogs([{ type: 'file', path: sourceFile }], { outputPath: outputFile, compress: true });
+
+      expect(fs.existsSync(outputFile + '.gz')).toBe(true);
+    });
+
+    it('should apply filter to source', () => {
+      const entry1 = { timestamp: new Date().toISOString(), level: 'INFO', message: 'Info entry', correlationId: 'info-1' };
+      const entry2 = { timestamp: new Date().toISOString(), level: 'ERROR', message: 'Error entry', correlationId: 'err-1' };
+
+      const sourceFile = path.join(aggregationDir, 'filtered.jsonl');
+      fs.writeFileSync(sourceFile, JSON.stringify(entry1) + '\n' + JSON.stringify(entry2) + '\n');
+
+      const result = logger.aggregateLogs([{ type: 'file', path: sourceFile, filter: { level: 'ERROR' } }]);
+      expect(result.length).toBe(1);
+      expect(result[0]?.level).toBe('ERROR');
+    });
+
+    it('should handle non-existent source gracefully', () => {
+      const result = logger.aggregateLogs([{ type: 'file', path: '/nonexistent/path.jsonl' }]);
+      expect(result.length).toBe(0);
+    });
+
+    it('should handle non-existent directory gracefully', () => {
+      const result = logger.aggregateLogs([{ type: 'directory', path: '/nonexistent/dir' }]);
+      expect(result.length).toBe(0);
+    });
+
+    it('should handle malformed JSON lines', () => {
+      const sourceFile = path.join(aggregationDir, 'malformed.jsonl');
+      const validEntry = { timestamp: new Date().toISOString(), level: 'INFO', message: 'Valid', correlationId: 'v-1' };
+      fs.writeFileSync(sourceFile, JSON.stringify(validEntry) + '\n' + 'not valid json\n');
+
+      const result = logger.aggregateLogs([{ type: 'file', path: sourceFile }]);
+      expect(result.length).toBe(1);
+    });
+  });
+
+  describe('log compression', () => {
+    let compressionDir: string;
+
+    beforeEach(() => {
+      compressionDir = fs.mkdtempSync(path.join(os.tmpdir(), 'log-comp-'));
+    });
+
+    afterEach(() => {
+      if (fs.existsSync(compressionDir)) {
+        fs.rmSync(compressionDir, { recursive: true, force: true });
+      }
+    });
+
+    it('should compress a log file', () => {
+      const logFile = path.join(compressionDir, 'test.jsonl');
+      fs.writeFileSync(logFile, '{"message":"test"}\n');
+
+      const result = logger.compressLogFile(logFile);
+      expect(result).toBe(logFile + '.gz');
+      expect(fs.existsSync(result as string)).toBe(true);
+    });
+
+    it('should delete original after compression when requested', () => {
+      const logFile = path.join(compressionDir, 'delete-test.jsonl');
+      fs.writeFileSync(logFile, '{"message":"test"}\n');
+
+      logger.compressLogFile(logFile, { deleteOriginal: true });
+      expect(fs.existsSync(logFile)).toBe(false);
+      expect(fs.existsSync(logFile + '.gz')).toBe(true);
+    });
+
+    it('should return null for non-existent file', () => {
+      const result = logger.compressLogFile('/nonexistent/file.jsonl');
+      expect(result).toBeNull();
+    });
+
+    it('should return null when algorithm is none', () => {
+      const logFile = path.join(compressionDir, 'no-compress.jsonl');
+      fs.writeFileSync(logFile, '{"message":"test"}\n');
+
+      const result = logger.compressLogFile(logFile, { algorithm: 'none' });
+      expect(result).toBeNull();
+    });
+
+    it('should apply compression level', () => {
+      const logFile = path.join(compressionDir, 'level-test.jsonl');
+      fs.writeFileSync(logFile, '{"message":"test data for compression level testing"}\n'.repeat(100));
+
+      const result = logger.compressLogFile(logFile, { level: 9 });
+      expect(result).toBe(logFile + '.gz');
+      expect(fs.existsSync(result as string)).toBe(true);
+    });
+  });
+
+  describe('compressed file reading in aggregation', () => {
+    let gzDir: string;
+
+    beforeEach(() => {
+      gzDir = fs.mkdtempSync(path.join(os.tmpdir(), 'log-gz-'));
+    });
+
+    afterEach(() => {
+      if (fs.existsSync(gzDir)) {
+        fs.rmSync(gzDir, { recursive: true, force: true });
+      }
+    });
+
+    it('should read compressed files from directory', () => {
+      const entry = { timestamp: new Date().toISOString(), level: 'INFO', message: 'GZ entry', correlationId: 'gz-1' };
+      const logFile = path.join(gzDir, 'log.jsonl');
+
+      fs.writeFileSync(logFile, JSON.stringify(entry) + '\n');
+      logger.compressLogFile(logFile, { deleteOriginal: true });
+
+      const result = logger.aggregateLogs([{ type: 'directory', path: gzDir }]);
+      expect(result.length).toBe(1);
+      expect(result[0]?.message).toBe('GZ entry');
+    });
+  });
 });
