@@ -122,3 +122,21 @@ export {
 } from './validation.js';
 
 export type { FieldError, ValidationResult as SchemaValidationResult } from './validation.js';
+
+// Backend exports
+export type {
+  IScratchpadBackend,
+  BatchOperation,
+  BackendHealth,
+} from './backends/IScratchpadBackend.js';
+export type {
+  BackendType,
+  FileBackendConfig,
+  SQLiteBackendConfig,
+  RedisBackendConfig,
+  ScratchpadBackendConfig,
+} from './backends/types.js';
+export { FileBackend } from './backends/FileBackend.js';
+export { SQLiteBackend } from './backends/SQLiteBackend.js';
+export { RedisBackend } from './backends/RedisBackend.js';
+export { BackendFactory, BackendCreationError } from './backends/BackendFactory.js';
