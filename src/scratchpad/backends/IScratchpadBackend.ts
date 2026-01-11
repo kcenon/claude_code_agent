@@ -79,6 +79,7 @@ export interface IScratchpadBackend {
    * @param key - Key within the section
    * @param value - Value to store (will be serialized)
    */
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters
   write<T>(section: string, key: string, value: T): Promise<void>;
 
   /**

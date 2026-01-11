@@ -35,6 +35,7 @@ export class BackendCreationError extends Error {
  * await backend.initialize();
  * ```
  */
+// eslint-disable-next-line @typescript-eslint/no-extraneous-class
 export class BackendFactory {
   /**
    * Create a backend instance based on configuration

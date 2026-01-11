@@ -120,91 +120,142 @@ export class SQLiteBackend implements IScratchpadBackend {
     );
   }
 
-  private ensureInitialized(): void {
+  private getDb(): Database {
     if (!this.db) {
       throw new Error('SQLiteBackend not initialized. Call initialize() first.');
     }
+    return this.db;
   }
 
-  async read<T>(section: string, key: string): Promise<T | null> {
-    this.ensureInitialized();
-
-    const row = this.stmtRead!.get(section, key) as { value: string } | undefined;
-    if (!row) {
-      return null;
+  private getStatements(): {
+    read: Statement;
+    write: Statement;
+    delete: Statement;
+    list: Statement;
+    exists: Statement;
+  } {
+    // Verify database is initialized
+    this.getDb();
+    if (!this.stmtRead || !this.stmtWrite || !this.stmtDelete || !this.stmtList || !this.stmtExists) {
+      throw new Error('SQLiteBackend statements not initialized. Call initialize() first.');
     }
-
-    return JSON.parse(row.value) as T;
+    // Statements are guaranteed to exist after initialize()
+    return {
+      read: this.stmtRead,
+      write: this.stmtWrite,
+      delete: this.stmtDelete,
+      list: this.stmtList,
+      exists: this.stmtExists,
+    };
   }
 
-  async write<T>(section: string, key: string, value: T): Promise<void> {
-    this.ensureInitialized();
-
-    const serialized = JSON.stringify(value);
-    this.stmtWrite!.run(section, key, serialized);
-  }
-
-  async delete(section: string, key: string): Promise<boolean> {
-    this.ensureInitialized();
-
-    const result = this.stmtDelete!.run(section, key);
-    return result.changes > 0;
-  }
-
-  async list(section: string): Promise<string[]> {
-    this.ensureInitialized();
-
-    const rows = this.stmtList!.all(section) as Array<{ key: string }>;
-    return rows.map((row) => row.key);
-  }
-
-  async exists(section: string, key: string): Promise<boolean> {
-    this.ensureInitialized();
-
-    const result = this.stmtExists!.get(section, key);
-    return result !== undefined;
-  }
-
-  async batch(operations: BatchOperation[]): Promise<void> {
-    this.ensureInitialized();
-
-    const executeBatch = this.db!.transaction(() => {
-      for (const op of operations) {
-        if (op.type === 'write') {
-          const serialized = JSON.stringify(op.value);
-          this.stmtWrite!.run(op.section, op.key, serialized);
-        } else {
-          this.stmtDelete!.run(op.section, op.key);
-        }
-      }
-    });
-
-    executeBatch();
-  }
-
-  async healthCheck(): Promise<BackendHealth> {
+  read<T>(section: string, key: string): Promise<T | null> {
     try {
-      this.ensureInitialized();
+      const { read: stmtRead } = this.getStatements();
+
+      const row = stmtRead.get(section, key) as { value: string } | undefined;
+      if (!row) {
+        return Promise.resolve(null);
+      }
+
+      return Promise.resolve(JSON.parse(row.value) as T);
+    } catch (error) {
+      return Promise.reject(error);
+    }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters
+  write<T>(section: string, key: string, value: T): Promise<void> {
+    try {
+      const { write: stmtWrite } = this.getStatements();
+
+      const serialized = JSON.stringify(value);
+      stmtWrite.run(section, key, serialized);
+      return Promise.resolve();
+    } catch (error) {
+      return Promise.reject(error);
+    }
+  }
+
+  delete(section: string, key: string): Promise<boolean> {
+    try {
+      const { delete: stmtDelete } = this.getStatements();
+
+      const result = stmtDelete.run(section, key);
+      return Promise.resolve(result.changes > 0);
+    } catch (error) {
+      return Promise.reject(error);
+    }
+  }
+
+  list(section: string): Promise<string[]> {
+    try {
+      const { list: stmtList } = this.getStatements();
+
+      const rows = stmtList.all(section) as Array<{ key: string }>;
+      return Promise.resolve(rows.map((row) => row.key));
+    } catch (error) {
+      return Promise.reject(error);
+    }
+  }
+
+  exists(section: string, key: string): Promise<boolean> {
+    try {
+      const { exists: stmtExists } = this.getStatements();
+
+      const result = stmtExists.get(section, key);
+      return Promise.resolve(result !== undefined);
+    } catch (error) {
+      return Promise.reject(error);
+    }
+  }
+
+  batch(operations: BatchOperation[]): Promise<void> {
+    try {
+      const db = this.getDb();
+      const { write: stmtWrite, delete: stmtDelete } = this.getStatements();
+
+      const executeBatch = db.transaction(() => {
+        for (const op of operations) {
+          if (op.type === 'write') {
+            const serialized = JSON.stringify(op.value);
+            stmtWrite.run(op.section, op.key, serialized);
+          } else {
+            stmtDelete.run(op.section, op.key);
+          }
+        }
+      });
+
+      executeBatch();
+      return Promise.resolve();
+    } catch (error) {
+      return Promise.reject(error);
+    }
+  }
+
+  healthCheck(): Promise<BackendHealth> {
+    try {
+      const db = this.getDb();
 
       const startTime = Date.now();
       // Simple query to check database is responsive
-      this.db!.prepare('SELECT 1').get();
+      db.prepare('SELECT 1').get();
       const latencyMs = Date.now() - startTime;
 
-      return {
+      return Promise.resolve({
         healthy: true,
         message: 'SQLite backend is healthy',
         latencyMs,
-      };
+      });
     } catch (error) {
-      return {
+      return Promise.resolve({
         healthy: false,
         message: `SQLite backend error: ${(error as Error).message}`,
-      };
+      });
     }
   }
 
-  async close(): Promise<void> {
+  close(): Promise<void> {
     if (this.db) {
       this.db.close();
       this.db = null;
@@ -214,5 +265,6 @@ export class SQLiteBackend implements IScratchpadBackend {
       this.stmtList = null;
       this.stmtExists = null;
     }
+    return Promise.resolve();
   }
 }

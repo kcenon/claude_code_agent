@@ -69,7 +69,7 @@ export class FileBackend implements IScratchpadBackend {
   /**
    * Serialize data to string
    */
-  private serialize<T>(data: T): string {
+  private serialize(data: unknown): string {
     if (this.format === 'json') {
       return JSON.stringify(data, null, 2);
     }
@@ -83,11 +83,11 @@ export class FileBackend implements IScratchpadBackend {
   /**
    * Deserialize string to data
    */
-  private deserialize<T>(content: string): T {
+  private deserialize(content: string): unknown {
     if (this.format === 'json') {
-      return JSON.parse(content) as T;
+      return JSON.parse(content) as unknown;
     }
-    return yaml.load(content) as T;
+    return yaml.load(content);
   }
 
   /**
@@ -131,7 +131,7 @@ export class FileBackend implements IScratchpadBackend {
 
     try {
       const content = await fs.promises.readFile(filePath, 'utf8');
-      return this.deserialize<T>(content);
+      return this.deserialize(content) as T;
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
         return null;
@@ -140,6 +140,7 @@ export class FileBackend implements IScratchpadBackend {
     }
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters
   async write<T>(section: string, key: string, value: T): Promise<void> {
     const filePath = this.getFilePath(section, key);
     const content = this.serialize(value);

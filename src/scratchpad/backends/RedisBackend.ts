@@ -117,7 +117,7 @@ export class RedisBackend implements IScratchpadBackend {
       db: this.db,
       connectTimeout: this.connectTimeout,
       maxRetriesPerRequest: this.maxRetries,
-      retryStrategy: (times: number) => {
+      retryStrategy: (times: number): number | null => {
         if (times > this.maxRetries) {
           return null; // Stop retrying
         }
@@ -129,17 +129,18 @@ export class RedisBackend implements IScratchpadBackend {
     await this.client.ping();
   }
 
-  private ensureInitialized(): void {
+  private getClient(): RedisClient {
     if (!this.client) {
       throw new Error('RedisBackend not initialized. Call initialize() first.');
     }
+    return this.client;
   }
 
   async read<T>(section: string, key: string): Promise<T | null> {
-    this.ensureInitialized();
+    const client = this.getClient();
 
     const redisKey = this.getRedisKey(section, key);
-    const value = await this.client!.get(redisKey);
+    const value = await client.get(redisKey);
 
     if (value === null) {
       return null;
@@ -148,33 +149,34 @@ export class RedisBackend implements IScratchpadBackend {
     return JSON.parse(value) as T;
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters
   async write<T>(section: string, key: string, value: T): Promise<void> {
-    this.ensureInitialized();
+    const client = this.getClient();
 
     const redisKey = this.getRedisKey(section, key);
     const serialized = JSON.stringify(value);
 
-    if (this.ttl) {
-      await this.client!.setex(redisKey, this.ttl, serialized);
+    if (this.ttl !== undefined) {
+      await client.setex(redisKey, this.ttl, serialized);
     } else {
-      await this.client!.set(redisKey, serialized);
+      await client.set(redisKey, serialized);
     }
   }
 
   async delete(section: string, key: string): Promise<boolean> {
-    this.ensureInitialized();
+    const client = this.getClient();
 
     const redisKey = this.getRedisKey(section, key);
-    const deleted = await this.client!.del(redisKey);
+    const deleted = await client.del(redisKey);
 
     return deleted > 0;
   }
 
   async list(section: string): Promise<string[]> {
-    this.ensureInitialized();
+    const client = this.getClient();
 
     const pattern = `${this.prefix}${section}:*`;
-    const keys = await this.client!.keys(pattern);
+    const keys = await client.keys(pattern);
 
     return keys
       .map((redisKey) => {
@@ -185,25 +187,25 @@ export class RedisBackend implements IScratchpadBackend {
   }
 
   async exists(section: string, key: string): Promise<boolean> {
-    this.ensureInitialized();
+    const client = this.getClient();
 
     const redisKey = this.getRedisKey(section, key);
-    const result = await this.client!.exists(redisKey);
+    const result = await client.exists(redisKey);
 
     return result > 0;
   }
 
   async batch(operations: BatchOperation[]): Promise<void> {
-    this.ensureInitialized();
+    const client = this.getClient();
 
-    const pipeline = this.client!.pipeline();
+    const pipeline = client.pipeline();
 
     for (const op of operations) {
       const redisKey = this.getRedisKey(op.section, op.key);
 
       if (op.type === 'write') {
         const serialized = JSON.stringify(op.value);
-        if (this.ttl) {
+        if (this.ttl !== undefined) {
           pipeline.setex(redisKey, this.ttl, serialized);
         } else {
           pipeline.set(redisKey, serialized);
@@ -225,10 +227,10 @@ export class RedisBackend implements IScratchpadBackend {
 
   async healthCheck(): Promise<BackendHealth> {
     try {
-      this.ensureInitialized();
+      const client = this.getClient();
 
       const startTime = Date.now();
-      await this.client!.ping();
+      await client.ping();
       const latencyMs = Date.now() - startTime;
 
       return {
