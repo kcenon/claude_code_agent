@@ -208,7 +208,8 @@ export class CheckpointManager {
    */
   public extractState(checkpoint: ProgressCheckpoint): CheckpointState | null {
     try {
-      const snapshot = checkpoint.progressSnapshot as Record<string, unknown>;
+      // progressSnapshot is already Record<string, unknown> from types.ts
+      const snapshot = checkpoint.progressSnapshot;
 
       // Reconstruct testsCreated as a Map
       const testsCreatedRaw = snapshot.testsCreated as Record<string, number> | undefined;
@@ -226,34 +227,40 @@ export class CheckpointManager {
             : { workOrder: rawContext.workOrder })
         : undefined;
 
+      // Safely extract array fields with proper null/undefined handling
+      const rawFileChanges = snapshot.fileChanges as FileChange[] | undefined;
+      const rawCommits = snapshot.commits as CommitInfo[] | undefined;
+      const fileChanges = rawFileChanges ?? [];
+      const commits = rawCommits ?? [];
+
       // Build the result with all fields
       if (context !== undefined && snapshot.testGenerationResult !== undefined) {
         return {
           context,
-          fileChanges: (snapshot.fileChanges as FileChange[]) ?? [],
+          fileChanges,
           testsCreated,
-          commits: (snapshot.commits as CommitInfo[]) ?? [],
+          commits,
           testGenerationResult: snapshot.testGenerationResult,
         };
       } else if (context !== undefined) {
         return {
           context,
-          fileChanges: (snapshot.fileChanges as FileChange[]) ?? [],
+          fileChanges,
           testsCreated,
-          commits: (snapshot.commits as CommitInfo[]) ?? [],
+          commits,
         };
       } else if (snapshot.testGenerationResult !== undefined) {
         return {
-          fileChanges: (snapshot.fileChanges as FileChange[]) ?? [],
+          fileChanges,
           testsCreated,
-          commits: (snapshot.commits as CommitInfo[]) ?? [],
+          commits,
           testGenerationResult: snapshot.testGenerationResult,
         };
       } else {
         return {
-          fileChanges: (snapshot.fileChanges as FileChange[]) ?? [],
+          fileChanges,
           testsCreated,
-          commits: (snapshot.commits as CommitInfo[]) ?? [],
+          commits,
         };
       }
     } catch {
@@ -352,10 +359,17 @@ export class CheckpointManager {
    */
   private serializeState(state: CheckpointState): Record<string, unknown> {
     // Convert Map to plain object for YAML serialization
-    const testsCreated =
-      state.testsCreated instanceof Map
-        ? Object.fromEntries(state.testsCreated)
-        : state.testsCreated;
+    let testsCreated: Record<string, number>;
+    if (state.testsCreated instanceof Map) {
+      testsCreated = {};
+      const mapRef = state.testsCreated as ReadonlyMap<string, number>;
+      mapRef.forEach((value, key) => {
+        testsCreated[key] = value;
+      });
+    } else {
+      // Type guard narrows to Record<string, number>
+      testsCreated = state.testsCreated as Record<string, number>;
+    }
 
     return {
       context: state.context,

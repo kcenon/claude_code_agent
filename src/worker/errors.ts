@@ -732,9 +732,10 @@ export class CheckpointExpiredError extends WorkerError {
   public readonly ageMs: number;
 
   constructor(workOrderId: string, checkpointTimestamp: string, ageMs: number) {
+    const ageMinutes = String(Math.round(ageMs / 1000 / 60));
     super(
       ErrorCodes.WRK_CHECKPOINT_EXPIRED,
-      `Checkpoint for ${workOrderId} expired (age: ${Math.round(ageMs / 1000 / 60)} minutes)`,
+      `Checkpoint for ${workOrderId} expired (age: ${ageMinutes} minutes)`,
       {
         context: { workOrderId, checkpointTimestamp, ageMs },
         severity: ErrorSeverity.LOW,

@@ -160,7 +160,7 @@ export class WorkerAgent {
     // Reset or restore state based on resume
     if (resumeState !== null) {
       this.restoreState(resumeState);
-      attempt = resumeState.attemptNumber ?? 0;
+      attempt = resumeState.attemptNumber;
     } else {
       this.resetState();
     }
@@ -364,11 +364,13 @@ export class WorkerAgent {
     this.testsCreated.clear();
     const testsCreated = state.testsCreated;
     if (testsCreated instanceof Map) {
-      for (const [key, value] of testsCreated) {
+      const mapRef = testsCreated as ReadonlyMap<string, number>;
+      mapRef.forEach((value, key) => {
         this.testsCreated.set(key, value);
-      }
+      });
     } else {
-      for (const [key, value] of Object.entries(testsCreated)) {
+      const entries = Object.entries(testsCreated) as [string, number][];
+      for (const [key, value] of entries) {
         this.testsCreated.set(key, value);
       }
     }
