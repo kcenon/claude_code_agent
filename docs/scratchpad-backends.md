@@ -30,6 +30,23 @@ const redisBackend = BackendFactory.create({
 await redisBackend.initialize();
 ```
 
+## Scratchpad Integration
+
+The `Scratchpad` class internally uses `FileBackend` with `raw` format to provide a high-level API for file operations. This allows:
+
+- Backward-compatible file path-based API (`readYaml`, `writeJson`, etc.)
+- Atomic write operations through the backend
+- Future ability to swap backends while maintaining the same public API
+
+```typescript
+// Scratchpad uses FileBackend internally
+const scratchpad = new Scratchpad({ basePath: '.ad-sdlc/scratchpad' });
+
+// These methods internally use FileBackend
+await scratchpad.writeYaml('/path/to/file.yaml', data);
+await scratchpad.readJson('/path/to/file.json');
+```
+
 ## Backend Interface
 
 All backends implement the `IScratchpadBackend` interface:
@@ -60,9 +77,19 @@ interface FileBackendConfig {
   basePath?: string;      // Default: '.ad-sdlc/scratchpad'
   fileMode?: number;      // Default: 0o600
   dirMode?: number;       // Default: 0o700
-  format?: 'yaml' | 'json'; // Default: 'yaml'
+  format?: 'yaml' | 'json' | 'raw'; // Default: 'yaml'
 }
 ```
+
+### Format Options
+
+| Format | Extension | Serialization | Use Case |
+|--------|-----------|---------------|----------|
+| `yaml` | `.yaml` | YAML serialization | Default, human-readable |
+| `json` | `.json` | JSON serialization | Machine processing |
+| `raw` | (none) | No serialization | Arbitrary file extensions, key includes filename |
+
+The `raw` format is used internally by the `Scratchpad` class to support arbitrary file extensions while maintaining backward compatibility.
 
 ### Example
 
