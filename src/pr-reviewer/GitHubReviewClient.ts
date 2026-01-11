@@ -60,12 +60,13 @@ export class GitHubReviewClient {
   constructor(config: GitHubReviewClientConfig = {}) {
     this.config = {
       projectRoot:
-        config.projectRoot ?? tryGetProjectRoot() ?? DEFAULT_GITHUB_REVIEW_CLIENT_CONFIG.projectRoot,
+        config.projectRoot ??
+        tryGetProjectRoot() ??
+        DEFAULT_GITHUB_REVIEW_CLIENT_CONFIG.projectRoot,
       continueOnCommentFailure:
         config.continueOnCommentFailure ??
         DEFAULT_GITHUB_REVIEW_CLIENT_CONFIG.continueOnCommentFailure,
-      useBatchReview:
-        config.useBatchReview ?? DEFAULT_GITHUB_REVIEW_CLIENT_CONFIG.useBatchReview,
+      useBatchReview: config.useBatchReview ?? DEFAULT_GITHUB_REVIEW_CLIENT_CONFIG.useBatchReview,
     };
   }
 
@@ -99,7 +100,12 @@ export class GitHubReviewClient {
         for (const comment of request.comments) {
           const commentResult: ReviewCommentResult = result.reviewSubmitted
             ? { success: true, path: comment.path, line: comment.line }
-            : { success: false, path: comment.path, line: comment.line, error: 'Batch review submission failed' };
+            : {
+                success: false,
+                path: comment.path,
+                line: comment.line,
+                error: 'Batch review submission failed',
+              };
           commentResults.push(commentResult);
         }
       } else {

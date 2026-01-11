@@ -29,7 +29,11 @@ export { MergeDecision } from './MergeDecision.js';
 export type { MergeDecisionConfig } from './MergeDecision.js';
 
 // GitHub Review Client for multi-file line-level comments
-export { GitHubReviewClient, getGitHubReviewClient, resetGitHubReviewClient } from './GitHubReviewClient.js';
+export {
+  GitHubReviewClient,
+  getGitHubReviewClient,
+  resetGitHubReviewClient,
+} from './GitHubReviewClient.js';
 
 // Circuit breaker and intelligent polling
 export { CICircuitBreaker } from './CICircuitBreaker.js';
