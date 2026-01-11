@@ -80,3 +80,10 @@ export {
   getProviderSecretManager,
   resetProviderSecretManager,
 } from './ProviderSecretManager.js';
+
+// Factory
+export {
+  SecretProviderFactory,
+  getSecretProviderFactory,
+  createManagerFromConfig,
+} from './SecretProviderFactory.js';
