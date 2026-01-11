@@ -311,6 +311,13 @@ const backend = await BackendFactory.createAndInitialize({
   redis: { host: 'localhost' },
 });
 
+// Create from workflow.yaml configuration file
+const backend = await BackendFactory.createFromConfig();
+const backend = await BackendFactory.createFromConfig('/path/to/project');
+
+// Create and initialize from config file
+const backend = await BackendFactory.createAndInitializeFromConfig();
+
 // Check supported types
 BackendFactory.getSupportedTypes(); // ['file', 'sqlite', 'redis']
 BackendFactory.isSupported('sqlite'); // true
@@ -318,23 +325,26 @@ BackendFactory.isSupported('sqlite'); // true
 
 ## Configuration File
 
-You can configure the backend in `.ad-sdlc/config.yaml`:
+You can configure the backend in `.ad-sdlc/config/workflow.yaml`:
 
 ```yaml
+version: "1.0.0"
+# ... other workflow configuration ...
+
 scratchpad:
   # Backend type: file, sqlite, or redis
   backend: sqlite
 
   # File backend options
   file:
-    basePath: .ad-sdlc/scratchpad
+    base_path: .ad-sdlc/scratchpad
     format: yaml
 
   # SQLite backend options
   sqlite:
-    dbPath: .ad-sdlc/scratchpad.db
-    walMode: true
-    busyTimeout: 5000
+    db_path: .ad-sdlc/scratchpad.db
+    wal_mode: true
+    busy_timeout: 5000
 
   # Redis backend options
   redis:
@@ -342,8 +352,90 @@ scratchpad:
     port: ${REDIS_PORT:-6379}
     password: ${REDIS_PASSWORD}
     db: 0
-    prefix: ad-sdlc:scratchpad:
+    prefix: "ad-sdlc:scratchpad:"
     ttl: 86400
+    connect_timeout: 5000
+    max_retries: 3
+    lock:
+      lock_ttl: 30
+      lock_timeout: 10000
+      lock_retry_interval: 100
+    fallback:
+      enabled: true
+      file_config:
+        base_path: .ad-sdlc/scratchpad-fallback
+```
+
+## Environment Variables
+
+Environment variables can override configuration values. This is useful for different deployment environments.
+
+### Supported Environment Variables
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `SCRATCHPAD_BACKEND` | Backend type | `sqlite`, `redis`, `file` |
+| `SCRATCHPAD_REDIS_HOST` | Redis server host | `redis.example.com` |
+| `SCRATCHPAD_REDIS_PORT` | Redis server port | `6379` |
+| `SCRATCHPAD_REDIS_PASSWORD` | Redis password | `secret` |
+| `SCRATCHPAD_REDIS_DB` | Redis database number | `0` |
+| `SCRATCHPAD_SQLITE_PATH` | SQLite database path | `/data/scratchpad.db` |
+| `SCRATCHPAD_FILE_PATH` | File backend base path | `/data/scratchpad` |
+
+### Configuration Priority
+
+Configuration is resolved in the following order (highest priority first):
+
+1. **Environment variables** (`SCRATCHPAD_*`)
+2. **workflow.yaml** configuration (with `${VAR}` expansion)
+3. **Default values** (file backend)
+
+### Environment Variable Expansion in YAML
+
+You can use `${VAR}` or `${VAR:-default}` syntax in configuration files:
+
+```yaml
+scratchpad:
+  backend: redis
+  redis:
+    host: ${REDIS_HOST:-localhost}
+    port: ${REDIS_PORT:-6379}
+    password: ${REDIS_PASSWORD}  # Required, no default
+```
+
+### Usage Example
+
+```bash
+# Use SQLite in production via environment variable
+export SCRATCHPAD_BACKEND=sqlite
+export SCRATCHPAD_SQLITE_PATH=/data/scratchpad.db
+
+# Or use Redis
+export SCRATCHPAD_BACKEND=redis
+export SCRATCHPAD_REDIS_HOST=redis.production.local
+export SCRATCHPAD_REDIS_PASSWORD=secret
+```
+
+```typescript
+import { BackendFactory, loadScratchpadConfig } from 'ad-sdlc';
+
+// Load configuration with env var support
+const config = await loadScratchpadConfig();
+
+// Create backend from config
+const backend = await BackendFactory.createAndInitialize(config);
+
+// Or use convenience method
+const backend = await BackendFactory.createAndInitializeFromConfig();
+```
+
+### Checking Available Environment Variables
+
+```typescript
+import { getScratchpadEnvVars } from 'ad-sdlc';
+
+const envVars = getScratchpadEnvVars();
+// Returns: { SCRATCHPAD_BACKEND: 'Backend type: file | sqlite | redis', ... }
 ```
 
 ## Choosing a Backend
