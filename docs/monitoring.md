@@ -65,6 +65,13 @@ import {
   AlertConditionTyped,
   AlertEscalationConfig,
   AlertEventWithEscalation,
+  // Log aggregation and compression types
+  LogAggregationSource,
+  LogAggregationOptions,
+  LogCompressionOptions,
+  // Budget persistence types
+  BudgetPersistenceState,
+  BudgetWarningPersisted,
 } from 'ad-sdlc';
 ```
 
