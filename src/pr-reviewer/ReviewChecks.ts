@@ -344,7 +344,7 @@ export class ReviewChecks {
   ): readonly FileChange[][] {
     const batches: FileChange[][] = [];
     for (let i = 0; i < changes.length; i += batchSize) {
-      batches.push(changes.slice(i, i + batchSize) as FileChange[]);
+      batches.push(changes.slice(i, i + batchSize));
     }
     return batches;
   }
