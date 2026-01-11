@@ -1,5 +1,8 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import { RedisBackend } from '../../../src/scratchpad/backends/RedisBackend.js';
+import { RedisConnectionError, RedisLockTimeoutError } from '../../../src/scratchpad/errors.js';
 
 /**
  * Redis Backend Tests
@@ -18,6 +21,9 @@ const TEST_CONFIG = {
   port: parseInt(process.env.REDIS_PORT || '6379', 10),
   prefix: 'ad-sdlc:test:',
 };
+
+// Fallback test directory
+const FALLBACK_TEST_DIR = '.ad-sdlc/test-fallback';
 
 // Check if Redis is available
 let redisAvailable = false;
@@ -42,6 +48,15 @@ beforeAll(async () => {
   }
 });
 
+afterAll(async () => {
+  // Clean up fallback test directory
+  try {
+    await fs.promises.rm(FALLBACK_TEST_DIR, { recursive: true, force: true });
+  } catch {
+    // Ignore cleanup errors
+  }
+});
+
 describe('RedisBackend', () => {
   describe('when Redis is not available', () => {
     it('should fail initialization gracefully', async () => {
@@ -52,7 +67,7 @@ describe('RedisBackend', () => {
         maxRetries: 0,
       });
 
-      await expect(backend.initialize()).rejects.toThrow();
+      await expect(backend.initialize()).rejects.toThrow(RedisConnectionError);
     });
 
     it('should throw if not initialized', async () => {
@@ -60,6 +75,56 @@ describe('RedisBackend', () => {
       await expect(backend.read('section', 'key')).rejects.toThrow(
         'RedisBackend not initialized'
       );
+    });
+  });
+
+  describe('Fallback Mode', () => {
+    it('should fallback to FileBackend on connection failure', async () => {
+      const backend = new RedisBackend({
+        host: 'nonexistent-host-12345.invalid',
+        port: 9999,
+        connectTimeout: 1000,
+        maxRetries: 0,
+        fallback: {
+          enabled: true,
+          fileConfig: {
+            basePath: path.join(FALLBACK_TEST_DIR, 'fallback-test'),
+          },
+        },
+      });
+
+      // Should not throw with fallback enabled
+      await expect(backend.initialize()).resolves.not.toThrow();
+      expect(backend.isUsingFallback()).toBe(true);
+
+      // Should still work with fallback
+      await backend.write('section', 'key', { data: 'test' });
+      const result = await backend.read<{ data: string }>('section', 'key');
+      expect(result?.data).toBe('test');
+
+      // Health check should indicate fallback
+      const health = await backend.healthCheck();
+      expect(health.message).toContain('fallback');
+
+      await backend.close();
+    });
+
+    it('should indicate fallback is not being used when Redis is available', async () => {
+      if (!redisAvailable) return;
+
+      const backend = new RedisBackend({
+        ...TEST_CONFIG,
+        fallback: {
+          enabled: true,
+          fileConfig: {
+            basePath: path.join(FALLBACK_TEST_DIR, 'not-used'),
+          },
+        },
+      });
+
+      await backend.initialize();
+      expect(backend.isUsingFallback()).toBe(false);
+      await backend.close();
     });
   });
 
@@ -361,6 +426,162 @@ describe('RedisBackend', () => {
       // Cleanup
       await customBackend.delete('section', 'key');
       await customBackend.close();
+    });
+  });
+
+  describe('Distributed Locking', () => {
+    let backend: RedisBackend;
+
+    beforeEach(async () => {
+      if (!redisAvailable) return;
+      backend = new RedisBackend({
+        ...TEST_CONFIG,
+        lock: {
+          lockTtl: 5,
+          lockTimeout: 2000,
+          lockRetryInterval: 50,
+        },
+      });
+      await backend.initialize();
+    });
+
+    afterAll(async () => {
+      if (!redisAvailable) return;
+      if (backend) {
+        await backend.close();
+      }
+    });
+
+    it.skipIf(!redisAvailable)('should acquire and release a lock', async () => {
+      const lock = await backend.acquireLock('test-lock-1');
+
+      expect(lock.key).toContain('lock:test-lock-1');
+      expect(lock.value).toBeDefined();
+      expect(lock.ttl).toBe(5);
+
+      const released = await backend.releaseLock(lock);
+      expect(released).toBe(true);
+    });
+
+    it.skipIf(!redisAvailable)('should prevent double lock acquisition', async () => {
+      const lock1 = await backend.acquireLock('test-lock-2', { timeout: 100 });
+
+      // Should timeout trying to acquire the same lock
+      await expect(
+        backend.acquireLock('test-lock-2', { timeout: 100 })
+      ).rejects.toThrow(RedisLockTimeoutError);
+
+      await backend.releaseLock(lock1);
+    });
+
+    it.skipIf(!redisAvailable)('should allow lock after release', async () => {
+      const lock1 = await backend.acquireLock('test-lock-3');
+      await backend.releaseLock(lock1);
+
+      // Should be able to acquire after release
+      const lock2 = await backend.acquireLock('test-lock-3');
+      expect(lock2.key).toBe(lock1.key);
+
+      await backend.releaseLock(lock2);
+    });
+
+    it.skipIf(!redisAvailable)('should not release lock with wrong value', async () => {
+      const lock = await backend.acquireLock('test-lock-4');
+
+      // Try to release with fake handle
+      const fakeHandle = {
+        key: lock.key,
+        value: 'fake-value',
+        ttl: lock.ttl,
+        acquiredAt: lock.acquiredAt,
+      };
+
+      const released = await backend.releaseLock(fakeHandle);
+      expect(released).toBe(false);
+
+      // Real release should work
+      const realReleased = await backend.releaseLock(lock);
+      expect(realReleased).toBe(true);
+    });
+
+    it.skipIf(!redisAvailable)('should extend lock TTL', async () => {
+      const lock = await backend.acquireLock('test-lock-5', { ttl: 2 });
+
+      // Extend lock
+      const extended = await backend.extendLock(lock, 10);
+      expect(extended).toBe(true);
+
+      await backend.releaseLock(lock);
+    });
+
+    it.skipIf(!redisAvailable)('should execute function with lock', async () => {
+      let executed = false;
+
+      const result = await backend.withLock('test-lock-6', async () => {
+        executed = true;
+        return 'success';
+      });
+
+      expect(executed).toBe(true);
+      expect(result).toBe('success');
+
+      // Lock should be released, can acquire again
+      const lock = await backend.acquireLock('test-lock-6', { timeout: 100 });
+      await backend.releaseLock(lock);
+    });
+
+    it.skipIf(!redisAvailable)('should release lock even on error', async () => {
+      await expect(
+        backend.withLock('test-lock-7', async () => {
+          throw new Error('test error');
+        })
+      ).rejects.toThrow('test error');
+
+      // Lock should be released, can acquire again
+      const lock = await backend.acquireLock('test-lock-7', { timeout: 100 });
+      await backend.releaseLock(lock);
+    });
+
+    it('should throw error when using locking with fallback', async () => {
+      const fallbackBackend = new RedisBackend({
+        host: 'nonexistent-host-12345.invalid',
+        port: 9999,
+        connectTimeout: 1000,
+        maxRetries: 0,
+        fallback: {
+          enabled: true,
+          fileConfig: {
+            basePath: path.join(FALLBACK_TEST_DIR, 'lock-fallback'),
+          },
+        },
+      });
+
+      await fallbackBackend.initialize();
+      expect(fallbackBackend.isUsingFallback()).toBe(true);
+
+      await expect(
+        fallbackBackend.acquireLock('test-lock')
+      ).rejects.toThrow('Distributed locking not available when using fallback backend');
+
+      await fallbackBackend.close();
+    });
+  });
+
+  describe('Error Classes', () => {
+    it('should have correct properties for RedisConnectionError', () => {
+      const error = new RedisConnectionError('localhost', 6379, new Error('test'));
+      expect(error.name).toBe('RedisConnectionError');
+      expect(error.host).toBe('localhost');
+      expect(error.port).toBe(6379);
+      expect(error.message).toContain('localhost:6379');
+    });
+
+    it('should have correct properties for RedisLockTimeoutError', () => {
+      const error = new RedisLockTimeoutError('my-lock', 5000);
+      expect(error.name).toBe('RedisLockTimeoutError');
+      expect(error.lockKey).toBe('my-lock');
+      expect(error.timeoutMs).toBe(5000);
+      expect(error.message).toContain('5000ms');
     });
   });
 });
