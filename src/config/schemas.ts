@@ -88,6 +88,73 @@ const TimeoutsSchema = z.object({
 });
 
 /**
+ * Scratchpad backend type
+ */
+const BackendTypeSchema = z.enum(['file', 'sqlite', 'redis']);
+
+/**
+ * File backend configuration
+ */
+const FileBackendConfigSchema = z.object({
+  base_path: z.string().optional(),
+  file_mode: z.number().int().optional(),
+  dir_mode: z.number().int().optional(),
+  format: z.enum(['yaml', 'json', 'raw']).optional(),
+});
+
+/**
+ * SQLite backend configuration
+ */
+const SQLiteBackendConfigSchema = z.object({
+  db_path: z.string().optional(),
+  wal_mode: z.boolean().optional(),
+  busy_timeout: z.number().int().optional(),
+});
+
+/**
+ * Redis lock configuration
+ */
+const RedisLockConfigSchema = z.object({
+  lock_ttl: z.number().int().optional(),
+  lock_timeout: z.number().int().optional(),
+  lock_retry_interval: z.number().int().optional(),
+});
+
+/**
+ * Redis fallback configuration
+ */
+const RedisFallbackConfigSchema = z.object({
+  enabled: z.boolean().optional(),
+  file_config: FileBackendConfigSchema.optional(),
+});
+
+/**
+ * Redis backend configuration
+ */
+const RedisBackendConfigSchema = z.object({
+  host: z.string().optional(),
+  port: z.number().int().optional(),
+  password: z.string().optional(),
+  db: z.number().int().optional(),
+  prefix: z.string().optional(),
+  ttl: z.number().int().optional(),
+  connect_timeout: z.number().int().optional(),
+  max_retries: z.number().int().optional(),
+  lock: RedisLockConfigSchema.optional(),
+  fallback: RedisFallbackConfigSchema.optional(),
+});
+
+/**
+ * Scratchpad configuration
+ */
+const ScratchpadConfigSchema = z.object({
+  backend: BackendTypeSchema.optional().default('file'),
+  file: FileBackendConfigSchema.optional(),
+  sqlite: SQLiteBackendConfigSchema.optional(),
+  redis: RedisBackendConfigSchema.optional(),
+});
+
+/**
  * Global settings
  */
 const GlobalSettingsSchema = z.object({
@@ -99,6 +166,11 @@ const GlobalSettingsSchema = z.object({
   retry_policy: RetryPolicySchema.optional(),
   timeouts: TimeoutsSchema.optional(),
 });
+
+/**
+ * Scratchpad config schema export for use in loader
+ */
+export { ScratchpadConfigSchema };
 
 /**
  * Pipeline stage input/output
@@ -319,6 +391,7 @@ export const WorkflowConfigSchema = z.object({
   github: GitHubSettingsSchema.optional(),
   logging: LoggingSchema.optional(),
   monitoring: MonitoringSchema.optional(),
+  scratchpad: ScratchpadConfigSchema.optional(),
 });
 
 // ============================================================

@@ -1,4 +1,7 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { mkdir, writeFile, rm } from 'node:fs/promises';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 import {
   BackendFactory,
   BackendCreationError,
@@ -118,5 +121,80 @@ describe('BackendCreationError', () => {
     const cause = new Error('Original error');
     const error = new BackendCreationError('sqlite', 'Init failed', cause);
     expect(error.cause).toBe(cause);
+  });
+});
+
+describe('BackendFactory.createFromConfig', () => {
+  let testDir: string;
+  let configDir: string;
+
+  beforeEach(async () => {
+    testDir = join(tmpdir(), `factory-config-test-${Date.now()}`);
+    configDir = join(testDir, '.ad-sdlc', 'config');
+    await mkdir(configDir, { recursive: true });
+  });
+
+  afterEach(async () => {
+    await rm(testDir, { recursive: true, force: true });
+    delete process.env['SCRATCHPAD_BACKEND'];
+  });
+
+  it('should create file backend when no config exists', async () => {
+    const backend = await BackendFactory.createFromConfig(testDir);
+    expect(backend).toBeInstanceOf(FileBackend);
+  });
+
+  it('should create sqlite backend from config file', async () => {
+    await writeFile(
+      join(configDir, 'workflow.yaml'),
+      `
+version: "1.0.0"
+pipeline:
+  stages:
+    - name: test
+      agent: test
+scratchpad:
+  backend: sqlite
+`
+    );
+    const backend = await BackendFactory.createFromConfig(testDir);
+    expect(backend).toBeInstanceOf(SQLiteBackend);
+  });
+
+  it('should create file backend from config file', async () => {
+    await writeFile(
+      join(configDir, 'workflow.yaml'),
+      `
+version: "1.0.0"
+pipeline:
+  stages:
+    - name: test
+      agent: test
+scratchpad:
+  backend: file
+  file:
+    format: json
+`
+    );
+    const backend = await BackendFactory.createFromConfig(testDir);
+    expect(backend).toBeInstanceOf(FileBackend);
+  });
+
+  it('should honor environment variable override', async () => {
+    process.env['SCRATCHPAD_BACKEND'] = 'sqlite';
+    await writeFile(
+      join(configDir, 'workflow.yaml'),
+      `
+version: "1.0.0"
+pipeline:
+  stages:
+    - name: test
+      agent: test
+scratchpad:
+  backend: file
+`
+    );
+    const backend = await BackendFactory.createFromConfig(testDir);
+    expect(backend).toBeInstanceOf(SQLiteBackend);
   });
 });

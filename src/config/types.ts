@@ -41,10 +41,11 @@ export interface ValidationResult<T> {
 // Note: These types are re-exported from schemas.ts to avoid circular imports
 // The actual type definitions come from z.infer<typeof Schema>
 import type { z } from 'zod';
-import type { WorkflowConfigSchema, AgentsConfigSchema } from './schemas.js';
+import type { WorkflowConfigSchema, AgentsConfigSchema, ScratchpadConfigSchema } from './schemas.js';
 
 export type WorkflowConfig = z.infer<typeof WorkflowConfigSchema>;
 export type AgentsConfig = z.infer<typeof AgentsConfigSchema>;
+export type ScratchpadConfig = z.infer<typeof ScratchpadConfigSchema>;
 
 // ============================================================
 // Loader Types
