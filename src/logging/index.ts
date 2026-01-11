@@ -31,5 +31,25 @@ export { Logger, getLogger, getLoggerFromEnv, resetLogger } from './Logger.js';
 
 export type { LoggerConfig, EnvironmentConfig, LoggerState, LoggerHealth } from './Logger.js';
 
+// Export LogContext for context propagation
+export {
+  LogContext,
+  getLogContext,
+  runWithContext,
+  withSpan,
+  withAgent,
+  getCurrentCorrelationId,
+  getCurrentTraceContext,
+  generateCorrelationId,
+} from './LogContext.js';
+
+export type {
+  LogContextData,
+  TraceContext,
+  AgentContext,
+  CreateContextOptions,
+  CreateSpanOptions,
+} from './LogContext.js';
+
 // Export all transport-related types and classes
 export * from './transports/index.js';

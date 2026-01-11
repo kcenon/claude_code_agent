@@ -578,6 +578,162 @@ await logger.reconfigure({
 });
 ```
 
+The default masking patterns include:
+
+| Category | Examples |
+|----------|----------|
+| GitHub Tokens | `ghp_*`, `gho_*`, `ghs_*`, `ghr_*` |
+| AI API Keys | OpenAI (`sk-*`), Anthropic (`sk-ant-*`) |
+| AWS Credentials | Access keys (`AKIA*`), secret keys |
+| Google Cloud | API keys (`AIza*`), OAuth client IDs |
+| Azure | Storage keys, connection strings |
+| Authentication | Bearer tokens, Basic auth, JWTs |
+| Database | PostgreSQL, MySQL, MongoDB, Redis connection strings |
+| Payment | Stripe keys, credit card numbers |
+| Other | Private keys, NPM tokens, Slack tokens, Twilio keys |
+
+## Context Propagation
+
+The `LogContext` class provides AsyncLocalStorage-based automatic context propagation across async calls. This enables correlation IDs and trace context to flow automatically through your application without explicit passing.
+
+### Basic Usage
+
+```typescript
+import { LogContext, runWithContext, withSpan, withAgent } from 'ad-sdlc';
+
+// Run code within a context
+await runWithContext({ correlationId: 'req-123' }, async () => {
+  // All logs within this block will include correlationId: 'req-123'
+  logger.info('Processing request');
+
+  // Create nested spans for distributed tracing
+  await withSpan({ name: 'db-query' }, async () => {
+    logger.info('Executing database query');
+    // traceId, spanId, and parentSpanId are automatically set
+  });
+});
+```
+
+### LogContext API
+
+```typescript
+const logContext = LogContext.getInstance();
+
+// Run code within a context
+logContext.run({ correlationId: 'abc-123', sessionId: 'sess-456' }, () => {
+  // Get current context values
+  console.log(logContext.getCorrelationId()); // 'abc-123'
+  console.log(logContext.getSessionId());     // 'sess-456'
+  console.log(logContext.hasContext());       // true
+});
+
+// Outside context
+console.log(logContext.getCorrelationId()); // undefined
+```
+
+### Distributed Tracing with Spans
+
+```typescript
+import { withSpan, getCurrentTraceContext } from 'ad-sdlc';
+
+// Create a root span
+await withSpan({ name: 'http-request' }, async () => {
+  const trace = getCurrentTraceContext();
+  console.log(trace.traceId);  // Unique trace ID
+  console.log(trace.spanId);   // Current span ID
+
+  // Create child span - automatically links to parent
+  await withSpan({ name: 'process-data' }, async () => {
+    const childTrace = getCurrentTraceContext();
+    console.log(childTrace.traceId);       // Same trace ID
+    console.log(childTrace.parentSpanId);  // Parent's span ID
+  });
+});
+```
+
+### Agent Context
+
+Track agent-specific information across async operations:
+
+```typescript
+import { withAgent, getLogContext } from 'ad-sdlc';
+
+await withAgent({
+  agentId: 'prd-writer',
+  stage: 'document-generation',
+  projectId: 'project-123'
+}, async () => {
+  logger.info('Agent processing');
+  // Logs include agentId, stage, and projectId automatically
+});
+```
+
+### Context Inheritance
+
+```typescript
+const logContext = LogContext.getInstance();
+
+logContext.run({ correlationId: 'parent-id' }, () => {
+  // Inherit from parent and add/override values
+  logContext.runWithInherit({
+    metadata: { requestType: 'api' }
+  }, () => {
+    // Has correlationId from parent + new metadata
+  });
+});
+```
+
+### Logger Integration
+
+The Logger automatically picks up context from LogContext:
+
+```typescript
+import { Logger, runWithContext } from 'ad-sdlc';
+
+const logger = new Logger({ transports: [{ type: 'console' }] });
+await logger.initialize();
+
+// Context from LogContext is automatically included in logs
+await runWithContext({
+  correlationId: 'req-123',
+  trace: { traceId: 'trace-abc', spanId: 'span-001' }
+}, async () => {
+  logger.info('Processing');
+  // Log entry includes correlationId, traceId, spanId automatically
+});
+```
+
+### Context Priority
+
+When both Logger instance context and LogContext are present:
+
+1. **Instance context** (via `logger.setCorrelationId()`) takes precedence
+2. **LogContext** values are used as fallback
+3. This allows explicit overrides when needed
+
+```typescript
+await runWithContext({ correlationId: 'async-context' }, () => {
+  logger.info('Uses async context');  // correlationId: 'async-context'
+
+  logger.setCorrelationId('explicit-override');
+  logger.info('Uses explicit');       // correlationId: 'explicit-override'
+});
+```
+
+### Available Convenience Functions
+
+```typescript
+import {
+  runWithContext,      // Run code within a new context
+  withSpan,            // Create a child span
+  withAgent,           // Set agent context
+  getCurrentCorrelationId,  // Get current correlation ID
+  getCurrentTraceContext,   // Get current trace context
+  generateCorrelationId,    // Generate a new UUID
+  getLogContext,            // Get LogContext instance
+} from 'ad-sdlc';
+```
+
 ### Global Logger Instance
 
 ```typescript
@@ -605,3 +761,6 @@ resetLogger();
 6. **Use the unified Logger class** - Simplifies multi-transport management
 7. **Enable sensitive data masking** - Protect credentials and tokens in logs
 8. **Use child loggers** - Maintain context inheritance for related operations
+9. **Use LogContext for async flows** - Automatic context propagation across async calls
+10. **Create spans for critical operations** - Enable distributed tracing for debugging
+11. **Set agent context at entry points** - Track agent-specific information from the start

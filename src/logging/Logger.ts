@@ -29,6 +29,7 @@ import type {
   MaskingPattern,
 } from './transports/types.js';
 import { LOG_LEVEL_PRIORITY, shouldLog } from './transports/types.js';
+import { LogContext } from './LogContext.js';
 
 /**
  * Logger configuration options
@@ -88,26 +89,113 @@ const DEFAULT_MASK_REPLACEMENT = '***REDACTED***';
 
 /**
  * Default sensitive data masking patterns
+ *
+ * Covers common sensitive data types:
+ * - API keys (GitHub, OpenAI, Anthropic, AWS, Google, Azure)
+ * - Authentication tokens (Bearer, Basic, JWT)
+ * - Passwords and secrets
+ * - Credit card numbers
+ * - Social security numbers
+ * - Private keys and certificates
  */
 const DEFAULT_MASKING_PATTERNS: MaskingPattern[] = [
+  // GitHub tokens
   { name: 'github_pat', pattern: /ghp_[a-zA-Z0-9]{36}/g },
   { name: 'github_oauth', pattern: /gho_[a-zA-Z0-9]{36}/g },
   { name: 'github_app', pattern: /ghs_[a-zA-Z0-9]{36}/g },
   { name: 'github_refresh', pattern: /ghr_[a-zA-Z0-9]{36}/g },
+
+  // AI provider API keys
   { name: 'openai_api_key', pattern: /sk-[a-zA-Z0-9]{48}/g },
+  { name: 'openai_api_key_proj', pattern: /sk-proj-[a-zA-Z0-9_-]{100,}/g },
   { name: 'anthropic_api_key', pattern: /sk-ant-[a-zA-Z0-9-]{95}/g },
-  {
-    name: 'generic_api_key',
-    pattern: /(?:api[_-]?key|apikey|api_secret)["\s:=]+["']?([a-zA-Z0-9_-]{20,})["']?/gi,
-  },
-  { name: 'bearer_token', pattern: /Bearer\s+[a-zA-Z0-9._-]+/gi },
-  { name: 'basic_auth', pattern: /Basic\s+[a-zA-Z0-9+/=]+/gi },
-  { name: 'jwt_token', pattern: /eyJ[a-zA-Z0-9_-]*\.eyJ[a-zA-Z0-9_-]*\.[a-zA-Z0-9_-]*/g },
+
+  // AWS credentials
   { name: 'aws_access_key', pattern: /AKIA[0-9A-Z]{16}/g },
   {
     name: 'aws_secret_key',
     pattern: /(?:aws)?_?secret_?(?:access)?_?key["'\s:=]+["']?([a-zA-Z0-9/+=]{40})["']?/gi,
   },
+  {
+    name: 'aws_session_token',
+    pattern:
+      /(?:aws_session_token|x-amz-security-token)["'\s:=]+["']?([a-zA-Z0-9/+=]{100,})["']?/gi,
+  },
+
+  // Google Cloud
+  { name: 'google_api_key', pattern: /AIza[0-9A-Za-z_-]{35}/g },
+  { name: 'google_oauth', pattern: /[0-9]+-[0-9A-Za-z_]{32}\.apps\.googleusercontent\.com/g },
+
+  // Azure
+  {
+    name: 'azure_storage_key',
+    pattern: /(?:AccountKey|SharedAccessSignature)=([a-zA-Z0-9/+=]{86,88})/g,
+  },
+  {
+    name: 'azure_connection_string',
+    pattern: /DefaultEndpointsProtocol=https;AccountName=[^;]+;AccountKey=[^;]+/g,
+  },
+
+  // Generic patterns
+  {
+    name: 'generic_api_key',
+    pattern: /(?:api[_-]?key|apikey|api_secret|api_token)["\s:=]+["']?([a-zA-Z0-9_-]{20,})["']?/gi,
+  },
+  {
+    name: 'generic_secret',
+    pattern: /(?:secret|private_key|client_secret)["\s:=]+["']?([a-zA-Z0-9_-]{20,})["']?/gi,
+  },
+  {
+    name: 'generic_password',
+    pattern: /(?:password|passwd|pwd)["\s:=]+["']?([^\s"']{8,})["']?/gi,
+  },
+
+  // Authentication tokens
+  { name: 'bearer_token', pattern: /Bearer\s+[a-zA-Z0-9._-]+/gi },
+  { name: 'basic_auth', pattern: /Basic\s+[a-zA-Z0-9+/=]+/gi },
+  { name: 'jwt_token', pattern: /eyJ[a-zA-Z0-9_-]*\.eyJ[a-zA-Z0-9_-]*\.[a-zA-Z0-9_-]*/g },
+
+  // Private keys and certificates
+  {
+    name: 'private_key',
+    pattern:
+      /-----BEGIN\s+(?:RSA\s+)?PRIVATE\s+KEY-----[\s\S]*?-----END\s+(?:RSA\s+)?PRIVATE\s+KEY-----/g,
+  },
+  {
+    name: 'certificate',
+    pattern: /-----BEGIN\s+CERTIFICATE-----[\s\S]*?-----END\s+CERTIFICATE-----/g,
+  },
+
+  // Credit card numbers (basic patterns)
+  { name: 'credit_card_visa', pattern: /\b4[0-9]{12}(?:[0-9]{3})?\b/g },
+  { name: 'credit_card_mastercard', pattern: /\b5[1-5][0-9]{14}\b/g },
+  { name: 'credit_card_amex', pattern: /\b3[47][0-9]{13}\b/g },
+
+  // Social Security Number (US)
+  { name: 'ssn', pattern: /\b[0-9]{3}-[0-9]{2}-[0-9]{4}\b/g },
+
+  // Database connection strings
+  { name: 'db_connection_postgres', pattern: /postgres(?:ql)?:\/\/[^:]+:[^@]+@[^\s]+/gi },
+  { name: 'db_connection_mysql', pattern: /mysql:\/\/[^:]+:[^@]+@[^\s]+/gi },
+  { name: 'db_connection_mongodb', pattern: /mongodb(?:\+srv)?:\/\/[^:]+:[^@]+@[^\s]+/gi },
+  { name: 'db_connection_redis', pattern: /redis:\/\/[^:]+:[^@]+@[^\s]+/gi },
+
+  // Slack tokens
+  { name: 'slack_token', pattern: /xox[baprs]-[0-9]{10,13}-[0-9]{10,13}[a-zA-Z0-9-]*/g },
+  {
+    name: 'slack_webhook',
+    pattern: /https:\/\/hooks\.slack\.com\/services\/[A-Z0-9]+\/[A-Z0-9]+\/[a-zA-Z0-9]+/g,
+  },
+
+  // NPM tokens
+  { name: 'npm_token', pattern: /npm_[a-zA-Z0-9]{36}/g },
+
+  // Stripe keys
+  { name: 'stripe_secret', pattern: /sk_live_[a-zA-Z0-9]{24,}/g },
+  { name: 'stripe_publishable', pattern: /pk_live_[a-zA-Z0-9]{24,}/g },
+
+  // Twilio
+  { name: 'twilio_api_key', pattern: /SK[a-f0-9]{32}/g },
 ];
 
 /**
@@ -339,6 +427,10 @@ export class Logger {
 
   /**
    * Create a log entry
+   *
+   * This method automatically integrates with LogContext for context propagation.
+   * If LogContext has active context, it will be merged with instance-level context.
+   * Instance-level context takes precedence over LogContext values.
    */
   private createEntry(
     level: LogLevel,
@@ -352,35 +444,60 @@ export class Logger {
       ...context,
     }) as Record<string, unknown>;
 
+    // Get context from AsyncLocalStorage if available
+    const logContext = LogContext.getInstance();
+    const asyncContext = logContext.getContext();
+
+    // Determine correlation ID (instance takes precedence, then async context)
+    const correlationId =
+      this.correlationId !== this.config.correlationId
+        ? this.correlationId
+        : (asyncContext?.correlationId ?? this.correlationId);
+
+    // Determine session ID
+    const sessionId = asyncContext?.sessionId ?? this.sessionId;
+
     const entry: TransportLogEntry = {
       timestamp: new Date(),
       level,
       message: maskedMessage,
       context: maskedContext,
-      correlationId: this.correlationId,
-      sessionId: this.sessionId,
+      correlationId,
+      sessionId,
       hostname: os.hostname(),
       pid: process.pid,
     };
 
-    // Add optional fields
-    if (this.currentAgent !== undefined) {
-      (entry as { agentId: string }).agentId = this.currentAgent;
+    // Add agent context (instance takes precedence, then async context)
+    const agentId = this.currentAgent ?? asyncContext?.agent?.agentId;
+    if (agentId !== undefined) {
+      (entry as { agentId: string }).agentId = agentId;
     }
-    if (this.currentStage !== undefined) {
-      (entry as { stage: string }).stage = this.currentStage;
+
+    const stage = this.currentStage ?? asyncContext?.agent?.stage;
+    if (stage !== undefined) {
+      (entry as { stage: string }).stage = stage;
     }
-    if (this.currentProjectId !== undefined) {
-      (entry as { projectId: string }).projectId = this.currentProjectId;
+
+    const projectId = this.currentProjectId ?? asyncContext?.agent?.projectId;
+    if (projectId !== undefined) {
+      (entry as { projectId: string }).projectId = projectId;
     }
-    if (this.traceId !== undefined) {
-      (entry as { traceId: string }).traceId = this.traceId;
+
+    // Add trace context (instance takes precedence, then async context)
+    const traceId = this.traceId ?? asyncContext?.trace?.traceId;
+    if (traceId !== undefined) {
+      (entry as { traceId: string }).traceId = traceId;
     }
-    if (this.spanId !== undefined) {
-      (entry as { spanId: string }).spanId = this.spanId;
+
+    const spanId = this.spanId ?? asyncContext?.trace?.spanId;
+    if (spanId !== undefined) {
+      (entry as { spanId: string }).spanId = spanId;
     }
-    if (this.parentSpanId !== undefined) {
-      (entry as { parentSpanId: string }).parentSpanId = this.parentSpanId;
+
+    const parentSpanId = this.parentSpanId ?? asyncContext?.trace?.parentSpanId;
+    if (parentSpanId !== undefined) {
+      (entry as { parentSpanId: string }).parentSpanId = parentSpanId;
     }
 
     // Extract durationMs from context if present
