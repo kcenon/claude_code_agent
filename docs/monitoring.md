@@ -255,6 +255,54 @@ const searchResults = logger.searchLogs('connection timeout', 50);
 const traceLogs = logger.getLogsByCorrelationId('abc-123-def');
 ```
 
+### Log Aggregation
+
+Aggregate logs from multiple sources into a single output:
+
+```typescript
+// Aggregate logs from multiple directories
+const sources = [
+  { id: 'main-logs', type: 'directory', path: '.ad-sdlc/logs' },
+  { id: 'agent-logs', type: 'directory', path: '.ad-sdlc/logs/agent-logs' },
+];
+
+const entries = logger.aggregateLogs(sources, {
+  deduplicate: true,   // Remove duplicate entries
+  sortOrder: 'desc',   // Sort by timestamp
+  outputPath: './aggregated.jsonl',  // Optional: save to file
+  compress: false,     // Optional: gzip the output
+});
+
+console.log(`Aggregated ${entries.length} entries`);
+
+// Quick aggregation from all log sources
+const allLogs = logger.getAggregatedLogs({ level: 'ERROR' }, 1000);
+```
+
+### Log Compression
+
+Compress old log files to save disk space:
+
+```typescript
+// Compress a specific log file
+const compressedPath = logger.compressLogFile('.ad-sdlc/logs/app-old.jsonl', {
+  algorithm: 'gzip',
+  level: 6,              // Compression level (1-9)
+  deleteOriginal: true,  // Delete original after compression
+});
+
+// Compress all log files older than 24 hours
+const compressedFiles = logger.compressOldLogFiles(24 * 60 * 60 * 1000, {
+  algorithm: 'gzip',
+  deleteOriginal: true,
+});
+
+console.log(`Compressed ${compressedFiles.length} files`);
+
+// Decompress a log file for analysis
+const decompressedPath = logger.decompressLogFile('.ad-sdlc/logs/app-old.jsonl.gz');
+```
+
 ### Configuration
 
 ```typescript
@@ -445,6 +493,89 @@ alerts.removeHandler(handler);
 alerts.resolve('pipeline_stuck', 'Pipeline resumed progress');
 ```
 
+### Alert Escalation
+
+Automatically escalate unacknowledged alerts to higher severity levels:
+
+```typescript
+// Register alert with escalation config
+alerts.registerTypedAlert(
+  'slow_response',
+  'API response time exceeded threshold',
+  'warning',
+  AlertManager.createCondition('agent_p95_latency', '>', 60000, 'ms'),
+  {
+    cooldownMs: 5 * 60 * 1000,
+    escalation: {
+      escalateAfterMs: 10 * 60 * 1000,  // Escalate after 10 minutes
+      escalateTo: 'critical',            // Escalate to critical severity
+      maxEscalations: 3,                 // Maximum escalation levels
+      notifyTargets: ['ops-team'],       // Optional notification targets
+    },
+  }
+);
+
+// Acknowledge an alert to prevent escalation
+alerts.acknowledge('slow_response');
+
+// Get unacknowledged alerts
+const unacked = alerts.getUnacknowledgedAlerts();
+
+// Get alerts that need escalation soon (within 5 minutes)
+const needingEscalation = alerts.getAlertsNeedingEscalation(5 * 60 * 1000);
+
+// Stop escalation checker when done
+alerts.stopEscalationChecker();
+alerts.dispose();  // Cleanup all resources
+```
+
+### Type-Safe Alert Conditions
+
+Use type-safe conditions instead of string-based conditions:
+
+```typescript
+// Create a type-safe condition
+const condition = AlertManager.createCondition(
+  'error_rate',    // Metric: 'no_progress_for' | 'error_rate' | 'session_tokens' | etc.
+  '>',             // Operator: '>' | '>=' | '<' | '<=' | '=' | '!=' | 'contains'
+  10,              // Threshold value
+  '%'              // Optional unit
+);
+
+// Register alert with typed condition
+alerts.registerTypedAlert(
+  'high_errors',
+  'Error rate exceeded threshold',
+  'critical',
+  condition,
+  { cooldownMs: 5 * 60 * 1000 }
+);
+
+// Fire alert if condition is met
+const metrics = { error_rate: 15, session_tokens: 50000 };
+alerts.fireIfConditionMet('high_errors', 'Error rate is 15%', metrics);
+
+// Evaluate a condition programmatically
+const conditionMet = alerts.evaluateCondition(condition, metrics);
+console.log(`Condition met: ${conditionMet}`);
+
+// Parse legacy string condition to typed condition
+const parsed = AlertManager.parseConditionString('error_rate > 10%');
+// Returns: { metric: 'error_rate', operator: '>', threshold: 10, unit: '%' }
+```
+
+Available metrics for type-safe conditions:
+
+| Metric | Description |
+|--------|-------------|
+| `no_progress_for` | Time since last progress |
+| `error_rate` | Error rate percentage |
+| `session_tokens` | Token count in session |
+| `agent_p95_latency` | Agent P95 latency |
+| `test_coverage` | Test coverage percentage |
+| `agent_status` | Agent status string |
+| `custom` | Custom metric (use customMetric field) |
+
 ### Alert History
 
 ```typescript
@@ -606,6 +737,64 @@ if (budget.config.allowOverride) {
   // Perform critical operation
   budget.disableOverride();
 }
+```
+
+### Budget Persistence
+
+Persist budget state across sessions for accurate cost tracking:
+
+```typescript
+const budget = getTokenBudgetManager({
+  sessionTokenLimit: 100000,
+  sessionCostLimitUsd: 5.00,
+  enablePersistence: true,           // Enable persistence
+  persistenceDir: '.ad-sdlc/budget', // Persistence directory
+  sessionId: 'my-session-123',       // Optional: specify session ID
+});
+
+// Budget state is automatically saved after each recordUsage()
+budget.recordUsage(1500, 500, 0.0225);
+
+// Get session ID
+console.log(`Session ID: ${budget.getSessionId()}`);
+
+// Check if persistence is enabled
+console.log(`Persistence enabled: ${budget.isPersistenceEnabled()}`);
+
+// Manually save state (normally automatic)
+budget.saveToPersistence();
+
+// Manually load state
+budget.loadFromPersistence();
+
+// Delete persisted state
+budget.deletePersistence();
+```
+
+Static methods for managing persisted sessions:
+
+```typescript
+// List all persisted sessions
+const sessions = TokenBudgetManager.listPersistedSessions('.ad-sdlc/budget');
+console.log(`Found ${sessions.length} persisted sessions`);
+
+// Load a specific session state
+const state = TokenBudgetManager.loadSession('session-123', '.ad-sdlc/budget');
+if (state) {
+  console.log(`Session tokens: ${state.currentTokens}`);
+  console.log(`Session cost: $${state.currentCostUsd}`);
+  console.log(`Last saved: ${state.savedAt}`);
+}
+
+// Delete a specific session
+TokenBudgetManager.deleteSession('old-session', '.ad-sdlc/budget');
+
+// Clean up sessions older than 7 days
+const deletedCount = TokenBudgetManager.cleanupOldSessions(
+  7 * 24 * 60 * 60 * 1000,  // 7 days in milliseconds
+  '.ad-sdlc/budget'
+);
+console.log(`Cleaned up ${deletedCount} old sessions`);
 ```
 
 ## Per-Agent Token Budget
