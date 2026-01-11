@@ -27,7 +27,8 @@ Thumbs.db
 .env.*.local
 *.pem
 *.key
-secrets/
+/secrets/
+!src/security/secrets/
 
 # Logs
 logs/
