@@ -14,6 +14,9 @@ export type {
   MaskingPattern,
   LogQueryFilter,
   LogQueryResult,
+  LogAggregationSource,
+  LogAggregationOptions,
+  LogCompressionOptions,
   MetricType,
   MetricDefinition,
   MetricValue,
@@ -36,6 +39,8 @@ export type {
   DashboardDataProviderOptions,
   PipelineProgress,
   LogStorageOptions,
+  BudgetPersistenceState,
+  BudgetWarningPersisted,
 } from './types.js';
 
 // Errors
