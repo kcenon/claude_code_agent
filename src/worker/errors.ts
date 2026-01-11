@@ -705,15 +705,11 @@ export class CheckpointInvalidError extends WorkerError {
   public readonly reason: string;
 
   constructor(workOrderId: string, reason: string) {
-    super(
-      ErrorCodes.WRK_CHECKPOINT_INVALID,
-      `Invalid checkpoint for ${workOrderId}: ${reason}`,
-      {
-        context: { workOrderId, reason },
-        severity: ErrorSeverity.LOW,
-        category: 'recoverable',
-      }
-    );
+    super(ErrorCodes.WRK_CHECKPOINT_INVALID, `Invalid checkpoint for ${workOrderId}: ${reason}`, {
+      context: { workOrderId, reason },
+      severity: ErrorSeverity.LOW,
+      category: 'recoverable',
+    });
     this.name = 'CheckpointInvalidError';
     this.workOrderId = workOrderId;
     this.reason = reason;

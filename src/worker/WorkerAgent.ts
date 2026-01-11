@@ -197,7 +197,7 @@ export class WorkerAgent {
           this.currentBranchName = branchName;
           await this.saveCheckpoint(workOrder, 'branch_creation', attempt);
         } else {
-          branchName = this.currentBranchName ?? await this.getCurrentBranch();
+          branchName = this.currentBranchName ?? (await this.getCurrentBranch());
         }
 
         // 3. Generate code (skip if resuming past this step)
@@ -214,7 +214,10 @@ export class WorkerAgent {
 
         // 5. Run verification (if not skipped)
         let verification: VerificationResult;
-        if (options.skipVerification !== true && this.shouldExecuteStep('verification', startStep)) {
+        if (
+          options.skipVerification !== true &&
+          this.shouldExecuteStep('verification', startStep)
+        ) {
           verification = await this.runVerification();
 
           if (!verification.testsPassed || !verification.lintPassed || !verification.buildPassed) {
@@ -394,9 +397,10 @@ export class WorkerAgent {
     attempt: number
   ): Promise<void> {
     // Build context object properly to satisfy exactOptionalPropertyTypes
-    const context: CheckpointState['context'] = this.currentBranchName !== null
-      ? { workOrder, branchName: this.currentBranchName }
-      : { workOrder };
+    const context: CheckpointState['context'] =
+      this.currentBranchName !== null
+        ? { workOrder, branchName: this.currentBranchName }
+        : { workOrder };
 
     // Build state with required fields
     const baseState: CheckpointState = {
@@ -407,9 +411,10 @@ export class WorkerAgent {
     };
 
     // Add optional testGenerationResult if present
-    const state: CheckpointState = this.lastTestGenerationResult !== null
-      ? { ...baseState, testGenerationResult: this.lastTestGenerationResult }
-      : baseState;
+    const state: CheckpointState =
+      this.lastTestGenerationResult !== null
+        ? { ...baseState, testGenerationResult: this.lastTestGenerationResult }
+        : baseState;
 
     await this.checkpointManager.saveCheckpoint(
       workOrder.orderId,

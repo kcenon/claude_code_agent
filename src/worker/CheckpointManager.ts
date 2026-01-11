@@ -75,7 +75,8 @@ export class CheckpointManager {
   constructor(config: CheckpointManagerConfig = {}) {
     this.config = {
       checkpointPath: config.checkpointPath ?? DEFAULT_CHECKPOINT_CONFIG.checkpointPath,
-      projectRoot: config.projectRoot ?? tryGetProjectRoot() ?? DEFAULT_CHECKPOINT_CONFIG.projectRoot,
+      projectRoot:
+        config.projectRoot ?? tryGetProjectRoot() ?? DEFAULT_CHECKPOINT_CONFIG.projectRoot,
       enabled: config.enabled ?? DEFAULT_CHECKPOINT_CONFIG.enabled,
     };
 
@@ -221,11 +222,12 @@ export class CheckpointManager {
         | undefined;
 
       // Build context if present
-      const context: CheckpointState['context'] = rawContext !== undefined
-        ? (rawContext.branchName !== undefined
+      const context: CheckpointState['context'] =
+        rawContext !== undefined
+          ? rawContext.branchName !== undefined
             ? { workOrder: rawContext.workOrder, branchName: rawContext.branchName }
-            : { workOrder: rawContext.workOrder })
-        : undefined;
+            : { workOrder: rawContext.workOrder }
+          : undefined;
 
       // Safely extract array fields with proper null/undefined handling
       const rawFileChanges = snapshot.fileChanges as FileChange[] | undefined;
@@ -324,10 +326,7 @@ export class CheckpointManager {
    */
   private isValidCheckpoint(checkpoint: ProgressCheckpoint): boolean {
     // Check required fields
-    if (
-      typeof checkpoint.workOrderId !== 'string' ||
-      checkpoint.workOrderId.length === 0
-    ) {
+    if (typeof checkpoint.workOrderId !== 'string' || checkpoint.workOrderId.length === 0) {
       return false;
     }
     if (typeof checkpoint.currentStep !== 'string') {
@@ -392,9 +391,7 @@ export class CheckpointManager {
 
     try {
       const basePath = this.scratchpad.getBasePath();
-      const entries = await import('node:fs').then((fs) =>
-        fs.promises.readdir(basePath)
-      );
+      const entries = await import('node:fs').then((fs) => fs.promises.readdir(basePath));
       return entries
         .filter((name) => name.endsWith('-checkpoint.yaml'))
         .map((name) => name.replace('-checkpoint.yaml', ''));
