@@ -136,7 +136,13 @@ export class SQLiteBackend implements IScratchpadBackend {
   } {
     // Verify database is initialized
     this.getDb();
-    if (!this.stmtRead || !this.stmtWrite || !this.stmtDelete || !this.stmtList || !this.stmtExists) {
+    if (
+      !this.stmtRead ||
+      !this.stmtWrite ||
+      !this.stmtDelete ||
+      !this.stmtList ||
+      !this.stmtExists
+    ) {
       throw new Error('SQLiteBackend statements not initialized. Call initialize() first.');
     }
     // Statements are guaranteed to exist after initialize()

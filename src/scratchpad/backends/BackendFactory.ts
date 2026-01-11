@@ -79,7 +79,9 @@ export class BackendFactory {
    * @throws BackendCreationError if creation fails
    * @throws Error if initialization fails
    */
-  static async createAndInitialize(config: ScratchpadBackendConfig = {}): Promise<IScratchpadBackend> {
+  static async createAndInitialize(
+    config: ScratchpadBackendConfig = {}
+  ): Promise<IScratchpadBackend> {
     const backend = BackendFactory.create(config);
 
     try {
