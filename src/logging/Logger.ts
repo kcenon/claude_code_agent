@@ -116,15 +116,25 @@ const DEFAULT_MASKING_PATTERNS: MaskingPattern[] = [
     name: 'aws_secret_key',
     pattern: /(?:aws)?_?secret_?(?:access)?_?key["'\s:=]+["']?([a-zA-Z0-9/+=]{40})["']?/gi,
   },
-  { name: 'aws_session_token', pattern: /(?:aws_session_token|x-amz-security-token)["'\s:=]+["']?([a-zA-Z0-9/+=]{100,})["']?/gi },
+  {
+    name: 'aws_session_token',
+    pattern:
+      /(?:aws_session_token|x-amz-security-token)["'\s:=]+["']?([a-zA-Z0-9/+=]{100,})["']?/gi,
+  },
 
   // Google Cloud
   { name: 'google_api_key', pattern: /AIza[0-9A-Za-z_-]{35}/g },
   { name: 'google_oauth', pattern: /[0-9]+-[0-9A-Za-z_]{32}\.apps\.googleusercontent\.com/g },
 
   // Azure
-  { name: 'azure_storage_key', pattern: /(?:AccountKey|SharedAccessSignature)=([a-zA-Z0-9/+=]{86,88})/g },
-  { name: 'azure_connection_string', pattern: /DefaultEndpointsProtocol=https;AccountName=[^;]+;AccountKey=[^;]+/g },
+  {
+    name: 'azure_storage_key',
+    pattern: /(?:AccountKey|SharedAccessSignature)=([a-zA-Z0-9/+=]{86,88})/g,
+  },
+  {
+    name: 'azure_connection_string',
+    pattern: /DefaultEndpointsProtocol=https;AccountName=[^;]+;AccountKey=[^;]+/g,
+  },
 
   // Generic patterns
   {
@@ -146,8 +156,15 @@ const DEFAULT_MASKING_PATTERNS: MaskingPattern[] = [
   { name: 'jwt_token', pattern: /eyJ[a-zA-Z0-9_-]*\.eyJ[a-zA-Z0-9_-]*\.[a-zA-Z0-9_-]*/g },
 
   // Private keys and certificates
-  { name: 'private_key', pattern: /-----BEGIN\s+(?:RSA\s+)?PRIVATE\s+KEY-----[\s\S]*?-----END\s+(?:RSA\s+)?PRIVATE\s+KEY-----/g },
-  { name: 'certificate', pattern: /-----BEGIN\s+CERTIFICATE-----[\s\S]*?-----END\s+CERTIFICATE-----/g },
+  {
+    name: 'private_key',
+    pattern:
+      /-----BEGIN\s+(?:RSA\s+)?PRIVATE\s+KEY-----[\s\S]*?-----END\s+(?:RSA\s+)?PRIVATE\s+KEY-----/g,
+  },
+  {
+    name: 'certificate',
+    pattern: /-----BEGIN\s+CERTIFICATE-----[\s\S]*?-----END\s+CERTIFICATE-----/g,
+  },
 
   // Credit card numbers (basic patterns)
   { name: 'credit_card_visa', pattern: /\b4[0-9]{12}(?:[0-9]{3})?\b/g },
@@ -165,7 +182,10 @@ const DEFAULT_MASKING_PATTERNS: MaskingPattern[] = [
 
   // Slack tokens
   { name: 'slack_token', pattern: /xox[baprs]-[0-9]{10,13}-[0-9]{10,13}[a-zA-Z0-9-]*/g },
-  { name: 'slack_webhook', pattern: /https:\/\/hooks\.slack\.com\/services\/[A-Z0-9]+\/[A-Z0-9]+\/[a-zA-Z0-9]+/g },
+  {
+    name: 'slack_webhook',
+    pattern: /https:\/\/hooks\.slack\.com\/services\/[A-Z0-9]+\/[A-Z0-9]+\/[a-zA-Z0-9]+/g,
+  },
 
   // NPM tokens
   { name: 'npm_token', pattern: /npm_[a-zA-Z0-9]{36}/g },
