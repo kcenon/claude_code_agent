@@ -354,4 +354,413 @@ describe('AlertManager', () => {
       expect(BUILTIN_ALERTS.some((a) => a.name === 'token_budget_exceeded')).toBe(true);
     });
   });
+
+  describe('escalation', () => {
+    it('should track unacknowledged alerts for escalation', () => {
+      alertManager.registerAlert({
+        name: 'escalating_alert',
+        description: 'Alert that escalates',
+        severity: 'warning',
+        condition: 'test',
+        escalation: {
+          escalateAfterMs: 1000,
+          escalateTo: 'critical',
+          maxEscalations: 3,
+        },
+      });
+
+      alertManager.fire('escalating_alert', 'Initial alert');
+      const unacked = alertManager.getUnacknowledgedAlerts();
+      expect(unacked.length).toBe(1);
+      expect(unacked[0]?.name).toBe('escalating_alert');
+    });
+
+    it('should acknowledge an alert and remove from unacknowledged', () => {
+      alertManager.registerAlert({
+        name: 'ack_test',
+        description: 'Alert to acknowledge',
+        severity: 'warning',
+        condition: 'test',
+        escalation: {
+          escalateAfterMs: 1000,
+          escalateTo: 'critical',
+        },
+      });
+
+      alertManager.fire('ack_test', 'Test alert');
+      expect(alertManager.getUnacknowledgedAlerts().length).toBe(1);
+
+      const result = alertManager.acknowledge('ack_test');
+      expect(result).toBe(true);
+      expect(alertManager.getUnacknowledgedAlerts().length).toBe(0);
+    });
+
+    it('should return false when acknowledging unknown alert', () => {
+      const result = alertManager.acknowledge('unknown_alert');
+      expect(result).toBe(false);
+    });
+
+    it('should get alerts needing escalation within time window', () => {
+      alertManager.registerAlert({
+        name: 'soon_escalate',
+        description: 'Will escalate soon',
+        severity: 'warning',
+        condition: 'test',
+        escalation: {
+          escalateAfterMs: 500,
+          escalateTo: 'critical',
+        },
+      });
+
+      alertManager.fire('soon_escalate', 'Test');
+      const needingEscalation = alertManager.getAlertsNeedingEscalation(1000);
+      expect(needingEscalation.length).toBe(1);
+    });
+
+    it('should stop escalation checker on dispose', () => {
+      alertManager.dispose();
+      // Should not throw
+      expect(() => alertManager.dispose()).not.toThrow();
+    });
+
+    it('should stop escalation checker explicitly', () => {
+      alertManager.stopEscalationChecker();
+      // Should not throw when stopping again
+      expect(() => alertManager.stopEscalationChecker()).not.toThrow();
+    });
+
+    it('should remove from unacknowledged when resolving', () => {
+      alertManager.registerAlert({
+        name: 'resolve_test',
+        description: 'Alert to resolve',
+        severity: 'warning',
+        condition: 'test',
+        escalation: {
+          escalateAfterMs: 1000,
+          escalateTo: 'critical',
+        },
+      });
+
+      alertManager.fire('resolve_test', 'Test');
+      expect(alertManager.getUnacknowledgedAlerts().length).toBe(1);
+
+      alertManager.resolve('resolve_test');
+      expect(alertManager.getUnacknowledgedAlerts().length).toBe(0);
+    });
+
+    it('should log acknowledgment when console alerts enabled', () => {
+      const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      const consoleManager = new AlertManager({
+        alertsDir: testAlertsDir,
+        consoleAlerts: true,
+      });
+
+      consoleManager.registerAlert({
+        name: 'console_ack',
+        description: 'Test',
+        severity: 'warning',
+        condition: 'test',
+        escalation: {
+          escalateAfterMs: 1000,
+          escalateTo: 'critical',
+        },
+      });
+
+      consoleManager.fire('console_ack', 'Test');
+      consoleManager.acknowledge('console_ack');
+
+      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('acknowledged'));
+      logSpy.mockRestore();
+      consoleManager.dispose();
+    });
+  });
+
+  describe('condition parsing and evaluation', () => {
+    it('should create a typed condition', () => {
+      const condition = AlertManager.createCondition('error_rate', '>', 10, '%');
+      expect(condition.metric).toBe('error_rate');
+      expect(condition.operator).toBe('>');
+      expect(condition.threshold).toBe(10);
+      expect(condition.unit).toBe('%');
+    });
+
+    it('should create condition without unit', () => {
+      const condition = AlertManager.createCondition('session_tokens', '>=', 1000);
+      expect(condition.metric).toBe('session_tokens');
+      expect(condition.unit).toBeUndefined();
+    });
+
+    it('should parse no_progress_for condition string', () => {
+      const condition = AlertManager.parseConditionString('no_progress_for > 10m');
+      expect(condition).not.toBeNull();
+      expect(condition?.metric).toBe('no_progress_for');
+      expect(condition?.operator).toBe('>');
+      expect(condition?.threshold).toBe(10);
+    });
+
+    it('should parse error_rate condition string', () => {
+      const condition = AlertManager.parseConditionString('error_rate > 10%');
+      expect(condition).not.toBeNull();
+      expect(condition?.metric).toBe('error_rate');
+      expect(condition?.threshold).toBe(10);
+    });
+
+    it('should parse session_tokens condition string', () => {
+      const condition = AlertManager.parseConditionString('session_tokens > budget_limit');
+      expect(condition).not.toBeNull();
+      expect(condition?.metric).toBe('session_tokens');
+      expect(condition?.threshold).toBe('budget_limit');
+    });
+
+    it('should parse agent_p95_latency condition string', () => {
+      const condition = AlertManager.parseConditionString('agent_p95_latency > 60s');
+      expect(condition).not.toBeNull();
+      expect(condition?.metric).toBe('agent_p95_latency');
+    });
+
+    it('should parse test_coverage condition string', () => {
+      const condition = AlertManager.parseConditionString('test_coverage < 70%');
+      expect(condition).not.toBeNull();
+      expect(condition?.metric).toBe('test_coverage');
+      expect(condition?.operator).toBe('<');
+    });
+
+    it('should parse agent_status condition string', () => {
+      const condition = AlertManager.parseConditionString('agent_status = failure');
+      expect(condition).not.toBeNull();
+      expect(condition?.metric).toBe('agent_status');
+      expect(condition?.operator).toBe('=');
+      expect(condition?.threshold).toBe('failure');
+    });
+
+    it('should return null for unparseable condition', () => {
+      const condition = AlertManager.parseConditionString('invalid condition format');
+      expect(condition).toBeNull();
+    });
+
+    it('should handle different operator formats', () => {
+      const cond1 = AlertManager.parseConditionString('error_rate >= 10%');
+      expect(cond1?.operator).toBe('>=');
+
+      const cond2 = AlertManager.parseConditionString('error_rate <= 10%');
+      expect(cond2?.operator).toBe('<=');
+
+      const cond3 = AlertManager.parseConditionString('error_rate != 10%');
+      expect(cond3?.operator).toBe('!=');
+    });
+
+    it('should evaluate > operator correctly', () => {
+      const condition = AlertManager.createCondition('error_rate', '>', 10);
+      expect(alertManager.evaluateCondition(condition, { error_rate: 15 })).toBe(true);
+      expect(alertManager.evaluateCondition(condition, { error_rate: 5 })).toBe(false);
+    });
+
+    it('should evaluate >= operator correctly', () => {
+      const condition = AlertManager.createCondition('error_rate', '>=', 10);
+      expect(alertManager.evaluateCondition(condition, { error_rate: 10 })).toBe(true);
+      expect(alertManager.evaluateCondition(condition, { error_rate: 9 })).toBe(false);
+    });
+
+    it('should evaluate < operator correctly', () => {
+      const condition = AlertManager.createCondition('test_coverage', '<', 70);
+      expect(alertManager.evaluateCondition(condition, { test_coverage: 65 })).toBe(true);
+      expect(alertManager.evaluateCondition(condition, { test_coverage: 75 })).toBe(false);
+    });
+
+    it('should evaluate <= operator correctly', () => {
+      const condition = AlertManager.createCondition('test_coverage', '<=', 70);
+      expect(alertManager.evaluateCondition(condition, { test_coverage: 70 })).toBe(true);
+      expect(alertManager.evaluateCondition(condition, { test_coverage: 71 })).toBe(false);
+    });
+
+    it('should evaluate = operator correctly', () => {
+      const condition = AlertManager.createCondition('agent_status', '=', 'failure');
+      expect(alertManager.evaluateCondition(condition, { agent_status: 'failure' })).toBe(true);
+      expect(alertManager.evaluateCondition(condition, { agent_status: 'success' })).toBe(false);
+    });
+
+    it('should evaluate != operator correctly', () => {
+      const condition = AlertManager.createCondition('agent_status', '!=', 'success');
+      expect(alertManager.evaluateCondition(condition, { agent_status: 'failure' })).toBe(true);
+      expect(alertManager.evaluateCondition(condition, { agent_status: 'success' })).toBe(false);
+    });
+
+    it('should evaluate contains operator correctly', () => {
+      const condition: { metric: 'agent_status'; operator: 'contains'; threshold: string } = {
+        metric: 'agent_status',
+        operator: 'contains',
+        threshold: 'fail',
+      };
+      expect(alertManager.evaluateCondition(condition, { agent_status: 'failure' })).toBe(true);
+      expect(alertManager.evaluateCondition(condition, { agent_status: 'success' })).toBe(false);
+    });
+
+    it('should evaluate not_contains operator correctly', () => {
+      const condition: { metric: 'agent_status'; operator: 'not_contains'; threshold: string } = {
+        metric: 'agent_status',
+        operator: 'not_contains',
+        threshold: 'fail',
+      };
+      expect(alertManager.evaluateCondition(condition, { agent_status: 'success' })).toBe(true);
+      expect(alertManager.evaluateCondition(condition, { agent_status: 'failure' })).toBe(false);
+    });
+
+    it('should return false for missing metric', () => {
+      const condition = AlertManager.createCondition('error_rate', '>', 10);
+      expect(alertManager.evaluateCondition(condition, {})).toBe(false);
+    });
+
+    it('should return false for type mismatch in comparison', () => {
+      const condition = AlertManager.createCondition('error_rate', '>', 10);
+      expect(alertManager.evaluateCondition(condition, { error_rate: 'invalid' })).toBe(false);
+    });
+  });
+
+  describe('fireIfConditionMet', () => {
+    it('should fire alert when condition is met', () => {
+      alertManager.registerTypedAlert(
+        'high_error_test',
+        'High error rate',
+        'critical',
+        AlertManager.createCondition('error_rate', '>', 10)
+      );
+
+      const result = alertManager.fireIfConditionMet(
+        'high_error_test',
+        'Error rate too high',
+        { error_rate: 15 }
+      );
+
+      expect(result).toBe(true);
+      const history = alertManager.getHistory(1);
+      expect(history[0]?.name).toBe('high_error_test');
+    });
+
+    it('should not fire alert when condition is not met', () => {
+      alertManager.registerTypedAlert(
+        'low_error_test',
+        'Low error rate',
+        'critical',
+        AlertManager.createCondition('error_rate', '>', 10)
+      );
+
+      const result = alertManager.fireIfConditionMet(
+        'low_error_test',
+        'Error rate too high',
+        { error_rate: 5 }
+      );
+
+      expect(result).toBe(false);
+    });
+
+    it('should return false for unknown alert', () => {
+      const result = alertManager.fireIfConditionMet(
+        'unknown_condition_alert',
+        'Test',
+        { error_rate: 50 }
+      );
+
+      expect(result).toBe(false);
+    });
+
+    it('should fire when condition cannot be parsed', () => {
+      alertManager.registerAlert({
+        name: 'unparseable',
+        description: 'Unparseable condition',
+        severity: 'warning',
+        condition: 'invalid syntax that cannot be parsed',
+      });
+
+      const result = alertManager.fireIfConditionMet(
+        'unparseable',
+        'Test message',
+        { some_metric: 100 }
+      );
+
+      expect(result).toBe(true);
+    });
+  });
+
+  describe('registerTypedAlert', () => {
+    it('should register alert with typed condition', () => {
+      alertManager.registerTypedAlert(
+        'typed_alert',
+        'Typed condition alert',
+        'warning',
+        AlertManager.createCondition('test_coverage', '<', 80, '%'),
+        { cooldownMs: 5000 }
+      );
+
+      const alert = alertManager.getAlert('typed_alert');
+      expect(alert).toBeDefined();
+      expect(alert?.conditionTyped).toBeDefined();
+      expect(alert?.cooldownMs).toBe(5000);
+    });
+
+    it('should register alert with windowMs option', () => {
+      alertManager.registerTypedAlert(
+        'windowed_alert',
+        'Alert with window',
+        'warning',
+        AlertManager.createCondition('error_rate', '>', 5),
+        { windowMs: 60000 }
+      );
+
+      const alert = alertManager.getAlert('windowed_alert');
+      expect(alert?.windowMs).toBe(60000);
+    });
+
+    it('should register alert with escalation config', () => {
+      alertManager.registerTypedAlert(
+        'escalatable_typed',
+        'Alert with escalation',
+        'warning',
+        AlertManager.createCondition('error_rate', '>', 5),
+        {
+          escalation: {
+            escalateAfterMs: 5000,
+            escalateTo: 'critical',
+            maxEscalations: 2,
+          },
+        }
+      );
+
+      const alert = alertManager.getAlert('escalatable_typed');
+      expect(alert?.escalation).toBeDefined();
+      expect(alert?.escalation?.escalateTo).toBe('critical');
+    });
+  });
+
+  describe('ad-hoc alert cooldown', () => {
+    it('should respect cooldown for ad-hoc alerts', () => {
+      alertManager.fireAdHoc('adhoc_cooldown', 'First', 'info');
+      const result = alertManager.fireAdHoc('adhoc_cooldown', 'Second', 'info');
+      expect(result).toBe(false);
+    });
+
+    it('should fire ad-hoc alert with context', () => {
+      alertManager.fireAdHoc('adhoc_context', 'Test', 'warning', { key: 'value' });
+      const history = alertManager.getHistory(1);
+      expect(history[0]?.context).toEqual({ key: 'value' });
+    });
+  });
+
+  describe('max history size', () => {
+    it('should trim history when exceeding max size', () => {
+      const smallHistoryManager = new AlertManager({
+        alertsDir: testAlertsDir,
+        consoleAlerts: false,
+        maxHistorySize: 5,
+      });
+
+      for (let i = 0; i < 10; i++) {
+        smallHistoryManager.fireAdHoc(`alert_${i}`, `Message ${i}`, 'info');
+      }
+
+      const history = smallHistoryManager.getHistory();
+      expect(history.length).toBe(5);
+      smallHistoryManager.dispose();
+    });
+  });
 });

@@ -14,6 +14,9 @@ export type {
   MaskingPattern,
   LogQueryFilter,
   LogQueryResult,
+  LogAggregationSource,
+  LogAggregationOptions,
+  LogCompressionOptions,
   MetricType,
   MetricDefinition,
   MetricValue,
@@ -27,10 +30,17 @@ export type {
   AlertEvent,
   AlertHandler,
   AlertManagerOptions,
+  AlertConditionOperator,
+  AlertConditionMetric,
+  AlertConditionTyped,
+  AlertEscalationConfig,
+  AlertEventWithEscalation,
   DashboardPanel,
   DashboardDataProviderOptions,
   PipelineProgress,
   LogStorageOptions,
+  BudgetPersistenceState,
+  BudgetWarningPersisted,
 } from './types.js';
 
 // Errors

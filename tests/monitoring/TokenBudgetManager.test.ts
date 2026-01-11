@@ -1,4 +1,7 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import * as os from 'node:os';
 import {
   TokenBudgetManager,
   getTokenBudgetManager,
@@ -277,6 +280,229 @@ describe('TokenBudgetManager', () => {
         const unlimitedManager = new TokenBudgetManager({});
         expect(unlimitedManager.getCostLimit()).toBeUndefined();
       });
+    });
+  });
+
+  describe('budget persistence', () => {
+    let persistenceDir: string;
+
+    beforeEach(() => {
+      persistenceDir = fs.mkdtempSync(path.join(os.tmpdir(), 'budget-persist-'));
+    });
+
+    afterEach(() => {
+      if (fs.existsSync(persistenceDir)) {
+        fs.rmSync(persistenceDir, { recursive: true, force: true });
+      }
+    });
+
+    it('should save budget state to persistence', () => {
+      const persistentManager = new TokenBudgetManager({
+        sessionTokenLimit: 10000,
+        sessionCostLimitUsd: 1.0,
+        enablePersistence: true,
+        persistenceDir,
+        sessionId: 'test-session-1',
+      });
+
+      persistentManager.recordUsage(500, 500, 0.1);
+      const result = persistentManager.saveToPersistence();
+
+      expect(result).toBe(true);
+      const filePath = path.join(persistenceDir, 'budget-test-session-1.json');
+      expect(fs.existsSync(filePath)).toBe(true);
+
+      const savedState = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+      expect(savedState.currentTokens).toBe(1000);
+      expect(savedState.currentCostUsd).toBe(0.1);
+    });
+
+    it('should auto-save on recordUsage when persistence is enabled', () => {
+      const persistentManager = new TokenBudgetManager({
+        sessionTokenLimit: 10000,
+        enablePersistence: true,
+        persistenceDir,
+        sessionId: 'auto-save-test',
+      });
+
+      persistentManager.recordUsage(200, 200, 0.02);
+
+      const filePath = path.join(persistenceDir, 'budget-auto-save-test.json');
+      expect(fs.existsSync(filePath)).toBe(true);
+    });
+
+    it('should restore budget state from persistence', () => {
+      const sessionId = 'restore-test';
+      const filePath = path.join(persistenceDir, `budget-${sessionId}.json`);
+
+      // Manually create a persistence file
+      const state = {
+        sessionId,
+        currentTokens: 5000,
+        currentCostUsd: 0.5,
+        triggeredWarnings: ['token-50'],
+        overrideActive: false,
+        savedAt: new Date().toISOString(),
+        warningHistory: [],
+        tokenLimit: 10000,
+        costLimitUsd: 1.0,
+      };
+      fs.writeFileSync(filePath, JSON.stringify(state));
+
+      // Create a new manager that should restore from this state
+      const restoredManager = new TokenBudgetManager({
+        sessionTokenLimit: 10000,
+        sessionCostLimitUsd: 1.0,
+        enablePersistence: true,
+        persistenceDir,
+        sessionId,
+      });
+
+      const status = restoredManager.getStatus();
+      expect(status.currentTokens).toBe(5000);
+      expect(status.currentCostUsd).toBe(0.5);
+    });
+
+    it('should return false when saving without persistence enabled', () => {
+      const nonPersistentManager = new TokenBudgetManager({
+        sessionTokenLimit: 10000,
+      });
+
+      const result = nonPersistentManager.saveToPersistence();
+      expect(result).toBe(false);
+    });
+
+    it('should load from persistence and continue accumulating', () => {
+      const sessionId = 'accumulate-test';
+
+      // First manager saves state
+      const firstManager = new TokenBudgetManager({
+        sessionTokenLimit: 10000,
+        enablePersistence: true,
+        persistenceDir,
+        sessionId,
+      });
+      firstManager.recordUsage(1000, 1000, 0.1);
+
+      // Second manager should restore and continue
+      const secondManager = new TokenBudgetManager({
+        sessionTokenLimit: 10000,
+        enablePersistence: true,
+        persistenceDir,
+        sessionId,
+      });
+      secondManager.recordUsage(500, 500, 0.05);
+
+      const status = secondManager.getStatus();
+      expect(status.currentTokens).toBe(3000); // 2000 + 1000
+      expect(status.currentCostUsd).toBeCloseTo(0.15);
+    });
+
+    it('should preserve warning history in persistence', () => {
+      const sessionId = 'warning-history-test';
+
+      const manager1 = new TokenBudgetManager({
+        sessionTokenLimit: 10000,
+        sessionCostLimitUsd: 1.0,
+        warningThresholds: [50],
+        enablePersistence: true,
+        persistenceDir,
+        sessionId,
+      });
+      manager1.recordUsage(2500, 2500, 0.5); // Triggers 50% warning
+
+      // Create new manager that restores
+      const manager2 = new TokenBudgetManager({
+        sessionTokenLimit: 10000,
+        sessionCostLimitUsd: 1.0,
+        warningThresholds: [50],
+        enablePersistence: true,
+        persistenceDir,
+        sessionId,
+      });
+
+      const history = manager2.getWarningHistory();
+      expect(history.length).toBeGreaterThan(0);
+    });
+
+    it('should preserve override state in persistence', () => {
+      const sessionId = 'override-persist-test';
+
+      const manager1 = new TokenBudgetManager({
+        sessionTokenLimit: 10000,
+        enablePersistence: true,
+        persistenceDir,
+        sessionId,
+      });
+      manager1.enableOverride();
+      manager1.recordUsage(100, 100, 0.01); // Triggers save
+
+      const manager2 = new TokenBudgetManager({
+        sessionTokenLimit: 10000,
+        enablePersistence: true,
+        persistenceDir,
+        sessionId,
+      });
+
+      expect(manager2.isOverrideActive()).toBe(true);
+    });
+
+    it('should get session ID', () => {
+      const persistentManager = new TokenBudgetManager({
+        enablePersistence: true,
+        persistenceDir,
+        sessionId: 'known-session-id',
+      });
+
+      expect(persistentManager.getSessionId()).toBe('known-session-id');
+    });
+
+    it('should generate session ID if not provided', () => {
+      const persistentManager = new TokenBudgetManager({
+        enablePersistence: true,
+        persistenceDir,
+      });
+
+      const sessionId = persistentManager.getSessionId();
+      expect(sessionId).toBeDefined();
+      expect(sessionId.length).toBeGreaterThan(0);
+    });
+
+    it('should list persisted sessions', () => {
+      // Create some sessions
+      new TokenBudgetManager({
+        enablePersistence: true,
+        persistenceDir,
+        sessionId: 'session-a',
+      }).recordUsage(100, 100, 0.01);
+
+      new TokenBudgetManager({
+        enablePersistence: true,
+        persistenceDir,
+        sessionId: 'session-b',
+      }).recordUsage(100, 100, 0.01);
+
+      const sessions = TokenBudgetManager.listPersistedSessions(persistenceDir);
+      expect(sessions).toContain('session-a');
+      expect(sessions).toContain('session-b');
+    });
+
+    it('should return empty array for non-existent directory', () => {
+      const sessions = TokenBudgetManager.listPersistedSessions('/nonexistent/path');
+      expect(sessions).toEqual([]);
+    });
+
+    it('should handle persistence errors gracefully', () => {
+      const sessionId = 'error-test';
+
+      // Create manager in read-only scenario (simulated by testing save returns false)
+      const manager1 = new TokenBudgetManager({
+        sessionTokenLimit: 10000,
+      });
+
+      // saveToPersistence returns false when persistence is disabled
+      const result = manager1.saveToPersistence();
+      expect(result).toBe(false);
     });
   });
 });

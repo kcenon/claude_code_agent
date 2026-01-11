@@ -7,9 +7,8 @@
  * - Cooldown to prevent alert storms
  * - Alert history tracking
  * - Custom alert handlers
- *
- * NOTE: Alert condition type safety and escalation are planned.
- * See Issue #253 for implementation details.
+ * - Type-safe alert conditions
+ * - Alert escalation for unacknowledged alerts
  */
 
 import * as fs from 'node:fs';
@@ -20,6 +19,9 @@ import type {
   AlertEvent,
   AlertHandler,
   AlertSeverity,
+  AlertConditionTyped,
+  AlertEscalationConfig,
+  AlertEventWithEscalation,
 } from './types.js';
 
 /**
@@ -89,6 +91,11 @@ export const BUILTIN_ALERTS: readonly AlertDefinition[] = [
 ];
 
 /**
+ * Default escalation check interval (1 minute)
+ */
+const DEFAULT_ESCALATION_CHECK_INTERVAL_MS = 60 * 1000;
+
+/**
  * Alert manager for monitoring and notification
  */
 export class AlertManager {
@@ -97,16 +104,21 @@ export class AlertManager {
   private readonly consoleAlerts: boolean;
   private readonly alerts: Map<string, AlertDefinition> = new Map();
   private readonly handlers: AlertHandler[] = [];
-  private readonly history: AlertEvent[] = [];
+  private readonly history: AlertEventWithEscalation[] = [];
   private readonly lastFired: Map<string, number> = new Map();
+  private readonly unacknowledgedAlerts: Map<string, AlertEventWithEscalation> = new Map();
+  private escalationTimer: NodeJS.Timeout | null = null;
+  private readonly escalationCheckIntervalMs: number;
 
   constructor(options: AlertManagerOptions = {}) {
     this.alertsDir = options.alertsDir ?? DEFAULT_ALERTS_DIR;
     this.maxHistorySize = options.maxHistorySize ?? DEFAULT_MAX_HISTORY_SIZE;
     this.consoleAlerts = options.consoleAlerts ?? process.env['NODE_ENV'] !== 'production';
+    this.escalationCheckIntervalMs = DEFAULT_ESCALATION_CHECK_INTERVAL_MS;
 
     this.ensureAlertsDirectory();
     this.loadBuiltinAlerts();
+    this.startEscalationChecker();
   }
 
   /**
@@ -206,12 +218,13 @@ export class AlertManager {
       return false;
     }
 
-    const event: AlertEvent = {
+    const event: AlertEventWithEscalation = {
       name,
       severity: severityOverride ?? alertDef.severity,
       message,
       timestamp: new Date().toISOString(),
       resolved: false,
+      escalationLevel: 0,
     };
 
     if (context !== undefined) {
@@ -220,6 +233,12 @@ export class AlertManager {
 
     this.processAlert(event);
     this.lastFired.set(name, Date.now());
+
+    // Track for escalation if alert has escalation config
+    if (alertDef.escalation !== undefined) {
+      this.unacknowledgedAlerts.set(name, event);
+    }
+
     return true;
   }
 
@@ -278,7 +297,10 @@ export class AlertManager {
    * Resolve an alert
    */
   public resolve(name: string, message?: string): void {
-    const event: AlertEvent = {
+    // Remove from unacknowledged alerts
+    this.unacknowledgedAlerts.delete(name);
+
+    const event: AlertEventWithEscalation = {
       name,
       severity: 'info',
       message: message ?? `Alert '${name}' resolved`,
@@ -423,6 +445,368 @@ export class AlertManager {
    */
   public getAlertsDir(): string {
     return this.alertsDir;
+  }
+
+  /**
+   * Start the escalation checker timer
+   */
+  private startEscalationChecker(): void {
+    if (this.escalationTimer !== null) {
+      return;
+    }
+
+    this.escalationTimer = setInterval(() => {
+      this.checkEscalations();
+    }, this.escalationCheckIntervalMs);
+
+    // Ensure timer doesn't prevent process exit
+    this.escalationTimer.unref();
+  }
+
+  /**
+   * Stop the escalation checker timer
+   */
+  public stopEscalationChecker(): void {
+    if (this.escalationTimer !== null) {
+      clearInterval(this.escalationTimer);
+      this.escalationTimer = null;
+    }
+  }
+
+  /**
+   * Check all unacknowledged alerts for escalation
+   */
+  private checkEscalations(): void {
+    const now = Date.now();
+
+    for (const [alertName, event] of this.unacknowledgedAlerts) {
+      const alertDef = this.alerts.get(alertName);
+      if (alertDef?.escalation === undefined) {
+        continue;
+      }
+
+      const escalation = alertDef.escalation;
+      const eventTime = new Date(event.timestamp).getTime();
+      const lastEscalatedTime =
+        event.lastEscalatedAt !== undefined && event.lastEscalatedAt !== ''
+          ? new Date(event.lastEscalatedAt).getTime()
+          : eventTime;
+
+      const timeSinceLastEscalation = now - lastEscalatedTime;
+      const currentLevel = event.escalationLevel ?? 0;
+      const maxEscalations = escalation.maxEscalations ?? 3;
+
+      if (timeSinceLastEscalation >= escalation.escalateAfterMs && currentLevel < maxEscalations) {
+        this.escalateAlert(alertName, event, escalation);
+      }
+    }
+  }
+
+  /**
+   * Escalate an alert
+   */
+  private escalateAlert(
+    alertName: string,
+    event: AlertEventWithEscalation,
+    escalation: AlertEscalationConfig
+  ): void {
+    const newLevel = (event.escalationLevel ?? 0) + 1;
+    const escalatedEvent: AlertEventWithEscalation = {
+      name: alertName,
+      severity: escalation.escalateTo,
+      message: `[ESCALATED L${String(newLevel)}] ${event.message}`,
+      timestamp: new Date().toISOString(),
+      escalationLevel: newLevel,
+      lastEscalatedAt: new Date().toISOString(),
+    };
+
+    if (event.context !== undefined) {
+      (escalatedEvent as { context?: Record<string, unknown> }).context = event.context;
+    }
+
+    // Update the unacknowledged alert
+    this.unacknowledgedAlerts.set(alertName, escalatedEvent);
+
+    // Process the escalated alert
+    this.processAlert(escalatedEvent);
+
+    // Log escalation
+    if (this.consoleAlerts) {
+      console.warn(
+        `[ALERT] \u26A0 Alert '${alertName}' escalated to level ${String(newLevel)} (${escalation.escalateTo})`
+      );
+    }
+  }
+
+  /**
+   * Acknowledge an alert to prevent further escalation
+   */
+  public acknowledge(alertName: string): boolean {
+    const event = this.unacknowledgedAlerts.get(alertName);
+    if (event === undefined) {
+      return false;
+    }
+
+    const acknowledgedEvent: AlertEventWithEscalation = {
+      ...event,
+      acknowledged: true,
+      acknowledgedAt: new Date().toISOString(),
+    };
+
+    // Remove from unacknowledged map
+    this.unacknowledgedAlerts.delete(alertName);
+
+    // Add to history
+    this.history.push(acknowledgedEvent);
+    if (this.history.length > this.maxHistorySize) {
+      this.history.shift();
+    }
+
+    if (this.consoleAlerts) {
+      console.log(`[ALERT] \u2713 Alert '${alertName}' acknowledged`);
+    }
+
+    return true;
+  }
+
+  /**
+   * Get all unacknowledged alerts
+   */
+  public getUnacknowledgedAlerts(): AlertEventWithEscalation[] {
+    return Array.from(this.unacknowledgedAlerts.values());
+  }
+
+  /**
+   * Get unacknowledged alerts that need escalation soon
+   */
+  public getAlertsNeedingEscalation(withinMs: number): AlertEventWithEscalation[] {
+    const now = Date.now();
+    const result: AlertEventWithEscalation[] = [];
+
+    for (const [alertName, event] of this.unacknowledgedAlerts) {
+      const alertDef = this.alerts.get(alertName);
+      if (alertDef?.escalation === undefined) {
+        continue;
+      }
+
+      const lastEscalatedTime =
+        event.lastEscalatedAt !== undefined && event.lastEscalatedAt !== ''
+          ? new Date(event.lastEscalatedAt).getTime()
+          : new Date(event.timestamp).getTime();
+
+      const timeSinceLastEscalation = now - lastEscalatedTime;
+      const timeToEscalation = alertDef.escalation.escalateAfterMs - timeSinceLastEscalation;
+
+      if (timeToEscalation > 0 && timeToEscalation <= withinMs) {
+        result.push(event);
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Create a type-safe alert condition
+   */
+  public static createCondition(
+    metric: AlertConditionTyped['metric'],
+    operator: AlertConditionTyped['operator'],
+    threshold: number | string,
+    unit?: string
+  ): AlertConditionTyped {
+    const condition: AlertConditionTyped = { metric, operator, threshold };
+    if (unit !== undefined) {
+      (condition as { unit?: string }).unit = unit;
+    }
+    return condition;
+  }
+
+  /**
+   * Parse a legacy condition string to typed condition
+   */
+  public static parseConditionString(condition: string): AlertConditionTyped | null {
+    // Pattern: metric operator value[unit]
+    // Examples: "no_progress_for > 10m", "error_rate > 10%", "agent_status = failure"
+    const patterns: Array<{
+      regex: RegExp;
+      metric: AlertConditionTyped['metric'];
+    }> = [
+      { regex: /no_progress_for\s*([><=!]+)\s*(\d+)(\w+)?/i, metric: 'no_progress_for' },
+      { regex: /error_rate\s*([><=!]+)\s*(\d+)(%)?/i, metric: 'error_rate' },
+      { regex: /session_tokens\s*([><=!]+)\s*(\w+)/i, metric: 'session_tokens' },
+      { regex: /agent_p95_latency\s*([><=!]+)\s*(\d+)(\w+)?/i, metric: 'agent_p95_latency' },
+      { regex: /test_coverage\s*([<>=!]+)\s*(\d+)(%)?/i, metric: 'test_coverage' },
+      { regex: /agent_status\s*([=!]+)\s*(\w+)/i, metric: 'agent_status' },
+    ];
+
+    for (const { regex, metric } of patterns) {
+      const match = condition.match(regex);
+      if (match !== null) {
+        const operatorStr = match[1] ?? '=';
+        const threshold = match[2] ?? '';
+        const unit = match[3];
+
+        const operator = AlertManager.normalizeOperator(operatorStr);
+        if (operator === null) {
+          continue;
+        }
+
+        const thresholdValue = /^\d+$/.test(threshold) ? parseInt(threshold, 10) : threshold;
+
+        const condition: AlertConditionTyped = {
+          metric,
+          operator,
+          threshold: thresholdValue,
+        };
+        if (unit !== undefined) {
+          (condition as { unit?: string }).unit = unit;
+        }
+        return condition;
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Normalize operator string to typed operator
+   */
+  private static normalizeOperator(op: string): AlertConditionTyped['operator'] | null {
+    const normalized = op.trim();
+    const operatorMap: Record<string, AlertConditionTyped['operator']> = {
+      '>': '>',
+      '>=': '>=',
+      '<': '<',
+      '<=': '<=',
+      '=': '=',
+      '==': '=',
+      '!=': '!=',
+      '<>': '!=',
+    };
+
+    return operatorMap[normalized] ?? null;
+  }
+
+  /**
+   * Evaluate a typed condition against current metrics
+   */
+  public evaluateCondition(
+    condition: AlertConditionTyped,
+    metrics: Record<string, number | string>
+  ): boolean {
+    const metricValue = metrics[condition.metric] ?? metrics[condition.customMetric ?? ''];
+    if (metricValue === undefined) {
+      return false;
+    }
+
+    const threshold = condition.threshold;
+
+    switch (condition.operator) {
+      case '>':
+        return typeof metricValue === 'number' && typeof threshold === 'number'
+          ? metricValue > threshold
+          : false;
+      case '>=':
+        return typeof metricValue === 'number' && typeof threshold === 'number'
+          ? metricValue >= threshold
+          : false;
+      case '<':
+        return typeof metricValue === 'number' && typeof threshold === 'number'
+          ? metricValue < threshold
+          : false;
+      case '<=':
+        return typeof metricValue === 'number' && typeof threshold === 'number'
+          ? metricValue <= threshold
+          : false;
+      case '=':
+        return metricValue === threshold;
+      case '!=':
+        return metricValue !== threshold;
+      case 'contains':
+        return typeof metricValue === 'string' && typeof threshold === 'string'
+          ? metricValue.includes(threshold)
+          : false;
+      case 'not_contains':
+        return typeof metricValue === 'string' && typeof threshold === 'string'
+          ? !metricValue.includes(threshold)
+          : false;
+      default:
+        return false;
+    }
+  }
+
+  /**
+   * Fire an alert if its typed condition evaluates to true
+   */
+  public fireIfConditionMet(
+    name: string,
+    message: string,
+    metrics: Record<string, number | string>,
+    context?: Record<string, unknown>
+  ): boolean {
+    const alertDef = this.alerts.get(name);
+    if (alertDef === undefined) {
+      return false;
+    }
+
+    // Use typed condition if available, otherwise parse string condition
+    const condition =
+      alertDef.conditionTyped ?? AlertManager.parseConditionString(alertDef.condition);
+    if (condition === null) {
+      // If we can't parse the condition, fire the alert
+      return this.fire(name, message, context);
+    }
+
+    if (this.evaluateCondition(condition, metrics)) {
+      return this.fire(name, message, context);
+    }
+
+    return false;
+  }
+
+  /**
+   * Register an alert with type-safe condition
+   */
+  public registerTypedAlert(
+    name: string,
+    description: string,
+    severity: AlertSeverity,
+    condition: AlertConditionTyped,
+    options?: {
+      windowMs?: number;
+      cooldownMs?: number;
+      escalation?: AlertEscalationConfig;
+    }
+  ): void {
+    const conditionString = `${condition.metric} ${condition.operator} ${String(condition.threshold)}${condition.unit ?? ''}`;
+
+    const alert: AlertDefinition = {
+      name,
+      description,
+      severity,
+      condition: conditionString,
+      conditionTyped: condition,
+    };
+
+    if (options?.windowMs !== undefined) {
+      (alert as { windowMs?: number }).windowMs = options.windowMs;
+    }
+    if (options?.cooldownMs !== undefined) {
+      (alert as { cooldownMs?: number }).cooldownMs = options.cooldownMs;
+    }
+    if (options?.escalation !== undefined) {
+      (alert as { escalation?: AlertEscalationConfig }).escalation = options.escalation;
+    }
+
+    this.alerts.set(name, alert);
+  }
+
+  /**
+   * Cleanup resources
+   */
+  public dispose(): void {
+    this.stopEscalationChecker();
+    this.unacknowledgedAlerts.clear();
   }
 }
 
