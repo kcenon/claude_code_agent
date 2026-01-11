@@ -261,9 +261,8 @@ export class CloudWatchTransport extends BaseTransport {
       );
 
       const exists =
-        describeResponse.logGroups?.some(
-          (group) => group.logGroupName === this.logGroupName
-        ) ?? false;
+        describeResponse.logGroups?.some((group) => group.logGroupName === this.logGroupName) ??
+        false;
 
       if (!exists && this.createLogGroup) {
         // Create log group
