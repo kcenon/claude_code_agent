@@ -9,6 +9,7 @@ Log transports implement the `ILogTransport` interface and handle the actual shi
 - **ConsoleTransport** - Console output with JSON or pretty format
 - **FileTransport** - File-based logging with rotation support
 - **ElasticsearchTransport** - Elasticsearch for centralized log aggregation
+- **CloudWatchTransport** - AWS CloudWatch Logs for cloud-native logging
 
 ## Transport Interface
 
@@ -196,6 +197,153 @@ The transport uses Elasticsearch's bulk API for efficient log shipping:
 - Logs are buffered until `bufferSize` is reached
 - Automatic flush occurs every `flushIntervalMs`
 - Failed batches are retried up to `maxRetries` times
+
+## CloudWatchTransport
+
+Ships logs to AWS CloudWatch Logs for cloud-native centralized logging.
+
+### Installation
+
+The CloudWatch transport requires the `@aws-sdk/client-cloudwatch-logs` package:
+
+```bash
+npm install @aws-sdk/client-cloudwatch-logs
+```
+
+### Basic Configuration
+
+```typescript
+import { CloudWatchTransport } from 'ad-sdlc';
+
+const transport = new CloudWatchTransport({
+  type: 'cloudwatch',
+  region: 'us-east-1',
+  logGroupName: '/app/logs',
+});
+
+await transport.initialize();
+```
+
+### With Explicit Credentials
+
+```typescript
+// Explicit credentials
+const transport = new CloudWatchTransport({
+  type: 'cloudwatch',
+  region: 'us-east-1',
+  logGroupName: '/app/logs',
+  credentials: {
+    accessKeyId: 'AKIAIOSFODNN7EXAMPLE',
+    secretAccessKey: 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+  },
+});
+
+// With session token (for temporary credentials)
+const transport = new CloudWatchTransport({
+  type: 'cloudwatch',
+  region: 'us-east-1',
+  logGroupName: '/app/logs',
+  credentials: {
+    accessKeyId: 'AKIAIOSFODNN7EXAMPLE',
+    secretAccessKey: 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+    sessionToken: 'AQoDYXdzEJr...',
+  },
+});
+```
+
+> **Note:** If credentials are not provided, the transport uses the AWS default credential chain (environment variables, shared credentials file, EC2 instance profile, etc.).
+
+### Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `region` | `string` | Required | AWS region |
+| `logGroupName` | `string` | Required | CloudWatch log group name |
+| `logStreamPrefix` | `string` | `'ad-sdlc'` | Log stream name prefix |
+| `credentials.accessKeyId` | `string` | - | AWS access key ID |
+| `credentials.secretAccessKey` | `string` | - | AWS secret access key |
+| `credentials.sessionToken` | `string` | - | AWS session token |
+| `createLogGroup` | `boolean` | `true` | Create log group if not exists |
+| `retentionInDays` | `number` | `30` | Log retention in days |
+| `bufferSize` | `number` | `100` | Buffer size before flush |
+| `flushIntervalMs` | `number` | `5000` | Auto-flush interval |
+| `maxRetries` | `number` | `3` | Max retry attempts |
+| `minLevel` | `LogLevel` | `'DEBUG'` | Minimum log level |
+
+### Log Group and Stream Management
+
+The transport automatically manages CloudWatch resources:
+
+1. **Log Group** - Created automatically if `createLogGroup` is `true`
+2. **Log Stream** - Created per session with format: `{prefix}/{hostname}/{timestamp}`
+3. **Retention Policy** - Applied based on `retentionInDays`
+
+### Sequence Token Handling
+
+CloudWatch Logs requires sequence tokens for log ordering. The transport handles:
+
+- Initial sequence token acquisition
+- Token refresh on `InvalidSequenceTokenException`
+- Duplicate data handling with `DataAlreadyAcceptedException`
+
+### Batch Limits
+
+The transport respects AWS CloudWatch Logs limits:
+
+- Maximum 10,000 log events per batch
+- Maximum 1,048,576 bytes per batch
+- Events are automatically split into multiple batches if needed
+
+### Log Format
+
+Logs are stored as JSON in CloudWatch:
+
+```json
+{
+  "level": "INFO",
+  "message": "Application started",
+  "correlationId": "abc-123",
+  "agentId": "worker-1",
+  "traceId": "trace-xyz",
+  "stage": "implementation",
+  "context": { "userId": "123" }
+}
+```
+
+### IAM Permissions
+
+Required IAM permissions for the transport:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents",
+        "logs:DescribeLogGroups",
+        "logs:DescribeLogStreams",
+        "logs:PutRetentionPolicy"
+      ],
+      "Resource": "arn:aws:logs:*:*:log-group:/app/logs*"
+    }
+  ]
+}
+```
+
+### Querying Logs
+
+Use CloudWatch Logs Insights to query logs:
+
+```sql
+fields @timestamp, level, message, correlationId
+| filter level = 'ERROR'
+| sort @timestamp desc
+| limit 100
+```
 
 ## Creating Custom Transports
 
