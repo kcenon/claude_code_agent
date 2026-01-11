@@ -3,6 +3,11 @@
  *
  * Creates backend instances based on configuration.
  * Supports file, SQLite, and Redis backends.
+ *
+ * Configuration can be loaded from:
+ * - Direct configuration object
+ * - workflow.yaml file (.ad-sdlc/config/workflow.yaml)
+ * - Environment variables (SCRATCHPAD_*)
  */
 
 import type { IScratchpadBackend } from './IScratchpadBackend.js';
@@ -10,6 +15,7 @@ import type { ScratchpadBackendConfig, BackendType } from './types.js';
 import { FileBackend } from './FileBackend.js';
 import { SQLiteBackend } from './SQLiteBackend.js';
 import { RedisBackend } from './RedisBackend.js';
+import { loadScratchpadConfig } from './configLoader.js';
 
 /**
  * Error thrown when backend creation fails
@@ -115,5 +121,47 @@ export class BackendFactory {
    */
   static isSupported(type: string): type is BackendType {
     return ['file', 'sqlite', 'redis'].includes(type);
+  }
+
+  /**
+   * Create a backend from configuration file
+   *
+   * Loads configuration from workflow.yaml with environment variable support.
+   * Falls back to file backend if no configuration is found.
+   *
+   * @param baseDir - Base directory for configuration (default: project root)
+   * @returns Uninitialized backend instance
+   *
+   * @example
+   * ```typescript
+   * const backend = await BackendFactory.createFromConfig();
+   * await backend.initialize();
+   * ```
+   */
+  static async createFromConfig(baseDir?: string): Promise<IScratchpadBackend> {
+    const config = await loadScratchpadConfig(baseDir);
+    return BackendFactory.create(config);
+  }
+
+  /**
+   * Create and initialize a backend from configuration file
+   *
+   * Loads configuration from workflow.yaml with environment variable support,
+   * then creates and initializes the backend.
+   *
+   * @param baseDir - Base directory for configuration (default: project root)
+   * @returns Initialized backend instance
+   * @throws BackendCreationError if creation or initialization fails
+   *
+   * @example
+   * ```typescript
+   * const backend = await BackendFactory.createAndInitializeFromConfig();
+   * // Backend is ready to use
+   * await backend.set('key', { data: 'value' });
+   * ```
+   */
+  static async createAndInitializeFromConfig(baseDir?: string): Promise<IScratchpadBackend> {
+    const config = await loadScratchpadConfig(baseDir);
+    return BackendFactory.createAndInitialize(config);
   }
 }

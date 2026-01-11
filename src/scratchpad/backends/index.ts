@@ -24,3 +24,11 @@ export type { RedisLockHandle, AcquireLockOptions } from './RedisBackend.js';
 
 // Factory
 export { BackendFactory } from './BackendFactory.js';
+
+// Configuration loader
+export {
+  loadScratchpadConfig,
+  hasScratchpadConfig,
+  getScratchpadEnvVars,
+  resolveEnvVars,
+} from './configLoader.js';

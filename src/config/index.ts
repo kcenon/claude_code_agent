@@ -25,6 +25,7 @@ export type {
   ValidationResult,
   WorkflowConfig,
   AgentsConfig,
+  ScratchpadConfig,
   ConfigFileType,
   LoadConfigOptions,
   FileChangeCallback,
