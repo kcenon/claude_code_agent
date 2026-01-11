@@ -728,7 +728,7 @@ function createTransportConfigFromEnv(transportName: string, prefix: string): Tr
     case 'console':
       return {
         type: 'console',
-        format: (process.env[`${prefix}_CONSOLE_FORMAT`] as 'json' | 'pretty') ?? 'pretty',
+        format: (process.env[`${prefix}_CONSOLE_FORMAT`] ?? 'pretty') as 'json' | 'pretty',
         colors: process.env[`${prefix}_CONSOLE_COLORS`] !== 'false',
       } as ConsoleTransportConfig;
 
