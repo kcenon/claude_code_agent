@@ -162,7 +162,7 @@ CREATE TABLE scratchpad (
 
 ## Redis Backend
 
-Uses Redis for distributed deployments with optional TTL.
+Uses Redis for distributed deployments with optional TTL, distributed locking, and fallback support.
 
 ### Configuration
 
@@ -176,10 +176,23 @@ interface RedisBackendConfig {
   ttl?: number;           // Optional (seconds)
   connectTimeout?: number; // Default: 5000ms
   maxRetries?: number;    // Default: 3
+  lock?: RedisLockConfig;     // Distributed lock settings
+  fallback?: RedisFallbackConfig; // Fallback to FileBackend
+}
+
+interface RedisLockConfig {
+  lockTtl?: number;           // Default: 30 seconds
+  lockTimeout?: number;       // Default: 10000ms
+  lockRetryInterval?: number; // Default: 100ms
+}
+
+interface RedisFallbackConfig {
+  enabled?: boolean;          // Default: false
+  fileConfig?: FileBackendConfig; // FileBackend config for fallback
 }
 ```
 
-### Example
+### Basic Example
 
 ```typescript
 const backend = new RedisBackend({
@@ -197,12 +210,87 @@ Keys are stored as: `{prefix}{section}:{key}`
 
 Example: `ad-sdlc:scratchpad:documents:prd`
 
+### Distributed Locking
+
+Redis backend provides distributed locking for coordinating access across multiple instances:
+
+```typescript
+const backend = new RedisBackend({
+  host: 'redis.example.com',
+  lock: {
+    lockTtl: 30,           // Lock expires after 30 seconds
+    lockTimeout: 10000,    // Wait up to 10 seconds to acquire
+    lockRetryInterval: 100, // Retry every 100ms
+  },
+});
+await backend.initialize();
+
+// Acquire and release lock manually
+const lock = await backend.acquireLock('my-resource');
+try {
+  // Do exclusive work
+} finally {
+  await backend.releaseLock(lock);
+}
+
+// Or use withLock for automatic release
+const result = await backend.withLock('my-resource', async () => {
+  // Do exclusive work
+  return 'done';
+});
+
+// Extend lock TTL if needed
+const lock = await backend.acquireLock('long-task', { ttl: 10 });
+// ... later, if task takes longer ...
+await backend.extendLock(lock, 30); // Extend to 30 more seconds
+await backend.releaseLock(lock);
+```
+
+Lock features:
+- **Atomic acquisition**: Uses Redis SET NX EX for safe concurrent access
+- **Safe release**: Lua script ensures only the lock holder can release
+- **Timeout support**: Configurable acquisition timeout with automatic retry
+- **Lock extension**: Extend TTL without releasing the lock
+
+### Fallback Support
+
+Configure fallback to FileBackend when Redis is unavailable:
+
+```typescript
+const backend = new RedisBackend({
+  host: 'redis.example.com',
+  fallback: {
+    enabled: true,
+    fileConfig: {
+      basePath: '.ad-sdlc/scratchpad-fallback',
+      format: 'yaml',
+    },
+  },
+});
+
+// Will not throw even if Redis is down
+await backend.initialize();
+
+// Check if using fallback
+if (backend.isUsingFallback()) {
+  console.log('Using file backend as fallback');
+}
+
+// Health check indicates fallback mode
+const health = await backend.healthCheck();
+// health.message: "Using fallback: File backend is healthy"
+```
+
+**Note**: Distributed locking is not available when using fallback mode.
+
 ### Advantages
 
 - Distributed storage across multiple instances
 - Built-in TTL for automatic expiration
 - High-performance in-memory storage
 - Pipeline operations for batch updates
+- Distributed locking for coordination
+- Graceful fallback to file storage
 
 ## Backend Factory
 
@@ -283,8 +371,13 @@ console.log(health.latencyMs); // Response time
 ## Error Handling
 
 ```typescript
-import { BackendCreationError } from 'ad-sdlc';
+import {
+  BackendCreationError,
+  RedisConnectionError,
+  RedisLockTimeoutError,
+} from 'ad-sdlc';
 
+// Backend creation error
 try {
   const backend = BackendFactory.create({ backend: 'redis' });
   // Throws: Redis configuration is required
@@ -292,6 +385,31 @@ try {
   if (error instanceof BackendCreationError) {
     console.error(`Backend: ${error.backendType}`);
     console.error(`Message: ${error.message}`);
+  }
+}
+
+// Redis connection error (when fallback is not enabled)
+try {
+  const backend = new RedisBackend({
+    host: 'unavailable-host',
+  });
+  await backend.initialize();
+} catch (error) {
+  if (error instanceof RedisConnectionError) {
+    console.error(`Host: ${error.host}:${error.port}`);
+    console.error(`Message: ${error.message}`);
+  }
+}
+
+// Lock timeout error
+try {
+  const lock = await backend.acquireLock('busy-resource', {
+    timeout: 1000, // 1 second timeout
+  });
+} catch (error) {
+  if (error instanceof RedisLockTimeoutError) {
+    console.error(`Lock: ${error.lockKey}`);
+    console.error(`Timeout: ${error.timeoutMs}ms`);
   }
 }
 ```
