@@ -4,12 +4,10 @@
  * Features:
  * - Path traversal prevention via InputValidator
  * - Project root confinement
+ * - Symbolic link validation to prevent symlink bypass attacks
  * - Audit logging for all file operations
  * - Consistent error handling
  * - Support for both async and sync operations
- *
- * NOTE: Symlink bypass fix and file change watching are planned.
- * See Issue #255 for implementation details.
  */
 
 import * as fs from 'node:fs';
@@ -34,6 +32,8 @@ export interface SecureFileOpsConfig {
   readonly fileMode?: number;
   /** Directory permission mode (default: 0o700) */
   readonly dirMode?: number;
+  /** Validate symbolic link targets to prevent symlink bypass attacks (default: true) */
+  readonly validateSymlinks?: boolean;
 }
 
 /**
@@ -89,12 +89,15 @@ export class SecureFileOps {
   private readonly fileMode: number;
   private readonly dirMode: number;
   private readonly projectRoot: string;
+  private readonly validateSymlinks: boolean;
 
   constructor(config: SecureFileOpsConfig) {
     this.projectRoot = path.resolve(config.projectRoot);
+    this.validateSymlinks = config.validateSymlinks ?? true;
     this.resolver = new PathResolver({
       projectRoot: this.projectRoot,
       allowedExternalDirs: config.allowedExternalDirs ?? [],
+      validateSymlinks: this.validateSymlinks,
     });
     this.enableAuditLog = config.enableAuditLog ?? false;
     this.actor = config.actor ?? 'system';
@@ -115,6 +118,30 @@ export class SecureFileOps {
    */
   public validatePath(relativePath: string): string {
     const resolved = this.resolver.resolve(relativePath);
+    return resolved.absolutePath;
+  }
+
+  /**
+   * Validate and resolve a file path with symlink validation (async)
+   *
+   * @param relativePath - Path relative to project root
+   * @returns Absolute validated path
+   * @throws PathTraversalError if path or symlink target escapes project root
+   */
+  public async validatePathWithSymlinkCheck(relativePath: string): Promise<string> {
+    const resolved = await this.resolver.resolveWithSymlinkCheck(relativePath);
+    return resolved.absolutePath;
+  }
+
+  /**
+   * Validate and resolve a file path with symlink validation (sync)
+   *
+   * @param relativePath - Path relative to project root
+   * @returns Absolute validated path
+   * @throws PathTraversalError if path or symlink target escapes project root
+   */
+  public validatePathWithSymlinkCheckSync(relativePath: string): string {
+    const resolved = this.resolver.resolveWithSymlinkCheckSync(relativePath);
     return resolved.absolutePath;
   }
 
@@ -189,15 +216,16 @@ export class SecureFileOps {
   // ============================================================
 
   /**
-   * Read file with path validation
+   * Read file with path validation and symlink check
    *
    * @param relativePath - Path relative to project root
    * @param options - Read options
    * @returns File content
-   * @throws PathTraversalError if path escapes project root
+   * @throws PathTraversalError if path or symlink target escapes project root
    */
   public async readFile(relativePath: string, options: ReadOptions = {}): Promise<string> {
-    const absolutePath = this.validatePath(relativePath);
+    // Use symlink validation to prevent reading files outside allowed directories via symlinks
+    const absolutePath = await this.validatePathWithSymlinkCheck(relativePath);
     const { encoding = 'utf-8' } = options;
 
     const content = await fs.promises.readFile(absolutePath, encoding);
@@ -208,15 +236,16 @@ export class SecureFileOps {
   }
 
   /**
-   * Read file synchronously with path validation
+   * Read file synchronously with path validation and symlink check
    *
    * @param relativePath - Path relative to project root
    * @param options - Read options
    * @returns File content
-   * @throws PathTraversalError if path escapes project root
+   * @throws PathTraversalError if path or symlink target escapes project root
    */
   public readFileSync(relativePath: string, options: ReadOptions = {}): string {
-    const absolutePath = this.validatePath(relativePath);
+    // Use symlink validation to prevent reading files outside allowed directories via symlinks
+    const absolutePath = this.validatePathWithSymlinkCheckSync(relativePath);
     const { encoding = 'utf-8' } = options;
 
     const content = fs.readFileSync(absolutePath, encoding);
@@ -227,14 +256,15 @@ export class SecureFileOps {
   }
 
   /**
-   * Read file as buffer with path validation
+   * Read file as buffer with path validation and symlink check
    *
    * @param relativePath - Path relative to project root
    * @returns File content as buffer
-   * @throws PathTraversalError if path escapes project root
+   * @throws PathTraversalError if path or symlink target escapes project root
    */
   public async readFileBuffer(relativePath: string): Promise<Buffer> {
-    const absolutePath = this.validatePath(relativePath);
+    // Use symlink validation to prevent reading files outside allowed directories via symlinks
+    const absolutePath = await this.validatePathWithSymlinkCheck(relativePath);
     return fs.promises.readFile(absolutePath);
   }
 

@@ -204,4 +204,48 @@ export class PathResolver {
   public relativeTo(absolutePath: string): string {
     return path.relative(this.projectRoot, absolutePath);
   }
+
+  /**
+   * Resolve path and validate symbolic link target synchronously
+   *
+   * @param inputPath - The path to resolve
+   * @returns Resolved path with symlink validation
+   * @throws PathTraversalError if symlink target escapes allowed directories
+   */
+  public resolveWithSymlinkCheckSync(inputPath: string): ResolvedPath {
+    const resolved = this.resolve(inputPath);
+
+    if (!this.validateSymlinks) {
+      return resolved;
+    }
+
+    try {
+      const stats = fs.lstatSync(resolved.absolutePath);
+
+      if (stats.isSymbolicLink()) {
+        const realPath = fs.realpathSync(resolved.absolutePath);
+        const isRealPathWithinProject = this.isPathWithin(realPath, this.projectRoot);
+        const isRealPathInAllowed = this.allowedExternalDirs.some((dir) =>
+          this.isPathWithin(realPath, dir)
+        );
+
+        if (!isRealPathWithinProject && !isRealPathInAllowed) {
+          throw new PathTraversalError(
+            `Symbolic link target escapes allowed directories: ${inputPath}`
+          );
+        }
+      }
+    } catch (error) {
+      // If file doesn't exist yet, that's OK (we're creating it)
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        if (error instanceof PathTraversalError) {
+          throw error;
+        }
+        // Re-throw other errors
+        throw error;
+      }
+    }
+
+    return resolved;
+  }
 }
