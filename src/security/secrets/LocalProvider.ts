@@ -52,8 +52,9 @@ export class LocalProvider extends BaseSecretProvider {
    *
    * No initialization needed for local provider.
    */
-  protected async doInitialize(): Promise<void> {
+  protected doInitialize(): Promise<void> {
     // No initialization needed
+    return Promise.resolve();
   }
 
   /**
@@ -66,28 +67,28 @@ export class LocalProvider extends BaseSecretProvider {
    *
    * If envPrefix is configured, it's prepended to the variable name.
    */
-  protected async doGetSecret(name: string, _version?: string): Promise<Secret | null> {
+  protected doGetSecret(name: string, _version?: string): Promise<Secret | null> {
     const envName = this.toEnvName(name);
     const value = process.env[envName];
 
     if (value === undefined) {
-      return null;
+      return Promise.resolve(null);
     }
 
-    return {
+    return Promise.resolve({
       value,
       metadata: {
         source: 'environment',
         envVar: envName,
       },
-    };
+    });
   }
 
   /**
    * Health check always returns true for local provider
    */
-  protected async doHealthCheck(): Promise<boolean> {
-    return true;
+  protected doHealthCheck(): Promise<boolean> {
+    return Promise.resolve(true);
   }
 
   /**
@@ -95,8 +96,9 @@ export class LocalProvider extends BaseSecretProvider {
    *
    * No cleanup needed for local provider.
    */
-  protected async doClose(): Promise<void> {
+  protected doClose(): Promise<void> {
     // No cleanup needed
+    return Promise.resolve();
   }
 
   /**
@@ -107,7 +109,7 @@ export class LocalProvider extends BaseSecretProvider {
    */
   private toEnvName(name: string): string {
     // Replace common separators with underscore and convert to uppercase
-    const baseName = name.replace(/[\/.:@-]/g, '_').toUpperCase();
+    const baseName = name.replace(/[/.:@-]/g, '_').toUpperCase();
 
     // Add prefix if configured
     return this.envPrefix !== undefined ? `${this.envPrefix}${baseName}` : baseName;

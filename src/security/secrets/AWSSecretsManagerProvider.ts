@@ -11,9 +11,35 @@ import type { Secret, AWSSecretsManagerConfig } from './types.js';
 import { BaseSecretProvider } from './BaseSecretProvider.js';
 import { SecretRetrievalError, ProviderInitializationError } from './errors.js';
 
-// AWS SDK client type (any to avoid requiring the module at compile time)
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AWSSecretsManagerClient = any;
+/**
+ * AWS Secrets Manager response interface
+ */
+interface AWSGetSecretValueResponse {
+  SecretString?: string;
+  SecretBinary?: Uint8Array;
+  VersionId?: string;
+  ARN?: string;
+  Name?: string;
+  CreatedDate?: Date;
+  VersionStages?: string[];
+}
+
+/**
+ * AWS Secrets Manager client interface
+ */
+interface AWSSecretsManagerClient {
+  send: (command: unknown) => Promise<AWSGetSecretValueResponse>;
+  destroy: () => void;
+}
+
+/**
+ * AWS SDK module interface
+ */
+interface AWSSecretsManagerModule {
+  SecretsManagerClient: new (config: unknown) => AWSSecretsManagerClient;
+  GetSecretValueCommand: new (input: { SecretId: string; VersionId?: string }) => unknown;
+  ListSecretsCommand: new (input: { MaxResults?: number }) => unknown;
+}
 
 /**
  * AWS Secrets Manager provider for retrieving secrets from AWS
@@ -42,7 +68,8 @@ type AWSSecretsManagerClient = any;
  * ```
  */
 export class AWSSecretsManagerProvider extends BaseSecretProvider {
-  private client: AWSSecretsManagerClient = null;
+  private client: AWSSecretsManagerClient | null = null;
+  private awsModule: AWSSecretsManagerModule | null = null;
   private readonly region: string;
   private readonly awsCredentials: {
     readonly accessKeyId: string;
@@ -67,12 +94,11 @@ export class AWSSecretsManagerProvider extends BaseSecretProvider {
    * Initialize the AWS Secrets Manager client
    */
   protected async doInitialize(): Promise<void> {
-    let SecretsManagerClient: new (config: unknown) => AWSSecretsManagerClient;
-    
     try {
+      // Dynamic import for optional AWS SDK dependency
       // @ts-expect-error - Optional dependency, may not be installed
       const awsModule = await import('@aws-sdk/client-secrets-manager');
-      SecretsManagerClient = awsModule.SecretsManagerClient;
+      this.awsModule = awsModule as unknown as AWSSecretsManagerModule;
     } catch {
       throw new ProviderInitializationError(
         this.name,
@@ -107,7 +133,7 @@ export class AWSSecretsManagerProvider extends BaseSecretProvider {
       clientConfig.credentials = creds;
     }
 
-    this.client = new SecretsManagerClient(clientConfig);
+    this.client = new this.awsModule.SecretsManagerClient(clientConfig);
 
     // Verify connection with a health check
     const healthy = await this.doHealthCheck();
@@ -120,12 +146,9 @@ export class AWSSecretsManagerProvider extends BaseSecretProvider {
    * Retrieve a secret from AWS Secrets Manager
    */
   protected async doGetSecret(name: string, version?: string): Promise<Secret | null> {
-    if (this.client === null) {
+    if (this.client === null || this.awsModule === null) {
       throw new Error('AWS Secrets Manager client not initialized');
     }
-
-    // @ts-expect-error - Optional dependency, may not be installed
-    const { GetSecretValueCommand } = await import('@aws-sdk/client-secrets-manager');
 
     try {
       const commandInput: { SecretId: string; VersionId?: string } = {
@@ -134,24 +157,34 @@ export class AWSSecretsManagerProvider extends BaseSecretProvider {
       if (version !== undefined) {
         commandInput.VersionId = version;
       }
-      const command = new GetSecretValueCommand(commandInput);
+      const command = new this.awsModule.GetSecretValueCommand(commandInput);
 
       const response = await this.client.send(command);
 
       // AWS Secrets Manager can return either string or binary
-      const value = response.SecretString ?? '';
-      if (value === '' && response.SecretBinary === undefined) {
+      const secretValue = response.SecretString ?? '';
+      if (secretValue === '' && response.SecretBinary === undefined) {
         return null;
       }
 
+      const value =
+        response.SecretString !== undefined
+          ? response.SecretString
+          : Buffer.from(response.SecretBinary ?? new Uint8Array()).toString('utf-8');
+      const versionId = response.VersionId;
+      const arn = response.ARN ?? '';
+      const secretName = response.Name ?? '';
+      const createdDate = response.CreatedDate?.toISOString() ?? '';
+      const versionStages = (response.VersionStages ?? []).join(',');
+
       return {
-        value: response.SecretString ?? Buffer.from(response.SecretBinary!).toString('utf-8'),
-        version: response.VersionId,
+        value,
+        version: versionId,
         metadata: {
-          arn: response.ARN ?? '',
-          name: response.Name ?? '',
-          createdDate: response.CreatedDate?.toISOString() ?? '',
-          versionStages: (response.VersionStages ?? []).join(','),
+          arn,
+          name: secretName,
+          createdDate,
+          versionStages,
         },
       };
     } catch (error) {
@@ -176,17 +209,14 @@ export class AWSSecretsManagerProvider extends BaseSecretProvider {
    * Check if AWS Secrets Manager is accessible
    */
   protected async doHealthCheck(): Promise<boolean> {
-    if (this.client === null) {
+    if (this.client === null || this.awsModule === null) {
       return false;
     }
 
     try {
-      // @ts-expect-error - Optional dependency, may not be installed
-      const { ListSecretsCommand, GetSecretValueCommand } = await import('@aws-sdk/client-secrets-manager');
-
       // If a specific health check secret is configured, try to access it
       if (this.healthCheckSecret !== undefined) {
-        const command = new GetSecretValueCommand({
+        const command = new this.awsModule.GetSecretValueCommand({
           SecretId: this.healthCheckSecret,
         });
         await this.client.send(command);
@@ -194,7 +224,7 @@ export class AWSSecretsManagerProvider extends BaseSecretProvider {
       }
 
       // Otherwise, just list secrets to verify connectivity
-      const command = new ListSecretsCommand({
+      const command = new this.awsModule.ListSecretsCommand({
         MaxResults: 1,
       });
       await this.client.send(command);
@@ -207,10 +237,12 @@ export class AWSSecretsManagerProvider extends BaseSecretProvider {
   /**
    * Close the AWS Secrets Manager client
    */
-  protected async doClose(): Promise<void> {
+  protected doClose(): Promise<void> {
     if (this.client !== null) {
       this.client.destroy();
       this.client = null;
     }
+    this.awsModule = null;
+    return Promise.resolve();
   }
 }

@@ -8,6 +8,9 @@ import type { Secret, VaultProviderConfig } from './types.js';
 import { BaseSecretProvider } from './BaseSecretProvider.js';
 import { SecretRetrievalError, ProviderInitializationError } from './errors.js';
 
+/**
+ * Vault client interface
+ */
 interface VaultClient {
   read: (path: string, options?: { version?: string }) => Promise<VaultReadResponse>;
   health: () => Promise<VaultHealthResponse>;
@@ -15,6 +18,9 @@ interface VaultClient {
   token: string;
 }
 
+/**
+ * Vault read response interface
+ */
 interface VaultReadResponse {
   data: {
     data?: Record<string, unknown>;
@@ -29,12 +35,18 @@ interface VaultReadResponse {
   lease_id?: string;
 }
 
+/**
+ * Vault health response interface
+ */
 interface VaultHealthResponse {
   initialized: boolean;
   sealed: boolean;
   standby: boolean;
 }
 
+/**
+ * Vault login response interface
+ */
 interface VaultLoginResponse {
   auth: {
     client_token: string;
@@ -46,6 +58,39 @@ interface VaultLoginResponse {
   };
 }
 
+/**
+ * Node-vault factory function type
+ */
+type NodeVaultFactory = (options: {
+  endpoint: string;
+  token?: string;
+  namespace?: string;
+}) => VaultClient;
+
+/**
+ * HashiCorp Vault provider for retrieving secrets
+ *
+ * Features:
+ * - Token authentication
+ * - AppRole authentication
+ * - Namespace support
+ * - Secret versioning (KV v2)
+ * - Automatic caching with TTL
+ *
+ * @example
+ * ```typescript
+ * const provider = new VaultProvider({
+ *   type: 'hashicorp-vault',
+ *   endpoint: 'https://vault.example.com:8200',
+ *   token: 'hvs.xxx',
+ *   secretsPath: 'secret/data',
+ * });
+ *
+ * await provider.initialize();
+ * const secret = await provider.getSecret('myapp/database');
+ * await provider.close();
+ * ```
+ */
 export class VaultProvider extends BaseSecretProvider {
   private client: VaultClient | null = null;
   private readonly endpoint: string;
@@ -54,6 +99,11 @@ export class VaultProvider extends BaseSecretProvider {
   private readonly vaultToken: string | undefined;
   private readonly vaultAppRole: { readonly roleId: string; readonly secretId: string } | undefined;
 
+  /**
+   * Create a new VaultProvider instance
+   *
+   * @param config - Provider configuration
+   */
   constructor(config: VaultProviderConfig) {
     super('hashicorp-vault', config);
     this.endpoint = config.endpoint;
@@ -63,11 +113,17 @@ export class VaultProvider extends BaseSecretProvider {
     this.vaultAppRole = config.appRole;
   }
 
+  /**
+   * Initialize the Vault client
+   */
   protected async doInitialize(): Promise<void> {
-    let nodeVault: (options: { endpoint: string; token?: string; namespace?: string }) => VaultClient;
+    let nodeVault: NodeVaultFactory;
 
     try {
-      nodeVault = require('node-vault') as typeof nodeVault;
+      // Dynamic import for optional node-vault dependency
+      // Using require for CommonJS module compatibility
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      nodeVault = require('node-vault') as NodeVaultFactory;
     } catch {
       throw new ProviderInitializationError(
         this.name,
@@ -89,6 +145,7 @@ export class VaultProvider extends BaseSecretProvider {
 
     this.client = nodeVault(clientOptions);
 
+    // If using AppRole authentication, perform login
     if (this.vaultAppRole !== undefined) {
       try {
         const result = await this.client.approleLogin({
@@ -105,12 +162,16 @@ export class VaultProvider extends BaseSecretProvider {
       }
     }
 
+    // Verify connection with a health check
     const healthy = await this.doHealthCheck();
     if (!healthy) {
       throw new Error('Failed to connect to HashiCorp Vault');
     }
   }
 
+  /**
+   * Retrieve a secret from Vault
+   */
   protected async doGetSecret(name: string, version?: string): Promise<Secret | null> {
     if (this.client === null) {
       throw new Error('Vault client not initialized');
@@ -131,11 +192,13 @@ export class VaultProvider extends BaseSecretProvider {
         return null;
       }
 
+      // Extract value - if there's a 'value' key use it, otherwise stringify the whole data
       const value =
         typeof secretData.value === 'string' ? secretData.value : JSON.stringify(secretData);
 
       const metadata = response.data.metadata ?? {};
 
+      // Calculate expiration from lease duration if available
       const expiresAt =
         response.lease_duration !== undefined && response.lease_duration > 0
           ? new Date(Date.now() + response.lease_duration * 1000)
@@ -152,6 +215,7 @@ export class VaultProvider extends BaseSecretProvider {
         },
       };
     } catch (error) {
+      // Handle "not found" gracefully
       if (error instanceof Error) {
         const errorResponse = (error as { response?: { statusCode?: number } }).response;
         if (errorResponse?.statusCode === 404) {
@@ -168,6 +232,9 @@ export class VaultProvider extends BaseSecretProvider {
     }
   }
 
+  /**
+   * Check if Vault is accessible and unsealed
+   */
   protected async doHealthCheck(): Promise<boolean> {
     if (this.client === null) {
       return false;
@@ -181,7 +248,12 @@ export class VaultProvider extends BaseSecretProvider {
     }
   }
 
-  protected async doClose(): Promise<void> {
+  /**
+   * Close the Vault client
+   */
+  protected doClose(): Promise<void> {
+    // node-vault client doesn't have a close method, just clear the reference
     this.client = null;
+    return Promise.resolve();
   }
 }

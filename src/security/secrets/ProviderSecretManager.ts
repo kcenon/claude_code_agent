@@ -352,7 +352,7 @@ export class ProviderSecretManager {
    * Convert a secret name to environment variable format
    */
   private toEnvName(name: string): string {
-    return name.replace(/[\/.:@-]/g, '_').toUpperCase();
+    return name.replace(/[/.:@-]/g, '_').toUpperCase();
   }
 
   /**

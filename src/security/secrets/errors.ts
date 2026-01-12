@@ -43,8 +43,9 @@ export class ProviderUnavailableError extends SecretProviderError {
   public readonly retryAfterMs: number | undefined;
 
   constructor(providerName: string, retryAfterMs?: number) {
-    const message = retryAfterMs
-      ? `Provider '${providerName}' is unavailable. Retry after ${retryAfterMs}ms`
+    const hasRetryTime = retryAfterMs !== undefined && retryAfterMs > 0;
+    const message = hasRetryTime
+      ? `Provider '${providerName}' is unavailable. Retry after ${String(retryAfterMs)}ms`
       : `Provider '${providerName}' is unavailable`;
     super(message, providerName, 'PROVIDER_UNAVAILABLE');
     this.name = 'ProviderUnavailableError';
