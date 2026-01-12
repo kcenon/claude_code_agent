@@ -118,6 +118,9 @@ export {
   DEFAULT_RETRY_POLICY,
   DEFAULT_TEST_GENERATOR_CONFIG,
   DEFAULT_SELF_VERIFICATION_CONFIG,
+  // Factory functions for runtime projectRoot resolution (Issue #256)
+  getDefaultWorkerAgentConfig,
+  getDefaultSelfVerificationConfig,
 } from './types.js';
 
 export {
