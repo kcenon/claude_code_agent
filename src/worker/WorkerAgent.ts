@@ -44,7 +44,7 @@ import type {
   TestGenerationResult,
   WorkerStep,
 } from './types.js';
-import { DEFAULT_WORKER_AGENT_CONFIG, DEFAULT_RETRY_POLICY } from './types.js';
+import { getDefaultWorkerAgentConfig, DEFAULT_RETRY_POLICY } from './types.js';
 import { TestGenerator } from './TestGenerator.js';
 import {
   CheckpointManager,
@@ -110,16 +110,16 @@ export class WorkerAgent {
     testGeneratorConfig?: TestGeneratorConfig,
     checkpointConfig?: CheckpointManagerConfig
   ) {
+    const defaults = getDefaultWorkerAgentConfig();
     this.config = {
-      projectRoot:
-        config.projectRoot ?? tryGetProjectRoot() ?? DEFAULT_WORKER_AGENT_CONFIG.projectRoot,
-      resultsPath: config.resultsPath ?? DEFAULT_WORKER_AGENT_CONFIG.resultsPath,
-      maxRetries: config.maxRetries ?? DEFAULT_WORKER_AGENT_CONFIG.maxRetries,
-      testCommand: config.testCommand ?? DEFAULT_WORKER_AGENT_CONFIG.testCommand,
-      lintCommand: config.lintCommand ?? DEFAULT_WORKER_AGENT_CONFIG.lintCommand,
-      buildCommand: config.buildCommand ?? DEFAULT_WORKER_AGENT_CONFIG.buildCommand,
-      autoFixLint: config.autoFixLint ?? DEFAULT_WORKER_AGENT_CONFIG.autoFixLint,
-      coverageThreshold: config.coverageThreshold ?? DEFAULT_WORKER_AGENT_CONFIG.coverageThreshold,
+      projectRoot: config.projectRoot ?? tryGetProjectRoot() ?? defaults.projectRoot,
+      resultsPath: config.resultsPath ?? defaults.resultsPath,
+      maxRetries: config.maxRetries ?? defaults.maxRetries,
+      testCommand: config.testCommand ?? defaults.testCommand,
+      lintCommand: config.lintCommand ?? defaults.lintCommand,
+      buildCommand: config.buildCommand ?? defaults.buildCommand,
+      autoFixLint: config.autoFixLint ?? defaults.autoFixLint,
+      coverageThreshold: config.coverageThreshold ?? defaults.coverageThreshold,
     };
 
     this.fileChanges = new Map();

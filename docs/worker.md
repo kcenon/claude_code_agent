@@ -82,6 +82,29 @@ const agent = new WorkerAgent({
 | `autoFixLint` | `boolean` | `true` | Auto-fix lint errors |
 | `coverageThreshold` | `number` | `80` | Minimum coverage percentage |
 
+### Runtime Configuration Resolution
+
+For consistent `projectRoot` resolution in monorepos and when `ProjectContext` is initialized, use the factory functions instead of the static defaults:
+
+```typescript
+import {
+  getDefaultWorkerAgentConfig,
+  getDefaultSelfVerificationConfig,
+} from 'ad-sdlc';
+
+// Get configuration with runtime-resolved projectRoot
+const workerConfig = getDefaultWorkerAgentConfig();
+const verificationConfig = getDefaultSelfVerificationConfig();
+
+console.log(workerConfig.projectRoot); // Uses ProjectContext when available
+```
+
+These factory functions resolve `projectRoot` using:
+1. Initialized project root from `ProjectContext` (if available)
+2. Current working directory (fallback)
+
+This ensures consistent behavior regardless of where your code is executed from within a monorepo or multi-project setup.
+
 ## Work Order Format
 
 The WorkerAgent expects a Work Order with the following structure:

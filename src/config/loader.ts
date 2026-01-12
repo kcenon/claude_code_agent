@@ -2,16 +2,15 @@
  * Configuration file loader
  *
  * Handles loading and parsing of YAML configuration files
- * with proper error handling and validation.
+ * with proper error handling, validation, and caching.
  *
- * NOTE: Configuration caching and environment-specific overrides are planned.
- * See Issue #256 for implementation details.
+ * Caching avoids repeated file reads for performance optimization.
  *
  * @module config/loader
  */
 
 import { readFile } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
+import { existsSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import yaml from 'js-yaml';
 import { ConfigParseError, ConfigNotFoundError } from './errors.js';
@@ -33,6 +32,32 @@ import type {
 } from './types.js';
 
 // ============================================================
+// Cache Types and State
+// ============================================================
+
+/**
+ * Cache entry with metadata
+ */
+interface CacheEntry<T> {
+  /** Cached data */
+  readonly data: T;
+  /** Cache timestamp */
+  readonly timestamp: number;
+  /** File modification time at cache time */
+  readonly mtime: number;
+}
+
+/**
+ * Configuration cache for avoiding repeated file reads
+ */
+const configCache = new Map<string, CacheEntry<unknown>>();
+
+/**
+ * Cache TTL in milliseconds (default: 5 minutes)
+ */
+const CACHE_TTL_MS = 5 * 60 * 1000;
+
+// ============================================================
 // Constants
 // ============================================================
 
@@ -48,6 +73,100 @@ const CONFIG_FILES: Record<ConfigFileType, string> = {
   workflow: 'workflow.yaml',
   agents: 'agents.yaml',
 };
+
+// ============================================================
+// Cache Management
+// ============================================================
+
+/**
+ * Check if a cache entry is valid
+ *
+ * Cache is invalid if:
+ * - Entry doesn't exist
+ * - TTL has expired
+ * - File has been modified since caching
+ */
+function isCacheValid(filePath: string): boolean {
+  const entry = configCache.get(filePath);
+  if (!entry) {
+    return false;
+  }
+
+  // Check TTL
+  const now = Date.now();
+  if (now - entry.timestamp > CACHE_TTL_MS) {
+    return false;
+  }
+
+  // Check if file has been modified
+  try {
+    const stats = statSync(filePath);
+    return stats.mtimeMs === entry.mtime;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Get cached configuration if valid
+ */
+function getCachedConfig(filePath: string): unknown {
+  if (!isCacheValid(filePath)) {
+    return undefined;
+  }
+  return configCache.get(filePath)?.data;
+}
+
+/**
+ * Store configuration in cache
+ */
+function setCachedConfig(filePath: string, data: unknown): void {
+  try {
+    const stats = statSync(filePath);
+    configCache.set(filePath, {
+      data,
+      timestamp: Date.now(),
+      mtime: stats.mtimeMs,
+    });
+  } catch {
+    // If we can't stat the file, don't cache
+  }
+}
+
+/**
+ * Clear all cached configurations
+ *
+ * Call this when configuration files may have changed externally.
+ */
+export function clearConfigCache(): void {
+  configCache.clear();
+}
+
+/**
+ * Invalidate a specific configuration file from cache
+ *
+ * @param filePath - Path to the configuration file to invalidate
+ */
+export function invalidateConfigCache(filePath: string): void {
+  configCache.delete(filePath);
+}
+
+/**
+ * Get cache statistics for debugging
+ *
+ * @returns Cache statistics including size and entry details
+ */
+export function getConfigCacheStats(): {
+  size: number;
+  entries: Array<{ path: string; age: number }>;
+} {
+  const now = Date.now();
+  const entries: Array<{ path: string; age: number }> = [];
+  for (const [path, entry] of configCache) {
+    entries.push({ path, age: now - entry.timestamp });
+  }
+  return { size: configCache.size, entries };
+}
 
 // ============================================================
 // File Path Resolution
@@ -83,16 +202,39 @@ export function getAllConfigFilePaths(baseDir?: string): Record<ConfigFileType, 
 // ============================================================
 
 /**
- * Read and parse a YAML file
+ * Read and parse a YAML file with caching support
+ *
+ * Uses in-memory cache to avoid repeated file reads.
+ * Cache is automatically invalidated when:
+ * - File modification time changes
+ * - TTL (5 minutes) expires
+ *
+ * @param filePath - Path to the YAML file
+ * @param useCache - Whether to use cache (default: true)
  */
-async function parseYamlFile(filePath: string): Promise<unknown> {
+async function parseYamlFile(filePath: string, useCache = true): Promise<unknown> {
   if (!existsSync(filePath)) {
     throw new ConfigNotFoundError(`Configuration file not found: ${filePath}`, filePath);
   }
 
+  // Check cache first
+  if (useCache) {
+    const cached = getCachedConfig(filePath);
+    if (cached !== undefined) {
+      return cached;
+    }
+  }
+
   try {
     const content = await readFile(filePath, 'utf-8');
-    return yaml.load(content);
+    const data = yaml.load(content);
+
+    // Store in cache
+    if (useCache) {
+      setCachedConfig(filePath, data);
+    }
+
+    return data;
   } catch (error) {
     if (error instanceof ConfigNotFoundError) {
       throw error;

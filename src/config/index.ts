@@ -65,6 +65,10 @@ export {
   validateAllConfigs,
   configFilesExist,
   getConfigFileType,
+  // Cache management (Issue #256)
+  clearConfigCache,
+  invalidateConfigCache,
+  getConfigCacheStats,
 } from './loader.js';
 
 // Watcher

@@ -301,6 +301,39 @@ agents:
       - url_parsing
 ```
 
+## Configuration Caching
+
+The loader module includes built-in caching to avoid repeated file reads. Cache is automatically invalidated when files change.
+
+### Cache Management
+
+```typescript
+import {
+  clearConfigCache,
+  invalidateConfigCache,
+  getConfigCacheStats,
+} from 'ad-sdlc';
+
+// Clear all cached configurations
+clearConfigCache();
+
+// Invalidate a specific file from cache
+invalidateConfigCache('/path/to/workflow.yaml');
+
+// Get cache statistics for debugging
+const stats = getConfigCacheStats();
+console.log(`Cache size: ${stats.size}`);
+console.log('Entries:', stats.entries);
+```
+
+### Cache Behavior
+
+- **TTL**: Cache entries expire after 5 minutes
+- **Auto-invalidation**: Cache is automatically invalidated when file modification time changes
+- **File-based**: Each configuration file is cached independently
+
+The caching is transparent to normal usage - `loadWorkflowConfig()` and `loadAgentsConfig()` will automatically use cached values when available.
+
 ## Low-Level Loading
 
 For direct file loading without ConfigManager:

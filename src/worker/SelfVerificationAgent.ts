@@ -18,7 +18,7 @@ import type {
   VerificationError,
   SelfVerificationStatus,
 } from './types.js';
-import { DEFAULT_SELF_VERIFICATION_CONFIG } from './types.js';
+import { getDefaultSelfVerificationConfig } from './types.js';
 import { EscalationRequiredError, CommandTimeoutError } from './errors.js';
 import { getCommandSanitizer } from '../security/index.js';
 import { tryGetProjectRoot } from '../utils/index.js';
@@ -44,21 +44,18 @@ export class SelfVerificationAgent {
   private readonly stepResults: Map<VerificationStep, VerificationStepResult>;
 
   constructor(config: SelfVerificationConfig = {}) {
+    const defaults = getDefaultSelfVerificationConfig();
     this.config = {
-      projectRoot:
-        config.projectRoot ?? tryGetProjectRoot() ?? DEFAULT_SELF_VERIFICATION_CONFIG.projectRoot,
-      testCommand: config.testCommand ?? DEFAULT_SELF_VERIFICATION_CONFIG.testCommand,
-      lintCommand: config.lintCommand ?? DEFAULT_SELF_VERIFICATION_CONFIG.lintCommand,
-      buildCommand: config.buildCommand ?? DEFAULT_SELF_VERIFICATION_CONFIG.buildCommand,
-      typecheckCommand:
-        config.typecheckCommand ?? DEFAULT_SELF_VERIFICATION_CONFIG.typecheckCommand,
-      maxFixIterations:
-        config.maxFixIterations ?? DEFAULT_SELF_VERIFICATION_CONFIG.maxFixIterations,
-      autoFixLint: config.autoFixLint ?? DEFAULT_SELF_VERIFICATION_CONFIG.autoFixLint,
-      stepsToRun: config.stepsToRun ?? DEFAULT_SELF_VERIFICATION_CONFIG.stepsToRun,
-      commandTimeout: config.commandTimeout ?? DEFAULT_SELF_VERIFICATION_CONFIG.commandTimeout,
-      continueOnFailure:
-        config.continueOnFailure ?? DEFAULT_SELF_VERIFICATION_CONFIG.continueOnFailure,
+      projectRoot: config.projectRoot ?? tryGetProjectRoot() ?? defaults.projectRoot,
+      testCommand: config.testCommand ?? defaults.testCommand,
+      lintCommand: config.lintCommand ?? defaults.lintCommand,
+      buildCommand: config.buildCommand ?? defaults.buildCommand,
+      typecheckCommand: config.typecheckCommand ?? defaults.typecheckCommand,
+      maxFixIterations: config.maxFixIterations ?? defaults.maxFixIterations,
+      autoFixLint: config.autoFixLint ?? defaults.autoFixLint,
+      stepsToRun: config.stepsToRun ?? defaults.stepsToRun,
+      commandTimeout: config.commandTimeout ?? defaults.commandTimeout,
+      continueOnFailure: config.continueOnFailure ?? defaults.continueOnFailure,
     };
 
     this.fixAttempts = [];
