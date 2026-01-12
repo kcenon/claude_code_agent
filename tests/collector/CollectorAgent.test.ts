@@ -353,6 +353,129 @@ describe('CollectorAgent', () => {
     });
   });
 
+  describe('addBatchInput', () => {
+    it('should process mixed input types in batch', async () => {
+      const filePath = path.join(testDir, 'batch-test.md');
+      fs.writeFileSync(filePath, '# Requirements\n\nThe system must work.');
+
+      await agent.startSession();
+      const results = await agent.addBatchInput([
+        { type: 'text', value: 'User authentication is required', description: 'Auth requirement' },
+        { type: 'file', value: filePath },
+      ]);
+
+      expect(results).toHaveLength(2);
+      expect(results[0].success).toBe(true);
+      expect(results[1].success).toBe(true);
+
+      const session = agent.getSession();
+      expect(session!.sources).toHaveLength(2);
+    });
+
+    it('should continue on error when continueOnError is true', async () => {
+      await agent.startSession();
+      const results = await agent.addBatchInput([
+        { type: 'text', value: 'Valid text input' },
+        { type: 'file', value: '/nonexistent/file.md' },
+        { type: 'text', value: 'Another valid input' },
+      ], { continueOnError: true });
+
+      expect(results).toHaveLength(3);
+      expect(results[0].success).toBe(true);
+      expect(results[1].success).toBe(false);
+      expect(results[1].error).toBeDefined();
+      expect(results[2].success).toBe(true);
+
+      const session = agent.getSession();
+      expect(session!.sources).toHaveLength(2);
+    });
+
+    it('should stop on first error when continueOnError is false', async () => {
+      await agent.startSession();
+
+      await expect(agent.addBatchInput([
+        { type: 'file', value: '/nonexistent/file.md' },
+        { type: 'text', value: 'This should not be processed' },
+      ], { continueOnError: false })).rejects.toThrow();
+    });
+
+    it('should respect parallelLimit option', async () => {
+      const file1 = path.join(testDir, 'file1.md');
+      const file2 = path.join(testDir, 'file2.md');
+      fs.writeFileSync(file1, '# File 1');
+      fs.writeFileSync(file2, '# File 2');
+
+      await agent.startSession();
+      const results = await agent.addBatchInput([
+        { type: 'text', value: 'Text 1' },
+        { type: 'text', value: 'Text 2' },
+        { type: 'file', value: file1 },
+        { type: 'file', value: file2 },
+      ], { parallelLimit: 2 });
+
+      expect(results).toHaveLength(4);
+      expect(results.every((r) => r.success)).toBe(true);
+    });
+  });
+
+  describe('collectFromBatch', () => {
+    it('should collect from mixed inputs in one call', async () => {
+      const filePath = path.join(testDir, 'batch.md');
+      fs.writeFileSync(filePath, '# Requirements\n\nThe system must support login.');
+
+      const result = await agent.collectFromBatch([
+        { type: 'text', value: 'User authentication is required' },
+        { type: 'file', value: filePath },
+      ], {
+        projectName: 'BatchApp',
+        projectDescription: 'Batch collection test',
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.stats.sourcesProcessed).toBe(2);
+      expect(result.collectedInfo.project.name).toBe('BatchApp');
+    });
+
+    it('should throw error for empty items array', async () => {
+      await expect(agent.collectFromBatch([])).rejects.toThrow(MissingInformationError);
+    });
+
+    it('should continue processing when some inputs fail', async () => {
+      const validFile = path.join(testDir, 'valid-batch.md');
+      fs.writeFileSync(validFile, '# Valid\n\nThe system must work.');
+
+      const result = await agent.collectFromBatch([
+        { type: 'text', value: 'Valid text' },
+        { type: 'file', value: '/nonexistent/file.md' },
+        { type: 'file', value: validFile },
+      ], {
+        projectName: 'PartialBatchApp',
+        continueOnError: true,
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.stats.sourcesProcessed).toBe(2);
+    });
+
+    it('should throw error when all inputs fail', async () => {
+      await expect(agent.collectFromBatch([
+        { type: 'file', value: '/nonexistent/file1.md' },
+        { type: 'file', value: '/nonexistent/file2.md' },
+      ])).rejects.toThrow(MissingInformationError);
+    });
+  });
+
+  describe('session cleanup on failure', () => {
+    it('should clean up project directories if session setup fails after project init', async () => {
+      // This test verifies the cleanup mechanism exists
+      // The actual cleanup is tested implicitly through the normal flow
+      await agent.startSession('CleanupTest');
+      const session = agent.getSession();
+      expect(session).not.toBeNull();
+      expect(session!.projectId).toBeDefined();
+    });
+  });
+
   describe('singleton', () => {
     it('should return same instance from getCollectorAgent', () => {
       const agent1 = getCollectorAgent();

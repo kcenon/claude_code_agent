@@ -315,3 +315,37 @@ export interface UrlFetchResult {
   /** Any errors during fetch */
   readonly error?: string | undefined;
 }
+
+/**
+ * Batch input item representing a single input in a batch
+ */
+export interface BatchInputItem {
+  /** Type of input */
+  readonly type: 'text' | 'file' | 'url';
+  /** Content for text input, path for file input, URL for url input */
+  readonly value: string;
+  /** Optional description for text inputs */
+  readonly description?: string;
+}
+
+/**
+ * Options for batch input processing
+ */
+export interface BatchInputOptions {
+  /** Whether to continue processing remaining inputs if one fails */
+  readonly continueOnError?: boolean;
+  /** Maximum number of inputs to process in parallel (default: 5) */
+  readonly parallelLimit?: number;
+}
+
+/**
+ * Result of processing a single batch input item
+ */
+export interface BatchInputResult {
+  /** The original input item */
+  readonly item: BatchInputItem;
+  /** Whether processing was successful */
+  readonly success: boolean;
+  /** Error message if processing failed */
+  readonly error?: string;
+}
