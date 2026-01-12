@@ -740,7 +740,10 @@ export class CollectorAgent {
     // Add processing errors as warnings
     const errors = batchResults
       .filter((r) => !r.success)
-      .map((r) => `Failed to process ${r.item.type} input "${r.item.value}": ${r.error ?? 'Unknown error'}`);
+      .map(
+        (r) =>
+          `Failed to process ${r.item.type} input "${r.item.value}": ${r.error ?? 'Unknown error'}`
+      );
 
     if (errors.length > 0 && this.session !== null) {
       this.session = {
