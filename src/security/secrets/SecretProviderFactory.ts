@@ -5,10 +5,7 @@
  */
 
 import type { ISecretProvider } from './ISecretProvider.js';
-import type {
-  SecretProviderConfig,
-  SecretManagerConfig,
-} from './types.js';
+import type { SecretProviderConfig, SecretManagerConfig } from './types.js';
 import { LocalProvider } from './LocalProvider.js';
 import { AWSSecretsManagerProvider } from './AWSSecretsManagerProvider.js';
 import { VaultProvider } from './VaultProvider.js';

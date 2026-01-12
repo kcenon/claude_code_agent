@@ -15,10 +15,7 @@ import type {
   CircuitBreakerState,
   CircuitBreakerStatus,
 } from './types.js';
-import {
-  SecretNotFoundInProvidersError,
-  AllProvidersFailedError,
-} from './errors.js';
+import { SecretNotFoundInProvidersError, AllProvidersFailedError } from './errors.js';
 
 /**
  * Default circuit breaker configuration
@@ -421,7 +418,10 @@ export class ProviderSecretManager {
       // Any failure in half-open immediately opens the circuit
       cb.state = 'open';
       cb.nextAttemptTime = new Date(Date.now() + this.circuitBreakerConfig.resetTimeout);
-    } else if (cb.state === 'closed' && cb.failureCount >= this.circuitBreakerConfig.failureThreshold) {
+    } else if (
+      cb.state === 'closed' &&
+      cb.failureCount >= this.circuitBreakerConfig.failureThreshold
+    ) {
       cb.state = 'open';
       cb.nextAttemptTime = new Date(Date.now() + this.circuitBreakerConfig.resetTimeout);
     }

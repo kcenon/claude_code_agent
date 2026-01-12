@@ -29,7 +29,11 @@ export class ProviderInitializationError extends SecretProviderError {
   public readonly cause: Error | undefined;
 
   constructor(providerName: string, reason: string, cause?: Error) {
-    super(`Failed to initialize provider '${providerName}': ${reason}`, providerName, 'PROVIDER_INIT_ERROR');
+    super(
+      `Failed to initialize provider '${providerName}': ${reason}`,
+      providerName,
+      'PROVIDER_INIT_ERROR'
+    );
     this.name = 'ProviderInitializationError';
     this.cause = cause;
     Object.setPrototypeOf(this, ProviderInitializationError.prototype);
@@ -62,7 +66,11 @@ export class SecretRetrievalError extends SecretProviderError {
   public readonly cause: Error | undefined;
 
   constructor(providerName: string, secretName: string, reason: string, cause?: Error) {
-    super(`Failed to retrieve secret '${secretName}' from '${providerName}': ${reason}`, providerName, 'SECRET_RETRIEVAL_ERROR');
+    super(
+      `Failed to retrieve secret '${secretName}' from '${providerName}': ${reason}`,
+      providerName,
+      'SECRET_RETRIEVAL_ERROR'
+    );
     this.name = 'SecretRetrievalError';
     this.secretName = secretName;
     this.cause = cause;

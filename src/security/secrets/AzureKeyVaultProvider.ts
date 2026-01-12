@@ -61,7 +61,11 @@ interface AzureKeyVaultSecretsModule {
  */
 interface AzureIdentityModule {
   ManagedIdentityCredential: new () => AzureTokenCredential;
-  ClientSecretCredential: new (tenantId: string, clientId: string, clientSecret: string) => AzureTokenCredential;
+  ClientSecretCredential: new (
+    tenantId: string,
+    clientId: string,
+    clientSecret: string
+  ) => AzureTokenCredential;
   DefaultAzureCredential: new () => AzureTokenCredential;
 }
 
@@ -135,7 +139,7 @@ export class AzureKeyVaultProvider extends BaseSecretProvider {
     try {
       // @ts-expect-error - Optional dependency, may not be installed
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      const identityModule = await import('@azure/identity') as unknown as AzureIdentityModule;
+      const identityModule = (await import('@azure/identity')) as unknown as AzureIdentityModule;
 
       if (this.useManagedIdentity) {
         // Use managed identity (works in Azure environments)

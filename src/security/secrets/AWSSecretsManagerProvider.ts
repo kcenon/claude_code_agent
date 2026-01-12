@@ -71,11 +71,13 @@ export class AWSSecretsManagerProvider extends BaseSecretProvider {
   private client: AWSSecretsManagerClient | null = null;
   private awsModule: AWSSecretsManagerModule | null = null;
   private readonly region: string;
-  private readonly awsCredentials: {
-    readonly accessKeyId: string;
-    readonly secretAccessKey: string;
-    readonly sessionToken?: string;
-  } | undefined;
+  private readonly awsCredentials:
+    | {
+        readonly accessKeyId: string;
+        readonly secretAccessKey: string;
+        readonly sessionToken?: string;
+      }
+    | undefined;
   private readonly healthCheckSecret: string | undefined;
 
   /**
