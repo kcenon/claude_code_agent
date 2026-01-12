@@ -1,14 +1,16 @@
 /**
  * Project initialization and scaffolding implementation
  *
- * NOTE: Default targetDir and project template versioning improvements are planned.
- * See Issue #256 for implementation details.
+ * Uses tryGetProjectRoot() for consistent directory resolution
+ * when targetDir is not explicitly provided.
  *
  * @packageDocumentation
  */
 
 import * as fs from 'fs';
 import * as path from 'path';
+
+import { tryGetProjectRoot } from '../utils/index.js';
 
 import yaml from 'js-yaml';
 
@@ -25,6 +27,21 @@ import type {
 import { QUALITY_GATE_CONFIGS, TEMPLATE_CONFIGS } from './types.js';
 
 /**
+ * Resolve the target directory using ProjectContext when available.
+ *
+ * Priority:
+ * 1. Explicitly provided targetDir
+ * 2. Initialized project root from ProjectContext
+ * 3. Current working directory (fallback)
+ */
+function resolveTargetDir(targetDir?: string): string {
+  if (targetDir) {
+    return targetDir;
+  }
+  return tryGetProjectRoot() ?? process.cwd();
+}
+
+/**
  * Handles project initialization and scaffolding
  */
 export class ProjectInitializer {
@@ -33,7 +50,7 @@ export class ProjectInitializer {
   constructor(options: InitOptions) {
     this.options = {
       ...options,
-      targetDir: options.targetDir ?? process.cwd(),
+      targetDir: resolveTargetDir(options.targetDir),
     };
   }
 
@@ -44,7 +61,7 @@ export class ProjectInitializer {
     const createdFiles: string[] = [];
     const warnings: string[] = [];
     const projectPath = path.resolve(
-      this.options.targetDir ?? process.cwd(),
+      this.options.targetDir ?? resolveTargetDir(),
       this.options.projectName
     );
 
