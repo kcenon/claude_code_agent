@@ -44,7 +44,7 @@ jobs:
         continue-on-error: true
 
       - name: Upload benchmark results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: performance-results
           path: perf-results/
@@ -100,7 +100,7 @@ jobs:
         run: node --expose-gc ./node_modules/.bin/vitest run --config vitest.perf.config.ts tests/performance/memory/
 
       - name: Upload memory profile results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: always()
         with:
           name: memory-profile-results
@@ -128,7 +128,7 @@ jobs:
         run: node --expose-gc ./node_modules/.bin/vitest run --config vitest.perf.config.ts tests/performance/scalability/
 
       - name: Upload scalability results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: always()
         with:
           name: scalability-results
