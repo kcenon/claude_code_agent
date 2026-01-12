@@ -3,10 +3,14 @@
  *
  * Defines types for Worker Agent code generation, test writing,
  * and self-verification functionality.
+ *
+ * Uses factory functions to resolve projectRoot at runtime for consistent
+ * behavior with ProjectContext.
  */
 
 import type { WorkOrder, WorkOrderContext, RelatedFile } from '../controller/types.js';
 import type { ErrorCategory } from '../errors/index.js';
+import { tryGetProjectRoot } from '../utils/index.js';
 
 /**
  * Worker Agent configuration
@@ -31,13 +35,21 @@ export interface WorkerAgentConfig {
 }
 
 /**
- * Default worker agent configuration
+ * Resolve project root using ProjectContext when available.
  *
- * NOTE: projectRoot defaults to process.cwd(). See Issue #256 for improvement.
- * Use ProjectContext.getProjectRoot() for consistent behavior in monorepos.
+ * Priority:
+ * 1. Initialized project root from ProjectContext
+ * 2. Current working directory (fallback)
  */
-export const DEFAULT_WORKER_AGENT_CONFIG: Required<WorkerAgentConfig> = {
-  projectRoot: process.cwd(),
+function resolveProjectRoot(): string {
+  return tryGetProjectRoot() ?? process.cwd();
+}
+
+/**
+ * Static default worker agent configuration values (excluding projectRoot).
+ * Use getDefaultWorkerAgentConfig() for runtime configuration with proper projectRoot.
+ */
+const STATIC_WORKER_DEFAULTS = {
   resultsPath: '.ad-sdlc/scratchpad/progress',
   maxRetries: 3,
   testCommand: 'npm test',
@@ -46,6 +58,33 @@ export const DEFAULT_WORKER_AGENT_CONFIG: Required<WorkerAgentConfig> = {
   autoFixLint: true,
   coverageThreshold: 80,
 } as const;
+
+/**
+ * Get default worker agent configuration with runtime project root resolution.
+ *
+ * Uses ProjectContext.tryGetProjectRoot() for consistent behavior in monorepos.
+ * Falls back to process.cwd() if ProjectContext is not initialized.
+ *
+ * @returns Complete worker agent configuration with resolved projectRoot
+ */
+export function getDefaultWorkerAgentConfig(): Required<WorkerAgentConfig> {
+  return {
+    projectRoot: resolveProjectRoot(),
+    ...STATIC_WORKER_DEFAULTS,
+  };
+}
+
+/**
+ * Default worker agent configuration
+ *
+ * @deprecated Use getDefaultWorkerAgentConfig() for runtime-resolved projectRoot.
+ * This constant is kept for backward compatibility but evaluates projectRoot
+ * at module load time, which may not reflect the actual project root.
+ */
+export const DEFAULT_WORKER_AGENT_CONFIG: Required<WorkerAgentConfig> = {
+  projectRoot: process.cwd(),
+  ...STATIC_WORKER_DEFAULTS,
+};
 
 /**
  * Implementation status
@@ -820,22 +859,47 @@ export interface SelfVerificationConfig {
 }
 
 /**
- * Default self-verification configuration
- *
- * NOTE: projectRoot defaults to process.cwd(). See Issue #256 for improvement.
+ * Static default self-verification configuration values (excluding projectRoot).
+ * Use getDefaultSelfVerificationConfig() for runtime configuration with proper projectRoot.
  */
-export const DEFAULT_SELF_VERIFICATION_CONFIG: Required<SelfVerificationConfig> = {
-  projectRoot: process.cwd(),
+const STATIC_VERIFICATION_DEFAULTS = {
   testCommand: 'npm test',
   lintCommand: 'npm run lint',
   buildCommand: 'npm run build',
   typecheckCommand: 'npx tsc --noEmit',
   maxFixIterations: 3,
   autoFixLint: true,
-  stepsToRun: ['test', 'lint', 'build', 'typecheck'],
+  stepsToRun: ['test', 'lint', 'build', 'typecheck'] as const,
   commandTimeout: 300000,
   continueOnFailure: false,
 } as const;
+
+/**
+ * Get default self-verification configuration with runtime project root resolution.
+ *
+ * Uses ProjectContext.tryGetProjectRoot() for consistent behavior in monorepos.
+ * Falls back to process.cwd() if ProjectContext is not initialized.
+ *
+ * @returns Complete self-verification configuration with resolved projectRoot
+ */
+export function getDefaultSelfVerificationConfig(): Required<SelfVerificationConfig> {
+  return {
+    projectRoot: resolveProjectRoot(),
+    ...STATIC_VERIFICATION_DEFAULTS,
+  };
+}
+
+/**
+ * Default self-verification configuration
+ *
+ * @deprecated Use getDefaultSelfVerificationConfig() for runtime-resolved projectRoot.
+ * This constant is kept for backward compatibility but evaluates projectRoot
+ * at module load time, which may not reflect the actual project root.
+ */
+export const DEFAULT_SELF_VERIFICATION_CONFIG: Required<SelfVerificationConfig> = {
+  projectRoot: process.cwd(),
+  ...STATIC_VERIFICATION_DEFAULTS,
+};
 
 /**
  * Fix suggestion for a verification error
