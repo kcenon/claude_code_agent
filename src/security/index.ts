@@ -98,3 +98,6 @@ export type {
   ReadOptions,
   MkdirOptions,
 } from './SecureFileOps.js';
+
+// Secret Providers - Pluggable secret management with multiple backends
+export * from './secrets/index.js';
