@@ -482,17 +482,16 @@ export class RepoDetector {
   /**
    * Run a Git command with timeout using safe execution
    * Uses execFileSync to bypass shell and prevent command injection
-   *
-   * NOTE: Uses simple whitespace splitting for command arguments.
-   * Proper shell argument parsing is planned. See Issue #255.
    */
   private runGitCommand(
     rootPath: string,
     command: string
   ): { success: boolean; output: string; error?: string } {
     const sanitizer = getCommandSanitizer();
-    // Simple split - see Issue #255 for proper argument parsing
-    const args = command.split(/\s+/).filter((arg) => arg.length > 0);
+    // Use proper argument parsing to handle quoted strings
+    const parsed = sanitizer.parseCommandString(`git ${command}`);
+    // Remove 'git' prefix since execGitSync adds it
+    const args = parsed.args;
 
     const result = sanitizer.execGitSync(args, {
       cwd: rootPath,
@@ -509,16 +508,16 @@ export class RepoDetector {
   /**
    * Run a gh CLI command with timeout using safe execution
    * Uses execFileSync to bypass shell and prevent command injection
-   *
-   * NOTE: Uses simple whitespace splitting. See Issue #255 for improvements.
    */
   private runGhCommand(
     rootPath: string,
     command: string
   ): { success: boolean; output: string; error?: string } {
     const sanitizer = getCommandSanitizer();
-    // Simple split - see Issue #255 for proper argument parsing
-    const args = command.split(/\s+/).filter((arg) => arg.length > 0);
+    // Use proper argument parsing to handle quoted strings
+    const parsed = sanitizer.parseCommandString(`gh ${command}`);
+    // Remove 'gh' prefix since execGhSync adds it
+    const args = parsed.args;
 
     const result = sanitizer.execGhSync(args, {
       cwd: rootPath,

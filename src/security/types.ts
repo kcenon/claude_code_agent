@@ -15,7 +15,9 @@ export type AuditEventType =
   | 'file_modified'
   | 'secret_accessed'
   | 'validation_failed'
-  | 'security_violation';
+  | 'security_violation'
+  | 'command_executed'
+  | 'command_blocked';
 
 /**
  * Result status for audit events
@@ -146,8 +148,12 @@ export interface CommandSanitizerOptions {
   readonly whitelist?: Record<string, unknown>;
   /** Enable strict mode (reject any shell metacharacters) */
   readonly strictMode?: boolean;
-  /** Enable command logging */
+  /** Enable command logging to console */
   readonly logCommands?: boolean;
+  /** Enable audit logging for command execution (default: true) */
+  readonly enableAuditLog?: boolean;
+  /** Actor name for audit logging (default: 'system') */
+  readonly actor?: string;
 }
 
 /**

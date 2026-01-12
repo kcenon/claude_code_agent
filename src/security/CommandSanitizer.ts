@@ -6,9 +6,7 @@
  * - Argument sanitization
  * - Shell metacharacter prevention
  * - Safe execution using execFile (bypasses shell)
- *
- * NOTE: Command execution auditing and async whitelist updates are planned.
- * See Issue #255 for implementation details.
+ * - Audit logging for all command executions
  */
 
 import {
@@ -28,6 +26,7 @@ import {
 } from './CommandWhitelist.js';
 import { CommandInjectionError, CommandNotAllowedError } from './errors.js';
 import type { SanitizedCommand, CommandExecResult, CommandSanitizerOptions } from './types.js';
+import { getAuditLogger } from './AuditLogger.js';
 
 const execFileAsync = promisify(execFileCallback);
 
@@ -48,12 +47,16 @@ export class CommandSanitizer {
   private readonly whitelist: CommandWhitelistConfig;
   private readonly strictMode: boolean;
   private readonly logCommands: boolean;
+  private readonly enableAuditLog: boolean;
+  private readonly actor: string;
 
   constructor(options: CommandSanitizerOptions = {}) {
     this.whitelist =
       (options.whitelist as CommandWhitelistConfig | undefined) ?? DEFAULT_COMMAND_WHITELIST;
     this.strictMode = options.strictMode ?? true;
     this.logCommands = options.logCommands ?? false;
+    this.enableAuditLog = options.enableAuditLog ?? true;
+    this.actor = options.actor ?? 'system';
   }
 
   /**
@@ -218,6 +221,8 @@ export class CommandSanitizer {
         console.log(`[CommandSanitizer] Completed in ${String(duration)}ms`);
       }
 
+      this.logCommandExecution(command, 'success', duration);
+
       return {
         success: true,
         stdout,
@@ -235,6 +240,8 @@ export class CommandSanitizer {
       if (this.logCommands) {
         console.error(`[CommandSanitizer] Failed after ${String(duration)}ms: ${errorMessage}`);
       }
+
+      this.logCommandExecution(command, 'failure', duration, errorMessage);
 
       return {
         success: false,
@@ -328,6 +335,8 @@ export class CommandSanitizer {
         console.log(`[CommandSanitizer] Completed in ${String(duration)}ms`);
       }
 
+      this.logCommandExecution(command, 'success', duration);
+
       return {
         success: true,
         stdout: output,
@@ -343,6 +352,8 @@ export class CommandSanitizer {
       if (this.logCommands) {
         console.error(`[CommandSanitizer] Failed after ${String(duration)}ms: ${errorMessage}`);
       }
+
+      this.logCommandExecution(command, 'failure', duration, errorMessage);
 
       return {
         success: false,
@@ -519,6 +530,60 @@ export class CommandSanitizer {
       return '[REDACTED]';
     }
     return `${arg.slice(0, 3)}...${arg.slice(-3)}`;
+  }
+
+  /**
+   * Log command execution to audit log
+   *
+   * @param command - The executed command
+   * @param result - Execution result ('success' or 'failure')
+   * @param durationMs - Execution duration in milliseconds
+   * @param error - Error message if failed
+   */
+  private logCommandExecution(
+    command: SanitizedCommand,
+    result: 'success' | 'failure',
+    durationMs: number,
+    error?: string
+  ): void {
+    if (!this.enableAuditLog) {
+      return;
+    }
+
+    try {
+      const logger = getAuditLogger();
+      logger.log({
+        type: 'command_executed',
+        actor: this.actor,
+        resource: command.baseCommand,
+        action: command.subCommand ?? command.args[0] ?? 'execute',
+        result: result === 'success' ? 'success' : 'failure',
+        details: {
+          rawCommand: this.maskCommandForLogging(command.rawCommand),
+          durationMs,
+          ...(error !== undefined ? { error } : {}),
+        },
+      });
+    } catch {
+      // Silently ignore audit logging errors
+    }
+  }
+
+  /**
+   * Mask potentially sensitive parts of a command for logging
+   *
+   * @param rawCommand - The raw command string
+   * @returns Masked command string
+   */
+  private maskCommandForLogging(rawCommand: string): string {
+    // Mask common sensitive patterns like tokens, passwords, keys
+    return rawCommand
+      .replace(/(--token[=\s]+)\S+/gi, '$1[REDACTED]')
+      .replace(/(--password[=\s]+)\S+/gi, '$1[REDACTED]')
+      .replace(/(--key[=\s]+)\S+/gi, '$1[REDACTED]')
+      .replace(/(--secret[=\s]+)\S+/gi, '$1[REDACTED]')
+      .replace(/([A-Za-z_]*TOKEN[=\s]+)\S+/gi, '$1[REDACTED]')
+      .replace(/([A-Za-z_]*KEY[=\s]+)\S+/gi, '$1[REDACTED]');
   }
 
   /**

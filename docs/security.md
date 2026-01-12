@@ -517,6 +517,45 @@ if (result.valid) {
 }
 ```
 
+### Audit Logging
+
+CommandSanitizer can log all command executions for security auditing:
+
+```typescript
+import { CommandSanitizer } from 'ad-sdlc';
+
+const sanitizer = new CommandSanitizer({
+  // Enable audit logging (default: true)
+  enableAuditLog: true,
+
+  // Actor name for audit logs
+  actor: 'worker-agent',
+
+  // Optional: also log to console
+  logCommands: false,
+});
+
+// All executions are logged to the audit log
+await sanitizer.execGit(['status', '--porcelain']);
+// Audit log entry:
+// {
+//   type: 'command_executed',
+//   actor: 'worker-agent',
+//   resource: 'git',
+//   action: 'status',
+//   result: 'success',
+//   details: { rawCommand: 'git status --porcelain', durationMs: 45 }
+// }
+```
+
+Sensitive data in command arguments is automatically masked:
+
+```typescript
+// Token is masked in audit logs
+await sanitizer.execFromString('gh auth login --with-token MY_SECRET_TOKEN');
+// Logged as: 'gh auth login --with-token [REDACTED]'
+```
+
 ## SecureFileOps
 
 Provides a centralized, secure wrapper for all file operations with automatic path validation.
@@ -633,9 +672,34 @@ const fileOps = createSecureFileOps({
   // Optional: Allow access to specific external directories
   allowedExternalDirs: ['/tmp/shared', '/var/cache/app'],
 
-  // Optional: Validate symlinks don't escape project
-  validateSymlinks: true,  // Default: false
+  // Validate symlinks don't escape project (default: true)
+  validateSymlinks: true,
+
+  // Enable audit logging for file operations
+  enableAuditLog: true,
+
+  // Actor name for audit logging
+  actor: 'my-agent',
 });
+```
+
+### Symlink Security
+
+SecureFileOps validates that symbolic links do not escape the allowed directories:
+
+```typescript
+const fileOps = createSecureFileOps({
+  projectRoot: '/path/to/project',
+  validateSymlinks: true,  // Default: true
+});
+
+// If 'link.txt' is a symlink pointing to '/etc/passwd'
+// This will throw PathTraversalError
+await fileOps.readFile('link.txt');
+// Error: Symbolic link target escapes allowed directories
+
+// Safe symlinks (target within project) work normally
+await fileOps.readFile('internal-link.txt');  // Works fine
 ```
 
 ## PathResolver
