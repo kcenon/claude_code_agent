@@ -97,7 +97,9 @@ export class AWSSecretsManagerProvider extends BaseSecretProvider {
     try {
       // Dynamic import for optional AWS SDK dependency
       // @ts-expect-error - Optional dependency, may not be installed
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const awsModule = await import('@aws-sdk/client-secrets-manager');
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       this.awsModule = awsModule as unknown as AWSSecretsManagerModule;
     } catch {
       throw new ProviderInitializationError(

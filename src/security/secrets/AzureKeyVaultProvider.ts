@@ -122,6 +122,7 @@ export class AzureKeyVaultProvider extends BaseSecretProvider {
     try {
       // Dynamic import for optional Azure SDK dependency
       // @ts-expect-error - Optional dependency, may not be installed
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const kvModule = await import('@azure/keyvault-secrets');
       keyvaultModule = kvModule as unknown as AzureKeyVaultSecretsModule;
     } catch {
@@ -133,6 +134,7 @@ export class AzureKeyVaultProvider extends BaseSecretProvider {
 
     try {
       // @ts-expect-error - Optional dependency, may not be installed
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const identityModule = await import('@azure/identity') as unknown as AzureIdentityModule;
 
       if (this.useManagedIdentity) {
