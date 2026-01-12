@@ -113,10 +113,12 @@ export type {
 } from './types.js';
 
 export {
+  // eslint-disable-next-line @typescript-eslint/no-deprecated -- Exported for backward compatibility
   DEFAULT_WORKER_AGENT_CONFIG,
   DEFAULT_CODE_PATTERNS,
   DEFAULT_RETRY_POLICY,
   DEFAULT_TEST_GENERATOR_CONFIG,
+  // eslint-disable-next-line @typescript-eslint/no-deprecated -- Exported for backward compatibility
   DEFAULT_SELF_VERIFICATION_CONFIG,
   // Factory functions for runtime projectRoot resolution (Issue #256)
   getDefaultWorkerAgentConfig,

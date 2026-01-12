@@ -110,17 +110,17 @@ function isCacheValid(filePath: string): boolean {
 /**
  * Get cached configuration if valid
  */
-function getCachedConfig<T>(filePath: string): T | undefined {
+function getCachedConfig(filePath: string): unknown {
   if (!isCacheValid(filePath)) {
     return undefined;
   }
-  return configCache.get(filePath)?.data as T | undefined;
+  return configCache.get(filePath)?.data;
 }
 
 /**
  * Store configuration in cache
  */
-function setCachedConfig<T>(filePath: string, data: T): void {
+function setCachedConfig(filePath: string, data: unknown): void {
   try {
     const stats = statSync(filePath);
     configCache.set(filePath, {
@@ -219,7 +219,7 @@ async function parseYamlFile(filePath: string, useCache = true): Promise<unknown
 
   // Check cache first
   if (useCache) {
-    const cached = getCachedConfig<unknown>(filePath);
+    const cached = getCachedConfig(filePath);
     if (cached !== undefined) {
       return cached;
     }

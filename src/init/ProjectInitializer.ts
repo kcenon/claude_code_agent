@@ -35,7 +35,7 @@ import { QUALITY_GATE_CONFIGS, TEMPLATE_CONFIGS } from './types.js';
  * 3. Current working directory (fallback)
  */
 function resolveTargetDir(targetDir?: string): string {
-  if (targetDir) {
+  if (targetDir !== undefined && targetDir !== '') {
     return targetDir;
   }
   return tryGetProjectRoot() ?? process.cwd();
