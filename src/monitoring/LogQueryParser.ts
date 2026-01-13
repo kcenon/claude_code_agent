@@ -254,7 +254,11 @@ export class LogQueryParser {
 
       // Word (field name, value, or operator)
       let word = '';
-      while (i < query.length && !/[\s():"]/.test(query.charAt(i)) && query.substring(i, i + 2) !== '..') {
+      while (
+        i < query.length &&
+        !/[\s():"]/.test(query.charAt(i)) &&
+        query.substring(i, i + 2) !== '..'
+      ) {
         // Stop at colon only if word could be a field name or operator
         if (query.charAt(i) === ':' && word.length > 0) {
           const lowerWord = word.toLowerCase();
