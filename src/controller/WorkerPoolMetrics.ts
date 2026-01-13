@@ -633,9 +633,9 @@ export class WorkerPoolMetrics {
         const labelStr = Object.entries(metric.labels)
           .map(([k, v]) => `${k}="${v}"`)
           .join(',');
-        lines.push(`${metric.name}{${labelStr}} ${metric.value}`);
+        lines.push(`${metric.name}{${labelStr}} ${String(metric.value)}`);
       } else {
-        lines.push(`${metric.name} ${metric.value}`);
+        lines.push(`${metric.name} ${String(metric.value)}`);
       }
     }
 
@@ -645,11 +645,11 @@ export class WorkerPoolMetrics {
 
     for (const bucket of histogram.buckets) {
       const leStr = bucket.le === Infinity ? '+Inf' : String(bucket.le);
-      lines.push(`${histogram.name}_bucket{le="${leStr}"} ${bucket.count}`);
+      lines.push(`${histogram.name}_bucket{le="${leStr}"} ${String(bucket.count)}`);
     }
 
-    lines.push(`${histogram.name}_sum ${histogram.sum}`);
-    lines.push(`${histogram.name}_count ${histogram.count}`);
+    lines.push(`${histogram.name}_sum ${String(histogram.sum)}`);
+    lines.push(`${histogram.name}_count ${String(histogram.count)}`);
 
     return lines.join('\n');
   }
