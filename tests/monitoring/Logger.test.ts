@@ -942,6 +942,113 @@ describe('Logger', () => {
     });
   });
 
+  describe('structured query language', () => {
+    beforeEach(() => {
+      // Create test logs with various attributes
+      logger.setAgent('worker-1');
+      logger.setStage('processing');
+      logger.setProjectId('proj-001');
+      logger.info('Task started');
+
+      logger.setAgent('worker-2');
+      logger.warn('Connection slow');
+
+      logger.setAgent('worker-1');
+      logger.error('Task failed', new Error('timeout'));
+
+      logger.setAgent('collector');
+      logger.setStage('collection');
+      logger.info('Data collected');
+    });
+
+    it('should search logs with simple field query', () => {
+      const result = logger.searchWithQuery('agent:worker-1');
+      expect(result.entries.length).toBeGreaterThan(0);
+      expect(result.entries.every((e) => e.agent === 'worker-1')).toBe(true);
+    });
+
+    it('should search logs with level filter', () => {
+      const result = logger.searchWithQuery('level:error');
+      expect(result.entries.length).toBeGreaterThan(0);
+      expect(result.entries.every((e) => e.level === 'ERROR')).toBe(true);
+    });
+
+    it('should search logs with AND operator', () => {
+      const result = logger.searchWithQuery('level:error AND agent:worker-1');
+      expect(result.entries.length).toBeGreaterThan(0);
+      for (const entry of result.entries) {
+        expect(entry.level).toBe('ERROR');
+        expect(entry.agent).toBe('worker-1');
+      }
+    });
+
+    it('should search logs with OR operator', () => {
+      const result = logger.searchWithQuery('level:error OR level:warn');
+      expect(result.entries.length).toBeGreaterThan(0);
+      for (const entry of result.entries) {
+        expect(['ERROR', 'WARN']).toContain(entry.level);
+      }
+    });
+
+    it('should search logs with NOT operator', () => {
+      const result = logger.searchWithQuery('NOT level:info');
+      expect(result.entries.length).toBeGreaterThan(0);
+      expect(result.entries.every((e) => e.level !== 'INFO')).toBe(true);
+    });
+
+    it('should search logs with message content', () => {
+      const result = logger.searchWithQuery('message:failed');
+      expect(result.entries.length).toBeGreaterThan(0);
+      expect(result.entries.some((e) => e.message.toLowerCase().includes('failed'))).toBe(true);
+    });
+
+    it('should search logs with quoted message', () => {
+      const result = logger.searchWithQuery('message:"Task failed"');
+      expect(result.entries.length).toBeGreaterThan(0);
+    });
+
+    it('should search logs with complex expression', () => {
+      const result = logger.searchWithQuery('(level:error OR level:warn) AND projectId:proj-001');
+      for (const entry of result.entries) {
+        expect(['ERROR', 'WARN']).toContain(entry.level);
+        expect(entry.projectId).toBe('proj-001');
+      }
+    });
+
+    it('should include query metadata in result', () => {
+      const result = logger.searchWithQuery('level:info');
+      expect(result.query).toBe('level:info');
+      expect(result.expression).toBeDefined();
+      expect(result.executionTimeMs).toBeGreaterThanOrEqual(0);
+    });
+
+    it('should support pagination', () => {
+      const result1 = logger.searchWithQuery('projectId:proj-001', 2, 0);
+      const result2 = logger.searchWithQuery('projectId:proj-001', 2, 2);
+
+      expect(result1.entries.length).toBeLessThanOrEqual(2);
+      expect(result1.totalCount).toBeGreaterThan(0);
+    });
+
+    it('should return empty results for invalid query', () => {
+      const result = logger.searchWithQuery('invalid:field');
+      expect(result.entries).toHaveLength(0);
+    });
+
+    it('should parse query without executing', () => {
+      const parseResult = logger.parseQuery('level:error AND agent:worker');
+      expect(parseResult.success).toBe(true);
+      expect(parseResult.expression).toBeDefined();
+      expect(parseResult.expression?.type).toBe('compound');
+    });
+
+    it('should return parse error for invalid syntax', () => {
+      const parseResult = logger.parseQuery('level:');
+      expect(parseResult.success).toBe(false);
+      expect(parseResult.error).toBeDefined();
+    });
+  });
+
   describe('compressed file reading in aggregation', () => {
     let gzDir: string;
 
