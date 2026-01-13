@@ -571,7 +571,10 @@ export class CommandSanitizer {
       clearTimeout(timeoutId);
 
       if (!response.ok) {
-        throw new WhitelistUpdateError(url, `HTTP ${String(response.status)}: ${response.statusText}`);
+        throw new WhitelistUpdateError(
+          url,
+          `HTTP ${String(response.status)}: ${response.statusText}`
+        );
       }
 
       const config = (await response.json()) as CommandWhitelistConfig;
