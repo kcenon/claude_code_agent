@@ -12,9 +12,18 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { randomUUID } from 'node:crypto';
 import { PathResolver } from './PathResolver.js';
 import { getAuditLogger } from './AuditLogger.js';
-import type { AuditEventType } from './types.js';
+import { PathTraversalError } from './errors.js';
+import type {
+  AuditEventType,
+  FileWatchCallback,
+  FileWatcherConfig,
+  FileWatcherHandle,
+  FileWatchEvent,
+  FileWatchEventType,
+} from './types.js';
 
 /**
  * Configuration options for SecureFileOps
@@ -82,6 +91,18 @@ const DEFAULT_DIR_MODE = 0o700;
  * All file operations are validated against the project root to prevent
  * path traversal attacks. Operations are optionally logged for audit.
  */
+/**
+ * Internal watcher state tracking
+ */
+interface WatcherState {
+  watcher: fs.FSWatcher;
+  callback: FileWatchCallback;
+  config: FileWatcherConfig;
+  watchPath: string;
+  debounceTimers: Map<string, NodeJS.Timeout>;
+  active: boolean;
+}
+
 export class SecureFileOps {
   private readonly resolver: PathResolver;
   private readonly enableAuditLog: boolean;
@@ -90,6 +111,7 @@ export class SecureFileOps {
   private readonly dirMode: number;
   private readonly projectRoot: string;
   private readonly validateSymlinks: boolean;
+  private readonly watchers: Map<string, WatcherState> = new Map();
 
   constructor(config: SecureFileOpsConfig) {
     this.projectRoot = path.resolve(config.projectRoot);
@@ -599,8 +621,371 @@ export class SecureFileOps {
   }
 
   // ============================================================
+  // File Watching Operations
+  // ============================================================
+
+  /**
+   * Watch a file or directory for changes with security validation
+   *
+   * @param relativePath - Path relative to project root
+   * @param callback - Callback function for change events
+   * @param config - Watcher configuration
+   * @returns Handle to control the watcher
+   * @throws PathTraversalError if path escapes project root
+   */
+  public watch(
+    relativePath: string,
+    callback: FileWatchCallback,
+    config: FileWatcherConfig = {}
+  ): FileWatcherHandle {
+    const absolutePath = this.validatePath(relativePath);
+    const watcherId = randomUUID();
+    const {
+      recursive = true,
+      debounceMs = 100,
+      patterns,
+      followSymlinks = false,
+      validateSymlinkTargets = true,
+      enableAuditLog = true,
+    } = config;
+
+    // Security check: ensure path exists and is accessible
+    if (!fs.existsSync(absolutePath)) {
+      throw new Error(`Watch target does not exist: ${relativePath}`);
+    }
+
+    // Security check: validate symlink target if it's a symlink
+    if (validateSymlinkTargets && this.validateSymlinks) {
+      const stats = fs.lstatSync(absolutePath);
+      if (stats.isSymbolicLink()) {
+        this.validateSymlinkTargetSync(absolutePath);
+      }
+    }
+
+    const resolvedConfig: FileWatcherConfig = {
+      recursive,
+      debounceMs,
+      followSymlinks,
+      validateSymlinkTargets,
+      enableAuditLog,
+      ...(patterns !== undefined ? { patterns } : {}),
+    };
+
+    const watcherState: WatcherState = {
+      watcher: null as unknown as fs.FSWatcher,
+      callback,
+      config: resolvedConfig,
+      watchPath: absolutePath,
+      debounceTimers: new Map(),
+      active: true,
+    };
+
+    // Determine if watching a file or directory
+    const watchStats = fs.statSync(absolutePath);
+    const isWatchingFile = watchStats.isFile();
+
+    // Create the file system watcher
+    const fsWatcher = fs.watch(
+      absolutePath,
+      { recursive: isWatchingFile ? false : recursive, persistent: true },
+      (eventType, filename) => {
+        if (!watcherState.active) {
+          return;
+        }
+
+        // For file watching, filename may be null or the basename
+        let changedPath: string;
+        let changedRelativePath: string;
+
+        if (isWatchingFile) {
+          changedPath = absolutePath;
+          changedRelativePath = path.relative(this.projectRoot, absolutePath);
+        } else {
+          if (filename === null) {
+            return;
+          }
+          changedPath = path.join(absolutePath, filename);
+          changedRelativePath = path.relative(this.projectRoot, changedPath);
+        }
+
+        // Security filter: ensure changed path is within allowed boundaries
+        if (!this.isPathWithinBoundary(changedPath)) {
+          this.logFileOperation('security_violation', changedPath, 'watch_boundary_violation');
+          return;
+        }
+
+        // Pattern filter (skip for file watching)
+        if (!isWatchingFile) {
+          const filenameToCheck = filename ?? path.basename(changedPath);
+          if (!this.matchesPatternFilter(filenameToCheck, patterns)) {
+            return;
+          }
+        }
+
+        // Symlink security check
+        if (validateSymlinkTargets && this.validateSymlinks) {
+          try {
+            const stats = fs.lstatSync(changedPath);
+            if (stats.isSymbolicLink()) {
+              this.validateSymlinkTargetSync(changedPath);
+            }
+          } catch {
+            // File may have been deleted, which is OK
+          }
+        }
+
+        // Debounce the event
+        this.debounceWatchEvent(
+          watcherState,
+          watcherId,
+          changedRelativePath,
+          changedPath,
+          eventType as 'change' | 'rename',
+          debounceMs
+        );
+      }
+    );
+
+    fsWatcher.on('error', (error) => {
+      const event: FileWatchEvent = {
+        type: 'error',
+        path: relativePath,
+        absolutePath,
+        timestamp: new Date(),
+        error,
+      };
+      void callback(event);
+    });
+
+    watcherState.watcher = fsWatcher;
+    this.watchers.set(watcherId, watcherState);
+
+    // Audit log
+    if (enableAuditLog) {
+      this.logFileOperation('file_watched', absolutePath, 'watch_start');
+    }
+
+    return {
+      id: watcherId,
+      watchPath: relativePath,
+      close: (): void => {
+        this.unwatch(watcherId);
+      },
+      isActive: (): boolean => watcherState.active,
+    };
+  }
+
+  /**
+   * Stop watching a specific path
+   *
+   * @param watcherId - Watcher handle ID to stop
+   */
+  public unwatch(watcherId: string): void {
+    const watcherState = this.watchers.get(watcherId);
+    if (watcherState === undefined) {
+      return;
+    }
+
+    watcherState.active = false;
+    watcherState.watcher.close();
+
+    // Clear all pending debounce timers
+    for (const timer of watcherState.debounceTimers.values()) {
+      clearTimeout(timer);
+    }
+    watcherState.debounceTimers.clear();
+
+    this.logFileOperation('file_watch_stopped', watcherState.watchPath, 'watch_stop');
+    this.watchers.delete(watcherId);
+  }
+
+  /**
+   * Stop all active watchers
+   */
+  public unwatchAll(): void {
+    for (const watcherId of this.watchers.keys()) {
+      this.unwatch(watcherId);
+    }
+  }
+
+  /**
+   * Get all active watcher handles
+   *
+   * @returns Array of active watcher handles
+   */
+  public getActiveWatchers(): FileWatcherHandle[] {
+    const handles: FileWatcherHandle[] = [];
+
+    for (const [id, state] of this.watchers.entries()) {
+      if (state.active) {
+        handles.push({
+          id,
+          watchPath: path.relative(this.projectRoot, state.watchPath),
+          close: (): void => {
+            this.unwatch(id);
+          },
+          isActive: (): boolean => state.active,
+        });
+      }
+    }
+
+    return handles;
+  }
+
+  // ============================================================
   // Private Methods
   // ============================================================
+
+  /**
+   * Debounce file watch events
+   */
+  private debounceWatchEvent(
+    watcherState: WatcherState,
+    watcherId: string,
+    relativePath: string,
+    absolutePath: string,
+    eventType: 'change' | 'rename',
+    debounceMs: number
+  ): void {
+    const key = `${watcherId}:${relativePath}`;
+
+    // Clear existing timer for this path
+    const existingTimer = watcherState.debounceTimers.get(key);
+    if (existingTimer !== undefined) {
+      clearTimeout(existingTimer);
+    }
+
+    // Set new debounce timer
+    const timer = setTimeout(() => {
+      watcherState.debounceTimers.delete(key);
+
+      if (!watcherState.active) {
+        return;
+      }
+
+      // Determine the actual event type
+      let type: FileWatchEventType;
+      if (eventType === 'rename') {
+        // Check if file exists to determine add vs unlink
+        type = fs.existsSync(absolutePath) ? 'add' : 'unlink';
+      } else {
+        type = 'change';
+      }
+
+      const event: FileWatchEvent = {
+        type,
+        path: relativePath,
+        absolutePath,
+        timestamp: new Date(),
+      };
+
+      void watcherState.callback(event);
+    }, debounceMs);
+
+    watcherState.debounceTimers.set(key, timer);
+  }
+
+  /**
+   * Check if a path is within the security boundary
+   */
+  private isPathWithinBoundary(absolutePath: string): boolean {
+    try {
+      // Check if within project root
+      const relativePath = path.relative(this.projectRoot, absolutePath);
+      if (!relativePath.startsWith('..') && !path.isAbsolute(relativePath)) {
+        return true;
+      }
+
+      // Check allowed external directories
+      const allowedDirs = this.resolver.getAllowedExternalDirs();
+      for (const dir of allowedDirs) {
+        const relToAllowed = path.relative(dir, absolutePath);
+        if (!relToAllowed.startsWith('..') && !path.isAbsolute(relToAllowed)) {
+          return true;
+        }
+      }
+
+      return false;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Check if a filename matches the pattern filter
+   */
+  private matchesPatternFilter(
+    filename: string,
+    patterns?: { readonly include?: readonly string[]; readonly exclude?: readonly string[] }
+  ): boolean {
+    if (patterns === undefined) {
+      return true;
+    }
+
+    const { include, exclude } = patterns;
+
+    // Check exclude patterns first
+    if (exclude !== undefined && exclude.length > 0) {
+      for (const pattern of exclude) {
+        if (this.matchGlob(filename, pattern)) {
+          return false;
+        }
+      }
+    }
+
+    // If no include patterns, accept all (that weren't excluded)
+    if (include === undefined || include.length === 0) {
+      return true;
+    }
+
+    // Check include patterns
+    for (const pattern of include) {
+      if (this.matchGlob(filename, pattern)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * Simple glob pattern matching for file names
+   * Supports: * (any chars), ? (single char), ** (recursive)
+   */
+  private matchGlob(filename: string, pattern: string): boolean {
+    // Convert glob pattern to regex
+    const regexPattern = pattern
+      .replace(/[.+^${}()|[\]\\]/g, '\\$&') // Escape regex special chars
+      .replace(/\*\*/g, '.*') // ** matches anything including /
+      .replace(/\*/g, '[^/]*') // * matches any chars except /
+      .replace(/\?/g, '.'); // ? matches single char
+
+    const regex = new RegExp(`^${regexPattern}$`, 'i');
+    return regex.test(filename);
+  }
+
+  /**
+   * Validate that a symlink target is within allowed boundaries (sync)
+   */
+  private validateSymlinkTargetSync(absolutePath: string): void {
+    try {
+      const realPath = fs.realpathSync(absolutePath);
+
+      if (!this.isPathWithinBoundary(realPath)) {
+        throw new PathTraversalError(
+          `Symbolic link target escapes allowed directories: ${absolutePath} -> ${realPath}`
+        );
+      }
+    } catch (error) {
+      if (error instanceof PathTraversalError) {
+        throw error;
+      }
+      // If we can't resolve the symlink, treat it as a security violation
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        throw new PathTraversalError(`Cannot validate symbolic link target: ${absolutePath}`);
+      }
+    }
+  }
 
   /**
    * Log file operation to audit log
