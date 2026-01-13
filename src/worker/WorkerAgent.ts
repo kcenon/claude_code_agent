@@ -10,7 +10,9 @@
  * - Use resumeFromCheckpoint option to resume interrupted work
  * - Checkpoints expire after 24 hours by default
  *
- * NOTE: Parallel test execution is planned. See Issue #258.
+ * Parallel verification:
+ * - Tests, lint, and build run concurrently for faster feedback
+ * - All verification results are collected and reported together
  *
  * Error classification system implemented:
  * - Transient errors (network, timeout): Retry with exponential backoff
@@ -703,13 +705,23 @@ export class WorkerAgent {
   }
 
   /**
-   * Run verification (tests, lint, build)
+   * Run verification (tests, lint, build) in parallel
+   *
+   * Executes all verification commands concurrently for faster feedback.
+   * If lint fails and autoFixLint is enabled, a sequential fix is attempted.
    */
   public async runVerification(): Promise<VerificationResult> {
-    const testsResult = await this.runCommand(this.config.testCommand);
-    const testsPassed = testsResult.exitCode === 0;
+    // Run all verification commands in parallel
+    const [testsResult, initialLintResult, buildResult] = await Promise.all([
+      this.runCommand(this.config.testCommand),
+      this.runCommand(this.config.lintCommand),
+      this.runCommand(this.config.buildCommand),
+    ]);
 
-    let lintResult = await this.runCommand(this.config.lintCommand);
+    const testsPassed = testsResult.exitCode === 0;
+    const buildPassed = buildResult.exitCode === 0;
+
+    let lintResult = initialLintResult;
     let lintPassed = lintResult.exitCode === 0;
 
     // Try auto-fix if lint failed and auto-fix is enabled
@@ -720,9 +732,6 @@ export class WorkerAgent {
         lintPassed = lintResult.exitCode === 0;
       }
     }
-
-    const buildResult = await this.runCommand(this.config.buildCommand);
-    const buildPassed = buildResult.exitCode === 0;
 
     return {
       testsPassed,

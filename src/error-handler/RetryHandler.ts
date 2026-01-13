@@ -431,6 +431,10 @@ export async function withRetry<T>(
  * Unlike withRetry, this function never throws and instead returns a result object
  * containing success/failure status and all attempt details.
  *
+ * Tracks actual retry attempts:
+ * - Collects all attempt results via onAttempt callback
+ * - Propagates attempt details for both success and failure cases
+ *
  * @template T - Return type of the operation
  * @param operation - The async operation to execute
  * @param options - Retry configuration options
@@ -445,6 +449,7 @@ export async function withRetry<T>(
  *
  * if (result.success) {
  *   console.log('Data:', result.value);
+ *   console.log('Attempts:', result.totalAttempts);
  * } else {
  *   console.error('Failed after', result.totalAttempts, 'attempts');
  * }
@@ -455,29 +460,45 @@ export async function withRetryResult<T>(
   options: WithRetryOptions<T> = {}
 ): Promise<RetryResult<T>> {
   const startTime = Date.now();
+  const collectedAttempts: RetryAttemptResult[] = [];
+
+  // Create a wrapped onAttempt callback to collect all attempts
+  const originalOnAttempt = options.onAttempt;
+  const wrappedOptions: WithRetryOptions<T> = {
+    ...options,
+    onAttempt: (context, result) => {
+      collectedAttempts.push(result);
+      originalOnAttempt?.(context, result);
+    },
+  };
 
   try {
-    const value = await withRetry(operation, options);
+    const value = await withRetry(operation, wrappedOptions);
 
-    // NOTE: Retry attempt tracking is planned. See Issue #258.
+    // Calculate total attempts from collected results
+    const totalAttempts = collectedAttempts.length > 0 ? collectedAttempts.length : 1;
+
     return {
       success: true,
       value,
-      totalAttempts: 1,
+      totalAttempts,
       totalDurationMs: Date.now() - startTime,
-      attempts: [],
+      attempts: collectedAttempts,
     };
   } catch (error) {
     const caughtError = error instanceof Error ? error : new Error(String(error));
 
-    // Extract attempt results if available
-    let attempts: readonly RetryAttemptResult[] = [];
-    let totalAttempts = 1;
+    // Use collected attempts, or extract from MaxRetriesExceededError as fallback
+    let attempts: readonly RetryAttemptResult[] = collectedAttempts;
+    let totalAttempts = collectedAttempts.length;
 
-    if (error instanceof MaxRetriesExceededError) {
+    if (collectedAttempts.length === 0 && error instanceof MaxRetriesExceededError) {
       attempts = error.attemptResults;
       totalAttempts = error.attempts;
     }
+
+    // Ensure totalAttempts is at least 1
+    totalAttempts = totalAttempts > 0 ? totalAttempts : 1;
 
     return {
       success: false,
