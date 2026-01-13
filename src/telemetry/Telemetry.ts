@@ -23,11 +23,7 @@ import type {
   TelemetrySession,
   TelemetryStats,
 } from './types.js';
-import {
-  ConsentRequiredError,
-  ConsentStorageError,
-  InvalidEventError,
-} from './errors.js';
+import { ConsentRequiredError, ConsentStorageError, InvalidEventError } from './errors.js';
 
 // ============================================================
 // Constants

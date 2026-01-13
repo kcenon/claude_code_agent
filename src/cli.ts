@@ -36,11 +36,7 @@ import type { OutputFormat } from './status/types.js';
 import { initializeProject, isProjectInitialized } from './utils/index.js';
 import { resolve } from 'node:path';
 import { getCompletionGenerator, SUPPORTED_SHELLS, type ShellType } from './completion/index.js';
-import {
-  getTelemetry,
-  PRIVACY_POLICY,
-  PRIVACY_POLICY_VERSION,
-} from './telemetry/index.js';
+import { getTelemetry, PRIVACY_POLICY, PRIVACY_POLICY_VERSION } from './telemetry/index.js';
 
 const program = new Command();
 
