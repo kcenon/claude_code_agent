@@ -4,31 +4,302 @@
  * Provides validation functions with detailed error messages
  * for workflow.yaml and agents.yaml configuration files.
  *
- * NOTE: Zod error message improvements are planned. See Issue #261.
- *
  * @module config/validation
  */
 
-import { z, ZodError } from 'zod';
+import { z, ZodError, core } from 'zod';
 import { CONFIG_SCHEMA_VERSION, WorkflowConfigSchema, AgentsConfigSchema } from './schemas.js';
 import { ConfigValidationError } from './errors.js';
 import type { FieldError, ValidationResult, WorkflowConfig, AgentsConfig } from './types.js';
+
+/**
+ * Zod issue type from core module (Zod 4)
+ */
+type ZodIssue = core.$ZodIssue;
+
+// ============================================================
+// User-Friendly Error Messages
+// ============================================================
+
+/**
+ * Mapping of common field names to user-friendly descriptions
+ */
+const FIELD_DESCRIPTIONS: Readonly<Record<string, string>> = {
+  version: 'configuration version',
+  name: 'name',
+  pipeline: 'pipeline configuration',
+  stages: 'pipeline stages',
+  agent: 'agent name',
+  agents: 'agents configuration',
+  global: 'global settings',
+  quality_gates: 'quality gates',
+  notifications: 'notification settings',
+  github: 'GitHub settings',
+  logging: 'logging configuration',
+  monitoring: 'monitoring configuration',
+  scratchpad: 'scratchpad configuration',
+  model: 'AI model',
+  tools: 'available tools',
+  inputs: 'input files',
+  outputs: 'output files',
+  max_attempts: 'maximum retry attempts',
+  base_delay_seconds: 'base delay in seconds',
+  coverage_threshold: 'code coverage threshold',
+  max_complexity: 'maximum code complexity',
+};
+
+/**
+ * Get user-friendly description for a field path
+ */
+function getFieldDescription(path: string): string {
+  // Check for exact match
+  if (FIELD_DESCRIPTIONS[path]) {
+    return FIELD_DESCRIPTIONS[path];
+  }
+
+  // Check for last segment match
+  const segments = path.split('.');
+  const lastSegment = segments[segments.length - 1];
+
+  // Handle array indices
+  if (lastSegment !== undefined) {
+    const cleanSegment = lastSegment.replace(/\[\d+\]$/, '');
+    if (FIELD_DESCRIPTIONS[cleanSegment]) {
+      return FIELD_DESCRIPTIONS[cleanSegment];
+    }
+  }
+
+  return path;
+}
+
+/**
+ * Format field path for user-friendly display
+ *
+ * Converts paths like ['pipeline', 'stages', 0, 'name'] to 'pipeline.stages[0].name'
+ */
+function formatFieldPath(pathParts: PropertyKey[]): string {
+  if (pathParts.length === 0) {
+    return '(root)';
+  }
+
+  let result = '';
+  for (let i = 0; i < pathParts.length; i++) {
+    const part = pathParts[i];
+    if (typeof part === 'number') {
+      result += `[${String(part)}]`;
+    } else if (typeof part === 'symbol') {
+      // Convert symbol to string representation
+      result += i === 0 ? String(part) : `.${String(part)}`;
+    } else if (i === 0) {
+      result = String(part);
+    } else {
+      result += `.${String(part)}`;
+    }
+  }
+  return result;
+}
+
+/**
+ * Detect input type as a string description
+ */
+function detectInputType(input: unknown): string {
+  if (input === undefined) return 'undefined';
+  if (input === null) return 'null';
+  if (Array.isArray(input)) return 'a list';
+  if (typeof input === 'object') return 'an object';
+  if (typeof input === 'string') return 'a text value';
+  if (typeof input === 'number') return 'a number';
+  if (typeof input === 'boolean') return 'true/false';
+  return typeof input;
+}
+
+/**
+ * Generate user-friendly error message based on Zod issue (Zod 4 API)
+ */
+function generateUserFriendlyMessage(issue: ZodIssue, path: string): string {
+  const fieldDesc = getFieldDescription(path);
+  const code = issue.code;
+
+  switch (code) {
+    case 'invalid_type': {
+      const typedIssue = issue as core.$ZodIssueInvalidType;
+      const expected = typedIssue.expected;
+      const inputType = detectInputType(typedIssue.input);
+      if (inputType === 'undefined') {
+        return `${fieldDesc} is required but was not provided`;
+      }
+      return `${fieldDesc} must be ${formatTypeDescription(expected)}, but received ${inputType}`;
+    }
+
+    case 'invalid_union': {
+      return `${fieldDesc} does not match any of the allowed formats`;
+    }
+
+    case 'invalid_value': {
+      const typedIssue = issue as core.$ZodIssueInvalidValue;
+      const values = typedIssue.values.slice(0, 5).map(String).join(', ');
+      const more =
+        typedIssue.values.length > 5
+          ? `, ... (${String(typedIssue.values.length - 5)} more)`
+          : '';
+      return `${fieldDesc} must be one of: ${values}${more}`;
+    }
+
+    case 'too_small': {
+      const typedIssue = issue as core.$ZodIssueTooSmall;
+      const origin = typedIssue.origin;
+      if (origin === 'array') {
+        return `${fieldDesc} must have at least ${String(typedIssue.minimum)} item(s)`;
+      }
+      if (origin === 'string') {
+        return `${fieldDesc} must be at least ${String(typedIssue.minimum)} character(s) long`;
+      }
+      if (origin === 'number' || origin === 'int') {
+        return `${fieldDesc} must be at least ${String(typedIssue.minimum)}`;
+      }
+      return issue.message;
+    }
+
+    case 'too_big': {
+      const typedIssue = issue as core.$ZodIssueTooBig;
+      const origin = typedIssue.origin;
+      if (origin === 'array') {
+        return `${fieldDesc} must have at most ${String(typedIssue.maximum)} item(s)`;
+      }
+      if (origin === 'string') {
+        return `${fieldDesc} must be at most ${String(typedIssue.maximum)} character(s) long`;
+      }
+      if (origin === 'number' || origin === 'int') {
+        return `${fieldDesc} must be at most ${String(typedIssue.maximum)}`;
+      }
+      return issue.message;
+    }
+
+    case 'invalid_format': {
+      const typedIssue = issue as core.$ZodIssueInvalidStringFormat;
+      const format = typedIssue.format;
+      if (format === 'regex') {
+        return `${fieldDesc} has an invalid format`;
+      }
+      if (format === 'email') {
+        return `${fieldDesc} must be a valid email address`;
+      }
+      if (format === 'url') {
+        return `${fieldDesc} must be a valid URL`;
+      }
+      return `${fieldDesc} is invalid: ${issue.message}`;
+    }
+
+    case 'custom': {
+      return issue.message || `${fieldDesc} is invalid`;
+    }
+
+    case 'unrecognized_keys': {
+      const typedIssue = issue as core.$ZodIssueUnrecognizedKeys;
+      const keys = typedIssue.keys.slice(0, 3).join(', ');
+      const more =
+        typedIssue.keys.length > 3 ? `, ... (${String(typedIssue.keys.length - 3)} more)` : '';
+      return `Unknown field(s) in ${fieldDesc}: ${keys}${more}`;
+    }
+
+    default:
+      return issue.message;
+  }
+}
+
+/**
+ * Format type description for user-friendly display
+ */
+function formatTypeDescription(type: string): string {
+  const typeDescriptions: Readonly<Record<string, string>> = {
+    string: 'a text value',
+    number: 'a number',
+    int: 'a whole number',
+    boolean: 'true or false',
+    array: 'a list',
+    object: 'an object',
+    null: 'null',
+    undefined: 'not provided',
+    date: 'a date',
+    bigint: 'a big integer',
+    symbol: 'a symbol',
+  };
+
+  return typeDescriptions[type] || type;
+}
+
+/**
+ * Generate suggestion for fixing the error (Zod 4 API)
+ */
+function generateSuggestion(issue: ZodIssue, path: string): string | undefined {
+  const code = issue.code;
+
+  switch (code) {
+    case 'invalid_type': {
+      const typedIssue = issue as core.$ZodIssueInvalidType;
+      const inputType = detectInputType(typedIssue.input);
+      if (inputType === 'undefined') {
+        return `Add the required field '${path}' to your configuration`;
+      }
+      return `Change the value to ${formatTypeDescription(typedIssue.expected)}`;
+    }
+
+    case 'invalid_value': {
+      const typedIssue = issue as core.$ZodIssueInvalidValue;
+      if (typedIssue.values.length <= 5) {
+        return `Use one of: ${typedIssue.values.map(String).join(', ')}`;
+      }
+      return `Check the documentation for valid values`;
+    }
+
+    case 'too_small': {
+      const typedIssue = issue as core.$ZodIssueTooSmall;
+      if (typedIssue.origin === 'array') {
+        return `Add at least ${String(typedIssue.minimum)} item(s) to the list`;
+      }
+      if (typedIssue.origin === 'string' && typedIssue.minimum === 1) {
+        return `Provide a non-empty value`;
+      }
+      return undefined;
+    }
+
+    case 'invalid_format': {
+      const typedIssue = issue as core.$ZodIssueInvalidStringFormat;
+      if (typedIssue.format === 'regex' && path.includes('version')) {
+        return `Use semantic versioning format (e.g., 1.0.0)`;
+      }
+      return undefined;
+    }
+
+    case 'unrecognized_keys': {
+      return `Remove or rename the unrecognized field(s). Check spelling and refer to documentation.`;
+    }
+
+    default:
+      return undefined;
+  }
+}
 
 // ============================================================
 // Error Formatting
 // ============================================================
 
 /**
- * Format Zod error into field errors
- * Uses same pattern as scratchpad/validation.ts for consistency
+ * Format Zod error into field errors with user-friendly messages
+ *
+ * Converts Zod validation errors into human-readable messages with
+ * helpful suggestions for fixing common issues.
  */
 function formatZodError(error: ZodError): FieldError[] {
   return error.issues.map((issue) => {
-    const path = issue.path.join('.');
+    const path = formatFieldPath(issue.path);
+    const message = generateUserFriendlyMessage(issue, path);
+    const suggestion = generateSuggestion(issue, path);
 
     return {
-      path: path || '(root)',
-      message: issue.message,
+      path,
+      message,
+      ...(suggestion !== undefined ? { suggestion } : {}),
     };
   });
 }
