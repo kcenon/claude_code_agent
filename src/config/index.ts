@@ -16,6 +16,7 @@ export {
   CONFIG_SCHEMA_VERSION,
   WorkflowConfigSchema,
   AgentsConfigSchema,
+  TelemetryConfigSchema,
   SCHEMA_METADATA,
 } from './schemas.js';
 
@@ -26,6 +27,7 @@ export type {
   WorkflowConfig,
   AgentsConfig,
   ScratchpadConfig,
+  TelemetryConfigType,
   ConfigFileType,
   LoadConfigOptions,
   FileChangeCallback,

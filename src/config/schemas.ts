@@ -173,6 +173,11 @@ const GlobalSettingsSchema = z.object({
 export { ScratchpadConfigSchema };
 
 /**
+ * Telemetry config schema export for use in loader
+ */
+export { TelemetryConfigSchema };
+
+/**
  * Pipeline stage input/output
  */
 const StageIOSchema = z.array(z.string());
@@ -378,6 +383,16 @@ const MonitoringSchema = z.object({
 });
 
 /**
+ * Telemetry configuration (opt-in only)
+ */
+const TelemetryConfigSchema = z.object({
+  enabled: z.boolean().optional().default(false),
+  flush_interval_ms: z.number().int().min(1000).optional().default(60000),
+  max_buffer_size: z.number().int().min(1).max(1000).optional().default(100),
+  include_debug_events: z.boolean().optional().default(false),
+});
+
+/**
  * Complete workflow configuration schema
  */
 export const WorkflowConfigSchema = z.object({
@@ -392,6 +407,7 @@ export const WorkflowConfigSchema = z.object({
   logging: LoggingSchema.optional(),
   monitoring: MonitoringSchema.optional(),
   scratchpad: ScratchpadConfigSchema.optional(),
+  telemetry: TelemetryConfigSchema.optional(),
 });
 
 // ============================================================
