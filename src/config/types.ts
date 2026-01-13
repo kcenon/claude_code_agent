@@ -68,6 +68,17 @@ export interface LoadConfigOptions {
   readonly baseDir?: string;
   /** Whether to validate the configuration */
   readonly validate?: boolean;
+  /**
+   * Environment name for loading environment-specific overrides.
+   * If not specified, auto-detects from AD_SDLC_ENV or NODE_ENV.
+   * Set to false to disable environment overrides.
+   */
+  readonly environment?: string | false;
+  /**
+   * Whether to use environment-specific configuration overrides.
+   * @deprecated Use `environment: false` instead
+   */
+  readonly useEnvOverrides?: boolean;
 }
 
 // ============================================================

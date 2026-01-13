@@ -488,3 +488,17 @@
 {"name":"critical_test_3","severity":"critical","message":"Critical","timestamp":"2026-01-10T16:10:52.000Z","resolved":false}
 {"name":"critical_test_4","severity":"critical","message":"Critical","timestamp":"2026-01-10T16:10:52.000Z","resolved":false}
 {"name":"test_alert","severity":"warning","message":"Test alert","timestamp":"2026-01-10T16:10:52.002Z","resolved":false}
+{"name":"test_alert","severity":"warning","message":"Test alert message","timestamp":"2026-01-13T00:26:18.137Z","resolved":false}
+{"name":"critical_test","severity":"critical","message":"Critical issue","timestamp":"2026-01-13T00:26:18.138Z","resolved":false,"escalationLevel":0}
+{"name":"warning_test","severity":"warning","message":"Warning issue","timestamp":"2026-01-13T00:26:18.139Z","resolved":false,"escalationLevel":0}
+{"name":"warning_test_0","severity":"warning","message":"Warning","timestamp":"2026-01-13T00:26:18.140Z","resolved":false,"escalationLevel":0}
+{"name":"warning_test_1","severity":"warning","message":"Warning","timestamp":"2026-01-13T00:26:18.140Z","resolved":false,"escalationLevel":0}
+{"name":"warning_test_2","severity":"warning","message":"Warning","timestamp":"2026-01-13T00:26:18.141Z","resolved":false,"escalationLevel":0}
+{"name":"warning_test_3","severity":"warning","message":"Warning","timestamp":"2026-01-13T00:26:18.141Z","resolved":false,"escalationLevel":0}
+{"name":"warning_test_4","severity":"warning","message":"Warning","timestamp":"2026-01-13T00:26:18.141Z","resolved":false,"escalationLevel":0}
+{"name":"critical_test_0","severity":"critical","message":"Critical","timestamp":"2026-01-13T00:26:18.141Z","resolved":false,"escalationLevel":0}
+{"name":"critical_test_1","severity":"critical","message":"Critical","timestamp":"2026-01-13T00:26:18.141Z","resolved":false,"escalationLevel":0}
+{"name":"critical_test_2","severity":"critical","message":"Critical","timestamp":"2026-01-13T00:26:18.141Z","resolved":false,"escalationLevel":0}
+{"name":"critical_test_3","severity":"critical","message":"Critical","timestamp":"2026-01-13T00:26:18.141Z","resolved":false,"escalationLevel":0}
+{"name":"critical_test_4","severity":"critical","message":"Critical","timestamp":"2026-01-13T00:26:18.141Z","resolved":false,"escalationLevel":0}
+{"name":"test_alert","severity":"warning","message":"Test alert","timestamp":"2026-01-13T00:26:18.144Z","resolved":false}

@@ -4,14 +4,17 @@
  * Handles loading and parsing of YAML configuration files
  * with proper error handling, validation, and caching.
  *
- * Caching avoids repeated file reads for performance optimization.
+ * Features:
+ * - Caching to avoid repeated file reads
+ * - Environment-specific configuration overrides (e.g., workflow.development.yaml)
+ * - Deep merging of configuration objects
  *
  * @module config/loader
  */
 
 import { readFile } from 'node:fs/promises';
 import { existsSync, statSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { join, resolve, basename, dirname } from 'node:path';
 import yaml from 'js-yaml';
 import { ConfigParseError, ConfigNotFoundError } from './errors.js';
 import { tryGetProjectRoot } from '../utils/index.js';
@@ -73,6 +76,97 @@ const CONFIG_FILES: Record<ConfigFileType, string> = {
   workflow: 'workflow.yaml',
   agents: 'agents.yaml',
 };
+
+/**
+ * Supported environment names for configuration overrides
+ */
+export type ConfigEnvironment =
+  | 'development'
+  | 'staging'
+  | 'production'
+  | 'test'
+  | 'local'
+  | (string & {});
+
+// ============================================================
+// Environment Detection
+// ============================================================
+
+/**
+ * Get the current environment name from environment variables
+ *
+ * Checks the following environment variables in order:
+ * 1. AD_SDLC_ENV
+ * 2. NODE_ENV
+ *
+ * @returns Environment name or undefined if not set
+ */
+export function getCurrentEnvironment(): ConfigEnvironment | undefined {
+  return process.env.AD_SDLC_ENV ?? process.env.NODE_ENV ?? undefined;
+}
+
+/**
+ * Get the environment-specific configuration file path
+ *
+ * For a base file like 'workflow.yaml' and environment 'development',
+ * returns 'workflow.development.yaml'
+ *
+ * @param basePath - Base configuration file path
+ * @param env - Environment name
+ * @returns Environment-specific file path
+ */
+export function getEnvConfigFilePath(basePath: string, env: ConfigEnvironment): string {
+  const dir = dirname(basePath);
+  const base = basename(basePath, '.yaml');
+  return join(dir, `${base}.${env}.yaml`);
+}
+
+// ============================================================
+// Deep Merge Utility
+// ============================================================
+
+/**
+ * Check if a value is a plain object (not array, null, etc.)
+ */
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/**
+ * Deep merge two configuration objects
+ *
+ * Override configuration values take precedence over base values.
+ * Arrays are replaced, not merged.
+ * Objects are recursively merged.
+ *
+ * @param base - Base configuration
+ * @param override - Override configuration
+ * @returns Merged configuration
+ */
+export function deepMergeConfig<T>(base: T, override: Partial<T>): T {
+  if (!isPlainObject(base) || !isPlainObject(override)) {
+    return override as T;
+  }
+
+  const result = { ...base } as Record<string, unknown>;
+
+  for (const key of Object.keys(override)) {
+    const baseValue = result[key];
+    const overrideValue = (override as Record<string, unknown>)[key];
+
+    if (overrideValue === undefined) {
+      continue;
+    }
+
+    if (isPlainObject(baseValue) && isPlainObject(overrideValue)) {
+      result[key] = deepMergeConfig(baseValue, overrideValue);
+    } else {
+      result[key] = overrideValue;
+    }
+  }
+
+  return result as T;
+}
 
 // ============================================================
 // Cache Management
@@ -252,17 +346,103 @@ async function parseYamlFile(filePath: string, useCache = true): Promise<unknown
 // ============================================================
 
 /**
+ * Determine the effective environment for configuration loading
+ *
+ * @param options - Loading options
+ * @returns Environment name or undefined if disabled
+ */
+function getEffectiveEnvironment(options?: LoadConfigOptions): string | undefined {
+  // Explicitly disabled
+  // eslint-disable-next-line @typescript-eslint/no-deprecated -- backward compatibility support
+  if (options?.environment === false || options?.useEnvOverrides === false) {
+    return undefined;
+  }
+
+  // Explicitly specified
+  if (typeof options?.environment === 'string') {
+    return options.environment;
+  }
+
+  // Auto-detect from environment variables
+  return getCurrentEnvironment();
+}
+
+/**
+ * Load configuration with optional environment-specific overrides
+ *
+ * @param basePath - Base configuration file path
+ * @param env - Environment name (if applicable)
+ * @returns Parsed and optionally merged configuration
+ */
+async function loadConfigWithEnvOverride(
+  basePath: string,
+  env?: string
+): Promise<{ data: unknown; envPath?: string }> {
+  // Load base configuration
+  const baseData = await parseYamlFile(basePath);
+
+  // If no environment specified, return base only
+  if (env === undefined || env === '') {
+    return { data: baseData };
+  }
+
+  // Check for environment-specific override
+  const envPath = getEnvConfigFilePath(basePath, env);
+  if (!existsSync(envPath)) {
+    return { data: baseData };
+  }
+
+  // Load and merge environment-specific configuration
+  try {
+    const envData = await parseYamlFile(envPath);
+    const mergedData = deepMergeConfig(baseData, envData as Partial<typeof baseData>);
+    return { data: mergedData, envPath };
+  } catch (error) {
+    // If env config fails to parse, log warning and use base
+    if (error instanceof ConfigParseError) {
+      console.warn(
+        `Warning: Failed to parse environment config ${envPath}, using base config only: ${error.message}`
+      );
+      return { data: baseData };
+    }
+    throw error;
+  }
+}
+
+/**
  * Load workflow configuration
+ *
+ * Supports environment-specific configuration overrides. When an environment
+ * is detected (from AD_SDLC_ENV, NODE_ENV, or explicitly passed), the loader
+ * will look for a file named `workflow.{env}.yaml` and deep merge it with
+ * the base `workflow.yaml`.
+ *
+ * Configuration override precedence (highest to lowest):
+ * 1. Environment-specific config (e.g., workflow.development.yaml)
+ * 2. Base config (workflow.yaml)
  *
  * @param options - Loading options
  * @returns Validated workflow configuration
- * @throws ConfigNotFoundError if file not found
+ * @throws ConfigNotFoundError if base file not found
  * @throws ConfigParseError if YAML parsing fails
  * @throws ConfigValidationError if validation fails
+ *
+ * @example
+ * ```typescript
+ * // Auto-detect environment from NODE_ENV
+ * const config = await loadWorkflowConfig();
+ *
+ * // Explicitly specify environment
+ * const devConfig = await loadWorkflowConfig({ environment: 'development' });
+ *
+ * // Disable environment overrides
+ * const baseConfig = await loadWorkflowConfig({ environment: false });
+ * ```
  */
 export async function loadWorkflowConfig(options?: LoadConfigOptions): Promise<WorkflowConfig> {
   const filePath = getConfigFilePath('workflow', options?.baseDir);
-  const data = await parseYamlFile(filePath);
+  const env = getEffectiveEnvironment(options);
+  const { data } = await loadConfigWithEnvOverride(filePath, env);
 
   if (options?.validate === false) {
     return data as WorkflowConfig;
@@ -274,15 +454,30 @@ export async function loadWorkflowConfig(options?: LoadConfigOptions): Promise<W
 /**
  * Load agents configuration
  *
+ * Supports environment-specific configuration overrides. When an environment
+ * is detected (from AD_SDLC_ENV, NODE_ENV, or explicitly passed), the loader
+ * will look for a file named `agents.{env}.yaml` and deep merge it with
+ * the base `agents.yaml`.
+ *
  * @param options - Loading options
  * @returns Validated agents configuration
- * @throws ConfigNotFoundError if file not found
+ * @throws ConfigNotFoundError if base file not found
  * @throws ConfigParseError if YAML parsing fails
  * @throws ConfigValidationError if validation fails
+ *
+ * @example
+ * ```typescript
+ * // Auto-detect environment
+ * const config = await loadAgentsConfig();
+ *
+ * // Explicitly specify environment
+ * const devConfig = await loadAgentsConfig({ environment: 'development' });
+ * ```
  */
 export async function loadAgentsConfig(options?: LoadConfigOptions): Promise<AgentsConfig> {
   const filePath = getConfigFilePath('agents', options?.baseDir);
-  const data = await parseYamlFile(filePath);
+  const env = getEffectiveEnvironment(options);
+  const { data } = await loadConfigWithEnvOverride(filePath, env);
 
   if (options?.validate === false) {
     return data as AgentsConfig;
