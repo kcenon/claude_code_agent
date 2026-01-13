@@ -11,7 +11,9 @@ import {
   InitError,
   PrerequisiteError,
   ProjectExistsError,
+  TemplateMigrationError,
   TemplateNotFoundError,
+  TemplateVersionError,
 } from '../../src/init/errors.js';
 
 describe('Init Errors', () => {
@@ -142,6 +144,56 @@ describe('Init Errors', () => {
       const error = new ConfigurationError('key', 'reason');
       expect(error).toBeInstanceOf(InitError);
       expect(error).toBeInstanceOf(ConfigurationError);
+    });
+  });
+
+  describe('TemplateVersionError', () => {
+    it('should create with source and target versions', () => {
+      const sourceVersion = '1.0.0';
+      const targetVersion = '2.0.0';
+      const reason = 'major version mismatch';
+      const error = new TemplateVersionError(sourceVersion, targetVersion, reason);
+      expect(error.message).toContain(sourceVersion);
+      expect(error.message).toContain(targetVersion);
+      expect(error.message).toContain(reason);
+      expect(error.sourceVersion).toBe(sourceVersion);
+      expect(error.targetVersion).toBe(targetVersion);
+      expect(error.name).toBe('TemplateVersionError');
+    });
+
+    it('should be instance of InitError', () => {
+      const error = new TemplateVersionError('1.0.0', '2.0.0', 'test');
+      expect(error).toBeInstanceOf(InitError);
+      expect(error).toBeInstanceOf(TemplateVersionError);
+    });
+  });
+
+  describe('TemplateMigrationError', () => {
+    it('should create with version and step info', () => {
+      const fromVersion = '1.0.0';
+      const toVersion = '1.1.0';
+      const step = 'add-feature-x';
+      const error = new TemplateMigrationError(fromVersion, toVersion, step);
+      expect(error.message).toContain(fromVersion);
+      expect(error.message).toContain(toVersion);
+      expect(error.message).toContain(step);
+      expect(error.fromVersion).toBe(fromVersion);
+      expect(error.toVersion).toBe(toVersion);
+      expect(error.step).toBe(step);
+      expect(error.name).toBe('TemplateMigrationError');
+    });
+
+    it('should include cause error message', () => {
+      const cause = new Error('Migration script failed');
+      const error = new TemplateMigrationError('1.0.0', '1.1.0', 'step1', cause);
+      expect(error.message).toContain('Migration script failed');
+      expect(error.cause).toBe(cause);
+    });
+
+    it('should be instance of InitError', () => {
+      const error = new TemplateMigrationError('1.0.0', '1.1.0', 'step');
+      expect(error).toBeInstanceOf(InitError);
+      expect(error).toBeInstanceOf(TemplateMigrationError);
     });
   });
 });

@@ -107,3 +107,43 @@ export class ConfigurationError extends InitError {
     Object.setPrototypeOf(this, ConfigurationError.prototype);
   }
 }
+
+/**
+ * Error thrown when template version is incompatible
+ */
+export class TemplateVersionError extends InitError {
+  readonly sourceVersion: string;
+  readonly targetVersion: string;
+
+  constructor(sourceVersion: string, targetVersion: string, reason: string) {
+    super(`Template version incompatible: ${sourceVersion} -> ${targetVersion}: ${reason}`);
+    this.name = 'TemplateVersionError';
+    this.sourceVersion = sourceVersion;
+    this.targetVersion = targetVersion;
+    Object.setPrototypeOf(this, TemplateVersionError.prototype);
+  }
+}
+
+/**
+ * Error thrown when template migration fails
+ */
+export class TemplateMigrationError extends InitError {
+  readonly fromVersion: string;
+  readonly toVersion: string;
+  readonly step: string;
+
+  constructor(fromVersion: string, toVersion: string, step: string, cause?: Error) {
+    super(
+      `Template migration failed at step "${step}" (${fromVersion} -> ${toVersion}): ` +
+        (cause?.message ?? 'unknown error')
+    );
+    this.name = 'TemplateMigrationError';
+    this.fromVersion = fromVersion;
+    this.toVersion = toVersion;
+    this.step = step;
+    if (cause) {
+      this.cause = cause;
+    }
+    Object.setPrototypeOf(this, TemplateMigrationError.prototype);
+  }
+}

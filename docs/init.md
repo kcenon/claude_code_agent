@@ -209,6 +209,101 @@ agents:
   # ... more agents
 ```
 
+## Template Versioning
+
+Templates support semantic versioning (major.minor.patch) for compatibility and migration.
+
+### Version Compatibility
+
+- **Major version**: Breaking changes require migration
+- **Minor version**: Backward compatible, older templates work with newer versions
+- **Patch version**: Bug fixes, always compatible
+
+### Checking Compatibility
+
+```typescript
+import {
+  validateTemplateCompatibility,
+  needsMigration,
+  getCurrentVersion,
+} from 'ad-sdlc';
+
+const config: TemplateConfig = {
+  version: { major: 1, minor: 0, patch: 0 },
+  // ... other config
+};
+
+// Check if migration is needed
+if (needsMigration(config)) {
+  const result = validateTemplateCompatibility(config);
+  console.log(`Compatible: ${result.compatible}`);
+  console.log(`Can migrate: ${result.canMigrate}`);
+  if (result.requiredMigrations.length > 0) {
+    console.log('Required migrations:', result.requiredMigrations);
+  }
+}
+```
+
+### Migrating Templates
+
+```typescript
+import { migrateTemplate } from 'ad-sdlc';
+
+const result = migrateTemplate(oldConfig);
+
+if (result.success) {
+  console.log('Migration successful');
+  console.log('Applied steps:', result.appliedSteps);
+  // Use result.migrated as the new config
+} else {
+  console.error('Migration failed:', result.error);
+}
+```
+
+### Version Utilities
+
+```typescript
+import {
+  parseVersion,
+  formatVersion,
+  compareVersions,
+  versionsEqual,
+} from 'ad-sdlc';
+
+// Parse version string
+const version = parseVersion('1.2.3');
+// { major: 1, minor: 2, patch: 3 }
+
+// Format version object
+const str = formatVersion({ major: 1, minor: 2, patch: 3 });
+// "1.2.3"
+
+// Compare versions
+compareVersions(v1, v2); // -1, 0, or 1
+
+// Check equality
+versionsEqual(v1, v2); // true or false
+```
+
+### Custom Migrations
+
+Register custom migrations for version upgrades:
+
+```typescript
+import { registerMigration } from 'ad-sdlc';
+
+registerMigration({
+  fromVersion: { major: 1, minor: 0, patch: 0 },
+  toVersion: { major: 1, minor: 1, patch: 0 },
+  description: 'Add new feature support',
+  migrate: (config) => ({
+    ...config,
+    version: { major: 1, minor: 1, patch: 0 },
+    extraFeatures: [...config.extraFeatures, 'new_feature'],
+  }),
+});
+```
+
 ## Error Handling
 
 The init module provides specific error types:
@@ -219,6 +314,8 @@ The init module provides specific error types:
 | `ProjectExistsError` | Project with .ad-sdlc already exists |
 | `FileSystemError` | File system operation failed |
 | `ConfigurationError` | Invalid configuration |
+| `TemplateVersionError` | Template version incompatible |
+| `TemplateMigrationError` | Template migration failed |
 
 ## Next Steps
 
