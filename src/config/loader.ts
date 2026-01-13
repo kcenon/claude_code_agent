@@ -353,6 +353,7 @@ async function parseYamlFile(filePath: string, useCache = true): Promise<unknown
  */
 function getEffectiveEnvironment(options?: LoadConfigOptions): string | undefined {
   // Explicitly disabled
+  // eslint-disable-next-line @typescript-eslint/no-deprecated -- backward compatibility support
   if (options?.environment === false || options?.useEnvOverrides === false) {
     return undefined;
   }
@@ -381,7 +382,7 @@ async function loadConfigWithEnvOverride(
   const baseData = await parseYamlFile(basePath);
 
   // If no environment specified, return base only
-  if (!env) {
+  if (env === undefined || env === '') {
     return { data: baseData };
   }
 

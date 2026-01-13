@@ -53,8 +53,9 @@ const FIELD_DESCRIPTIONS: Readonly<Record<string, string>> = {
  */
 function getFieldDescription(path: string): string {
   // Check for exact match
-  if (FIELD_DESCRIPTIONS[path]) {
-    return FIELD_DESCRIPTIONS[path];
+  const exactMatch = FIELD_DESCRIPTIONS[path];
+  if (exactMatch !== undefined) {
+    return exactMatch;
   }
 
   // Check for last segment match
@@ -64,8 +65,9 @@ function getFieldDescription(path: string): string {
   // Handle array indices
   if (lastSegment !== undefined) {
     const cleanSegment = lastSegment.replace(/\[\d+\]$/, '');
-    if (FIELD_DESCRIPTIONS[cleanSegment]) {
-      return FIELD_DESCRIPTIONS[cleanSegment];
+    const segmentMatch = FIELD_DESCRIPTIONS[cleanSegment];
+    if (segmentMatch !== undefined) {
+      return segmentMatch;
     }
   }
 
@@ -176,8 +178,7 @@ function generateUserFriendlyMessage(issue: ZodIssue, path: string): string {
     }
 
     case 'invalid_format': {
-      const typedIssue = issue as core.$ZodIssueInvalidStringFormat;
-      const format = typedIssue.format;
+      const format = issue.format;
       if (format === 'regex') {
         return `${fieldDesc} has an invalid format`;
       }
@@ -195,10 +196,9 @@ function generateUserFriendlyMessage(issue: ZodIssue, path: string): string {
     }
 
     case 'unrecognized_keys': {
-      const typedIssue = issue as core.$ZodIssueUnrecognizedKeys;
-      const keys = typedIssue.keys.slice(0, 3).join(', ');
+      const keys = issue.keys.slice(0, 3).join(', ');
       const more =
-        typedIssue.keys.length > 3 ? `, ... (${String(typedIssue.keys.length - 3)} more)` : '';
+        issue.keys.length > 3 ? `, ... (${String(issue.keys.length - 3)} more)` : '';
       return `Unknown field(s) in ${fieldDesc}: ${keys}${more}`;
     }
 
@@ -225,7 +225,8 @@ function formatTypeDescription(type: string): string {
     symbol: 'a symbol',
   };
 
-  return typeDescriptions[type] || type;
+  const description = typeDescriptions[type];
+  return description !== undefined ? description : type;
 }
 
 /**
@@ -264,8 +265,7 @@ function generateSuggestion(issue: ZodIssue, path: string): string | undefined {
     }
 
     case 'invalid_format': {
-      const typedIssue = issue as core.$ZodIssueInvalidStringFormat;
-      if (typedIssue.format === 'regex' && path.includes('version')) {
+      if (issue.format === 'regex' && path.includes('version')) {
         return `Use semantic versioning format (e.g., 1.0.0)`;
       }
       return undefined;
