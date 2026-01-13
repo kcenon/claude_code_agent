@@ -556,6 +556,144 @@ await sanitizer.execFromString('gh auth login --with-token MY_SECRET_TOKEN');
 // Logged as: 'gh auth login --with-token [REDACTED]'
 ```
 
+### Runtime Whitelist Updates
+
+CommandSanitizer supports runtime whitelist updates without restarting the application:
+
+#### Update Whitelist Directly
+
+```typescript
+import { getCommandSanitizer } from 'ad-sdlc';
+
+const sanitizer = getCommandSanitizer();
+
+// Update with new configuration (replaces existing whitelist)
+const result = await sanitizer.updateWhitelist({
+  customCommand: {
+    allowed: true,
+    subcommands: ['sub1', 'sub2'],
+    maxArgs: 10,
+  },
+});
+
+if (result.success) {
+  console.log(`Whitelist updated to version ${result.version}`);
+  console.log(`Commands available: ${result.commandCount}`);
+}
+
+// Merge with existing whitelist
+const mergeResult = await sanitizer.updateWhitelist(
+  { newCommand: { allowed: true } },
+  { merge: true }
+);
+// Now both 'git' and 'newCommand' are available
+```
+
+#### Load from External File
+
+```typescript
+// Load from JSON file
+const result = await sanitizer.loadWhitelistFromFile('/path/to/whitelist.json');
+
+// Merge with existing whitelist
+await sanitizer.loadWhitelistFromFile('/path/to/additional.json', { merge: true });
+
+// Skip validation for trusted sources
+await sanitizer.loadWhitelistFromFile('/path/to/trusted.json', { validate: false });
+```
+
+Example whitelist.json:
+
+```json
+{
+  "customCmd": {
+    "allowed": true,
+    "subcommands": ["run", "build", "test"],
+    "maxArgs": 20
+  },
+  "anotherCmd": {
+    "allowed": true,
+    "allowArbitraryArgs": true
+  }
+}
+```
+
+#### Load from URL
+
+```typescript
+// Load from remote URL
+const result = await sanitizer.loadWhitelistFromUrl(
+  'https://config.example.com/whitelist.json'
+);
+
+// With custom timeout
+await sanitizer.loadWhitelistFromUrl(
+  'https://config.example.com/whitelist.json',
+  { timeout: 5000 }  // 5 second timeout
+);
+```
+
+#### Generic Source Loading
+
+```typescript
+import type { WhitelistSource } from 'ad-sdlc';
+
+// Load from any source type
+const source: WhitelistSource = {
+  type: 'file',  // 'file' | 'url' | 'object'
+  path: '/path/to/whitelist.json',
+};
+
+const result = await sanitizer.loadWhitelistFromSource(source, { merge: true });
+```
+
+#### Thread-Safe Operations
+
+Whitelist updates are thread-safe with version tracking:
+
+```typescript
+// Get current whitelist version
+const version = sanitizer.getWhitelistVersion();
+console.log(`Current version: ${version}`);
+
+// Get a snapshot of the current whitelist
+const snapshot = sanitizer.getWhitelistSnapshot();
+console.log(`Version: ${snapshot.version}`);
+console.log(`Timestamp: ${snapshot.timestamp}`);
+console.log(`Commands: ${Object.keys(snapshot.config)}`);
+
+// Concurrent update protection
+const [result1, result2] = await Promise.all([
+  sanitizer.updateWhitelist({ cmd1: { allowed: true } }),
+  sanitizer.updateWhitelist({ cmd2: { allowed: true } }),
+]);
+// One will succeed, one will fail with "Another whitelist update is in progress"
+```
+
+#### Error Handling
+
+```typescript
+import { WhitelistUpdateError } from 'ad-sdlc';
+
+try {
+  await sanitizer.loadWhitelistFromFile('/nonexistent/file.json');
+} catch (error) {
+  if (error instanceof WhitelistUpdateError) {
+    console.error(`Update failed from ${error.source}: ${error.reason}`);
+  }
+}
+
+// Validation errors are returned in the result
+const result = await sanitizer.updateWhitelist({
+  badCmd: { allowed: 'not-a-boolean' }
+} as any);
+
+if (!result.success) {
+  console.error(`Validation error: ${result.error}`);
+  // "'allowed' field for 'badCmd' must be a boolean"
+}
+```
+
 ## SecureFileOps
 
 Provides a centralized, secure wrapper for all file operations with automatic path validation.

@@ -159,6 +159,65 @@ export interface CommandSanitizerOptions {
 }
 
 /**
+ * Source type for whitelist loading
+ */
+export type WhitelistSourceType = 'file' | 'url' | 'object';
+
+/**
+ * External whitelist source configuration
+ */
+export interface WhitelistSource {
+  /** Source type */
+  readonly type: WhitelistSourceType;
+  /** File path (for 'file' type) */
+  readonly path?: string;
+  /** URL (for 'url' type) */
+  readonly url?: string;
+  /** Direct configuration object (for 'object' type) */
+  readonly config?: Record<string, unknown>;
+}
+
+/**
+ * Options for whitelist update operation
+ */
+export interface WhitelistUpdateOptions {
+  /** Merge with existing whitelist instead of replacing */
+  readonly merge?: boolean;
+  /** Validate new configuration before applying */
+  readonly validate?: boolean;
+  /** Timeout for URL fetching in milliseconds */
+  readonly timeout?: number;
+}
+
+/**
+ * Result of whitelist update operation
+ */
+export interface WhitelistUpdateResult {
+  /** Whether update was successful */
+  readonly success: boolean;
+  /** New whitelist version number */
+  readonly version: number;
+  /** Number of commands in new whitelist */
+  readonly commandCount: number;
+  /** Previous whitelist version */
+  readonly previousVersion: number;
+  /** Error message if failed */
+  readonly error?: string;
+}
+
+/**
+ * Whitelist state snapshot for thread-safe operations
+ */
+export interface WhitelistSnapshot {
+  /** Version number of this snapshot */
+  readonly version: number;
+  /** Timestamp when snapshot was created */
+  readonly timestamp: Date;
+  /** Whitelist configuration */
+  readonly config: Record<string, unknown>;
+}
+
+/**
  * Sanitized command ready for safe execution
  */
 export interface SanitizedCommand {

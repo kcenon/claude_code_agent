@@ -26,6 +26,11 @@ export type {
   SecretManagerOptions,
   SecureFileHandlerOptions,
   ValidationResult,
+  WhitelistSource,
+  WhitelistSourceType,
+  WhitelistUpdateOptions,
+  WhitelistUpdateResult,
+  WhitelistSnapshot,
 } from './types.js';
 
 // Errors
@@ -38,6 +43,7 @@ export {
   SecretNotFoundError,
   SecurityError,
   ValidationError,
+  WhitelistUpdateError,
 } from './errors.js';
 
 // SecretManager

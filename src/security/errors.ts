@@ -119,3 +119,19 @@ export class CommandNotAllowedError extends SecurityError {
     Object.setPrototypeOf(this, CommandNotAllowedError.prototype);
   }
 }
+
+/**
+ * Error thrown when whitelist update fails
+ */
+export class WhitelistUpdateError extends SecurityError {
+  public readonly source: string;
+  public readonly reason: string;
+
+  constructor(source: string, reason: string) {
+    super(`Whitelist update failed from ${source}: ${reason}`, 'WHITELIST_UPDATE_ERROR');
+    this.name = 'WhitelistUpdateError';
+    this.source = source;
+    this.reason = reason;
+    Object.setPrototypeOf(this, WhitelistUpdateError.prototype);
+  }
+}

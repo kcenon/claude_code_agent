@@ -7,6 +7,8 @@
  * - Shell metacharacter prevention
  * - Safe execution using execFile (bypasses shell)
  * - Audit logging for all command executions
+ * - Runtime whitelist updates with thread-safe operations
+ * - External whitelist source loading (file, URL)
  */
 
 import {
@@ -15,6 +17,7 @@ import {
   type ExecFileOptions,
   type ExecFileSyncOptions,
 } from 'node:child_process';
+import { readFile } from 'node:fs/promises';
 import { promisify } from 'node:util';
 import {
   type CommandWhitelistConfig,
@@ -24,8 +27,16 @@ import {
   getCommandConfig,
   containsShellMetacharacters,
 } from './CommandWhitelist.js';
-import { CommandInjectionError, CommandNotAllowedError } from './errors.js';
-import type { SanitizedCommand, CommandExecResult, CommandSanitizerOptions } from './types.js';
+import { CommandInjectionError, CommandNotAllowedError, WhitelistUpdateError } from './errors.js';
+import type {
+  SanitizedCommand,
+  CommandExecResult,
+  CommandSanitizerOptions,
+  WhitelistSource,
+  WhitelistUpdateOptions,
+  WhitelistUpdateResult,
+  WhitelistSnapshot,
+} from './types.js';
 import { getAuditLogger } from './AuditLogger.js';
 
 const execFileAsync = promisify(execFileCallback);
@@ -42,9 +53,12 @@ let sanitizerInstance: CommandSanitizer | null = null;
  * 1. Validating commands against a whitelist
  * 2. Sanitizing arguments to prevent injection
  * 3. Using execFile instead of exec (bypasses shell)
+ * 4. Supporting runtime whitelist updates with thread-safe operations
  */
 export class CommandSanitizer {
-  private readonly whitelist: CommandWhitelistConfig;
+  private whitelist: CommandWhitelistConfig;
+  private whitelistVersion: number;
+  private updateInProgress: boolean;
   private readonly strictMode: boolean;
   private readonly logCommands: boolean;
   private readonly enableAuditLog: boolean;
@@ -53,6 +67,8 @@ export class CommandSanitizer {
   constructor(options: CommandSanitizerOptions = {}) {
     this.whitelist =
       (options.whitelist as CommandWhitelistConfig | undefined) ?? DEFAULT_COMMAND_WHITELIST;
+    this.whitelistVersion = 1;
+    this.updateInProgress = false;
     this.strictMode = options.strictMode ?? true;
     this.logCommands = options.logCommands ?? false;
     this.enableAuditLog = options.enableAuditLog ?? true;
@@ -413,6 +429,284 @@ export class CommandSanitizer {
    */
   public isAllowed(command: string): boolean {
     return isAllowedCommand(command, this.whitelist);
+  }
+
+  /**
+   * Get current whitelist version number
+   *
+   * @returns Current version number
+   */
+  public getWhitelistVersion(): number {
+    return this.whitelistVersion;
+  }
+
+  /**
+   * Get a snapshot of the current whitelist state
+   * Thread-safe operation that captures the current state
+   *
+   * @returns Whitelist snapshot with version and configuration
+   */
+  public getWhitelistSnapshot(): WhitelistSnapshot {
+    return {
+      version: this.whitelistVersion,
+      timestamp: new Date(),
+      config: { ...this.whitelist },
+    };
+  }
+
+  /**
+   * Update the whitelist at runtime
+   * Thread-safe operation using version tracking
+   *
+   * @param newConfig - New whitelist configuration
+   * @param options - Update options
+   * @returns Update result with success status and version info
+   */
+  public updateWhitelist(
+    newConfig: CommandWhitelistConfig,
+    options: WhitelistUpdateOptions = {}
+  ): WhitelistUpdateResult {
+    const { merge = false, validate = true } = options;
+    const previousVersion = this.whitelistVersion;
+
+    // Prevent concurrent updates
+    if (this.updateInProgress) {
+      return {
+        success: false,
+        version: this.whitelistVersion,
+        commandCount: Object.keys(this.whitelist).length,
+        previousVersion,
+        error: 'Another whitelist update is in progress',
+      };
+    }
+
+    this.updateInProgress = true;
+
+    try {
+      // Validate new configuration if requested
+      if (validate) {
+        const validationError = this.validateWhitelistConfig(newConfig);
+        if (validationError !== null) {
+          return {
+            success: false,
+            version: this.whitelistVersion,
+            commandCount: Object.keys(this.whitelist).length,
+            previousVersion,
+            error: validationError,
+          };
+        }
+      }
+
+      // Perform atomic update
+      const finalConfig = merge ? { ...this.whitelist, ...newConfig } : newConfig;
+
+      // Atomic swap
+      this.whitelist = finalConfig;
+      this.whitelistVersion++;
+
+      // Log the update
+      this.logWhitelistUpdate('object', previousVersion, this.whitelistVersion);
+
+      return {
+        success: true,
+        version: this.whitelistVersion,
+        commandCount: Object.keys(finalConfig).length,
+        previousVersion,
+      };
+    } finally {
+      this.updateInProgress = false;
+    }
+  }
+
+  /**
+   * Load whitelist from an external file
+   * Supports JSON format
+   *
+   * @param filePath - Path to the whitelist file
+   * @param options - Update options
+   * @returns Update result
+   */
+  public async loadWhitelistFromFile(
+    filePath: string,
+    options: WhitelistUpdateOptions = {}
+  ): Promise<WhitelistUpdateResult> {
+    try {
+      const content = await readFile(filePath, 'utf-8');
+      const config = JSON.parse(content) as CommandWhitelistConfig;
+
+      return this.updateWhitelist(config, options);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new WhitelistUpdateError(filePath, errorMessage);
+    }
+  }
+
+  /**
+   * Load whitelist from a URL
+   * Supports JSON format
+   *
+   * @param url - URL to fetch whitelist from
+   * @param options - Update options
+   * @returns Update result
+   */
+  public async loadWhitelistFromUrl(
+    url: string,
+    options: WhitelistUpdateOptions = {}
+  ): Promise<WhitelistUpdateResult> {
+    const { timeout = 30000 } = options;
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => {
+        controller.abort();
+      }, timeout);
+
+      const response = await fetch(url, {
+        signal: controller.signal,
+        headers: {
+          Accept: 'application/json',
+        },
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new WhitelistUpdateError(
+          url,
+          `HTTP ${String(response.status)}: ${response.statusText}`
+        );
+      }
+
+      const config = (await response.json()) as CommandWhitelistConfig;
+      return this.updateWhitelist(config, options);
+    } catch (error) {
+      if (error instanceof WhitelistUpdateError) {
+        throw error;
+      }
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new WhitelistUpdateError(url, errorMessage);
+    }
+  }
+
+  /**
+   * Load whitelist from any supported source
+   *
+   * @param source - Whitelist source configuration
+   * @param options - Update options
+   * @returns Update result
+   */
+  public async loadWhitelistFromSource(
+    source: WhitelistSource,
+    options: WhitelistUpdateOptions = {}
+  ): Promise<WhitelistUpdateResult> {
+    switch (source.type) {
+      case 'file':
+        if (source.path === undefined) {
+          throw new WhitelistUpdateError('file', 'File path is required');
+        }
+        return this.loadWhitelistFromFile(source.path, options);
+
+      case 'url':
+        if (source.url === undefined) {
+          throw new WhitelistUpdateError('url', 'URL is required');
+        }
+        return this.loadWhitelistFromUrl(source.url, options);
+
+      case 'object':
+        if (source.config === undefined) {
+          throw new WhitelistUpdateError('object', 'Configuration object is required');
+        }
+        return this.updateWhitelist(source.config as CommandWhitelistConfig, options);
+
+      default:
+        throw new WhitelistUpdateError('unknown', `Unknown source type: ${String(source.type)}`);
+    }
+  }
+
+  /**
+   * Validate whitelist configuration structure
+   *
+   * @param config - Configuration to validate (runtime type checking)
+   * @returns Error message if invalid, null if valid
+   */
+  private validateWhitelistConfig(config: unknown): string | null {
+    if (typeof config !== 'object' || config === null) {
+      return 'Configuration must be an object';
+    }
+
+    const configRecord = config as Record<string, unknown>;
+
+    for (const [command, cmdConfig] of Object.entries(configRecord)) {
+      if (typeof command !== 'string' || command.length === 0) {
+        return 'Command names must be non-empty strings';
+      }
+
+      if (typeof cmdConfig !== 'object' || cmdConfig === null) {
+        return `Configuration for '${command}' must be an object`;
+      }
+
+      const cmdConfigObj = cmdConfig as Record<string, unknown>;
+
+      if (typeof cmdConfigObj.allowed !== 'boolean') {
+        return `'allowed' field for '${command}' must be a boolean`;
+      }
+
+      if (cmdConfigObj.subcommands !== undefined) {
+        if (!Array.isArray(cmdConfigObj.subcommands)) {
+          return `'subcommands' field for '${command}' must be an array`;
+        }
+        for (const sub of cmdConfigObj.subcommands) {
+          if (typeof sub !== 'string') {
+            return `Subcommands for '${command}' must be strings`;
+          }
+        }
+      }
+
+      if (cmdConfigObj.maxArgs !== undefined && typeof cmdConfigObj.maxArgs !== 'number') {
+        return `'maxArgs' field for '${command}' must be a number`;
+      }
+
+      if (
+        cmdConfigObj.allowArbitraryArgs !== undefined &&
+        typeof cmdConfigObj.allowArbitraryArgs !== 'boolean'
+      ) {
+        return `'allowArbitraryArgs' field for '${command}' must be a boolean`;
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Log whitelist update to audit log
+   *
+   * @param source - Source of the update
+   * @param previousVersion - Previous whitelist version
+   * @param newVersion - New whitelist version
+   */
+  private logWhitelistUpdate(source: string, previousVersion: number, newVersion: number): void {
+    if (!this.enableAuditLog) {
+      return;
+    }
+
+    try {
+      const logger = getAuditLogger();
+      logger.log({
+        type: 'command_executed',
+        actor: this.actor,
+        resource: 'whitelist',
+        action: 'update',
+        result: 'success',
+        details: {
+          source,
+          previousVersion,
+          newVersion,
+          commandCount: Object.keys(this.whitelist).length,
+        },
+      });
+    } catch {
+      // Silently ignore audit logging errors
+    }
   }
 
   /**
