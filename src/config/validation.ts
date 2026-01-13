@@ -141,9 +141,7 @@ function generateUserFriendlyMessage(issue: ZodIssue, path: string): string {
       const typedIssue = issue as core.$ZodIssueInvalidValue;
       const values = typedIssue.values.slice(0, 5).map(String).join(', ');
       const more =
-        typedIssue.values.length > 5
-          ? `, ... (${String(typedIssue.values.length - 5)} more)`
-          : '';
+        typedIssue.values.length > 5 ? `, ... (${String(typedIssue.values.length - 5)} more)` : '';
       return `${fieldDesc} must be one of: ${values}${more}`;
     }
 
@@ -197,8 +195,7 @@ function generateUserFriendlyMessage(issue: ZodIssue, path: string): string {
 
     case 'unrecognized_keys': {
       const keys = issue.keys.slice(0, 3).join(', ');
-      const more =
-        issue.keys.length > 3 ? `, ... (${String(issue.keys.length - 3)} more)` : '';
+      const more = issue.keys.length > 3 ? `, ... (${String(issue.keys.length - 3)} more)` : '';
       return `Unknown field(s) in ${fieldDesc}: ${keys}${more}`;
     }
 
