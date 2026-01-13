@@ -462,10 +462,10 @@ export class CommandSanitizer {
    * @param options - Update options
    * @returns Update result with success status and version info
    */
-  public async updateWhitelist(
+  public updateWhitelist(
     newConfig: CommandWhitelistConfig,
     options: WhitelistUpdateOptions = {}
-  ): Promise<WhitelistUpdateResult> {
+  ): WhitelistUpdateResult {
     const { merge = false, validate = true } = options;
     const previousVersion = this.whitelistVersion;
 
@@ -557,7 +557,9 @@ export class CommandSanitizer {
 
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), timeout);
+      const timeoutId = setTimeout(() => {
+        controller.abort();
+      }, timeout);
 
       const response = await fetch(url, {
         signal: controller.signal,
@@ -621,15 +623,17 @@ export class CommandSanitizer {
   /**
    * Validate whitelist configuration structure
    *
-   * @param config - Configuration to validate
+   * @param config - Configuration to validate (runtime type checking)
    * @returns Error message if invalid, null if valid
    */
-  private validateWhitelistConfig(config: CommandWhitelistConfig): string | null {
+  private validateWhitelistConfig(config: unknown): string | null {
     if (typeof config !== 'object' || config === null) {
       return 'Configuration must be an object';
     }
 
-    for (const [command, cmdConfig] of Object.entries(config)) {
+    const configRecord = config as Record<string, unknown>;
+
+    for (const [command, cmdConfig] of Object.entries(configRecord)) {
       if (typeof command !== 'string' || command.length === 0) {
         return 'Command names must be non-empty strings';
       }
@@ -638,28 +642,30 @@ export class CommandSanitizer {
         return `Configuration for '${command}' must be an object`;
       }
 
-      if (typeof cmdConfig.allowed !== 'boolean') {
+      const cmdConfigObj = cmdConfig as Record<string, unknown>;
+
+      if (typeof cmdConfigObj.allowed !== 'boolean') {
         return `'allowed' field for '${command}' must be a boolean`;
       }
 
-      if (cmdConfig.subcommands !== undefined) {
-        if (!Array.isArray(cmdConfig.subcommands)) {
+      if (cmdConfigObj.subcommands !== undefined) {
+        if (!Array.isArray(cmdConfigObj.subcommands)) {
           return `'subcommands' field for '${command}' must be an array`;
         }
-        for (const sub of cmdConfig.subcommands) {
+        for (const sub of cmdConfigObj.subcommands) {
           if (typeof sub !== 'string') {
             return `Subcommands for '${command}' must be strings`;
           }
         }
       }
 
-      if (cmdConfig.maxArgs !== undefined && typeof cmdConfig.maxArgs !== 'number') {
+      if (cmdConfigObj.maxArgs !== undefined && typeof cmdConfigObj.maxArgs !== 'number') {
         return `'maxArgs' field for '${command}' must be a number`;
       }
 
       if (
-        cmdConfig.allowArbitraryArgs !== undefined &&
-        typeof cmdConfig.allowArbitraryArgs !== 'boolean'
+        cmdConfigObj.allowArbitraryArgs !== undefined &&
+        typeof cmdConfigObj.allowArbitraryArgs !== 'boolean'
       ) {
         return `'allowArbitraryArgs' field for '${command}' must be a boolean`;
       }
