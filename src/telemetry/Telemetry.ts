@@ -36,6 +36,9 @@ import {
 /** Current privacy policy version */
 export const PRIVACY_POLICY_VERSION = '1.0.0';
 
+/** Valid consent status values for runtime validation */
+const VALID_CONSENT_STATUSES: readonly ConsentStatus[] = ['granted', 'denied', 'pending'];
+
 /** Default telemetry configuration */
 export const DEFAULT_TELEMETRY_CONFIG: TelemetryConfig = {
   enabled: false, // Disabled by default - requires opt-in
@@ -472,15 +475,17 @@ export class Telemetry {
     try {
       if (existsSync(this.consentFilePath)) {
         const content = readFileSync(this.consentFilePath, 'utf-8');
-        const parsed = JSON.parse(content) as ConsentRecord;
+        const parsed = JSON.parse(content) as unknown;
 
-        // Validate parsed data
+        // Validate parsed data structure and consent status
         if (
-          parsed.status === 'granted' ||
-          parsed.status === 'denied' ||
-          parsed.status === 'pending'
+          parsed !== null &&
+          typeof parsed === 'object' &&
+          'status' in parsed &&
+          typeof (parsed as { status: unknown }).status === 'string' &&
+          VALID_CONSENT_STATUSES.includes((parsed as { status: string }).status as ConsentStatus)
         ) {
-          this.consentRecord = parsed;
+          this.consentRecord = parsed as ConsentRecord;
         }
       }
     } catch {
