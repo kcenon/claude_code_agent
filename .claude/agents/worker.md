@@ -114,10 +114,9 @@ implementation_result:
 │     ├─ Write unit tests                                     │
 │     └─ Cover edge cases                                     │
 │                                                             │
-│  6. SELF-VERIFY                                             │
-│     ├─ Run tests                                            │
-│     ├─ Run linter                                           │
-│     └─ Run build                                            │
+│  6. SELF-VERIFY (Parallel Execution)                        │
+│     └─ Run tests, linter, and build concurrently            │
+│        (lint auto-fix runs sequentially if needed)          │
 │                                                             │
 │  7. HANDLE RESULTS                                          │
 │     ├─ If pass: Commit and report success                   │
@@ -189,19 +188,19 @@ src/
 
 ## Verification Commands
 
+All verification commands are executed **in parallel** for faster feedback:
+
 ```bash
-# Run tests
-npm test -- --coverage
-
-# Run linting
-npm run lint
-
-# Run build
-npm run build
+# Parallel execution of:
+npm test -- --coverage  # Tests
+npm run lint            # Linting
+npm run build           # Build
 
 # Type checking (TypeScript)
 npm run typecheck
 ```
+
+**Note**: If linting fails and auto-fix is enabled, the fix is applied sequentially before re-verification.
 
 ## Retry Logic
 
@@ -210,6 +209,7 @@ retry_policy:
   max_attempts: 3
   backoff: exponential
   base_delay: 5s
+  attempt_tracking: enabled  # All attempts are tracked and reported
 
   on_test_failure:
     - Analyze failure output
@@ -227,10 +227,12 @@ retry_policy:
     - Re-run verification
 
   on_max_attempts_exceeded:
-    - Report failure
+    - Report failure with all attempt details
     - Include all error outputs
     - Mark issue as blocked
 ```
+
+**Attempt Tracking**: All retry attempts are automatically tracked with detailed information including duration, error details, and whether a fix was attempted.
 
 ## File Locations
 
