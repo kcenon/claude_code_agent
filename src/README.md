@@ -9,6 +9,7 @@ This directory contains source code for the AD-SDLC system.
 src/
 ├── cli.ts                 # CLI entry point
 ├── index.ts               # Main module exports
+├── completion/            # Shell autocompletion support
 ├── config/                # Configuration validation module
 ├── error-handler/         # Retry logic and error handling
 ├── init/                  # Project initialization module
@@ -16,6 +17,17 @@ src/
 ├── scratchpad/            # Inter-agent state sharing
 └── security/              # Security and input validation
 ```
+
+### completion/ - Shell Autocompletion Support
+- `CompletionGenerator.ts` - Generates shell completion scripts
+- `types.ts` - Shell types and command definitions
+- `index.ts` - Module exports
+
+Features:
+- Bash, Zsh, and Fish shell support
+- Command and option completion
+- Value completion for enum-type options
+- Installation instructions for each shell
 
 ### config/ - Configuration Validation
 - `schemas.ts` - Zod schemas for workflow.yaml and agents.yaml

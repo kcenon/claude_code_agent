@@ -3,7 +3,6 @@
 /**
  * AD-SDLC CLI Entry Point
  *
- * NOTE: Command autocompletion support is planned. See Issue #259.
  * NOTE: Telemetry opt-in for usage analytics is planned. See Issue #261.
  * NOTE: Using process.exit(1) in error handlers for reliability.
  *
@@ -37,6 +36,7 @@ import { StatusService } from './status/index.js';
 import type { OutputFormat } from './status/types.js';
 import { initializeProject, isProjectInitialized } from './utils/index.js';
 import { resolve } from 'node:path';
+import { getCompletionGenerator, SUPPORTED_SHELLS, type ShellType } from './completion/index.js';
 
 const program = new Command();
 
@@ -684,6 +684,52 @@ function formatResultStatus(status: string): string {
       return chalk.dim(status);
   }
 }
+
+/**
+ * Completion command - Generate shell completion scripts
+ */
+program
+  .command('completion')
+  .description('Generate shell completion script')
+  .option('-s, --shell <shell>', 'Shell type (bash, zsh, fish)')
+  .action((cmdOptions: Record<string, unknown>) => {
+    const shellInput = typeof cmdOptions['shell'] === 'string' ? cmdOptions['shell'] : null;
+
+    // Validate shell type
+    if (shellInput === null || shellInput.length === 0) {
+      console.error(chalk.red('\n❌ Error: Shell type is required'));
+      console.log(chalk.dim(`\nSupported shells: ${SUPPORTED_SHELLS.join(', ')}`));
+      console.log(chalk.dim('\nUsage: ad-sdlc completion --shell <shell>\n'));
+      console.log(chalk.blue('Examples:'));
+      console.log(chalk.dim('  ad-sdlc completion --shell bash'));
+      console.log(chalk.dim('  ad-sdlc completion --shell zsh'));
+      console.log(chalk.dim('  ad-sdlc completion --shell fish\n'));
+      process.exit(1);
+    }
+
+    if (!SUPPORTED_SHELLS.includes(shellInput as ShellType)) {
+      console.error(chalk.red(`\n❌ Error: Unsupported shell: ${shellInput}`));
+      console.log(chalk.dim(`\nSupported shells: ${SUPPORTED_SHELLS.join(', ')}\n`));
+      process.exit(1);
+    }
+
+    const shell = shellInput as ShellType;
+    const generator = getCompletionGenerator();
+    const result = generator.generate(shell);
+
+    if (!result.success) {
+      console.error(
+        chalk.red(`\n❌ Error generating completion: ${result.error ?? 'Unknown error'}\n`)
+      );
+      process.exit(1);
+    }
+
+    // Output the completion script
+    console.log(result.script);
+
+    // Show installation instructions on stderr so they don't interfere with script output
+    console.error(chalk.dim('\n' + result.instructions + '\n'));
+  });
 
 // Parse command line arguments
 program.parse();
