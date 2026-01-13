@@ -506,3 +506,80 @@ export interface BudgetWarningPersisted {
   /** Timestamp of warning (ISO string) */
   readonly timestamp: string;
 }
+
+/**
+ * Structured query language types for log search
+ */
+
+/**
+ * Query field names for structured log search
+ */
+export type LogQueryField =
+  | 'level'
+  | 'agent'
+  | 'stage'
+  | 'projectId'
+  | 'correlationId'
+  | 'message'
+  | 'time';
+
+/**
+ * Logical operators for combining query conditions
+ */
+export type LogQueryOperator = 'AND' | 'OR' | 'NOT';
+
+/**
+ * Single field condition in a query
+ */
+export interface LogQueryCondition {
+  /** Field to filter */
+  readonly field: LogQueryField;
+  /** Value or pattern to match */
+  readonly value: string;
+  /** Whether this is a negated condition */
+  readonly negated?: boolean;
+  /** For time field: range end value (value becomes start) */
+  readonly rangeEnd?: string;
+}
+
+/**
+ * Compound query expression with logical operators
+ */
+export interface LogQueryExpression {
+  /** Type of expression */
+  readonly type: 'condition' | 'compound';
+  /** Single condition (when type is 'condition') */
+  readonly condition?: LogQueryCondition;
+  /** Operator for compound expressions */
+  readonly operator?: LogQueryOperator;
+  /** Left operand for compound expressions */
+  readonly left?: LogQueryExpression;
+  /** Right operand for compound expressions (or single operand for NOT) */
+  readonly right?: LogQueryExpression;
+}
+
+/**
+ * Result of parsing a structured query
+ */
+export interface LogQueryParseResult {
+  /** Whether parsing was successful */
+  readonly success: boolean;
+  /** Parsed expression (when successful) */
+  readonly expression?: LogQueryExpression;
+  /** Error message (when unsuccessful) */
+  readonly error?: string;
+  /** Position of error in query string */
+  readonly errorPosition?: number;
+}
+
+/**
+ * Extended query result with query metadata
+ */
+export interface StructuredLogQueryResult extends LogQueryResult {
+  /** Original query string */
+  readonly query: string;
+  /** Parsed expression */
+  readonly expression: LogQueryExpression;
+  /** Time taken to execute query in milliseconds */
+  readonly executionTimeMs: number;
+}

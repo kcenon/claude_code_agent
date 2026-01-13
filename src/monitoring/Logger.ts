@@ -27,7 +27,10 @@ import type {
   LogAggregationSource,
   LogAggregationOptions,
   LogCompressionOptions,
+  LogQueryParseResult,
+  StructuredLogQueryResult,
 } from './types.js';
+import { LogQueryParser } from './LogQueryParser.js';
 
 /**
  * Default log directory
@@ -109,6 +112,7 @@ export class Logger {
   private currentLogFile: string | null = null;
   private currentFileSize = 0;
   private readonly agentLogFiles: Map<string, { file: string; size: number }> = new Map();
+  private readonly queryParser: LogQueryParser = new LogQueryParser();
 
   constructor(options: LoggerOptions = {}) {
     this.logDir = options.logDir ?? DEFAULT_LOG_DIR;
@@ -950,6 +954,35 @@ export class Logger {
    */
   public getMaskingPatternNames(): string[] {
     return this.maskingPatterns.map((p) => p.name);
+  }
+
+  /**
+   * Search logs using structured query language
+   *
+   * Query syntax examples:
+   * - level:error - Match error level logs
+   * - agent:worker-1 - Match logs from specific agent
+   * - level:error AND agent:worker - Combine conditions with AND
+   * - level:error OR level:warn - Match multiple levels
+   * - NOT level:debug - Exclude debug logs
+   * - message:"failed to connect" - Search message content
+   * - time:2024-01-01..2024-01-31 - Filter by time range
+   * - (level:error OR level:warn) AND agent:worker - Group with parentheses
+   *
+   * Supported fields: level, agent, stage, projectId, correlationId, message, time
+   */
+  public searchWithQuery(query: string, limit = 100, offset = 0): StructuredLogQueryResult {
+    const entries = this.getAllLogEntries();
+    return this.queryParser.search(query, entries, limit, offset);
+  }
+
+  /**
+   * Parse a query string without executing it
+   *
+   * Useful for validating query syntax before execution
+   */
+  public parseQuery(query: string): LogQueryParseResult {
+    return this.queryParser.parse(query);
   }
 
   /**

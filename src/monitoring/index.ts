@@ -17,6 +17,12 @@ export type {
   LogAggregationSource,
   LogAggregationOptions,
   LogCompressionOptions,
+  LogQueryField,
+  LogQueryOperator,
+  LogQueryCondition,
+  LogQueryExpression,
+  LogQueryParseResult,
+  StructuredLogQueryResult,
   MetricType,
   MetricDefinition,
   MetricValue,
@@ -60,6 +66,9 @@ export {
 
 // Logger
 export { Logger, getLogger, resetLogger } from './Logger.js';
+
+// LogQueryParser
+export { LogQueryParser, createLogQueryParser } from './LogQueryParser.js';
 
 // MetricsCollector
 export {
