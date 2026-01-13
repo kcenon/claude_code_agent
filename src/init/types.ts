@@ -49,9 +49,24 @@ export interface InitOptions {
 }
 
 /**
+ * Semantic version for templates
+ */
+export interface TemplateVersion {
+  /** Major version (breaking changes) */
+  readonly major: number;
+  /** Minor version (new features, backward compatible) */
+  readonly minor: number;
+  /** Patch version (bug fixes) */
+  readonly patch: number;
+}
+
+/**
  * Template configuration for different project variants
  */
 export interface TemplateConfig {
+  /** Template version */
+  readonly version: TemplateVersion;
+
   /** Agent configuration set */
   readonly agents: 'default';
 
@@ -68,20 +83,32 @@ export interface TemplateConfig {
 /**
  * Template configurations by type
  */
+/**
+ * Current template version constant
+ */
+export const CURRENT_TEMPLATE_VERSION: TemplateVersion = {
+  major: 1,
+  minor: 0,
+  patch: 0,
+};
+
 export const TEMPLATE_CONFIGS: Record<TemplateType, TemplateConfig> = {
   minimal: {
+    version: CURRENT_TEMPLATE_VERSION,
     agents: 'default',
     qualityGates: 'basic',
     parallelWorkers: 2,
     extraFeatures: [],
   },
   standard: {
+    version: CURRENT_TEMPLATE_VERSION,
     agents: 'default',
     qualityGates: 'standard',
     parallelWorkers: 3,
     extraFeatures: ['token_tracking', 'progress_dashboard'],
   },
   enterprise: {
+    version: CURRENT_TEMPLATE_VERSION,
     agents: 'default',
     qualityGates: 'strict',
     parallelWorkers: 5,
@@ -223,4 +250,64 @@ export interface WorkflowConfig {
     readonly retry_attempts: number;
     readonly retry_delay_ms: number;
   };
+}
+
+/**
+ * Template compatibility check result
+ */
+export interface TemplateCompatibilityResult {
+  /** Whether templates are compatible */
+  readonly compatible: boolean;
+
+  /** Source version being checked */
+  readonly sourceVersion: TemplateVersion;
+
+  /** Target version being checked against */
+  readonly targetVersion: TemplateVersion;
+
+  /** Compatibility issues found */
+  readonly issues: readonly string[];
+
+  /** Whether migration is possible */
+  readonly canMigrate: boolean;
+
+  /** Required migrations if applicable */
+  readonly requiredMigrations: readonly string[];
+}
+
+/**
+ * Template migration step definition
+ */
+export interface TemplateMigrationStep {
+  /** Source version this migration starts from */
+  readonly fromVersion: TemplateVersion;
+
+  /** Target version this migration produces */
+  readonly toVersion: TemplateVersion;
+
+  /** Description of what this migration does */
+  readonly description: string;
+
+  /** Migration function */
+  readonly migrate: (config: TemplateConfig) => TemplateConfig;
+}
+
+/**
+ * Result of template migration
+ */
+export interface TemplateMigrationResult {
+  /** Whether migration was successful */
+  readonly success: boolean;
+
+  /** Original template configuration */
+  readonly original: TemplateConfig;
+
+  /** Migrated template configuration */
+  readonly migrated: TemplateConfig | null;
+
+  /** Migration steps applied */
+  readonly appliedSteps: readonly string[];
+
+  /** Error message if migration failed */
+  readonly error?: string;
 }
