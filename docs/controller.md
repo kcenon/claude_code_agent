@@ -551,6 +551,7 @@ for (const worker of status.workers) {
 | `workerTimeout` | number | 600000 | Timeout in milliseconds (10 min) |
 | `workOrdersPath` | string | '.ad-sdlc/scratchpad/progress' | State storage path |
 | `distributedLock` | DistributedLockOptions | undefined | Enable distributed locking for multi-process deployments |
+| `metricsConfig` | WorkerPoolMetricsConfig | undefined | Enable metrics collection for observability |
 
 ### Distributed Lock Support
 
@@ -640,6 +641,162 @@ process.on('SIGINT', async () => {
 | `lockRetryDelayMs` | number | 100 | Base delay between retries |
 | `lockStealThresholdMs` | number | 5000 | Threshold for stealing expired locks |
 | `holderIdPrefix` | string | 'worker-pool' | Prefix for lock holder ID |
+
+### Metrics and Observability
+
+The WorkerPoolManager supports metrics collection for monitoring pool utilization, queue depth, and task completion times.
+
+#### Enabling Metrics
+
+```typescript
+import { WorkerPoolManager } from 'ad-sdlc';
+
+const pool = new WorkerPoolManager({
+  maxWorkers: 5,
+  metricsConfig: {
+    enabled: true,
+    maxCompletionRecords: 1000,    // Maximum completion records to retain
+    metricsPrefix: 'worker_pool',  // Prefix for Prometheus metrics
+    histogramBuckets: [100, 500, 1000, 5000, 10000, 30000, 60000, 120000, 300000, 600000],
+  },
+});
+
+// Check if metrics are enabled
+console.log(pool.isMetricsEnabled());  // true
+```
+
+#### Getting Metrics Snapshot
+
+```typescript
+// Get complete metrics snapshot
+const snapshot = pool.getMetricsSnapshot();
+
+if (snapshot !== null) {
+  // Pool utilization metrics
+  console.log(`Total workers: ${snapshot.utilization.totalWorkers}`);
+  console.log(`Active workers: ${snapshot.utilization.activeWorkers}`);
+  console.log(`Idle workers: ${snapshot.utilization.idleWorkers}`);
+  console.log(`Utilization: ${(snapshot.utilization.utilizationRatio * 100).toFixed(1)}%`);
+
+  // Queue depth metrics
+  console.log(`Queue depth: ${snapshot.queueDepth.currentDepth}`);
+  console.log(`Queue capacity: ${snapshot.queueDepth.maxCapacity}`);
+  console.log(`Dead letter count: ${snapshot.queueDepth.deadLetterCount}`);
+  console.log(`Backpressure active: ${snapshot.queueDepth.backpressureActive}`);
+
+  // Task completion statistics
+  console.log(`Total completed: ${snapshot.completionStats.totalCompleted}`);
+  console.log(`Success rate: ${(snapshot.completionStats.successRate * 100).toFixed(1)}%`);
+  console.log(`Average time: ${snapshot.completionStats.averageTimeMs}ms`);
+  console.log(`P50 time: ${snapshot.completionStats.p50TimeMs}ms`);
+  console.log(`P95 time: ${snapshot.completionStats.p95TimeMs}ms`);
+  console.log(`P99 time: ${snapshot.completionStats.p99TimeMs}ms`);
+}
+```
+
+#### Exporting Metrics in Prometheus Format
+
+```typescript
+// Export in Prometheus text format
+const prometheusMetrics = pool.exportMetrics('prometheus');
+console.log(prometheusMetrics);
+
+// Example output:
+// # HELP worker_pool_workers_total Total number of workers in the pool
+// # TYPE worker_pool_workers_total gauge
+// worker_pool_workers_total 5
+// # HELP worker_pool_workers_active Number of workers currently processing tasks
+// # TYPE worker_pool_workers_active gauge
+// worker_pool_workers_active 2
+// ...
+
+// Export as JSON
+const jsonMetrics = pool.exportMetrics('json');
+const parsed = JSON.parse(jsonMetrics);
+```
+
+#### Metrics Event Notifications
+
+```typescript
+// Subscribe to metrics events
+pool.onMetricsEvent((event) => {
+  switch (event.type) {
+    case 'task_started':
+      console.log(`Task ${event.data.orderId} started on worker ${event.data.workerId}`);
+      break;
+    case 'task_completed':
+      console.log(`Task ${event.data.orderId} completed in ${event.data.durationMs}ms`);
+      break;
+    case 'task_failed':
+      console.log(`Task ${event.data.orderId} failed`);
+      break;
+    case 'worker_utilized':
+      console.log(`Worker utilization increased to ${event.data.activeWorkers}`);
+      break;
+    case 'backpressure_changed':
+      if (event.data.backpressureActive) {
+        console.warn('Backpressure activated - queue is filling up');
+      }
+      break;
+  }
+});
+```
+
+#### Resetting Metrics
+
+```typescript
+// Reset all collected metrics (pool state is preserved)
+pool.resetMetrics();
+```
+
+#### Direct Access to Metrics Collector
+
+For advanced usage, you can access the metrics collector directly:
+
+```typescript
+const collector = pool.getMetricsCollector();
+if (collector !== null) {
+  // Get Prometheus metrics as objects
+  const metrics = collector.toPrometheusMetrics();
+
+  // Get histogram data
+  const histogram = collector.toPrometheusHistogram();
+  console.log(`Sum of durations: ${histogram.sum}ms`);
+  console.log(`Total observations: ${histogram.count}`);
+}
+```
+
+#### Metrics Configuration Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `enabled` | boolean | true | Enable metrics collection |
+| `maxCompletionRecords` | number | 1000 | Maximum completion records to retain |
+| `histogramBuckets` | number[] | [100, 500, ...600000] | Histogram bucket boundaries in ms |
+| `metricsPrefix` | string | 'worker_pool' | Prefix for Prometheus metric names |
+
+#### Available Prometheus Metrics
+
+| Metric | Type | Description |
+|--------|------|-------------|
+| `worker_pool_workers_total` | gauge | Total number of workers |
+| `worker_pool_workers_active` | gauge | Workers currently processing tasks |
+| `worker_pool_workers_idle` | gauge | Idle workers |
+| `worker_pool_workers_error` | gauge | Workers in error state |
+| `worker_pool_utilization_ratio` | gauge | Pool utilization (0-1) |
+| `worker_pool_queue_depth` | gauge | Current queue depth |
+| `worker_pool_queue_max_capacity` | gauge | Maximum queue capacity |
+| `worker_pool_dead_letter_queue_size` | gauge | Dead letter queue size |
+| `worker_pool_backpressure_active` | gauge | Backpressure status (0 or 1) |
+| `worker_pool_tasks_started_total` | counter | Total tasks started |
+| `worker_pool_tasks_completed_total` | counter | Tasks completed successfully |
+| `worker_pool_tasks_failed_total` | counter | Tasks failed |
+| `worker_pool_task_success_rate` | gauge | Success rate (0-1) |
+| `worker_pool_task_duration_average_ms` | gauge | Average completion time |
+| `worker_pool_task_duration_p50_ms` | gauge | Median completion time |
+| `worker_pool_task_duration_p95_ms` | gauge | 95th percentile completion time |
+| `worker_pool_task_duration_p99_ms` | gauge | 99th percentile completion time |
+| `worker_pool_task_duration_ms` | histogram | Task duration distribution |
 
 ### Work Order Structure
 

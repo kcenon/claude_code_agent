@@ -828,4 +828,206 @@ describe('WorkerPoolManager', () => {
       });
     });
   });
+
+  describe('metrics support', () => {
+    let metricsManager: WorkerPoolManager;
+    let metricsTestDir: string;
+
+    beforeEach(async () => {
+      metricsTestDir = join(tmpdir(), `worker-pool-metrics-test-${Date.now()}`);
+      metricsManager = new WorkerPoolManager({
+        maxWorkers: 3,
+        workOrdersPath: metricsTestDir,
+        metricsConfig: {
+          enabled: true,
+          maxCompletionRecords: 100,
+        },
+      });
+    });
+
+    afterEach(async () => {
+      if (existsSync(metricsTestDir)) {
+        await rm(metricsTestDir, { recursive: true, force: true });
+      }
+    });
+
+    describe('configuration', () => {
+      it('should detect metrics enabled', () => {
+        expect(metricsManager.isMetricsEnabled()).toBe(true);
+      });
+
+      it('should detect metrics disabled when not configured', () => {
+        expect(manager.isMetricsEnabled()).toBe(false);
+      });
+
+      it('should return null for metrics when disabled', () => {
+        expect(manager.getMetricsSnapshot()).toBeNull();
+        expect(manager.exportMetrics()).toBeNull();
+      });
+    });
+
+    describe('getMetricsSnapshot', () => {
+      it('should return metrics snapshot', () => {
+        const snapshot = metricsManager.getMetricsSnapshot();
+
+        expect(snapshot).not.toBeNull();
+        expect(snapshot?.utilization.totalWorkers).toBe(3);
+        expect(snapshot?.utilization.idleWorkers).toBe(3);
+        expect(snapshot?.utilization.activeWorkers).toBe(0);
+      });
+
+      it('should reflect worker state changes', async () => {
+        const order = await metricsManager.createWorkOrder(createIssueNode('ISS-001'));
+        metricsManager.assignWork('worker-1', order);
+
+        const snapshot = metricsManager.getMetricsSnapshot();
+
+        expect(snapshot?.utilization.activeWorkers).toBe(1);
+        expect(snapshot?.utilization.idleWorkers).toBe(2);
+      });
+
+      it('should track task completions', async () => {
+        const order = await metricsManager.createWorkOrder(createIssueNode('ISS-001'));
+        metricsManager.assignWork('worker-1', order);
+
+        await metricsManager.completeWork('worker-1', {
+          orderId: 'WO-001',
+          success: true,
+          completedAt: new Date().toISOString(),
+          filesModified: [],
+        });
+
+        const snapshot = metricsManager.getMetricsSnapshot();
+
+        expect(snapshot?.completionStats.totalCompleted).toBe(1);
+        expect(snapshot?.completionStats.successCount).toBe(1);
+      });
+
+      it('should track task failures', async () => {
+        const order = await metricsManager.createWorkOrder(createIssueNode('ISS-001'));
+        metricsManager.assignWork('worker-1', order);
+
+        await metricsManager.failWork('worker-1', 'WO-001', new Error('Test failure'));
+
+        const snapshot = metricsManager.getMetricsSnapshot();
+
+        expect(snapshot?.completionStats.totalCompleted).toBe(1);
+        expect(snapshot?.completionStats.failureCount).toBe(1);
+      });
+    });
+
+    describe('exportMetrics', () => {
+      it('should export metrics in Prometheus format', async () => {
+        const order = await metricsManager.createWorkOrder(createIssueNode('ISS-001'));
+        metricsManager.assignWork('worker-1', order);
+
+        const exported = metricsManager.exportMetrics('prometheus');
+
+        expect(exported).not.toBeNull();
+        expect(exported).toContain('worker_pool_workers_total 3');
+        expect(exported).toContain('worker_pool_workers_active 1');
+      });
+
+      it('should export metrics in JSON format', () => {
+        const exported = metricsManager.exportMetrics('json');
+
+        expect(exported).not.toBeNull();
+        const parsed = JSON.parse(exported!);
+        expect(parsed.utilization.totalWorkers).toBe(3);
+      });
+
+      it('should default to Prometheus format', () => {
+        const exported = metricsManager.exportMetrics();
+
+        expect(exported).toContain('# HELP');
+        expect(exported).toContain('# TYPE');
+      });
+    });
+
+    describe('onMetricsEvent', () => {
+      it('should receive task_started event', async () => {
+        const callback = vi.fn();
+        metricsManager.onMetricsEvent(callback);
+
+        const order = await metricsManager.createWorkOrder(createIssueNode('ISS-001'));
+        metricsManager.assignWork('worker-1', order);
+
+        expect(callback).toHaveBeenCalledWith(
+          expect.objectContaining({
+            type: 'task_started',
+            data: expect.objectContaining({ orderId: 'WO-001' }),
+          })
+        );
+      });
+
+      it('should receive task_completed event', async () => {
+        const callback = vi.fn();
+        metricsManager.onMetricsEvent(callback);
+
+        const order = await metricsManager.createWorkOrder(createIssueNode('ISS-001'));
+        metricsManager.assignWork('worker-1', order);
+
+        await metricsManager.completeWork('worker-1', {
+          orderId: 'WO-001',
+          success: true,
+          completedAt: new Date().toISOString(),
+          filesModified: [],
+        });
+
+        expect(callback).toHaveBeenCalledWith(
+          expect.objectContaining({
+            type: 'task_completed',
+            data: expect.objectContaining({ orderId: 'WO-001' }),
+          })
+        );
+      });
+
+      it('should not receive events when metrics disabled', async () => {
+        const callback = vi.fn();
+        manager.onMetricsEvent(callback);
+
+        const order = await manager.createWorkOrder(createIssueNode('ISS-001'));
+        manager.assignWork('worker-1', order);
+
+        expect(callback).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('resetMetrics', () => {
+      it('should reset metrics data', async () => {
+        const order = await metricsManager.createWorkOrder(createIssueNode('ISS-001'));
+        metricsManager.assignWork('worker-1', order);
+        await metricsManager.completeWork('worker-1', {
+          orderId: 'WO-001',
+          success: true,
+          completedAt: new Date().toISOString(),
+          filesModified: [],
+        });
+
+        metricsManager.resetMetrics();
+
+        const snapshot = metricsManager.getMetricsSnapshot();
+        expect(snapshot?.completionStats.totalCompleted).toBe(0);
+      });
+
+      it('should be safe to call when metrics disabled', () => {
+        expect(() => manager.resetMetrics()).not.toThrow();
+      });
+    });
+
+    describe('getMetricsCollector', () => {
+      it('should return metrics collector when enabled', () => {
+        const collector = metricsManager.getMetricsCollector();
+
+        expect(collector).not.toBeNull();
+        expect(collector?.isEnabled()).toBe(true);
+      });
+
+      it('should return null when metrics disabled', () => {
+        const collector = manager.getMetricsCollector();
+
+        expect(collector).toBeNull();
+      });
+    });
+  });
 });
