@@ -31,7 +31,7 @@ export class ConsentRequiredError extends TelemetryError {
  * Error thrown when consent file operations fail
  */
 export class ConsentStorageError extends TelemetryError {
-  readonly cause?: Error;
+  readonly cause: Error | undefined;
 
   constructor(message: string, cause?: Error) {
     super(message, 'CONSENT_STORAGE_ERROR');
@@ -44,7 +44,7 @@ export class ConsentStorageError extends TelemetryError {
  * Error thrown when telemetry event validation fails
  */
 export class InvalidEventError extends TelemetryError {
-  readonly eventType?: string;
+  readonly eventType: string | undefined;
 
   constructor(message: string, eventType?: string) {
     super(message, 'INVALID_EVENT');
@@ -58,7 +58,7 @@ export class InvalidEventError extends TelemetryError {
  */
 export class FlushError extends TelemetryError {
   readonly pendingEvents: number;
-  readonly cause?: Error;
+  readonly cause: Error | undefined;
 
   constructor(message: string, pendingEvents: number, cause?: Error) {
     super(message, 'FLUSH_ERROR');

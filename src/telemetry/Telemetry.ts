@@ -27,7 +27,6 @@ import {
   ConsentRequiredError,
   ConsentStorageError,
   InvalidEventError,
-  TelemetryDisabledError,
 } from './errors.js';
 
 // ============================================================
@@ -66,7 +65,6 @@ export const PRIVACY_POLICY: PrivacyPolicy = {
     'User-generated content',
   ],
   retentionPeriod: '90 days',
-  fullPolicyUrl: undefined,
 };
 
 // ============================================================
