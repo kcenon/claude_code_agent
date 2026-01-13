@@ -75,10 +75,7 @@ export function parseVersion(versionString: string): TemplateVersion | null {
  * - Major versions match (breaking changes require migration)
  * - Source minor version <= target minor version
  */
-export function isVersionCompatible(
-  source: TemplateVersion,
-  target: TemplateVersion
-): boolean {
+export function isVersionCompatible(source: TemplateVersion, target: TemplateVersion): boolean {
   // Major version must match for compatibility
   if (source.major !== target.major) {
     return false;
@@ -184,9 +181,7 @@ export function findMigrationPath(
  * @param config - Template configuration to validate
  * @returns Compatibility result
  */
-export function validateTemplateCompatibility(
-  config: TemplateConfig
-): TemplateCompatibilityResult {
+export function validateTemplateCompatibility(config: TemplateConfig): TemplateCompatibilityResult {
   const sourceVersion = config.version;
   const targetVersion = CURRENT_TEMPLATE_VERSION;
 
@@ -227,8 +222,7 @@ export function validateTemplateCompatibility(
   }
 
   const compatible =
-    issues.length === 0 ||
-    (isVersionCompatible(sourceVersion, targetVersion) && canMigrate);
+    issues.length === 0 || (isVersionCompatible(sourceVersion, targetVersion) && canMigrate);
 
   return {
     compatible,
@@ -267,7 +261,8 @@ export function migrateTemplate(config: TemplateConfig): TemplateMigrationResult
       original: config,
       migrated: null,
       appliedSteps: [],
-      error: `Cannot migrate from newer version ${formatVersion(sourceVersion)} ` +
+      error:
+        `Cannot migrate from newer version ${formatVersion(sourceVersion)} ` +
         `to older version ${formatVersion(targetVersion)}`,
     };
   }
@@ -294,7 +289,8 @@ export function migrateTemplate(config: TemplateConfig): TemplateMigrationResult
       original: config,
       migrated: null,
       appliedSteps: [],
-      error: `No migration path found from ${formatVersion(sourceVersion)} ` +
+      error:
+        `No migration path found from ${formatVersion(sourceVersion)} ` +
         `to ${formatVersion(targetVersion)}`,
     };
   }
