@@ -29,6 +29,7 @@ The monitoring module is included in the main `ad-sdlc` package:
 import {
   // Core monitoring
   Logger,
+  LogQueryParser,
   MetricsCollector,
   AlertManager,
   DashboardDataProvider,
@@ -46,6 +47,7 @@ import {
   ResponseTimeBenchmarks,
   // Factory functions
   getLogger,
+  createLogQueryParser,
   getMetricsCollector,
   getAlertManager,
   getDashboardDataProvider,
@@ -266,6 +268,99 @@ const agentLogs = logger.getAgentLogs('worker-1', 100);
 const timeRangeLogs = logger.getLogsByTimeRange('2024-01-15T00:00:00Z', '2024-01-15T12:00:00Z');
 const searchResults = logger.searchLogs('connection timeout', 50);
 const traceLogs = logger.getLogsByCorrelationId('abc-123-def');
+```
+
+### Structured Query Language
+
+Search logs using a powerful structured query language with field filters and logical operators:
+
+```typescript
+// Simple field queries
+const errors = logger.searchWithQuery('level:error');
+const agentLogs = logger.searchWithQuery('agent:worker-1');
+
+// Logical operators (AND, OR, NOT)
+const criticalErrors = logger.searchWithQuery('level:error AND agent:worker-1');
+const warnings = logger.searchWithQuery('level:error OR level:warn');
+const nonDebug = logger.searchWithQuery('NOT level:debug');
+
+// Message content search
+const timeouts = logger.searchWithQuery('message:timeout');
+const quotedSearch = logger.searchWithQuery('message:"connection failed"');
+
+// Time range queries
+const todayLogs = logger.searchWithQuery('time:2024-01-15');
+const rangeLogs = logger.searchWithQuery('time:2024-01-01..2024-01-31');
+
+// Complex expressions with parentheses
+const filtered = logger.searchWithQuery(
+  '(level:error OR level:warn) AND agent:worker-1 AND NOT message:timeout'
+);
+
+// Pagination support
+const page1 = logger.searchWithQuery('level:error', 50, 0);    // limit 50, offset 0
+const page2 = logger.searchWithQuery('level:error', 50, 50);   // limit 50, offset 50
+
+// Access result metadata
+console.log(`Query: ${page1.query}`);
+console.log(`Total: ${page1.totalCount}`);
+console.log(`Has more: ${page1.hasMore}`);
+console.log(`Execution time: ${page1.executionTimeMs}ms`);
+
+// Parse query without executing (useful for validation)
+const parseResult = logger.parseQuery('level:error AND agent:worker');
+if (parseResult.success) {
+  console.log('Valid query');
+  console.log('Expression:', parseResult.expression);
+} else {
+  console.log(`Parse error: ${parseResult.error}`);
+}
+```
+
+#### Query Syntax Reference
+
+| Syntax | Description | Example |
+|--------|-------------|---------|
+| `field:value` | Match field equal to value | `level:error` |
+| `field:"value"` | Match value with spaces | `message:"task failed"` |
+| `time:date` | Match single date | `time:2024-01-15` |
+| `time:start..end` | Match date range | `time:2024-01-01..2024-01-31` |
+| `expr1 AND expr2` | Both conditions must match | `level:error AND agent:worker` |
+| `expr1 OR expr2` | Either condition must match | `level:error OR level:warn` |
+| `NOT expr` | Negate condition | `NOT level:debug` |
+| `(expr)` | Group expressions | `(level:error OR level:warn) AND agent:worker` |
+
+#### Supported Fields
+
+| Field | Description | Case Sensitive |
+|-------|-------------|----------------|
+| `level` | Log level (DEBUG, INFO, WARN, ERROR) | No |
+| `agent` | Agent name | No |
+| `stage` | Pipeline stage | No |
+| `projectId` | Project identifier | Yes |
+| `correlationId` | Correlation ID | Yes |
+| `message` | Message content (substring match) | No |
+| `time` | Timestamp (ISO format or date only) | N/A |
+
+#### Using LogQueryParser Directly
+
+```typescript
+import { LogQueryParser, createLogQueryParser } from 'ad-sdlc';
+
+const parser = createLogQueryParser();
+
+// Parse and validate
+const parseResult = parser.parse('level:error AND agent:worker');
+if (!parseResult.success) {
+  console.error(`Parse error at position ${parseResult.errorPosition}: ${parseResult.error}`);
+}
+
+// Execute against entries
+const entries: LogEntry[] = [...]; // Your log entries
+const result = parser.execute(parseResult.expression!, entries, 100, 0);
+
+// Or parse and execute in one step
+const searchResult = parser.search('level:error', entries, 100, 0);
 ```
 
 ### Log Aggregation
