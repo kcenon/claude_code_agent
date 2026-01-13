@@ -6,12 +6,7 @@
  * @packageDocumentation
  */
 
-import type {
-  CommandDefinition,
-  CompletionResult,
-  OptionDefinition,
-  ShellType,
-} from './types.js';
+import type { CommandDefinition, CompletionResult, OptionDefinition, ShellType } from './types.js';
 import { SHELL_COMPLETION_PATHS } from './types.js';
 
 /**

@@ -7,12 +7,7 @@
  */
 
 // Types
-export type {
-  CommandDefinition,
-  CompletionResult,
-  OptionDefinition,
-  ShellType,
-} from './types.js';
+export type { CommandDefinition, CompletionResult, OptionDefinition, ShellType } from './types.js';
 
 export { SHELL_COMPLETION_PATHS, SUPPORTED_SHELLS } from './types.js';
 

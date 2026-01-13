@@ -718,7 +718,9 @@ program
     const result = generator.generate(shell);
 
     if (!result.success) {
-      console.error(chalk.red(`\n❌ Error generating completion: ${result.error ?? 'Unknown error'}\n`));
+      console.error(
+        chalk.red(`\n❌ Error generating completion: ${result.error ?? 'Unknown error'}\n`)
+      );
       process.exit(1);
     }
 
