@@ -67,4 +67,9 @@ export type {
   CollectorAgentConfig,
   CollectionResult,
   CollectionStats,
+
+  // Batch input types
+  BatchInputItem,
+  BatchInputOptions,
+  BatchInputResult,
 } from './types.js';

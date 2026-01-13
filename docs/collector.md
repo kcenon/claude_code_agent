@@ -62,6 +62,19 @@ const multiResult = await collector.collectFromFiles(
 );
 
 console.log(`Processed ${multiResult.stats.sourcesProcessed} files`);
+
+// Quick collection from mixed input types (batch processing)
+const batchResult = await collector.collectFromBatch([
+  { type: 'text', value: 'User authentication is required', description: 'Core requirement' },
+  { type: 'file', value: './requirements.md' },
+  { type: 'url', value: 'https://example.com/api-spec' }
+], {
+  projectName: 'BatchApp',
+  continueOnError: true,  // Continue even if some inputs fail
+  parallelLimit: 5        // Process up to 5 inputs in parallel
+});
+
+console.log(`Processed ${batchResult.stats.sourcesProcessed} inputs`);
 ```
 
 ### Session-Based Collection
@@ -85,6 +98,19 @@ await collector.addFileInput('requirements.md');
 
 // Add URL input
 await collector.addUrlInput('https://example.com/specs');
+
+// Or add multiple mixed inputs at once (batch processing)
+const batchResults = await collector.addBatchInput([
+  { type: 'text', value: 'Additional text requirement' },
+  { type: 'file', value: 'extra-specs.pdf' },
+], { continueOnError: true });
+
+// Check which inputs were processed successfully
+for (const result of batchResults) {
+  if (!result.success) {
+    console.log(`Failed: ${result.item.type} - ${result.error}`);
+  }
+}
 
 // Process all inputs
 const extraction = collector.processInputs();
@@ -114,6 +140,63 @@ const collector = new CollectorAgent({
   detectLanguage: true,            // Enable language detection
   scratchpadBasePath: '.ad-sdlc/scratchpad',  // Output directory
 });
+```
+
+### Batch Input Processing
+
+The collector supports batch processing of mixed input types (text, file, URL) for efficient collection from multiple sources.
+
+#### BatchInputItem
+
+```typescript
+interface BatchInputItem {
+  type: 'text' | 'file' | 'url';  // Input type
+  value: string;                   // Content, file path, or URL
+  description?: string;            // Optional description (for text inputs)
+}
+```
+
+#### BatchInputOptions
+
+```typescript
+interface BatchInputOptions {
+  continueOnError?: boolean;  // Continue if some inputs fail (default: true)
+  parallelLimit?: number;     // Max parallel processing (default: 5)
+}
+```
+
+#### BatchInputResult
+
+```typescript
+interface BatchInputResult {
+  item: BatchInputItem;     // Original input item
+  success: boolean;         // Whether processing succeeded
+  error?: string;           // Error message if failed
+}
+```
+
+#### Example
+
+```typescript
+// Process multiple mixed inputs
+const results = await collector.addBatchInput([
+  { type: 'text', value: 'Core requirements text', description: 'From meeting' },
+  { type: 'file', value: './specs/requirements.md' },
+  { type: 'file', value: './specs/api.yaml' },
+  { type: 'url', value: 'https://wiki.example.com/project-overview' },
+], {
+  continueOnError: true,
+  parallelLimit: 3,
+});
+
+// Check results
+const succeeded = results.filter(r => r.success).length;
+const failed = results.filter(r => !r.success);
+
+console.log(`Processed ${succeeded}/${results.length} inputs`);
+for (const failure of failed) {
+  console.error(`Failed ${failure.item.type}: ${failure.error}`);
+}
 ```
 
 ## InputParser

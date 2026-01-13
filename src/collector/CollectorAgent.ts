@@ -5,8 +5,11 @@
  * extracts structured data, handles clarification loops, and
  * generates YAML output for downstream agents.
  *
- * NOTE: Batch input processing and session cleanup improvements are planned.
- * See Issue #257 for implementation details.
+ * Features:
+ * - Multiple input types: text, file, URL
+ * - Batch input processing for mixed input types
+ * - Automatic session cleanup on failure
+ * - Clarification question handling
  */
 
 import { randomUUID } from 'node:crypto';
@@ -22,6 +25,9 @@ import type {
   ClarificationQuestion,
   ClarificationAnswer,
   ExtractionResult,
+  BatchInputItem,
+  BatchInputOptions,
+  BatchInputResult,
 } from './types.js';
 import { ProjectInitError, MissingInformationError, SessionStateError } from './errors.js';
 
@@ -71,38 +77,82 @@ export class CollectorAgent {
     const scratchpad = getScratchpad({ basePath: this.config.scratchpadBasePath });
     const projectId = await scratchpad.generateProjectId();
     const now = new Date().toISOString();
+    let projectInitialized = false;
 
     try {
       await scratchpad.initializeProject(projectId, projectName ?? `Project-${projectId}`);
+      projectInitialized = true;
+
+      this.session = {
+        sessionId: randomUUID(),
+        projectId,
+        status: 'collecting',
+        sources: [],
+        extraction: {
+          functionalRequirements: [],
+          nonFunctionalRequirements: [],
+          constraints: [],
+          assumptions: [],
+          dependencies: [],
+          clarificationQuestions: [],
+          overallConfidence: 0,
+          warnings: [],
+        },
+        pendingQuestions: [],
+        answeredQuestions: [],
+        startedAt: now,
+        updatedAt: now,
+      };
+
+      return this.session;
     } catch (error) {
+      // Clean up project if it was initialized but session setup failed
+      if (projectInitialized) {
+        await this.cleanupProject(scratchpad, projectId);
+      }
+
       if (error instanceof Error) {
         throw new ProjectInitError(projectId, error.message);
       }
       throw error;
     }
+  }
 
-    this.session = {
-      sessionId: randomUUID(),
-      projectId,
-      status: 'collecting',
-      sources: [],
-      extraction: {
-        functionalRequirements: [],
-        nonFunctionalRequirements: [],
-        constraints: [],
-        assumptions: [],
-        dependencies: [],
-        clarificationQuestions: [],
-        overallConfidence: 0,
-        warnings: [],
-      },
-      pendingQuestions: [],
-      answeredQuestions: [],
-      startedAt: now,
-      updatedAt: now,
-    };
+  /**
+   * Clean up a project from scratchpad after failed session initialization
+   *
+   * @param scratchpad - Scratchpad instance
+   * @param projectId - Project ID to clean up
+   */
+  private async cleanupProject(
+    scratchpad: ReturnType<typeof getScratchpad>,
+    projectId: string
+  ): Promise<void> {
+    const fs = await import('node:fs');
 
-    return this.session;
+    const sections = ['info', 'documents', 'issues', 'progress'] as const;
+
+    for (const section of sections) {
+      const projectPath = scratchpad.getProjectPath(section, projectId);
+      try {
+        await fs.promises.rm(projectPath, { recursive: true, force: true });
+      } catch {
+        // Ignore cleanup errors - best effort cleanup
+      }
+    }
+
+    // Clean up parent directories if empty
+    for (const section of sections) {
+      const sectionPath = scratchpad.getSectionPath(section);
+      try {
+        const entries = await fs.promises.readdir(sectionPath);
+        if (entries.length === 0) {
+          await fs.promises.rmdir(sectionPath);
+        }
+      } catch {
+        // Ignore cleanup errors
+      }
+    }
   }
 
   /**
@@ -152,6 +202,67 @@ export class CollectorAgent {
 
     const source = await this.inputParser.parseUrl(url);
     return this.addSource(source);
+  }
+
+  /**
+   * Add multiple inputs of mixed types in a batch
+   *
+   * Processes text, file, and URL inputs in a single call, with optional
+   * error handling strategies.
+   *
+   * @param items - Array of batch input items
+   * @param options - Batch processing options
+   * @returns Array of results for each input item
+   */
+  public async addBatchInput(
+    items: readonly BatchInputItem[],
+    options: BatchInputOptions = {}
+  ): Promise<BatchInputResult[]> {
+    this.ensureSession('collecting');
+
+    const { continueOnError = true, parallelLimit = 5 } = options;
+    const results: BatchInputResult[] = [];
+
+    // Process items in chunks for controlled parallelism
+    for (let i = 0; i < items.length; i += parallelLimit) {
+      const chunk = items.slice(i, i + parallelLimit);
+      const chunkResults = await Promise.all(
+        chunk.map(async (item): Promise<BatchInputResult> => {
+          try {
+            await this.processInputItem(item);
+            return { item, success: true };
+          } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            if (!continueOnError) {
+              throw error;
+            }
+            return { item, success: false, error: errorMessage };
+          }
+        })
+      );
+      results.push(...chunkResults);
+    }
+
+    return results;
+  }
+
+  /**
+   * Process a single batch input item
+   *
+   * @param item - The batch input item to process
+   */
+  private async processInputItem(item: BatchInputItem): Promise<void> {
+    switch (item.type) {
+      case 'text':
+        this.addTextInput(item.value, item.description);
+        break;
+      case 'file':
+        await this.addFileInput(item.value);
+        break;
+      case 'url':
+        await this.addUrlInput(item.value);
+        break;
+    }
   }
 
   /**
@@ -556,6 +667,84 @@ export class CollectorAgent {
     const extraction = this.processInputs();
 
     // Add file processing errors as warnings
+    if (errors.length > 0 && this.session !== null) {
+      this.session = {
+        ...this.session,
+        extraction: {
+          ...this.session.extraction,
+          warnings: [...this.session.extraction.warnings, ...errors],
+        },
+        updatedAt: new Date().toISOString(),
+      };
+    }
+
+    if (
+      this.config.skipClarificationIfConfident &&
+      extraction.overallConfidence >= this.config.confidenceThreshold
+    ) {
+      this.skipClarification();
+    }
+
+    return this.finalize(options?.projectName, options?.projectDescription);
+  }
+
+  /**
+   * Convenience method: Collect from mixed batch inputs and finalize in one call
+   *
+   * Processes text, file, and URL inputs in a single batch operation.
+   *
+   * @param items - Array of batch input items (text, file, or URL)
+   * @param options - Optional project name, description, and batch processing options
+   * @returns CollectionResult with merged information from all inputs
+   *
+   * @example
+   * ```typescript
+   * const result = await agent.collectFromBatch([
+   *   { type: 'text', value: 'User authentication is required', description: 'Core requirement' },
+   *   { type: 'file', value: './requirements.md' },
+   *   { type: 'url', value: 'https://example.com/api-spec' }
+   * ], { projectName: 'MyApp' });
+   * ```
+   */
+  public async collectFromBatch(
+    items: readonly BatchInputItem[],
+    options?: {
+      projectName?: string;
+      projectDescription?: string;
+      continueOnError?: boolean;
+      parallelLimit?: number;
+    }
+  ): Promise<CollectionResult> {
+    if (items.length === 0) {
+      throw new MissingInformationError(['No batch input items provided']);
+    }
+
+    await this.startSession(options?.projectName);
+
+    const batchOptions =
+      options?.parallelLimit !== undefined
+        ? { continueOnError: options.continueOnError ?? true, parallelLimit: options.parallelLimit }
+        : { continueOnError: options?.continueOnError ?? true };
+    const batchResults = await this.addBatchInput(items, batchOptions);
+
+    // Check if we have at least one successful input
+    if (this.session !== null && this.session.sources.length === 0) {
+      const errors = batchResults
+        .filter((r) => !r.success)
+        .map((r) => `Failed to process ${r.item.type} input: ${r.error ?? 'Unknown error'}`);
+      throw new MissingInformationError(['No inputs could be processed successfully', ...errors]);
+    }
+
+    const extraction = this.processInputs();
+
+    // Add processing errors as warnings
+    const errors = batchResults
+      .filter((r) => !r.success)
+      .map(
+        (r) =>
+          `Failed to process ${r.item.type} input "${r.item.value}": ${r.error ?? 'Unknown error'}`
+      );
+
     if (errors.length > 0 && this.session !== null) {
       this.session = {
         ...this.session,
