@@ -15,7 +15,8 @@ src/
 ├── init/                  # Project initialization module
 ├── issue-generator/       # GitHub issue generation
 ├── scratchpad/            # Inter-agent state sharing
-└── security/              # Security and input validation
+├── security/              # Security and input validation
+└── telemetry/             # Opt-in usage analytics
 ```
 
 ### completion/ - Shell Autocompletion Support
@@ -54,6 +55,20 @@ Features:
 - Circuit breaker pattern (CLOSED/OPEN/HALF_OPEN states)
 - Automatic circuit recovery with configurable reset timeout
 - Integration between retry logic and circuit breaker
+
+### telemetry/ - Opt-In Usage Analytics
+- `Telemetry.ts` - Core telemetry service with consent management
+- `types.ts` - Type definitions for events, consent, and configuration
+- `errors.ts` - Custom error classes
+- `index.ts` - Module exports
+
+Features:
+- Explicit opt-in consent mechanism
+- Anonymous-only data collection
+- CLI commands: status, enable, disable, policy
+- Privacy policy with clear data collection/non-collection lists
+- Configurable buffer and flush settings
+- Session and event tracking
 
 ## Structure Examples
 

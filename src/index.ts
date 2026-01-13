@@ -994,3 +994,36 @@ export type {
   DetectionConfig,
   RepoDetectorConfig,
 } from './repo-detector/index.js';
+
+// Re-export telemetry module
+export {
+  Telemetry,
+  getTelemetry,
+  resetTelemetry,
+  isTelemetryInitialized,
+  PRIVACY_POLICY,
+  PRIVACY_POLICY_VERSION,
+  DEFAULT_TELEMETRY_CONFIG,
+  TelemetryError,
+  ConsentRequiredError,
+  ConsentStorageError,
+  InvalidEventError,
+  FlushError,
+  TelemetryDisabledError,
+} from './telemetry/index.js';
+
+export type {
+  ConsentStatus,
+  ConsentRecord,
+  TelemetryEventType,
+  TelemetryEvent,
+  CommandExecutedEvent,
+  PipelineEvent,
+  AgentInvokedEvent,
+  FeatureUsedEvent,
+  TelemetryConfig,
+  TelemetryOptions,
+  PrivacyPolicy,
+  TelemetrySession,
+  TelemetryStats,
+} from './telemetry/index.js';

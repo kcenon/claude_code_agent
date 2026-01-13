@@ -3,7 +3,6 @@
 /**
  * AD-SDLC CLI Entry Point
  *
- * NOTE: Telemetry opt-in for usage analytics is planned. See Issue #261.
  * NOTE: Using process.exit(1) in error handlers for reliability.
  *
  * @packageDocumentation
@@ -37,6 +36,7 @@ import type { OutputFormat } from './status/types.js';
 import { initializeProject, isProjectInitialized } from './utils/index.js';
 import { resolve } from 'node:path';
 import { getCompletionGenerator, SUPPORTED_SHELLS, type ShellType } from './completion/index.js';
+import { getTelemetry, PRIVACY_POLICY, PRIVACY_POLICY_VERSION } from './telemetry/index.js';
 
 const program = new Command();
 
@@ -730,6 +730,137 @@ program
     // Show installation instructions on stderr so they don't interfere with script output
     console.error(chalk.dim('\n' + result.instructions + '\n'));
   });
+
+/**
+ * Telemetry command - Manage telemetry settings
+ */
+const telemetryCommand = program
+  .command('telemetry')
+  .description('Manage telemetry settings (opt-in anonymous usage analytics)');
+
+telemetryCommand
+  .command('status')
+  .description('Show current telemetry status')
+  .action(() => {
+    const telemetry = getTelemetry();
+    const consent = telemetry.getConsentStatus();
+    const enabled = telemetry.isEnabled();
+    const stats = telemetry.getStats();
+
+    console.log(chalk.blue('\n📊 Telemetry Status\n'));
+    console.log(`  Consent: ${formatConsentStatus(consent)}`);
+    console.log(`  Enabled: ${enabled ? chalk.green('Yes') : chalk.dim('No')}`);
+    console.log(`  Policy Version: ${PRIVACY_POLICY_VERSION}`);
+
+    if (consent === 'granted') {
+      console.log('');
+      console.log(chalk.dim('Session Statistics:'));
+      console.log(chalk.dim(`  Events Recorded: ${String(stats.eventsRecorded)}`));
+      console.log(chalk.dim(`  Events Pending: ${String(stats.eventsPending)}`));
+      console.log(
+        chalk.dim(`  Session Duration: ${String(Math.round(stats.sessionDurationMs / 1000))}s`)
+      );
+    }
+
+    console.log('');
+  });
+
+telemetryCommand
+  .command('enable')
+  .description('Enable telemetry (requires consent)')
+  .option('-y, --yes', 'Automatically accept privacy policy')
+  .action((cmdOptions: Record<string, unknown>) => {
+    const telemetry = getTelemetry();
+    const currentConsent = telemetry.getConsentStatus();
+    const autoAccept = cmdOptions['yes'] === true;
+
+    // Show privacy policy if not auto-accepting
+    if (!autoAccept && currentConsent !== 'granted') {
+      console.log(chalk.blue('\n📋 Privacy Policy\n'));
+      console.log(chalk.white(`Version: ${PRIVACY_POLICY.version}`));
+      console.log(chalk.dim(`Last Updated: ${PRIVACY_POLICY.lastUpdated}`));
+      console.log(chalk.dim(`Retention Period: ${PRIVACY_POLICY.retentionPeriod}`));
+      console.log('');
+
+      console.log(chalk.green('Data we collect (anonymous):'));
+      for (const item of PRIVACY_POLICY.dataCollected) {
+        console.log(chalk.green(`  ✓ ${item}`));
+      }
+      console.log('');
+
+      console.log(chalk.red('Data we DO NOT collect:'));
+      for (const item of PRIVACY_POLICY.dataNotCollected) {
+        console.log(chalk.red(`  ✗ ${item}`));
+      }
+      console.log('');
+
+      console.log(chalk.yellow('To enable telemetry, run:'));
+      console.log(chalk.cyan('  ad-sdlc telemetry enable --yes\n'));
+      return;
+    }
+
+    // Grant consent and enable
+    telemetry.setConsent(true);
+    console.log(chalk.green('\n✅ Telemetry enabled.\n'));
+    console.log(chalk.dim('Thank you for helping improve AD-SDLC!'));
+    console.log(chalk.dim('You can disable telemetry anytime with: ad-sdlc telemetry disable\n'));
+  });
+
+telemetryCommand
+  .command('disable')
+  .description('Disable telemetry and revoke consent')
+  .action(() => {
+    const telemetry = getTelemetry();
+    telemetry.revokeConsent();
+    console.log(chalk.yellow('\n⚠️  Telemetry disabled.\n'));
+    console.log(chalk.dim('Your consent has been revoked and all buffered data has been cleared.'));
+    console.log(chalk.dim('You can re-enable telemetry anytime with: ad-sdlc telemetry enable\n'));
+  });
+
+telemetryCommand
+  .command('policy')
+  .description('Display the privacy policy')
+  .action(() => {
+    console.log(chalk.blue('\n📋 AD-SDLC Telemetry Privacy Policy\n'));
+    console.log(chalk.white(`Version: ${PRIVACY_POLICY.version}`));
+    console.log(chalk.white(`Last Updated: ${PRIVACY_POLICY.lastUpdated}`));
+    console.log(chalk.white(`Retention Period: ${PRIVACY_POLICY.retentionPeriod}`));
+    console.log('');
+
+    console.log(chalk.green('Data We Collect (Anonymous Only):'));
+    for (const item of PRIVACY_POLICY.dataCollected) {
+      console.log(chalk.dim(`  • ${item}`));
+    }
+    console.log('');
+
+    console.log(chalk.red('Data We DO NOT Collect:'));
+    for (const item of PRIVACY_POLICY.dataNotCollected) {
+      console.log(chalk.dim(`  • ${item}`));
+    }
+    console.log('');
+
+    console.log(chalk.blue('Key Points:'));
+    console.log(chalk.dim('  • Telemetry is strictly opt-in'));
+    console.log(chalk.dim('  • No personal data is ever collected'));
+    console.log(chalk.dim('  • You can disable telemetry at any time'));
+    console.log(chalk.dim('  • Data is automatically deleted after 90 days'));
+    console.log('');
+  });
+
+/**
+ * Format consent status for display
+ */
+function formatConsentStatus(status: string): string {
+  switch (status) {
+    case 'granted':
+      return chalk.green('Granted');
+    case 'denied':
+      return chalk.red('Denied');
+    case 'pending':
+    default:
+      return chalk.yellow('Pending (not set)');
+  }
+}
 
 // Parse command line arguments
 program.parse();
