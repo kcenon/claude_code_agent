@@ -12,6 +12,8 @@ The Scratchpad module implements the Scratchpad pattern, enabling agents to comm
 - **Project ID Management**: Auto-incrementing project identifiers
 - **Atomic Writes**: Write to temp file, then rename to prevent partial writes
 - **File Locking**: Concurrent access safety with auto-release timers
+- **Lock Heartbeat**: Periodic liveness updates for stale lock detection
+- **Stale Lock Cleanup**: Safe cleanup of locks from crashed processes
 - **Format Helpers**: Read/write for YAML, JSON, and Markdown
 - **Schema Validation**: Zod-based runtime validation for all data entities
 
@@ -139,6 +141,36 @@ await scratchpad.acquireLock(filePath, 'holder', {
 });
 ```
 
+### Lock Heartbeat Mechanism
+
+The heartbeat mechanism enables safe cleanup of stale locks from crashed processes. When enabled, lock holders periodically update their lock timestamp to indicate they are still alive.
+
+```typescript
+// Create scratchpad with heartbeat enabled
+const scratchpad = new Scratchpad({
+  basePath: '.ad-sdlc/scratchpad',
+  enableLocking: true,
+  enableHeartbeat: true,
+  heartbeatIntervalMs: 1000, // Update every 1 second
+  heartbeatTimeoutMs: 3000, // Consider stale after 3 seconds
+});
+
+// Enable heartbeat for a specific lock only
+await scratchpad.acquireLock(filePath, 'holder', {
+  enableHeartbeat: true,
+});
+
+// Check if a lock is stale
+const lockInfo = await scratchpad.getLockInfo(filePath);
+if (lockInfo && scratchpad.isLockStale(lockInfo)) {
+  console.log('Lock is stale - holder may have crashed');
+}
+
+// Clean up all stale locks in the scratchpad
+const cleanedCount = await scratchpad.cleanupStaleLocks();
+console.log(`Cleaned up ${cleanedCount} stale locks`);
+```
+
 ### Schema Validation
 
 ```typescript
@@ -220,6 +252,9 @@ Each has a corresponding `assert*` function that throws on invalid data.
 | `dirMode` | `number` | `0o700` | Directory permission mode |
 | `enableLocking` | `boolean` | `true` | Enable file locking |
 | `lockTimeout` | `number` | `5000` | Lock timeout in ms |
+| `enableHeartbeat` | `boolean` | `false` | Enable heartbeat mechanism for locks |
+| `heartbeatIntervalMs` | `number` | `1000` | How often to update lock timestamp |
+| `heartbeatTimeoutMs` | `number` | `3000` | Duration after which a lock is considered stale |
 
 ### Path Methods
 
@@ -257,6 +292,9 @@ Each has a corresponding `assert*` function that throws on invalid data.
 - `releaseLock(path, holderId)` - Release file lock
 - `withLock(path, fn, options)` - Execute with lock
 - `isReleaseRequested(path, holderId)` - Check if release is requested
+- `getLockInfo(path)` - Get lock information for a file
+- `isLockStale(lock)` - Check if a lock is stale based on heartbeat
+- `cleanupStaleLocks(directory?)` - Remove stale locks from crashed processes
 
 ### Lock Options
 
@@ -267,6 +305,7 @@ Each has a corresponding `assert*` function that throws on invalid data.
 | `retryDelayMs` | `number` | `100` | Base delay between retries |
 | `cooperativeRelease` | `boolean` | `true` | Enable cooperative release before stealing |
 | `cooperativeReleaseTimeoutMs` | `number` | `1000` | Timeout for cooperative release |
+| `enableHeartbeat` | `boolean` | (global) | Enable heartbeat for this specific lock |
 
 ## Testing
 
