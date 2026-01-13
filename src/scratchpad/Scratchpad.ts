@@ -21,10 +21,22 @@
  * the current holder, giving them time to release gracefully. This is enabled
  * by default and can be configured via LockOptions.cooperativeRelease.
  *
+ * ## Lock Heartbeat Mechanism
+ *
+ * The heartbeat mechanism allows lock holders to periodically update their
+ * lock timestamp to indicate they are still alive. This enables safe cleanup
+ * of stale locks from crashed processes:
+ *
+ * - Enable via `enableHeartbeat: true` in ScratchpadOptions or LockOptions
+ * - Configure interval with `heartbeatIntervalMs` (default: 1000ms)
+ * - Configure timeout with `heartbeatTimeoutMs` (default: 3000ms)
+ * - Use `cleanupStaleLocks()` to remove stale locks from crashed processes
+ * - Use `isLockStale()` to check if a specific lock is stale
+ *
  * For production multi-process deployments, consider using proper distributed locking.
  *
- * NOTE: Lock heartbeat and configurable serialization are planned.
- * See Issues #260 and #261 for implementation details.
+ * NOTE: Configurable serialization format per file is planned.
+ * See Issue #261 for implementation details.
  *
  * Features:
  * - Atomic lock acquisition using hard links (EEXIST on collision)
@@ -139,6 +151,40 @@ const RELEASE_REQUEST_EXTENSION = '.release-request';
 const DEFAULT_COOPERATIVE_RELEASE_TIMEOUT_MS = 1000;
 
 /**
+ * Default heartbeat interval in milliseconds
+ */
+const DEFAULT_HEARTBEAT_INTERVAL_MS = 1000;
+
+/**
+ * Default heartbeat timeout in milliseconds
+ * A lock is considered stale if no heartbeat received within this duration
+ */
+const DEFAULT_HEARTBEAT_TIMEOUT_MS = 3000;
+
+/**
+ * Heartbeat configuration
+ */
+interface HeartbeatConfig {
+  enabled: boolean;
+  intervalMs: number;
+  timeoutMs: number;
+}
+
+/**
+ * Active lock entry with optional heartbeat timer
+ */
+interface ActiveLockEntry {
+  /** Auto-release timer */
+  autoReleaseTimer: NodeJS.Timeout;
+  /** Heartbeat timer (if heartbeat is enabled) */
+  heartbeatTimer?: NodeJS.Timeout;
+  /** Lock holder ID */
+  holderId: string;
+  /** Whether heartbeat is enabled for this lock */
+  heartbeatEnabled: boolean;
+}
+
+/**
  * Extended lock configuration with cooperative release settings
  */
 interface ExtendedLockConfig extends Required<LockConfig> {
@@ -156,7 +202,8 @@ export class Scratchpad {
   private readonly enableLocking: boolean;
   private readonly lockTimeout: number;
   private readonly lockConfig: ExtendedLockConfig;
-  private readonly activeLocks: Map<string, NodeJS.Timeout> = new Map();
+  private readonly heartbeatConfig: HeartbeatConfig;
+  private readonly activeLocks: Map<string, ActiveLockEntry> = new Map();
   private readonly validator: InputValidator;
   private readonly projectRoot: string;
   /** Pending release requests created by this instance */
@@ -179,6 +226,12 @@ export class Scratchpad {
       lockStealThresholdMs: options.lockStealThresholdMs ?? DEFAULT_LOCK_STEAL_THRESHOLD_MS,
       cooperativeRelease: true, // Enable by default for safety
       cooperativeReleaseTimeoutMs: DEFAULT_COOPERATIVE_RELEASE_TIMEOUT_MS,
+    };
+    // Heartbeat configuration with defaults
+    this.heartbeatConfig = {
+      enabled: options.enableHeartbeat ?? false,
+      intervalMs: options.heartbeatIntervalMs ?? DEFAULT_HEARTBEAT_INTERVAL_MS,
+      timeoutMs: options.heartbeatTimeoutMs ?? DEFAULT_HEARTBEAT_TIMEOUT_MS,
     };
     // Use projectRoot if provided, then try ProjectContext, fallback to cwd
     this.projectRoot = options.projectRoot ?? tryGetProjectRoot() ?? process.cwd();
@@ -587,12 +640,174 @@ export class Scratchpad {
    *
    * @param filePath - Validated file path
    * @param lockId - Lock holder ID
+   * @param enableHeartbeat - Whether to enable heartbeat for this lock
    */
-  private setupAutoRelease(filePath: string, lockId: string): void {
-    const timer = setTimeout(() => {
+  private setupAutoRelease(filePath: string, lockId: string, enableHeartbeat: boolean): void {
+    const autoReleaseTimer = setTimeout(() => {
       this.releaseLock(filePath, lockId).catch(() => {});
     }, this.lockTimeout);
-    this.activeLocks.set(filePath, timer);
+
+    const entry: ActiveLockEntry = {
+      autoReleaseTimer,
+      holderId: lockId,
+      heartbeatEnabled: enableHeartbeat,
+    };
+
+    // Set up heartbeat timer if enabled
+    if (enableHeartbeat) {
+      entry.heartbeatTimer = setInterval(() => {
+        this.updateLockHeartbeat(filePath, lockId).catch(() => {});
+      }, this.heartbeatConfig.intervalMs);
+    }
+
+    this.activeLocks.set(filePath, entry);
+  }
+
+  /**
+   * Update the heartbeat timestamp for a lock
+   *
+   * This method atomically updates the lastHeartbeat field in the lock file
+   * to indicate that the lock holder is still alive.
+   *
+   * @param filePath - Validated file path
+   * @param holderId - Lock holder ID
+   * @returns True if heartbeat was updated successfully
+   */
+  private async updateLockHeartbeat(filePath: string, holderId: string): Promise<boolean> {
+    const lockPath = `${filePath}${LOCK_EXTENSION}`;
+
+    try {
+      const existingLock = await this.readLock(lockPath);
+      if (existingLock === null || existingLock.holderId !== holderId) {
+        return false;
+      }
+
+      const now = Date.now();
+      const updatedLock: FileLock = {
+        ...existingLock,
+        lastHeartbeat: new Date(now).toISOString(),
+        // Extend expiration on heartbeat
+        expiresAt: new Date(now + this.lockTimeout).toISOString(),
+      };
+
+      await fs.promises.writeFile(lockPath, JSON.stringify(updatedLock), {
+        mode: this.fileMode,
+      });
+
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Check if a lock is stale based on heartbeat timeout
+   *
+   * A lock is considered stale if:
+   * - Heartbeat is enabled but lastHeartbeat is missing
+   * - lastHeartbeat is older than heartbeatTimeoutMs
+   *
+   * @param lock - Lock information to check
+   * @returns True if the lock is stale
+   */
+  public isLockStale(lock: FileLock): boolean {
+    if (!this.heartbeatConfig.enabled) {
+      // When heartbeat is disabled, use expiration-based staleness
+      return new Date(lock.expiresAt).getTime() <= Date.now();
+    }
+
+    if (lock.lastHeartbeat === undefined) {
+      // Lock doesn't have heartbeat info - consider stale if expired
+      return new Date(lock.expiresAt).getTime() <= Date.now();
+    }
+
+    const lastHeartbeatTime = new Date(lock.lastHeartbeat).getTime();
+    const heartbeatAge = Date.now() - lastHeartbeatTime;
+    return heartbeatAge > this.heartbeatConfig.timeoutMs;
+  }
+
+  /**
+   * Get lock information for a file
+   *
+   * @param filePath - File path to check
+   * @returns Lock information or null if not locked
+   * @throws PathTraversalError if path escapes project root
+   */
+  public async getLockInfo(filePath: string): Promise<FileLock | null> {
+    if (!this.enableLocking) {
+      return null;
+    }
+
+    const validatedPath = this.validatePath(filePath);
+    const lockPath = `${validatedPath}${LOCK_EXTENSION}`;
+    return this.readLock(lockPath);
+  }
+
+  /**
+   * Clean up stale locks from crashed processes
+   *
+   * Scans the base path for lock files and removes those that are stale
+   * (no heartbeat received within heartbeatTimeoutMs).
+   *
+   * @param directory - Optional directory to scan (defaults to basePath)
+   * @returns Number of stale locks cleaned up
+   */
+  public async cleanupStaleLocks(directory?: string): Promise<number> {
+    if (!this.enableLocking) {
+      return 0;
+    }
+
+    const scanPath = directory ?? this.getBasePath();
+    let cleanedCount = 0;
+
+    try {
+      const entries = await this.scanForLockFiles(scanPath);
+
+      for (const lockPath of entries) {
+        try {
+          const lock = await this.readLock(lockPath);
+          if (lock !== null && this.isLockStale(lock)) {
+            await fs.promises.unlink(lockPath);
+            cleanedCount++;
+          }
+        } catch {
+          // Ignore individual lock cleanup errors
+        }
+      }
+    } catch {
+      // Ignore scan errors
+    }
+
+    return cleanedCount;
+  }
+
+  /**
+   * Recursively scan directory for lock files
+   *
+   * @param dirPath - Directory to scan
+   * @returns Array of lock file paths
+   */
+  private async scanForLockFiles(dirPath: string): Promise<string[]> {
+    const lockFiles: string[] = [];
+
+    try {
+      const entries = await fs.promises.readdir(dirPath, { withFileTypes: true });
+
+      for (const entry of entries) {
+        const fullPath = path.join(dirPath, entry.name);
+
+        if (entry.isDirectory()) {
+          const subLocks = await this.scanForLockFiles(fullPath);
+          lockFiles.push(...subLocks);
+        } else if (entry.isFile() && entry.name.endsWith(LOCK_EXTENSION)) {
+          lockFiles.push(fullPath);
+        }
+      }
+    } catch {
+      // Ignore access errors
+    }
+
+    return lockFiles;
   }
 
   /**
@@ -695,6 +910,7 @@ export class Scratchpad {
     const useCooperativeRelease = options?.cooperativeRelease ?? this.lockConfig.cooperativeRelease;
     const cooperativeTimeoutMs =
       options?.cooperativeReleaseTimeoutMs ?? this.lockConfig.cooperativeReleaseTimeoutMs;
+    const enableHeartbeat = options?.enableHeartbeat ?? this.heartbeatConfig.enabled;
 
     // Track if we've already attempted cooperative release for a specific lock holder
     let cooperativeReleaseAttempted: string | null = null;
@@ -718,6 +934,8 @@ export class Scratchpad {
         acquiredAt: new Date(now).toISOString(),
         expiresAt: new Date(expiresAt).toISOString(),
         generation: 0,
+        // Include heartbeat timestamp if heartbeat is enabled
+        ...(enableHeartbeat ? { lastHeartbeat: new Date(now).toISOString() } : {}),
       };
 
       try {
@@ -735,7 +953,7 @@ export class Scratchpad {
           await fs.promises.unlink(tempLockPath).catch(() => {});
 
           // Lock acquired successfully!
-          this.setupAutoRelease(validatedPath, lockId);
+          this.setupAutoRelease(validatedPath, lockId, enableHeartbeat);
           return true;
         } catch (err) {
           const code = (err as NodeJS.ErrnoException).code;
@@ -777,7 +995,7 @@ export class Scratchpad {
             if (await this.tryStealLock(lockPath, tempLockPath, existingLock, lock)) {
               // Clean up any release request we created
               await this.deleteReleaseRequest(lockPath);
-              this.setupAutoRelease(validatedPath, lockId);
+              this.setupAutoRelease(validatedPath, lockId, enableHeartbeat);
               return true;
             }
           }
@@ -828,10 +1046,13 @@ export class Scratchpad {
 
       await fs.promises.unlink(lockPath);
 
-      // Clear auto-release timer
-      const timer = this.activeLocks.get(validatedPath);
-      if (timer) {
-        clearTimeout(timer);
+      // Clear auto-release and heartbeat timers
+      const entry = this.activeLocks.get(validatedPath);
+      if (entry) {
+        clearTimeout(entry.autoReleaseTimer);
+        if (entry.heartbeatTimer) {
+          clearInterval(entry.heartbeatTimer);
+        }
         this.activeLocks.delete(validatedPath);
       }
     } catch (error) {
@@ -1409,11 +1630,14 @@ export class Scratchpad {
    * Clean up all active locks, pending release requests, and close backend
    */
   public async cleanup(): Promise<void> {
-    // Clean up active locks
-    for (const [filePath, timer] of this.activeLocks) {
-      clearTimeout(timer);
+    // Clean up active locks and heartbeat timers
+    for (const [filePath, entry] of this.activeLocks) {
+      clearTimeout(entry.autoReleaseTimer);
+      if (entry.heartbeatTimer) {
+        clearInterval(entry.heartbeatTimer);
+      }
       try {
-        await this.releaseLock(filePath);
+        await this.releaseLock(filePath, entry.holderId);
       } catch {
         // Ignore cleanup errors
       }
@@ -1441,8 +1665,11 @@ export class Scratchpad {
    * Clean up all active locks (synchronous)
    */
   public cleanupSync(): void {
-    for (const [, timer] of this.activeLocks) {
-      clearTimeout(timer);
+    for (const [, entry] of this.activeLocks) {
+      clearTimeout(entry.autoReleaseTimer);
+      if (entry.heartbeatTimer) {
+        clearInterval(entry.heartbeatTimer);
+      }
     }
     this.activeLocks.clear();
 

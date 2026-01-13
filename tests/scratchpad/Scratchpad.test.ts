@@ -1071,3 +1071,307 @@ describe('Cooperative Lock Release', () => {
     cleanupScratchpad.cleanupSync();
   });
 });
+
+describe('Lock Heartbeat Mechanism', () => {
+  let testBasePath: string;
+
+  beforeEach(() => {
+    resetScratchpad();
+    testBasePath = path.join(os.tmpdir(), `scratchpad-heartbeat-${Date.now()}`);
+  });
+
+  afterEach(async () => {
+    resetScratchpad();
+    try {
+      fs.rmSync(testBasePath, { recursive: true, force: true });
+    } catch {
+      // Ignore cleanup errors
+    }
+  });
+
+  it('should include lastHeartbeat in lock when heartbeat is enabled', async () => {
+    const heartbeatScratchpad = new Scratchpad({
+      basePath: testBasePath,
+      enableLocking: true,
+      enableHeartbeat: true,
+      heartbeatIntervalMs: 100,
+      heartbeatTimeoutMs: 300,
+    });
+
+    const filePath = path.join(testBasePath, 'heartbeat-test.txt');
+    await heartbeatScratchpad.ensureDir(testBasePath);
+
+    await heartbeatScratchpad.acquireLock(filePath, 'holder-1');
+
+    // Read lock file to verify lastHeartbeat is present
+    const lockPath = `${path.resolve(testBasePath, 'heartbeat-test.txt')}.lock`;
+    const lockContent = fs.readFileSync(lockPath, 'utf8');
+    const lock = JSON.parse(lockContent);
+
+    expect(lock.lastHeartbeat).toBeDefined();
+    expect(lock.holderId).toBe('holder-1');
+
+    await heartbeatScratchpad.cleanup();
+  });
+
+  it('should not include lastHeartbeat when heartbeat is disabled', async () => {
+    const noHeartbeatScratchpad = new Scratchpad({
+      basePath: testBasePath,
+      enableLocking: true,
+      enableHeartbeat: false,
+    });
+
+    const filePath = path.join(testBasePath, 'no-heartbeat-test.txt');
+    await noHeartbeatScratchpad.ensureDir(testBasePath);
+
+    await noHeartbeatScratchpad.acquireLock(filePath, 'holder-1');
+
+    // Read lock file to verify lastHeartbeat is not present
+    const lockPath = `${path.resolve(testBasePath, 'no-heartbeat-test.txt')}.lock`;
+    const lockContent = fs.readFileSync(lockPath, 'utf8');
+    const lock = JSON.parse(lockContent);
+
+    expect(lock.lastHeartbeat).toBeUndefined();
+
+    await noHeartbeatScratchpad.cleanup();
+  });
+
+  it('should update heartbeat periodically', async () => {
+    const heartbeatScratchpad = new Scratchpad({
+      basePath: testBasePath,
+      enableLocking: true,
+      enableHeartbeat: true,
+      heartbeatIntervalMs: 50,
+      heartbeatTimeoutMs: 300,
+      lockTimeout: 5000,
+    });
+
+    const filePath = path.join(testBasePath, 'periodic-heartbeat.txt');
+    await heartbeatScratchpad.ensureDir(testBasePath);
+
+    await heartbeatScratchpad.acquireLock(filePath, 'holder-1');
+
+    // Read initial heartbeat
+    const lockPath = `${path.resolve(testBasePath, 'periodic-heartbeat.txt')}.lock`;
+    const initialLock = JSON.parse(fs.readFileSync(lockPath, 'utf8'));
+    const initialHeartbeat = initialLock.lastHeartbeat;
+
+    // Wait for heartbeat update
+    await new Promise((resolve) => setTimeout(resolve, 150));
+
+    // Read updated heartbeat
+    const updatedLock = JSON.parse(fs.readFileSync(lockPath, 'utf8'));
+
+    expect(updatedLock.lastHeartbeat).not.toBe(initialHeartbeat);
+
+    await heartbeatScratchpad.cleanup();
+  });
+
+  it('should detect stale lock based on heartbeat timeout', async () => {
+    const heartbeatScratchpad = new Scratchpad({
+      basePath: testBasePath,
+      enableLocking: true,
+      enableHeartbeat: true,
+      heartbeatTimeoutMs: 100,
+    });
+
+    // Create a lock with old heartbeat manually
+    const filePath = path.join(testBasePath, 'stale-check.txt');
+    await heartbeatScratchpad.ensureDir(testBasePath);
+
+    const oldTime = Date.now() - 200; // 200ms ago
+    const staleLock = {
+      filePath: path.resolve(testBasePath, 'stale-check.txt'),
+      holderId: 'old-holder',
+      acquiredAt: new Date(oldTime).toISOString(),
+      expiresAt: new Date(oldTime + 5000).toISOString(),
+      generation: 0,
+      lastHeartbeat: new Date(oldTime).toISOString(),
+    };
+
+    const lockPath = `${path.resolve(testBasePath, 'stale-check.txt')}.lock`;
+    fs.writeFileSync(lockPath, JSON.stringify(staleLock));
+
+    // Check if lock is stale
+    expect(heartbeatScratchpad.isLockStale(staleLock)).toBe(true);
+
+    await heartbeatScratchpad.cleanup();
+  });
+
+  it('should not detect fresh lock as stale', async () => {
+    const heartbeatScratchpad = new Scratchpad({
+      basePath: testBasePath,
+      enableLocking: true,
+      enableHeartbeat: true,
+      heartbeatTimeoutMs: 5000,
+    });
+
+    const now = Date.now();
+    const freshLock = {
+      filePath: path.resolve(testBasePath, 'fresh-check.txt'),
+      holderId: 'fresh-holder',
+      acquiredAt: new Date(now).toISOString(),
+      expiresAt: new Date(now + 5000).toISOString(),
+      generation: 0,
+      lastHeartbeat: new Date(now).toISOString(),
+    };
+
+    expect(heartbeatScratchpad.isLockStale(freshLock)).toBe(false);
+
+    await heartbeatScratchpad.cleanup();
+  });
+
+  it('should get lock info for a file', async () => {
+    const scratchpad = new Scratchpad({
+      basePath: testBasePath,
+      enableLocking: true,
+    });
+
+    const filePath = path.join(testBasePath, 'info-test.txt');
+    await scratchpad.ensureDir(testBasePath);
+
+    // No lock initially
+    const noLock = await scratchpad.getLockInfo(filePath);
+    expect(noLock).toBeNull();
+
+    // Acquire lock
+    await scratchpad.acquireLock(filePath, 'holder-1');
+
+    // Get lock info
+    const lockInfo = await scratchpad.getLockInfo(filePath);
+    expect(lockInfo).not.toBeNull();
+    expect(lockInfo?.holderId).toBe('holder-1');
+
+    await scratchpad.cleanup();
+  });
+
+  it('should clean up stale locks', async () => {
+    const heartbeatScratchpad = new Scratchpad({
+      basePath: testBasePath,
+      enableLocking: true,
+      enableHeartbeat: true,
+      heartbeatTimeoutMs: 50,
+    });
+
+    await heartbeatScratchpad.ensureDir(testBasePath);
+
+    // Create stale lock files manually
+    const staleLock1 = {
+      filePath: path.resolve(testBasePath, 'stale1.txt'),
+      holderId: 'dead-holder-1',
+      acquiredAt: new Date(Date.now() - 1000).toISOString(),
+      expiresAt: new Date(Date.now() - 500).toISOString(),
+      generation: 0,
+      lastHeartbeat: new Date(Date.now() - 1000).toISOString(),
+    };
+
+    const staleLock2 = {
+      filePath: path.resolve(testBasePath, 'stale2.txt'),
+      holderId: 'dead-holder-2',
+      acquiredAt: new Date(Date.now() - 2000).toISOString(),
+      expiresAt: new Date(Date.now() - 1500).toISOString(),
+      generation: 0,
+      lastHeartbeat: new Date(Date.now() - 2000).toISOString(),
+    };
+
+    fs.writeFileSync(path.join(testBasePath, 'stale1.txt.lock'), JSON.stringify(staleLock1));
+    fs.writeFileSync(path.join(testBasePath, 'stale2.txt.lock'), JSON.stringify(staleLock2));
+
+    // Verify lock files exist
+    expect(fs.existsSync(path.join(testBasePath, 'stale1.txt.lock'))).toBe(true);
+    expect(fs.existsSync(path.join(testBasePath, 'stale2.txt.lock'))).toBe(true);
+
+    // Clean up stale locks
+    const cleanedCount = await heartbeatScratchpad.cleanupStaleLocks();
+
+    expect(cleanedCount).toBe(2);
+    expect(fs.existsSync(path.join(testBasePath, 'stale1.txt.lock'))).toBe(false);
+    expect(fs.existsSync(path.join(testBasePath, 'stale2.txt.lock'))).toBe(false);
+
+    await heartbeatScratchpad.cleanup();
+  });
+
+  it('should enable heartbeat per-lock via options', async () => {
+    // Global heartbeat disabled
+    const scratchpad = new Scratchpad({
+      basePath: testBasePath,
+      enableLocking: true,
+      enableHeartbeat: false,
+    });
+
+    const filePath = path.join(testBasePath, 'per-lock-heartbeat.txt');
+    await scratchpad.ensureDir(testBasePath);
+
+    // Enable heartbeat for this specific lock
+    await scratchpad.acquireLock(filePath, 'holder-1', { enableHeartbeat: true });
+
+    // Read lock file to verify lastHeartbeat is present
+    const lockPath = `${path.resolve(testBasePath, 'per-lock-heartbeat.txt')}.lock`;
+    const lockContent = fs.readFileSync(lockPath, 'utf8');
+    const lock = JSON.parse(lockContent);
+
+    expect(lock.lastHeartbeat).toBeDefined();
+
+    await scratchpad.cleanup();
+  });
+
+  it('should return 0 cleaned when locking is disabled', async () => {
+    const disabledScratchpad = new Scratchpad({
+      basePath: testBasePath,
+      enableLocking: false,
+    });
+
+    const cleanedCount = await disabledScratchpad.cleanupStaleLocks();
+    expect(cleanedCount).toBe(0);
+
+    await disabledScratchpad.cleanup();
+  });
+
+  it('should return null for getLockInfo when locking is disabled', async () => {
+    const disabledScratchpad = new Scratchpad({
+      basePath: testBasePath,
+      enableLocking: false,
+    });
+
+    const lockInfo = await disabledScratchpad.getLockInfo('/some/path.txt');
+    expect(lockInfo).toBeNull();
+
+    await disabledScratchpad.cleanup();
+  });
+
+  it('should stop heartbeat timer on lock release', async () => {
+    const heartbeatScratchpad = new Scratchpad({
+      basePath: testBasePath,
+      enableLocking: true,
+      enableHeartbeat: true,
+      heartbeatIntervalMs: 50,
+      lockTimeout: 5000,
+    });
+
+    const filePath = path.join(testBasePath, 'release-heartbeat.txt');
+    await heartbeatScratchpad.ensureDir(testBasePath);
+
+    await heartbeatScratchpad.acquireLock(filePath, 'holder-1');
+
+    // Read initial heartbeat
+    const lockPath = `${path.resolve(testBasePath, 'release-heartbeat.txt')}.lock`;
+    const initialLock = JSON.parse(fs.readFileSync(lockPath, 'utf8'));
+
+    // Release lock
+    await heartbeatScratchpad.releaseLock(filePath, 'holder-1');
+
+    // Wait a bit
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    // Lock file should be gone
+    expect(fs.existsSync(lockPath)).toBe(false);
+
+    // Re-acquire to ensure timer was cleaned up (no errors)
+    await heartbeatScratchpad.acquireLock(filePath, 'holder-2');
+
+    const newLock = JSON.parse(fs.readFileSync(lockPath, 'utf8'));
+    expect(newLock.holderId).toBe('holder-2');
+
+    await heartbeatScratchpad.cleanup();
+  });
+});

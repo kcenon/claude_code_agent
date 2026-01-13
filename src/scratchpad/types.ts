@@ -47,6 +47,24 @@ export interface ScratchpadOptions {
   readonly lockRetryDelayMs?: number;
   /** Time in ms after which expired lock can be stolen (default: 5000) */
   readonly lockStealThresholdMs?: number;
+  /**
+   * Enable heartbeat mechanism for locks (default: false).
+   * When enabled, lock holders periodically update the lock timestamp
+   * to indicate they are still alive. This allows stale locks from
+   * crashed processes to be safely identified and cleaned up.
+   */
+  readonly enableHeartbeat?: boolean;
+  /**
+   * Heartbeat interval in milliseconds (default: 1000).
+   * How often the lock timestamp is updated when heartbeat is enabled.
+   */
+  readonly heartbeatIntervalMs?: number;
+  /**
+   * Heartbeat timeout in milliseconds (default: 3000).
+   * A lock is considered stale if no heartbeat has been received
+   * within this duration.
+   */
+  readonly heartbeatTimeoutMs?: number;
 }
 
 /**
@@ -263,6 +281,8 @@ export interface FileLock {
   readonly expiresAt: string;
   /** Lock generation counter for detecting concurrent modifications (ABA problem prevention) */
   readonly generation?: number;
+  /** Last heartbeat timestamp (ISO 8601) - indicates lock holder is still alive */
+  readonly lastHeartbeat?: string;
 }
 
 /**
@@ -300,6 +320,11 @@ export interface LockOptions {
    * Default: 1000ms
    */
   readonly cooperativeReleaseTimeoutMs?: number;
+  /**
+   * Enable heartbeat for this specific lock operation.
+   * Overrides the global enableHeartbeat setting.
+   */
+  readonly enableHeartbeat?: boolean;
 }
 
 /**
