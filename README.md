@@ -178,6 +178,26 @@ ad-sdlc status [--project <id>] [--format text|json] [--verbose]
 
 # Analyze project for documentation-code gaps
 ad-sdlc analyze [--project <path>] [--scope full|documents_only|code_only]
+
+# Generate shell completion script
+ad-sdlc completion --shell <bash|zsh|fish>
+```
+
+### Shell Autocompletion
+
+Enable tab completion for AD-SDLC commands in your shell:
+
+```bash
+# Bash
+ad-sdlc completion --shell bash >> ~/.bashrc
+source ~/.bashrc
+
+# Zsh
+ad-sdlc completion --shell zsh > ~/.zsh/completions/_ad-sdlc
+source ~/.zshrc
+
+# Fish
+ad-sdlc completion --shell fish > ~/.config/fish/completions/ad-sdlc.fish
 ```
 
 See [Quickstart Guide](docs/quickstart.md) for a step-by-step tutorial.
