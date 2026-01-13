@@ -238,12 +238,12 @@ export class LogQueryParser {
         const quote = char;
         i++;
         let value = '';
-        while (i < query.length && query[i] !== quote) {
-          if (query[i] === '\\' && i + 1 < query.length) {
+        while (i < query.length && query.charAt(i) !== quote) {
+          if (query.charAt(i) === '\\' && i + 1 < query.length) {
             i++;
-            value += query[i];
+            value += query.charAt(i);
           } else {
-            value += query[i];
+            value += query.charAt(i);
           }
           i++;
         }
@@ -254,15 +254,15 @@ export class LogQueryParser {
 
       // Word (field name, value, or operator)
       let word = '';
-      while (i < query.length && !/[\s():"]/.test(query[i] ?? '') && query.substring(i, i + 2) !== '..') {
+      while (i < query.length && !/[\s():"]/.test(query.charAt(i)) && query.substring(i, i + 2) !== '..') {
         // Stop at colon only if word could be a field name or operator
-        if (query[i] === ':' && word.length > 0) {
+        if (query.charAt(i) === ':' && word.length > 0) {
           const lowerWord = word.toLowerCase();
           if (VALID_FIELDS.has(lowerWord) || ['and', 'or', 'not'].includes(lowerWord)) {
             break; // Stop before colon for field names
           }
         }
-        word += query[i];
+        word += query.charAt(i);
         i++;
       }
 
@@ -565,7 +565,7 @@ export class LogQueryParser {
    */
   private parseTimeValue(value: string, isEndOfRange = false): number {
     // Try parsing as ISO string first
-    let date = new Date(value);
+    const date = new Date(value);
     if (!isNaN(date.getTime())) {
       // If it's a date-only string (YYYY-MM-DD), set appropriate time
       if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
