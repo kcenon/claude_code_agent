@@ -13,6 +13,7 @@ export { ProgressMonitor } from './ProgressMonitor.js';
 export { WorkerHealthMonitor } from './WorkerHealthMonitor.js';
 export { StuckWorkerHandler } from './StuckWorkerHandler.js';
 export { BoundedWorkQueue } from './BoundedWorkQueue.js';
+export { WorkerPoolMetrics } from './WorkerPoolMetrics.js';
 export type {
   ZombieWorkerHandler,
   WorkerRestartHandler,
@@ -95,6 +96,21 @@ export type {
   QueueEventCallback,
   // Distributed Lock types
   DistributedLockOptions,
+  // Worker Pool Metrics types
+  PoolUtilizationMetrics,
+  QueueDepthMetrics,
+  TaskCompletionRecord,
+  TaskCompletionStats,
+  WorkerPoolMetricsSnapshot,
+  PrometheusMetricType,
+  PrometheusMetric,
+  PrometheusHistogramBucket,
+  PrometheusHistogram,
+  MetricsExportFormat,
+  WorkerPoolMetricsConfig,
+  MetricsEventType,
+  MetricsEvent,
+  MetricsEventCallback,
 } from './types.js';
 
 export {
@@ -106,6 +122,7 @@ export {
   DEFAULT_HEALTH_CHECK_CONFIG,
   DEFAULT_BOUNDED_QUEUE_CONFIG,
   DEFAULT_DISTRIBUTED_LOCK_OPTIONS,
+  DEFAULT_WORKER_POOL_METRICS_CONFIG,
 } from './types.js';
 
 export {

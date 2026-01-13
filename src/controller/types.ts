@@ -298,13 +298,15 @@ export interface WorkerPoolConfig {
   readonly queueConfig?: BoundedQueueConfig;
   /** Distributed lock configuration for multi-process deployments */
   readonly distributedLock?: DistributedLockOptions;
+  /** Metrics configuration (optional, enables metrics collection when provided) */
+  readonly metricsConfig?: WorkerPoolMetricsConfig;
 }
 
 /**
  * Default worker pool configuration
  */
 export const DEFAULT_WORKER_POOL_CONFIG: Required<
-  Omit<WorkerPoolConfig, 'queueConfig' | 'distributedLock'>
+  Omit<WorkerPoolConfig, 'queueConfig' | 'distributedLock' | 'metricsConfig'>
 > = {
   maxWorkers: 5,
   workerTimeout: 600000, // 10 minutes
@@ -986,3 +988,216 @@ export interface QueueEvent {
  * Queue event callback
  */
 export type QueueEventCallback = (event: QueueEvent) => void | Promise<void>;
+
+// ============================================================================
+// Worker Pool Metrics Types
+// ============================================================================
+
+/**
+ * Worker pool utilization metrics
+ */
+export interface PoolUtilizationMetrics {
+  /** Total number of workers in the pool */
+  readonly totalWorkers: number;
+  /** Number of workers currently working */
+  readonly activeWorkers: number;
+  /** Number of idle workers */
+  readonly idleWorkers: number;
+  /** Number of workers in error state */
+  readonly errorWorkers: number;
+  /** Utilization ratio (0-1) */
+  readonly utilizationRatio: number;
+  /** Timestamp of the metrics snapshot */
+  readonly timestamp: number;
+}
+
+/**
+ * Queue depth metrics
+ */
+export interface QueueDepthMetrics {
+  /** Current queue size */
+  readonly currentDepth: number;
+  /** Maximum queue capacity */
+  readonly maxCapacity: number;
+  /** Queue utilization ratio (0-1) */
+  readonly utilizationRatio: number;
+  /** Number of items in dead letter queue */
+  readonly deadLetterCount: number;
+  /** Whether backpressure is active */
+  readonly backpressureActive: boolean;
+  /** Timestamp of the metrics snapshot */
+  readonly timestamp: number;
+}
+
+/**
+ * Task completion time record
+ */
+export interface TaskCompletionRecord {
+  /** Work order ID */
+  readonly orderId: string;
+  /** Issue ID */
+  readonly issueId: string;
+  /** Worker ID that completed the task */
+  readonly workerId: string;
+  /** Task start timestamp */
+  readonly startedAt: number;
+  /** Task completion timestamp */
+  readonly completedAt: number;
+  /** Duration in milliseconds */
+  readonly durationMs: number;
+  /** Whether the task was successful */
+  readonly success: boolean;
+}
+
+/**
+ * Task completion time statistics
+ */
+export interface TaskCompletionStats {
+  /** Total number of completed tasks */
+  readonly totalCompleted: number;
+  /** Number of successful tasks */
+  readonly successCount: number;
+  /** Number of failed tasks */
+  readonly failureCount: number;
+  /** Success rate (0-1) */
+  readonly successRate: number;
+  /** Average completion time in milliseconds */
+  readonly averageTimeMs: number;
+  /** Minimum completion time in milliseconds */
+  readonly minTimeMs: number;
+  /** Maximum completion time in milliseconds */
+  readonly maxTimeMs: number;
+  /** 50th percentile (median) completion time in milliseconds */
+  readonly p50TimeMs: number;
+  /** 95th percentile completion time in milliseconds */
+  readonly p95TimeMs: number;
+  /** 99th percentile completion time in milliseconds */
+  readonly p99TimeMs: number;
+  /** Timestamp of the statistics snapshot */
+  readonly timestamp: number;
+}
+
+/**
+ * Complete worker pool metrics snapshot
+ */
+export interface WorkerPoolMetricsSnapshot {
+  /** Pool utilization metrics */
+  readonly utilization: PoolUtilizationMetrics;
+  /** Queue depth metrics */
+  readonly queueDepth: QueueDepthMetrics;
+  /** Task completion statistics */
+  readonly completionStats: TaskCompletionStats;
+  /** Recent completion records (for detailed analysis) */
+  readonly recentCompletions: readonly TaskCompletionRecord[];
+  /** Per-worker completion counts */
+  readonly workerCompletions: ReadonlyMap<string, number>;
+  /** Timestamp of the snapshot */
+  readonly timestamp: number;
+}
+
+/**
+ * Prometheus metric type
+ */
+export type PrometheusMetricType = 'counter' | 'gauge' | 'histogram' | 'summary';
+
+/**
+ * Prometheus metric definition
+ */
+export interface PrometheusMetric {
+  /** Metric name */
+  readonly name: string;
+  /** Metric type */
+  readonly type: PrometheusMetricType;
+  /** Help text describing the metric */
+  readonly help: string;
+  /** Metric value */
+  readonly value: number;
+  /** Optional labels */
+  readonly labels?: Record<string, string>;
+}
+
+/**
+ * Prometheus histogram bucket
+ */
+export interface PrometheusHistogramBucket {
+  /** Upper bound of the bucket (le label) */
+  readonly le: number;
+  /** Count of observations in this bucket */
+  readonly count: number;
+}
+
+/**
+ * Prometheus histogram metric
+ */
+export interface PrometheusHistogram {
+  /** Metric name */
+  readonly name: string;
+  /** Help text describing the metric */
+  readonly help: string;
+  /** Histogram buckets */
+  readonly buckets: readonly PrometheusHistogramBucket[];
+  /** Sum of all observed values */
+  readonly sum: number;
+  /** Total count of observations */
+  readonly count: number;
+  /** Optional labels */
+  readonly labels?: Record<string, string>;
+}
+
+/**
+ * Metrics export format
+ */
+export type MetricsExportFormat = 'prometheus' | 'json' | 'openmetrics';
+
+/**
+ * Worker pool metrics configuration
+ */
+export interface WorkerPoolMetricsConfig {
+  /** Enable metrics collection (default: true) */
+  readonly enabled?: boolean;
+  /** Maximum number of completion records to retain (default: 1000) */
+  readonly maxCompletionRecords?: number;
+  /** Histogram buckets for completion time in milliseconds (default: standard buckets) */
+  readonly histogramBuckets?: readonly number[];
+  /** Metrics prefix for Prometheus export (default: 'worker_pool') */
+  readonly metricsPrefix?: string;
+}
+
+/**
+ * Default worker pool metrics configuration
+ */
+export const DEFAULT_WORKER_POOL_METRICS_CONFIG: Required<WorkerPoolMetricsConfig> = {
+  enabled: true,
+  maxCompletionRecords: 1000,
+  histogramBuckets: [100, 500, 1000, 5000, 10000, 30000, 60000, 120000, 300000, 600000],
+  metricsPrefix: 'worker_pool',
+} as const;
+
+/**
+ * Metrics event types
+ */
+export type MetricsEventType =
+  | 'task_started'
+  | 'task_completed'
+  | 'task_failed'
+  | 'worker_utilized'
+  | 'worker_released'
+  | 'queue_depth_changed'
+  | 'backpressure_changed';
+
+/**
+ * Metrics event
+ */
+export interface MetricsEvent {
+  /** Event type */
+  readonly type: MetricsEventType;
+  /** Event timestamp */
+  readonly timestamp: number;
+  /** Associated data */
+  readonly data: Record<string, unknown>;
+}
+
+/**
+ * Metrics event callback
+ */
+export type MetricsEventCallback = (event: MetricsEvent) => void | Promise<void>;

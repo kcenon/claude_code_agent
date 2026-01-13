@@ -55,8 +55,13 @@ import type {
   QueueEventCallback,
   DeadLetterEntry,
   DistributedLockOptions,
+  WorkerPoolMetricsConfig,
+  WorkerPoolMetricsSnapshot,
+  MetricsExportFormat,
+  MetricsEventCallback,
 } from './types.js';
 import { DEFAULT_WORKER_POOL_CONFIG, DEFAULT_DISTRIBUTED_LOCK_OPTIONS } from './types.js';
+import { WorkerPoolMetrics } from './WorkerPoolMetrics.js';
 import { Scratchpad } from '../scratchpad/Scratchpad.js';
 import type { ScratchpadOptions, LockOptions } from '../scratchpad/types.js';
 import {
@@ -103,6 +108,7 @@ interface InternalWorkerPoolConfig {
   readonly workOrdersPath: string;
   readonly queueConfig: BoundedQueueConfig | undefined;
   readonly distributedLock: Required<DistributedLockOptions>;
+  readonly metricsConfig: WorkerPoolMetricsConfig | undefined;
 }
 
 export class WorkerPoolManager {
@@ -124,6 +130,8 @@ export class WorkerPoolManager {
   private readonly lockHolderId: string;
   /** Path to the shared state file for distributed locking */
   private readonly sharedStatePath: string;
+  /** Metrics collector for observability */
+  private readonly metrics: WorkerPoolMetrics | null;
 
   constructor(config: WorkerPoolConfig = {}, scratchpadOptions?: ScratchpadOptions) {
     // Merge distributed lock options with defaults
@@ -150,6 +158,7 @@ export class WorkerPoolManager {
       workOrdersPath: config.workOrdersPath ?? DEFAULT_WORKER_POOL_CONFIG.workOrdersPath,
       queueConfig: config.queueConfig,
       distributedLock: distributedLockConfig,
+      metricsConfig: config.metricsConfig,
     };
 
     this.workers = new Map();
@@ -183,6 +192,13 @@ export class WorkerPoolManager {
     } else {
       this.boundedQueue = null;
       this.legacyQueue = new Map();
+    }
+
+    // Initialize metrics collector if config provided
+    if (config.metricsConfig !== undefined) {
+      this.metrics = new WorkerPoolMetrics(config.metricsConfig);
+    } else {
+      this.metrics = null;
     }
 
     this.initializeWorkers();
@@ -427,6 +443,12 @@ export class WorkerPoolManager {
       } else {
         this.legacyQueue.delete(workOrder.issueId);
       }
+
+      // Record metrics
+      if (this.metrics !== null) {
+        this.metrics.recordTaskStart(workOrder.orderId, workOrder.issueId, workerId);
+        this.updateMetricsState();
+      }
     } catch (error) {
       // Rollback on failure
       worker.status = 'idle';
@@ -478,6 +500,12 @@ export class WorkerPoolManager {
       }
     }
 
+    // Record metrics
+    if (this.metrics !== null) {
+      this.metrics.recordTaskCompletion(result.orderId, result.success);
+      this.updateMetricsState();
+    }
+
     // Invoke callback
     if (this.onCompletionCallback !== undefined) {
       await this.onCompletionCallback(workerId, result);
@@ -499,6 +527,12 @@ export class WorkerPoolManager {
 
     // Track failure
     this.failedOrders.add(orderId);
+
+    // Record metrics
+    if (this.metrics !== null) {
+      this.metrics.recordTaskCompletion(orderId, false);
+      this.updateMetricsState();
+    }
 
     // Invoke callback
     if (this.onFailureCallback !== undefined) {
@@ -1231,5 +1265,119 @@ export class WorkerPoolManager {
     if (this.scratchpad !== null) {
       await this.scratchpad.cleanup();
     }
+  }
+
+  // ============================================================================
+  // Metrics Support Methods
+  // ============================================================================
+
+  /**
+   * Check if metrics collection is enabled
+   */
+  public isMetricsEnabled(): boolean {
+    return this.metrics !== null && this.metrics.isEnabled();
+  }
+
+  /**
+   * Update metrics state from current pool state
+   * @internal
+   */
+  private updateMetricsState(): void {
+    if (this.metrics === null) return;
+
+    const status = this.getStatus();
+    this.metrics.updatePoolState(
+      status.totalWorkers,
+      status.workingWorkers,
+      status.idleWorkers,
+      status.errorWorkers
+    );
+
+    // Update queue state
+    const queueStatus = this.getQueueStatus();
+    if (queueStatus !== null) {
+      this.metrics.updateQueueState(
+        queueStatus.size,
+        queueStatus.maxSize,
+        queueStatus.deadLetterSize,
+        queueStatus.backpressureActive
+      );
+    } else {
+      // Legacy queue - no bounded queue configured
+      this.metrics.updateQueueState(
+        this.getQueueSize(),
+        Number.MAX_SAFE_INTEGER, // No limit
+        0,
+        false
+      );
+    }
+  }
+
+  /**
+   * Get metrics snapshot
+   *
+   * Returns a complete snapshot of all worker pool metrics including
+   * utilization, queue depth, and task completion statistics.
+   *
+   * @returns Metrics snapshot or null if metrics not enabled
+   */
+  public getMetricsSnapshot(): WorkerPoolMetricsSnapshot | null {
+    if (this.metrics === null) {
+      return null;
+    }
+    this.updateMetricsState();
+    return this.metrics.getSnapshot();
+  }
+
+  /**
+   * Export metrics in specified format
+   *
+   * Supports Prometheus, OpenMetrics, and JSON formats.
+   *
+   * @param format - Export format (default: 'prometheus')
+   * @returns Formatted metrics string or null if metrics not enabled
+   */
+  public exportMetrics(format: MetricsExportFormat = 'prometheus'): string | null {
+    if (this.metrics === null) {
+      return null;
+    }
+    this.updateMetricsState();
+    return this.metrics.export(format);
+  }
+
+  /**
+   * Set metrics event callback
+   *
+   * Receives notifications for metrics-related events such as
+   * task start/completion, utilization changes, etc.
+   *
+   * @param callback - Event callback function
+   */
+  public onMetricsEvent(callback: MetricsEventCallback): void {
+    if (this.metrics !== null) {
+      this.metrics.onEvent(callback);
+    }
+  }
+
+  /**
+   * Reset metrics
+   *
+   * Clears all collected metrics data. Pool and queue state are preserved.
+   */
+  public resetMetrics(): void {
+    if (this.metrics !== null) {
+      this.metrics.reset();
+    }
+  }
+
+  /**
+   * Get raw metrics instance
+   *
+   * Provides direct access to the metrics collector for advanced usage.
+   *
+   * @returns WorkerPoolMetrics instance or null if metrics not enabled
+   */
+  public getMetricsCollector(): WorkerPoolMetrics | null {
+    return this.metrics;
   }
 }
