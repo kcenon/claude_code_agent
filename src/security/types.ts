@@ -13,6 +13,8 @@ export type AuditEventType =
   | 'file_created'
   | 'file_deleted'
   | 'file_modified'
+  | 'file_watched'
+  | 'file_watch_stopped'
   | 'secret_accessed'
   | 'validation_failed'
   | 'security_violation'
@@ -186,4 +188,72 @@ export interface CommandExecResult {
   readonly duration: number;
   /** Exit code if available */
   readonly exitCode?: number;
+}
+
+/**
+ * File watch event types
+ */
+export type FileWatchEventType = 'change' | 'rename' | 'add' | 'unlink' | 'error';
+
+/**
+ * File watch event data
+ */
+export interface FileWatchEvent {
+  /** Type of file change event */
+  readonly type: FileWatchEventType;
+  /** Relative path of the changed file */
+  readonly path: string;
+  /** Absolute path of the changed file */
+  readonly absolutePath: string;
+  /** Timestamp of the event */
+  readonly timestamp: Date;
+  /** Error if type is 'error' */
+  readonly error?: Error;
+}
+
+/**
+ * File watch callback function type
+ */
+export type FileWatchCallback = (event: FileWatchEvent) => void | Promise<void>;
+
+/**
+ * Pattern filter for file watching
+ */
+export interface FileWatchPatternFilter {
+  /** Glob patterns to include (e.g., '*.ts', '**\/*.json') */
+  readonly include?: readonly string[];
+  /** Glob patterns to exclude */
+  readonly exclude?: readonly string[];
+}
+
+/**
+ * Configuration options for file watching
+ */
+export interface FileWatcherConfig {
+  /** Watch subdirectories recursively (default: true) */
+  readonly recursive?: boolean;
+  /** Debounce delay in milliseconds (default: 100) */
+  readonly debounceMs?: number;
+  /** Pattern filters for file types */
+  readonly patterns?: FileWatchPatternFilter;
+  /** Follow symbolic links (default: false for security) */
+  readonly followSymlinks?: boolean;
+  /** Validate symlink targets remain within security boundary (default: true) */
+  readonly validateSymlinkTargets?: boolean;
+  /** Enable audit logging for watch events (default: true) */
+  readonly enableAuditLog?: boolean;
+}
+
+/**
+ * Active file watcher handle
+ */
+export interface FileWatcherHandle {
+  /** Unique identifier for this watcher */
+  readonly id: string;
+  /** Path being watched */
+  readonly watchPath: string;
+  /** Stop watching */
+  readonly close: () => void;
+  /** Check if watcher is active */
+  readonly isActive: () => boolean;
 }
