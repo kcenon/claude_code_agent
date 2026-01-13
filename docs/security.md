@@ -702,6 +702,94 @@ await fileOps.readFile('link.txt');
 await fileOps.readFile('internal-link.txt');  // Works fine
 ```
 
+### File Watching
+
+SecureFileOps provides secure file watching with path validation and security filters:
+
+```typescript
+import { createSecureFileOps } from 'ad-sdlc';
+
+const fileOps = createSecureFileOps({
+  projectRoot: '/path/to/project',
+});
+
+// Watch a directory for changes
+const handle = fileOps.watch('src', (event) => {
+  console.log(`File ${event.type}: ${event.path}`);
+  // event.type: 'change' | 'add' | 'unlink' | 'error'
+  // event.path: relative path from project root
+  // event.absolutePath: full absolute path
+  // event.timestamp: Date when the event occurred
+});
+
+// Stop watching
+handle.close();
+
+// Check if still active
+if (handle.isActive()) {
+  console.log('Still watching');
+}
+```
+
+#### Watch Configuration
+
+```typescript
+const handle = fileOps.watch('src', callback, {
+  // Watch subdirectories recursively (default: true)
+  recursive: true,
+
+  // Debounce rapid changes in milliseconds (default: 100)
+  debounceMs: 100,
+
+  // Filter by file patterns
+  patterns: {
+    include: ['*.ts', '*.tsx'],  // Only watch TypeScript files
+    exclude: ['*.test.ts'],      // Exclude test files
+  },
+
+  // Follow symbolic links (default: false for security)
+  followSymlinks: false,
+
+  // Validate symlink targets stay within security boundary (default: true)
+  validateSymlinkTargets: true,
+
+  // Enable audit logging (default: true)
+  enableAuditLog: true,
+});
+```
+
+#### Security Features
+
+File watching includes built-in security protections:
+
+1. **Path Validation**: Only paths within the project root can be watched
+2. **Security Boundary**: Changed files outside allowed directories are filtered out
+3. **Symlink Validation**: Symlink targets are validated to prevent escaping boundaries
+4. **Pattern Filtering**: Only specified file types are reported
+
+```typescript
+// Attempting to watch outside project root throws PathTraversalError
+fileOps.watch('../../etc', callback);  // Throws!
+
+// Watching a symlink that points outside project throws error
+// if validateSymlinkTargets is true
+fileOps.watch('bad-symlink', callback);  // Throws PathTraversalError!
+```
+
+#### Managing Watchers
+
+```typescript
+// Get all active watchers
+const watchers = fileOps.getActiveWatchers();
+console.log(`${watchers.length} active watchers`);
+
+// Stop all watchers
+fileOps.unwatchAll();
+
+// Stop a specific watcher by ID
+fileOps.unwatch(handle.id);
+```
+
 ## PathResolver
 
 Low-level path resolution with security validation.
