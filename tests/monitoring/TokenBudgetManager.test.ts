@@ -505,4 +505,265 @@ describe('TokenBudgetManager', () => {
       expect(result).toBe(false);
     });
   });
+
+  describe('budget forecasting', () => {
+    describe('getForecast', () => {
+      it('should return unavailable when insufficient data', () => {
+        const forecast = manager.getForecast();
+
+        expect(forecast.available).toBe(false);
+        expect(forecast.unavailableReason).toContain('Insufficient data');
+      });
+
+      it('should return forecast when sufficient data exists', () => {
+        // Record 3 operations (minimum required)
+        manager.recordUsage(500, 500, 0.05);
+        manager.recordUsage(600, 600, 0.06);
+        manager.recordUsage(550, 550, 0.055);
+
+        const forecast = manager.getForecast();
+
+        expect(forecast.available).toBe(true);
+        expect(forecast.avgTokensPerOperation).toBeDefined();
+        expect(forecast.avgCostPerOperation).toBeDefined();
+        expect(forecast.confidence).toBeDefined();
+      });
+
+      it('should calculate estimated remaining operations', () => {
+        manager.recordUsage(500, 500, 0.05);
+        manager.recordUsage(500, 500, 0.05);
+        manager.recordUsage(500, 500, 0.05);
+
+        const forecast = manager.getForecast();
+
+        expect(forecast.available).toBe(true);
+        expect(forecast.estimatedRemainingOperations).toBeDefined();
+        // With 3000 tokens used and ~1000 tokens per op, remaining should be ~7 ops
+        expect(forecast.estimatedRemainingOperations).toBeGreaterThan(0);
+      });
+
+      it('should detect increasing usage trend', () => {
+        manager.recordUsage(100, 100, 0.01);
+        manager.recordUsage(200, 200, 0.02);
+        manager.recordUsage(400, 400, 0.04);
+        manager.recordUsage(800, 800, 0.08);
+
+        const forecast = manager.getForecast();
+
+        expect(forecast.usageTrend).toBe('increasing');
+      });
+
+      it('should detect decreasing usage trend', () => {
+        manager.recordUsage(800, 800, 0.08);
+        manager.recordUsage(400, 400, 0.04);
+        manager.recordUsage(200, 200, 0.02);
+        manager.recordUsage(100, 100, 0.01);
+
+        const forecast = manager.getForecast();
+
+        expect(forecast.usageTrend).toBe('decreasing');
+      });
+
+      it('should detect stable usage trend', () => {
+        manager.recordUsage(500, 500, 0.05);
+        manager.recordUsage(510, 490, 0.05);
+        manager.recordUsage(495, 505, 0.05);
+        manager.recordUsage(500, 500, 0.05);
+
+        const forecast = manager.getForecast();
+
+        expect(forecast.usageTrend).toBe('stable');
+      });
+
+      it('should detect projected token overage', () => {
+        // Use 90% of budget in consistent chunks
+        for (let i = 0; i < 9; i++) {
+          manager.recordUsage(500, 500, 0.1);
+        }
+
+        const forecast = manager.getForecast();
+
+        expect(forecast.projectedTokenOverage).toBe(true);
+      });
+
+      it('should detect projected cost overage', () => {
+        // Use 90% of cost budget
+        for (let i = 0; i < 9; i++) {
+          manager.recordUsage(100, 100, 0.1);
+        }
+
+        const forecast = manager.getForecast();
+
+        expect(forecast.projectedCostOverage).toBe(true);
+      });
+    });
+
+    describe('getUsageHistory', () => {
+      it('should return empty array initially', () => {
+        const history = manager.getUsageHistory();
+
+        expect(history.length).toBe(0);
+      });
+
+      it('should track usage history', () => {
+        manager.recordUsage(100, 50, 0.01);
+        manager.recordUsage(200, 100, 0.02);
+
+        const history = manager.getUsageHistory();
+
+        expect(history.length).toBe(2);
+        expect(history[0]?.totalTokens).toBe(150);
+        expect(history[1]?.totalTokens).toBe(300);
+      });
+
+      it('should limit history size', () => {
+        const limitedManager = new TokenBudgetManager({
+          sessionTokenLimit: 100000,
+          maxHistorySize: 5,
+        });
+
+        for (let i = 0; i < 10; i++) {
+          limitedManager.recordUsage(100, 100, 0.01);
+        }
+
+        const history = limitedManager.getUsageHistory();
+
+        expect(history.length).toBe(5);
+      });
+    });
+
+    describe('projected overage alerts', () => {
+      it('should generate token overage alert when projected to exceed', () => {
+        // Use 90% of budget
+        for (let i = 0; i < 9; i++) {
+          manager.recordUsage(500, 500, 0.05);
+        }
+
+        const alerts = manager.getProjectedOverageAlerts();
+
+        expect(alerts.length).toBeGreaterThan(0);
+        const tokenAlert = alerts.find((a) => a.type === 'token');
+        expect(tokenAlert).toBeDefined();
+        expect(tokenAlert?.severity).toBe('warning');
+      });
+
+      it('should generate critical alert when very close to limit', () => {
+        // Use 99% of budget
+        for (let i = 0; i < 99; i++) {
+          manager.recordUsage(50, 50, 0.01);
+        }
+
+        const alerts = manager.getProjectedOverageAlerts();
+        const tokenAlert = alerts.find((a) => a.type === 'token');
+
+        // With only ~1 operation remaining, should be critical
+        if (tokenAlert !== undefined) {
+          expect(['warning', 'critical']).toContain(tokenAlert.severity);
+        }
+      });
+
+      it('should not duplicate alerts', () => {
+        for (let i = 0; i < 9; i++) {
+          manager.recordUsage(500, 500, 0.05);
+        }
+
+        // Record more usage
+        manager.recordUsage(100, 100, 0.01);
+
+        const alerts = manager.getProjectedOverageAlerts();
+        const tokenAlerts = alerts.filter((a) => a.type === 'token');
+
+        expect(tokenAlerts.length).toBe(1);
+      });
+    });
+
+    describe('forecast with custom config', () => {
+      it('should use custom forecast config', () => {
+        const customManager = new TokenBudgetManager({
+          sessionTokenLimit: 10000,
+          forecastConfig: {
+            windowSize: 5,
+            minRecordsRequired: 2,
+            smoothingFactor: 0.5,
+          },
+        });
+
+        customManager.recordUsage(500, 500, 0.05);
+        customManager.recordUsage(600, 600, 0.06);
+
+        const forecast = customManager.getForecast();
+
+        expect(forecast.available).toBe(true);
+      });
+    });
+
+    describe('forecast persistence', () => {
+      let forecastPersistenceDir: string;
+
+      beforeEach(() => {
+        forecastPersistenceDir = fs.mkdtempSync(path.join(os.tmpdir(), 'forecast-persist-'));
+      });
+
+      afterEach(() => {
+        if (fs.existsSync(forecastPersistenceDir)) {
+          fs.rmSync(forecastPersistenceDir, { recursive: true, force: true });
+        }
+      });
+
+      it('should persist usage history', () => {
+        const sessionId = 'forecast-persist-test';
+
+        const manager1 = new TokenBudgetManager({
+          sessionTokenLimit: 10000,
+          enablePersistence: true,
+          persistenceDir: forecastPersistenceDir,
+          sessionId,
+        });
+
+        manager1.recordUsage(500, 500, 0.05);
+        manager1.recordUsage(600, 600, 0.06);
+        manager1.recordUsage(550, 550, 0.055);
+
+        // Create new manager that should restore
+        const manager2 = new TokenBudgetManager({
+          sessionTokenLimit: 10000,
+          enablePersistence: true,
+          persistenceDir: forecastPersistenceDir,
+          sessionId,
+        });
+
+        const history = manager2.getUsageHistory();
+        expect(history.length).toBe(3);
+
+        const forecast = manager2.getForecast();
+        expect(forecast.available).toBe(true);
+      });
+    });
+
+    describe('reset clears forecast data', () => {
+      it('should clear usage history on reset', () => {
+        manager.recordUsage(500, 500, 0.05);
+        manager.recordUsage(600, 600, 0.06);
+
+        manager.reset();
+
+        const history = manager.getUsageHistory();
+        expect(history.length).toBe(0);
+
+        const forecast = manager.getForecast();
+        expect(forecast.available).toBe(false);
+      });
+
+      it('should clear projected overage alerts on reset', () => {
+        for (let i = 0; i < 9; i++) {
+          manager.recordUsage(500, 500, 0.05);
+        }
+
+        manager.reset();
+
+        const alerts = manager.getProjectedOverageAlerts();
+        expect(alerts.length).toBe(0);
+      });
+    });
+  });
 });

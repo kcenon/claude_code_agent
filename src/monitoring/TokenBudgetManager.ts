@@ -17,7 +17,14 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import type { AlertSeverity, BudgetPersistenceState } from './types.js';
+import type {
+  AlertSeverity,
+  BudgetPersistenceState,
+  UsageRecord,
+  ForecastConfig,
+  BudgetForecast,
+  ProjectedOverageAlert,
+} from './types.js';
 
 /**
  * Budget threshold configuration
@@ -55,6 +62,10 @@ export interface TokenBudgetConfig {
   readonly persistenceDir?: string;
   /** Session ID for persistence (auto-generated if not provided) */
   readonly sessionId?: string;
+  /** Budget forecasting configuration */
+  readonly forecastConfig?: ForecastConfig;
+  /** Maximum number of usage records to keep in history */
+  readonly maxHistorySize?: number;
 }
 
 /**
@@ -127,6 +138,10 @@ const DEFAULT_WARNING_THRESHOLDS = [50, 75, 90] as const;
 const DEFAULT_HARD_LIMIT_THRESHOLD = 100;
 const DEFAULT_ON_LIMIT_REACHED = 'pause' as const;
 const DEFAULT_PERSISTENCE_DIR = '.ad-sdlc/budget';
+const DEFAULT_FORECAST_WINDOW_SIZE = 10;
+const DEFAULT_FORECAST_MIN_RECORDS = 3;
+const DEFAULT_FORECAST_SMOOTHING_FACTOR = 0.3;
+const DEFAULT_MAX_HISTORY_SIZE = 100;
 
 /**
  * TokenBudgetManager class for managing token budgets
@@ -147,6 +162,13 @@ export class TokenBudgetManager {
   private readonly sessionId: string;
   private readonly persistenceEnabled: boolean;
   private readonly persistenceDir: string;
+  private usageHistory: UsageRecord[] = [];
+  private readonly forecastWindowSize: number;
+  private readonly forecastMinRecords: number;
+  private readonly forecastSmoothingFactor: number;
+  private readonly maxHistorySize: number;
+  private projectedOverageAlerts: ProjectedOverageAlert[] = [];
+  private triggeredOverageAlerts: Set<string> = new Set();
 
   constructor(config: TokenBudgetConfig = {}) {
     this.config = {
@@ -159,6 +181,13 @@ export class TokenBudgetManager {
     this.sessionId = config.sessionId ?? randomUUID();
     this.persistenceEnabled = config.enablePersistence ?? false;
     this.persistenceDir = config.persistenceDir ?? DEFAULT_PERSISTENCE_DIR;
+
+    // Initialize forecasting configuration
+    const forecastConfig = config.forecastConfig ?? {};
+    this.forecastWindowSize = forecastConfig.windowSize ?? DEFAULT_FORECAST_WINDOW_SIZE;
+    this.forecastMinRecords = forecastConfig.minRecordsRequired ?? DEFAULT_FORECAST_MIN_RECORDS;
+    this.forecastSmoothingFactor = forecastConfig.smoothingFactor ?? DEFAULT_FORECAST_SMOOTHING_FACTOR;
+    this.maxHistorySize = config.maxHistorySize ?? DEFAULT_MAX_HISTORY_SIZE;
 
     // Try to restore from persistence if enabled
     if (this.persistenceEnabled) {
@@ -178,6 +207,12 @@ export class TokenBudgetManager {
     this.currentTokens += inputTokens + outputTokens;
     this.currentCostUsd += costUsd;
 
+    // Record usage history for forecasting
+    this.addUsageRecord(inputTokens, outputTokens, costUsd);
+
+    // Check for projected overage and generate alerts
+    this.checkProjectedOverage();
+
     const result = this.checkBudget();
 
     // Auto-save to persistence if enabled
@@ -186,6 +221,26 @@ export class TokenBudgetManager {
     }
 
     return result;
+  }
+
+  /**
+   * Add a usage record to history
+   */
+  private addUsageRecord(inputTokens: number, outputTokens: number, costUsd: number): void {
+    const record: UsageRecord = {
+      timestamp: new Date().toISOString(),
+      inputTokens,
+      outputTokens,
+      totalTokens: inputTokens + outputTokens,
+      costUsd,
+    };
+
+    this.usageHistory.push(record);
+
+    // Trim history if it exceeds max size
+    if (this.usageHistory.length > this.maxHistorySize) {
+      this.usageHistory = this.usageHistory.slice(-this.maxHistorySize);
+    }
   }
 
   /**
@@ -352,6 +407,9 @@ export class TokenBudgetManager {
     this.triggeredWarnings.clear();
     this.overrideActive = false;
     this.warningHistory = [];
+    this.usageHistory = [];
+    this.projectedOverageAlerts = [];
+    this.triggeredOverageAlerts.clear();
   }
 
   /**
@@ -434,6 +492,288 @@ export class TokenBudgetManager {
       allowed: true,
       warnings: [],
     };
+  }
+
+  /**
+   * Get budget forecast based on historical usage patterns
+   */
+  public getForecast(): BudgetForecast {
+    // Check if we have enough data for forecasting
+    if (this.usageHistory.length < this.forecastMinRecords) {
+      return {
+        available: false,
+        unavailableReason: `Insufficient data: ${String(this.usageHistory.length)}/${String(this.forecastMinRecords)} records required`,
+      };
+    }
+
+    // Get recent records for analysis
+    const recentRecords = this.usageHistory.slice(-this.forecastWindowSize);
+
+    // Calculate averages using exponential smoothing
+    const { avgTokens, avgCost } = this.calculateSmoothedAverages(recentRecords);
+
+    // Calculate operation rate (operations per millisecond)
+    const operationRate = this.calculateOperationRate(recentRecords);
+
+    // Calculate trend
+    const trend = this.calculateUsageTrend(recentRecords);
+
+    // Calculate confidence based on data consistency
+    const confidence = this.calculateForecastConfidence(recentRecords);
+
+    // Estimate remaining operations and time for tokens
+    let estimatedRemainingOperations: number | undefined;
+    let estimatedTimeToExhaustionMs: number | undefined;
+    let projectedTokenOverage = false;
+
+    const tokenLimit = this.config.sessionTokenLimit;
+    if (tokenLimit !== undefined && avgTokens > 0) {
+      const remainingTokens = Math.max(0, tokenLimit - this.currentTokens);
+      estimatedRemainingOperations = Math.floor(remainingTokens / avgTokens);
+
+      if (operationRate !== undefined && operationRate > 0) {
+        estimatedTimeToExhaustionMs = estimatedRemainingOperations / operationRate;
+      }
+
+      // Check if projected to exceed in next window operations
+      const projectedUsage = this.currentTokens + avgTokens * this.forecastWindowSize;
+      projectedTokenOverage = projectedUsage > tokenLimit;
+    }
+
+    // Estimate remaining operations and time for cost
+    let estimatedRemainingOperationsByCost: number | undefined;
+    let estimatedTimeToExhaustionByCostMs: number | undefined;
+    let projectedCostOverage = false;
+
+    const costLimit = this.config.sessionCostLimitUsd;
+    if (costLimit !== undefined && avgCost > 0) {
+      const remainingCost = Math.max(0, costLimit - this.currentCostUsd);
+      estimatedRemainingOperationsByCost = Math.floor(remainingCost / avgCost);
+
+      if (operationRate !== undefined && operationRate > 0) {
+        estimatedTimeToExhaustionByCostMs = estimatedRemainingOperationsByCost / operationRate;
+      }
+
+      // Check if projected to exceed in next window operations
+      const projectedCost = this.currentCostUsd + avgCost * this.forecastWindowSize;
+      projectedCostOverage = projectedCost > costLimit;
+    }
+
+    const forecast: BudgetForecast = {
+      available: true,
+      avgTokensPerOperation: Math.round(avgTokens),
+      avgCostPerOperation: Math.round(avgCost * 100000) / 100000,
+      projectedTokenOverage,
+      projectedCostOverage,
+      usageTrend: trend,
+      confidence: Math.round(confidence * 100) / 100,
+    };
+
+    if (estimatedRemainingOperations !== undefined) {
+      (forecast as { estimatedRemainingOperations?: number }).estimatedRemainingOperations =
+        estimatedRemainingOperations;
+    }
+    if (estimatedTimeToExhaustionMs !== undefined) {
+      (forecast as { estimatedTimeToExhaustionMs?: number }).estimatedTimeToExhaustionMs =
+        estimatedTimeToExhaustionMs;
+    }
+    if (estimatedRemainingOperationsByCost !== undefined) {
+      (forecast as { estimatedRemainingOperationsByCost?: number }).estimatedRemainingOperationsByCost =
+        estimatedRemainingOperationsByCost;
+    }
+    if (estimatedTimeToExhaustionByCostMs !== undefined) {
+      (forecast as { estimatedTimeToExhaustionByCostMs?: number }).estimatedTimeToExhaustionByCostMs =
+        estimatedTimeToExhaustionByCostMs;
+    }
+
+    return forecast;
+  }
+
+  /**
+   * Get usage history records
+   */
+  public getUsageHistory(): readonly UsageRecord[] {
+    return this.usageHistory;
+  }
+
+  /**
+   * Get projected overage alerts
+   */
+  public getProjectedOverageAlerts(): readonly ProjectedOverageAlert[] {
+    return this.projectedOverageAlerts;
+  }
+
+  /**
+   * Calculate exponentially smoothed averages
+   */
+  private calculateSmoothedAverages(records: UsageRecord[]): {
+    avgTokens: number;
+    avgCost: number;
+  } {
+    const firstRecord = records[0];
+    if (records.length === 0 || firstRecord === undefined) {
+      return { avgTokens: 0, avgCost: 0 };
+    }
+
+    const alpha = this.forecastSmoothingFactor;
+    let smoothedTokens = firstRecord.totalTokens;
+    let smoothedCost = firstRecord.costUsd;
+
+    for (let i = 1; i < records.length; i++) {
+      const record = records[i];
+      if (record !== undefined) {
+        smoothedTokens = alpha * record.totalTokens + (1 - alpha) * smoothedTokens;
+        smoothedCost = alpha * record.costUsd + (1 - alpha) * smoothedCost;
+      }
+    }
+
+    return {
+      avgTokens: smoothedTokens,
+      avgCost: smoothedCost,
+    };
+  }
+
+  /**
+   * Calculate operation rate (operations per millisecond)
+   */
+  private calculateOperationRate(records: UsageRecord[]): number | undefined {
+    const firstRecord = records[0];
+    const lastRecord = records[records.length - 1];
+
+    if (records.length < 2 || firstRecord === undefined || lastRecord === undefined) {
+      return undefined;
+    }
+
+    const firstTime = new Date(firstRecord.timestamp).getTime();
+    const lastTime = new Date(lastRecord.timestamp).getTime();
+    const timeSpanMs = lastTime - firstTime;
+
+    if (timeSpanMs <= 0) {
+      return undefined;
+    }
+
+    return (records.length - 1) / timeSpanMs;
+  }
+
+  /**
+   * Calculate usage trend
+   */
+  private calculateUsageTrend(records: UsageRecord[]): 'increasing' | 'stable' | 'decreasing' {
+    if (records.length < 3) {
+      return 'stable';
+    }
+
+    // Compare first half average to second half average
+    const midpoint = Math.floor(records.length / 2);
+    const firstHalf = records.slice(0, midpoint);
+    const secondHalf = records.slice(midpoint);
+
+    const firstHalfAvg =
+      firstHalf.reduce((sum, r) => sum + r.totalTokens, 0) / firstHalf.length;
+    const secondHalfAvg =
+      secondHalf.reduce((sum, r) => sum + r.totalTokens, 0) / secondHalf.length;
+
+    const changePercent = ((secondHalfAvg - firstHalfAvg) / firstHalfAvg) * 100;
+
+    // Use 10% threshold for trend detection
+    if (changePercent > 10) {
+      return 'increasing';
+    } else if (changePercent < -10) {
+      return 'decreasing';
+    }
+    return 'stable';
+  }
+
+  /**
+   * Calculate forecast confidence based on data consistency
+   */
+  private calculateForecastConfidence(records: UsageRecord[]): number {
+    if (records.length < 2) {
+      return 0;
+    }
+
+    const tokens = records.map((r) => r.totalTokens);
+    const mean = tokens.reduce((a, b) => a + b, 0) / tokens.length;
+
+    // Calculate coefficient of variation (CV)
+    const variance =
+      tokens.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / tokens.length;
+    const stdDev = Math.sqrt(variance);
+    const cv = mean > 0 ? stdDev / mean : 1;
+
+    // Convert CV to confidence (lower CV = higher confidence)
+    // CV of 0 -> confidence 1.0
+    // CV of 1 -> confidence 0.5
+    // CV of 2+ -> confidence 0.25
+    const confidence = Math.max(0.25, 1 / (1 + cv));
+
+    // Adjust for sample size (more data = higher confidence)
+    const sampleSizeFactor = Math.min(1, records.length / this.forecastWindowSize);
+
+    return confidence * sampleSizeFactor;
+  }
+
+  /**
+   * Check for projected overage and generate alerts
+   */
+  private checkProjectedOverage(): void {
+    const forecast = this.getForecast();
+
+    if (!forecast.available) {
+      return;
+    }
+
+    const timestamp = new Date().toISOString();
+
+    // Check for projected token overage
+    if (forecast.projectedTokenOverage === true) {
+      const key = 'projected-token-overage';
+      if (!this.triggeredOverageAlerts.has(key)) {
+        const remainingOps = forecast.estimatedRemainingOperations ?? 0;
+        const severity: AlertSeverity = remainingOps <= 5 ? 'critical' : 'warning';
+
+        const alert: ProjectedOverageAlert = {
+          type: 'token',
+          severity,
+          message: `Projected to exceed token budget in approximately ${String(remainingOps)} operations`,
+          timestamp,
+          estimatedRemainingOperations: remainingOps,
+        };
+
+        if (forecast.estimatedTimeToExhaustionMs !== undefined) {
+          (alert as { estimatedTimeToExhaustionMs?: number }).estimatedTimeToExhaustionMs =
+            forecast.estimatedTimeToExhaustionMs;
+        }
+
+        this.projectedOverageAlerts.push(alert);
+        this.triggeredOverageAlerts.add(key);
+      }
+    }
+
+    // Check for projected cost overage
+    if (forecast.projectedCostOverage === true) {
+      const key = 'projected-cost-overage';
+      if (!this.triggeredOverageAlerts.has(key)) {
+        const remainingOps = forecast.estimatedRemainingOperationsByCost ?? 0;
+        const severity: AlertSeverity = remainingOps <= 5 ? 'critical' : 'warning';
+
+        const alert: ProjectedOverageAlert = {
+          type: 'cost',
+          severity,
+          message: `Projected to exceed cost budget in approximately ${String(remainingOps)} operations`,
+          timestamp,
+          estimatedRemainingOperations: remainingOps,
+        };
+
+        if (forecast.estimatedTimeToExhaustionByCostMs !== undefined) {
+          (alert as { estimatedTimeToExhaustionMs?: number }).estimatedTimeToExhaustionMs =
+            forecast.estimatedTimeToExhaustionByCostMs;
+        }
+
+        this.projectedOverageAlerts.push(alert);
+        this.triggeredOverageAlerts.add(key);
+      }
+    }
   }
 
   /**
@@ -534,6 +874,8 @@ export class TokenBudgetManager {
           message: w.message,
           timestamp: w.timestamp,
         })),
+        usageHistory: this.usageHistory,
+        triggeredOverageAlerts: Array.from(this.triggeredOverageAlerts),
       };
 
       if (this.config.sessionTokenLimit !== undefined) {
@@ -585,6 +927,16 @@ export class TokenBudgetManager {
         message: w.message,
         timestamp: w.timestamp,
       }));
+
+      // Restore usage history for forecasting (if available)
+      if (state.usageHistory !== undefined) {
+        this.usageHistory = [...state.usageHistory];
+      }
+
+      // Restore triggered overage alerts (if available)
+      if (state.triggeredOverageAlerts !== undefined) {
+        this.triggeredOverageAlerts = new Set(state.triggeredOverageAlerts);
+      }
 
       return true;
     } catch {

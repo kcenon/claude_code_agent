@@ -47,6 +47,10 @@ export type {
   LogStorageOptions,
   BudgetPersistenceState,
   BudgetWarningPersisted,
+  UsageRecord,
+  ForecastConfig,
+  BudgetForecast,
+  ProjectedOverageAlert,
 } from './types.js';
 
 // Errors
