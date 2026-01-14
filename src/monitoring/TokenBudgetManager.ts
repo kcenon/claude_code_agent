@@ -186,7 +186,8 @@ export class TokenBudgetManager {
     const forecastConfig = config.forecastConfig ?? {};
     this.forecastWindowSize = forecastConfig.windowSize ?? DEFAULT_FORECAST_WINDOW_SIZE;
     this.forecastMinRecords = forecastConfig.minRecordsRequired ?? DEFAULT_FORECAST_MIN_RECORDS;
-    this.forecastSmoothingFactor = forecastConfig.smoothingFactor ?? DEFAULT_FORECAST_SMOOTHING_FACTOR;
+    this.forecastSmoothingFactor =
+      forecastConfig.smoothingFactor ?? DEFAULT_FORECAST_SMOOTHING_FACTOR;
     this.maxHistorySize = config.maxHistorySize ?? DEFAULT_MAX_HISTORY_SIZE;
 
     // Try to restore from persistence if enabled
@@ -578,12 +579,14 @@ export class TokenBudgetManager {
         estimatedTimeToExhaustionMs;
     }
     if (estimatedRemainingOperationsByCost !== undefined) {
-      (forecast as { estimatedRemainingOperationsByCost?: number }).estimatedRemainingOperationsByCost =
-        estimatedRemainingOperationsByCost;
+      (
+        forecast as { estimatedRemainingOperationsByCost?: number }
+      ).estimatedRemainingOperationsByCost = estimatedRemainingOperationsByCost;
     }
     if (estimatedTimeToExhaustionByCostMs !== undefined) {
-      (forecast as { estimatedTimeToExhaustionByCostMs?: number }).estimatedTimeToExhaustionByCostMs =
-        estimatedTimeToExhaustionByCostMs;
+      (
+        forecast as { estimatedTimeToExhaustionByCostMs?: number }
+      ).estimatedTimeToExhaustionByCostMs = estimatedTimeToExhaustionByCostMs;
     }
 
     return forecast;
@@ -668,10 +671,8 @@ export class TokenBudgetManager {
     const firstHalf = records.slice(0, midpoint);
     const secondHalf = records.slice(midpoint);
 
-    const firstHalfAvg =
-      firstHalf.reduce((sum, r) => sum + r.totalTokens, 0) / firstHalf.length;
-    const secondHalfAvg =
-      secondHalf.reduce((sum, r) => sum + r.totalTokens, 0) / secondHalf.length;
+    const firstHalfAvg = firstHalf.reduce((sum, r) => sum + r.totalTokens, 0) / firstHalf.length;
+    const secondHalfAvg = secondHalf.reduce((sum, r) => sum + r.totalTokens, 0) / secondHalf.length;
 
     const changePercent = ((secondHalfAvg - firstHalfAvg) / firstHalfAvg) * 100;
 
@@ -696,8 +697,7 @@ export class TokenBudgetManager {
     const mean = tokens.reduce((a, b) => a + b, 0) / tokens.length;
 
     // Calculate coefficient of variation (CV)
-    const variance =
-      tokens.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / tokens.length;
+    const variance = tokens.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / tokens.length;
     const stdDev = Math.sqrt(variance);
     const cv = mean > 0 ? stdDev / mean : 1;
 
