@@ -905,6 +905,88 @@ const deletedCount = TokenBudgetManager.cleanupOldSessions(
 console.log(`Cleaned up ${deletedCount} old sessions`);
 ```
 
+### Budget Forecasting
+
+Predict budget exhaustion based on historical usage patterns:
+
+```typescript
+const budget = getTokenBudgetManager({
+  sessionTokenLimit: 100000,
+  sessionCostLimitUsd: 5.00,
+  forecastConfig: {
+    windowSize: 10,           // Use last 10 operations for forecasting
+    minRecordsRequired: 3,    // Minimum operations before forecasting
+    smoothingFactor: 0.3,     // Exponential smoothing weight (0-1)
+  },
+  maxHistorySize: 100,        // Maximum usage records to keep
+});
+
+// Record some usage
+budget.recordUsage(1500, 500, 0.0225);
+budget.recordUsage(1800, 600, 0.0270);
+budget.recordUsage(1600, 550, 0.0240);
+
+// Get budget forecast
+const forecast = budget.getForecast();
+
+if (forecast.available) {
+  console.log(`Avg tokens per operation: ${forecast.avgTokensPerOperation}`);
+  console.log(`Avg cost per operation: $${forecast.avgCostPerOperation}`);
+  console.log(`Estimated remaining operations: ${forecast.estimatedRemainingOperations}`);
+  console.log(`Estimated time to exhaustion: ${forecast.estimatedTimeToExhaustionMs}ms`);
+  console.log(`Usage trend: ${forecast.usageTrend}`);  // 'increasing' | 'stable' | 'decreasing'
+  console.log(`Forecast confidence: ${forecast.confidence}`);
+
+  if (forecast.projectedTokenOverage) {
+    console.log('Warning: Projected to exceed token budget');
+  }
+  if (forecast.projectedCostOverage) {
+    console.log('Warning: Projected to exceed cost budget');
+  }
+} else {
+  console.log(`Forecast unavailable: ${forecast.unavailableReason}`);
+}
+```
+
+### Projected Overage Alerts
+
+Get alerts when usage patterns suggest budget will be exceeded:
+
+```typescript
+// Alerts are generated automatically during recordUsage()
+// when projected to exceed budget
+
+// Retrieve projected overage alerts
+const alerts = budget.getProjectedOverageAlerts();
+
+for (const alert of alerts) {
+  console.log(`Alert type: ${alert.type}`);           // 'token' | 'cost'
+  console.log(`Severity: ${alert.severity}`);         // 'warning' | 'critical'
+  console.log(`Message: ${alert.message}`);
+  console.log(`Remaining operations: ${alert.estimatedRemainingOperations}`);
+  if (alert.estimatedTimeToExhaustionMs) {
+    console.log(`Time to exhaustion: ${alert.estimatedTimeToExhaustionMs}ms`);
+  }
+}
+```
+
+### Usage History
+
+Access detailed usage history for custom analysis:
+
+```typescript
+// Get all usage records
+const history = budget.getUsageHistory();
+
+for (const record of history) {
+  console.log(`Time: ${record.timestamp}`);
+  console.log(`Input tokens: ${record.inputTokens}`);
+  console.log(`Output tokens: ${record.outputTokens}`);
+  console.log(`Total tokens: ${record.totalTokens}`);
+  console.log(`Cost: $${record.costUsd}`);
+}
+```
+
 ## Per-Agent Token Budget
 
 The `AgentBudgetRegistry` enables independent token budget isolation for each agent, providing granular cost control and optimization insights.
