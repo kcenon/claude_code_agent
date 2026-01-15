@@ -36,6 +36,8 @@ The `Scratchpad` class internally uses `FileBackend` with `raw` format to provid
 
 - Backward-compatible file path-based API (`readYaml`, `writeJson`, etc.)
 - Atomic write operations through the backend
+- Configurable per-file serialization format
+- Automatic format detection from file extensions
 - Future ability to swap backends while maintaining the same public API
 
 ```typescript
@@ -45,6 +47,80 @@ const scratchpad = new Scratchpad({ basePath: '.ad-sdlc/scratchpad' });
 // These methods internally use FileBackend
 await scratchpad.writeYaml('/path/to/file.yaml', data);
 await scratchpad.readJson('/path/to/file.json');
+```
+
+### Configurable Serialization Format
+
+Scratchpad supports configurable serialization format per file, with automatic detection from file extensions:
+
+```typescript
+import { Scratchpad, EXTENSION_TO_FORMAT, FORMAT_TO_EXTENSION } from 'ad-sdlc';
+
+const scratchpad = new Scratchpad();
+
+// Auto-detect format from file extension
+await scratchpad.write('/path/to/config.yaml', { key: 'value' });  // YAML format
+await scratchpad.write('/path/to/data.json', { key: 'value' });    // JSON format
+await scratchpad.write('/path/to/readme.md', '# Title');           // Markdown (raw)
+
+// Explicit format override
+await scratchpad.write('/path/to/data.txt', { key: 'value' }, { format: 'json' });
+
+// Read with format detection
+const yamlData = await scratchpad.read<Config>('/path/to/config.yaml');
+const jsonData = await scratchpad.read<Data>('/path/to/data.json');
+
+// Read with explicit format
+const data = await scratchpad.read<Data>('/path/to/custom.txt', { format: 'json' });
+
+// Detect format programmatically
+const format = scratchpad.detectFormat('/path/to/file.yaml'); // 'yaml'
+```
+
+### Supported Formats
+
+| Format | Extensions | Description |
+|--------|------------|-------------|
+| `yaml` | `.yaml`, `.yml` | YAML serialization (human-readable) |
+| `json` | `.json` | JSON serialization (machine-readable) |
+| `markdown` | `.md`, `.markdown` | Raw text (no transformation) |
+| `raw` | `.txt`, others | Raw text (no transformation) |
+| `auto` | - | Auto-detect from file extension (default) |
+
+### Extension Mappings
+
+```typescript
+import { EXTENSION_TO_FORMAT, FORMAT_TO_EXTENSION } from 'ad-sdlc';
+
+// Extension to format mapping
+EXTENSION_TO_FORMAT['.yaml'];     // 'yaml'
+EXTENSION_TO_FORMAT['.yml'];      // 'yaml'
+EXTENSION_TO_FORMAT['.json'];     // 'json'
+EXTENSION_TO_FORMAT['.md'];       // 'markdown'
+EXTENSION_TO_FORMAT['.markdown']; // 'markdown'
+EXTENSION_TO_FORMAT['.txt'];      // 'raw'
+
+// Format to default extension mapping
+FORMAT_TO_EXTENSION['yaml'];      // '.yaml'
+FORMAT_TO_EXTENSION['json'];      // '.json'
+FORMAT_TO_EXTENSION['markdown'];  // '.md'
+FORMAT_TO_EXTENSION['raw'];       // ''
+```
+
+### Synchronous API
+
+All format operations are available in synchronous versions:
+
+```typescript
+// Synchronous write with auto-detect
+scratchpad.writeSync('/path/to/config.yaml', data);
+
+// Synchronous read with auto-detect
+const data = scratchpad.readSync<Config>('/path/to/config.yaml');
+
+// Synchronous with explicit format
+scratchpad.writeSync('/path/to/data.txt', data, { format: 'json' });
+const result = scratchpad.readSync<Data>('/path/to/data.txt', { format: 'json' });
 ```
 
 ## Backend Interface

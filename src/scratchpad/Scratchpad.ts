@@ -35,8 +35,9 @@
  *
  * For production multi-process deployments, consider using proper distributed locking.
  *
- * NOTE: Configurable serialization format per file is planned.
- * See Issue #261 for implementation details.
+ * NOTE: Configurable serialization format per file is now available.
+ * Use the read()/write() methods with format option, or rely on
+ * automatic format detection from file extension.
  *
  * Features:
  * - Atomic lock acquisition using hard links (EEXIST on collision)
@@ -92,7 +93,9 @@ import type {
   LockConfig,
   LockOptions,
   LockReleaseRequest,
+  SerializationFormat,
 } from './types.js';
+import { EXTENSION_TO_FORMAT } from './types.js';
 import { LockContentionError } from './errors.js';
 
 /**
@@ -1276,6 +1279,245 @@ export class Scratchpad {
       return await fn();
     } finally {
       await this.releaseLock(filePath, lockId);
+    }
+  }
+
+  // ============================================================
+  // Format Detection and Serialization
+  // ============================================================
+
+  /**
+   * Detect serialization format from file extension
+   *
+   * @param filePath - File path to analyze
+   * @returns Detected serialization format, or 'raw' if unknown
+   */
+  public detectFormat(filePath: string): Exclude<SerializationFormat, 'auto'> {
+    const ext = path.extname(filePath).toLowerCase();
+    const format = EXTENSION_TO_FORMAT[ext];
+    return format !== undefined && format !== 'auto' ? format : 'raw';
+  }
+
+  /**
+   * Resolve format for a file path
+   *
+   * If format is 'auto' or undefined, detects from file extension.
+   * Otherwise returns the specified format.
+   *
+   * @param filePath - File path
+   * @param format - Format option (may be 'auto' or undefined)
+   * @returns Resolved format (never 'auto')
+   */
+  private resolveFormat(
+    filePath: string,
+    format: SerializationFormat | undefined
+  ): Exclude<SerializationFormat, 'auto'> {
+    if (format === undefined || format === 'auto') {
+      return this.detectFormat(filePath);
+    }
+    return format;
+  }
+
+  /**
+   * Serialize data to string based on format
+   *
+   * @param data - Data to serialize
+   * @param format - Serialization format
+   * @returns Serialized string
+   */
+  private serialize(data: unknown, format: Exclude<SerializationFormat, 'auto'>): string {
+    switch (format) {
+      case 'yaml':
+        return yaml.dump(data, {
+          indent: 2,
+          lineWidth: 120,
+          noRefs: true,
+        });
+      case 'json':
+        return JSON.stringify(data, null, 2);
+      case 'markdown':
+      case 'raw':
+        return typeof data === 'string' ? data : JSON.stringify(data, null, 2);
+    }
+  }
+
+  /**
+   * Deserialize string to data based on format
+   *
+   * @param content - String content to deserialize
+   * @param format - Serialization format
+   * @returns Deserialized data
+   */
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters
+  private deserialize<T>(content: string, format: Exclude<SerializationFormat, 'auto'>): T {
+    switch (format) {
+      case 'yaml':
+        return yaml.load(content) as T;
+      case 'json':
+        return JSON.parse(content) as T;
+      case 'markdown':
+      case 'raw':
+        return content as T;
+    }
+  }
+
+  // ============================================================
+  // Generic Read/Write with Format Support
+  // ============================================================
+
+  /**
+   * Read a file with automatic or specified format detection
+   *
+   * Supports YAML, JSON, Markdown, and raw file formats.
+   * Format can be auto-detected from file extension or explicitly specified.
+   *
+   * @param filePath - Path to the file
+   * @param options - Read options including format specification
+   * @returns Parsed file content, or null if allowMissing and file doesn't exist
+   * @throws PathTraversalError if path escapes project root
+   *
+   * @example
+   * ```typescript
+   * // Auto-detect format from extension
+   * const config = await scratchpad.read<Config>('/path/to/config.yaml');
+   *
+   * // Explicit format override
+   * const data = await scratchpad.read<Data>('/path/to/file.txt', { format: 'json' });
+   * ```
+   */
+  public async read<T>(filePath: string, options: ReadOptions = {}): Promise<T | null> {
+    const validatedPath = this.validatePath(filePath);
+    const { allowMissing = false, format: formatOption } = options;
+    const format = this.resolveFormat(validatedPath, formatOption);
+
+    try {
+      await this.ensureBackendInitialized();
+      const { section, key } = this.pathToSectionKey(validatedPath);
+      const content = await this.backend.read<string>(section, key);
+
+      if (content === null) {
+        if (allowMissing) {
+          return null;
+        }
+        const error = new Error(`ENOENT: no such file or directory, open '${validatedPath}'`);
+        (error as NodeJS.ErrnoException).code = 'ENOENT';
+        throw error;
+      }
+
+      return this.deserialize<T>(content, format);
+    } catch (error) {
+      if (allowMissing && (error as NodeJS.ErrnoException).code === 'ENOENT') {
+        return null;
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Read a file with automatic or specified format detection (synchronous)
+   *
+   * @param filePath - Path to the file
+   * @param options - Read options including format specification
+   * @returns Parsed file content, or null if allowMissing and file doesn't exist
+   * @throws PathTraversalError if path escapes project root
+   */
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters
+  public readSync<T>(filePath: string, options: ReadOptions = {}): T | null {
+    const validatedPath = this.validatePath(filePath);
+    const { encoding = 'utf8', allowMissing = false, format: formatOption } = options;
+    const format = this.resolveFormat(validatedPath, formatOption);
+
+    try {
+      const content = fs.readFileSync(validatedPath, encoding);
+      return this.deserialize<T>(content, format);
+    } catch (error) {
+      if (allowMissing && (error as NodeJS.ErrnoException).code === 'ENOENT') {
+        return null;
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Write data to a file with automatic or specified format
+   *
+   * Supports YAML, JSON, Markdown, and raw file formats.
+   * Format can be auto-detected from file extension or explicitly specified.
+   *
+   * @param filePath - Path to the file
+   * @param data - Data to write
+   * @param options - Write options including format specification
+   * @throws PathTraversalError if path escapes project root
+   *
+   * @example
+   * ```typescript
+   * // Auto-detect format from extension
+   * await scratchpad.write('/path/to/config.yaml', { key: 'value' });
+   *
+   * // Explicit format override
+   * await scratchpad.write('/path/to/data.txt', { key: 'value' }, { format: 'json' });
+   * ```
+   */
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters
+  public async write<T>(
+    filePath: string,
+    data: T,
+    options: AtomicWriteOptions = {}
+  ): Promise<void> {
+    const validatedPath = this.validatePath(filePath);
+    const { createDirs = true, format: formatOption } = options;
+    const format = this.resolveFormat(validatedPath, formatOption);
+
+    // Create parent directories if needed
+    if (createDirs) {
+      const dir = path.dirname(validatedPath);
+      await this.ensureDir(dir);
+    }
+
+    // Serialize and write
+    const content = this.serialize(data, format);
+    await this.ensureBackendInitialized();
+    const { section, key } = this.pathToSectionKey(validatedPath);
+    await this.backend.write(section, key, content);
+  }
+
+  /**
+   * Write data to a file with automatic or specified format (synchronous)
+   *
+   * @param filePath - Path to the file
+   * @param data - Data to write
+   * @param options - Write options including format specification
+   * @throws PathTraversalError if path escapes project root
+   */
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters
+  public writeSync<T>(filePath: string, data: T, options: AtomicWriteOptions = {}): void {
+    const validatedPath = this.validatePath(filePath);
+    const {
+      createDirs = true,
+      mode = this.fileMode,
+      encoding = 'utf8',
+      format: formatOption,
+    } = options;
+    const format = this.resolveFormat(validatedPath, formatOption);
+
+    const dir = path.dirname(validatedPath);
+    const tempPath = `${validatedPath}.${randomUUID()}.tmp`;
+
+    try {
+      if (createDirs) {
+        this.ensureDirSync(dir);
+      }
+
+      const content = this.serialize(data, format);
+      fs.writeFileSync(tempPath, content, { encoding, mode });
+      fs.renameSync(tempPath, validatedPath);
+    } catch (error) {
+      try {
+        fs.unlinkSync(tempPath);
+      } catch {
+        // Ignore cleanup errors
+      }
+      throw error;
     }
   }
 

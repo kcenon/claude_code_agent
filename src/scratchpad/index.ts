@@ -38,6 +38,7 @@ export type {
   ProgressSubsection,
   DocumentType,
   FileFormat,
+  SerializationFormat,
   ScratchpadOptions,
   ProjectInfo,
   ClarificationEntry,
@@ -47,6 +48,8 @@ export type {
   AtomicWriteOptions,
   ReadOptions,
 } from './types.js';
+
+export { EXTENSION_TO_FORMAT, FORMAT_TO_EXTENSION } from './types.js';
 
 // Schema exports
 export {

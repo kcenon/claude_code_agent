@@ -1375,3 +1375,292 @@ describe('Lock Heartbeat Mechanism', () => {
     await heartbeatScratchpad.cleanup();
   });
 });
+
+describe('Scratchpad Serialization Format', () => {
+  let scratchpad: Scratchpad;
+  let testBasePath: string;
+
+  beforeEach(() => {
+    resetScratchpad();
+    testBasePath = path.join(os.tmpdir(), `scratchpad-format-test-${Date.now()}`);
+    scratchpad = new Scratchpad({ basePath: testBasePath, enableLocking: false });
+  });
+
+  afterEach(async () => {
+    await scratchpad.cleanup();
+    resetScratchpad();
+    try {
+      fs.rmSync(testBasePath, { recursive: true, force: true });
+    } catch {
+      // Ignore cleanup errors
+    }
+  });
+
+  describe('Format Detection', () => {
+    it('should detect YAML format from .yaml extension', () => {
+      expect(scratchpad.detectFormat('/path/to/file.yaml')).toBe('yaml');
+    });
+
+    it('should detect YAML format from .yml extension', () => {
+      expect(scratchpad.detectFormat('/path/to/file.yml')).toBe('yaml');
+    });
+
+    it('should detect JSON format from .json extension', () => {
+      expect(scratchpad.detectFormat('/path/to/file.json')).toBe('json');
+    });
+
+    it('should detect Markdown format from .md extension', () => {
+      expect(scratchpad.detectFormat('/path/to/file.md')).toBe('markdown');
+    });
+
+    it('should detect Markdown format from .markdown extension', () => {
+      expect(scratchpad.detectFormat('/path/to/file.markdown')).toBe('markdown');
+    });
+
+    it('should detect raw format from .txt extension', () => {
+      expect(scratchpad.detectFormat('/path/to/file.txt')).toBe('raw');
+    });
+
+    it('should return raw for unknown extensions', () => {
+      expect(scratchpad.detectFormat('/path/to/file.unknown')).toBe('raw');
+      expect(scratchpad.detectFormat('/path/to/file')).toBe('raw');
+    });
+
+    it('should handle case-insensitive extensions', () => {
+      expect(scratchpad.detectFormat('/path/to/FILE.YAML')).toBe('yaml');
+      expect(scratchpad.detectFormat('/path/to/FILE.JSON')).toBe('json');
+      expect(scratchpad.detectFormat('/path/to/FILE.MD')).toBe('markdown');
+    });
+  });
+
+  describe('Generic Read/Write with Auto Format', () => {
+    it('should auto-detect and write YAML format', async () => {
+      const filePath = path.join(testBasePath, 'test.yaml');
+      const data = { key: 'value', nested: { num: 42 } };
+
+      await scratchpad.write(filePath, data);
+
+      const content = fs.readFileSync(filePath, 'utf8');
+      expect(content).toContain('key: value');
+      expect(content).toContain('nested:');
+      expect(content).toContain('num: 42');
+    });
+
+    it('should auto-detect and read YAML format', async () => {
+      const filePath = path.join(testBasePath, 'test.yaml');
+      const data = { key: 'value', nested: { num: 42 } };
+
+      await scratchpad.write(filePath, data);
+      const result = await scratchpad.read<typeof data>(filePath);
+
+      expect(result).toEqual(data);
+    });
+
+    it('should auto-detect and write JSON format', async () => {
+      const filePath = path.join(testBasePath, 'test.json');
+      const data = { key: 'value', nested: { num: 42 } };
+
+      await scratchpad.write(filePath, data);
+
+      const content = fs.readFileSync(filePath, 'utf8');
+      expect(JSON.parse(content)).toEqual(data);
+    });
+
+    it('should auto-detect and read JSON format', async () => {
+      const filePath = path.join(testBasePath, 'test.json');
+      const data = { key: 'value', nested: { num: 42 } };
+
+      await scratchpad.write(filePath, data);
+      const result = await scratchpad.read<typeof data>(filePath);
+
+      expect(result).toEqual(data);
+    });
+
+    it('should auto-detect and write Markdown format', async () => {
+      const filePath = path.join(testBasePath, 'test.md');
+      const content = '# Hello\n\nThis is markdown content.';
+
+      await scratchpad.write(filePath, content);
+
+      const result = fs.readFileSync(filePath, 'utf8');
+      expect(result).toBe(content);
+    });
+
+    it('should auto-detect and read Markdown format', async () => {
+      const filePath = path.join(testBasePath, 'test.md');
+      const content = '# Hello\n\nThis is markdown content.';
+
+      await scratchpad.write(filePath, content);
+      const result = await scratchpad.read<string>(filePath);
+
+      expect(result).toBe(content);
+    });
+
+    it('should handle raw format for unknown extensions', async () => {
+      const filePath = path.join(testBasePath, 'test.dat');
+      const content = 'raw data content';
+
+      await scratchpad.write(filePath, content);
+      const result = await scratchpad.read<string>(filePath);
+
+      expect(result).toBe(content);
+    });
+  });
+
+  describe('Format Override', () => {
+    it('should use explicit format instead of auto-detect', async () => {
+      // Write JSON to a .txt file
+      const filePath = path.join(testBasePath, 'data.txt');
+      const data = { key: 'value' };
+
+      await scratchpad.write(filePath, data, { format: 'json' });
+
+      const content = fs.readFileSync(filePath, 'utf8');
+      expect(JSON.parse(content)).toEqual(data);
+    });
+
+    it('should read with explicit format override', async () => {
+      // Write JSON content to a .txt file
+      const filePath = path.join(testBasePath, 'data.txt');
+      const data = { key: 'value' };
+
+      fs.mkdirSync(testBasePath, { recursive: true });
+      fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+
+      const result = await scratchpad.read<typeof data>(filePath, { format: 'json' });
+      expect(result).toEqual(data);
+    });
+
+    it('should override YAML extension with JSON format', async () => {
+      const filePath = path.join(testBasePath, 'config.yaml');
+      const data = { setting: true };
+
+      await scratchpad.write(filePath, data, { format: 'json' });
+
+      const content = fs.readFileSync(filePath, 'utf8');
+      expect(JSON.parse(content)).toEqual(data);
+    });
+
+    it('should respect auto format option', async () => {
+      const filePath = path.join(testBasePath, 'test.yaml');
+      const data = { key: 'value' };
+
+      await scratchpad.write(filePath, data, { format: 'auto' });
+
+      const content = fs.readFileSync(filePath, 'utf8');
+      expect(content).toContain('key: value');
+    });
+  });
+
+  describe('Synchronous Read/Write', () => {
+    it('should write and read YAML synchronously', () => {
+      const filePath = path.join(testBasePath, 'sync.yaml');
+      const data = { sync: true, count: 123 };
+
+      scratchpad.writeSync(filePath, data);
+      const result = scratchpad.readSync<typeof data>(filePath);
+
+      expect(result).toEqual(data);
+    });
+
+    it('should write and read JSON synchronously', () => {
+      const filePath = path.join(testBasePath, 'sync.json');
+      const data = { sync: true, count: 123 };
+
+      scratchpad.writeSync(filePath, data);
+      const result = scratchpad.readSync<typeof data>(filePath);
+
+      expect(result).toEqual(data);
+    });
+
+    it('should write and read Markdown synchronously', () => {
+      const filePath = path.join(testBasePath, 'sync.md');
+      const content = '## Sync Test\n\nContent here.';
+
+      scratchpad.writeSync(filePath, content);
+      const result = scratchpad.readSync<string>(filePath);
+
+      expect(result).toBe(content);
+    });
+
+    it('should support format override in sync methods', () => {
+      const filePath = path.join(testBasePath, 'override.txt');
+      const data = { format: 'overridden' };
+
+      scratchpad.writeSync(filePath, data, { format: 'json' });
+      const result = scratchpad.readSync<typeof data>(filePath, { format: 'json' });
+
+      expect(result).toEqual(data);
+    });
+  });
+
+  describe('Error Handling', () => {
+    it('should throw when reading non-existent file without allowMissing', async () => {
+      const filePath = path.join(testBasePath, 'nonexistent.yaml');
+
+      await expect(scratchpad.read(filePath)).rejects.toThrow('ENOENT');
+    });
+
+    it('should return null when reading non-existent file with allowMissing', async () => {
+      const filePath = path.join(testBasePath, 'nonexistent.yaml');
+
+      const result = await scratchpad.read(filePath, { allowMissing: true });
+      expect(result).toBeNull();
+    });
+
+    it('should throw when reading non-existent file without allowMissing (sync)', () => {
+      const filePath = path.join(testBasePath, 'nonexistent.yaml');
+
+      expect(() => scratchpad.readSync(filePath)).toThrow('ENOENT');
+    });
+
+    it('should return null when reading non-existent file with allowMissing (sync)', () => {
+      const filePath = path.join(testBasePath, 'nonexistent.yaml');
+
+      const result = scratchpad.readSync(filePath, { allowMissing: true });
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('Complex Data Types', () => {
+    it('should preserve arrays in YAML format', async () => {
+      const filePath = path.join(testBasePath, 'arrays.yaml');
+      const data = { items: ['a', 'b', 'c'], nested: [{ id: 1 }, { id: 2 }] };
+
+      await scratchpad.write(filePath, data);
+      const result = await scratchpad.read<typeof data>(filePath);
+
+      expect(result).toEqual(data);
+    });
+
+    it('should preserve arrays in JSON format', async () => {
+      const filePath = path.join(testBasePath, 'arrays.json');
+      const data = { items: ['a', 'b', 'c'], nested: [{ id: 1 }, { id: 2 }] };
+
+      await scratchpad.write(filePath, data);
+      const result = await scratchpad.read<typeof data>(filePath);
+
+      expect(result).toEqual(data);
+    });
+
+    it('should handle deeply nested objects', async () => {
+      const filePath = path.join(testBasePath, 'deep.yaml');
+      const data = {
+        level1: {
+          level2: {
+            level3: {
+              level4: {
+                value: 'deep',
+              },
+            },
+          },
+        },
+      };
+
+      await scratchpad.write(filePath, data);
+      const result = await scratchpad.read<typeof data>(filePath);
+
+      expect(result).toEqual(data);
+    });
+  });
+});
