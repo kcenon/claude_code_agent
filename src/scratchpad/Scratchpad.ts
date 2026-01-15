@@ -1348,6 +1348,7 @@ export class Scratchpad {
    * @param format - Serialization format
    * @returns Deserialized data
    */
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters
   private deserialize<T>(content: string, format: Exclude<SerializationFormat, 'auto'>): T {
     switch (format) {
       case 'yaml':
@@ -1420,6 +1421,7 @@ export class Scratchpad {
    * @returns Parsed file content, or null if allowMissing and file doesn't exist
    * @throws PathTraversalError if path escapes project root
    */
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters
   public readSync<T>(filePath: string, options: ReadOptions = {}): T | null {
     const validatedPath = this.validatePath(filePath);
     const { encoding = 'utf8', allowMissing = false, format: formatOption } = options;
@@ -1456,6 +1458,7 @@ export class Scratchpad {
    * await scratchpad.write('/path/to/data.txt', { key: 'value' }, { format: 'json' });
    * ```
    */
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters
   public async write<T>(
     filePath: string,
     data: T,
@@ -1486,6 +1489,7 @@ export class Scratchpad {
    * @param options - Write options including format specification
    * @throws PathTraversalError if path escapes project root
    */
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters
   public writeSync<T>(filePath: string, data: T, options: AtomicWriteOptions = {}): void {
     const validatedPath = this.validatePath(filePath);
     const { createDirs = true, mode = this.fileMode, encoding = 'utf8', format: formatOption } = options;
