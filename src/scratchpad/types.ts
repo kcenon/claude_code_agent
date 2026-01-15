@@ -26,6 +26,36 @@ export type DocumentType = 'prd' | 'srs' | 'sds';
 export type FileFormat = 'yaml' | 'json' | 'markdown';
 
 /**
+ * Serialization format for scratchpad files
+ *
+ * Extends FileFormat with 'raw' for unprocessed content
+ * and 'auto' for automatic format detection from file extension.
+ */
+export type SerializationFormat = 'yaml' | 'json' | 'markdown' | 'raw' | 'auto';
+
+/**
+ * Mapping of file extensions to serialization formats
+ */
+export const EXTENSION_TO_FORMAT: Readonly<Record<string, SerializationFormat>> = {
+  '.yaml': 'yaml',
+  '.yml': 'yaml',
+  '.json': 'json',
+  '.md': 'markdown',
+  '.markdown': 'markdown',
+  '.txt': 'raw',
+};
+
+/**
+ * Mapping of serialization formats to default file extensions
+ */
+export const FORMAT_TO_EXTENSION: Readonly<Record<Exclude<SerializationFormat, 'auto'>, string>> = {
+  yaml: '.yaml',
+  json: '.json',
+  markdown: '.md',
+  raw: '',
+};
+
+/**
  * Scratchpad configuration options
  */
 export interface ScratchpadOptions {
@@ -357,6 +387,15 @@ export interface AtomicWriteOptions {
   readonly mode?: number;
   /** Encoding (default: 'utf8') */
   readonly encoding?: BufferEncoding;
+  /**
+   * Serialization format for the file.
+   * - 'auto': Detect format from file extension (default)
+   * - 'yaml': Serialize as YAML
+   * - 'json': Serialize as JSON
+   * - 'markdown': Write as-is (string content)
+   * - 'raw': Write as-is (no transformation)
+   */
+  readonly format?: SerializationFormat;
 }
 
 /**
@@ -367,4 +406,13 @@ export interface ReadOptions {
   readonly encoding?: BufferEncoding;
   /** Return null instead of throwing on missing file */
   readonly allowMissing?: boolean;
+  /**
+   * Serialization format for parsing the file.
+   * - 'auto': Detect format from file extension (default)
+   * - 'yaml': Parse as YAML
+   * - 'json': Parse as JSON
+   * - 'markdown': Read as-is (string content)
+   * - 'raw': Read as-is (no transformation)
+   */
+  readonly format?: SerializationFormat;
 }
