@@ -1492,7 +1492,12 @@ export class Scratchpad {
   // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters
   public writeSync<T>(filePath: string, data: T, options: AtomicWriteOptions = {}): void {
     const validatedPath = this.validatePath(filePath);
-    const { createDirs = true, mode = this.fileMode, encoding = 'utf8', format: formatOption } = options;
+    const {
+      createDirs = true,
+      mode = this.fileMode,
+      encoding = 'utf8',
+      format: formatOption,
+    } = options;
     const format = this.resolveFormat(validatedPath, formatOption);
 
     const dir = path.dirname(validatedPath);
