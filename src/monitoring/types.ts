@@ -489,6 +489,10 @@ export interface BudgetPersistenceState {
   readonly savedAt: string;
   /** Warning history */
   readonly warningHistory: readonly BudgetWarningPersisted[];
+  /** Usage history for forecasting */
+  readonly usageHistory?: readonly UsageRecord[];
+  /** Triggered overage alert keys */
+  readonly triggeredOverageAlerts?: readonly string[];
 }
 
 /**
@@ -505,6 +509,82 @@ export interface BudgetWarningPersisted {
   readonly message: string;
   /** Timestamp of warning (ISO string) */
   readonly timestamp: string;
+}
+
+/**
+ * Single usage record for historical tracking
+ */
+export interface UsageRecord {
+  /** Timestamp of the usage (ISO string) */
+  readonly timestamp: string;
+  /** Input tokens consumed */
+  readonly inputTokens: number;
+  /** Output tokens consumed */
+  readonly outputTokens: number;
+  /** Total tokens (input + output) */
+  readonly totalTokens: number;
+  /** Cost in USD */
+  readonly costUsd: number;
+}
+
+/**
+ * Configuration for budget forecasting
+ */
+export interface ForecastConfig {
+  /** Number of recent records to use for trend calculation (default: 10) */
+  readonly windowSize?: number;
+  /** Minimum records required for forecasting (default: 3) */
+  readonly minRecordsRequired?: number;
+  /** Weight for recent data in exponential smoothing (0-1, default: 0.3) */
+  readonly smoothingFactor?: number;
+}
+
+/**
+ * Budget forecast result
+ */
+export interface BudgetForecast {
+  /** Whether forecast is available (enough data) */
+  readonly available: boolean;
+  /** Reason if forecast is not available */
+  readonly unavailableReason?: string;
+  /** Average tokens per operation */
+  readonly avgTokensPerOperation?: number;
+  /** Average cost per operation in USD */
+  readonly avgCostPerOperation?: number;
+  /** Estimated remaining operations before token limit exhaustion */
+  readonly estimatedRemainingOperations?: number;
+  /** Estimated time until token limit exhaustion (based on operation rate) */
+  readonly estimatedTimeToExhaustionMs?: number;
+  /** Estimated remaining operations before cost limit exhaustion */
+  readonly estimatedRemainingOperationsByCost?: number;
+  /** Estimated time until cost limit exhaustion */
+  readonly estimatedTimeToExhaustionByCostMs?: number;
+  /** Whether projected to exceed token limit in the forecast window */
+  readonly projectedTokenOverage?: boolean;
+  /** Whether projected to exceed cost limit in the forecast window */
+  readonly projectedCostOverage?: boolean;
+  /** Current trend: 'increasing', 'stable', 'decreasing' */
+  readonly usageTrend?: 'increasing' | 'stable' | 'decreasing';
+  /** Confidence level of the forecast (0-1) */
+  readonly confidence?: number;
+}
+
+/**
+ * Projected overage alert
+ */
+export interface ProjectedOverageAlert {
+  /** Alert type: token or cost */
+  readonly type: 'token' | 'cost';
+  /** Severity of the alert */
+  readonly severity: AlertSeverity;
+  /** Alert message */
+  readonly message: string;
+  /** Timestamp of the alert (ISO string) */
+  readonly timestamp: string;
+  /** Estimated operations until exhaustion */
+  readonly estimatedRemainingOperations: number;
+  /** Estimated time until exhaustion in milliseconds */
+  readonly estimatedTimeToExhaustionMs?: number;
 }
 
 /**
