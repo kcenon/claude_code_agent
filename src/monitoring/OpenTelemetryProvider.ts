@@ -247,7 +247,7 @@ export class OpenTelemetryProvider {
         return new ConsoleSpanExporter();
 
       case 'otlp':
-      case 'jaeger':
+      case 'jaeger': {
         if (config.endpoint === undefined) {
           return null;
         }
@@ -261,6 +261,7 @@ export class OpenTelemetryProvider {
           exporterOptions.timeoutMillis = config.timeoutMs;
         }
         return new OTLPTraceExporter(exporterOptions);
+      }
 
       default:
         return null;
@@ -294,7 +295,7 @@ export class OpenTelemetryProvider {
       return this.shutdownPromise;
     }
 
-    this.shutdownPromise = (async () => {
+    this.shutdownPromise = (async (): Promise<void> => {
       try {
         await this.sdk?.shutdown();
       } finally {
