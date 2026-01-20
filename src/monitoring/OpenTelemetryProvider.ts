@@ -13,7 +13,7 @@
  */
 
 import { NodeSDK } from '@opentelemetry/sdk-node';
-import { Resource } from '@opentelemetry/resources';
+import { resourceFromAttributes, type Resource } from '@opentelemetry/resources';
 import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from '@opentelemetry/semantic-conventions';
 
 const ATTR_DEPLOYMENT_ENVIRONMENT = 'deployment.environment';
@@ -209,7 +209,7 @@ export class OpenTelemetryProvider {
       }
     }
 
-    return new Resource(attributes);
+    return resourceFromAttributes(attributes);
   }
 
   /**
