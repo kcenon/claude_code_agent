@@ -261,3 +261,18 @@ export type {
 } from './types.js';
 
 export { ADSDLC_SPAN_ATTRIBUTES } from './types.js';
+
+// Tracing utilities
+export {
+  startAgentSpan,
+  startToolSpan,
+  recordToolResult,
+  withAgentSpan,
+  withToolSpan,
+  propagateToSubagent,
+  getCurrentContext,
+  runInContext,
+  runInContextAsync,
+  SpanWrapper,
+} from './tracing.js';
+export type { AgentSpanOptions, ToolSpanOptions, ToolResult } from './tracing.js';
