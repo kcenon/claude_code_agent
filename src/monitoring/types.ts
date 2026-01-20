@@ -663,3 +663,130 @@ export interface StructuredLogQueryResult extends LogQueryResult {
   /** Time taken to execute query in milliseconds */
   readonly executionTimeMs: number;
 }
+
+/**
+ * OpenTelemetry exporter types
+ */
+export type OpenTelemetryExporterType = 'console' | 'otlp' | 'jaeger';
+
+/**
+ * Sampling strategy types
+ */
+export type OpenTelemetrySamplingType =
+  | 'always_on'
+  | 'always_off'
+  | 'probability'
+  | 'rate_limiting';
+
+/**
+ * OpenTelemetry exporter configuration
+ */
+export interface OpenTelemetryExporterConfig {
+  /** Exporter type */
+  readonly type: OpenTelemetryExporterType;
+  /** Whether this exporter is enabled */
+  readonly enabled?: boolean;
+  /** OTLP endpoint URL (for otlp/jaeger types) */
+  readonly endpoint?: string;
+  /** Request headers for OTLP exporter */
+  readonly headers?: Record<string, string>;
+  /** Request timeout in milliseconds */
+  readonly timeoutMs?: number;
+}
+
+/**
+ * OpenTelemetry sampling configuration
+ */
+export interface OpenTelemetrySamplingConfig {
+  /** Sampling strategy type */
+  readonly type: OpenTelemetrySamplingType;
+  /** Probability for probability sampling (0.0-1.0) */
+  readonly probability?: number;
+  /** Rate limit for rate_limiting sampling (spans per second) */
+  readonly rateLimit?: number;
+}
+
+/**
+ * OpenTelemetry resource attributes
+ */
+export interface OpenTelemetryResourceAttributes {
+  /** Service name */
+  readonly serviceName?: string;
+  /** Service version */
+  readonly serviceVersion?: string;
+  /** Deployment environment (development, staging, production) */
+  readonly environment?: string;
+  /** Additional custom attributes */
+  readonly custom?: Record<string, string>;
+}
+
+/**
+ * OpenTelemetry configuration
+ */
+export interface OpenTelemetryConfig {
+  /** Whether OpenTelemetry is enabled */
+  readonly enabled: boolean;
+  /** Service name for traces */
+  readonly serviceName: string;
+  /** Exporter configurations */
+  readonly exporters: readonly OpenTelemetryExporterConfig[];
+  /** Sampling configuration */
+  readonly sampling?: OpenTelemetrySamplingConfig;
+  /** Resource attributes */
+  readonly resourceAttributes?: OpenTelemetryResourceAttributes;
+}
+
+/**
+ * Span attribute names for AD-SDLC specific attributes
+ */
+export const ADSDLC_SPAN_ATTRIBUTES = {
+  /** Agent name attribute */
+  AGENT_NAME: 'adsdlc.agent.name',
+  /** Agent type attribute */
+  AGENT_TYPE: 'adsdlc.agent.type',
+  /** Pipeline stage attribute */
+  PIPELINE_STAGE: 'adsdlc.pipeline.stage',
+  /** Pipeline mode attribute (greenfield/enhancement) */
+  PIPELINE_MODE: 'adsdlc.pipeline.mode',
+  /** Tool name attribute */
+  TOOL_NAME: 'adsdlc.tool.name',
+  /** Tool result attribute */
+  TOOL_RESULT: 'adsdlc.tool.result',
+  /** Input tokens attribute */
+  TOKENS_INPUT: 'adsdlc.tokens.input',
+  /** Output tokens attribute */
+  TOKENS_OUTPUT: 'adsdlc.tokens.output',
+  /** Token cost in USD */
+  TOKENS_COST: 'adsdlc.tokens.cost',
+  /** Model name attribute */
+  MODEL_NAME: 'adsdlc.model.name',
+  /** Correlation ID for tracing across agents */
+  CORRELATION_ID: 'adsdlc.correlation_id',
+  /** Parent tool use ID for subagent correlation */
+  PARENT_TOOL_USE_ID: 'adsdlc.parent_tool_use_id',
+} as const;
+
+/**
+ * Type for AD-SDLC span attribute keys
+ */
+export type AdsdlcSpanAttributeKey =
+  (typeof ADSDLC_SPAN_ATTRIBUTES)[keyof typeof ADSDLC_SPAN_ATTRIBUTES];
+
+/**
+ * Pipeline mode types
+ */
+export type PipelineMode = 'greenfield' | 'enhancement';
+
+/**
+ * Span context for propagation across agents
+ */
+export interface SpanContext {
+  /** Trace ID */
+  readonly traceId: string;
+  /** Span ID */
+  readonly spanId: string;
+  /** Trace flags */
+  readonly traceFlags: number;
+  /** Correlation ID for AD-SDLC specific tracing */
+  readonly correlationId?: string;
+}

@@ -238,3 +238,26 @@ export type {
   ValidationResult,
   BenchmarkHistoryEntry,
 } from './ResponseTimeBenchmarks.js';
+
+// OpenTelemetryProvider
+export {
+  OpenTelemetryProvider,
+  getOpenTelemetryProvider,
+  resetOpenTelemetryProvider,
+  initializeOpenTelemetry,
+} from './OpenTelemetryProvider.js';
+
+// OpenTelemetry types
+export type {
+  OpenTelemetryConfig,
+  OpenTelemetryExporterConfig,
+  OpenTelemetrySamplingConfig,
+  OpenTelemetryResourceAttributes,
+  OpenTelemetryExporterType,
+  OpenTelemetrySamplingType,
+  SpanContext,
+  PipelineMode,
+  AdsdlcSpanAttributeKey,
+} from './types.js';
+
+export { ADSDLC_SPAN_ATTRIBUTES } from './types.js';
