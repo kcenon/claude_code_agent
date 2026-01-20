@@ -1,12 +1,15 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   OpenTelemetryProvider,
   resetOpenTelemetryProvider,
   startAgentSpan,
   startToolSpan,
+  startLLMSpan,
   recordToolResult,
   withAgentSpan,
   withToolSpan,
+  withLLMSpan,
+  withTracedAgent,
   propagateToSubagent,
   getCurrentContext,
   runInContext,
@@ -405,6 +408,221 @@ describe('Tracing Utilities', () => {
     });
   });
 
+  describe('startLLMSpan', () => {
+    it('should return SpanWrapper when tracing disabled', () => {
+      const span = startLLMSpan({
+        modelName: 'claude-3-sonnet',
+      });
+
+      expect(span).toBeInstanceOf(SpanWrapper);
+      expect(span.getSpan()).toBeNull();
+      span.endSuccess();
+    });
+
+    it('should create span with model name', async () => {
+      const provider = new OpenTelemetryProvider({
+        enabled: true,
+        serviceName: 'test-service',
+        exporters: [{ type: 'console', enabled: true }],
+      });
+      await provider.initialize();
+
+      const span = startLLMSpan({
+        modelName: 'claude-3-opus',
+      });
+
+      expect(span).toBeInstanceOf(SpanWrapper);
+      span.endSuccess();
+    });
+
+    it('should accept parent context', async () => {
+      const provider = new OpenTelemetryProvider({
+        enabled: true,
+        serviceName: 'test-service',
+        exporters: [{ type: 'console', enabled: true }],
+      });
+      await provider.initialize();
+
+      const agentSpan = startAgentSpan({
+        agentName: 'worker',
+        agentType: 'processor',
+      });
+
+      const llmSpan = startLLMSpan({
+        modelName: 'claude-3-sonnet',
+        parentContext: agentSpan.getContext(),
+      });
+
+      llmSpan.recordTokenUsage(1500, 800, 0.08);
+      llmSpan.endSuccess();
+      agentSpan.endSuccess();
+    });
+  });
+
+  describe('withLLMSpan', () => {
+    it('should execute function and return result with token recording', async () => {
+      const result = await withLLMSpan(
+        { modelName: 'claude-3-sonnet' },
+        async (span) => {
+          expect(span).toBeInstanceOf(SpanWrapper);
+          span.addEvent('llm_request_sent');
+          return {
+            result: 'LLM response content',
+            inputTokens: 1000,
+            outputTokens: 500,
+            costUsd: 0.05,
+          };
+        }
+      );
+
+      expect(result).toBe('LLM response content');
+    });
+
+    it('should handle errors and rethrow', async () => {
+      await expect(
+        withLLMSpan({ modelName: 'claude-3-sonnet' }, async () => {
+          throw new Error('API rate limit exceeded');
+        })
+      ).rejects.toThrow('API rate limit exceeded');
+    });
+
+    it('should work with parent context', async () => {
+      const provider = new OpenTelemetryProvider({
+        enabled: true,
+        serviceName: 'test-service',
+        exporters: [{ type: 'console', enabled: true }],
+      });
+      await provider.initialize();
+
+      await withAgentSpan(
+        {
+          agentName: 'worker',
+          agentType: 'processor',
+        },
+        async (agentSpan) => {
+          const response = await withLLMSpan(
+            { modelName: 'claude-3-sonnet', parentContext: agentSpan.getContext() },
+            async () => {
+              return {
+                result: { content: 'response' },
+                inputTokens: 500,
+                outputTokens: 200,
+              };
+            }
+          );
+          expect(response).toEqual({ content: 'response' });
+        }
+      );
+    });
+
+    it('should not end span twice if already ended', async () => {
+      const result = await withLLMSpan(
+        { modelName: 'claude-3-sonnet' },
+        async (span) => {
+          span.recordTokenUsage(100, 50, 0.01);
+          span.endSuccess();
+          return {
+            result: 'ended early',
+            inputTokens: 100,
+            outputTokens: 50,
+          };
+        }
+      );
+
+      expect(result).toBe('ended early');
+    });
+  });
+
+  describe('withTracedAgent', () => {
+    it('should execute function with token recording callback', async () => {
+      const mockMetricsCollector = {
+        recordTokenUsage: vi.fn(),
+      };
+
+      const result = await withTracedAgent(
+        {
+          agentName: 'worker',
+          agentType: 'processor',
+          pipelineStage: 'implementation',
+          pipelineMode: 'greenfield',
+        },
+        mockMetricsCollector,
+        async (_span, recordTokens) => {
+          recordTokens(1000, 500, 0.05);
+          return 'task completed';
+        }
+      );
+
+      expect(result).toBe('task completed');
+      expect(mockMetricsCollector.recordTokenUsage).toHaveBeenCalledWith('worker', 1000, 500);
+    });
+
+    it('should work without MetricsCollector (null)', async () => {
+      const result = await withTracedAgent(
+        {
+          agentName: 'worker',
+          agentType: 'processor',
+        },
+        null,
+        async (_span, recordTokens) => {
+          recordTokens(500, 250);
+          return 'done';
+        }
+      );
+
+      expect(result).toBe('done');
+    });
+
+    it('should handle errors and rethrow', async () => {
+      const mockMetricsCollector = {
+        recordTokenUsage: vi.fn(),
+      };
+
+      await expect(
+        withTracedAgent(
+          {
+            agentName: 'worker',
+            agentType: 'processor',
+          },
+          mockMetricsCollector,
+          async () => {
+            throw new Error('Agent failed');
+          }
+        )
+      ).rejects.toThrow('Agent failed');
+    });
+
+    it('should record tokens in both span and MetricsCollector', async () => {
+      const provider = new OpenTelemetryProvider({
+        enabled: true,
+        serviceName: 'test-service',
+        exporters: [{ type: 'console', enabled: true }],
+      });
+      await provider.initialize();
+
+      const mockMetricsCollector = {
+        recordTokenUsage: vi.fn(),
+      };
+
+      await withTracedAgent(
+        {
+          agentName: 'collector',
+          agentType: 'analyzer',
+          correlationId: 'req-456',
+        },
+        mockMetricsCollector,
+        async (span, recordTokens) => {
+          span.addEvent('processing_started');
+          recordTokens(2000, 1000, 0.12);
+          span.addEvent('processing_completed');
+          return 'analysis complete';
+        }
+      );
+
+      expect(mockMetricsCollector.recordTokenUsage).toHaveBeenCalledWith('collector', 2000, 1000);
+    });
+  });
+
   describe('Integration scenarios', () => {
     it('should support nested agent and tool spans', async () => {
       const provider = new OpenTelemetryProvider({
@@ -484,6 +702,66 @@ describe('Tracing Utilities', () => {
           }
         )
       ).rejects.toThrow('Write failed');
+    });
+
+    it('should support nested agent, tool, and LLM spans', async () => {
+      const provider = new OpenTelemetryProvider({
+        enabled: true,
+        serviceName: 'test-service',
+        exporters: [{ type: 'console', enabled: true }],
+      });
+      await provider.initialize();
+
+      const mockMetricsCollector = {
+        recordTokenUsage: vi.fn(),
+      };
+
+      await withTracedAgent(
+        {
+          agentName: 'orchestrator',
+          agentType: 'coordinator',
+          correlationId: 'req-789',
+          pipelineStage: 'analysis',
+          pipelineMode: 'enhancement',
+        },
+        mockMetricsCollector,
+        async (agentSpan, recordTokens) => {
+          // Tool invocation
+          await withToolSpan(
+            {
+              toolName: 'Read',
+              parentContext: agentSpan.getContext(),
+            },
+            async (toolSpan) => {
+              toolSpan.addEvent('file_read', { path: '/src/main.ts' });
+              return 'file content';
+            }
+          );
+
+          // LLM call
+          const analysis = await withLLMSpan(
+            { modelName: 'claude-3-opus', parentContext: agentSpan.getContext() },
+            async (llmSpan) => {
+              llmSpan.addEvent('llm_request_sent');
+              return {
+                result: { suggestion: 'refactor this function' },
+                inputTokens: 3000,
+                outputTokens: 1500,
+                costUsd: 0.25,
+              };
+            }
+          );
+
+          expect(analysis).toEqual({ suggestion: 'refactor this function' });
+
+          // Record total agent token usage
+          recordTokens(3000, 1500, 0.25);
+
+          return 'orchestration complete';
+        }
+      );
+
+      expect(mockMetricsCollector.recordTokenUsage).toHaveBeenCalledWith('orchestrator', 3000, 1500);
     });
   });
 });
