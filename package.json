@@ -83,14 +83,14 @@
     "vitest": "^4.0.16"
   },
   "dependencies": {
-    "@aws-sdk/client-cloudwatch-logs": "^3.966.0",
+    "@aws-sdk/client-cloudwatch-logs": "^3.971.0",
     "@elastic/elasticsearch": "^9.2.0",
-    "better-sqlite3": "^12.6.0",
+    "better-sqlite3": "^12.6.2",
     "chalk": "^5.6.2",
     "commander": "^14.0.2",
     "dotenv": "^17.2.3",
     "inquirer": "^13.2.0",
-    "ioredis": "^5.9.1",
+    "ioredis": "^5.9.2",
     "js-yaml": "^4.1.1",
     "mammoth": "^1.11.0",
     "pdf-parse": "^2.4.5",
