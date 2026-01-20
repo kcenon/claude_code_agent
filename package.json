@@ -83,6 +83,12 @@
     "vitest": "^4.0.16"
   },
   "dependencies": {
+    "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.57.1",
+    "@opentelemetry/resources": "^1.30.1",
+    "@opentelemetry/sdk-node": "^0.57.1",
+    "@opentelemetry/sdk-trace-base": "^1.30.1",
+    "@opentelemetry/semantic-conventions": "^1.28.0",
     "@aws-sdk/client-cloudwatch-logs": "^3.971.0",
     "@elastic/elasticsearch": "^9.2.0",
     "better-sqlite3": "^12.6.2",
