@@ -672,7 +672,11 @@ export type OpenTelemetryExporterType = 'console' | 'otlp' | 'jaeger';
 /**
  * Sampling strategy types
  */
-export type OpenTelemetrySamplingType = 'always_on' | 'always_off' | 'probability' | 'rate_limiting';
+export type OpenTelemetrySamplingType =
+  | 'always_on'
+  | 'always_off'
+  | 'probability'
+  | 'rate_limiting';
 
 /**
  * OpenTelemetry exporter configuration

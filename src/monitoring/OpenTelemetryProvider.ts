@@ -251,7 +251,11 @@ export class OpenTelemetryProvider {
         if (config.endpoint === undefined) {
           return null;
         }
-        const exporterOptions: { url: string; headers?: Record<string, string>; timeoutMillis?: number } = {
+        const exporterOptions: {
+          url: string;
+          headers?: Record<string, string>;
+          timeoutMillis?: number;
+        } = {
           url: config.endpoint,
         };
         if (config.headers !== undefined) {
@@ -380,11 +384,15 @@ export class OpenTelemetryProvider {
    * @returns Started span or null if not enabled
    */
   public startToolSpan(toolName: string, parentContext?: Context): Span | null {
-    return this.startSpan(`tool:${toolName}`, {
-      attributes: {
-        [ADSDLC_SPAN_ATTRIBUTES.TOOL_NAME]: toolName,
+    return this.startSpan(
+      `tool:${toolName}`,
+      {
+        attributes: {
+          [ADSDLC_SPAN_ATTRIBUTES.TOOL_NAME]: toolName,
+        },
       },
-    }, parentContext);
+      parentContext
+    );
   }
 
   /**
@@ -395,11 +403,15 @@ export class OpenTelemetryProvider {
    * @returns Started span or null if not enabled
    */
   public startLLMSpan(modelName: string, parentContext?: Context): Span | null {
-    return this.startSpan(`llm:${modelName}`, {
-      attributes: {
-        [ADSDLC_SPAN_ATTRIBUTES.MODEL_NAME]: modelName,
+    return this.startSpan(
+      `llm:${modelName}`,
+      {
+        attributes: {
+          [ADSDLC_SPAN_ATTRIBUTES.MODEL_NAME]: modelName,
+        },
       },
-    }, parentContext);
+      parentContext
+    );
   }
 
   /**
