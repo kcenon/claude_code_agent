@@ -298,6 +298,17 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
+## Related Projects
+
+### claude-config
+
+A Claude Code configuration management and development guidelines system. Agents in this project can reference claude-config's guidelines during code generation and review to improve code quality.
+
+- **Repository**: [kcenon/claude-config](https://github.com/kcenon/claude-config)
+- **Reference Guide**: [docs/claude-config-reference.md](docs/claude-config-reference.md)
+
+---
+
 ## License
 
 BSD 3-Clause License - see [LICENSE](LICENSE) for details.
