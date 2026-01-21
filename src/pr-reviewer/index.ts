@@ -15,7 +15,12 @@
  */
 
 // Main classes
-export { PRReviewerAgent, getPRReviewerAgent, resetPRReviewerAgent } from './PRReviewerAgent.js';
+export {
+  PRReviewerAgent,
+  getPRReviewerAgent,
+  resetPRReviewerAgent,
+  PR_REVIEWER_AGENT_ID,
+} from './PRReviewerAgent.js';
 
 export { PRCreator, DEFAULT_PR_CREATOR_CONFIG } from './PRCreator.js';
 

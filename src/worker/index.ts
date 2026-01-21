@@ -7,7 +7,7 @@
  * @module worker
  */
 
-export { WorkerAgent } from './WorkerAgent.js';
+export { WorkerAgent, WORKER_AGENT_ID } from './WorkerAgent.js';
 export { TestGenerator } from './TestGenerator.js';
 export { SelfVerificationAgent } from './SelfVerificationAgent.js';
 export { RetryHandler } from './RetryHandler.js';

@@ -16,7 +16,12 @@
  */
 
 // Main agent class and singleton functions
-export { SRSWriterAgent, getSRSWriterAgent, resetSRSWriterAgent } from './SRSWriterAgent.js';
+export {
+  SRSWriterAgent,
+  getSRSWriterAgent,
+  resetSRSWriterAgent,
+  SRS_WRITER_AGENT_ID,
+} from './SRSWriterAgent.js';
 
 // Component classes
 export { PRDParser, type PRDParserOptions } from './PRDParser.js';

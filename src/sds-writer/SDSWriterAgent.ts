@@ -6,11 +6,14 @@
  *
  * This agent coordinates the parsing of SRS documents, component design,
  * API specification, data modeling, and traceability mapping.
+ *
+ * Implements IAgent interface for AgentFactory integration
  */
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { randomUUID } from 'node:crypto';
+import type { IAgent } from '../agents/types.js';
 
 import type {
   SDSWriterAgentConfig,
@@ -88,11 +91,20 @@ const DEFAULT_CONFIG: Required<SDSWriterAgentConfig> = {
 };
 
 /**
+ * Agent ID for SDSWriterAgent used in AgentFactory
+ */
+export const SDS_WRITER_AGENT_ID = 'sds-writer-agent';
+
+/**
  * SDS Writer Agent class
  *
  * Orchestrates the generation of SDS documents from SRS.
+ * Implements IAgent interface for unified agent instantiation through AgentFactory
  */
-export class SDSWriterAgent {
+export class SDSWriterAgent implements IAgent {
+  public readonly agentId = SDS_WRITER_AGENT_ID;
+  public readonly name = 'SDS Writer Agent';
+
   private readonly config: Required<SDSWriterAgentConfig>;
   private readonly srsParser: SRSParser;
   private readonly componentDesigner: ComponentDesigner;
@@ -100,6 +112,7 @@ export class SDSWriterAgent {
   private readonly dataDesigner: DataDesigner;
   private readonly traceabilityMapper: TraceabilityMapper;
   private session: SDSGenerationSession | null = null;
+  private initialized = false;
 
   constructor(config: SDSWriterAgentConfig = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
@@ -111,6 +124,30 @@ export class SDSWriterAgent {
       coverageThreshold: this.config.coverageThreshold,
       failOnLowCoverage: this.config.failOnLowCoverage,
     });
+  }
+
+  /**
+   * Initialize the agent (IAgent interface)
+   * Called after construction, before first use
+   */
+  public async initialize(): Promise<void> {
+    if (this.initialized) {
+      return;
+    }
+    // SDSWriterAgent doesn't require async initialization
+    // but the interface requires this method
+    await Promise.resolve();
+    this.initialized = true;
+  }
+
+  /**
+   * Dispose of the agent and release resources (IAgent interface)
+   * Called when the agent is no longer needed
+   */
+  public async dispose(): Promise<void> {
+    await Promise.resolve();
+    this.session = null;
+    this.initialized = false;
   }
 
   /**

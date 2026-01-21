@@ -21,10 +21,13 @@
  *
  * NOTE: Uses string concatenation for commit messages (simple and effective).
  *
+ * Implements IAgent interface for AgentFactory integration
+ *
  * @module worker/WorkerAgent
  */
 
 import { join } from 'node:path';
+import type { IAgent } from '../agents/types.js';
 
 import type {
   WorkerAgentConfig,
@@ -91,12 +94,21 @@ interface CheckpointResumeState {
 }
 
 /**
+ * Agent ID for WorkerAgent used in AgentFactory
+ */
+export const WORKER_AGENT_ID = 'worker-agent';
+
+/**
  * Worker Agent
  *
  * Processes Work Orders to implement code changes, generate tests,
  * and verify the implementation through automated checks.
+ * Implements IAgent interface for unified agent instantiation through AgentFactory
  */
-export class WorkerAgent {
+export class WorkerAgent implements IAgent {
+  public readonly agentId = WORKER_AGENT_ID;
+  public readonly name = 'Worker Agent';
+
   private readonly config: Required<WorkerAgentConfig>;
   private readonly fileChanges: Map<string, FileChange>;
   private readonly testsCreated: Map<string, number>;
@@ -106,6 +118,7 @@ export class WorkerAgent {
   private readonly checkpointManager: CheckpointManager;
   private lastTestGenerationResult: TestGenerationResult | null;
   private currentBranchName: string | null;
+  private initialized = false;
 
   constructor(
     config: WorkerAgentConfig = {},
@@ -137,6 +150,30 @@ export class WorkerAgent {
       projectRoot: this.config.projectRoot,
       ...checkpointConfig,
     });
+  }
+
+  /**
+   * Initialize the agent (IAgent interface)
+   * Called after construction, before first use
+   */
+  public async initialize(): Promise<void> {
+    if (this.initialized) {
+      return;
+    }
+    // WorkerAgent doesn't require async initialization
+    // but the interface requires this method
+    await Promise.resolve();
+    this.initialized = true;
+  }
+
+  /**
+   * Dispose of the agent and release resources (IAgent interface)
+   * Called when the agent is no longer needed
+   */
+  public async dispose(): Promise<void> {
+    await Promise.resolve();
+    this.resetState();
+    this.initialized = false;
   }
 
   /**

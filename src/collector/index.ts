@@ -18,7 +18,12 @@
  */
 
 // Main classes
-export { CollectorAgent, getCollectorAgent, resetCollectorAgent } from './CollectorAgent.js';
+export {
+  CollectorAgent,
+  getCollectorAgent,
+  resetCollectorAgent,
+  COLLECTOR_AGENT_ID,
+} from './CollectorAgent.js';
 
 export { InputParser } from './InputParser.js';
 export type { InputParserOptions } from './InputParser.js';

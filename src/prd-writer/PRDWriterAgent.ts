@@ -4,11 +4,14 @@
  * Orchestrates the generation of Product Requirements Documents
  * from collected information, including gap analysis,
  * consistency checking, and template-based generation.
+ *
+ * Implements IAgent interface for AgentFactory integration
  */
 
 /* eslint-disable @typescript-eslint/no-unnecessary-condition */
 
 import { randomUUID } from 'node:crypto';
+import type { IAgent } from '../agents/types.js';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { getScratchpad, type CollectedInfo } from '../scratchpad/index.js';
@@ -48,15 +51,25 @@ const DEFAULT_CONFIG: Required<PRDWriterAgentConfig> = {
 };
 
 /**
- * PRDWriterAgent class for generating PRD documents
+ * Agent ID for PRDWriterAgent used in AgentFactory
  */
-export class PRDWriterAgent {
+export const PRD_WRITER_AGENT_ID = 'prd-writer-agent';
+
+/**
+ * PRDWriterAgent class for generating PRD documents
+ * Implements IAgent interface for unified agent instantiation through AgentFactory
+ */
+export class PRDWriterAgent implements IAgent {
+  public readonly agentId = PRD_WRITER_AGENT_ID;
+  public readonly name = 'PRD Writer Agent';
+
   private readonly config: Required<PRDWriterAgentConfig>;
   private readonly gapAnalyzer: GapAnalyzer;
   private readonly consistencyChecker: ConsistencyChecker;
   private readonly templateProcessor: TemplateProcessor;
   private readonly qualityMetricsCalculator: QualityMetricsCalculator;
   private session: PRDGenerationSession | null = null;
+  private initialized = false;
 
   constructor(config: PRDWriterAgentConfig = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
@@ -83,6 +96,30 @@ export class PRDWriterAgent {
     this.consistencyChecker = new ConsistencyChecker(consistencyOptions);
     this.templateProcessor = new TemplateProcessor(templateOptions);
     this.qualityMetricsCalculator = new QualityMetricsCalculator();
+  }
+
+  /**
+   * Initialize the agent (IAgent interface)
+   * Called after construction, before first use
+   */
+  public async initialize(): Promise<void> {
+    if (this.initialized) {
+      return;
+    }
+    // PRDWriterAgent doesn't require async initialization
+    // but the interface requires this method
+    await Promise.resolve();
+    this.initialized = true;
+  }
+
+  /**
+   * Dispose of the agent and release resources (IAgent interface)
+   * Called when the agent is no longer needed
+   */
+  public async dispose(): Promise<void> {
+    await Promise.resolve();
+    this.reset();
+    this.initialized = false;
   }
 
   /**
