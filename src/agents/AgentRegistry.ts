@@ -110,7 +110,7 @@ export class AgentRegistry {
 
     // Validate metadata
     const validationError = this.validateMetadata(metadata);
-    if (validationError) {
+    if (validationError !== null) {
       return {
         success: false,
         agentId: metadata.agentId,
@@ -206,7 +206,7 @@ export class AgentRegistry {
     const missing: string[] = [];
 
     for (const dep of metadata.dependencies) {
-      if (!dep.optional && !this.has(dep.agentId)) {
+      if (dep.optional !== true && !this.has(dep.agentId)) {
         missing.push(dep.agentId);
       }
     }
@@ -256,7 +256,7 @@ export class AgentRegistry {
       return 'name is required and must be a string';
     }
 
-    if (!metadata.lifecycle || !['singleton', 'transient'].includes(metadata.lifecycle)) {
+    if (!['singleton', 'transient'].includes(metadata.lifecycle)) {
       return 'lifecycle must be "singleton" or "transient"';
     }
 

@@ -137,7 +137,7 @@ export class AgentFactory {
     if (missingDeps.length > 0) {
       const requiredMissing = missingDeps.filter((depId) => {
         const dep = metadata.dependencies.find((d) => d.agentId === depId);
-        return !dep?.optional;
+        return dep?.optional !== true;
       });
 
       if (requiredMissing.length > 0) {
@@ -151,7 +151,7 @@ export class AgentFactory {
     // Create the agent
     let agent: T;
     try {
-      agent = metadata.factory(dependencies) as T;
+      agent = metadata.factory(dependencies);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       throw new AgentCreationError(agentId, message);
@@ -199,12 +199,11 @@ export class AgentFactory {
   /**
    * Get a cached singleton instance without creating one
    *
-   * @typeParam T - The agent type
    * @param agentId - Agent ID to retrieve
    * @returns The cached agent or undefined
    */
-  public getCached<T extends IAgent>(agentId: string): T | undefined {
-    return this.singletonCache.get(agentId) as T | undefined;
+  public getCached(agentId: string): IAgent | undefined {
+    return this.singletonCache.get(agentId);
   }
 
   /**
@@ -274,7 +273,7 @@ export class AgentFactory {
     for (const dep of metadata.dependencies) {
       if (this.registry.has(dep.agentId)) {
         dependencies[dep.agentId] = await this.create(dep.agentId);
-      } else if (!dep.optional) {
+      } else if (dep.optional !== true) {
         // This shouldn't happen if validateDependencies was called
         throw new DependencyResolutionError(agentId, [dep.agentId]);
       }
