@@ -4,9 +4,12 @@
  * Orchestrates the generation of Software Requirements Specifications
  * from PRD documents, including feature decomposition, use case
  * generation, and traceability matrix creation.
+ *
+ * Implements IAgent interface for AgentFactory integration
  */
 
 import { randomUUID } from 'node:crypto';
+import type { IAgent } from '../agents/types.js';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { getScratchpad } from '../scratchpad/index.js';
@@ -50,14 +53,24 @@ const DEFAULT_CONFIG: Required<SRSWriterAgentConfig> = {
 };
 
 /**
- * SRS Writer Agent class for generating SRS documents
+ * Agent ID for SRSWriterAgent used in AgentFactory
  */
-export class SRSWriterAgent {
+export const SRS_WRITER_AGENT_ID = 'srs-writer-agent';
+
+/**
+ * SRS Writer Agent class for generating SRS documents
+ * Implements IAgent interface for unified agent instantiation through AgentFactory
+ */
+export class SRSWriterAgent implements IAgent {
+  public readonly agentId = SRS_WRITER_AGENT_ID;
+  public readonly name = 'SRS Writer Agent';
+
   private readonly config: Required<SRSWriterAgentConfig>;
   private readonly prdParser: PRDParser;
   private readonly featureDecomposer: FeatureDecomposer;
   private readonly traceabilityBuilder: TraceabilityBuilder;
   private session: SRSGenerationSession | null = null;
+  private initialized = false;
 
   constructor(config: SRSWriterAgentConfig = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
@@ -83,6 +96,28 @@ export class SRSWriterAgent {
     this.prdParser = new PRDParser(parserOptions);
     this.featureDecomposer = new FeatureDecomposer(decomposerOptions);
     this.traceabilityBuilder = new TraceabilityBuilder(traceabilityOptions);
+  }
+
+  /**
+   * Initialize the agent (IAgent interface)
+   * Called after construction, before first use
+   */
+  public async initialize(): Promise<void> {
+    if (this.initialized) {
+      return;
+    }
+    // SRSWriterAgent doesn't require async initialization
+    // but the interface requires this method
+    this.initialized = true;
+  }
+
+  /**
+   * Dispose of the agent and release resources (IAgent interface)
+   * Called when the agent is no longer needed
+   */
+  public async dispose(): Promise<void> {
+    this.reset();
+    this.initialized = false;
   }
 
   /**

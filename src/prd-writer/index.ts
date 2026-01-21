@@ -15,7 +15,12 @@
  */
 
 // Main classes
-export { PRDWriterAgent, getPRDWriterAgent, resetPRDWriterAgent } from './PRDWriterAgent.js';
+export {
+  PRDWriterAgent,
+  getPRDWriterAgent,
+  resetPRDWriterAgent,
+  PRD_WRITER_AGENT_ID,
+} from './PRDWriterAgent.js';
 
 export { GapAnalyzer } from './GapAnalyzer.js';
 export type { GapAnalyzerOptions } from './GapAnalyzer.js';

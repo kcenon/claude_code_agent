@@ -10,9 +10,11 @@
  * - Batch input processing for mixed input types
  * - Automatic session cleanup on failure
  * - Clarification question handling
+ * - Implements IAgent interface for AgentFactory integration
  */
 
 import { randomUUID } from 'node:crypto';
+import type { IAgent } from '../agents/types.js';
 import { getScratchpad, type CollectedInfo } from '../scratchpad/index.js';
 import { InputParser, type InputParserOptions } from './InputParser.js';
 import { InformationExtractor, type InformationExtractorOptions } from './InformationExtractor.js';
@@ -45,13 +47,23 @@ const DEFAULT_CONFIG: Required<CollectorAgentConfig> = {
 };
 
 /**
- * CollectorAgent class for managing information collection workflow
+ * Agent ID for CollectorAgent used in AgentFactory
  */
-export class CollectorAgent {
+export const COLLECTOR_AGENT_ID = 'collector-agent';
+
+/**
+ * CollectorAgent class for managing information collection workflow
+ * Implements IAgent interface for unified agent instantiation through AgentFactory
+ */
+export class CollectorAgent implements IAgent {
+  public readonly agentId = COLLECTOR_AGENT_ID;
+  public readonly name = 'Collector Agent';
+
   private readonly config: Required<CollectorAgentConfig>;
   private readonly inputParser: InputParser;
   private readonly extractor: InformationExtractor;
   private session: CollectionSession | null = null;
+  private initialized = false;
 
   constructor(config: CollectorAgentConfig = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
@@ -65,6 +77,28 @@ export class CollectorAgent {
 
     this.inputParser = new InputParser(parserOptions);
     this.extractor = new InformationExtractor(extractorOptions);
+  }
+
+  /**
+   * Initialize the agent (IAgent interface)
+   * Called after construction, before first use
+   */
+  public async initialize(): Promise<void> {
+    if (this.initialized) {
+      return;
+    }
+    // CollectorAgent doesn't require async initialization
+    // but the interface requires this method
+    this.initialized = true;
+  }
+
+  /**
+   * Dispose of the agent and release resources (IAgent interface)
+   * Called when the agent is no longer needed
+   */
+  public async dispose(): Promise<void> {
+    this.reset();
+    this.initialized = false;
   }
 
   /**

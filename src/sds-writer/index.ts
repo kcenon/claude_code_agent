@@ -8,7 +8,12 @@
  */
 
 // Main agent class (singleton + constructor)
-export { SDSWriterAgent, getSDSWriterAgent, resetSDSWriterAgent } from './SDSWriterAgent.js';
+export {
+  SDSWriterAgent,
+  getSDSWriterAgent,
+  resetSDSWriterAgent,
+  SDS_WRITER_AGENT_ID,
+} from './SDSWriterAgent.js';
 
 // Component classes
 export { SRSParser } from './SRSParser.js';

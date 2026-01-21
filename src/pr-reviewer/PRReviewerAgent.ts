@@ -11,11 +11,13 @@
  * - Incremental review for large PRs (processes files in batches)
  * - Intelligent CI polling with exponential backoff and circuit breaker
  * - Rate limiting protection for GitHub API calls
+ * - Implements IAgent interface for AgentFactory integration
  *
  * @module pr-reviewer/PRReviewerAgent
  */
 
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import type { IAgent } from '../agents/types.js';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import yaml from 'js-yaml';
@@ -89,12 +91,21 @@ interface CommandResult {
 let instance: PRReviewerAgent | null = null;
 
 /**
+ * Agent ID for PRReviewerAgent used in AgentFactory
+ */
+export const PR_REVIEWER_AGENT_ID = 'pr-reviewer-agent';
+
+/**
  * PR Reviewer Agent
  *
  * Reviews Worker Agent implementation results, creates PRs,
  * performs automated code review, and makes merge decisions.
+ * Implements IAgent interface for unified agent instantiation through AgentFactory
  */
-export class PRReviewerAgent {
+export class PRReviewerAgent implements IAgent {
+  public readonly agentId = PR_REVIEWER_AGENT_ID;
+  public readonly name = 'PR Reviewer Agent';
+
   private readonly config: Required<PRReviewerAgentConfig> & Required<EnhancedCIConfig>;
   private readonly qualityGate: QualityGate;
   private readonly reviewChecks: ReviewChecks;
@@ -103,6 +114,7 @@ export class PRReviewerAgent {
   private readonly circuitBreaker: CICircuitBreaker;
   private readonly intelligentPoller: IntelligentCIPoller;
   private readonly githubReviewClient: GitHubReviewClient;
+  private initialized = false;
 
   constructor(config: PRReviewerAgentConfig & EnhancedCIConfig = {}) {
     this.config = {
@@ -190,6 +202,28 @@ export class PRReviewerAgent {
       continueOnCommentFailure: true,
       useBatchReview: true,
     });
+  }
+
+  /**
+   * Initialize the agent (IAgent interface)
+   * Called after construction, before first use
+   */
+  public async initialize(): Promise<void> {
+    if (this.initialized) {
+      return;
+    }
+    // PRReviewerAgent doesn't require async initialization
+    // but the interface requires this method
+    this.initialized = true;
+  }
+
+  /**
+   * Dispose of the agent and release resources (IAgent interface)
+   * Called when the agent is no longer needed
+   */
+  public async dispose(): Promise<void> {
+    this.circuitBreaker.reset();
+    this.initialized = false;
   }
 
   /**
