@@ -10,7 +10,13 @@
  * @packageDocumentation
  */
 
-import type { IAgent, CreateAgentOptions, AgentDependencies, LazyAgentOptions, LazyAgent } from './types.js';
+import type {
+  IAgent,
+  CreateAgentOptions,
+  AgentDependencies,
+  LazyAgentOptions,
+  LazyAgent,
+} from './types.js';
 import { AgentRegistry } from './AgentRegistry.js';
 
 /**
@@ -289,10 +295,7 @@ export class AgentFactory {
    * await lazyWorker.dispose();
    * ```
    */
-  public lazy<T extends IAgent>(
-    agentId: string,
-    options: LazyAgentOptions = {}
-  ): LazyAgent<T> {
+  public lazy<T extends IAgent>(agentId: string, options: LazyAgentOptions = {}): LazyAgent<T> {
     const { initializeOnAccess = true } = options;
     let instance: T | null = null;
     let instancePromise: Promise<T> | null = null;
