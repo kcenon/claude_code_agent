@@ -581,7 +581,9 @@ export async function withLLMSpan<T>(
  */
 export async function withTracedAgent<T>(
   options: AgentSpanOptions,
-  metricsCollector: { recordTokenUsage: (agent: string, input: number, output: number) => void } | null,
+  metricsCollector: {
+    recordTokenUsage: (agent: string, input: number, output: number) => void;
+  } | null,
   fn: (
     span: SpanWrapper,
     recordTokens: (inputTokens: number, outputTokens: number, costUsd?: number) => void
