@@ -296,7 +296,7 @@ export class AgentFactory {
     const { initializeOnAccess = true } = options;
     let instance: T | null = null;
     let instancePromise: Promise<T> | null = null;
-    const factoryRef = this;
+    const createAgent = this.create.bind(this);
 
     return {
       get isInstantiated(): boolean {
@@ -312,7 +312,7 @@ export class AgentFactory {
           return instancePromise;
         }
 
-        instancePromise = factoryRef.create<T>(agentId, {
+        instancePromise = createAgent<T>(agentId, {
           skipInitialize: !initializeOnAccess,
         });
 
