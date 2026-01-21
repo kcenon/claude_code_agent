@@ -162,6 +162,40 @@ export interface CreateAgentOptions {
 }
 
 /**
+ * Options for lazy agent creation
+ */
+export interface LazyAgentOptions {
+  /**
+   * Whether to initialize the agent when first accessed
+   * @default true
+   */
+  initializeOnAccess?: boolean;
+}
+
+/**
+ * Lazy agent proxy that defers creation until first use
+ * Provides access to the underlying agent instance
+ */
+export interface LazyAgent<T extends IAgent> {
+  /**
+   * Whether the agent has been instantiated
+   */
+  readonly isInstantiated: boolean;
+
+  /**
+   * Get the agent instance, creating it if necessary
+   * @returns Promise resolving to the agent instance
+   */
+  get(): Promise<T>;
+
+  /**
+   * Dispose the agent if it has been instantiated
+   * @returns Promise that resolves when disposal is complete
+   */
+  dispose(): Promise<void>;
+}
+
+/**
  * Result of agent registration
  */
 export interface RegistrationResult {

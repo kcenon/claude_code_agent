@@ -55,6 +55,8 @@ export type {
   AgentDependencies,
   CreateAgentOptions,
   RegistrationResult,
+  LazyAgentOptions,
+  LazyAgent,
 } from './types.js';
 
 // Re-export collector module

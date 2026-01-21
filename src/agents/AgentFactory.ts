@@ -10,7 +10,13 @@
  * @packageDocumentation
  */
 
-import type { IAgent, CreateAgentOptions, AgentDependencies } from './types.js';
+import type {
+  IAgent,
+  CreateAgentOptions,
+  AgentDependencies,
+  LazyAgentOptions,
+  LazyAgent,
+} from './types.js';
 import { AgentRegistry } from './AgentRegistry.js';
 
 /**
@@ -255,6 +261,79 @@ export class AgentFactory {
    */
   public getCachedAgentIds(): string[] {
     return Array.from(this.singletonCache.keys());
+  }
+
+  /**
+   * Create a lazy agent proxy that defers instantiation until first access
+   *
+   * Useful for optional agents that may not always be needed,
+   * improving startup performance by avoiding unnecessary initialization.
+   *
+   * @typeParam T - The agent type to create
+   * @param agentId - ID of the agent to create lazily
+   * @param options - Lazy creation options
+   * @returns LazyAgent proxy for deferred creation
+   * @throws AgentNotRegisteredError if agent is not registered (thrown on access, not creation)
+   *
+   * @example
+   * ```typescript
+   * const factory = AgentFactory.getInstance();
+   *
+   * // Create lazy proxy (no agent created yet)
+   * const lazyWorker = factory.lazy<WorkerAgent>('worker-agent');
+   * console.log(lazyWorker.isInstantiated); // false
+   *
+   * // Agent is created and initialized on first access
+   * const worker = await lazyWorker.get();
+   * console.log(lazyWorker.isInstantiated); // true
+   *
+   * // Subsequent calls return the same instance
+   * const sameWorker = await lazyWorker.get();
+   * console.log(worker === sameWorker); // true
+   *
+   * // Dispose when done (no-op if never instantiated)
+   * await lazyWorker.dispose();
+   * ```
+   */
+  public lazy<T extends IAgent>(agentId: string, options: LazyAgentOptions = {}): LazyAgent<T> {
+    const { initializeOnAccess = true } = options;
+    let instance: T | null = null;
+    let instancePromise: Promise<T> | null = null;
+    const createAgent = this.create.bind(this);
+
+    return {
+      get isInstantiated(): boolean {
+        return instance !== null;
+      },
+
+      async get(): Promise<T> {
+        if (instance !== null) {
+          return instance;
+        }
+
+        if (instancePromise !== null) {
+          return instancePromise;
+        }
+
+        instancePromise = createAgent<T>(agentId, {
+          skipInitialize: !initializeOnAccess,
+        });
+
+        try {
+          instance = await instancePromise;
+          return instance;
+        } finally {
+          instancePromise = null;
+        }
+      },
+
+      async dispose(): Promise<void> {
+        if (instance !== null) {
+          await instance.dispose();
+          instance = null;
+        }
+      },
+    };
   }
 
   /**
