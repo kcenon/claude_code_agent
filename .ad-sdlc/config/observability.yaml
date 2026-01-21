@@ -1,0 +1,93 @@
+# OpenTelemetry Observability Configuration
+#
+# This configuration file controls distributed tracing and observability
+# across the AD-SDLC pipeline. When enabled, traces are generated for
+# all agent executions, tool invocations, and LLM API calls.
+#
+# Reference: https://opentelemetry.io/docs/languages/js/
+
+opentelemetry:
+  # Enable or disable OpenTelemetry tracing
+  # Set to true to enable distributed tracing across the pipeline
+  enabled: false
+
+  # Service name used to identify traces from this application
+  serviceName: ad-sdlc-pipeline
+
+  # Exporter configurations
+  # Multiple exporters can be enabled simultaneously
+  exporters:
+    # Console exporter - outputs traces to stdout (useful for debugging)
+    - type: console
+      enabled: false
+
+    # OTLP exporter - sends traces to any OTLP-compatible backend
+    # Examples: Jaeger, Grafana Tempo, OpenTelemetry Collector
+    - type: otlp
+      enabled: false
+      # endpoint: http://localhost:4318/v1/traces
+      # headers:
+      #   Authorization: Bearer your-api-key
+      # timeoutMs: 30000
+
+    # Jaeger exporter - sends traces directly to Jaeger
+    # Note: Uses OTLP protocol, so endpoint should be OTLP-compatible
+    - type: jaeger
+      enabled: false
+      # endpoint: http://localhost:4318/v1/traces
+      # timeoutMs: 30000
+
+  # Sampling configuration
+  # Controls what percentage of traces are collected
+  sampling:
+    # Sampling strategy:
+    # - always_on: Sample all traces (100%)
+    # - always_off: Sample no traces (0%)
+    # - probability: Sample based on probability (0.0-1.0)
+    # - rate_limiting: Limit traces per second
+    type: always_on
+
+    # For probability sampling: value between 0.0 and 1.0
+    # probability: 1.0
+
+    # For rate limiting sampling: max traces per second
+    # rateLimit: 100
+
+  # Resource attributes attached to all spans
+  resourceAttributes:
+    # Deployment environment (development, staging, production)
+    environment: development
+
+    # Service version (can use environment variable)
+    # serviceVersion: ${npm_package_version}
+
+    # Custom attributes
+    # custom:
+    #   team: platform
+    #   region: us-west-2
+
+
+# Quick Start Guide
+# ==================
+#
+# 1. Local Development (Console Output)
+#    - Set enabled: true
+#    - Set console exporter enabled: true
+#    - Run your pipeline to see traces in terminal
+#
+# 2. Jaeger Integration
+#    - Start Jaeger: docker run -d -p16686:16686 -p4318:4318 jaegertracing/all-in-one
+#    - Set enabled: true
+#    - Set OTLP exporter enabled: true with endpoint: http://localhost:4318/v1/traces
+#    - View traces at http://localhost:16686
+#
+# 3. Grafana Cloud
+#    - Set enabled: true
+#    - Set OTLP exporter enabled: true
+#    - Set endpoint to your Grafana Cloud OTLP endpoint
+#    - Add Authorization header with your API key
+#
+# 4. Production
+#    - Use probability or rate_limiting sampling to control costs
+#    - Set environment: production in resourceAttributes
+#    - Consider using an OpenTelemetry Collector for better reliability
