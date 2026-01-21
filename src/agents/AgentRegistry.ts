@@ -7,12 +7,7 @@
  * @packageDocumentation
  */
 
-import type {
-  AgentMetadata,
-  IAgent,
-  RegistrationResult,
-  AgentDependency,
-} from './types.js';
+import type { AgentMetadata, IAgent, RegistrationResult, AgentDependency } from './types.js';
 
 /**
  * Error thrown when an agent is not found in the registry

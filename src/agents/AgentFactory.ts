@@ -10,11 +10,7 @@
  * @packageDocumentation
  */
 
-import type {
-  IAgent,
-  CreateAgentOptions,
-  AgentDependencies,
-} from './types.js';
+import type { IAgent, CreateAgentOptions, AgentDependencies } from './types.js';
 import { AgentRegistry } from './AgentRegistry.js';
 
 /**
@@ -42,9 +38,7 @@ export class AgentInitializationError extends Error {
  */
 export class DependencyResolutionError extends Error {
   constructor(agentId: string, missingDeps: string[]) {
-    super(
-      `Cannot create agent ${agentId}: missing dependencies [${missingDeps.join(', ')}]`
-    );
+    super(`Cannot create agent ${agentId}: missing dependencies [${missingDeps.join(', ')}]`);
     this.name = 'DependencyResolutionError';
   }
 }
