@@ -1,0 +1,36 @@
+# New Relic Production Configuration
+#
+# This configuration is for New Relic with native OTLP support.
+#
+# Prerequisites:
+#   1. Get your New Relic license key from:
+#      https://one.newrelic.com/admin-portal/api-keys/home
+#
+# View traces at: https://one.newrelic.com/distributed-tracing
+#
+# Copy this file to: .ad-sdlc/config/observability.yaml
+# Replace <your-license-key> with your actual New Relic license key
+
+opentelemetry:
+  enabled: true
+  serviceName: ad-sdlc-pipeline
+
+  exporters:
+    # OTLP exporter to New Relic
+    - type: otlp
+      enabled: true
+      endpoint: https://otlp.nr-data.net:4318/v1/traces
+      headers:
+        api-key: <your-license-key>
+      timeoutMs: 30000
+
+  sampling:
+    # Sample 10% of traces in production
+    type: probability
+    probability: 0.1
+
+  resourceAttributes:
+    environment: production
+    serviceVersion: "1.0.0"
+    custom:
+      team: platform

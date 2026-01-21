@@ -1,0 +1,39 @@
+# Jaeger Local Development Configuration
+#
+# This configuration is for local development with Jaeger all-in-one.
+#
+# Prerequisites:
+#   docker run -d --name jaeger \
+#     -e COLLECTOR_OTLP_ENABLED=true \
+#     -p 16686:16686 \
+#     -p 4317:4317 \
+#     -p 4318:4318 \
+#     -p 14268:14268 \
+#     jaegertracing/all-in-one:latest
+#
+# View traces at: http://localhost:16686
+#
+# Copy this file to: .ad-sdlc/config/observability.yaml
+
+opentelemetry:
+  enabled: true
+  serviceName: ad-sdlc-pipeline
+
+  exporters:
+    # Console exporter for debugging (optional)
+    - type: console
+      enabled: false
+
+    # OTLP exporter to Jaeger
+    - type: otlp
+      enabled: true
+      endpoint: http://localhost:4318/v1/traces
+      timeoutMs: 30000
+
+  sampling:
+    # Sample all traces in development
+    type: always_on
+
+  resourceAttributes:
+    environment: development
+    serviceVersion: "1.0.0"
