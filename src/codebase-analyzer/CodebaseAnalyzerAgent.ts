@@ -3,12 +3,15 @@
  *
  * Analyzes existing code structure, architecture patterns, and dependencies
  * to understand the current implementation state for the Enhancement Pipeline.
+ *
+ * Implements IAgent interface for unified agent instantiation through AgentFactory.
  */
 
 import { randomUUID } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 
+import type { IAgent } from '../agents/types.js';
 import type {
   ArchitectureOverview,
   ArchitectureType,
@@ -58,6 +61,11 @@ async function loadYaml(): Promise<void> {
 }
 
 /**
+ * Agent ID for CodebaseAnalyzerAgent used in AgentFactory
+ */
+export const CODEBASE_ANALYZER_AGENT_ID = 'codebase-analyzer-agent';
+
+/**
  * Codebase Analyzer Agent class
  *
  * Responsible for:
@@ -67,13 +75,41 @@ async function loadYaml(): Promise<void> {
  * - Identifying architecture and design patterns
  * - Detecting coding conventions
  * - Calculating code metrics
+ *
+ * Implements IAgent interface for unified agent instantiation through AgentFactory.
  */
-export class CodebaseAnalyzerAgent {
+export class CodebaseAnalyzerAgent implements IAgent {
+  public readonly agentId = CODEBASE_ANALYZER_AGENT_ID;
+  public readonly name = 'Codebase Analyzer Agent';
+
   private readonly config: Required<CodebaseAnalyzerConfig>;
   private session: CodebaseAnalysisSession | null = null;
+  private initialized = false;
 
   constructor(config: CodebaseAnalyzerConfig = {}) {
     this.config = { ...DEFAULT_CODEBASE_ANALYZER_CONFIG, ...config };
+  }
+
+  /**
+   * Initialize the agent (IAgent interface)
+   * Called after construction, before first use
+   */
+  public async initialize(): Promise<void> {
+    if (this.initialized) {
+      return;
+    }
+    await loadYaml();
+    this.initialized = true;
+  }
+
+  /**
+   * Dispose of the agent and release resources (IAgent interface)
+   * Called when the agent is no longer needed
+   */
+  public async dispose(): Promise<void> {
+    await Promise.resolve();
+    this.resetSession();
+    this.initialized = false;
   }
 
   /**

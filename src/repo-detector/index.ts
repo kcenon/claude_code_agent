@@ -6,7 +6,12 @@
  */
 
 // Main classes and singletons
-export { RepoDetector, getRepoDetector, resetRepoDetector } from './RepoDetector.js';
+export {
+  RepoDetector,
+  getRepoDetector,
+  resetRepoDetector,
+  REPO_DETECTOR_AGENT_ID,
+} from './RepoDetector.js';
 
 // Type exports
 export type {

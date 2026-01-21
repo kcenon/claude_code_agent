@@ -4,6 +4,8 @@
  * Implements automated CI/CD failure diagnosis and fix.
  * Receives handoff from PR Reviewer Agent when CI fails repeatedly.
  *
+ * Implements IAgent interface for unified agent instantiation through AgentFactory.
+ *
  * @module ci-fixer/CIFixAgent
  */
 
@@ -12,6 +14,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import yaml from 'js-yaml';
 
+import type { IAgent } from '../agents/types.js';
 import type {
   CIFixerAgentConfig,
   CIFixHandoff,
@@ -54,14 +57,25 @@ interface CommandResult {
 let instance: CIFixAgent | null = null;
 
 /**
+ * Agent ID for CIFixAgent used in AgentFactory
+ */
+export const CI_FIX_AGENT_ID = 'ci-fix-agent';
+
+/**
  * CI Fix Agent
  *
  * Automatically diagnoses and fixes CI/CD failures.
+ *
+ * Implements IAgent interface for unified agent instantiation through AgentFactory.
  */
-export class CIFixAgent {
+export class CIFixAgent implements IAgent {
+  public readonly agentId = CI_FIX_AGENT_ID;
+  public readonly name = 'CI Fix Agent';
+
   private readonly config: Required<CIFixerAgentConfig>;
   private readonly logAnalyzer: CILogAnalyzer;
   private readonly fixStrategies: FixStrategies;
+  private initialized = false;
 
   constructor(config: CIFixerAgentConfig = {}) {
     this.config = {
@@ -83,6 +97,17 @@ export class CIFixAgent {
       projectRoot: this.config.projectRoot,
       timeout: this.config.fixTimeout,
     });
+  }
+
+  public async initialize(): Promise<void> {
+    if (this.initialized) return;
+    await Promise.resolve();
+    this.initialized = true;
+  }
+
+  public async dispose(): Promise<void> {
+    await Promise.resolve();
+    this.initialized = false;
   }
 
   /**

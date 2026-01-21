@@ -10,6 +10,7 @@ export {
   ComponentGenerator,
   getComponentGenerator,
   resetComponentGenerator,
+  COMPONENT_GENERATOR_AGENT_ID,
 } from './ComponentGenerator.js';
 export type { ComponentGeneratorConfig } from './ComponentGenerator.js';
 

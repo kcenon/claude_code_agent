@@ -11,6 +11,7 @@ export {
   RegressionTesterAgent,
   getRegressionTesterAgent,
   resetRegressionTesterAgent,
+  REGRESSION_TESTER_AGENT_ID,
 } from './RegressionTesterAgent.js';
 
 // Type exports

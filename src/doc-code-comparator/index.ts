@@ -10,6 +10,7 @@ export {
   DocCodeComparatorAgent,
   getDocCodeComparatorAgent,
   resetDocCodeComparatorAgent,
+  DOC_CODE_COMPARATOR_AGENT_ID,
 } from './DocCodeComparatorAgent.js';
 
 // Type exports - Configuration

@@ -7,7 +7,12 @@
  */
 
 // Main agent class and singleton functions
-export { SRSUpdaterAgent, getSRSUpdaterAgent, resetSRSUpdaterAgent } from './SRSUpdaterAgent.js';
+export {
+  SRSUpdaterAgent,
+  getSRSUpdaterAgent,
+  resetSRSUpdaterAgent,
+  SRS_UPDATER_AGENT_ID,
+} from './SRSUpdaterAgent.js';
 
 // Error classes
 export {

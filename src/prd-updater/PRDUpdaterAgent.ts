@@ -4,12 +4,15 @@
  * Performs incremental updates to existing PRD documents instead of full rewrites.
  * Supports adding, modifying, and deprecating requirements while maintaining
  * document consistency and version history.
+ *
+ * Implements IAgent interface for unified agent instantiation through AgentFactory.
  */
 
 import { randomUUID } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 
+import type { IAgent } from '../agents/types.js';
 import type {
   AddedRequirement,
   ChangeRequest,
@@ -55,6 +58,11 @@ async function loadYaml(): Promise<void> {
 }
 
 /**
+ * Agent ID for PRDUpdaterAgent used in AgentFactory
+ */
+export const PRD_UPDATER_AGENT_ID = 'prd-updater-agent';
+
+/**
  * PRD Updater Agent class
  *
  * Responsible for:
@@ -63,13 +71,31 @@ async function loadYaml(): Promise<void> {
  * - Modifying existing requirements
  * - Deprecating requirements
  * - Maintaining version history and changelog
+ *
+ * Implements IAgent interface for unified agent instantiation through AgentFactory.
  */
-export class PRDUpdaterAgent {
+export class PRDUpdaterAgent implements IAgent {
+  public readonly agentId = PRD_UPDATER_AGENT_ID;
+  public readonly name = 'PRD Updater Agent';
+
   private readonly config: Required<PRDUpdaterConfig>;
   private session: PRDUpdaterSession | null = null;
+  private initialized = false;
 
   constructor(config: PRDUpdaterConfig = {}) {
     this.config = { ...DEFAULT_PRD_UPDATER_CONFIG, ...config };
+  }
+
+  public async initialize(): Promise<void> {
+    if (this.initialized) return;
+    await loadYaml();
+    this.initialized = true;
+  }
+
+  public async dispose(): Promise<void> {
+    await Promise.resolve();
+    this.session = null;
+    this.initialized = false;
   }
 
   /**

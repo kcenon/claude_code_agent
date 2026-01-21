@@ -3,12 +3,15 @@
  *
  * Automatically determines whether the project uses an existing GitHub
  * repository or requires a new one.
+ *
+ * Implements IAgent interface for unified agent instantiation through AgentFactory.
  */
 
 import * as fs from 'fs';
 import * as path from 'path';
 import * as yaml from 'js-yaml';
 import { randomUUID } from 'crypto';
+import type { IAgent } from '../agents/types.js';
 import { getCommandSanitizer } from '../security/index.js';
 import { tryJsonParse } from '../utils/SafeJsonParser.js';
 import { GitHubRepoInfoSchema } from '../schemas/github.js';
@@ -37,13 +40,24 @@ import {
 } from './errors.js';
 
 /**
+ * Agent ID for RepoDetector used in AgentFactory
+ */
+export const REPO_DETECTOR_AGENT_ID = 'repo-detector-agent';
+
+/**
  * Repository Detector Agent
  *
  * Analyzes project Git and GitHub state to determine repository mode.
+ *
+ * Implements IAgent interface for unified agent instantiation through AgentFactory.
  */
-export class RepoDetector {
+export class RepoDetector implements IAgent {
+  public readonly agentId = REPO_DETECTOR_AGENT_ID;
+  public readonly name = 'Repository Detector Agent';
+
   private readonly config: Required<RepoDetectorConfig>;
   private session: RepoDetectionSession | null = null;
+  private initialized = false;
 
   constructor(config: RepoDetectorConfig = {}) {
     this.config = {
@@ -62,6 +76,18 @@ export class RepoDetector {
         ...config.detection,
       },
     };
+  }
+
+  public async initialize(): Promise<void> {
+    if (this.initialized) return;
+    await Promise.resolve();
+    this.initialized = true;
+  }
+
+  public async dispose(): Promise<void> {
+    await Promise.resolve();
+    this.session = null;
+    this.initialized = false;
   }
 
   /**

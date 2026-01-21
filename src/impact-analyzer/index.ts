@@ -10,6 +10,7 @@ export {
   ImpactAnalyzerAgent,
   getImpactAnalyzerAgent,
   resetImpactAnalyzerAgent,
+  IMPACT_ANALYZER_AGENT_ID,
 } from './ImpactAnalyzerAgent.js';
 
 // Type exports

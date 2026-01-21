@@ -7,7 +7,12 @@
  */
 
 // Main agent class and singleton functions
-export { PRDUpdaterAgent, getPRDUpdaterAgent, resetPRDUpdaterAgent } from './PRDUpdaterAgent.js';
+export {
+  PRDUpdaterAgent,
+  getPRDUpdaterAgent,
+  resetPRDUpdaterAgent,
+  PRD_UPDATER_AGENT_ID,
+} from './PRDUpdaterAgent.js';
 
 // Error classes
 export {

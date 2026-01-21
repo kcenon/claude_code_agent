@@ -4,12 +4,15 @@
  * Performs incremental updates to existing SRS documents instead of full rewrites.
  * Supports adding features and use cases, modifying existing items, updating
  * interfaces, and maintaining PRD→SRS traceability.
+ *
+ * Implements IAgent interface for unified agent instantiation through AgentFactory.
  */
 
 import { randomUUID } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 
+import type { IAgent } from '../agents/types.js';
 import type {
   AddedFeature,
   AddedUseCase,
@@ -61,6 +64,11 @@ async function loadYaml(): Promise<void> {
 }
 
 /**
+ * Agent ID for SRSUpdaterAgent used in AgentFactory
+ */
+export const SRS_UPDATER_AGENT_ID = 'srs-updater-agent';
+
+/**
  * SRS Updater Agent class
  *
  * Responsible for:
@@ -70,13 +78,31 @@ async function loadYaml(): Promise<void> {
  * - Modifying existing features/use cases
  * - Updating interface definitions
  * - Maintaining PRD→SRS traceability matrix
+ *
+ * Implements IAgent interface for unified agent instantiation through AgentFactory.
  */
-export class SRSUpdaterAgent {
+export class SRSUpdaterAgent implements IAgent {
+  public readonly agentId = SRS_UPDATER_AGENT_ID;
+  public readonly name = 'SRS Updater Agent';
+
   private readonly config: Required<SRSUpdaterConfig>;
   private session: SRSUpdaterSession | null = null;
+  private initialized = false;
 
   constructor(config: SRSUpdaterConfig = {}) {
     this.config = { ...DEFAULT_SRS_UPDATER_CONFIG, ...config };
+  }
+
+  public async initialize(): Promise<void> {
+    if (this.initialized) return;
+    await loadYaml();
+    this.initialized = true;
+  }
+
+  public async dispose(): Promise<void> {
+    await Promise.resolve();
+    this.session = null;
+    this.initialized = false;
   }
 
   /**

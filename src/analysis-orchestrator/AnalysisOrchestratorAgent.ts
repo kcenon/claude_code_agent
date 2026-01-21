@@ -4,12 +4,15 @@
  * Coordinates the complete analysis pipeline from user input to issue generation.
  * Manages Document Reader, Code Reader, Comparator, and Issue Generator agents
  * to produce comprehensive project analysis.
+ *
+ * Implements IAgent interface for unified agent instantiation through AgentFactory.
  */
 
 import { randomUUID } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 
+import type { IAgent } from '../agents/types.js';
 import type {
   AnalysisInput,
   AnalysisOrchestratorConfig,
@@ -192,6 +195,11 @@ class StageCircuitBreaker {
 }
 
 /**
+ * Agent ID for AnalysisOrchestratorAgent used in AgentFactory
+ */
+export const ANALYSIS_ORCHESTRATOR_AGENT_ID = 'analysis-orchestrator-agent';
+
+/**
  * Analysis Orchestrator Agent class
  *
  * Responsible for:
@@ -200,8 +208,13 @@ class StageCircuitBreaker {
  * - Managing pipeline state and progress
  * - Generating analysis reports
  * - Handling errors and retries
+ *
+ * Implements IAgent interface for unified agent instantiation through AgentFactory.
  */
-export class AnalysisOrchestratorAgent {
+export class AnalysisOrchestratorAgent implements IAgent {
+  public readonly agentId = ANALYSIS_ORCHESTRATOR_AGENT_ID;
+  public readonly name = 'Analysis Orchestrator Agent';
+
   private readonly config: Required<AnalysisOrchestratorConfig>;
   private readonly circuitBreaker: StageCircuitBreaker;
   private readonly stageTimeouts: Required<StageTimeoutConfig>;
@@ -209,6 +222,7 @@ export class AnalysisOrchestratorAgent {
   private readonly cleanupTimers = new Map<PipelineStageName, NodeJS.Timeout>();
   private readonly abortControllers = new Map<string, AbortController>();
   private session: AnalysisSession | null = null;
+  private initialized = false;
 
   constructor(config: AnalysisOrchestratorConfig = {}) {
     this.config = {
@@ -224,6 +238,27 @@ export class AnalysisOrchestratorAgent {
       ...DEFAULT_PARALLEL_EXECUTION_CONFIG,
       ...config.parallelExecutionConfig,
     };
+  }
+
+  public async initialize(): Promise<void> {
+    if (this.initialized) return;
+    await loadYaml();
+    this.initialized = true;
+  }
+
+  public async dispose(): Promise<void> {
+    await Promise.resolve();
+    for (const timer of this.cleanupTimers.values()) {
+      clearTimeout(timer);
+    }
+    this.cleanupTimers.clear();
+    for (const controller of this.abortControllers.values()) {
+      controller.abort();
+    }
+    this.abortControllers.clear();
+    this.circuitBreaker.resetAll();
+    this.session = null;
+    this.initialized = false;
   }
 
   /**
