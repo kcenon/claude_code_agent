@@ -392,6 +392,120 @@ const TelemetryConfigSchema = z.object({
   include_debug_events: z.boolean().optional().default(false),
 });
 
+// ============================================================
+// OpenTelemetry Configuration Schemas
+// ============================================================
+
+/**
+ * OpenTelemetry exporter types
+ */
+const OpenTelemetryExporterTypeSchema = z.enum(['console', 'otlp', 'jaeger']);
+
+/**
+ * OpenTelemetry sampling types
+ */
+const OpenTelemetrySamplingTypeSchema = z.enum([
+  'always_on',
+  'always_off',
+  'probability',
+  'rate_limiting',
+]);
+
+/**
+ * OpenTelemetry exporter configuration
+ */
+const OpenTelemetryExporterConfigSchema = z.object({
+  type: OpenTelemetryExporterTypeSchema,
+  enabled: z.boolean().optional().default(true),
+  endpoint: z.url().optional(),
+  headers: z.record(z.string(), z.string()).optional(),
+  timeoutMs: z.number().int().min(100).max(60000).optional().default(30000),
+});
+
+/**
+ * OpenTelemetry sampling configuration
+ */
+const OpenTelemetrySamplingConfigSchema = z.object({
+  type: OpenTelemetrySamplingTypeSchema,
+  probability: z.number().min(0).max(1).optional(),
+  rateLimit: z.number().int().min(1).optional(),
+});
+
+/**
+ * OpenTelemetry resource attributes
+ */
+const OpenTelemetryResourceAttributesSchema = z.object({
+  serviceName: z.string().optional(),
+  serviceVersion: z.string().optional(),
+  environment: z.enum(['development', 'staging', 'production']).optional(),
+  custom: z.record(z.string(), z.string()).optional(),
+});
+
+/**
+ * Complete OpenTelemetry configuration schema
+ */
+export const OpenTelemetryConfigSchema = z
+  .object({
+    enabled: z.boolean().default(false),
+    serviceName: z.string().min(1, 'Service name is required').default('ad-sdlc-pipeline'),
+    exporters: z
+      .array(OpenTelemetryExporterConfigSchema)
+      .min(1)
+      .default([{ type: 'console' as const, enabled: false, timeoutMs: 30000 }]),
+    sampling: OpenTelemetrySamplingConfigSchema.optional(),
+    resourceAttributes: OpenTelemetryResourceAttributesSchema.optional(),
+  })
+  .refine(
+    (config) => {
+      // Validate probability is set when sampling type is 'probability'
+      if (config.sampling?.type === 'probability' && config.sampling.probability === undefined) {
+        return false;
+      }
+      return true;
+    },
+    {
+      message: 'probability is required when sampling type is "probability"',
+      path: ['sampling', 'probability'],
+    }
+  )
+  .refine(
+    (config) => {
+      // Validate rateLimit is set when sampling type is 'rate_limiting'
+      if (config.sampling?.type === 'rate_limiting' && config.sampling.rateLimit === undefined) {
+        return false;
+      }
+      return true;
+    },
+    {
+      message: 'rateLimit is required when sampling type is "rate_limiting"',
+      path: ['sampling', 'rateLimit'],
+    }
+  )
+  .refine(
+    (config) => {
+      // Validate endpoint is set for OTLP and Jaeger exporters
+      for (const exporter of config.exporters) {
+        if ((exporter.type === 'otlp' || exporter.type === 'jaeger') && exporter.enabled) {
+          if (exporter.endpoint === undefined) {
+            return false;
+          }
+        }
+      }
+      return true;
+    },
+    {
+      message: 'endpoint is required for enabled OTLP and Jaeger exporters',
+      path: ['exporters'],
+    }
+  );
+
+/**
+ * Observability configuration schema (wrapper for observability.yaml)
+ */
+export const ObservabilityConfigSchema = z.object({
+  opentelemetry: OpenTelemetryConfigSchema.optional(),
+});
+
 /**
  * Complete workflow configuration schema
  */

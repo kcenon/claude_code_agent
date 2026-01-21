@@ -17,6 +17,8 @@ export {
   WorkflowConfigSchema,
   AgentsConfigSchema,
   TelemetryConfigSchema,
+  OpenTelemetryConfigSchema,
+  ObservabilityConfigSchema,
   SCHEMA_METADATA,
 } from './schemas.js';
 
@@ -28,6 +30,8 @@ export type {
   AgentsConfig,
   ScratchpadConfig,
   TelemetryConfigType,
+  OpenTelemetryConfigType,
+  ObservabilityConfigType,
   ConfigFileType,
   LoadConfigOptions,
   FileChangeCallback,

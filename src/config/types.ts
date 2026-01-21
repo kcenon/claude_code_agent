@@ -46,12 +46,16 @@ import type {
   AgentsConfigSchema,
   ScratchpadConfigSchema,
   TelemetryConfigSchema,
+  OpenTelemetryConfigSchema,
+  ObservabilityConfigSchema,
 } from './schemas.js';
 
 export type WorkflowConfig = z.infer<typeof WorkflowConfigSchema>;
 export type AgentsConfig = z.infer<typeof AgentsConfigSchema>;
 export type ScratchpadConfig = z.infer<typeof ScratchpadConfigSchema>;
 export type TelemetryConfigType = z.infer<typeof TelemetryConfigSchema>;
+export type OpenTelemetryConfigType = z.infer<typeof OpenTelemetryConfigSchema>;
+export type ObservabilityConfigType = z.infer<typeof ObservabilityConfigSchema>;
 
 // ============================================================
 // Loader Types
