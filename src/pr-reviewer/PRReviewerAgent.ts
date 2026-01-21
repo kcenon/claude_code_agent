@@ -214,6 +214,7 @@ export class PRReviewerAgent implements IAgent {
     }
     // PRReviewerAgent doesn't require async initialization
     // but the interface requires this method
+    await Promise.resolve();
     this.initialized = true;
   }
 
@@ -222,6 +223,7 @@ export class PRReviewerAgent implements IAgent {
    * Called when the agent is no longer needed
    */
   public async dispose(): Promise<void> {
+    await Promise.resolve();
     this.circuitBreaker.reset();
     this.initialized = false;
   }

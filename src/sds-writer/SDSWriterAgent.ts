@@ -136,6 +136,7 @@ export class SDSWriterAgent implements IAgent {
     }
     // SDSWriterAgent doesn't require async initialization
     // but the interface requires this method
+    await Promise.resolve();
     this.initialized = true;
   }
 
@@ -144,6 +145,7 @@ export class SDSWriterAgent implements IAgent {
    * Called when the agent is no longer needed
    */
   public async dispose(): Promise<void> {
+    await Promise.resolve();
     this.session = null;
     this.initialized = false;
   }

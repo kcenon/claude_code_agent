@@ -162,6 +162,7 @@ export class WorkerAgent implements IAgent {
     }
     // WorkerAgent doesn't require async initialization
     // but the interface requires this method
+    await Promise.resolve();
     this.initialized = true;
   }
 
@@ -170,6 +171,7 @@ export class WorkerAgent implements IAgent {
    * Called when the agent is no longer needed
    */
   public async dispose(): Promise<void> {
+    await Promise.resolve();
     this.resetState();
     this.initialized = false;
   }
