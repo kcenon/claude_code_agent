@@ -448,7 +448,10 @@ export const OpenTelemetryConfigSchema = z
   .object({
     enabled: z.boolean().default(false),
     serviceName: z.string().min(1, 'Service name is required').default('ad-sdlc-pipeline'),
-    exporters: z.array(OpenTelemetryExporterConfigSchema).min(1).default([{ type: 'console' as const, enabled: false, timeoutMs: 30000 }]),
+    exporters: z
+      .array(OpenTelemetryExporterConfigSchema)
+      .min(1)
+      .default([{ type: 'console' as const, enabled: false, timeoutMs: 30000 }]),
     sampling: OpenTelemetrySamplingConfigSchema.optional(),
     resourceAttributes: OpenTelemetryResourceAttributesSchema.optional(),
   })
