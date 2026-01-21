@@ -356,4 +356,76 @@ describe('AgentFactory', () => {
       expect(ids).toContain('agent-2');
     });
   });
+
+  describe('lazy', () => {
+    it('should return LazyAgent without instantiating', () => {
+      registry.register(createMockMetadata('lazy-agent'));
+
+      const lazyAgent = factory.lazy<MockAgent>('lazy-agent');
+
+      expect(lazyAgent.isInstantiated).toBe(false);
+      expect(factory.isCached('lazy-agent')).toBe(false);
+    });
+
+    it('should instantiate on first get() call', async () => {
+      registry.register(createMockMetadata('lazy-agent'));
+
+      const lazyAgent = factory.lazy<MockAgent>('lazy-agent');
+      const agent = await lazyAgent.get();
+
+      expect(lazyAgent.isInstantiated).toBe(true);
+      expect(agent.agentId).toBe('lazy-agent');
+      expect(agent.initialized).toBe(true);
+    });
+
+    it('should return same instance on subsequent get() calls', async () => {
+      registry.register(createMockMetadata('lazy-agent'));
+
+      const lazyAgent = factory.lazy<MockAgent>('lazy-agent');
+      const first = await lazyAgent.get();
+      const second = await lazyAgent.get();
+
+      expect(first).toBe(second);
+    });
+
+    it('should skip initialization with initializeOnAccess: false', async () => {
+      registry.register(createMockMetadata('lazy-agent'));
+
+      const lazyAgent = factory.lazy<MockAgent>('lazy-agent', {
+        initializeOnAccess: false,
+      });
+      const agent = await lazyAgent.get();
+
+      expect(agent.initialized).toBe(false);
+    });
+
+    it('should dispose agent when dispose() is called', async () => {
+      registry.register(createMockMetadata('lazy-agent'));
+
+      const lazyAgent = factory.lazy<MockAgent>('lazy-agent');
+      const agent = await lazyAgent.get();
+
+      expect(lazyAgent.isInstantiated).toBe(true);
+
+      await lazyAgent.dispose();
+
+      expect(lazyAgent.isInstantiated).toBe(false);
+      expect(agent.disposed).toBe(true);
+    });
+
+    it('should no-op dispose when not instantiated', async () => {
+      registry.register(createMockMetadata('lazy-agent'));
+
+      const lazyAgent = factory.lazy<MockAgent>('lazy-agent');
+
+      await expect(lazyAgent.dispose()).resolves.toBeUndefined();
+      expect(lazyAgent.isInstantiated).toBe(false);
+    });
+
+    it('should throw error for unregistered agent on get()', async () => {
+      const lazyAgent = factory.lazy<MockAgent>('nonexistent');
+
+      await expect(lazyAgent.get()).rejects.toThrow(AgentNotRegisteredError);
+    });
+  });
 });
