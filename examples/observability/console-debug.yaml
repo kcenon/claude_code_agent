@@ -1,0 +1,23 @@
+# Console Debug Configuration
+#
+# This configuration outputs traces to the console for debugging.
+# Useful when you don't have a tracing backend set up.
+#
+# Copy this file to: .ad-sdlc/config/observability.yaml
+
+opentelemetry:
+  enabled: true
+  serviceName: ad-sdlc-pipeline
+
+  exporters:
+    # Console exporter for debugging
+    - type: console
+      enabled: true
+
+  sampling:
+    # Sample all traces for debugging
+    type: always_on
+
+  resourceAttributes:
+    environment: debug
+    serviceVersion: "1.0.0"

@@ -1,0 +1,31 @@
+# Grafana Tempo Configuration
+#
+# This configuration is for Grafana Tempo with OTLP ingestion.
+#
+# Prerequisites:
+#   See docker-compose setup in docs/observability.md
+#
+# View traces at: http://localhost:3000 (Grafana) > Explore > Tempo
+#
+# Copy this file to: .ad-sdlc/config/observability.yaml
+
+opentelemetry:
+  enabled: true
+  serviceName: ad-sdlc-pipeline
+
+  exporters:
+    # OTLP exporter to Tempo
+    - type: otlp
+      enabled: true
+      endpoint: http://localhost:4318/v1/traces
+      timeoutMs: 30000
+
+  sampling:
+    # Sample all traces in development
+    type: always_on
+
+  resourceAttributes:
+    environment: development
+    serviceVersion: "1.0.0"
+    custom:
+      team: platform

@@ -1,0 +1,42 @@
+# Datadog Production Configuration
+#
+# This configuration is for Datadog APM in production.
+#
+# Prerequisites:
+#   1. Install Datadog Agent: https://docs.datadoghq.com/agent/
+#   2. Enable OTLP in datadog.yaml:
+#      otlp_config:
+#        receiver:
+#          protocols:
+#            http:
+#              endpoint: 0.0.0.0:4318
+#
+# View traces at: https://app.datadoghq.com/apm/traces
+#
+# Copy this file to: .ad-sdlc/config/observability.yaml
+# Replace <your-api-key> with your actual Datadog API key
+
+opentelemetry:
+  enabled: true
+  serviceName: ad-sdlc-pipeline
+
+  exporters:
+    # OTLP exporter to Datadog Agent
+    - type: otlp
+      enabled: true
+      endpoint: http://localhost:4318/v1/traces
+      headers:
+        DD-API-KEY: <your-api-key>
+      timeoutMs: 30000
+
+  sampling:
+    # Sample 10% of traces in production
+    type: probability
+    probability: 0.1
+
+  resourceAttributes:
+    environment: production
+    serviceVersion: "1.0.0"
+    custom:
+      team: platform
+      region: us-west-2
