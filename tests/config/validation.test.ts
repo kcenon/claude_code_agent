@@ -12,6 +12,8 @@ import {
   isCompatibleConfigVersion,
   ConfigValidationError,
   CONFIG_SCHEMA_VERSION,
+  OpenTelemetryConfigSchema,
+  ObservabilityConfigSchema,
 } from '../../src/config/index.js';
 
 describe('Config Validation', () => {
@@ -357,6 +359,173 @@ describe('Config Validation', () => {
       // Empty agents should be valid
       const result = assertAgentsConfig(config, 'agents.yaml');
       expect(result.agents).toEqual({});
+    });
+  });
+
+  describe('OpenTelemetryConfigSchema', () => {
+    it('should validate minimal valid config with defaults', () => {
+      const config = {};
+      const result = OpenTelemetryConfigSchema.safeParse(config);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.enabled).toBe(false);
+        expect(result.data.serviceName).toBe('ad-sdlc-pipeline');
+        expect(result.data.exporters).toHaveLength(1);
+        expect(result.data.exporters[0].type).toBe('console');
+      }
+    });
+
+    it('should validate full config with all options', () => {
+      const config = {
+        enabled: true,
+        serviceName: 'my-service',
+        exporters: [
+          { type: 'console', enabled: true },
+          { type: 'otlp', endpoint: 'http://localhost:4317', enabled: true },
+        ],
+        sampling: {
+          type: 'probability',
+          probability: 0.5,
+        },
+        resourceAttributes: {
+          environment: 'production',
+          serviceVersion: '1.0.0',
+          custom: { team: 'platform' },
+        },
+      };
+
+      const result = OpenTelemetryConfigSchema.safeParse(config);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.enabled).toBe(true);
+        expect(result.data.serviceName).toBe('my-service');
+        expect(result.data.exporters).toHaveLength(2);
+        expect(result.data.sampling?.probability).toBe(0.5);
+      }
+    });
+
+    it('should reject missing probability for probability sampling', () => {
+      const config = {
+        enabled: true,
+        serviceName: 'test',
+        exporters: [{ type: 'console' }],
+        sampling: {
+          type: 'probability',
+          // missing probability
+        },
+      };
+
+      const result = OpenTelemetryConfigSchema.safeParse(config);
+      expect(result.success).toBe(false);
+    });
+
+    it('should reject missing rateLimit for rate_limiting sampling', () => {
+      const config = {
+        enabled: true,
+        serviceName: 'test',
+        exporters: [{ type: 'console' }],
+        sampling: {
+          type: 'rate_limiting',
+          // missing rateLimit
+        },
+      };
+
+      const result = OpenTelemetryConfigSchema.safeParse(config);
+      expect(result.success).toBe(false);
+    });
+
+    it('should reject missing endpoint for enabled OTLP exporter', () => {
+      const config = {
+        enabled: true,
+        serviceName: 'test',
+        exporters: [{ type: 'otlp', enabled: true }],
+      };
+
+      const result = OpenTelemetryConfigSchema.safeParse(config);
+      expect(result.success).toBe(false);
+    });
+
+    it('should accept disabled OTLP exporter without endpoint', () => {
+      const config = {
+        enabled: true,
+        serviceName: 'test',
+        exporters: [{ type: 'otlp', enabled: false }],
+      };
+
+      const result = OpenTelemetryConfigSchema.safeParse(config);
+      expect(result.success).toBe(true);
+    });
+
+    it('should reject invalid endpoint URL', () => {
+      const config = {
+        enabled: true,
+        serviceName: 'test',
+        exporters: [{ type: 'otlp', endpoint: 'not-a-url' }],
+      };
+
+      const result = OpenTelemetryConfigSchema.safeParse(config);
+      expect(result.success).toBe(false);
+    });
+
+    it('should validate Jaeger exporter with endpoint', () => {
+      const config = {
+        enabled: true,
+        serviceName: 'test',
+        exporters: [{ type: 'jaeger', endpoint: 'http://localhost:14268/api/traces' }],
+      };
+
+      const result = OpenTelemetryConfigSchema.safeParse(config);
+      expect(result.success).toBe(true);
+    });
+
+    it('should reject invalid sampling type', () => {
+      const config = {
+        enabled: true,
+        serviceName: 'test',
+        exporters: [{ type: 'console' }],
+        sampling: {
+          type: 'invalid_type',
+        },
+      };
+
+      const result = OpenTelemetryConfigSchema.safeParse(config);
+      expect(result.success).toBe(false);
+    });
+
+    it('should reject probability out of range', () => {
+      const config = {
+        enabled: true,
+        serviceName: 'test',
+        exporters: [{ type: 'console' }],
+        sampling: {
+          type: 'probability',
+          probability: 1.5, // > 1
+        },
+      };
+
+      const result = OpenTelemetryConfigSchema.safeParse(config);
+      expect(result.success).toBe(false);
+    });
+  });
+
+  describe('ObservabilityConfigSchema', () => {
+    it('should validate config with opentelemetry section', () => {
+      const config = {
+        opentelemetry: {
+          enabled: true,
+          serviceName: 'test-service',
+          exporters: [{ type: 'console' }],
+        },
+      };
+
+      const result = ObservabilityConfigSchema.safeParse(config);
+      expect(result.success).toBe(true);
+    });
+
+    it('should validate empty config', () => {
+      const config = {};
+      const result = ObservabilityConfigSchema.safeParse(config);
+      expect(result.success).toBe(true);
     });
   });
 });
