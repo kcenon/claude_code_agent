@@ -417,7 +417,7 @@ const OpenTelemetrySamplingTypeSchema = z.enum([
 const OpenTelemetryExporterConfigSchema = z.object({
   type: OpenTelemetryExporterTypeSchema,
   enabled: z.boolean().optional().default(true),
-  endpoint: z.string().url().optional(),
+  endpoint: z.url().optional(),
   headers: z.record(z.string(), z.string()).optional(),
   timeoutMs: z.number().int().min(100).max(60000).optional().default(30000),
 });
@@ -482,8 +482,8 @@ export const OpenTelemetryConfigSchema = z
     (config) => {
       // Validate endpoint is set for OTLP and Jaeger exporters
       for (const exporter of config.exporters) {
-        if ((exporter.type === 'otlp' || exporter.type === 'jaeger') && exporter.enabled !== false) {
-          if (!exporter.endpoint) {
+        if ((exporter.type === 'otlp' || exporter.type === 'jaeger') && exporter.enabled) {
+          if (exporter.endpoint === undefined) {
             return false;
           }
         }
