@@ -8,7 +8,12 @@
  */
 
 // Main agent
-export { CIFixAgent, getCIFixAgent, resetCIFixAgent } from './CIFixAgent.js';
+export {
+  CIFixAgent,
+  getCIFixAgent,
+  resetCIFixAgent,
+  CI_FIX_AGENT_ID,
+} from './CIFixAgent.js';
 
 // Log analyzer
 export { CILogAnalyzer, getCILogAnalyzer, resetCILogAnalyzer } from './CILogAnalyzer.js';

@@ -4,6 +4,8 @@
  * Validates that existing functionality is not broken by new changes.
  * Identifies affected tests, runs regression test suites, and reports
  * potential compatibility issues.
+ *
+ * Implements IAgent interface for unified agent instantiation through AgentFactory.
  */
 
 import * as fs from 'node:fs/promises';
@@ -11,6 +13,7 @@ import * as path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import * as yaml from 'js-yaml';
 
+import type { IAgent } from '../agents/types.js';
 import type {
   RegressionTesterConfig,
   RegressionTesterSession,
@@ -57,17 +60,40 @@ interface PackageJson {
 }
 
 /**
- * Regression Tester Agent class
+ * Agent ID for RegressionTesterAgent used in AgentFactory
  */
-export class RegressionTesterAgent {
+export const REGRESSION_TESTER_AGENT_ID = 'regression-tester-agent';
+
+/**
+ * Regression Tester Agent class
+ *
+ * Implements IAgent interface for unified agent instantiation through AgentFactory.
+ */
+export class RegressionTesterAgent implements IAgent {
+  public readonly agentId = REGRESSION_TESTER_AGENT_ID;
+  public readonly name = 'Regression Tester Agent';
+
   private readonly config: Required<RegressionTesterConfig>;
   private currentSession: RegressionTesterSession | null = null;
+  private initialized = false;
 
   constructor(config?: RegressionTesterConfig) {
     this.config = {
       ...DEFAULT_REGRESSION_TESTER_CONFIG,
       ...config,
     };
+  }
+
+  public async initialize(): Promise<void> {
+    if (this.initialized) return;
+    await Promise.resolve();
+    this.initialized = true;
+  }
+
+  public async dispose(): Promise<void> {
+    await Promise.resolve();
+    this.currentSession = null;
+    this.initialized = false;
   }
 
   /**

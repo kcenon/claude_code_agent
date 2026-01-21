@@ -3,12 +3,15 @@
  *
  * Compares documentation specifications against actual code implementations
  * to identify gaps, inconsistencies, and improvement opportunities.
+ *
+ * Implements IAgent interface for unified agent instantiation through AgentFactory.
  */
 
 import { randomUUID } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 
+import type { IAgent } from '../agents/types.js';
 import type {
   AgentMapping,
   CodeItem,
@@ -169,6 +172,11 @@ interface RawCodeInventory {
 }
 
 /**
+ * Agent ID for DocCodeComparatorAgent used in AgentFactory
+ */
+export const DOC_CODE_COMPARATOR_AGENT_ID = 'doc-code-comparator-agent';
+
+/**
  * Doc-Code Comparator Agent class
  *
  * Responsible for:
@@ -177,14 +185,33 @@ interface RawCodeInventory {
  * - Detecting gaps and inconsistencies
  * - Generating actionable issues
  * - Outputting comparison results
+ *
+ * Implements IAgent interface for unified agent instantiation through AgentFactory.
  */
-export class DocCodeComparatorAgent {
+export class DocCodeComparatorAgent implements IAgent {
+  public readonly agentId = DOC_CODE_COMPARATOR_AGENT_ID;
+  public readonly name = 'Doc-Code Comparator Agent';
+
   private readonly config: Required<DocCodeComparatorConfig>;
   private session: ComparisonSession | null = null;
   private gapIdCounter: number = 0;
+  private initialized = false;
 
   constructor(config: DocCodeComparatorConfig = {}) {
     this.config = { ...DEFAULT_DOC_CODE_COMPARATOR_CONFIG, ...config };
+  }
+
+  public async initialize(): Promise<void> {
+    if (this.initialized) return;
+    await loadYaml();
+    this.initialized = true;
+  }
+
+  public async dispose(): Promise<void> {
+    await Promise.resolve();
+    this.session = null;
+    this.gapIdCounter = 0;
+    this.initialized = false;
   }
 
   /**

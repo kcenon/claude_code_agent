@@ -3,12 +3,15 @@
  *
  * Parses and analyzes existing PRD/SRS/SDS documents to understand
  * the current project state for the Enhancement Pipeline.
+ *
+ * Implements IAgent interface for unified agent instantiation through AgentFactory.
  */
 
 import { randomUUID } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 
+import type { IAgent } from '../agents/types.js';
 import type {
   CurrentState,
   DocumentInfo,
@@ -47,6 +50,11 @@ async function loadYaml(): Promise<void> {
 }
 
 /**
+ * Agent ID for DocumentReaderAgent used in AgentFactory
+ */
+export const DOCUMENT_READER_AGENT_ID = 'document-reader-agent';
+
+/**
  * Document Reader Agent class
  *
  * Responsible for:
@@ -54,13 +62,41 @@ async function loadYaml(): Promise<void> {
  * - Extracting requirements, features, and components
  * - Building traceability mappings
  * - Generating current_state.yaml output
+ *
+ * Implements IAgent interface for unified agent instantiation through AgentFactory.
  */
-export class DocumentReaderAgent {
+export class DocumentReaderAgent implements IAgent {
+  public readonly agentId = DOCUMENT_READER_AGENT_ID;
+  public readonly name = 'Document Reader Agent';
+
   private readonly config: Required<DocumentReaderConfig>;
   private session: DocumentReadingSession | null = null;
+  private initialized = false;
 
   constructor(config: DocumentReaderConfig = {}) {
     this.config = { ...DEFAULT_DOCUMENT_READER_CONFIG, ...config };
+  }
+
+  /**
+   * Initialize the agent (IAgent interface)
+   * Called after construction, before first use
+   */
+  public async initialize(): Promise<void> {
+    if (this.initialized) {
+      return;
+    }
+    await loadYaml();
+    this.initialized = true;
+  }
+
+  /**
+   * Dispose of the agent and release resources (IAgent interface)
+   * Called when the agent is no longer needed
+   */
+  public async dispose(): Promise<void> {
+    await Promise.resolve();
+    this.reset();
+    this.initialized = false;
   }
 
   /**

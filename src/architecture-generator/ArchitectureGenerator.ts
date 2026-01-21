@@ -5,11 +5,14 @@
  * Coordinates SRS parsing, architecture analysis, diagram generation,
  * technology stack selection, and directory structure generation.
  *
+ * Implements IAgent interface for unified agent instantiation through AgentFactory.
+ *
  * @module architecture-generator/ArchitectureGenerator
  */
 
 import * as fs from 'fs';
 import * as path from 'path';
+import type { IAgent } from '../agents/types.js';
 import { SRSParser } from './SRSParser.js';
 import { ArchitectureAnalyzer } from './ArchitectureAnalyzer.js';
 import { DiagramGenerator } from './DiagramGenerator.js';
@@ -60,15 +63,26 @@ const DEFAULT_CONFIG: Required<ArchitectureGeneratorConfig> = {
 // ============================================================
 
 /**
- * Main architecture generator that orchestrates the design process
+ * Agent ID for ArchitectureGenerator used in AgentFactory
  */
-export class ArchitectureGenerator {
+export const ARCHITECTURE_GENERATOR_AGENT_ID = 'architecture-generator-agent';
+
+/**
+ * Main architecture generator that orchestrates the design process
+ *
+ * Implements IAgent interface for unified agent instantiation through AgentFactory.
+ */
+export class ArchitectureGenerator implements IAgent {
+  public readonly agentId = ARCHITECTURE_GENERATOR_AGENT_ID;
+  public readonly name = 'Architecture Generator Agent';
+
   private readonly config: Required<ArchitectureGeneratorConfig>;
   private readonly srsParser: SRSParser;
   private readonly analyzer: ArchitectureAnalyzer;
   private readonly diagramGenerator: DiagramGenerator;
   private readonly techStackGenerator: TechnologyStackGenerator;
   private readonly directoryGenerator: DirectoryStructureGenerator;
+  private initialized = false;
 
   constructor(config: ArchitectureGeneratorConfig = {}) {
     this.config = {
@@ -97,6 +111,17 @@ export class ArchitectureGenerator {
       this.config.defaultOptions.includeAlternatives ?? true
     );
     this.directoryGenerator = new DirectoryStructureGenerator();
+  }
+
+  public async initialize(): Promise<void> {
+    if (this.initialized) return;
+    await Promise.resolve();
+    this.initialized = true;
+  }
+
+  public async dispose(): Promise<void> {
+    await Promise.resolve();
+    this.initialized = false;
   }
 
   /**

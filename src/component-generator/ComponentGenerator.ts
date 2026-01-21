@@ -5,11 +5,14 @@
  * Coordinates SRS parsing, component generation, interface specification,
  * and API endpoint design.
  *
+ * Implements IAgent interface for unified agent instantiation through AgentFactory.
+ *
  * @module component-generator/ComponentGenerator
  */
 
 import * as fs from 'fs';
 import * as path from 'path';
+import type { IAgent } from '../agents/types.js';
 import { InterfaceGenerator } from './InterfaceGenerator.js';
 import { APISpecificationGenerator } from './APISpecificationGenerator.js';
 import {
@@ -66,13 +69,24 @@ const DEFAULT_CONFIG: Required<ComponentGeneratorConfig> = {
 // ============================================================
 
 /**
- * Main component generator that orchestrates the design process
+ * Agent ID for ComponentGenerator used in AgentFactory
  */
-export class ComponentGenerator {
+export const COMPONENT_GENERATOR_AGENT_ID = 'component-generator-agent';
+
+/**
+ * Main component generator that orchestrates the design process
+ *
+ * Implements IAgent interface for unified agent instantiation through AgentFactory.
+ */
+export class ComponentGenerator implements IAgent {
+  public readonly agentId = COMPONENT_GENERATOR_AGENT_ID;
+  public readonly name = 'Component Generator Agent';
+
   private readonly config: Required<ComponentGeneratorConfig>;
   private readonly interfaceGenerator: InterfaceGenerator;
   private readonly apiSpecGenerator: APISpecificationGenerator;
   private componentCounter: number;
+  private initialized = false;
 
   constructor(config: ComponentGeneratorConfig = {}) {
     this.config = {
@@ -87,6 +101,19 @@ export class ComponentGenerator {
     this.interfaceGenerator = new InterfaceGenerator();
     this.apiSpecGenerator = new APISpecificationGenerator();
     this.componentCounter = 0;
+  }
+
+  public async initialize(): Promise<void> {
+    if (this.initialized) return;
+    await Promise.resolve();
+    this.initialized = true;
+  }
+
+  public async dispose(): Promise<void> {
+    await Promise.resolve();
+    this.componentCounter = 0;
+    this.interfaceGenerator.reset();
+    this.initialized = false;
   }
 
   /**

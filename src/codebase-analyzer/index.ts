@@ -10,6 +10,7 @@ export {
   CodebaseAnalyzerAgent,
   getCodebaseAnalyzerAgent,
   resetCodebaseAnalyzerAgent,
+  CODEBASE_ANALYZER_AGENT_ID,
 } from './CodebaseAnalyzerAgent.js';
 
 // Type exports

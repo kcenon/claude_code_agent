@@ -10,6 +10,7 @@ export {
   AnalysisOrchestratorAgent,
   getAnalysisOrchestratorAgent,
   resetAnalysisOrchestratorAgent,
+  ANALYSIS_ORCHESTRATOR_AGENT_ID,
 } from './AnalysisOrchestratorAgent.js';
 
 // Type exports

@@ -4,7 +4,12 @@
  * Exports the SDS Updater Agent and related types/utilities.
  */
 
-export { SDSUpdaterAgent, getSDSUpdaterAgent, resetSDSUpdaterAgent } from './SDSUpdaterAgent.js';
+export {
+  SDSUpdaterAgent,
+  getSDSUpdaterAgent,
+  resetSDSUpdaterAgent,
+  SDS_UPDATER_AGENT_ID,
+} from './SDSUpdaterAgent.js';
 
 export type {
   // Change Request Types

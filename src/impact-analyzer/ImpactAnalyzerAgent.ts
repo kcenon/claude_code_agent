@@ -4,12 +4,15 @@
  * Assesses the implications of proposed changes on existing codebase
  * and documentation. Combines Document Reader and Codebase Analyzer
  * outputs to produce comprehensive impact reports.
+ *
+ * Implements IAgent interface for unified agent instantiation through AgentFactory.
  */
 
 import { randomUUID } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 
+import type { IAgent } from '../agents/types.js';
 import type {
   AffectedComponent,
   AffectedFile,
@@ -58,6 +61,11 @@ async function loadYaml(): Promise<void> {
 }
 
 /**
+ * Agent ID for ImpactAnalyzerAgent used in AgentFactory
+ */
+export const IMPACT_ANALYZER_AGENT_ID = 'impact-analyzer-agent';
+
+/**
  * Impact Analyzer Agent class
  *
  * Responsible for:
@@ -67,10 +75,16 @@ async function loadYaml(): Promise<void> {
  * - Assessing risk levels
  * - Predicting regression risks
  * - Generating comprehensive impact reports
+ *
+ * Implements IAgent interface for unified agent instantiation through AgentFactory.
  */
-export class ImpactAnalyzerAgent {
+export class ImpactAnalyzerAgent implements IAgent {
+  public readonly agentId = IMPACT_ANALYZER_AGENT_ID;
+  public readonly name = 'Impact Analyzer Agent';
+
   private readonly config: Required<ImpactAnalyzerConfig>;
   private session: ImpactAnalysisSession | null = null;
+  private initialized = false;
 
   constructor(config: ImpactAnalyzerConfig = {}) {
     this.config = {
@@ -81,6 +95,26 @@ export class ImpactAnalyzerAgent {
         ...config.riskWeights,
       },
     };
+  }
+
+  /**
+   * Initialize the agent (IAgent interface)
+   */
+  public async initialize(): Promise<void> {
+    if (this.initialized) {
+      return;
+    }
+    await loadYaml();
+    this.initialized = true;
+  }
+
+  /**
+   * Dispose of the agent (IAgent interface)
+   */
+  public async dispose(): Promise<void> {
+    await Promise.resolve();
+    this.session = null;
+    this.initialized = false;
   }
 
   /**

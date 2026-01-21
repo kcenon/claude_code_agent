@@ -11,6 +11,7 @@ export {
   ArchitectureGenerator,
   getArchitectureGenerator,
   resetArchitectureGenerator,
+  ARCHITECTURE_GENERATOR_AGENT_ID,
 } from './ArchitectureGenerator.js';
 export type { ArchitectureGeneratorConfig } from './ArchitectureGenerator.js';
 

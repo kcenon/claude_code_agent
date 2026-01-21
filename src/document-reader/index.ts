@@ -9,6 +9,7 @@ export {
   DocumentReaderAgent,
   getDocumentReaderAgent,
   resetDocumentReaderAgent,
+  DOCUMENT_READER_AGENT_ID,
 } from './DocumentReaderAgent.js';
 
 // Type exports
