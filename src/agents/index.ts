@@ -17,6 +17,11 @@
  * // Direct import from specific module
  * import { CollectorAgent } from '@ad-sdlc/agents';
  *
+ * // Using AgentFactory for unified agent instantiation
+ * import { AgentFactory, AgentRegistry } from '@ad-sdlc/agents';
+ * const factory = AgentFactory.getInstance();
+ * const agent = await factory.create<CollectorAgent>('collector-agent');
+ *
  * // Namespace import for modules with conflicts
  * import { IssueGen, CodeReader, Worker, CIFixer } from '@ad-sdlc/agents';
  * const issue: IssueGen.GeneratedIssue = ...;
@@ -24,6 +29,33 @@
  *
  * @packageDocumentation
  */
+
+// Re-export AgentFactory infrastructure
+export {
+  AgentFactory,
+  AgentCreationError,
+  AgentInitializationError,
+  DependencyResolutionError as AgentDependencyResolutionError,
+} from './AgentFactory.js';
+
+export {
+  AgentRegistry,
+  AgentNotRegisteredError as AgentRegistryNotFoundError,
+  AgentAlreadyRegisteredError,
+  CircularDependencyError as AgentCircularDependencyError,
+} from './AgentRegistry.js';
+
+export { isAgent } from './types.js';
+
+export type {
+  IAgent,
+  AgentLifecycle,
+  AgentMetadata,
+  AgentDependency,
+  AgentDependencies,
+  CreateAgentOptions,
+  RegistrationResult,
+} from './types.js';
 
 // Re-export collector module
 export {
