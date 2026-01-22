@@ -123,8 +123,14 @@ export function defaultErrorClassifier(error: Error): ErrorCategory {
 
 /**
  * Calculate delay for a retry attempt using the configured backoff strategy
+ *
+ * Supports all backoff strategies: fixed, linear, exponential, and fibonacci.
+ * Delegates to unified backoff calculation for consistency across the codebase.
  */
 export function calculateDelay(attempt: number, policy: RetryPolicy): number {
+  const jitterRatio = policy.enableJitter ? policy.jitterFactor : 0;
+
+  // Calculate base delay based on strategy
   let delay: number;
 
   switch (policy.backoff) {
@@ -134,6 +140,18 @@ export function calculateDelay(attempt: number, policy: RetryPolicy): number {
     case 'linear':
       delay = policy.baseDelayMs * attempt;
       break;
+    case 'fibonacci': {
+      // Fibonacci sequence: 1, 1, 2, 3, 5, 8, 13, ...
+      let prev = 1;
+      let current = 1;
+      for (let i = 2; i <= attempt; i++) {
+        const next = prev + current;
+        prev = current;
+        current = next;
+      }
+      delay = policy.baseDelayMs * current;
+      break;
+    }
     case 'exponential':
     default:
       // Exponential: baseDelay * multiplier^(attempt-1)
@@ -142,17 +160,14 @@ export function calculateDelay(attempt: number, policy: RetryPolicy): number {
   }
 
   // Apply jitter if enabled
-  if (policy.enableJitter && policy.jitterFactor > 0) {
-    // Random jitter: delay * (1 ± jitterFactor/2)
-    const jitterRange = delay * policy.jitterFactor;
+  if (jitterRatio > 0 && jitterRatio <= 1) {
+    const jitterRange = delay * jitterRatio;
     const jitter = (Math.random() - 0.5) * jitterRange;
     delay = delay + jitter;
   }
 
-  // Cap at maxDelay
+  // Cap at maxDelay and ensure non-negative
   delay = Math.min(delay, policy.maxDelayMs);
-
-  // Ensure non-negative
   return Math.max(0, Math.floor(delay));
 }
 

@@ -10,7 +10,7 @@
 /**
  * Backoff strategy for retry delays
  */
-export type BackoffStrategy = 'fixed' | 'linear' | 'exponential';
+export type BackoffStrategy = 'fixed' | 'linear' | 'exponential' | 'fibonacci';
 
 /**
  * Error categories for retry decision making
