@@ -263,3 +263,177 @@ export const LOG_LEVEL_PRIORITY: Record<LogLevel, number> = {
 export function shouldLog(level: LogLevel, minLevel: LogLevel): boolean {
   return LOG_LEVEL_PRIORITY[level] >= LOG_LEVEL_PRIORITY[minLevel];
 }
+
+/**
+ * Log entry for query and aggregation operations
+ * This is the format used for log file storage and querying.
+ */
+export interface LogEntry {
+  /** ISO timestamp of the log entry */
+  readonly timestamp: string;
+  /** Log level */
+  readonly level: LogLevel;
+  /** Log message */
+  readonly message: string;
+  /** Correlation ID for request tracing */
+  readonly correlationId: string;
+  /** Agent name if applicable */
+  readonly agent?: string;
+  /** Pipeline stage if applicable */
+  readonly stage?: string;
+  /** Project ID for associating logs with a specific project */
+  readonly projectId?: string;
+  /** Operation duration in milliseconds */
+  readonly durationMs?: number;
+  /** Additional context data */
+  readonly context?: Record<string, unknown>;
+  /** Error information if applicable */
+  readonly error?: ErrorInfo;
+}
+
+/**
+ * Log query filter options
+ */
+export interface LogQueryFilter {
+  /** Filter by log level */
+  readonly level?: LogLevel;
+  /** Filter by agent name */
+  readonly agent?: string;
+  /** Filter by pipeline stage */
+  readonly stage?: string;
+  /** Filter by project ID */
+  readonly projectId?: string;
+  /** Filter by correlation ID */
+  readonly correlationId?: string;
+  /** Start time (ISO string) */
+  readonly startTime?: string;
+  /** End time (ISO string) */
+  readonly endTime?: string;
+  /** Text search in message */
+  readonly messageContains?: string;
+}
+
+/**
+ * Log query result with pagination
+ */
+export interface LogQueryResult {
+  /** Matching log entries */
+  readonly entries: LogEntry[];
+  /** Total count of matching entries */
+  readonly totalCount: number;
+  /** Whether there are more entries */
+  readonly hasMore: boolean;
+}
+
+/**
+ * Log aggregation source configuration
+ */
+export interface LogAggregationSource {
+  /** Source identifier */
+  readonly id: string;
+  /** Source type */
+  readonly type: 'file' | 'directory' | 'stream';
+  /** Source path for file/directory types */
+  readonly path?: string;
+  /** Optional filter to apply to entries from this source */
+  readonly filter?: LogQueryFilter;
+}
+
+/**
+ * Log aggregation options
+ */
+export interface LogAggregationOptions {
+  /** Output destination path */
+  readonly outputPath?: string;
+  /** Whether to enable compression for aggregated output */
+  readonly compress?: boolean;
+  /** Whether to deduplicate entries by correlationId + timestamp */
+  readonly deduplicate?: boolean;
+  /** Sort order for aggregated entries */
+  readonly sortOrder?: 'asc' | 'desc';
+}
+
+/**
+ * Log compression options
+ */
+export interface LogCompressionOptions {
+  /** Compression algorithm */
+  readonly algorithm?: 'gzip' | 'none';
+  /** Compression level (1-9 for gzip) */
+  readonly level?: number;
+  /** Whether to delete original after compression */
+  readonly deleteOriginal?: boolean;
+}
+
+/**
+ * Query field names for structured log search
+ */
+export type LogQueryField =
+  | 'level'
+  | 'agent'
+  | 'stage'
+  | 'projectId'
+  | 'correlationId'
+  | 'message'
+  | 'time';
+
+/**
+ * Logical operators for combining query conditions
+ */
+export type LogQueryOperator = 'AND' | 'OR' | 'NOT';
+
+/**
+ * Single field condition in a query
+ */
+export interface LogQueryCondition {
+  /** Field to filter */
+  readonly field: LogQueryField;
+  /** Value or pattern to match */
+  readonly value: string;
+  /** Whether this is a negated condition */
+  readonly negated?: boolean;
+  /** For time field: range end value (value becomes start) */
+  readonly rangeEnd?: string;
+}
+
+/**
+ * Compound query expression with logical operators
+ */
+export interface LogQueryExpression {
+  /** Type of expression */
+  readonly type: 'condition' | 'compound';
+  /** Single condition (when type is 'condition') */
+  readonly condition?: LogQueryCondition;
+  /** Operator for compound expressions */
+  readonly operator?: LogQueryOperator;
+  /** Left operand for compound expressions */
+  readonly left?: LogQueryExpression;
+  /** Right operand for compound expressions (or single operand for NOT) */
+  readonly right?: LogQueryExpression;
+}
+
+/**
+ * Result of parsing a structured query
+ */
+export interface LogQueryParseResult {
+  /** Whether parsing was successful */
+  readonly success: boolean;
+  /** Parsed expression (when successful) */
+  readonly expression?: LogQueryExpression;
+  /** Error message (when unsuccessful) */
+  readonly error?: string;
+  /** Position of error in query string */
+  readonly errorPosition?: number;
+}
+
+/**
+ * Extended query result with query metadata
+ */
+export interface StructuredLogQueryResult extends LogQueryResult {
+  /** Original query string */
+  readonly query: string;
+  /** Parsed expression */
+  readonly expression: LogQueryExpression;
+  /** Time taken to execute query in milliseconds */
+  readonly executionTimeMs: number;
+}
