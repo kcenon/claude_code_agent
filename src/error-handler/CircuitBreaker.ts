@@ -27,7 +27,7 @@ import { DEFAULT_CIRCUIT_BREAKER_CONFIG } from './types.js';
 
 import { CircuitOpenError, InvalidCircuitBreakerConfigError } from './errors.js';
 
-import { getLogger } from '../monitoring/Logger.js';
+import { getLogger } from '../logging/Logger.js';
 
 /**
  * Validates circuit breaker configuration

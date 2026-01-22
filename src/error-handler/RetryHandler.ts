@@ -38,7 +38,7 @@ import {
   CircuitOpenError,
 } from './errors.js';
 
-import { getLogger } from '../monitoring/Logger.js';
+import { getLogger } from '../logging/Logger.js';
 
 import { CircuitBreaker } from './CircuitBreaker.js';
 
