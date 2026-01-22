@@ -206,7 +206,7 @@ export function resetPaths(): void {
  * ```
  */
 export function getPath(key: keyof ProjectPaths, baseDir?: string): string {
-  if (baseDir) {
+  if (baseDir !== undefined && baseDir !== '') {
     return getProjectPaths(baseDir)[key];
   }
   return getPaths()[key];
@@ -276,7 +276,10 @@ export function getScratchpadDirs(projectRoot?: string): {
   ciFix: string;
   escalations: string;
 } {
-  const paths = projectRoot ? getProjectPaths(projectRoot) : getPaths();
+  const paths =
+    projectRoot !== undefined && projectRoot !== ''
+      ? getProjectPaths(projectRoot)
+      : getPaths();
   return {
     info: path.join(paths.scratchpad, 'info'),
     documents: path.join(paths.scratchpad, 'documents'),
@@ -296,7 +299,10 @@ export function getScratchpadDirs(projectRoot?: string): {
  * @returns Full path to template file
  */
 export function getTemplatePath(templateName: string, projectRoot?: string): string {
-  const paths = projectRoot ? getProjectPaths(projectRoot) : getPaths();
+  const paths =
+    projectRoot !== undefined && projectRoot !== ''
+      ? getProjectPaths(projectRoot)
+      : getPaths();
   return path.join(paths.templates, templateName);
 }
 
@@ -308,6 +314,9 @@ export function getTemplatePath(templateName: string, projectRoot?: string): str
  * @returns Full path to config file
  */
 export function getConfigFilePath(configName: string, projectRoot?: string): string {
-  const paths = projectRoot ? getProjectPaths(projectRoot) : getPaths();
+  const paths =
+    projectRoot !== undefined && projectRoot !== ''
+      ? getProjectPaths(projectRoot)
+      : getPaths();
   return path.join(paths.config, configName);
 }
