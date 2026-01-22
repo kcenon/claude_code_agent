@@ -70,7 +70,12 @@ export {
 
 // Logger - re-exported from unified logging module for backward compatibility
 export { Logger, getLogger, resetLogger, getLoggerFromEnv } from '../logging/Logger.js';
-export type { LoggerConfig, EnvironmentConfig, LoggerState, LoggerHealth } from '../logging/Logger.js';
+export type {
+  LoggerConfig,
+  EnvironmentConfig,
+  LoggerState,
+  LoggerHealth,
+} from '../logging/Logger.js';
 
 // LogQueryParser - re-exported from unified logging module for backward compatibility
 export { LogQueryParser, createLogQueryParser } from '../logging/LogQueryParser.js';
