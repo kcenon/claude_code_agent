@@ -24,15 +24,11 @@ export function documentNotFoundError(
   path: string,
   context?: ErrorContext
 ): AppError {
-  return new AppError(
-    ErrorCodes.DOC_NOT_FOUND,
-    `${documentType} not found at ${path}`,
-    {
-      severity: ErrorSeverity.HIGH,
-      category: 'fatal',
-      context: { documentType, path, ...context },
-    }
-  );
+  return new AppError(ErrorCodes.DOC_NOT_FOUND, `${documentType} not found at ${path}`, {
+    severity: ErrorSeverity.HIGH,
+    category: 'fatal',
+    context: { documentType, path, ...context },
+  });
 }
 
 /**
@@ -160,10 +156,7 @@ export function agentTimeoutError(
 /**
  * Create error for agent not found
  */
-export function agentNotFoundError(
-  agentType: string,
-  context?: ErrorContext
-): AppError {
+export function agentNotFoundError(agentType: string, context?: ErrorContext): AppError {
   return new AppError(
     ErrorCodes.AGT_NOT_FOUND,
     `Agent type '${agentType}' not found or not registered`,
@@ -355,10 +348,7 @@ export function githubApiError(
     `GitHub API error during ${operation}: ${message}`,
     {
       severity: ErrorSeverity.HIGH,
-      category:
-        statusCode !== undefined && statusCode >= 500
-          ? 'transient'
-          : 'recoverable',
+      category: statusCode !== undefined && statusCode >= 500 ? 'transient' : 'recoverable',
       context: { operation, statusCode, ...context },
     }
   );
@@ -431,19 +421,12 @@ export function validationError(
 /**
  * Create not implemented error
  */
-export function notImplementedError(
-  feature: string,
-  context?: ErrorContext
-): AppError {
-  return new AppError(
-    ErrorCodes.GEN_NOT_IMPLEMENTED,
-    `Feature not implemented: ${feature}`,
-    {
-      severity: ErrorSeverity.HIGH,
-      category: 'fatal',
-      context: { feature, ...context },
-    }
-  );
+export function notImplementedError(feature: string, context?: ErrorContext): AppError {
+  return new AppError(ErrorCodes.GEN_NOT_IMPLEMENTED, `Feature not implemented: ${feature}`, {
+    severity: ErrorSeverity.HIGH,
+    category: 'fatal',
+    context: { feature, ...context },
+  });
 }
 
 /**
@@ -513,10 +496,7 @@ export function createBoundErrorFactories<T extends Record<string, string>>(
   };
 
   for (const [key, code] of Object.entries(codeMap)) {
-    factories[key as keyof T] = (
-      message: string,
-      options?: AppErrorOptions
-    ): AppError => {
+    factories[key as keyof T] = (message: string, options?: AppErrorOptions): AppError => {
       return new AppError(code, message, options);
     };
   }
