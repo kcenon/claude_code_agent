@@ -46,6 +46,17 @@ export default tseslint.config(
       'jsdoc/check-tag-names': 'warn',
       'jsdoc/require-param-description': 'warn',
       'jsdoc/require-returns-description': 'warn',
+      // Prevent direct console usage - use structured logging instead
+      // Use Logger for structured logging or CLIOutput for user-facing CLI messages
+      // Set to 'warn' initially to allow gradual migration, then upgrade to 'error'
+      'no-console': 'warn',
+    },
+  },
+  // Allow console in Logger.ts (fallback when Logger is not initialized)
+  {
+    files: ['src/logging/Logger.ts'],
+    rules: {
+      'no-console': 'off',
     },
   },
   {

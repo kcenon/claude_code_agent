@@ -9,6 +9,7 @@ import * as path from 'path';
 import inquirer from 'inquirer';
 
 import type { InitOptions, TechStack, TemplateType } from './types.js';
+import { CLIOutput, getCLIOutput } from '../cli/index.js';
 
 /**
  * Answers from the interactive wizard prompts
@@ -32,6 +33,12 @@ interface ConfirmAnswer {
  * Interactive wizard for gathering project configuration
  */
 export class InteractiveWizard {
+  private readonly output: CLIOutput;
+
+  constructor(output?: CLIOutput) {
+    this.output = output ?? getCLIOutput();
+  }
+
   /**
    * Run the interactive wizard to gather project configuration
    */
@@ -135,18 +142,20 @@ export class InteractiveWizard {
    * Display a summary of the configuration and ask for confirmation
    */
   async confirmConfiguration(options: InitOptions): Promise<boolean> {
-    console.log('\n📋 Configuration Summary:');
-    console.log('─'.repeat(40));
-    console.log(`  Project Name:    ${options.projectName}`);
+    const summaryData: Record<string, string> = {
+      'Project Name': options.projectName,
+    };
+
     if (options.description !== undefined && options.description.length > 0) {
-      console.log(`  Description:     ${options.description}`);
+      summaryData['Description'] = options.description;
     }
     if (options.githubRepo !== undefined && options.githubRepo.length > 0) {
-      console.log(`  GitHub Repo:     ${options.githubRepo}`);
+      summaryData['GitHub Repo'] = options.githubRepo;
     }
-    console.log(`  Tech Stack:      ${options.techStack}`);
-    console.log(`  Template:        ${options.template}`);
-    console.log('─'.repeat(40));
+    summaryData['Tech Stack'] = options.techStack;
+    summaryData['Template'] = options.template;
+
+    this.output.summary('Configuration Summary', summaryData);
 
     return this.confirm('\nProceed with this configuration?');
   }

@@ -38,6 +38,8 @@ import type {
   WhitelistSnapshot,
 } from './types.js';
 import { getAuditLogger } from './AuditLogger.js';
+import type { Logger } from '../logging/index.js';
+import { getLogger } from '../logging/index.js';
 
 const execFileAsync = promisify(execFileCallback);
 
@@ -63,6 +65,7 @@ export class CommandSanitizer {
   private readonly logCommands: boolean;
   private readonly enableAuditLog: boolean;
   private readonly actor: string;
+  private readonly logger: Logger;
 
   constructor(options: CommandSanitizerOptions = {}) {
     this.whitelist =
@@ -73,6 +76,7 @@ export class CommandSanitizer {
     this.logCommands = options.logCommands ?? false;
     this.enableAuditLog = options.enableAuditLog ?? true;
     this.actor = options.actor ?? 'system';
+    this.logger = getLogger().child({ agent: 'CommandSanitizer' });
   }
 
   /**
@@ -220,7 +224,7 @@ export class CommandSanitizer {
     const startTime = Date.now();
 
     if (this.logCommands) {
-      console.log(`[CommandSanitizer] Executing: ${command.rawCommand}`);
+      this.logger.debug('Executing command', { command: command.rawCommand });
     }
 
     try {
@@ -234,7 +238,7 @@ export class CommandSanitizer {
       const duration = Date.now() - startTime;
 
       if (this.logCommands) {
-        console.log(`[CommandSanitizer] Completed in ${String(duration)}ms`);
+        this.logger.debug('Command completed', { durationMs: duration });
       }
 
       this.logCommandExecution(command, 'success', duration);
@@ -254,7 +258,9 @@ export class CommandSanitizer {
       const execError = error as { stdout?: string; stderr?: string; code?: number };
 
       if (this.logCommands) {
-        console.error(`[CommandSanitizer] Failed after ${String(duration)}ms: ${errorMessage}`);
+        this.logger.error('Command failed', error instanceof Error ? error : undefined, {
+          durationMs: duration,
+        });
       }
 
       this.logCommandExecution(command, 'failure', duration, errorMessage);
@@ -334,7 +340,7 @@ export class CommandSanitizer {
     const startTime = Date.now();
 
     if (this.logCommands) {
-      console.log(`[CommandSanitizer] Executing (sync): ${command.rawCommand}`);
+      this.logger.debug('Executing sync command', { command: command.rawCommand });
     }
 
     try {
@@ -348,7 +354,7 @@ export class CommandSanitizer {
       const duration = Date.now() - startTime;
 
       if (this.logCommands) {
-        console.log(`[CommandSanitizer] Completed in ${String(duration)}ms`);
+        this.logger.debug('Sync command completed', { durationMs: duration });
       }
 
       this.logCommandExecution(command, 'success', duration);
@@ -366,7 +372,9 @@ export class CommandSanitizer {
       const errorMessage = error instanceof Error ? error.message : String(error);
 
       if (this.logCommands) {
-        console.error(`[CommandSanitizer] Failed after ${String(duration)}ms: ${errorMessage}`);
+        this.logger.error('Sync command failed', error instanceof Error ? error : undefined, {
+          durationMs: duration,
+        });
       }
 
       this.logCommandExecution(command, 'failure', duration, errorMessage);
