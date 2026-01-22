@@ -13,6 +13,7 @@ import { join, resolve } from 'node:path';
 import yaml from 'js-yaml';
 import type { ScratchpadBackendConfig, BackendType } from './types.js';
 import { tryGetProjectRoot } from '../../utils/index.js';
+import { DEFAULT_PATHS } from '../../config/paths.js';
 
 // ============================================================
 // Types
@@ -71,7 +72,7 @@ interface RawWorkflowConfig {
 // Constants
 // ============================================================
 
-const DEFAULT_CONFIG_DIR = '.ad-sdlc/config';
+const DEFAULT_CONFIG_DIR = DEFAULT_PATHS.CONFIG_SUBDIR;
 const WORKFLOW_CONFIG_FILE = 'workflow.yaml';
 
 // Environment variable mappings for connection strings

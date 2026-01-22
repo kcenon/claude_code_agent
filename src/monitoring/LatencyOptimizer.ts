@@ -12,6 +12,7 @@
 import * as fs from 'node:fs';
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
+import { DEFAULT_PATHS } from '../config/paths.js';
 
 /**
  * Latency targets in milliseconds
@@ -101,7 +102,7 @@ const DEFAULT_CONFIG: Required<LatencyOptimizerConfig> = {
   enablePrewarming: true,
   enableConnectionPooling: true,
   maxPooledConnections: 10,
-  cacheDir: '.ad-sdlc/cache',
+  cacheDir: DEFAULT_PATHS.CACHE,
   warmupIntervalMs: 300000,
   enableTracking: true,
   maxTrackedMeasurements: 1000,

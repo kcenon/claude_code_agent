@@ -16,6 +16,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as zlib from 'node:zlib';
 import os from 'node:os';
+import { getPath } from '../config/paths.js';
 import type { ILogTransport, TransportHealth } from './transports/ILogTransport.js';
 import { ConsoleTransport } from './transports/ConsoleTransport.js';
 import { FileTransport } from './transports/FileTransport.js';
@@ -278,7 +279,7 @@ export class Logger {
   private readonly queryParser: LogQueryParser = new LogQueryParser();
 
   // Log directory for query and aggregation (from file transport config)
-  private logDir: string = './.ad-sdlc/logs';
+  private logDir: string = getPath('logs');
 
   /**
    * Create a new Logger instance
@@ -1368,7 +1369,7 @@ function createTransportConfigFromEnv(
     case 'file':
       return {
         type: 'file',
-        path: process.env[`${prefix}_FILE_PATH`] ?? './.ad-sdlc/logs',
+        path: process.env[`${prefix}_FILE_PATH`] ?? getPath('logs'),
         maxFileSize: parseInt(process.env[`${prefix}_FILE_MAX_SIZE`] ?? '10485760', 10),
         maxFiles: parseInt(process.env[`${prefix}_FILE_MAX_FILES`] ?? '5', 10),
       } as FileTransportConfig;

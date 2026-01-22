@@ -25,6 +25,7 @@ import type {
   BudgetForecast,
   ProjectedOverageAlert,
 } from './types.js';
+import { DEFAULT_PATHS } from '../config/paths.js';
 
 /**
  * Budget threshold configuration
@@ -137,7 +138,7 @@ export interface BudgetCheckResult {
 const DEFAULT_WARNING_THRESHOLDS = [50, 75, 90] as const;
 const DEFAULT_HARD_LIMIT_THRESHOLD = 100;
 const DEFAULT_ON_LIMIT_REACHED = 'pause' as const;
-const DEFAULT_PERSISTENCE_DIR = '.ad-sdlc/budget';
+const DEFAULT_PERSISTENCE_DIR = DEFAULT_PATHS.BUDGET;
 const DEFAULT_FORECAST_WINDOW_SIZE = 10;
 const DEFAULT_FORECAST_MIN_RECORDS = 3;
 const DEFAULT_FORECAST_SMOOTHING_FACTOR = 0.3;

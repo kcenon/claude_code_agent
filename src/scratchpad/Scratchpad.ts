@@ -97,11 +97,12 @@ import type {
 } from './types.js';
 import { EXTENSION_TO_FORMAT } from './types.js';
 import { LockContentionError } from './errors.js';
+import { DEFAULT_PATHS } from '../config/paths.js';
 
 /**
  * Default base path for scratchpad
  */
-const DEFAULT_BASE_PATH = '.ad-sdlc/scratchpad';
+const DEFAULT_BASE_PATH = DEFAULT_PATHS.SCRATCHPAD;
 
 /**
  * Default file permission mode (owner read/write only)
