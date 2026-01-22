@@ -11,15 +11,16 @@
 import type { AppliedFix, CIFailure, CIFailureCategory, VerificationResult } from './types.js';
 import { LintFixError, TypeFixError } from './errors.js';
 import { getCommandSanitizer, createSecureFileOps, type SecureFileOps } from '../security/index.js';
+import {
+  type ICommandExecutor,
+  type ExecutionResult,
+  getCommandExecutor,
+} from '../utilities/CommandExecutor.js';
 
 /**
- * Command execution result
+ * Command execution result (alias for ExecutionResult for backward compatibility)
  */
-interface CommandResult {
-  stdout: string;
-  stderr: string;
-  exitCode: number;
-}
+type CommandResult = ExecutionResult;
 
 /**
  * Fix strategy options
@@ -31,6 +32,8 @@ export interface FixStrategyOptions {
   readonly timeout?: number;
   /** Dry run mode (don't actually apply fixes) */
   readonly dryRun?: boolean;
+  /** Command executor for dependency injection (optional, for testing) */
+  readonly commandExecutor?: ICommandExecutor;
 }
 
 /**
@@ -43,6 +46,7 @@ export class FixStrategies {
   private readonly timeout: number;
   private readonly dryRun: boolean;
   private readonly fileOps: SecureFileOps;
+  private readonly commandExecutor: ICommandExecutor;
 
   constructor(options: FixStrategyOptions) {
     this.projectRoot = options.projectRoot;
@@ -50,6 +54,8 @@ export class FixStrategies {
     this.dryRun = options.dryRun ?? false;
     // Initialize secure file operations with project root validation
     this.fileOps = createSecureFileOps({ projectRoot: this.projectRoot });
+    // Use provided executor or default singleton
+    this.commandExecutor = options.commandExecutor ?? getCommandExecutor();
   }
 
   // ==========================================================================
@@ -649,7 +655,7 @@ export class FixStrategies {
 
   /**
    * Execute a shell command using safe execution
-   * Uses execFile to bypass shell and prevent command injection
+   * Uses injected ICommandExecutor for testability
    */
   private async executeCommand(
     command: string,
@@ -658,38 +664,12 @@ export class FixStrategies {
       ignoreExitCode?: boolean;
     }
   ): Promise<CommandResult> {
-    const sanitizer = getCommandSanitizer();
-
-    try {
-      const result = await sanitizer.execFromString(command, {
-        cwd: this.projectRoot,
-        timeout: options?.timeout ?? this.timeout,
-        maxBuffer: 10 * 1024 * 1024,
-      });
-
-      return {
-        stdout: result.stdout,
-        stderr: result.stderr,
-        exitCode: result.success ? 0 : (result.exitCode ?? 1),
-      };
-    } catch (error: unknown) {
-      if (error !== null && typeof error === 'object' && 'exitCode' in error) {
-        const execError = error as {
-          stdout?: string;
-          stderr?: string;
-          exitCode?: number;
-        };
-
-        if (options?.ignoreExitCode === true) {
-          return {
-            stdout: execError.stdout ?? '',
-            stderr: execError.stderr ?? '',
-            exitCode: execError.exitCode ?? 1,
-          };
-        }
-      }
-      throw error;
-    }
+    return this.commandExecutor.execute(command, {
+      cwd: this.projectRoot,
+      timeout: options?.timeout ?? this.timeout,
+      maxBuffer: 10 * 1024 * 1024,
+      ignoreExitCode: options?.ignoreExitCode ?? false,
+    });
   }
 
   /**

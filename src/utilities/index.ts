@@ -341,3 +341,18 @@ export type {
 export { safeCleanup, safeCleanupSync, fireAndForgetCleanup } from './safeCleanup.js';
 
 export type { CleanupLogger, SafeCleanupOptions, CleanupResult } from './safeCleanup.js';
+
+// Re-export command executor utilities
+export {
+  ShellCommandExecutor,
+  MockCommandExecutor,
+  getCommandExecutor,
+  setCommandExecutor,
+  resetCommandExecutor,
+} from './CommandExecutor.js';
+
+export type {
+  ExecutionResult,
+  ExecuteOptions,
+  ICommandExecutor,
+} from './CommandExecutor.js';

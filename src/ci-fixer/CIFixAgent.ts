@@ -41,15 +41,16 @@ import {
   ResultPersistenceError,
 } from './errors.js';
 import { getCommandSanitizer } from '../security/index.js';
+import {
+  type ICommandExecutor,
+  type ExecutionResult,
+  getCommandExecutor,
+} from '../utilities/CommandExecutor.js';
 
 /**
- * Command execution result
+ * Command execution result (alias for ExecutionResult for backward compatibility)
  */
-interface CommandResult {
-  stdout: string;
-  stderr: string;
-  exitCode: number;
-}
+type CommandResult = ExecutionResult;
 
 /**
  * Singleton instance
@@ -75,9 +76,12 @@ export class CIFixAgent implements IAgent {
   private readonly config: Required<CIFixerAgentConfig>;
   private readonly logAnalyzer: CILogAnalyzer;
   private readonly fixStrategies: FixStrategies;
+  private readonly commandExecutor: ICommandExecutor;
   private initialized = false;
 
-  constructor(config: CIFixerAgentConfig = {}) {
+  constructor(config: CIFixerAgentConfig = {}, commandExecutor?: ICommandExecutor) {
+    // Use provided executor or default singleton
+    this.commandExecutor = commandExecutor ?? getCommandExecutor();
     this.config = {
       projectRoot: config.projectRoot ?? DEFAULT_CI_FIXER_CONFIG.projectRoot,
       resultsPath: config.resultsPath ?? DEFAULT_CI_FIXER_CONFIG.resultsPath,
@@ -704,38 +708,15 @@ _This escalation was generated automatically by the CI Fix Agent._`;
 
   /**
    * Execute a shell command using safe execution
-   * Uses execFile to bypass shell and prevent command injection
+   * Uses injected ICommandExecutor for testability
    */
   private async executeCommand(command: string): Promise<CommandResult> {
-    const sanitizer = getCommandSanitizer();
-
-    try {
-      const result = await sanitizer.execFromString(command, {
-        cwd: this.config.projectRoot,
-        timeout: 120000,
-        maxBuffer: 10 * 1024 * 1024,
-      });
-
-      return {
-        stdout: result.stdout,
-        stderr: result.stderr,
-        exitCode: result.success ? 0 : (result.exitCode ?? 1),
-      };
-    } catch (error: unknown) {
-      if (error !== null && typeof error === 'object' && 'exitCode' in error) {
-        const execError = error as {
-          stdout?: string;
-          stderr?: string;
-          exitCode?: number;
-        };
-        return {
-          stdout: execError.stdout ?? '',
-          stderr: execError.stderr ?? '',
-          exitCode: execError.exitCode ?? 1,
-        };
-      }
-      throw error;
-    }
+    return this.commandExecutor.execute(command, {
+      cwd: this.config.projectRoot,
+      timeout: 120000,
+      maxBuffer: 10 * 1024 * 1024,
+      ignoreExitCode: true,
+    });
   }
 
   /**
