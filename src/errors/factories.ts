@@ -148,7 +148,7 @@ export function agentTimeoutError(
 ): AppError {
   return new AppError(
     ErrorCodes.AGT_TIMEOUT_ERROR,
-    `${agentType} agent timed out during ${operation} after ${timeoutMs}ms`,
+    `${agentType} agent timed out during ${operation} after ${String(timeoutMs)}ms`,
     {
       severity: ErrorSeverity.MEDIUM,
       category: 'transient',
@@ -209,7 +209,7 @@ export function lockAcquisitionError(
 ): AppError {
   return new AppError(
     ErrorCodes.INF_LOCK_ACQUISITION_ERROR,
-    `Failed to acquire lock for ${resource} within ${timeoutMs}ms`,
+    `Failed to acquire lock for ${resource} within ${String(timeoutMs)}ms`,
     {
       severity: ErrorSeverity.MEDIUM,
       category: 'transient',
@@ -328,7 +328,7 @@ export function rateLimitExceededError(
 ): AppError {
   return new AppError(
     ErrorCodes.SEC_RATE_LIMIT_EXCEEDED,
-    `Rate limit exceeded for ${resource}: ${limit} requests per ${windowMs}ms`,
+    `Rate limit exceeded for ${resource}: ${String(limit)} requests per ${String(windowMs)}ms`,
     {
       severity: ErrorSeverity.MEDIUM,
       category: 'transient',
@@ -355,7 +355,10 @@ export function githubApiError(
     `GitHub API error during ${operation}: ${message}`,
     {
       severity: ErrorSeverity.HIGH,
-      category: statusCode && statusCode >= 500 ? 'transient' : 'recoverable',
+      category:
+        statusCode !== undefined && statusCode >= 500
+          ? 'transient'
+          : 'recoverable',
       context: { operation, statusCode, ...context },
     }
   );
@@ -453,7 +456,7 @@ export function operationTimeoutError(
 ): AppError {
   return new AppError(
     ErrorCodes.GEN_TIMEOUT,
-    `Operation '${operation}' timed out after ${timeoutMs}ms`,
+    `Operation '${operation}' timed out after ${String(timeoutMs)}ms`,
     {
       severity: ErrorSeverity.MEDIUM,
       category: 'transient',
