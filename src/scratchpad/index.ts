@@ -21,6 +21,20 @@
 
 export { Scratchpad, getScratchpad, resetScratchpad } from './Scratchpad.js';
 
+// Caching layer exports
+export {
+  CachedScratchpad,
+  getCachedScratchpad,
+  resetCachedScratchpad,
+} from './CachedScratchpad.js';
+export type { CachedScratchpadOptions, CachedScratchpadMetrics } from './CachedScratchpad.js';
+
+export { LRUCache } from './LRUCache.js';
+export type { LRUCacheOptions, CacheMetrics } from './LRUCache.js';
+
+export { WriteBatcher } from './WriteBatcher.js';
+export type { WriteBatcherOptions, WriteBatcherMetrics, WriteHandler } from './WriteBatcher.js';
+
 // Error classes
 export {
   LockError,
