@@ -465,10 +465,8 @@ export class Logger {
           transport: transport.name,
           error: error instanceof Error ? error.message : String(error),
           timestamp: Date.now(),
+          ...(entry.correlationId !== undefined && { correlationId: entry.correlationId }),
         };
-        if (entry.correlationId !== undefined) {
-          (transportError as { correlationId: string }).correlationId = entry.correlationId;
-        }
         this.lastTransportError = transportError;
       });
     }
@@ -506,6 +504,23 @@ export class Logger {
     // Determine session ID
     const sessionId = asyncContext?.sessionId ?? this.sessionId;
 
+    // Determine agent context (instance takes precedence, then async context)
+    const agentId = this.currentAgent ?? asyncContext?.agent?.agentId;
+    const stage = this.currentStage ?? asyncContext?.agent?.stage;
+    const projectId = this.currentProjectId ?? asyncContext?.agent?.projectId;
+
+    // Determine trace context (instance takes precedence, then async context)
+    const traceId = this.traceId ?? asyncContext?.trace?.traceId;
+    const spanId = this.spanId ?? asyncContext?.trace?.spanId;
+    const parentSpanId = this.parentSpanId ?? asyncContext?.trace?.parentSpanId;
+
+    // Extract durationMs from context if present
+    const durationMs =
+      context?.durationMs !== undefined && typeof context.durationMs === 'number'
+        ? context.durationMs
+        : undefined;
+
+    // Build entry with all optional fields using typed assignment
     const entry: TransportLogEntry = {
       timestamp: new Date(),
       level,
@@ -515,44 +530,14 @@ export class Logger {
       sessionId,
       hostname: os.hostname(),
       pid: process.pid,
+      ...(agentId !== undefined && { agentId }),
+      ...(stage !== undefined && { stage }),
+      ...(projectId !== undefined && { projectId }),
+      ...(traceId !== undefined && { traceId }),
+      ...(spanId !== undefined && { spanId }),
+      ...(parentSpanId !== undefined && { parentSpanId }),
+      ...(durationMs !== undefined && { durationMs }),
     };
-
-    // Add agent context (instance takes precedence, then async context)
-    const agentId = this.currentAgent ?? asyncContext?.agent?.agentId;
-    if (agentId !== undefined) {
-      (entry as { agentId: string }).agentId = agentId;
-    }
-
-    const stage = this.currentStage ?? asyncContext?.agent?.stage;
-    if (stage !== undefined) {
-      (entry as { stage: string }).stage = stage;
-    }
-
-    const projectId = this.currentProjectId ?? asyncContext?.agent?.projectId;
-    if (projectId !== undefined) {
-      (entry as { projectId: string }).projectId = projectId;
-    }
-
-    // Add trace context (instance takes precedence, then async context)
-    const traceId = this.traceId ?? asyncContext?.trace?.traceId;
-    if (traceId !== undefined) {
-      (entry as { traceId: string }).traceId = traceId;
-    }
-
-    const spanId = this.spanId ?? asyncContext?.trace?.spanId;
-    if (spanId !== undefined) {
-      (entry as { spanId: string }).spanId = spanId;
-    }
-
-    const parentSpanId = this.parentSpanId ?? asyncContext?.trace?.parentSpanId;
-    if (parentSpanId !== undefined) {
-      (entry as { parentSpanId: string }).parentSpanId = parentSpanId;
-    }
-
-    // Extract durationMs from context if present
-    if (context?.durationMs !== undefined && typeof context.durationMs === 'number') {
-      (entry as { durationMs: number }).durationMs = context.durationMs;
-    }
 
     return entry;
   }
@@ -803,23 +788,14 @@ export class Logger {
       }
     }
 
-    const health: LoggerHealth = {
+    return {
       state: this.state,
       transports: transportHealth,
       totalLogs: this.totalLogs,
       failedLogs: this.failedLogs,
+      ...(this.lastLogTime !== undefined && { lastLogTime: this.lastLogTime }),
+      ...(this.lastTransportError !== undefined && { lastTransportError: this.lastTransportError }),
     };
-
-    if (this.lastLogTime !== undefined) {
-      (health as { lastLogTime: Date }).lastLogTime = this.lastLogTime;
-    }
-
-    if (this.lastTransportError !== undefined) {
-      (health as { lastTransportError: LastTransportError }).lastTransportError =
-        this.lastTransportError;
-    }
-
-    return health;
   }
 
   /**
@@ -1231,10 +1207,8 @@ export class Logger {
       id: 'main-logs',
       type: 'directory',
       path: this.logDir,
+      ...(filter !== undefined && { filter }),
     };
-    if (filter !== undefined) {
-      (mainSource as { filter?: LogQueryFilter }).filter = filter;
-    }
 
     const entries = this.aggregateLogs([mainSource], { deduplicate: true, sortOrder: 'desc' });
     return entries.slice(0, limit);
