@@ -288,7 +288,8 @@ export class RetryExecutor {
   constructor(policyOverride?: Partial<UnifiedRetryPolicy>) {
     this.policy = {
       maxAttempts: policyOverride?.maxAttempts ?? DEFAULT_UNIFIED_RETRY_POLICY.maxAttempts,
-      backoffStrategy: policyOverride?.backoffStrategy ?? DEFAULT_UNIFIED_RETRY_POLICY.backoffStrategy,
+      backoffStrategy:
+        policyOverride?.backoffStrategy ?? DEFAULT_UNIFIED_RETRY_POLICY.backoffStrategy,
       baseDelayMs: policyOverride?.baseDelayMs ?? DEFAULT_UNIFIED_RETRY_POLICY.baseDelayMs,
       maxDelayMs: policyOverride?.maxDelayMs ?? DEFAULT_UNIFIED_RETRY_POLICY.maxDelayMs,
       multiplier: policyOverride?.multiplier ?? DEFAULT_UNIFIED_RETRY_POLICY.multiplier,
@@ -596,8 +597,9 @@ export function fromLegacyPolicy(legacyPolicy: Partial<RetryPolicy>): UnifiedRet
     baseDelayMs: legacyPolicy.baseDelayMs ?? DEFAULT_UNIFIED_RETRY_POLICY.baseDelayMs,
     maxDelayMs: legacyPolicy.maxDelayMs ?? DEFAULT_UNIFIED_RETRY_POLICY.maxDelayMs,
     multiplier: legacyPolicy.backoffMultiplier ?? DEFAULT_UNIFIED_RETRY_POLICY.multiplier,
-    jitterRatio: legacyPolicy.enableJitter === true
-      ? (legacyPolicy.jitterFactor ?? DEFAULT_UNIFIED_RETRY_POLICY.jitterRatio)
-      : 0,
+    jitterRatio:
+      legacyPolicy.enableJitter === true
+        ? (legacyPolicy.jitterFactor ?? DEFAULT_UNIFIED_RETRY_POLICY.jitterRatio)
+        : 0,
   };
 }

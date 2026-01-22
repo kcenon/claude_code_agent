@@ -96,7 +96,10 @@ export {
 export { CircuitBreaker, createCircuitBreakerFunction } from './CircuitBreaker.js';
 
 // Backoff strategies
-export type { BackoffConfig, BackoffStrategy as BackoffStrategyInterface } from './BackoffStrategies.js';
+export type {
+  BackoffConfig,
+  BackoffStrategy as BackoffStrategyInterface,
+} from './BackoffStrategies.js';
 export {
   DEFAULT_BACKOFF_CONFIG,
   FixedBackoff,

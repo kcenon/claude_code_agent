@@ -154,7 +154,8 @@ export class RetryMetrics {
     const totalAttempts = this.records.reduce((sum, r) => sum + r.attempts, 0);
     const totalRetryTimeMs = this.records.reduce((sum, r) => sum + r.totalDurationMs, 0);
     const allDelays = this.records.flatMap((r) => r.delays);
-    const averageDelayMs = allDelays.length > 0 ? allDelays.reduce((a, b) => a + b, 0) / allDelays.length : 0;
+    const averageDelayMs =
+      allDelays.length > 0 ? allDelays.reduce((a, b) => a + b, 0) / allDelays.length : 0;
 
     return {
       totalOperations,
@@ -291,7 +292,8 @@ export class RetryMetrics {
         strategy,
         operationCount,
         successRate: operationCount > 0 ? successCount / operationCount : 0,
-        averageDelayMs: allDelays.length > 0 ? allDelays.reduce((a, b) => a + b, 0) / allDelays.length : 0,
+        averageDelayMs:
+          allDelays.length > 0 ? allDelays.reduce((a, b) => a + b, 0) / allDelays.length : 0,
         totalRetries,
       };
     }
