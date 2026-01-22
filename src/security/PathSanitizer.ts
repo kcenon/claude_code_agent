@@ -128,7 +128,11 @@ export class PathSanitizer {
 
     // Check path length
     if (inputPath.length > this.maxPathLength) {
-      return this.reject(inputPath, 'PATH_TOO_LONG', `Path exceeds maximum length of ${String(this.maxPathLength)}`);
+      return this.reject(
+        inputPath,
+        'PATH_TOO_LONG',
+        `Path exceeds maximum length of ${String(this.maxPathLength)}`
+      );
     }
 
     // Check for invalid characters
@@ -148,13 +152,21 @@ export class PathSanitizer {
 
     // Re-check after normalization (normalization might reveal hidden patterns)
     if (this.containsTraversalAfterNormalize(normalized)) {
-      return this.reject(inputPath, 'TRAVERSAL_ATTEMPT', 'Path traversal detected after normalization');
+      return this.reject(
+        inputPath,
+        'TRAVERSAL_ATTEMPT',
+        'Path traversal detected after normalization'
+      );
     }
 
     // Validate path components
     const componentValidation = this.validateComponents(normalized);
     if (!componentValidation.valid) {
-      return this.reject(inputPath, 'INVALID_COMPONENT', componentValidation.error ?? 'Invalid path component');
+      return this.reject(
+        inputPath,
+        'INVALID_COMPONENT',
+        componentValidation.error ?? 'Invalid path component'
+      );
     }
 
     // Resolve against base directory

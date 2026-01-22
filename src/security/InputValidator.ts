@@ -80,10 +80,12 @@ export class InputValidator {
       actor: this.actor,
     };
     if (options.allowedDirs !== undefined) {
-      (pathSanitizerOptions as { allowedDirs: readonly string[] }).allowedDirs = options.allowedDirs;
+      (pathSanitizerOptions as { allowedDirs: readonly string[] }).allowedDirs =
+        options.allowedDirs;
     }
     if (options.caseInsensitive !== undefined) {
-      (pathSanitizerOptions as { caseInsensitive: boolean }).caseInsensitive = options.caseInsensitive;
+      (pathSanitizerOptions as { caseInsensitive: boolean }).caseInsensitive =
+        options.caseInsensitive;
     }
     if (options.maxPathLength !== undefined) {
       (pathSanitizerOptions as { maxPathLength: number }).maxPathLength = options.maxPathLength;
@@ -98,13 +100,16 @@ export class InputValidator {
       baseDir: this.basePath,
     };
     if (options.allowedDirs !== undefined) {
-      (symlinkResolverOptions as { allowedDirs: readonly string[] }).allowedDirs = options.allowedDirs;
+      (symlinkResolverOptions as { allowedDirs: readonly string[] }).allowedDirs =
+        options.allowedDirs;
     }
     if (options.symlinkPolicy !== undefined) {
-      (symlinkResolverOptions as { symlinkPolicy: SymlinkPolicy }).symlinkPolicy = options.symlinkPolicy as SymlinkPolicy;
+      (symlinkResolverOptions as { symlinkPolicy: SymlinkPolicy }).symlinkPolicy =
+        options.symlinkPolicy as SymlinkPolicy;
     }
     if (options.caseInsensitive !== undefined) {
-      (symlinkResolverOptions as { caseInsensitive: boolean }).caseInsensitive = options.caseInsensitive;
+      (symlinkResolverOptions as { caseInsensitive: boolean }).caseInsensitive =
+        options.caseInsensitive;
     }
     this.symlinkResolver = new SymlinkResolver(symlinkResolverOptions);
   }
