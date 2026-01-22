@@ -281,8 +281,13 @@ export class CachedScratchpad extends Scratchpad {
     if (this.batcher !== null && options.mode === undefined) {
       // Queue write without waiting for flush
       // The write will be persisted on next flush() call or auto-flush
-      this.batcher.write(filePath, content).catch(() => {
-        // Error will be handled by batcher's onError callback
+      this.batcher.write(filePath, content).catch((error: unknown) => {
+        // Primary error handling is done by batcher's onError callback
+        // This catch prevents unhandled promise rejection
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        if (process.env.DEBUG === 'true') {
+          console.debug(`Batched write failed for ${filePath}: ${errorMsg}`);
+        }
       });
     } else {
       await super.atomicWrite(filePath, content, options);

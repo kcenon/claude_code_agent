@@ -241,8 +241,12 @@ export class InputParser {
       };
     } finally {
       if (pdfParser !== null) {
-        await pdfParser.destroy().catch(() => {
-          // Ignore cleanup errors
+        await pdfParser.destroy().catch((error: unknown) => {
+          // PDF parser cleanup is best-effort; log for debugging
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          if (process.env.DEBUG === 'true') {
+            console.debug(`PDF parser cleanup failed: ${errorMsg}`);
+          }
         });
       }
     }

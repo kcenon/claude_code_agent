@@ -233,10 +233,14 @@ export class AgentFactory {
   public async disposeAll(): Promise<void> {
     const disposePromises: Promise<void>[] = [];
 
-    for (const [, agent] of this.singletonCache) {
+    for (const [agentType, agent] of this.singletonCache) {
       disposePromises.push(
-        agent.dispose().catch(() => {
-          // Ignore individual dispose errors
+        agent.dispose().catch((error: unknown) => {
+          // Agent disposal errors are logged but don't prevent other agents from disposing
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          if (process.env.DEBUG === 'true' || process.env.NODE_ENV !== 'production') {
+            console.debug(`Agent disposal failed for ${agentType}: ${errorMsg}`);
+          }
         })
       );
     }
