@@ -112,40 +112,25 @@ export function getProjectPaths(baseDir?: string): ProjectPaths {
 
   return {
     root,
-    config:
-      process.env[PATH_ENV_VARS.CONFIG_DIR] ??
-      path.join(root, DEFAULT_PATHS.CONFIG_SUBDIR),
+    config: process.env[PATH_ENV_VARS.CONFIG_DIR] ?? path.join(root, DEFAULT_PATHS.CONFIG_SUBDIR),
     logs: process.env[PATH_ENV_VARS.LOG_DIR] ?? path.join(root, DEFAULT_PATHS.LOGS),
     scratchpad:
-      process.env[PATH_ENV_VARS.SCRATCHPAD_DIR] ??
-      path.join(root, DEFAULT_PATHS.SCRATCHPAD),
-    templates:
-      process.env[PATH_ENV_VARS.TEMPLATES_DIR] ??
-      path.join(root, DEFAULT_PATHS.TEMPLATES),
+      process.env[PATH_ENV_VARS.SCRATCHPAD_DIR] ?? path.join(root, DEFAULT_PATHS.SCRATCHPAD),
+    templates: process.env[PATH_ENV_VARS.TEMPLATES_DIR] ?? path.join(root, DEFAULT_PATHS.TEMPLATES),
     docs: process.env[PATH_ENV_VARS.DOCS_DIR] ?? path.join(root, DEFAULT_PATHS.DOCS),
-    metrics:
-      process.env[PATH_ENV_VARS.METRICS_DIR] ?? path.join(root, DEFAULT_PATHS.METRICS),
-    alerts:
-      process.env[PATH_ENV_VARS.ALERTS_DIR] ?? path.join(root, DEFAULT_PATHS.ALERTS),
-    budget:
-      process.env[PATH_ENV_VARS.BUDGET_DIR] ?? path.join(root, DEFAULT_PATHS.BUDGET),
+    metrics: process.env[PATH_ENV_VARS.METRICS_DIR] ?? path.join(root, DEFAULT_PATHS.METRICS),
+    alerts: process.env[PATH_ENV_VARS.ALERTS_DIR] ?? path.join(root, DEFAULT_PATHS.ALERTS),
+    budget: process.env[PATH_ENV_VARS.BUDGET_DIR] ?? path.join(root, DEFAULT_PATHS.BUDGET),
     cache: process.env[PATH_ENV_VARS.CACHE_DIR] ?? path.join(root, DEFAULT_PATHS.CACHE),
     auditLogs:
-      process.env[PATH_ENV_VARS.AUDIT_LOG_DIR] ??
-      path.join(root, DEFAULT_PATHS.AUDIT_LOGS),
-    database:
-      process.env[PATH_ENV_VARS.DATABASE_PATH] ??
-      path.join(root, DEFAULT_PATHS.DATABASE),
-    telemetry:
-      process.env[PATH_ENV_VARS.TELEMETRY_DIR] ?? path.join(homedir(), '.ad-sdlc'),
+      process.env[PATH_ENV_VARS.AUDIT_LOG_DIR] ?? path.join(root, DEFAULT_PATHS.AUDIT_LOGS),
+    database: process.env[PATH_ENV_VARS.DATABASE_PATH] ?? path.join(root, DEFAULT_PATHS.DATABASE),
+    telemetry: process.env[PATH_ENV_VARS.TELEMETRY_DIR] ?? path.join(homedir(), '.ad-sdlc'),
     checkpoints:
-      process.env[PATH_ENV_VARS.CHECKPOINTS_DIR] ??
-      path.join(root, DEFAULT_PATHS.CHECKPOINTS),
-    ciFix:
-      process.env[PATH_ENV_VARS.CI_FIX_DIR] ?? path.join(root, DEFAULT_PATHS.CI_FIX),
+      process.env[PATH_ENV_VARS.CHECKPOINTS_DIR] ?? path.join(root, DEFAULT_PATHS.CHECKPOINTS),
+    ciFix: process.env[PATH_ENV_VARS.CI_FIX_DIR] ?? path.join(root, DEFAULT_PATHS.CI_FIX),
     escalations:
-      process.env[PATH_ENV_VARS.ESCALATIONS_DIR] ??
-      path.join(root, DEFAULT_PATHS.ESCALATIONS),
+      process.env[PATH_ENV_VARS.ESCALATIONS_DIR] ?? path.join(root, DEFAULT_PATHS.ESCALATIONS),
   };
 }
 
@@ -225,10 +210,7 @@ export function getPath(key: keyof ProjectPaths, baseDir?: string): string {
  * const infoPath = resolvePath('scratchpad', 'info', 'project-001', 'collected_info.yaml');
  * ```
  */
-export function resolvePath(
-  pathKey: keyof ProjectPaths,
-  ...relativePath: string[]
-): string {
+export function resolvePath(pathKey: keyof ProjectPaths, ...relativePath: string[]): string {
   return path.join(getPaths()[pathKey], ...relativePath);
 }
 
@@ -277,9 +259,7 @@ export function getScratchpadDirs(projectRoot?: string): {
   escalations: string;
 } {
   const paths =
-    projectRoot !== undefined && projectRoot !== ''
-      ? getProjectPaths(projectRoot)
-      : getPaths();
+    projectRoot !== undefined && projectRoot !== '' ? getProjectPaths(projectRoot) : getPaths();
   return {
     info: path.join(paths.scratchpad, 'info'),
     documents: path.join(paths.scratchpad, 'documents'),
@@ -300,9 +280,7 @@ export function getScratchpadDirs(projectRoot?: string): {
  */
 export function getTemplatePath(templateName: string, projectRoot?: string): string {
   const paths =
-    projectRoot !== undefined && projectRoot !== ''
-      ? getProjectPaths(projectRoot)
-      : getPaths();
+    projectRoot !== undefined && projectRoot !== '' ? getProjectPaths(projectRoot) : getPaths();
   return path.join(paths.templates, templateName);
 }
 
@@ -315,8 +293,6 @@ export function getTemplatePath(templateName: string, projectRoot?: string): str
  */
 export function getConfigFilePath(configName: string, projectRoot?: string): string {
   const paths =
-    projectRoot !== undefined && projectRoot !== ''
-      ? getProjectPaths(projectRoot)
-      : getPaths();
+    projectRoot !== undefined && projectRoot !== '' ? getProjectPaths(projectRoot) : getPaths();
   return path.join(paths.config, configName);
 }
