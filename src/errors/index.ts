@@ -54,6 +54,11 @@ export {
   SecurityErrorCodes,
   MonitoringErrorCodes,
   GenericErrorCodes,
+  DocumentErrorCodes,
+  AgentErrorCodes,
+  InfrastructureErrorCodes,
+  ExtendedSecurityErrorCodes,
+  ExternalServiceErrorCodes,
   ErrorCodeDescriptions,
   type ErrorCode,
 } from './codes.js';
@@ -63,3 +68,38 @@ export { AppError } from './AppError.js';
 
 // Error Handler
 export { ErrorHandler, type ErrorInfo } from './handler.js';
+
+// Factory Functions
+export {
+  // Document factories
+  documentNotFoundError,
+  documentParseError,
+  documentValidationError,
+  documentWriteError,
+  // Agent factories
+  agentInitError,
+  agentExecutionError,
+  agentTimeoutError,
+  agentNotFoundError,
+  // Infrastructure factories
+  fileAccessError,
+  lockAcquisitionError,
+  lockTimeoutError,
+  configLoadError,
+  // Security factories
+  pathTraversalError,
+  commandInjectionError,
+  permissionDeniedError,
+  rateLimitExceededError,
+  // External service factories
+  githubApiError,
+  ciExecutionError,
+  networkError,
+  // Generic factories
+  validationError,
+  notImplementedError,
+  operationTimeoutError,
+  // Factory utilities
+  createModuleErrorFactory,
+  createBoundErrorFactories,
+} from './factories.js';
