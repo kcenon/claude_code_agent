@@ -285,7 +285,7 @@ export class Logger {
           this.transports.push(transport);
         }
         // Extract log directory from file transport
-        if (transportConfig.type === 'file' && transportConfig.path !== undefined) {
+        if (transportConfig.type === 'file') {
           this.logDir = transportConfig.path;
         }
       }
