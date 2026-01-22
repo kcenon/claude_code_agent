@@ -7,6 +7,7 @@ import {
   getAuditLogger,
   resetAuditLogger,
 } from '../../src/security/index.js';
+import * as loggingModule from '../../src/logging/index.js';
 
 describe('AuditLogger', () => {
   let logger: AuditLogger;
@@ -462,8 +463,18 @@ describe('AuditLogger', () => {
   });
 
   describe('console output', () => {
-    it('should log success to console.log', () => {
-      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    it('should log success via structured logger info', () => {
+      // Create a mock logger
+      const mockLogger = {
+        info: vi.fn(),
+        warn: vi.fn(),
+        debug: vi.fn(),
+        error: vi.fn(),
+        child: vi.fn().mockReturnThis(),
+      };
+
+      // Mock getLogger to return our mock
+      vi.spyOn(loggingModule, 'getLogger').mockReturnValue(mockLogger as unknown as loggingModule.Logger);
 
       const consoleLogger = new AuditLogger({
         logDir: testLogDir,
@@ -478,12 +489,22 @@ describe('AuditLogger', () => {
         result: 'success',
       });
 
-      expect(consoleSpy).toHaveBeenCalled();
-      consoleSpy.mockRestore();
+      expect(mockLogger.info).toHaveBeenCalled();
+      vi.restoreAllMocks();
     });
 
-    it('should log failure to console.warn', () => {
-      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    it('should log failure via structured logger warn', () => {
+      // Create a mock logger
+      const mockLogger = {
+        info: vi.fn(),
+        warn: vi.fn(),
+        debug: vi.fn(),
+        error: vi.fn(),
+        child: vi.fn().mockReturnThis(),
+      };
+
+      // Mock getLogger to return our mock
+      vi.spyOn(loggingModule, 'getLogger').mockReturnValue(mockLogger as unknown as loggingModule.Logger);
 
       const consoleLogger = new AuditLogger({
         logDir: testLogDir,
@@ -498,12 +519,22 @@ describe('AuditLogger', () => {
         result: 'failure',
       });
 
-      expect(warnSpy).toHaveBeenCalled();
-      warnSpy.mockRestore();
+      expect(mockLogger.warn).toHaveBeenCalled();
+      vi.restoreAllMocks();
     });
 
-    it('should log blocked to console.warn', () => {
-      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    it('should log blocked via structured logger warn', () => {
+      // Create a mock logger
+      const mockLogger = {
+        info: vi.fn(),
+        warn: vi.fn(),
+        debug: vi.fn(),
+        error: vi.fn(),
+        child: vi.fn().mockReturnThis(),
+      };
+
+      // Mock getLogger to return our mock
+      vi.spyOn(loggingModule, 'getLogger').mockReturnValue(mockLogger as unknown as loggingModule.Logger);
 
       const consoleLogger = new AuditLogger({
         logDir: testLogDir,
@@ -518,8 +549,8 @@ describe('AuditLogger', () => {
         result: 'blocked',
       });
 
-      expect(warnSpy).toHaveBeenCalled();
-      warnSpy.mockRestore();
+      expect(mockLogger.warn).toHaveBeenCalled();
+      vi.restoreAllMocks();
     });
   });
 });

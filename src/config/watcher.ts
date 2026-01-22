@@ -13,6 +13,8 @@ import { ConfigWatchError } from './errors.js';
 import { validateConfigFile, getConfigDir, getAllConfigFilePaths } from './loader.js';
 import type { WatchOptions, FileChangeCallback } from './types.js';
 import { tryGetProjectRoot } from '../utils/index.js';
+import type { Logger } from '../logging/index.js';
+import { getLogger } from '../logging/index.js';
 
 // ============================================================
 // Debounce Utility
@@ -68,9 +70,11 @@ export class ConfigWatcher {
   private watchers: FSWatcher[] = [];
   private isWatching = false;
   private baseDir: string;
+  private readonly logger: Logger;
 
   constructor(baseDir?: string) {
     this.baseDir = baseDir ?? tryGetProjectRoot() ?? process.cwd();
+    this.logger = getLogger().child({ agent: 'ConfigWatcher' });
   }
 
   /**
@@ -86,7 +90,10 @@ export class ConfigWatcher {
 
     const debounceMs = options?.debounceMs ?? 300;
     const validateOnChange = options?.validateOnChange ?? true;
-    const onError = options?.onError ?? console.error;
+    const defaultErrorHandler = (error: Error): void => {
+      this.logger.error('Config watcher error', error);
+    };
+    const onError = options?.onError ?? defaultErrorHandler;
 
     const configDir = getConfigDir(this.baseDir);
 

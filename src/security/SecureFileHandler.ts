@@ -13,6 +13,8 @@ import * as path from 'node:path';
 import * as os from 'node:os';
 import { randomUUID } from 'node:crypto';
 import type { SecureFileHandlerOptions } from './types.js';
+import type { Logger } from '../logging/index.js';
+import { getLogger } from '../logging/index.js';
 
 /**
  * Default temporary file prefix
@@ -37,12 +39,14 @@ export class SecureFileHandler {
   private readonly autoCleanup: boolean;
   private readonly fileMode: number;
   private readonly trackedPaths: Set<string> = new Set();
+  private readonly logger: Logger;
   private cleanupRegistered = false;
 
   constructor(options: SecureFileHandlerOptions = {}) {
     this.tempPrefix = options.tempPrefix ?? DEFAULT_TEMP_PREFIX;
     this.autoCleanup = options.autoCleanup ?? true;
     this.fileMode = options.fileMode ?? DEFAULT_FILE_MODE;
+    this.logger = getLogger().child({ agent: 'SecureFileHandler' });
 
     if (this.autoCleanup) {
       this.registerCleanup();
@@ -186,7 +190,7 @@ export class SecureFileHandler {
     // Check if file is readable by others (warning)
     const mode = stats.mode & 0o777;
     if ((mode & 0o044) !== 0) {
-      console.warn(`[SECURITY] File ${filePath} is readable by others`);
+      this.logger.warn('File is readable by others', { filePath, mode: mode.toString(8) });
     }
 
     return fs.promises.readFile(filePath, 'utf8');

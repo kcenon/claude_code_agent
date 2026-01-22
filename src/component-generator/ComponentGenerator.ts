@@ -15,6 +15,8 @@ import * as path from 'path';
 import type { IAgent } from '../agents/types.js';
 import { InterfaceGenerator } from './InterfaceGenerator.js';
 import { APISpecificationGenerator } from './APISpecificationGenerator.js';
+import type { Logger } from '../logging/index.js';
+import { getLogger } from '../logging/index.js';
 import {
   InvalidSRSError,
   ComponentGenerationError,
@@ -51,9 +53,11 @@ export interface ComponentGeneratorConfig {
   readonly outputDir?: string;
   /** Default options for generation */
   readonly defaultOptions?: ComponentGeneratorOptions;
+  /** Optional logger instance */
+  readonly logger?: Logger;
 }
 
-const DEFAULT_CONFIG: Required<ComponentGeneratorConfig> = {
+const DEFAULT_CONFIG: Required<Omit<ComponentGeneratorConfig, 'logger'>> = {
   scratchpadDir: '.ad-sdlc/scratchpad/documents',
   outputDir: 'docs/sds',
   defaultOptions: {
@@ -82,9 +86,10 @@ export class ComponentGenerator implements IAgent {
   public readonly agentId = COMPONENT_GENERATOR_AGENT_ID;
   public readonly name = 'Component Generator Agent';
 
-  private readonly config: Required<ComponentGeneratorConfig>;
+  private readonly config: Required<Omit<ComponentGeneratorConfig, 'logger'>>;
   private readonly interfaceGenerator: InterfaceGenerator;
   private readonly apiSpecGenerator: APISpecificationGenerator;
+  private readonly logger: Logger;
   private componentCounter: number;
   private initialized = false;
 
@@ -98,6 +103,7 @@ export class ComponentGenerator implements IAgent {
       },
     };
 
+    this.logger = config.logger ?? getLogger().child({ agent: 'ComponentGenerator' });
     this.interfaceGenerator = new InterfaceGenerator();
     this.apiSpecGenerator = new APISpecificationGenerator();
     this.componentCounter = 0;
@@ -659,7 +665,7 @@ export class ComponentGenerator implements IAgent {
    * Log message if verbose mode is enabled
    */
   private log(message: string): void {
-    console.log(`[ComponentGenerator] ${message}`);
+    this.logger.debug(message);
   }
 }
 

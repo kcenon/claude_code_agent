@@ -18,6 +18,7 @@ import { join, resolve, basename, dirname } from 'node:path';
 import yaml from 'js-yaml';
 import { ConfigParseError, ConfigNotFoundError } from './errors.js';
 import { tryGetProjectRoot } from '../utils/index.js';
+import { getLogger } from '../logging/index.js';
 import {
   validateWorkflowConfig,
   validateAgentsConfig,
@@ -400,9 +401,11 @@ async function loadConfigWithEnvOverride(
   } catch (error) {
     // If env config fails to parse, log warning and use base
     if (error instanceof ConfigParseError) {
-      console.warn(
-        `Warning: Failed to parse environment config ${envPath}, using base config only: ${error.message}`
-      );
+      const logger = getLogger().child({ agent: 'ConfigLoader' });
+      logger.warn('Failed to parse environment config, using base config only', {
+        envPath,
+        error: error.message,
+      });
       return { data: baseData };
     }
     throw error;

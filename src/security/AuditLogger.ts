@@ -12,6 +12,8 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import type { AuditEvent, AuditLogEntry, AuditLoggerOptions, AuditEventType } from './types.js';
+import type { Logger } from '../logging/index.js';
+import { getLogger } from '../logging/index.js';
 
 /**
  * Default log directory
@@ -46,6 +48,7 @@ export class AuditLogger {
   private readonly maxFileSize: number;
   private readonly maxFiles: number;
   private readonly consoleOutput: boolean;
+  private readonly logger: Logger;
   private sessionId: string;
   private correlationId: string;
   private currentLogFile: string | null = null;
@@ -56,6 +59,7 @@ export class AuditLogger {
     this.maxFileSize = options.maxFileSize ?? DEFAULT_MAX_FILE_SIZE;
     this.maxFiles = options.maxFiles ?? DEFAULT_MAX_FILES;
     this.consoleOutput = options.consoleOutput ?? process.env['NODE_ENV'] !== 'production';
+    this.logger = getLogger().child({ agent: 'AuditLogger' });
     this.sessionId = randomUUID();
     this.correlationId = randomUUID();
 
@@ -147,9 +151,13 @@ export class AuditLogger {
       try {
         fs.appendFileSync(this.currentLogFile, line, { mode: 0o600 });
         this.currentFileSize += lineBytes;
-      } catch {
-        // Fall back to console if file write fails
-        console.error('[AUDIT]', JSON.stringify(entry));
+      } catch (error) {
+        // Fall back to structured logger if file write fails
+        this.logger.error(
+          'Audit log file write failed, logging entry via structured logger',
+          error instanceof Error ? error : undefined,
+          { auditEntry: entry }
+        );
       }
     }
 
@@ -165,12 +173,19 @@ export class AuditLogger {
     const icon = entry.result === 'success' ? '✓' : entry.result === 'blocked' ? '⛔' : '✗';
     const level = entry.result === 'success' ? 'info' : 'warn';
 
-    const message = `[AUDIT] ${icon} ${entry.type}: ${entry.actor} ${entry.action} ${entry.resource} (${entry.result})`;
+    const auditMessage = `${icon} ${entry.type}: ${entry.actor} ${entry.action} ${entry.resource} (${entry.result})`;
+    const context = {
+      auditType: entry.type,
+      actor: entry.actor,
+      action: entry.action,
+      resource: entry.resource,
+      result: entry.result,
+    };
 
     if (level === 'warn') {
-      console.warn(message);
+      this.logger.warn(auditMessage, context);
     } else {
-      console.log(message);
+      this.logger.info(auditMessage, context);
     }
   }
 
