@@ -33,7 +33,7 @@ import { RetryMetrics, getGlobalRetryMetrics } from './RetryMetrics.js';
 
 import { CircuitBreaker } from './CircuitBreaker.js';
 
-import { getLogger } from '../monitoring/Logger.js';
+import { getLogger } from '../logging/Logger.js';
 
 /**
  * Retry execution options
