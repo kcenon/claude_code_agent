@@ -69,6 +69,11 @@ export interface SecretManagerOptions {
 }
 
 /**
+ * Symlink handling policy for path validation
+ */
+export type SymlinkPolicyType = 'allow' | 'deny' | 'resolve';
+
+/**
  * Input validator configuration options
  */
 export interface InputValidatorOptions {
@@ -80,6 +85,18 @@ export interface InputValidatorOptions {
   readonly blockInternalUrls?: boolean;
   /** Maximum input length (default: 10000) */
   readonly maxInputLength?: number;
+  /** Additional allowed directories outside base path */
+  readonly allowedDirs?: readonly string[];
+  /** Symlink handling policy (default: 'resolve') */
+  readonly symlinkPolicy?: SymlinkPolicyType;
+  /** Enable case-insensitive path comparison (auto-detected if not specified) */
+  readonly caseInsensitive?: boolean;
+  /** Maximum path length (default: 4096) */
+  readonly maxPathLength?: number;
+  /** Audit logger for security events */
+  readonly auditLogger?: unknown;
+  /** Actor name for audit logging (default: 'system') */
+  readonly actor?: string;
 }
 
 /**

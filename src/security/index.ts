@@ -25,6 +25,7 @@ export type {
   SanitizedCommand,
   SecretManagerOptions,
   SecureFileHandlerOptions,
+  SymlinkPolicyType,
   ValidationResult,
   WhitelistSource,
   WhitelistSourceType,
@@ -51,6 +52,24 @@ export { SecretManager, getSecretManager, resetSecretManager } from './SecretMan
 
 // InputValidator
 export { InputValidator } from './InputValidator.js';
+export type { ExtendedValidationResult } from './InputValidator.js';
+
+// PathSanitizer - Dedicated path sanitization
+export { PathSanitizer } from './PathSanitizer.js';
+export type {
+  PathSanitizerOptions,
+  SanitizationResult,
+  PathRejectionReason,
+} from './PathSanitizer.js';
+
+// SymlinkResolver - Secure symbolic link handling
+export { SymlinkResolver } from './SymlinkResolver.js';
+export type {
+  SymlinkResolverOptions,
+  SymlinkResolutionResult,
+  SafeFileHandle,
+  SymlinkPolicy,
+} from './SymlinkResolver.js';
 
 // AuditLogger
 export {
