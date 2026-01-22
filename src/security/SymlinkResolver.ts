@@ -312,7 +312,9 @@ export class SymlinkResolver {
     return {
       fd,
       path: validatedPath,
-      close: () => fs.closeSync(fd),
+      close: (): void => {
+        fs.closeSync(fd);
+      },
     };
   }
 
@@ -362,7 +364,7 @@ export class SymlinkResolver {
     return {
       fd,
       path: validatedPath,
-      close: () => {
+      close: (): void => {
         handle.close().catch(() => {
           // Ignore close errors
         });

@@ -83,7 +83,9 @@ const INVALID_COMPONENT_PATTERNS = [
 
 /**
  * Characters not allowed in path components
+ * Intentionally matching control characters for security validation
  */
+// eslint-disable-next-line no-control-regex
 const INVALID_PATH_CHARS = /[\x00-\x1f<>:"|?*]/;
 
 /**
@@ -183,7 +185,8 @@ export class PathSanitizer {
       throw new PathTraversalError(inputPath);
     }
 
-    return result.sanitizedPath!;
+    // sanitizedPath is guaranteed to exist when valid is true
+    return result.sanitizedPath as string;
   }
 
   /**

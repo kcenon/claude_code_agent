@@ -138,7 +138,8 @@ export class InputValidator {
     }
 
     // Return the real path if symlink was resolved, otherwise the sanitized path
-    return symlinkResult.realPath ?? sanitizationResult.sanitizedPath!;
+    // sanitizedPath is guaranteed to exist when valid is true
+    return symlinkResult.realPath ?? (sanitizationResult.sanitizedPath as string);
   }
 
   /**
@@ -168,7 +169,8 @@ export class InputValidator {
       throw new PathTraversalError(inputPath);
     }
 
-    return symlinkResult.realPath ?? sanitizationResult.sanitizedPath!;
+    // sanitizedPath is guaranteed to exist when valid is true
+    return symlinkResult.realPath ?? (sanitizationResult.sanitizedPath as string);
   }
 
   /**
@@ -485,7 +487,7 @@ export class InputValidator {
    */
   private logPathRejection(
     inputPath: string,
-    reason: PathRejectionReason | string,
+    reason: PathRejectionReason,
     details?: Record<string, unknown>
   ): void {
     if (this.auditLogger) {
