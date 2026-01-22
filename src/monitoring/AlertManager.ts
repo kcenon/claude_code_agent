@@ -23,11 +23,12 @@ import type {
   AlertEscalationConfig,
   AlertEventWithEscalation,
 } from './types.js';
+import { DEFAULT_PATHS } from '../config/paths.js';
 
 /**
  * Default alerts directory
  */
-const DEFAULT_ALERTS_DIR = '.ad-sdlc/alerts';
+const DEFAULT_ALERTS_DIR = DEFAULT_PATHS.ALERTS;
 
 /**
  * Default max history size

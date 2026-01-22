@@ -19,6 +19,7 @@ import yaml from 'js-yaml';
 import { ConfigParseError, ConfigNotFoundError } from './errors.js';
 import { tryGetProjectRoot } from '../utils/index.js';
 import { getLogger } from '../logging/index.js';
+import { DEFAULT_PATHS } from './paths.js';
 import {
   validateWorkflowConfig,
   validateAgentsConfig,
@@ -68,7 +69,7 @@ const CACHE_TTL_MS = 5 * 60 * 1000;
 /**
  * Default configuration directory
  */
-const DEFAULT_CONFIG_DIR = '.ad-sdlc/config';
+const DEFAULT_CONFIG_DIR = DEFAULT_PATHS.CONFIG_SUBDIR;
 
 /**
  * Configuration file names

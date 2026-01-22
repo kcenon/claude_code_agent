@@ -97,3 +97,20 @@ export type {
   DocumentQualityGate,
   ConfigManagerOptions,
 } from './ConfigManager.js';
+
+// Paths
+export {
+  getProjectPaths,
+  getPaths,
+  resetPaths,
+  getPath,
+  resolvePath,
+  getPathsForProject,
+  getAdSdlcDir,
+  getScratchpadDirs,
+  getTemplatePath,
+  getConfigFilePath as getConfigPath,
+  PATH_ENV_VARS,
+  DEFAULT_PATHS,
+} from './paths.js';
+export type { ProjectPaths } from './paths.js';

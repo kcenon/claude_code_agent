@@ -14,11 +14,12 @@ import { randomUUID } from 'node:crypto';
 import type { AuditEvent, AuditLogEntry, AuditLoggerOptions, AuditEventType } from './types.js';
 import type { Logger } from '../logging/index.js';
 import { getLogger } from '../logging/index.js';
+import { DEFAULT_PATHS } from '../config/paths.js';
 
 /**
  * Default log directory
  */
-const DEFAULT_LOG_DIR = '.ad-sdlc/logs/audit';
+const DEFAULT_LOG_DIR = DEFAULT_PATHS.AUDIT_LOGS;
 
 /**
  * Default max file size (10MB)

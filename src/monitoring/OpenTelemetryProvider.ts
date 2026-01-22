@@ -50,7 +50,8 @@ import { ADSDLC_SPAN_ATTRIBUTES } from './types.js';
 /**
  * Default configuration directory
  */
-const DEFAULT_CONFIG_DIR = '.ad-sdlc/config';
+import { DEFAULT_PATHS } from '../config/paths.js';
+const DEFAULT_CONFIG_DIR = DEFAULT_PATHS.CONFIG_SUBDIR;
 
 /**
  * Default observability configuration file name

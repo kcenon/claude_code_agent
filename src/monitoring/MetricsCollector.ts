@@ -19,11 +19,12 @@ import type {
   TokenUsageMetrics,
   StageDuration,
 } from './types.js';
+import { DEFAULT_PATHS } from '../config/paths.js';
 
 /**
  * Default metrics directory
  */
-const DEFAULT_METRICS_DIR = '.ad-sdlc/metrics';
+const DEFAULT_METRICS_DIR = DEFAULT_PATHS.METRICS;
 
 /**
  * Default flush interval (30 seconds)

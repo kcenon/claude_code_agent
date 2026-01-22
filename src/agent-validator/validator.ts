@@ -14,6 +14,7 @@ import { ZodError } from 'zod';
 import { AgentFrontmatterSchema, RECOMMENDED_SECTIONS, AGENT_SCHEMA_VERSION } from './schemas.js';
 import { FrontmatterParseError, FrontmatterValidationError } from './errors.js';
 import { tryGetProjectRoot } from '../utils/index.js';
+import { DEFAULT_PATHS } from '../config/paths.js';
 import type {
   AgentFrontmatter,
   AgentValidationError,
@@ -27,7 +28,7 @@ import type {
 // ============================================================
 
 const DEFAULT_AGENTS_DIR = '.claude/agents';
-const DEFAULT_REGISTRY_PATH = '.ad-sdlc/config/agents.yaml';
+const DEFAULT_REGISTRY_PATH = `${DEFAULT_PATHS.CONFIG_SUBDIR}/agents.yaml`;
 const FRONTMATTER_REGEX = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/;
 
 // ============================================================

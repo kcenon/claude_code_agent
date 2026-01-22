@@ -9,11 +9,12 @@ import * as path from 'node:path';
 import * as fs from 'node:fs';
 import type { IScratchpadBackend, BatchOperation, BackendHealth } from './IScratchpadBackend.js';
 import type { SQLiteBackendConfig } from './types.js';
+import { DEFAULT_PATHS } from '../../config/paths.js';
 
 /**
  * Default values
  */
-const DEFAULT_DB_PATH = '.ad-sdlc/scratchpad.db';
+const DEFAULT_DB_PATH = DEFAULT_PATHS.DATABASE;
 const DEFAULT_WAL_MODE = true;
 const DEFAULT_BUSY_TIMEOUT = 5000;
 

@@ -12,11 +12,12 @@ import { randomUUID } from 'node:crypto';
 import * as yaml from 'js-yaml';
 import type { IScratchpadBackend, BatchOperation, BackendHealth } from './IScratchpadBackend.js';
 import type { FileBackendConfig } from './types.js';
+import { DEFAULT_PATHS } from '../../config/paths.js';
 
 /**
  * Default values
  */
-const DEFAULT_BASE_PATH = '.ad-sdlc/scratchpad';
+const DEFAULT_BASE_PATH = DEFAULT_PATHS.SCRATCHPAD;
 const DEFAULT_FILE_MODE = 0o600;
 const DEFAULT_DIR_MODE = 0o700;
 const DEFAULT_FORMAT = 'yaml';
