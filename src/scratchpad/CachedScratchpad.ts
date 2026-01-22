@@ -548,10 +548,7 @@ export class CachedScratchpad extends Scratchpad {
   /**
    * Parse content based on format
    */
-  private parseContent(
-    content: string,
-    format: Exclude<SerializationFormat, 'auto'>
-  ): unknown {
+  private parseContent(content: string, format: Exclude<SerializationFormat, 'auto'>): unknown {
     // Use parent's deserialize method via read
     switch (format) {
       case 'yaml':
@@ -567,14 +564,9 @@ export class CachedScratchpad extends Scratchpad {
   /**
    * Serialize data based on format
    */
-  private serializeData(
-    data: unknown,
-    filePath: string,
-    format?: SerializationFormat
-  ): string {
-    const resolvedFormat = format === undefined || format === 'auto'
-      ? this.detectFormat(filePath)
-      : format;
+  private serializeData(data: unknown, filePath: string, format?: SerializationFormat): string {
+    const resolvedFormat =
+      format === undefined || format === 'auto' ? this.detectFormat(filePath) : format;
 
     switch (resolvedFormat) {
       case 'yaml':

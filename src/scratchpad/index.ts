@@ -33,11 +33,7 @@ export { LRUCache } from './LRUCache.js';
 export type { LRUCacheOptions, CacheMetrics } from './LRUCache.js';
 
 export { WriteBatcher } from './WriteBatcher.js';
-export type {
-  WriteBatcherOptions,
-  WriteBatcherMetrics,
-  WriteHandler,
-} from './WriteBatcher.js';
+export type { WriteBatcherOptions, WriteBatcherMetrics, WriteHandler } from './WriteBatcher.js';
 
 // Error classes
 export {
