@@ -10,7 +10,7 @@
 
 import type { AppliedFix, CIFailure, CIFailureCategory, VerificationResult } from './types.js';
 import { LintFixError, TypeFixError } from './errors.js';
-import { getCommandSanitizer, createSecureFileOps, type SecureFileOps } from '../security/index.js';
+import { createSecureFileOps, type SecureFileOps } from '../security/index.js';
 import {
   type ICommandExecutor,
   type ExecutionResult,
