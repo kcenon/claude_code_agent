@@ -1159,10 +1159,24 @@ describe('Lock Heartbeat Mechanism', () => {
     // Wait for heartbeat update
     await new Promise((resolve) => setTimeout(resolve, 150));
 
-    // Read updated heartbeat
-    const updatedLock = JSON.parse(fs.readFileSync(lockPath, 'utf8'));
+    // Read updated heartbeat with retry (handles race condition during file write)
+    let updatedLock: { lastHeartbeat: string } | null = null;
+    const maxRetries = 5;
+    for (let i = 0; i < maxRetries; i++) {
+      try {
+        const content = fs.readFileSync(lockPath, 'utf8');
+        if (content.trim()) {
+          updatedLock = JSON.parse(content);
+          break;
+        }
+      } catch {
+        // File might be in the middle of being written, retry
+      }
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
 
-    expect(updatedLock.lastHeartbeat).not.toBe(initialHeartbeat);
+    expect(updatedLock).not.toBeNull();
+    expect(updatedLock!.lastHeartbeat).not.toBe(initialHeartbeat);
 
     await heartbeatScratchpad.cleanup();
   });
