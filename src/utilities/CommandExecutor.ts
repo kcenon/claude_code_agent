@@ -184,7 +184,7 @@ export class MockCommandExecutor implements ICommandExecutor {
   /**
    * Execute a mocked command
    */
-  public async execute(command: string, options?: ExecuteOptions): Promise<ExecutionResult> {
+  public execute(command: string, options?: ExecuteOptions): Promise<ExecutionResult> {
     // Only add options if defined to maintain exactOptionalPropertyTypes compatibility
     if (options !== undefined) {
       this.executedCommands.push({ command, options });
@@ -195,18 +195,18 @@ export class MockCommandExecutor implements ICommandExecutor {
     // Check exact match first
     const exactMatch = this.exactResponses.get(command);
     if (exactMatch !== undefined) {
-      return exactMatch;
+      return Promise.resolve(exactMatch);
     }
 
     // Check pattern matches
     for (const { pattern, result } of this.patternResponses) {
       if (pattern.test(command)) {
-        return result;
+        return Promise.resolve(result);
       }
     }
 
     // Return default result
-    return this.defaultResult;
+    return Promise.resolve(this.defaultResult);
   }
 }
 
