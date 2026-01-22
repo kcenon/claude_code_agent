@@ -18,10 +18,11 @@ export default defineConfig({
         'src/init/InteractiveWizard.ts', // Interactive prompts - tested via E2E
         'src/config/loader.ts', // File system operations - tested via E2E
         'src/config/watcher.ts', // CLI watch mode - tested via E2E
-        'src/pr-reviewer/PRReviewerAgent.ts', // GitHub CLI operations - tested via E2E/integration
         'src/pr-reviewer/PRCreator.ts', // GitHub CLI operations (gh pr create/list) - tested via E2E/integration
-        'src/ci-fixer/CIFixAgent.ts', // CI operations (gh run view, npm scripts) - tested via E2E/integration
-        'src/ci-fixer/FixStrategies.ts', // Shell commands (npm lint/build) - tested via E2E/integration
+        'src/pr-reviewer/PRReviewerAgent.ts', // GitHub CLI operations + complex async flows - tested via E2E
+        'src/ci-fixer/CIFixAgent.ts', // GitHub CLI + file system operations - tested via E2E/integration
+        'src/ci-fixer/FixStrategies.ts', // Complex async CI fix workflows - tested via E2E/integration
+        // Note: ICommandExecutor and MockCommandExecutor are unit tested (#383)
       ],
       thresholds: {
         lines: 80,

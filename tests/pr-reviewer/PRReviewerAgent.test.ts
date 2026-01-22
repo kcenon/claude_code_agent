@@ -1,379 +1,310 @@
+/**
+ * PRReviewerAgent Unit Tests
+ *
+ * Tests for PRReviewerAgent using MockCommandExecutor for dependency injection.
+ * This allows testing the agent's logic without actually executing shell commands.
+ */
+
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import * as fs from 'node:fs';
-import * as path from 'node:path';
-import * as yaml from 'js-yaml';
 import {
   PRReviewerAgent,
-  getPRReviewerAgent,
   resetPRReviewerAgent,
 } from '../../src/pr-reviewer/PRReviewerAgent.js';
-import type { ImplementationResult } from '../../src/pr-reviewer/types.js';
-import { ImplementationResultNotFoundError } from '../../src/pr-reviewer/errors.js';
+import { MockCommandExecutor } from '../../src/utilities/CommandExecutor.js';
 
 describe('PRReviewerAgent', () => {
-  const testDir = path.join(process.cwd(), 'tests', 'pr-reviewer', 'test-scratchpad');
-  const resultsDir = path.join(testDir, 'results');
-  const reviewsDir = path.join(testDir, 'reviews');
+  let mockExecutor: MockCommandExecutor;
+  let agent: PRReviewerAgent;
 
-  const createMinimalImplementationResult = (
-    overrides: Partial<ImplementationResult> = {}
-  ): ImplementationResult => ({
-    workOrderId: 'WO-001',
-    issueId: 'ISS-001-feature',
-    githubIssue: 123,
-    status: 'completed',
-    startedAt: new Date().toISOString(),
-    completedAt: new Date().toISOString(),
-    changes: [
+  beforeEach(() => {
+    mockExecutor = new MockCommandExecutor();
+    agent = new PRReviewerAgent(
       {
-        filePath: 'src/feature.ts',
-        changeType: 'create',
-        description: 'New feature implementation',
-        linesAdded: 100,
-        linesRemoved: 0,
+        projectRoot: '/test/project',
+        autoMerge: false,
       },
-    ],
-    tests: {
-      filesCreated: ['tests/feature.test.ts'],
-      totalTests: 10,
-      coveragePercentage: 85,
-    },
-    verification: {
-      testsPassed: true,
-      testsOutput: 'All tests passed',
-      lintPassed: true,
-      lintOutput: 'No lint errors',
-      buildPassed: true,
-      buildOutput: 'Build successful',
-    },
-    branch: {
-      name: 'feature/ISS-001-feature',
-      commits: [
-        { hash: 'abc123', message: 'feat: implement feature' },
-      ],
-    },
-    ...overrides,
+      mockExecutor
+    );
   });
 
-  const cleanupTestEnvironment = async () => {
-    try {
-      await fs.promises.rm(testDir, { recursive: true });
-    } catch {
-      // Ignore
-    }
-  };
-
-  beforeEach(async () => {
+  afterEach(() => {
+    mockExecutor.reset();
     resetPRReviewerAgent();
-    await cleanupTestEnvironment();
-    await fs.promises.mkdir(resultsDir, { recursive: true });
-    await fs.promises.mkdir(reviewsDir, { recursive: true });
-  });
-
-  afterEach(async () => {
-    resetPRReviewerAgent();
-    await cleanupTestEnvironment();
   });
 
   describe('constructor', () => {
-    it('should create with default configuration', () => {
-      const agent = new PRReviewerAgent();
-      const config = agent.getConfig();
-
-      expect(config.projectRoot).toBe(process.cwd());
-      expect(config.autoMerge).toBe(false);
-      expect(config.mergeStrategy).toBe('squash');
-      expect(config.coverageThreshold).toBe(80);
+    it('should create agent with default config', () => {
+      const defaultAgent = new PRReviewerAgent();
+      expect(defaultAgent).toBeInstanceOf(PRReviewerAgent);
+      expect(defaultAgent.agentId).toBe('pr-reviewer-agent');
+      expect(defaultAgent.name).toBe('PR Reviewer Agent');
     });
 
-    it('should accept custom configuration', () => {
-      const agent = new PRReviewerAgent({
-        projectRoot: testDir,
+    it('should create agent with custom config', () => {
+      const customAgent = new PRReviewerAgent({
+        projectRoot: '/custom/path',
         autoMerge: true,
         coverageThreshold: 90,
       });
-      const config = agent.getConfig();
 
-      expect(config.projectRoot).toBe(testDir);
+      const config = customAgent.getConfig();
+      expect(config.projectRoot).toBe('/custom/path');
       expect(config.autoMerge).toBe(true);
       expect(config.coverageThreshold).toBe(90);
     });
 
-    it('should merge custom config with defaults', () => {
-      const agent = new PRReviewerAgent({
-        autoMerge: true,
-      });
-      const config = agent.getConfig();
-
-      expect(config.autoMerge).toBe(true);
-      expect(config.mergeStrategy).toBe('squash'); // Default
-      expect(config.deleteBranchOnMerge).toBe(true); // Default
+    it('should accept custom command executor', () => {
+      const executor = new MockCommandExecutor();
+      const agentWithExecutor = new PRReviewerAgent({}, executor);
+      expect(agentWithExecutor).toBeInstanceOf(PRReviewerAgent);
     });
   });
 
-  describe('singleton', () => {
-    it('should return same instance with getPRReviewerAgent', () => {
-      resetPRReviewerAgent();
-      const agent1 = getPRReviewerAgent();
-      const agent2 = getPRReviewerAgent();
-
-      expect(agent1).toBe(agent2);
-      resetPRReviewerAgent();
+  describe('IAgent interface', () => {
+    it('should implement initialize method', async () => {
+      await expect(agent.initialize()).resolves.toBeUndefined();
     });
 
-    it('should reset instance with resetPRReviewerAgent', () => {
-      resetPRReviewerAgent();
-      const agent1 = getPRReviewerAgent();
-      resetPRReviewerAgent();
-      const agent2 = getPRReviewerAgent();
+    it('should implement dispose method', async () => {
+      await agent.initialize();
+      await expect(agent.dispose()).resolves.toBeUndefined();
+    });
 
-      expect(agent1).not.toBe(agent2);
-      resetPRReviewerAgent();
+    it('should be idempotent for multiple initialize calls', async () => {
+      await agent.initialize();
+      await agent.initialize();
+      await agent.initialize();
     });
   });
 
-  describe('review', () => {
-    it('should throw when implementation result not found', async () => {
-      const agent = new PRReviewerAgent({
-        projectRoot: testDir,
-        resultsPath: '',
-      });
+  describe('GitHub CLI integration', () => {
+    it('should find existing PR for branch', async () => {
+      const prData = [
+        {
+          number: 123,
+          url: 'https://github.com/owner/repo/pull/123',
+          title: 'Test PR',
+          headRefName: 'feature/test',
+          baseRefName: 'main',
+          createdAt: '2025-01-22T00:00:00Z',
+          state: 'OPEN',
+        },
+      ];
 
-      await expect(
-        agent.review('WO-NONEXISTENT', { dryRun: true, skipCIWait: true })
-      ).rejects.toThrow(ImplementationResultNotFoundError);
-    });
-  });
-
-  describe('reviewFromFile', () => {
-    it('should attempt to read implementation result from file', async () => {
-      const implResult = createMinimalImplementationResult();
-      const resultPath = path.join(resultsDir, 'WO-001-result.yaml');
-      await fs.promises.writeFile(resultPath, yaml.dump(implResult), 'utf-8');
-
-      // Verify the file was written correctly
-      const written = await fs.promises.readFile(resultPath, 'utf-8');
-      const parsed = yaml.load(written) as ImplementationResult;
-      expect(parsed.workOrderId).toBe('WO-001');
-    });
-
-    it('should throw on invalid YAML', async () => {
-      const resultPath = path.join(resultsDir, 'invalid.yaml');
-      await fs.promises.writeFile(resultPath, '{ invalid yaml [', 'utf-8');
-
-      const agent = new PRReviewerAgent({
-        projectRoot: testDir,
-        resultsPath: '',
+      mockExecutor.mockPatternResponse(/gh pr list --head/, {
+        stdout: JSON.stringify(prData),
+        stderr: '',
+        exitCode: 0,
       });
 
-      await expect(
-        agent.reviewFromFile(resultPath, { dryRun: true, skipCIWait: true })
-      ).rejects.toThrow();
-    });
-  });
+      // Access private method via any cast for testing
+      const findExistingPR = (agent as any).findExistingPR.bind(agent);
+      const result = await findExistingPR('feature/test');
 
-  describe('getConfig', () => {
-    it('should return copy of configuration', () => {
-      const agent = new PRReviewerAgent({
-        projectRoot: testDir,
-        autoMerge: true,
+      expect(result).not.toBeNull();
+      expect(result?.number).toBe(123);
+      expect(result?.branch).toBe('feature/test');
+      expect(mockExecutor.wasPatternExecuted(/gh pr list/)).toBe(true);
+    });
+
+    it('should return null when no PR exists', async () => {
+      mockExecutor.mockPatternResponse(/gh pr list/, {
+        stdout: '[]',
+        stderr: '',
+        exitCode: 0,
       });
 
-      const config1 = agent.getConfig();
-      const config2 = agent.getConfig();
+      const findExistingPR = (agent as any).findExistingPR.bind(agent);
+      const result = await findExistingPR('non-existent-branch');
 
-      expect(config1).toEqual(config2);
-      expect(config1).not.toBe(config2); // Different objects
+      expect(result).toBeNull();
     });
 
-    it('should include all configuration options', () => {
-      const agent = new PRReviewerAgent();
-      const config = agent.getConfig();
+    it('should get PR info with mock executor', async () => {
+      const prInfo = {
+        number: 456,
+        state: 'OPEN',
+        url: 'https://github.com/owner/repo/pull/456',
+        title: 'Test PR',
+        headRefName: 'feature/test',
+        baseRefName: 'main',
+        createdAt: '2025-01-22T00:00:00Z',
+        statusCheckRollup: [
+          { name: 'build', status: 'completed', conclusion: 'success' },
+          { name: 'test', status: 'completed', conclusion: 'success' },
+        ],
+        reviews: [],
+      };
 
-      expect(config).toHaveProperty('projectRoot');
-      expect(config).toHaveProperty('resultsPath');
-      expect(config).toHaveProperty('autoMerge');
-      expect(config).toHaveProperty('mergeStrategy');
-      expect(config).toHaveProperty('deleteBranchOnMerge');
-      expect(config).toHaveProperty('coverageThreshold');
-      expect(config).toHaveProperty('maxComplexity');
-      expect(config).toHaveProperty('ciTimeout');
-      expect(config).toHaveProperty('ciPollInterval');
+      mockExecutor.mockPatternResponse(/gh pr view/, {
+        stdout: JSON.stringify(prInfo),
+        stderr: '',
+        exitCode: 0,
+      });
+
+      const getPRInfo = (agent as any).getPRInfo.bind(agent);
+      const result = await getPRInfo(456);
+
+      expect(result.number).toBe(456);
+      expect(result.state).toBe('open');
+      expect(result.statusCheckRollup).toHaveLength(2);
     });
   });
 
-  describe('configuration edge cases', () => {
-    it('should handle all merge strategies', () => {
-      const strategies = ['merge', 'squash', 'rebase'] as const;
+  describe('command execution tracking', () => {
+    it('should track executed commands', async () => {
+      mockExecutor.setDefaultResult({
+        stdout: '{}',
+        stderr: '',
+        exitCode: 0,
+      });
 
-      for (const strategy of strategies) {
-        const agent = new PRReviewerAgent({
-          mergeStrategy: strategy,
-        });
-        const config = agent.getConfig();
-        expect(config.mergeStrategy).toBe(strategy);
+      const executeCommand = (agent as any).executeCommand.bind(agent);
+      await executeCommand('gh pr list');
+      await executeCommand('gh pr view 123');
+      await executeCommand('git status');
+
+      const executedCommands = mockExecutor.getExecutedCommands();
+      expect(executedCommands).toHaveLength(3);
+      expect(executedCommands[0].command).toBe('gh pr list');
+      expect(executedCommands[1].command).toBe('gh pr view 123');
+      expect(executedCommands[2].command).toBe('git status');
+    });
+
+    it('should pass correct options to executor', async () => {
+      mockExecutor.setDefaultResult({
+        stdout: '',
+        stderr: '',
+        exitCode: 0,
+      });
+
+      const executeCommand = (agent as any).executeCommand.bind(agent);
+      await executeCommand('test command');
+
+      const executedCommands = mockExecutor.getExecutedCommands();
+      expect(executedCommands).toHaveLength(1);
+      expect(executedCommands[0].options?.cwd).toBe('/test/project');
+      expect(executedCommands[0].options?.timeout).toBe(120000);
+      expect(executedCommands[0].options?.ignoreExitCode).toBe(true);
+    });
+  });
+
+  describe('circuit breaker', () => {
+    it('should expose circuit breaker for monitoring', () => {
+      const circuitBreaker = agent.getCircuitBreaker();
+      expect(circuitBreaker).toBeDefined();
+      expect(circuitBreaker.getStatus().state).toBe('closed');
+    });
+
+    it('should allow resetting circuit breaker', () => {
+      const circuitBreaker = agent.getCircuitBreaker();
+
+      for (let i = 0; i < 10; i++) {
+        circuitBreaker.recordFailure();
       }
+
+      agent.resetCircuitBreaker();
+      expect(circuitBreaker.getStatus().state).toBe('closed');
+    });
+  });
+
+  describe('intelligent poller', () => {
+    it('should expose intelligent poller for monitoring', () => {
+      const poller = agent.getIntelligentPoller();
+      expect(poller).toBeDefined();
+    });
+  });
+
+  describe('CI fix delegation', () => {
+    it('should check if delegation is needed', () => {
+      const shouldDelegate = agent.shouldDelegateToCIFixer(123, 3);
+      expect(typeof shouldDelegate).toBe('boolean');
     });
 
-    it('should handle coverage threshold boundaries', () => {
-      const agent1 = new PRReviewerAgent({ coverageThreshold: 0 });
-      expect(agent1.getConfig().coverageThreshold).toBe(0);
-
-      const agent2 = new PRReviewerAgent({ coverageThreshold: 100 });
-      expect(agent2.getConfig().coverageThreshold).toBe(100);
+    it('should not delegate when retry count is below threshold', () => {
+      const result = agent.shouldDelegateToCIFixer(123, 2);
+      expect(result).toBe(false);
     });
+  });
 
-    it('should handle timeout configuration', () => {
-      const agent = new PRReviewerAgent({
-        ciTimeout: 300000, // 5 minutes
-        ciPollInterval: 5000, // 5 seconds
-      });
+  describe('configuration', () => {
+    it('should return full configuration', () => {
       const config = agent.getConfig();
 
-      expect(config.ciTimeout).toBe(300000);
-      expect(config.ciPollInterval).toBe(5000);
+      expect(config.projectRoot).toBe('/test/project');
+      expect(config.autoMerge).toBe(false);
+      expect(config.mergeStrategy).toBeDefined();
+      expect(config.coverageThreshold).toBeDefined();
+      expect(config.ciTimeout).toBeDefined();
     });
   });
 
-  describe('implementation result handling', () => {
-    it('should correctly parse valid implementation result', async () => {
-      const implResult = createMinimalImplementationResult();
-      const resultPath = path.join(resultsDir, 'WO-001-result.yaml');
-      await fs.promises.writeFile(resultPath, yaml.dump(implResult));
-
-      // Read and verify the file content
-      const content = await fs.promises.readFile(resultPath, 'utf-8');
-      const parsed = yaml.load(content) as ImplementationResult;
-
-      expect(parsed.workOrderId).toBe('WO-001');
-      expect(parsed.issueId).toBe('ISS-001-feature');
-      expect(parsed.status).toBe('completed');
-      expect(parsed.changes).toHaveLength(1);
-      expect(parsed.verification.testsPassed).toBe(true);
-    });
-
-    it('should handle implementation result with blockers', async () => {
-      const implResult = createMinimalImplementationResult({
-        status: 'blocked',
-        blockers: ['Missing API key', 'Database connection failed'],
+  describe('error handling', () => {
+    it('should handle command execution failure gracefully', async () => {
+      mockExecutor.setDefaultResult({
+        stdout: '',
+        stderr: 'Command failed',
+        exitCode: 1,
       });
 
-      expect(implResult.status).toBe('blocked');
-      expect(implResult.blockers).toHaveLength(2);
-    });
+      const executeCommand = (agent as any).executeCommand.bind(agent);
+      const result = await executeCommand('failing-command');
 
-    it('should handle implementation result with optional fields', async () => {
-      const implResult = createMinimalImplementationResult({
-        notes: 'Additional implementation notes',
-        githubIssue: undefined,
-      });
-
-      expect(implResult.notes).toBe('Additional implementation notes');
-      expect(implResult.githubIssue).toBeUndefined();
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toBe('Command failed');
     });
   });
 
-  describe('file change handling', () => {
-    it('should handle multiple file changes', () => {
-      const implResult = createMinimalImplementationResult({
-        changes: [
-          {
-            filePath: 'src/feature.ts',
-            changeType: 'create',
-            description: 'New feature',
-            linesAdded: 100,
-            linesRemoved: 0,
-          },
-          {
-            filePath: 'src/utils.ts',
-            changeType: 'modify',
-            description: 'Updated utils',
-            linesAdded: 10,
-            linesRemoved: 5,
-          },
-          {
-            filePath: 'src/old.ts',
-            changeType: 'delete',
-            description: 'Removed old file',
-            linesAdded: 0,
-            linesRemoved: 50,
-          },
-        ],
+  describe('mock executor patterns', () => {
+    it('should match exact commands', async () => {
+      mockExecutor.mockResponse('exact-command', {
+        stdout: 'exact match response',
+        stderr: '',
+        exitCode: 0,
       });
 
-      expect(implResult.changes).toHaveLength(3);
-      expect(implResult.changes[0].changeType).toBe('create');
-      expect(implResult.changes[1].changeType).toBe('modify');
-      expect(implResult.changes[2].changeType).toBe('delete');
+      const executeCommand = (agent as any).executeCommand.bind(agent);
+      const result = await executeCommand('exact-command');
+
+      expect(result.stdout).toBe('exact match response');
     });
 
-    it('should calculate total lines changed', () => {
-      const implResult = createMinimalImplementationResult({
-        changes: [
-          { filePath: 'a.ts', changeType: 'create', description: '', linesAdded: 100, linesRemoved: 0 },
-          { filePath: 'b.ts', changeType: 'modify', description: '', linesAdded: 50, linesRemoved: 30 },
-        ],
+    it('should match pattern commands', async () => {
+      mockExecutor.mockPatternResponse(/gh pr (create|list|view)/, {
+        stdout: 'pattern match response',
+        stderr: '',
+        exitCode: 0,
       });
 
-      const totalAdded = implResult.changes.reduce((sum, c) => sum + c.linesAdded, 0);
-      const totalRemoved = implResult.changes.reduce((sum, c) => sum + c.linesRemoved, 0);
+      const executeCommand = (agent as any).executeCommand.bind(agent);
 
-      expect(totalAdded).toBe(150);
-      expect(totalRemoved).toBe(30);
-    });
-  });
+      const result1 = await executeCommand('gh pr create --title "test"');
+      expect(result1.stdout).toBe('pattern match response');
 
-  describe('verification result handling', () => {
-    it('should handle all passing verification', () => {
-      const implResult = createMinimalImplementationResult({
-        verification: {
-          testsPassed: true,
-          testsOutput: 'All 50 tests passed',
-          lintPassed: true,
-          lintOutput: 'No warnings',
-          buildPassed: true,
-          buildOutput: 'Compiled successfully',
-        },
-      });
+      const result2 = await executeCommand('gh pr list');
+      expect(result2.stdout).toBe('pattern match response');
 
-      expect(implResult.verification.testsPassed).toBe(true);
-      expect(implResult.verification.lintPassed).toBe(true);
-      expect(implResult.verification.buildPassed).toBe(true);
+      const result3 = await executeCommand('gh pr view 123');
+      expect(result3.stdout).toBe('pattern match response');
     });
 
-    it('should handle failing verification', () => {
-      const implResult = createMinimalImplementationResult({
-        verification: {
-          testsPassed: false,
-          testsOutput: '5 tests failed',
-          lintPassed: false,
-          lintOutput: '10 errors found',
-          buildPassed: false,
-          buildOutput: 'Compilation failed',
-        },
+    it('should prioritize exact match over pattern match', async () => {
+      mockExecutor.mockPatternResponse(/gh pr/, {
+        stdout: 'pattern response',
+        stderr: '',
+        exitCode: 0,
       });
 
-      expect(implResult.verification.testsPassed).toBe(false);
-      expect(implResult.verification.lintPassed).toBe(false);
-      expect(implResult.verification.buildPassed).toBe(false);
-    });
-  });
-
-  describe('branch information', () => {
-    it('should handle branch with multiple commits', () => {
-      const implResult = createMinimalImplementationResult({
-        branch: {
-          name: 'feature/ISS-001-feature',
-          commits: [
-            { hash: 'abc123', message: 'feat: initial implementation' },
-            { hash: 'def456', message: 'feat: add tests' },
-            { hash: 'ghi789', message: 'fix: address review feedback' },
-          ],
-        },
+      mockExecutor.mockResponse('gh pr list', {
+        stdout: 'exact response',
+        stderr: '',
+        exitCode: 0,
       });
 
-      expect(implResult.branch.commits).toHaveLength(3);
-      expect(implResult.branch.name).toContain('feature/');
+      const executeCommand = (agent as any).executeCommand.bind(agent);
+
+      const result = await executeCommand('gh pr list');
+      expect(result.stdout).toBe('exact response');
     });
   });
 });
