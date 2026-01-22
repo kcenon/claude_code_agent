@@ -33,6 +33,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import * as yaml from 'js-yaml';
 import { Scratchpad } from './Scratchpad.js';
 import { LRUCache } from './LRUCache.js';
 import type { CacheMetrics } from './LRUCache.js';
@@ -156,7 +157,7 @@ export class CachedScratchpad extends Scratchpad {
       this.batcher = new WriteBatcher({
         flushIntervalMs: options.flushIntervalMs ?? DEFAULT_FLUSH_INTERVAL_MS,
         maxBatchSize: options.maxBatchSize ?? DEFAULT_MAX_BATCH_SIZE,
-        writeHandler: async (key, content) => {
+        writeHandler: async (key: string, content: string): Promise<void> => {
           await super.atomicWrite(key, content);
         },
       });
@@ -212,7 +213,7 @@ export class CachedScratchpad extends Scratchpad {
     try {
       const content = await this.readWithCache(filePath);
       if (content === null) {
-        if (options.allowMissing) {
+        if (options.allowMissing === true) {
           return null;
         }
         const error = new Error(`ENOENT: no such file or directory, open '${filePath}'`);
@@ -221,7 +222,7 @@ export class CachedScratchpad extends Scratchpad {
       }
       return content.parsed as T;
     } catch (error) {
-      if (options.allowMissing && (error as NodeJS.ErrnoException).code === 'ENOENT') {
+      if (options.allowMissing === true && (error as NodeJS.ErrnoException).code === 'ENOENT') {
         return null;
       }
       throw error;
@@ -264,9 +265,9 @@ export class CachedScratchpad extends Scratchpad {
    *
    * @override
    */
-  override async write<T>(
+  override async write(
     filePath: string,
-    data: T,
+    data: unknown,
     options: AtomicWriteOptions = {}
   ): Promise<void> {
     const content = this.serializeData(data, filePath, options.format);
@@ -277,7 +278,7 @@ export class CachedScratchpad extends Scratchpad {
     }
 
     // Use batcher or direct write
-    if (this.batcher !== null && !options.mode) {
+    if (this.batcher !== null && options.mode === undefined) {
       // Queue write without waiting for flush
       // The write will be persisted on next flush() call or auto-flush
       this.batcher.write(filePath, content).catch(() => {
@@ -293,9 +294,9 @@ export class CachedScratchpad extends Scratchpad {
    *
    * @override
    */
-  override async writeYaml<T>(
+  override async writeYaml(
     filePath: string,
-    data: T,
+    data: unknown,
     options: AtomicWriteOptions = {}
   ): Promise<void> {
     return this.write(filePath, data, { ...options, format: 'yaml' });
@@ -306,9 +307,9 @@ export class CachedScratchpad extends Scratchpad {
    *
    * @override
    */
-  override async writeJson<T>(
+  override async writeJson(
     filePath: string,
-    data: T,
+    data: unknown,
     options: AtomicWriteOptions = {}
   ): Promise<void> {
     return this.write(filePath, data, { ...options, format: 'json' });
@@ -334,9 +335,9 @@ export class CachedScratchpad extends Scratchpad {
    * @param data - Data to write
    * @param options - Write options
    */
-  async writeImmediate<T>(
+  async writeImmediate(
     filePath: string,
-    data: T,
+    data: unknown,
     options: AtomicWriteOptions = {}
   ): Promise<void> {
     const content = this.serializeData(data, filePath, options.format);
@@ -553,11 +554,8 @@ export class CachedScratchpad extends Scratchpad {
   ): unknown {
     // Use parent's deserialize method via read
     switch (format) {
-      case 'yaml': {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        const yaml = require('js-yaml');
+      case 'yaml':
         return yaml.load(content);
-      }
       case 'json':
         return JSON.parse(content);
       case 'markdown':
@@ -579,15 +577,12 @@ export class CachedScratchpad extends Scratchpad {
       : format;
 
     switch (resolvedFormat) {
-      case 'yaml': {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        const yaml = require('js-yaml');
+      case 'yaml':
         return yaml.dump(data, {
           indent: 2,
           lineWidth: 120,
           noRefs: true,
         });
-      }
       case 'json':
         return JSON.stringify(data, null, 2);
       case 'markdown':
