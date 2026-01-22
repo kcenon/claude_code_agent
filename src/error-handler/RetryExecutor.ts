@@ -338,7 +338,7 @@ export class RetryExecutor {
     const result = await this.executeWithResult(operation, options);
 
     if (!result.success) {
-      throw result.error;
+      throw result.error ?? new Error('Unknown error during retry execution');
     }
 
     return result.value as T;
@@ -596,7 +596,7 @@ export function fromLegacyPolicy(legacyPolicy: Partial<RetryPolicy>): UnifiedRet
     baseDelayMs: legacyPolicy.baseDelayMs ?? DEFAULT_UNIFIED_RETRY_POLICY.baseDelayMs,
     maxDelayMs: legacyPolicy.maxDelayMs ?? DEFAULT_UNIFIED_RETRY_POLICY.maxDelayMs,
     multiplier: legacyPolicy.backoffMultiplier ?? DEFAULT_UNIFIED_RETRY_POLICY.multiplier,
-    jitterRatio: legacyPolicy.enableJitter
+    jitterRatio: legacyPolicy.enableJitter === true
       ? (legacyPolicy.jitterFactor ?? DEFAULT_UNIFIED_RETRY_POLICY.jitterRatio)
       : 0,
   };
