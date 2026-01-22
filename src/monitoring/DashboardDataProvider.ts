@@ -18,7 +18,7 @@ import type {
   LogEntry,
   AlertEvent,
 } from './types.js';
-import { getLogger } from './Logger.js';
+import { getLogger } from '../logging/Logger.js';
 import { getMetricsCollector } from './MetricsCollector.js';
 import { getAlertManager } from './AlertManager.js';
 

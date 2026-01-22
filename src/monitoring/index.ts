@@ -68,11 +68,12 @@ export {
   CacheError,
 } from './errors.js';
 
-// Logger
-export { Logger, getLogger, resetLogger } from './Logger.js';
+// Logger - re-exported from unified logging module for backward compatibility
+export { Logger, getLogger, resetLogger, getLoggerFromEnv } from '../logging/Logger.js';
+export type { LoggerConfig, EnvironmentConfig, LoggerState, LoggerHealth } from '../logging/Logger.js';
 
-// LogQueryParser
-export { LogQueryParser, createLogQueryParser } from './LogQueryParser.js';
+// LogQueryParser - re-exported from unified logging module for backward compatibility
+export { LogQueryParser, createLogQueryParser } from '../logging/LogQueryParser.js';
 
 // MetricsCollector
 export {
