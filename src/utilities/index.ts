@@ -351,8 +351,4 @@ export {
   resetCommandExecutor,
 } from './CommandExecutor.js';
 
-export type {
-  ExecutionResult,
-  ExecuteOptions,
-  ICommandExecutor,
-} from './CommandExecutor.js';
+export type { ExecutionResult, ExecuteOptions, ICommandExecutor } from './CommandExecutor.js';
