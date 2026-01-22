@@ -338,14 +338,6 @@ export type {
 } from '../status/index.js';
 
 // Re-export safe cleanup utilities
-export {
-  safeCleanup,
-  safeCleanupSync,
-  fireAndForgetCleanup,
-} from './safeCleanup.js';
+export { safeCleanup, safeCleanupSync, fireAndForgetCleanup } from './safeCleanup.js';
 
-export type {
-  CleanupLogger,
-  SafeCleanupOptions,
-  CleanupResult,
-} from './safeCleanup.js';
+export type { CleanupLogger, SafeCleanupOptions, CleanupResult } from './safeCleanup.js';
