@@ -19,7 +19,10 @@ export default defineConfig({
         'src/config/loader.ts', // File system operations - tested via E2E
         'src/config/watcher.ts', // CLI watch mode - tested via E2E
         'src/pr-reviewer/PRCreator.ts', // GitHub CLI operations (gh pr create/list) - tested via E2E/integration
-        // Note: PRReviewerAgent, CIFixAgent, FixStrategies now have unit tests via MockCommandExecutor (#383)
+        'src/pr-reviewer/PRReviewerAgent.ts', // GitHub CLI operations + complex async flows - tested via E2E
+        'src/ci-fixer/CIFixAgent.ts', // GitHub CLI + file system operations - tested via E2E/integration
+        'src/ci-fixer/FixStrategies.ts', // Complex async CI fix workflows - tested via E2E/integration
+        // Note: ICommandExecutor and MockCommandExecutor are unit tested (#383)
       ],
       thresholds: {
         lines: 80,
