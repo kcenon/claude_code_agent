@@ -79,6 +79,20 @@ export interface EnvironmentConfig {
 export type LoggerState = 'uninitialized' | 'initializing' | 'ready' | 'error' | 'closed';
 
 /**
+ * Information about the last transport error
+ */
+export interface LastTransportError {
+  /** Transport name that failed */
+  readonly transport: string;
+  /** Error message */
+  readonly error: string;
+  /** Timestamp when error occurred */
+  readonly timestamp: number;
+  /** Correlation ID of the failed log entry */
+  readonly correlationId?: string;
+}
+
+/**
  * Logger health information
  */
 export interface LoggerHealth {
@@ -92,6 +106,8 @@ export interface LoggerHealth {
   readonly failedLogs: number;
   /** Last log time */
   readonly lastLogTime?: Date;
+  /** Last transport error information */
+  readonly lastTransportError?: LastTransportError;
 }
 
 /**
@@ -253,6 +269,7 @@ export class Logger {
   private totalLogs = 0;
   private failedLogs = 0;
   private lastLogTime?: Date;
+  private lastTransportError?: LastTransportError;
 
   // Configuration
   private readonly config: LoggerConfig;
@@ -441,8 +458,17 @@ export class Logger {
     this.lastLogTime = new Date();
 
     for (const transport of this.transports) {
-      void transport.log(entry).catch(() => {
+      void transport.log(entry).catch((error: unknown) => {
         this.failedLogs++;
+        const transportError: LastTransportError = {
+          transport: transport.name,
+          error: error instanceof Error ? error.message : String(error),
+          timestamp: Date.now(),
+        };
+        if (entry.correlationId !== undefined) {
+          (transportError as { correlationId: string }).correlationId = entry.correlationId;
+        }
+        this.lastTransportError = transportError;
       });
     }
   }
@@ -785,6 +811,11 @@ export class Logger {
 
     if (this.lastLogTime !== undefined) {
       (health as { lastLogTime: Date }).lastLogTime = this.lastLogTime;
+    }
+
+    if (this.lastTransportError !== undefined) {
+      (health as { lastTransportError: LastTransportError }).lastTransportError =
+        this.lastTransportError;
     }
 
     return health;

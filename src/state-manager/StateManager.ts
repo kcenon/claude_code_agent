@@ -689,7 +689,13 @@ export function getStateManager(options?: StateManagerOptions): StateManager {
  */
 export function resetStateManager(): void {
   if (globalStateManager !== null) {
-    globalStateManager.cleanup().catch(() => {});
+    globalStateManager.cleanup().catch((error: unknown) => {
+      // Log cleanup errors to console in development for debugging
+      if (process.env.NODE_ENV !== 'production') {
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        console.debug(`StateManager cleanup failed: ${errorMsg}`);
+      }
+    });
     globalStateManager = null;
   }
 }

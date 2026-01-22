@@ -365,8 +365,12 @@ export class SymlinkResolver {
       fd,
       path: validatedPath,
       close: (): void => {
-        handle.close().catch(() => {
-          // Ignore close errors
+        handle.close().catch((error: unknown) => {
+          // Log close errors at debug level for troubleshooting
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          if (process.env.DEBUG === 'true' || process.env.NODE_ENV !== 'production') {
+            console.debug(`File handle close failed for ${validatedPath}: ${errorMsg}`);
+          }
         });
       },
     };

@@ -647,7 +647,12 @@ export class Scratchpad {
    */
   private setupAutoRelease(filePath: string, lockId: string, enableHeartbeat: boolean): void {
     const autoReleaseTimer = setTimeout(() => {
-      this.releaseLock(filePath, lockId).catch(() => {});
+      this.releaseLock(filePath, lockId).catch((error: unknown) => {
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        if (process.env.DEBUG === 'true') {
+          console.debug(`Auto-release lock failed for ${filePath}: ${errorMsg}`);
+        }
+      });
     }, this.lockTimeout);
 
     const entry: ActiveLockEntry = {
@@ -659,7 +664,12 @@ export class Scratchpad {
     // Set up heartbeat timer if enabled
     if (enableHeartbeat) {
       entry.heartbeatTimer = setInterval(() => {
-        this.updateLockHeartbeat(filePath, lockId).catch(() => {});
+        this.updateLockHeartbeat(filePath, lockId).catch((error: unknown) => {
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          if (process.env.DEBUG === 'true') {
+            console.debug(`Lock heartbeat update failed for ${filePath}: ${errorMsg}`);
+          }
+        });
       }, this.heartbeatConfig.intervalMs);
     }
 
@@ -953,7 +963,13 @@ export class Scratchpad {
         try {
           await fs.promises.link(tempLockPath, lockPath);
           // Link succeeded, remove temp file
-          await fs.promises.unlink(tempLockPath).catch(() => {});
+          await fs.promises.unlink(tempLockPath).catch((error: unknown) => {
+            // Temp file cleanup is best-effort; log for debugging
+            const errorMsg = error instanceof Error ? error.message : String(error);
+            if (process.env.DEBUG === 'true') {
+              console.debug(`Temp lock file cleanup failed for ${tempLockPath}: ${errorMsg}`);
+            }
+          });
 
           // Lock acquired successfully!
           this.setupAutoRelease(validatedPath, lockId, enableHeartbeat);
@@ -962,7 +978,13 @@ export class Scratchpad {
           const code = (err as NodeJS.ErrnoException).code;
           if (code !== 'EEXIST') {
             // Clean up temp file and rethrow unexpected errors
-            await fs.promises.unlink(tempLockPath).catch(() => {});
+            await fs.promises.unlink(tempLockPath).catch((error: unknown) => {
+              // Temp file cleanup is best-effort; log for debugging
+              const errorMsg = error instanceof Error ? error.message : String(error);
+              if (process.env.DEBUG === 'true') {
+                console.debug(`Temp lock file cleanup failed for ${tempLockPath}: ${errorMsg}`);
+              }
+            });
             throw err;
           }
           // Lock exists, continue to check if expired
@@ -1015,7 +1037,13 @@ export class Scratchpad {
         await this.sleep(delay + jitter);
       } finally {
         // Clean up temp file if it still exists
-        await fs.promises.unlink(tempLockPath).catch(() => {});
+        await fs.promises.unlink(tempLockPath).catch((error: unknown) => {
+          // Temp file cleanup is best-effort; log for debugging
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          if (process.env.DEBUG === 'true') {
+            console.debug(`Temp lock file cleanup failed for ${tempLockPath}: ${errorMsg}`);
+          }
+        });
       }
     }
 

@@ -179,8 +179,13 @@ export class WriteBatcher {
 
       // Force flush if batch size exceeded
       if (this.pendingWrites.size >= this.maxBatchSize) {
-        this.flush().catch(() => {
-          // Error handling is done per-write in flush()
+        this.flush().catch((error: unknown) => {
+          // Primary error handling is done per-write in flush()
+          // This catch prevents unhandled promise rejection
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          if (process.env.DEBUG === 'true') {
+            console.debug(`Batch flush failed: ${errorMsg}`);
+          }
         });
       }
     });
@@ -356,8 +361,13 @@ export class WriteBatcher {
     }
 
     this.flushTimer = setInterval(() => {
-      this.flush().catch(() => {
-        // Errors are handled per-write
+      this.flush().catch((error: unknown) => {
+        // Primary error handling is done per-write
+        // This catch prevents unhandled promise rejection
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        if (process.env.DEBUG === 'true') {
+          console.debug(`Periodic flush failed: ${errorMsg}`);
+        }
       });
     }, this.flushIntervalMs);
 
