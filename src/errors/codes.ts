@@ -239,6 +239,152 @@ export const GenericErrorCodes = {
 } as const;
 
 /**
+ * Document error codes (DOC-xxx)
+ *
+ * For PRD, SRS, SDS, and other document-related errors
+ */
+export const DocumentErrorCodes = {
+  // Document access errors (001-009)
+  DOC_NOT_FOUND: 'DOC-001',
+  DOC_PARSE_ERROR: 'DOC-002',
+  DOC_VALIDATION_ERROR: 'DOC-003',
+  DOC_WRITE_ERROR: 'DOC-004',
+  DOC_READ_ERROR: 'DOC-005',
+  DOC_FORMAT_ERROR: 'DOC-006',
+
+  // PRD-specific errors (010-019)
+  DOC_PRD_INCOMPLETE: 'DOC-010',
+  DOC_PRD_REQUIREMENT_CONFLICT: 'DOC-011',
+  DOC_PRD_MISSING_SECTION: 'DOC-012',
+
+  // SRS-specific errors (020-029)
+  DOC_SRS_TRACEABILITY_ERROR: 'DOC-020',
+  DOC_SRS_USE_CASE_INVALID: 'DOC-021',
+  DOC_SRS_INTERFACE_ERROR: 'DOC-022',
+
+  // SDS-specific errors (030-039)
+  DOC_SDS_ARCHITECTURE_ERROR: 'DOC-030',
+  DOC_SDS_COMPONENT_CONFLICT: 'DOC-031',
+  DOC_SDS_API_SPEC_ERROR: 'DOC-032',
+  DOC_SDS_SCHEMA_ERROR: 'DOC-033',
+} as const;
+
+/**
+ * Agent error codes (AGT-xxx)
+ *
+ * For agent initialization, execution, and lifecycle errors
+ */
+export const AgentErrorCodes = {
+  // Initialization errors (001-009)
+  AGT_INIT_ERROR: 'AGT-001',
+  AGT_CONFIG_ERROR: 'AGT-002',
+  AGT_DEPENDENCY_ERROR: 'AGT-003',
+
+  // Execution errors (010-019)
+  AGT_EXECUTION_ERROR: 'AGT-010',
+  AGT_TIMEOUT_ERROR: 'AGT-011',
+  AGT_NOT_FOUND: 'AGT-012',
+  AGT_STATE_ERROR: 'AGT-013',
+  AGT_OUTPUT_ERROR: 'AGT-014',
+
+  // Communication errors (020-029)
+  AGT_HANDOFF_ERROR: 'AGT-020',
+  AGT_CONTEXT_LOSS: 'AGT-021',
+  AGT_PROTOCOL_ERROR: 'AGT-022',
+
+  // Resource errors (030-039)
+  AGT_RESOURCE_EXHAUSTED: 'AGT-030',
+  AGT_QUOTA_EXCEEDED: 'AGT-031',
+} as const;
+
+/**
+ * Infrastructure error codes (INF-xxx)
+ *
+ * For file system, locks, configuration, and system-level errors
+ */
+export const InfrastructureErrorCodes = {
+  // File system errors (001-009)
+  INF_FILE_ACCESS_ERROR: 'INF-001',
+  INF_FILE_NOT_FOUND: 'INF-002',
+  INF_DIRECTORY_ERROR: 'INF-003',
+  INF_PERMISSION_ERROR: 'INF-004',
+
+  // Lock errors (010-019)
+  INF_LOCK_ACQUISITION_ERROR: 'INF-010',
+  INF_LOCK_TIMEOUT_ERROR: 'INF-011',
+  INF_LOCK_CONTENTION_ERROR: 'INF-012',
+  INF_LOCK_STOLEN_ERROR: 'INF-013',
+
+  // Configuration errors (020-029)
+  INF_CONFIG_LOAD_ERROR: 'INF-020',
+  INF_CONFIG_PARSE_ERROR: 'INF-021',
+  INF_CONFIG_VALIDATION_ERROR: 'INF-022',
+  INF_ENV_VAR_MISSING: 'INF-023',
+
+  // Process errors (030-039)
+  INF_PROCESS_SPAWN_ERROR: 'INF-030',
+  INF_PROCESS_TIMEOUT: 'INF-031',
+  INF_PROCESS_EXIT_ERROR: 'INF-032',
+} as const;
+
+/**
+ * Extended Security error codes (SEC-xxx)
+ *
+ * Extends SecurityErrorCodes with more specific security errors
+ */
+export const ExtendedSecurityErrorCodes = {
+  // Path security (010-019)
+  SEC_PATH_TRAVERSAL_ERROR: 'SEC-010',
+  SEC_SYMLINK_ATTACK: 'SEC-011',
+
+  // Command security (020-029)
+  SEC_COMMAND_INJECTION_ERROR: 'SEC-020',
+  SEC_COMMAND_NOT_ALLOWED: 'SEC-021',
+  SEC_ARGUMENT_INJECTION: 'SEC-022',
+
+  // Access control (030-039)
+  SEC_PERMISSION_DENIED: 'SEC-030',
+  SEC_RATE_LIMIT_EXCEEDED: 'SEC-031',
+  SEC_TOKEN_EXPIRED: 'SEC-032',
+  SEC_TOKEN_INVALID: 'SEC-033',
+
+  // Data security (040-049)
+  SEC_SENSITIVE_DATA_EXPOSURE: 'SEC-040',
+  SEC_INPUT_VALIDATION_ERROR: 'SEC-041',
+} as const;
+
+/**
+ * External service error codes (EXT-xxx)
+ *
+ * For GitHub, CI/CD, and other external service interactions
+ */
+export const ExternalServiceErrorCodes = {
+  // GitHub API errors (001-009)
+  EXT_GITHUB_API_ERROR: 'EXT-001',
+  EXT_GITHUB_RATE_LIMITED: 'EXT-002',
+  EXT_GITHUB_AUTH_ERROR: 'EXT-003',
+  EXT_GITHUB_NOT_FOUND: 'EXT-004',
+  EXT_GITHUB_PERMISSION_ERROR: 'EXT-005',
+
+  // CI/CD errors (010-019)
+  EXT_CI_EXECUTION_ERROR: 'EXT-010',
+  EXT_CI_TIMEOUT: 'EXT-011',
+  EXT_CI_CONFIG_ERROR: 'EXT-012',
+  EXT_CI_ARTIFACT_ERROR: 'EXT-013',
+
+  // Network errors (020-029)
+  EXT_NETWORK_ERROR: 'EXT-020',
+  EXT_CONNECTION_REFUSED: 'EXT-021',
+  EXT_DNS_ERROR: 'EXT-022',
+  EXT_SSL_ERROR: 'EXT-023',
+
+  // Third-party service errors (030-039)
+  EXT_SERVICE_UNAVAILABLE: 'EXT-030',
+  EXT_SERVICE_TIMEOUT: 'EXT-031',
+  EXT_SERVICE_RESPONSE_ERROR: 'EXT-032',
+} as const;
+
+/**
  * All error codes combined
  */
 export const ErrorCodes = {
@@ -252,6 +398,11 @@ export const ErrorCodes = {
   ...SecurityErrorCodes,
   ...MonitoringErrorCodes,
   ...GenericErrorCodes,
+  ...DocumentErrorCodes,
+  ...AgentErrorCodes,
+  ...InfrastructureErrorCodes,
+  ...ExtendedSecurityErrorCodes,
+  ...ExternalServiceErrorCodes,
 } as const;
 
 /**
@@ -403,4 +554,85 @@ export const ErrorCodeDescriptions: Record<ErrorCode, string> = {
   [ErrorCodes.GEN_NOT_IMPLEMENTED]: 'Not implemented',
   [ErrorCodes.GEN_TIMEOUT]: 'Operation timed out',
   [ErrorCodes.GEN_NETWORK_ERROR]: 'Network error',
+
+  // Document
+  [ErrorCodes.DOC_NOT_FOUND]: 'Document not found',
+  [ErrorCodes.DOC_PARSE_ERROR]: 'Document parse error',
+  [ErrorCodes.DOC_VALIDATION_ERROR]: 'Document validation error',
+  [ErrorCodes.DOC_WRITE_ERROR]: 'Document write error',
+  [ErrorCodes.DOC_READ_ERROR]: 'Document read error',
+  [ErrorCodes.DOC_FORMAT_ERROR]: 'Document format error',
+  [ErrorCodes.DOC_PRD_INCOMPLETE]: 'PRD is incomplete',
+  [ErrorCodes.DOC_PRD_REQUIREMENT_CONFLICT]: 'Conflicting requirements in PRD',
+  [ErrorCodes.DOC_PRD_MISSING_SECTION]: 'Required section missing in PRD',
+  [ErrorCodes.DOC_SRS_TRACEABILITY_ERROR]: 'SRS traceability matrix error',
+  [ErrorCodes.DOC_SRS_USE_CASE_INVALID]: 'Invalid use case in SRS',
+  [ErrorCodes.DOC_SRS_INTERFACE_ERROR]: 'SRS interface definition error',
+  [ErrorCodes.DOC_SDS_ARCHITECTURE_ERROR]: 'SDS architecture design error',
+  [ErrorCodes.DOC_SDS_COMPONENT_CONFLICT]: 'Component conflict in SDS',
+  [ErrorCodes.DOC_SDS_API_SPEC_ERROR]: 'SDS API specification error',
+  [ErrorCodes.DOC_SDS_SCHEMA_ERROR]: 'SDS database schema error',
+
+  // Agent
+  [ErrorCodes.AGT_INIT_ERROR]: 'Agent initialization error',
+  [ErrorCodes.AGT_CONFIG_ERROR]: 'Agent configuration error',
+  [ErrorCodes.AGT_DEPENDENCY_ERROR]: 'Agent dependency error',
+  [ErrorCodes.AGT_EXECUTION_ERROR]: 'Agent execution error',
+  [ErrorCodes.AGT_TIMEOUT_ERROR]: 'Agent operation timed out',
+  [ErrorCodes.AGT_NOT_FOUND]: 'Agent not found',
+  [ErrorCodes.AGT_STATE_ERROR]: 'Agent state error',
+  [ErrorCodes.AGT_OUTPUT_ERROR]: 'Agent output error',
+  [ErrorCodes.AGT_HANDOFF_ERROR]: 'Agent handoff error',
+  [ErrorCodes.AGT_CONTEXT_LOSS]: 'Agent context lost',
+  [ErrorCodes.AGT_PROTOCOL_ERROR]: 'Agent protocol error',
+  [ErrorCodes.AGT_RESOURCE_EXHAUSTED]: 'Agent resources exhausted',
+  [ErrorCodes.AGT_QUOTA_EXCEEDED]: 'Agent quota exceeded',
+
+  // Infrastructure
+  [ErrorCodes.INF_FILE_ACCESS_ERROR]: 'File access error',
+  [ErrorCodes.INF_FILE_NOT_FOUND]: 'File not found',
+  [ErrorCodes.INF_DIRECTORY_ERROR]: 'Directory operation error',
+  [ErrorCodes.INF_PERMISSION_ERROR]: 'File permission error',
+  [ErrorCodes.INF_LOCK_ACQUISITION_ERROR]: 'Lock acquisition failed',
+  [ErrorCodes.INF_LOCK_TIMEOUT_ERROR]: 'Lock operation timed out',
+  [ErrorCodes.INF_LOCK_CONTENTION_ERROR]: 'Lock contention detected',
+  [ErrorCodes.INF_LOCK_STOLEN_ERROR]: 'Lock was stolen',
+  [ErrorCodes.INF_CONFIG_LOAD_ERROR]: 'Configuration load error',
+  [ErrorCodes.INF_CONFIG_PARSE_ERROR]: 'Configuration parse error',
+  [ErrorCodes.INF_CONFIG_VALIDATION_ERROR]: 'Configuration validation error',
+  [ErrorCodes.INF_ENV_VAR_MISSING]: 'Required environment variable missing',
+  [ErrorCodes.INF_PROCESS_SPAWN_ERROR]: 'Process spawn error',
+  [ErrorCodes.INF_PROCESS_TIMEOUT]: 'Process timed out',
+  [ErrorCodes.INF_PROCESS_EXIT_ERROR]: 'Process exited with error',
+
+  // Extended Security
+  [ErrorCodes.SEC_PATH_TRAVERSAL_ERROR]: 'Path traversal attempt detected',
+  [ErrorCodes.SEC_SYMLINK_ATTACK]: 'Symlink attack detected',
+  [ErrorCodes.SEC_COMMAND_INJECTION_ERROR]: 'Command injection attempt detected',
+  [ErrorCodes.SEC_COMMAND_NOT_ALLOWED]: 'Command not allowed',
+  [ErrorCodes.SEC_ARGUMENT_INJECTION]: 'Argument injection detected',
+  [ErrorCodes.SEC_PERMISSION_DENIED]: 'Permission denied',
+  [ErrorCodes.SEC_RATE_LIMIT_EXCEEDED]: 'Rate limit exceeded',
+  [ErrorCodes.SEC_TOKEN_EXPIRED]: 'Token expired',
+  [ErrorCodes.SEC_TOKEN_INVALID]: 'Invalid token',
+  [ErrorCodes.SEC_SENSITIVE_DATA_EXPOSURE]: 'Sensitive data exposure',
+  [ErrorCodes.SEC_INPUT_VALIDATION_ERROR]: 'Input validation failed',
+
+  // External Services
+  [ErrorCodes.EXT_GITHUB_API_ERROR]: 'GitHub API error',
+  [ErrorCodes.EXT_GITHUB_RATE_LIMITED]: 'GitHub rate limit exceeded',
+  [ErrorCodes.EXT_GITHUB_AUTH_ERROR]: 'GitHub authentication error',
+  [ErrorCodes.EXT_GITHUB_NOT_FOUND]: 'GitHub resource not found',
+  [ErrorCodes.EXT_GITHUB_PERMISSION_ERROR]: 'GitHub permission denied',
+  [ErrorCodes.EXT_CI_EXECUTION_ERROR]: 'CI execution error',
+  [ErrorCodes.EXT_CI_TIMEOUT]: 'CI operation timed out',
+  [ErrorCodes.EXT_CI_CONFIG_ERROR]: 'CI configuration error',
+  [ErrorCodes.EXT_CI_ARTIFACT_ERROR]: 'CI artifact error',
+  [ErrorCodes.EXT_NETWORK_ERROR]: 'Network error',
+  [ErrorCodes.EXT_CONNECTION_REFUSED]: 'Connection refused',
+  [ErrorCodes.EXT_DNS_ERROR]: 'DNS resolution error',
+  [ErrorCodes.EXT_SSL_ERROR]: 'SSL/TLS error',
+  [ErrorCodes.EXT_SERVICE_UNAVAILABLE]: 'External service unavailable',
+  [ErrorCodes.EXT_SERVICE_TIMEOUT]: 'External service timed out',
+  [ErrorCodes.EXT_SERVICE_RESPONSE_ERROR]: 'External service response error',
 };
