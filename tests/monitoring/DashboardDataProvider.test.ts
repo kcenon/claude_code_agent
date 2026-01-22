@@ -396,26 +396,32 @@ describe('DashboardDataProvider', () => {
 
   describe('getRecentErrors', () => {
     it('should return errors from logger', () => {
-      // Reset logger to ensure clean state
-      resetLogger();
+      // Mock logger's getErrors to simulate stored errors
       const logger = getLogger();
-      logger.error('Test error 1');
-      logger.error('Test error 2');
+      const mockErrors = [
+        { timestamp: new Date().toISOString(), level: 'ERROR', message: 'Test error 1' },
+        { timestamp: new Date().toISOString(), level: 'ERROR', message: 'Test error 2' },
+      ];
+      vi.spyOn(logger, 'getErrors').mockReturnValue(mockErrors as ReturnType<typeof logger.getErrors>);
 
       const errors = provider.getRecentErrors(10);
-      expect(errors.length).toBeGreaterThanOrEqual(2);
+      expect(errors.length).toBe(2);
+      expect(logger.getErrors).toHaveBeenCalledWith(10);
     });
 
     it('should respect limit parameter', () => {
-      // Reset logger to ensure clean state
-      resetLogger();
+      // Mock logger's getErrors to respect the limit
       const logger = getLogger();
-      for (let i = 0; i < 10; i++) {
-        logger.error(`Error ${i}`);
-      }
+      const mockErrors = Array.from({ length: 5 }, (_, i) => ({
+        timestamp: new Date().toISOString(),
+        level: 'ERROR',
+        message: `Error ${i}`,
+      }));
+      vi.spyOn(logger, 'getErrors').mockReturnValue(mockErrors as ReturnType<typeof logger.getErrors>);
 
       const errors = provider.getRecentErrors(5);
       expect(errors.length).toBeLessThanOrEqual(5);
+      expect(logger.getErrors).toHaveBeenCalledWith(5);
     });
   });
 
