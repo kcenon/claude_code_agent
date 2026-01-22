@@ -216,4 +216,95 @@ describe('InputValidator', () => {
       expect(validator.getBasePath()).toBe(basePath);
     });
   });
+
+  describe('enhanced path validation', () => {
+    it('should detect null bytes in paths', () => {
+      expect(validator.containsNullByte('file\0.txt')).toBe(true);
+      expect(validator.containsNullByte('file.txt')).toBe(false);
+    });
+
+    it('should reject paths with null bytes', () => {
+      expect(() => validator.validateFilePath('file\0.txt')).toThrow(PathTraversalError);
+    });
+
+    it('should provide quick validation check', () => {
+      expect(validator.isValidPath('file.txt')).toBe(true);
+      expect(validator.isValidPath('../etc/passwd')).toBe(false);
+      expect(validator.isValidPath('file\0.txt')).toBe(false);
+    });
+  });
+
+  describe('validateFilePathExtended', () => {
+    it('should return extended result for valid paths', () => {
+      const result = validator.validateFilePathExtended('file.txt');
+      expect(result.valid).toBe(true);
+      expect(result.value).toBeDefined();
+      expect(result.isSymlink).toBe(false);
+    });
+
+    it('should include rejection reason for invalid paths', () => {
+      const result = validator.validateFilePathExtended('file\0.txt');
+      expect(result.valid).toBe(false);
+      expect(result.rejectionReason).toBe('NULL_BYTE');
+    });
+
+    it('should include rejection reason for traversal', () => {
+      const result = validator.validateFilePathExtended('../etc/passwd');
+      expect(result.valid).toBe(false);
+      expect(result.rejectionReason).toBeDefined();
+    });
+  });
+
+  describe('allowed directories', () => {
+    it('should allow paths in additional allowed directories', () => {
+      const additionalDir = path.join(os.tmpdir(), 'additional-allowed');
+      const multiValidator = new InputValidator({
+        basePath,
+        allowedDirs: [additionalDir],
+      });
+
+      // Should still validate paths within base
+      const result = multiValidator.validateFilePathSafe('file.txt');
+      expect(result.valid).toBe(true);
+    });
+  });
+
+  describe('symlink policy', () => {
+    it('should respect deny symlink policy', () => {
+      const denyValidator = new InputValidator({
+        basePath,
+        symlinkPolicy: 'deny',
+      });
+
+      // Regular files should still work
+      const result = denyValidator.validateFilePathSafe('file.txt');
+      expect(result.valid).toBe(true);
+    });
+
+    it('should respect resolve symlink policy', () => {
+      const resolveValidator = new InputValidator({
+        basePath,
+        symlinkPolicy: 'resolve',
+      });
+
+      const result = resolveValidator.validateFilePathSafe('file.txt');
+      expect(result.valid).toBe(true);
+    });
+  });
+
+  describe('getPathSanitizer', () => {
+    it('should return path sanitizer instance', () => {
+      const sanitizer = validator.getPathSanitizer();
+      expect(sanitizer).toBeDefined();
+      expect(typeof sanitizer.sanitize).toBe('function');
+    });
+  });
+
+  describe('getSymlinkResolver', () => {
+    it('should return symlink resolver instance', () => {
+      const resolver = validator.getSymlinkResolver();
+      expect(resolver).toBeDefined();
+      expect(typeof resolver.resolve).toBe('function');
+    });
+  });
 });

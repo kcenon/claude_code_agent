@@ -2,15 +2,20 @@
  * InputValidator - Secure input validation and sanitization
  *
  * Features:
- * - Path traversal prevention
+ * - Path traversal prevention with symlink protection
  * - URL validation with protocol restrictions
  * - User input sanitization
  * - Internal URL blocking
+ * - Null byte detection
+ * - Case-sensitive/insensitive path validation
  */
 
 import * as path from 'node:path';
 import type { InputValidatorOptions, ValidationResult } from './types.js';
 import { PathTraversalError, InvalidUrlError, ValidationError } from './errors.js';
+import { PathSanitizer, type PathRejectionReason } from './PathSanitizer.js';
+import { SymlinkResolver, type SymlinkPolicy } from './SymlinkResolver.js';
+import type { AuditLogger } from './AuditLogger.js';
 
 /**
  * Default allowed URL protocols
@@ -37,6 +42,18 @@ const INTERNAL_HOSTNAME_PATTERNS = [
 ];
 
 /**
+ * Extended validation result with additional security information
+ */
+export interface ExtendedValidationResult extends ValidationResult {
+  /** Path rejection reason if validation failed */
+  readonly rejectionReason?: PathRejectionReason | undefined;
+  /** Whether the path involves a symbolic link */
+  readonly isSymlink?: boolean | undefined;
+  /** The real path after symlink resolution (if applicable) */
+  readonly realPath?: string | undefined;
+}
+
+/**
  * Validates and sanitizes user inputs
  */
 export class InputValidator {
@@ -44,38 +61,121 @@ export class InputValidator {
   private readonly allowedProtocols: readonly string[];
   private readonly blockInternalUrls: boolean;
   private readonly maxInputLength: number;
+  private readonly pathSanitizer: PathSanitizer;
+  private readonly symlinkResolver: SymlinkResolver;
+  private readonly auditLogger: AuditLogger | undefined;
+  private readonly actor: string;
 
   constructor(options: InputValidatorOptions) {
     this.basePath = path.resolve(options.basePath);
     this.allowedProtocols = options.allowedProtocols ?? DEFAULT_ALLOWED_PROTOCOLS;
     this.blockInternalUrls = options.blockInternalUrls ?? true;
     this.maxInputLength = options.maxInputLength ?? 10000;
+    this.auditLogger = options.auditLogger as AuditLogger | undefined;
+    this.actor = options.actor ?? 'system';
+
+    // Initialize path sanitizer
+    const pathSanitizerOptions: import('./PathSanitizer.js').PathSanitizerOptions = {
+      baseDir: this.basePath,
+      actor: this.actor,
+    };
+    if (options.allowedDirs !== undefined) {
+      (pathSanitizerOptions as { allowedDirs: readonly string[] }).allowedDirs =
+        options.allowedDirs;
+    }
+    if (options.caseInsensitive !== undefined) {
+      (pathSanitizerOptions as { caseInsensitive: boolean }).caseInsensitive =
+        options.caseInsensitive;
+    }
+    if (options.maxPathLength !== undefined) {
+      (pathSanitizerOptions as { maxPathLength: number }).maxPathLength = options.maxPathLength;
+    }
+    if (this.auditLogger !== undefined) {
+      (pathSanitizerOptions as { auditLogger: AuditLogger }).auditLogger = this.auditLogger;
+    }
+    this.pathSanitizer = new PathSanitizer(pathSanitizerOptions);
+
+    // Initialize symlink resolver
+    const symlinkResolverOptions: import('./SymlinkResolver.js').SymlinkResolverOptions = {
+      baseDir: this.basePath,
+    };
+    if (options.allowedDirs !== undefined) {
+      (symlinkResolverOptions as { allowedDirs: readonly string[] }).allowedDirs =
+        options.allowedDirs;
+    }
+    if (options.symlinkPolicy !== undefined) {
+      (symlinkResolverOptions as { symlinkPolicy: SymlinkPolicy }).symlinkPolicy =
+        options.symlinkPolicy as SymlinkPolicy;
+    }
+    if (options.caseInsensitive !== undefined) {
+      (symlinkResolverOptions as { caseInsensitive: boolean }).caseInsensitive =
+        options.caseInsensitive;
+    }
+    this.symlinkResolver = new SymlinkResolver(symlinkResolverOptions);
   }
 
   /**
    * Validate and normalize a file path
-   * Prevents path traversal attacks
+   * Prevents path traversal attacks including symlink-based attacks
    *
    * @param inputPath - The path to validate
    * @returns The validated and resolved absolute path
    * @throws PathTraversalError if path traversal is detected
    */
   public validateFilePath(inputPath: string): string {
-    // Normalize the path to resolve . and .. segments
-    const normalized = path.normalize(inputPath);
+    // First sanitize the path (checks null bytes, dangerous patterns, etc.)
+    const sanitizationResult = this.pathSanitizer.sanitize(inputPath);
 
-    // Resolve against the base path
-    const resolved = path.resolve(this.basePath, normalized);
-
-    // Check if the resolved path is within the base path
-    const relativePath = path.relative(this.basePath, resolved);
-    const isOutsideBasePath = relativePath.startsWith('..') || path.isAbsolute(relativePath);
-
-    if (isOutsideBasePath) {
+    if (!sanitizationResult.valid) {
+      this.logPathRejection(inputPath, sanitizationResult.reasonCode ?? 'TRAVERSAL_ATTEMPT');
       throw new PathTraversalError(inputPath);
     }
 
-    return resolved;
+    // Then validate with symlink resolution
+    const symlinkResult = this.symlinkResolver.resolve(inputPath);
+
+    if (!symlinkResult.isWithinBoundary) {
+      this.logPathRejection(inputPath, 'OUTSIDE_BOUNDARY', {
+        isSymlink: symlinkResult.isSymlink,
+        symlinkTarget: symlinkResult.symlinkTarget,
+      });
+      throw new PathTraversalError(inputPath);
+    }
+
+    // Return the real path if symlink was resolved, otherwise the sanitized path
+    // sanitizedPath is guaranteed to exist when valid is true
+    return symlinkResult.realPath ?? (sanitizationResult.sanitizedPath as string);
+  }
+
+  /**
+   * Validate a file path asynchronously with full symlink resolution
+   *
+   * @param inputPath - The path to validate
+   * @returns Promise resolving to the validated absolute path
+   * @throws PathTraversalError if validation fails
+   */
+  public async validateFilePathAsync(inputPath: string): Promise<string> {
+    // First sanitize the path
+    const sanitizationResult = this.pathSanitizer.sanitize(inputPath);
+
+    if (!sanitizationResult.valid) {
+      this.logPathRejection(inputPath, sanitizationResult.reasonCode ?? 'TRAVERSAL_ATTEMPT');
+      throw new PathTraversalError(inputPath);
+    }
+
+    // Then validate with async symlink resolution
+    const symlinkResult = await this.symlinkResolver.resolveAsync(inputPath);
+
+    if (!symlinkResult.isWithinBoundary) {
+      this.logPathRejection(inputPath, 'OUTSIDE_BOUNDARY', {
+        isSymlink: symlinkResult.isSymlink,
+        symlinkTarget: symlinkResult.symlinkTarget,
+      });
+      throw new PathTraversalError(inputPath);
+    }
+
+    // sanitizedPath is guaranteed to exist when valid is true
+    return symlinkResult.realPath ?? (sanitizationResult.sanitizedPath as string);
   }
 
   /**
@@ -94,6 +194,75 @@ export class InputValidator {
       }
       return { valid: false, error: 'Invalid path' };
     }
+  }
+
+  /**
+   * Validate a file path and return extended result with security details
+   *
+   * @param inputPath - The path to validate
+   * @returns Extended validation result with symlink and rejection information
+   */
+  public validateFilePathExtended(inputPath: string): ExtendedValidationResult {
+    // Check sanitization first
+    const sanitizationResult = this.pathSanitizer.sanitize(inputPath);
+
+    if (!sanitizationResult.valid) {
+      const result: ExtendedValidationResult = {
+        valid: false,
+        error: sanitizationResult.error ?? 'Validation failed',
+      };
+      if (sanitizationResult.reasonCode !== undefined) {
+        (result as { rejectionReason: PathRejectionReason }).rejectionReason =
+          sanitizationResult.reasonCode;
+      }
+      return result;
+    }
+
+    // Check symlink resolution
+    const symlinkResult = this.symlinkResolver.resolve(inputPath);
+
+    if (!symlinkResult.isWithinBoundary) {
+      const result: ExtendedValidationResult = {
+        valid: false,
+        error: 'Path escapes allowed directory',
+        rejectionReason: 'OUTSIDE_BOUNDARY',
+        isSymlink: symlinkResult.isSymlink,
+      };
+      if (symlinkResult.realPath !== null) {
+        (result as { realPath: string }).realPath = symlinkResult.realPath;
+      }
+      return result;
+    }
+
+    const result: ExtendedValidationResult = {
+      valid: true,
+      value: symlinkResult.realPath ?? sanitizationResult.sanitizedPath ?? inputPath,
+      isSymlink: symlinkResult.isSymlink,
+    };
+    if (symlinkResult.realPath !== null) {
+      (result as { realPath: string }).realPath = symlinkResult.realPath;
+    }
+    return result;
+  }
+
+  /**
+   * Check if a path contains null bytes
+   *
+   * @param inputPath - The path to check
+   * @returns True if path contains null bytes
+   */
+  public containsNullByte(inputPath: string): boolean {
+    return this.pathSanitizer.containsNullByte(inputPath);
+  }
+
+  /**
+   * Quick validation check without full resolution
+   *
+   * @param inputPath - The path to check
+   * @returns True if path appears valid
+   */
+  public isValidPath(inputPath: string): boolean {
+    return this.pathSanitizer.isValid(inputPath);
   }
 
   /**
@@ -302,5 +471,47 @@ export class InputValidator {
    */
   public getBasePath(): string {
     return this.basePath;
+  }
+
+  /**
+   * Get the path sanitizer instance
+   */
+  public getPathSanitizer(): PathSanitizer {
+    return this.pathSanitizer;
+  }
+
+  /**
+   * Get the symlink resolver instance
+   */
+  public getSymlinkResolver(): SymlinkResolver {
+    return this.symlinkResolver;
+  }
+
+  /**
+   * Log a path rejection event for security audit
+   */
+  private logPathRejection(
+    inputPath: string,
+    reason: PathRejectionReason,
+    details?: Record<string, unknown>
+  ): void {
+    if (this.auditLogger) {
+      this.auditLogger.logSecurityViolation('path_validation_failed', this.actor, {
+        inputPath: this.sanitizePathForLogging(inputPath),
+        reason,
+        ...details,
+      });
+    }
+  }
+
+  /**
+   * Sanitize a path for safe logging (remove control chars, truncate)
+   */
+  private sanitizePathForLogging(inputPath: string): string {
+    // Remove control characters and truncate for safe logging
+    // Intentionally matching control characters for logging sanitization
+    // eslint-disable-next-line no-control-regex
+    const controlCharRegex = /[\x00-\x1f\x7f]/g;
+    return inputPath.replace(controlCharRegex, '?').substring(0, 200);
   }
 }
