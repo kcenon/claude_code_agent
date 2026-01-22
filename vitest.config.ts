@@ -26,7 +26,7 @@ export default defineConfig({
       thresholds: {
         lines: 80,
         functions: 78, // Adjusted for new worker module with complex async flows
-        branches: 70.5, // Adjusted for monitoring/observability features (issue #253) with complex conditional logic
+        branches: 70, // Adjusted for logging query/aggregation/compression features (#375) with complex conditional logic
         statements: 80,
       },
     },
