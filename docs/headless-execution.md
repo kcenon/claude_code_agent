@@ -73,7 +73,6 @@ claude -p "Initialize AD-SDLC" \
 |------|-------|---------|---------|
 | `--print` | `-p` | Non-interactive mode (auto-exit) | `claude -p "task"` |
 | `--allowedTools` | | Pre-approve specific tools | `--allowedTools "Read,Write"` |
-| `--max-turns` | | Limit agent iterations | `--max-turns 20` |
 | `--output-format` | | Output format (text/json) | `--output-format json` |
 
 ### Additional Flags
@@ -110,13 +109,13 @@ AD-SDLC provides ready-to-use scripts in `.ad-sdlc/scripts/`:
 
 ### Script Overview
 
-| Script | Purpose | Max Turns |
-|--------|---------|-----------|
-| `ad-sdlc-init.sh` | Initialize AD-SDLC for a project | 10 |
-| `ad-sdlc-analyze-docs.sh` | Analyze existing documents | 15 |
-| `ad-sdlc-generate-issues.sh` | Generate GitHub issues from SDS | 25 |
-| `ad-sdlc-implement.sh` | Implement specific or all issues | 50 |
-| `ad-sdlc-full-pipeline.sh` | Run complete pipeline | 100 |
+| Script | Purpose |
+|--------|---------|
+| `ad-sdlc-init.sh` | Initialize AD-SDLC for a project |
+| `ad-sdlc-analyze-docs.sh` | Analyze existing documents |
+| `ad-sdlc-generate-issues.sh` | Generate GitHub issues from SDS |
+| `ad-sdlc-implement.sh` | Implement specific or all issues |
+| `ad-sdlc-full-pipeline.sh` | Run complete pipeline |
 
 ### Usage Examples
 
@@ -183,9 +182,6 @@ export ANTHROPIC_API_KEY="sk-ant-api03-..."
 ### Optional
 
 ```bash
-# Maximum agent turns (overrides script defaults)
-export MAX_TURNS=50
-
 # Skip test execution during implementation
 export SKIP_TESTS=true
 
@@ -329,17 +325,7 @@ Always preview before creating resources:
 cat .ad-sdlc/scratchpad/issues/generated_issues.yaml
 ```
 
-### 2. Use Appropriate Turn Limits
-
-| Task Type | Recommended Turns |
-|-----------|-------------------|
-| Simple init | 10-15 |
-| Document analysis | 15-20 |
-| Issue generation | 20-30 |
-| Single issue impl | 30-50 |
-| Full pipeline | 100+ |
-
-### 3. Limit Tool Permissions
+### 2. Limit Tool Permissions
 
 Only allow necessary tools:
 
@@ -351,10 +337,10 @@ Only allow necessary tools:
 --allowedTools "Read,Write,Edit,Glob,Grep"
 
 # Full development
---allowedTools "Read,Write,Edit,Glob,Grep,Bash,LSP"
+--allowedTools "Read,Write,Edit,Glob,Grep,Bash,Task"
 ```
 
-### 4. Capture Output for Debugging
+### 3. Capture Output for Debugging
 
 ```bash
 # Save output to file
@@ -364,7 +350,7 @@ Only allow necessary tools:
 claude -p "task" --output-format json > result.json
 ```
 
-### 5. Handle Interruptions
+### 4. Handle Interruptions
 
 ```bash
 # Resume interrupted session
@@ -409,13 +395,10 @@ npx @anthropic-ai/claude-code -p "task"
 
 ### Pipeline Timeout
 
-Increase max turns or break into smaller tasks:
+Break into smaller tasks if timeout occurs:
 
 ```bash
-# Higher turn limit
-MAX_TURNS=150 ./.ad-sdlc/scripts/ad-sdlc-full-pipeline.sh
-
-# Or run stages separately
+# Run stages separately
 ./.ad-sdlc/scripts/ad-sdlc-analyze-docs.sh
 ./.ad-sdlc/scripts/ad-sdlc-generate-issues.sh
 ./.ad-sdlc/scripts/ad-sdlc-implement.sh
