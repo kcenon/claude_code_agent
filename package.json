@@ -83,24 +83,24 @@
     "vitest": "^4.0.16"
   },
   "dependencies": {
-    "@aws-sdk/client-cloudwatch-logs": "^3.971.0",
-    "@elastic/elasticsearch": "^9.2.0",
+    "@aws-sdk/client-cloudwatch-logs": "^3.980.0",
+    "@elastic/elasticsearch": "^9.2.1",
     "@opentelemetry/api": "^1.9.0",
-    "@opentelemetry/exporter-trace-otlp-http": "^0.210.0",
-    "@opentelemetry/resources": "^2.4.0",
-    "@opentelemetry/sdk-node": "^0.210.0",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.211.0",
+    "@opentelemetry/resources": "^2.5.0",
+    "@opentelemetry/sdk-node": "^0.211.0",
     "@opentelemetry/sdk-trace-base": "^2.4.0",
     "@opentelemetry/semantic-conventions": "^1.39.0",
     "better-sqlite3": "^12.6.2",
     "chalk": "^5.6.2",
-    "commander": "^14.0.2",
+    "commander": "^14.0.3",
     "dotenv": "^17.2.3",
-    "inquirer": "^13.2.0",
+    "inquirer": "^13.2.2",
     "ioredis": "^5.9.2",
     "js-yaml": "^4.1.1",
     "mammoth": "^1.11.0",
     "pdf-parse": "^2.4.5",
     "ts-morph": "^27.0.2",
-    "zod": "^4.3.5"
+    "zod": "^4.3.6"
   }
 }
