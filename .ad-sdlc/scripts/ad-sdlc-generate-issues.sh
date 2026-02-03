@@ -17,7 +17,6 @@
 # Environment:
 #   ANTHROPIC_API_KEY  Required. Your Anthropic API key.
 #   GH_TOKEN           Optional. GitHub token (falls back to gh auth)
-#   MAX_TURNS          Optional. Maximum agent turns (default: 25)
 #
 
 set -euo pipefail
@@ -32,7 +31,6 @@ NC='\033[0m' # No Color
 # Default values
 PROJECT_PATH="."
 DRY_RUN=false
-MAX_TURNS="${MAX_TURNS:-25}"
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -166,8 +164,7 @@ Also save the issue list to .ad-sdlc/scratchpad/issues/generated_issues.yaml for
 
     claude -p "$prompt" \
         --allowedTools "Read,Write,Edit,Glob,Grep,Bash(gh:*),Bash(ls:*),Bash(find:*)" \
-        --output-format text \
-        --max-turns "$MAX_TURNS"
+        --output-format text
 }
 
 main "$@"

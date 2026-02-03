@@ -23,7 +23,6 @@
 #
 # Environment:
 #   ANTHROPIC_API_KEY              Required. Your Anthropic API key.
-#   MAX_TURNS                      Optional. Maximum agent turns (default: 100)
 #   SKIP_CONFIRMATION              Optional. Skip confirmation prompts (default: false)
 #   DANGEROUSLY_SKIP_PERMISSIONS   Optional. Skip all permission prompts (default: false)
 #
@@ -44,7 +43,6 @@ NC='\033[0m' # No Color
 # Default values
 PROJECT_PATH="${1:-.}"
 MODE="${2:-auto}"
-MAX_TURNS="${MAX_TURNS:-100}"
 SKIP_CONFIRMATION="${SKIP_CONFIRMATION:-false}"
 DANGEROUSLY_SKIP_PERMISSIONS="${DANGEROUSLY_SKIP_PERMISSIONS:-false}"
 
@@ -108,7 +106,6 @@ print_header() {
     echo ""
     echo -e "  ${GREEN}Project:${NC}  $PROJECT_PATH"
     echo -e "  ${GREEN}Mode:${NC}     $MODE"
-    echo -e "  ${GREEN}Turns:${NC}    $MAX_TURNS"
     echo -e "  ${GREEN}Started:${NC}  $(date '+%Y-%m-%d %H:%M:%S')"
     echo ""
     if [[ "$DANGEROUSLY_SKIP_PERMISSIONS" == "true" ]]; then
@@ -186,9 +183,8 @@ Guidelines:
 Run fully automated without confirmation prompts."
 
     claude_args+=("$prompt")
-    claude_args+=("--allowedTools" "Read,Write,Edit,Glob,Grep,Bash,Task,LSP,WebFetch")
+    claude_args+=("--allowedTools" "Read,Write,Edit,Glob,Grep,Bash,Task,WebFetch")
     claude_args+=("--output-format" "text")
-    claude_args+=("--max-turns" "$MAX_TURNS")
 
     if [[ "$DANGEROUSLY_SKIP_PERMISSIONS" == "true" ]]; then
         claude_args+=("--dangerously-skip-permissions")

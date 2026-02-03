@@ -14,7 +14,6 @@
 #
 # Environment:
 #   ANTHROPIC_API_KEY  Required. Your Anthropic API key.
-#   MAX_TURNS          Optional. Maximum agent turns (default: 15)
 #
 
 set -euo pipefail
@@ -28,7 +27,6 @@ NC='\033[0m' # No Color
 
 # Default values
 PROJECT_PATH="${1:-.}"
-MAX_TURNS="${MAX_TURNS:-15}"
 
 # Resolve absolute path
 PROJECT_PATH="$(cd "$PROJECT_PATH" 2>/dev/null && pwd)" || {
@@ -118,8 +116,7 @@ Generate a comprehensive summary in .ad-sdlc/scratchpad/documents/current_state.
 
 If no documents are found, report that and suggest next steps." \
         --allowedTools "Read,Write,Edit,Glob,Grep,Bash(ls:*),Bash(find:*)" \
-        --output-format text \
-        --max-turns "$MAX_TURNS"
+        --output-format text
 }
 
 main "$@"

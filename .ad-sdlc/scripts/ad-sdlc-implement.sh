@@ -18,7 +18,6 @@
 #
 # Environment:
 #   ANTHROPIC_API_KEY  Required. Your Anthropic API key.
-#   MAX_TURNS          Optional. Maximum agent turns (default: 50)
 #   SKIP_TESTS         Optional. Skip running tests (default: false)
 #
 
@@ -34,7 +33,6 @@ NC='\033[0m' # No Color
 # Default values
 PROJECT_PATH="${1:-.}"
 ISSUE_NUMBER="${2:-}"
-MAX_TURNS="${MAX_TURNS:-50}"
 SKIP_TESTS="${SKIP_TESTS:-false}"
 
 # Resolve absolute path
@@ -71,7 +69,6 @@ print_header() {
     else
         echo -e "  ${GREEN}Mode:${NC} All pending issues (P0 first)"
     fi
-    echo -e "  ${GREEN}Max Turns:${NC} $MAX_TURNS"
     echo -e "  ${GREEN}Skip Tests:${NC} $SKIP_TESTS"
     echo -e "  ${GREEN}Started:${NC} $(date '+%Y-%m-%d %H:%M:%S')"
     echo ""
@@ -160,9 +157,8 @@ Update .ad-sdlc/scratchpad/progress/ with implementation details."
     fi
 
     claude -p "$prompt" \
-        --allowedTools "Read,Write,Edit,Glob,Grep,Bash,LSP,Task" \
-        --output-format text \
-        --max-turns "$MAX_TURNS"
+        --allowedTools "Read,Write,Edit,Glob,Grep,Bash,Task" \
+        --output-format text
 }
 
 main "$@"
