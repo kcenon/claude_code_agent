@@ -3,11 +3,16 @@
 # AD-SDLC Project Initialization Script
 # This script creates the complete directory structure for an AD-SDLC project.
 #
-# Usage: ./scripts/init-project.sh [project_id]
+# Usage: ./scripts/init-project.sh [target_path] [project_id]
+#
+# Arguments:
+#   target_path   Path to target project (default: current directory)
+#   project_id    Project identifier (default: 001)
 #
 # Example:
-#   ./scripts/init-project.sh 001
-#   ./scripts/init-project.sh my-project
+#   ./scripts/init-project.sh                     # Current dir, ID 001
+#   ./scripts/init-project.sh /path/to/project    # Specific path, ID 001
+#   ./scripts/init-project.sh . my-project        # Current dir, ID my-project
 #
 
 set -euo pipefail
@@ -18,12 +23,15 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-# Default project ID
-PROJECT_ID="${1:-001}"
+# Parse arguments
+TARGET_PATH="${1:-.}"
+PROJECT_ID="${2:-001}"
 
-# Project root (script's parent directory)
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+# Resolve absolute path for project root
+PROJECT_ROOT="$(cd "$TARGET_PATH" 2>/dev/null && pwd)" || {
+    echo -e "${RED}Error: Directory does not exist: $TARGET_PATH${NC}" >&2
+    exit 1
+}
 
 echo -e "${GREEN}AD-SDLC Project Initialization${NC}"
 echo "================================"
