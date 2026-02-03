@@ -21,12 +21,9 @@
 
 set -euo pipefail
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+# Source common library
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/common.sh"
 
 # Default values
 PROJECT_PATH="."
@@ -47,47 +44,21 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Resolve absolute path
-PROJECT_PATH="$(cd "$PROJECT_PATH" 2>/dev/null && pwd)" || {
-    echo -e "${RED}Error: Directory does not exist: $PROJECT_PATH${NC}" >&2
-    exit 1
-}
+PROJECT_PATH="$(resolve_path "$PROJECT_PATH")" || exit 1
 
-# Check for required environment
-check_environment() {
-    if [[ -z "${ANTHROPIC_API_KEY:-}" ]]; then
-        echo -e "${RED}Error: ANTHROPIC_API_KEY environment variable is not set${NC}" >&2
-        echo "Please set your API key: export ANTHROPIC_API_KEY=\"your-key\"" >&2
-        exit 1
-    fi
-
-    if ! command -v claude &>/dev/null; then
-        echo -e "${RED}Error: 'claude' CLI is not installed${NC}" >&2
-        echo "Please install: npm install -g @anthropic-ai/claude-code" >&2
-        exit 1
-    fi
+# Extended environment check for this script
+_check_environment() {
+    check_environment
 
     if [[ "$DRY_RUN" == "false" ]] && ! command -v gh &>/dev/null; then
-        echo -e "${YELLOW}Warning: 'gh' CLI is not installed${NC}" >&2
+        log_warn "'gh' CLI is not installed"
         echo "Issues will be saved locally but not created on GitHub." >&2
         echo "Install with: brew install gh" >&2
     fi
 }
 
-# Print header
-print_header() {
-    echo ""
-    echo -e "${BLUE}======================================"
-    echo -e "  AD-SDLC Issue Generation"
-    echo -e "======================================${NC}"
-    echo ""
-    echo -e "  ${GREEN}Project:${NC} $PROJECT_PATH"
-    echo -e "  ${GREEN}Mode:${NC} $(if [[ "$DRY_RUN" == "true" ]]; then echo "Dry Run (preview only)"; else echo "Live (creating issues)"; fi)"
-    echo -e "  ${GREEN}Started:${NC} $(date '+%Y-%m-%d %H:%M:%S')"
-    echo ""
-}
-
-# Print footer
-print_footer() {
+# Footer trap function
+_print_footer() {
     local exit_code=$?
     echo ""
     if [[ $exit_code -eq 0 ]]; then
@@ -120,9 +91,18 @@ print_footer() {
 
 # Main execution
 main() {
-    check_environment
-    print_header
-    trap print_footer EXIT
+    _check_environment
+
+    local mode_text
+    if [[ "$DRY_RUN" == "true" ]]; then
+        mode_text="Dry Run (preview only)"
+    else
+        mode_text="Live (creating issues)"
+    fi
+
+    print_header "AD-SDLC Issue Generation" "$PROJECT_PATH" \
+        "${GREEN}Mode:${NC} $mode_text"
+    trap _print_footer EXIT
 
     cd "$PROJECT_PATH"
 
