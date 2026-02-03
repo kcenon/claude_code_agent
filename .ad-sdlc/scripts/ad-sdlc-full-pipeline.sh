@@ -32,13 +32,9 @@
 
 set -euo pipefail
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-MAGENTA='\033[0;35m'
-NC='\033[0m' # No Color
+# Source common library
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/common.sh"
 
 # Default values
 PROJECT_PATH="${1:-.}"
@@ -51,32 +47,14 @@ case "$MODE" in
     auto|greenfield|enhancement|import)
         ;;
     *)
-        echo -e "${RED}Error: Invalid mode '$MODE'${NC}" >&2
+        log_error "Invalid mode '$MODE'"
         echo "Valid modes: auto, greenfield, enhancement, import" >&2
         exit 1
         ;;
 esac
 
 # Resolve absolute path
-PROJECT_PATH="$(cd "$PROJECT_PATH" 2>/dev/null && pwd)" || {
-    echo -e "${RED}Error: Directory does not exist: $1${NC}" >&2
-    exit 1
-}
-
-# Check for required environment
-check_environment() {
-    if [[ -z "${ANTHROPIC_API_KEY:-}" ]]; then
-        echo -e "${RED}Error: ANTHROPIC_API_KEY environment variable is not set${NC}" >&2
-        echo "Please set your API key: export ANTHROPIC_API_KEY=\"your-key\"" >&2
-        exit 1
-    fi
-
-    if ! command -v claude &>/dev/null; then
-        echo -e "${RED}Error: 'claude' CLI is not installed${NC}" >&2
-        echo "Please install: npm install -g @anthropic-ai/claude-code" >&2
-        exit 1
-    fi
-}
+PROJECT_PATH="$(resolve_path "$PROJECT_PATH")" || exit 1
 
 # Confirmation prompt
 confirm_execution() {
@@ -97,34 +75,17 @@ confirm_execution() {
     fi
 }
 
-# Print header
-print_header() {
-    echo ""
-    echo -e "${MAGENTA}╔══════════════════════════════════════╗"
-    echo -e "║     AD-SDLC Full Pipeline            ║"
-    echo -e "╚══════════════════════════════════════╝${NC}"
-    echo ""
-    echo -e "  ${GREEN}Project:${NC}  $PROJECT_PATH"
-    echo -e "  ${GREEN}Mode:${NC}     $MODE"
-    echo -e "  ${GREEN}Started:${NC}  $(date '+%Y-%m-%d %H:%M:%S')"
-    echo ""
-    if [[ "$DANGEROUSLY_SKIP_PERMISSIONS" == "true" ]]; then
-        echo -e "  ${RED}WARNING: Running with --dangerously-skip-permissions${NC}"
-        echo ""
-    fi
-}
-
-# Print footer
-print_footer() {
+# Footer trap function
+_print_footer() {
     local exit_code=$?
     local end_time
     end_time=$(date '+%Y-%m-%d %H:%M:%S')
 
     echo ""
     if [[ $exit_code -eq 0 ]]; then
-        echo -e "${GREEN}╔══════════════════════════════════════╗"
-        echo -e "║     Pipeline Complete                ║"
-        echo -e "╚══════════════════════════════════════╝${NC}"
+        echo -e "${GREEN}======================================"
+        echo -e "  Pipeline Complete"
+        echo -e "======================================${NC}"
         echo ""
         echo -e "  ${GREEN}Finished:${NC} $end_time"
         echo ""
@@ -135,9 +96,9 @@ print_footer() {
         echo "  - Logs: .ad-sdlc/logs/"
         echo ""
     else
-        echo -e "${RED}╔══════════════════════════════════════╗"
-        echo -e "║     Pipeline Failed                  ║"
-        echo -e "╚══════════════════════════════════════╝${NC}"
+        echo -e "${RED}======================================"
+        echo -e "  Pipeline Failed"
+        echo -e "======================================${NC}"
         echo ""
         echo -e "  ${RED}Exit Code:${NC} $exit_code"
         echo -e "  ${RED}Finished:${NC} $end_time"
@@ -153,9 +114,16 @@ print_footer() {
 # Main execution
 main() {
     check_environment
-    print_header
+
+    local extra_lines=()
+    extra_lines+=("${GREEN}Mode:${NC}     $MODE")
+    if [[ "$DANGEROUSLY_SKIP_PERMISSIONS" == "true" ]]; then
+        extra_lines+=("${RED}WARNING: Running with --dangerously-skip-permissions${NC}")
+    fi
+
+    print_header_box "AD-SDLC Full Pipeline" "$PROJECT_PATH" "${extra_lines[@]}"
     confirm_execution
-    trap print_footer EXIT
+    trap _print_footer EXIT
 
     cd "$PROJECT_PATH"
 

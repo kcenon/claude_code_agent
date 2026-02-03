@@ -17,11 +17,19 @@
 
 set -euo pipefail
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+# Source common library (relative path from scripts/ to .ad-sdlc/scripts/)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+COMMON_LIB="$SCRIPT_DIR/../.ad-sdlc/scripts/common.sh"
+
+if [[ -f "$COMMON_LIB" ]]; then
+    source "$COMMON_LIB"
+else
+    # Fallback color definitions if common.sh not available
+    RED='\033[0;31m'
+    GREEN='\033[0;32m'
+    YELLOW='\033[1;33m'
+    NC='\033[0m'
+fi
 
 # Parse arguments
 TARGET_PATH="${1:-.}"
@@ -44,9 +52,9 @@ create_dir() {
     local dir="$1"
     if [[ ! -d "$dir" ]]; then
         mkdir -p "$dir"
-        echo -e "  ${GREEN}✓${NC} Created: $dir"
+        echo -e "  ${GREEN}+${NC} Created: $dir"
     else
-        echo -e "  ${YELLOW}○${NC} Exists:  $dir"
+        echo -e "  ${YELLOW}o${NC} Exists:  $dir"
     fi
 }
 
@@ -56,9 +64,9 @@ create_placeholder() {
     local content="${2:-# Placeholder file}"
     if [[ ! -f "$file" ]]; then
         echo "$content" > "$file"
-        echo -e "  ${GREEN}✓${NC} Created: $file"
+        echo -e "  ${GREEN}+${NC} Created: $file"
     else
-        echo -e "  ${YELLOW}○${NC} Exists:  $file"
+        echo -e "  ${YELLOW}o${NC} Exists:  $file"
     fi
 }
 
@@ -66,17 +74,17 @@ echo "Creating directory structure..."
 echo ""
 
 # .claude directory
-echo "📁 .claude/"
+echo ".claude/"
 create_dir "$PROJECT_ROOT/.claude/agents"
 
 # .ad-sdlc directory
-echo "📁 .ad-sdlc/"
+echo ".ad-sdlc/"
 create_dir "$PROJECT_ROOT/.ad-sdlc/config"
 create_dir "$PROJECT_ROOT/.ad-sdlc/logs/agent-logs"
 create_dir "$PROJECT_ROOT/.ad-sdlc/templates"
 
 # Scratchpad directories
-echo "📁 .ad-sdlc/scratchpad/"
+echo ".ad-sdlc/scratchpad/"
 create_dir "$PROJECT_ROOT/.ad-sdlc/scratchpad/info/$PROJECT_ID"
 create_dir "$PROJECT_ROOT/.ad-sdlc/scratchpad/documents/$PROJECT_ID"
 create_dir "$PROJECT_ROOT/.ad-sdlc/scratchpad/issues/$PROJECT_ID"
@@ -85,7 +93,7 @@ create_dir "$PROJECT_ROOT/.ad-sdlc/scratchpad/progress/$PROJECT_ID/results"
 create_dir "$PROJECT_ROOT/.ad-sdlc/scratchpad/progress/$PROJECT_ID/reviews"
 
 # docs directory
-echo "📁 docs/"
+echo "docs/"
 create_dir "$PROJECT_ROOT/docs/prd"
 create_dir "$PROJECT_ROOT/docs/srs"
 create_dir "$PROJECT_ROOT/docs/sds"
@@ -93,11 +101,11 @@ create_dir "$PROJECT_ROOT/docs/guides"
 create_dir "$PROJECT_ROOT/docs/reference"
 
 # src directory
-echo "📁 src/"
+echo "src/"
 create_dir "$PROJECT_ROOT/src"
 
 # scripts directory
-echo "📁 scripts/"
+echo "scripts/"
 create_dir "$PROJECT_ROOT/scripts"
 
 echo ""
