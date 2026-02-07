@@ -7,7 +7,7 @@
 | **Document ID** | SDS-001 |
 | **Source SRS** | SRS-001 |
 | **Source PRD** | PRD-001 |
-| **Version** | 1.0.0 |
+| **Version** | 1.1.0 |
 | **Status** | Review |
 | **Created** | 2025-12-27 |
 | **Author** | System Architect |
@@ -48,7 +48,7 @@
 | Category | Scope |
 |----------|-------|
 | **Architecture** | 멀티 에이전트 오케스트레이션 아키텍처, Scratchpad 패턴 |
-| **Components** | 8개 특화 에이전트 컴포넌트 설계 |
+| **Components** | 28개 컴포넌트 설계 (25개 특화 에이전트 + 3개 인프라 서비스) |
 | **Data** | 파일 기반 상태 스키마, 데이터 엔티티 정의 |
 | **Interfaces** | 에이전트 간 통신, GitHub API 연동, CLI 인터페이스 |
 | **Security** | 인증, 권한 관리, 민감 정보 보호 |

@@ -6,7 +6,7 @@
 |-------|-------|
 | **Document ID** | PRD-001 |
 | **Version** | 1.0.0 |
-| **Status** | Draft |
+| **Status** | Review |
 | **Created** | 2025-12-27 |
 | **Author** | System Architect |
 
@@ -37,7 +37,7 @@
 **Agent-Driven SDLC (AD-SDLC)** - Agent-Based Software Development Lifecycle Automation System
 
 ### 1.2 Overview
-AD-SDLC is a multi-agent system built on the Claude Agent SDK that automates the entire software development lifecycle. From initial user requirements to PRD, SRS, SDS creation, GitHub Issue generation, code implementation, and PR review, 8 specialized agents collaborate to handle the process.
+AD-SDLC is a multi-agent system built on the Claude Agent SDK that automates the entire software development lifecycle. The system comprises 25 specialized agents across three pipeline modes (Greenfield, Enhancement, Import), covering the full process from initial user requirements through PRD, SRS, SDS creation, GitHub Issue generation, code implementation, and PR review.
 
 ### 1.3 Key Value Propositions
 - **End-to-End Automation**: Full process automation from requirements gathering to code deployment
@@ -210,6 +210,8 @@ User Satisfaction:
 
 ### 6.2 Agent Roles Summary
 
+#### 6.2.1 Core Agents (Greenfield Pipeline)
+
 | # | Agent Name | Description | Primary Responsibility |
 |---|------------|-------------|----------------------|
 | 1 | Collector Agent | Information Collection Agent | Analyze user input, gather and structure relevant information |
@@ -220,6 +222,33 @@ User Satisfaction:
 | 6 | Controller Agent | Control Agent | Analyze issues and assign work to Worker Agents |
 | 7 | Worker Agent | Task Agent | Execute implementation work for assigned Issues |
 | 8 | PR Review Agent | PR Review Agent | Create PRs, perform reviews, determine results |
+
+#### 6.2.2 Enhancement Pipeline Agents
+
+| # | Agent Name | Description | Primary Responsibility |
+|---|------------|-------------|----------------------|
+| 9 | Document Reader Agent | Document Parsing Agent | Parse existing PRD/SRS/SDS and extract structured state |
+| 10 | Codebase Analyzer Agent | Codebase Analysis Agent | Analyze architecture patterns and dependencies |
+| 11 | Impact Analyzer Agent | Impact Analysis Agent | Assess change impact and risk levels |
+| 12 | PRD Updater Agent | PRD Update Agent | Incrementally update PRD with new/modified/deprecated requirements |
+| 13 | SRS Updater Agent | SRS Update Agent | Incrementally update SRS maintaining PRD→SRS traceability |
+| 14 | SDS Updater Agent | SDS Update Agent | Incrementally update SDS maintaining SRS→SDS traceability |
+| 15 | Regression Tester Agent | Regression Test Agent | Run regression tests and report compatibility |
+| 16 | Code Reader Agent | Code Analysis Agent | AST-based source code analysis |
+| 17 | Doc-Code Comparator Agent | Gap Analysis Agent | Compare specifications against code implementation |
+| 18 | CI Fixer Agent | CI Fix Agent | Diagnose and fix CI/CD failures automatically |
+
+#### 6.2.3 Infrastructure & Orchestration Agents
+
+| # | Agent Name | Description | Primary Responsibility |
+|---|------------|-------------|----------------------|
+| 19 | AD-SDLC Orchestrator Agent | Pipeline Orchestrator | Coordinate full pipeline execution across all modes |
+| 20 | Analysis Orchestrator Agent | Analysis Orchestrator | Coordinate Enhancement analysis sub-pipeline |
+| 21 | Mode Detector Agent | Mode Detection Agent | Auto-detect Greenfield/Enhancement pipeline mode |
+| 22 | Project Initializer Agent | Project Init Agent | Initialize .ad-sdlc directory structure and configuration |
+| 23 | Repo Detector Agent | Repo Detection Agent | Detect existing GitHub repository presence |
+| 24 | GitHub Repo Setup Agent | Repo Setup Agent | Create and initialize GitHub repository |
+| 25 | Issue Reader Agent | Issue Import Agent | Import existing GitHub Issues to AD-SDLC format |
 
 ---
 
@@ -846,41 +875,83 @@ Review Checklist:
 | FR-015 | File system-based state sharing (Scratchpad) | P0 |
 | FR-016 | External document source integration (URLs, files) | P1 |
 
+### 8.4 Enhancement Pipeline Requirements
+
+| Req ID | Requirement | Priority | Agent(s) |
+|--------|-------------|----------|----------|
+| FR-017 | Parse existing PRD/SRS/SDS documents and extract current state | P0 | Document Reader |
+| FR-018 | Analyze existing codebase structure, patterns, and dependencies | P0 | Codebase Analyzer |
+| FR-019 | Analyze change impact on existing system and assess risk | P0 | Impact Analyzer |
+| FR-020 | Incrementally update PRD with new/modified/deprecated requirements | P0 | PRD Updater |
+| FR-021 | Incrementally update SRS maintaining PRD→SRS traceability | P0 | SRS Updater |
+| FR-022 | Incrementally update SDS maintaining SRS→SDS traceability | P0 | SDS Updater |
+| FR-023 | Run regression tests for affected areas and report compatibility | P1 | Regression Tester |
+| FR-024 | Compare document specifications against code implementation (Gap Analysis) | P1 | Doc-Code Comparator |
+| FR-025 | Read and analyze source code AST for classes, functions, and dependencies | P1 | Code Reader |
+| FR-026 | Automatically diagnose and fix CI/CD failures | P1 | CI Fixer |
+
+### 8.5 Infrastructure & Pipeline Requirements
+
+| Req ID | Requirement | Priority | Agent(s) |
+|--------|-------------|----------|----------|
+| FR-027 | Automatically detect Greenfield/Enhancement pipeline mode | P0 | Mode Detector |
+| FR-028 | Initialize .ad-sdlc directory structure and configuration | P0 | Project Initializer |
+| FR-029 | Create and initialize GitHub repository from project documents | P1 | GitHub Repo Setup |
+| FR-030 | Detect existing GitHub repository presence | P1 | Repo Detector |
+| FR-031 | Coordinate full pipeline execution by invoking subagents | P0 | AD-SDLC Orchestrator |
+| FR-032 | Coordinate Enhancement analysis pipeline (Document→Code→Compare→Issue) | P1 | Analysis Orchestrator |
+| FR-033 | Import existing GitHub Issues and convert to AD-SDLC format | P1 | Issue Reader |
+
 ---
 
 ## 9. Non-Functional Requirements
 
 ### 9.1 Performance
 
-| NFR ID | Requirement | Target |
-|--------|-------------|--------|
-| NFR-001 | Document generation response time | < 5 min / document |
-| NFR-002 | Issue creation throughput | > 20 issues / min |
-| NFR-003 | Worker Agent concurrent execution | Max 10 parallel |
+| NFR ID | Requirement | Target | Priority |
+|--------|-------------|--------|----------|
+| NFR-001 | Document generation response time | < 5 min / document | P0 |
+| NFR-002 | Issue creation throughput | > 20 issues / min | P0 |
+| NFR-003 | Worker Agent concurrent execution | Max 5 parallel | P0 |
+| NFR-004 | Status check interval | 30s | P1 |
+| NFR-005 | PR review completion time | < 5 min | P1 |
 
 ### 9.2 Reliability
 
-| NFR ID | Requirement | Target |
-|--------|-------------|--------|
-| NFR-004 | System availability | 99.5% |
-| NFR-005 | Document generation success rate | > 95% |
-| NFR-006 | Data loss prevention guarantee | 100% |
+| NFR ID | Requirement | Target | Priority |
+|--------|-------------|--------|----------|
+| NFR-006 | System availability | 99.5% | P1 |
+| NFR-007 | Document generation success rate | > 95% | P0 |
+| NFR-008 | Code implementation success rate | > 85% | P0 |
+| NFR-009 | Data loss prevention guarantee | 100% | P0 |
+| NFR-010 | Recovery rate after retry | > 90% | P1 |
 
 ### 9.3 Security
 
-| NFR ID | Requirement | Target |
-|--------|-------------|--------|
-| NFR-007 | Secure storage of API keys/tokens | Environment variables or Secret Manager |
-| NFR-008 | Sensitive information masking | Auto-masking in logs |
-| NFR-009 | Access permission management | GitHub OAuth integration |
+| NFR ID | Requirement | Target | Priority |
+|--------|-------------|--------|----------|
+| NFR-011 | Secure storage of API keys/tokens | Environment variables or Secret Manager | P0 |
+| NFR-012 | Sensitive information masking | Auto-masking in logs | P0 |
+| NFR-013 | Access permission management | GitHub OAuth or PAT-based authentication | P0 |
+| NFR-014 | Code security check | Prohibit hardcoded secrets in generated code | P0 |
+| NFR-015 | Input validation | Validate user input and external data | P1 |
 
 ### 9.4 Maintainability
 
-| NFR ID | Requirement | Target |
-|--------|-------------|--------|
-| NFR-010 | Agent configuration externalization | YAML-based configuration |
-| NFR-011 | Template customization | User-defined template support |
-| NFR-012 | Log level adjustment | DEBUG/INFO/WARN/ERROR |
+| NFR ID | Requirement | Target | Priority |
+|--------|-------------|--------|----------|
+| NFR-016 | Agent configuration externalization | YAML-based configuration | P0 |
+| NFR-017 | Template customization | User-defined template support | P1 |
+| NFR-018 | Log level adjustment | DEBUG/INFO/WARN/ERROR runtime adjustment | P1 |
+| NFR-019 | Agent definition separation | Independent definition file per agent | P0 |
+| NFR-020 | Workflow configuration | Pipeline stage and approval gate configuration | P1 |
+
+### 9.5 Scalability
+
+| NFR ID | Requirement | Target | Priority |
+|--------|-------------|--------|----------|
+| NFR-021 | Parallel Worker scaling | Maximum Worker count configurable via settings | P1 |
+| NFR-022 | Large document processing | Process large inputs via context splitting | P1 |
 
 ---
 
@@ -1198,6 +1269,32 @@ Validation Gates:
 - [ ] Full workflow E2E test passing
 - [ ] User guide completed
 - [ ] Performance benchmarks achieved
+
+### Phase 6: Enhancement Pipeline (4 weeks)
+
+| Week | Deliverable |
+|------|-------------|
+| 18-19 | Document Reader, Codebase Analyzer, Code Reader implementation |
+| 20-21 | Impact Analyzer, PRD/SRS/SDS Updater agents implementation |
+
+**Exit Criteria:**
+- [ ] Existing document parsing and traceability extraction working
+- [ ] Change impact analysis with risk assessment working
+- [ ] Incremental document update pipeline (PRD→SRS→SDS) working
+
+### Phase 7: Infrastructure & Advanced Features (3 weeks)
+
+| Week | Deliverable |
+|------|-------------|
+| 22 | Mode Detector, Project Initializer, Repo Detector implementation |
+| 23 | AD-SDLC Orchestrator, Analysis Orchestrator, Issue Reader implementation |
+| 24 | Regression Tester, CI Fixer, Doc-Code Comparator implementation |
+
+**Exit Criteria:**
+- [ ] Auto-detection of Greenfield/Enhancement mode working
+- [ ] Import pipeline (existing GitHub Issues → Implementation) working
+- [ ] Regression testing and CI auto-fix working
+- [ ] Full Enhancement Pipeline E2E test passing
 
 ---
 

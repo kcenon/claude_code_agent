@@ -43,7 +43,10 @@
 AD-SDLC 시스템은 다음 범위를 포함합니다:
 
 **포함 범위:**
-- 8개의 특화된 Claude 에이전트 (Collector, PRD Writer, SRS Writer, SDS Writer, Issue Generator, Controller, Worker, PR Reviewer)
+- 3가지 파이프라인 모드에 걸친 25개의 특화된 Claude 에이전트:
+  - **Core (Greenfield)**: Collector, PRD Writer, SRS Writer, SDS Writer, Issue Generator, Controller, Worker, PR Reviewer
+  - **Enhancement**: Document Reader, Codebase Analyzer, Impact Analyzer, PRD/SRS/SDS Updaters, Regression Tester, Code Reader, Doc-Code Comparator, CI Fixer
+  - **Infrastructure**: AD-SDLC Orchestrator, Analysis Orchestrator, Mode Detector, Project Initializer, Repo Detector, GitHub Repo Setup, Issue Reader
 - 문서 파이프라인 자동화 (PRD → SRS → SDS)
 - GitHub Issue 자동 생성 및 관리
 - 코드 자동 구현 및 PR 생성/리뷰

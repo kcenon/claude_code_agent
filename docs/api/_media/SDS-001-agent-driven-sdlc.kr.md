@@ -7,8 +7,8 @@
 | **Document ID** | SDS-001 |
 | **Source SRS** | SRS-001 |
 | **Source PRD** | PRD-001 |
-| **Version** | 1.0.0 |
-| **Status** | Draft |
+| **Version** | 1.1.0 |
+| **Status** | Review |
 | **Created** | 2025-12-27 |
 | **Author** | System Architect |
 
@@ -48,7 +48,7 @@
 | Category | Scope |
 |----------|-------|
 | **Architecture** | 멀티 에이전트 오케스트레이션 아키텍처, Scratchpad 패턴 |
-| **Components** | 8개 특화 에이전트 컴포넌트 설계 |
+| **Components** | 28개 컴포넌트 설계 (25개 특화 에이전트 + 3개 인프라 서비스) |
 | **Data** | 파일 기반 상태 스키마, 데이터 엔티티 정의 |
 | **Interfaces** | 에이전트 간 통신, GitHub API 연동, CLI 인터페이스 |
 | **Security** | 인증, 권한 관리, 민감 정보 보호 |
@@ -363,6 +363,23 @@ project-root/
 | CMP-009 | State Manager | 상태 관리자 | SF-014 | Scratchpad 상태 관리 |
 | CMP-010 | Logger | 로깅 서비스 | SF-015 | 활동 로깅 및 감사 |
 | CMP-011 | Error Handler | 오류 처리기 | SF-016 | 재시도 및 복구 관리 |
+| CMP-012 | Document Reader Agent | 문서 분석 에이전트 | SF-017 | 기존 명세 문서 파싱 및 추적성 맵 구축 |
+| CMP-013 | Codebase Analyzer Agent | 코드베이스 분석 에이전트 | SF-018 | 기존 코드 구조 및 아키텍처 분석 |
+| CMP-014 | Impact Analyzer Agent | 영향 분석 에이전트 | SF-019 | 변경 영향 범위 및 리스크 평가 |
+| CMP-015 | PRD Updater Agent | PRD 갱신 에이전트 | SF-020 | PRD 점진적 갱신 |
+| CMP-016 | SRS Updater Agent | SRS 갱신 에이전트 | SF-021 | SRS 점진적 갱신 |
+| CMP-017 | SDS Updater Agent | SDS 갱신 에이전트 | SF-022 | SDS 점진적 갱신 |
+| CMP-018 | Regression Tester Agent | 회귀 테스트 에이전트 | SF-023 | 영향받는 테스트 매핑 및 회귀 테스트 |
+| CMP-019 | Doc-Code Comparator Agent | 문서-코드 비교 에이전트 | SF-024 | 명세와 코드 갭 분석 |
+| CMP-020 | Code Reader Agent | 코드 리더 에이전트 | SF-025 | AST 기반 소스코드 분석 |
+| CMP-021 | CI Fixer Agent | CI 수정 에이전트 | SF-026 | CI/CD 실패 진단 및 자동 수정 |
+| CMP-022 | Mode Detector Agent | 모드 감지 에이전트 | SF-027 | Greenfield/Enhancement 파이프라인 모드 감지 |
+| CMP-023 | Project Initializer Agent | 프로젝트 초기화 에이전트 | SF-028 | .ad-sdlc 작업 공간 초기화 |
+| CMP-024 | Repo Detector Agent | 저장소 감지 에이전트 | SF-029 | 기존 GitHub 저장소 감지 |
+| CMP-025 | AD-SDLC Orchestrator Agent | 파이프라인 오케스트레이터 | SF-030 | 전체 파이프라인 조율 |
+| CMP-026 | Analysis Orchestrator Agent | 분석 오케스트레이터 | SF-030 | Enhancement 분석 서브 파이프라인 |
+| CMP-027 | GitHub Repo Setup Agent | GitHub 저장소 설정 에이전트 | SF-029 | GitHub 저장소 생성 및 초기화 |
+| CMP-028 | Issue Reader Agent | 이슈 리더 에이전트 | SF-031 | 기존 GitHub 이슈 가져오기 |
 
 ### 3.2 CMP-001: Collector Agent
 
@@ -1839,6 +1856,1024 @@ interface ErrorHandlingResult {
 type CircuitState = 'closed' | 'open' | 'half_open';
 ```
 
+### 3.11 Enhancement 파이프라인 컴포넌트
+
+#### 3.11.1 CMP-012: Document Reader Agent
+
+**Source Features**: SF-017 (UC-025, UC-026)
+
+**Responsibility**: 기존 PRD/SRS/SDS 마크다운 파일을 파싱하고 모든 요구사항, 기능, 컴포넌트 및 그 관계의 통합 추적성 맵을 구축합니다.
+
+```typescript
+interface IDocumentReaderAgent {
+  /**
+   * Parse a specification document and extract structured data
+   * @param filePath Path to the markdown document (PRD, SRS, or SDS)
+   * @returns Parsed document structure with requirements, features, or components
+   */
+  parseDocument(filePath: string): Promise<ParsedDocument>;
+
+  /**
+   * Build a complete traceability map across all specification documents
+   * @param projectDir Project root directory containing docs/
+   * @returns Traceability mappings between PRD requirements, SRS features, and SDS components
+   */
+  buildTraceabilityMap(projectDir: string): Promise<TraceabilityMap>;
+}
+
+interface ParsedDocument {
+  type: 'PRD' | 'SRS' | 'SDS';
+  version: string;
+  items: DocumentItem[];
+  metadata: Record<string, string>;
+}
+
+interface DocumentItem {
+  id: string;           // e.g., "FR-001", "SF-001", "CMP-001"
+  title: string;
+  description: string;
+  references: string[]; // IDs of linked items in other documents
+}
+
+interface TraceabilityMap {
+  requirements: DocumentItem[];   // PRD items
+  features: DocumentItem[];       // SRS items
+  components: DocumentItem[];     // SDS items
+  mappings: TraceabilityLink[];
+}
+
+interface TraceabilityLink {
+  sourceId: string;
+  targetId: string;
+  linkType: 'implements' | 'traces_to' | 'depends_on';
+}
+```
+
+**Output**: `.ad-sdlc/scratchpad/analysis/{project_id}/current_state.yaml`
+
+#### 3.11.2 CMP-013: Codebase Analyzer Agent
+
+**Source Features**: SF-018 (UC-027, UC-028)
+
+**Responsibility**: 기존 코드베이스를 분석하여 아키텍처 패턴, 빌드 시스템, 코딩 컨벤션을 감지하고 의존성 그래프를 생성합니다.
+
+```typescript
+interface ICodebaseAnalyzerAgent {
+  /**
+   * Analyze codebase architecture and detect patterns
+   * @param projectDir Project root directory
+   * @returns Architecture overview including patterns, conventions, and structure
+   */
+  analyzeArchitecture(projectDir: string): Promise<ArchitectureOverview>;
+
+  /**
+   * Generate a dependency graph of modules and packages
+   * @param projectDir Project root directory
+   * @returns Dependency graph with nodes (modules) and edges (dependencies)
+   */
+  generateDependencyGraph(projectDir: string): Promise<DependencyGraph>;
+}
+
+interface ArchitectureOverview {
+  projectType: string;          // e.g., "monorepo", "single-package"
+  language: string;             // e.g., "TypeScript", "Python"
+  buildSystem: string;          // e.g., "npm", "gradle", "cmake"
+  patterns: ArchitecturePattern[];
+  conventions: CodingConvention[];
+  structure: DirectoryStructure;
+}
+
+interface ArchitecturePattern {
+  name: string;                 // e.g., "MVC", "Clean Architecture", "Monolith"
+  confidence: number;           // 0.0 - 1.0
+  evidence: string[];           // File paths or patterns supporting detection
+}
+
+interface CodingConvention {
+  category: string;             // e.g., "naming", "formatting", "testing"
+  rule: string;
+  examples: string[];
+}
+
+interface DirectoryStructure {
+  root: string;
+  sourceDirectories: string[];
+  testDirectories: string[];
+  configFiles: string[];
+}
+```
+
+**Output**: `.ad-sdlc/scratchpad/analysis/{project_id}/architecture_overview.yaml`, `.ad-sdlc/scratchpad/analysis/{project_id}/dependency_graph.json`
+
+#### 3.11.3 CMP-014: Impact Analyzer Agent
+
+**Source Features**: SF-019 (UC-029, UC-030)
+
+**Responsibility**: 사용자 변경 요청에 대해 기존 요구사항, 기능, 컴포넌트에 미치는 영향을 분석합니다. 리스크를 평가하고 업데이트 전략을 권고합니다.
+
+```typescript
+interface IImpactAnalyzerAgent {
+  /**
+   * Analyze the impact of a proposed change across the system
+   * @param changeRequest User's change description
+   * @param currentState Current state from Document Reader
+   * @param architecture Architecture overview from Codebase Analyzer
+   * @returns Impact report with scope, affected components, and risk assessment
+   */
+  analyzeImpact(
+    changeRequest: string,
+    currentState: TraceabilityMap,
+    architecture: ArchitectureOverview
+  ): Promise<ImpactReport>;
+
+  /**
+   * Assess risk level and recommend mitigation strategies
+   * @param impactReport Previously generated impact report
+   * @returns Risk assessment with severity, likelihood, and recommendations
+   */
+  assessRisk(impactReport: ImpactReport): Promise<RiskAssessment>;
+}
+
+interface ImpactReport {
+  changeRequest: string;
+  changeScope: 'minor' | 'moderate' | 'major' | 'breaking';
+  affectedRequirements: string[];   // FR-xxx IDs
+  affectedFeatures: string[];       // SF-xxx IDs
+  affectedComponents: string[];     // CMP-xxx IDs
+  affectedFiles: string[];
+  riskAssessment: RiskAssessment;
+  recommendations: Recommendation[];
+}
+
+interface RiskAssessment {
+  overallRisk: 'low' | 'medium' | 'high' | 'critical';
+  factors: RiskFactor[];
+}
+
+interface RiskFactor {
+  category: string;           // e.g., "breaking_change", "data_migration", "api_compatibility"
+  severity: 'low' | 'medium' | 'high';
+  description: string;
+  mitigation: string;
+}
+
+interface Recommendation {
+  type: 'add' | 'modify' | 'deprecate' | 'remove';
+  targetDocument: 'PRD' | 'SRS' | 'SDS';
+  targetId: string;
+  description: string;
+  priority: 'P0' | 'P1' | 'P2' | 'P3';
+}
+```
+
+**Output**: `.ad-sdlc/scratchpad/analysis/{project_id}/impact_report.yaml`
+
+#### 3.11.4 CMP-015: PRD Updater Agent
+
+**Source Features**: SF-020 (UC-031)
+
+**Responsibility**: 버전 이력 및 변경 로그를 유지하면서 요구사항을 추가, 수정 또는 폐기하여 PRD 문서를 업데이트합니다.
+
+```typescript
+interface IPRDUpdaterAgent {
+  /**
+   * Add a new functional or non-functional requirement to the PRD
+   * @param requirement New requirement definition
+   * @returns Updated requirement ID and document version
+   */
+  addRequirement(requirement: NewRequirement): Promise<UpdateResult>;
+
+  /**
+   * Modify an existing requirement
+   * @param requirementId ID of the requirement to modify (e.g., "FR-017")
+   * @param changes Fields to update
+   * @returns Updated document version
+   */
+  modifyRequirement(requirementId: string, changes: RequirementChanges): Promise<UpdateResult>;
+
+  /**
+   * Mark a requirement as deprecated with rationale
+   * @param requirementId ID of the requirement to deprecate
+   * @param reason Deprecation reason
+   * @returns Updated document version
+   */
+  deprecateRequirement(requirementId: string, reason: string): Promise<UpdateResult>;
+}
+
+interface NewRequirement {
+  type: 'FR' | 'NFR';
+  title: string;
+  description: string;
+  priority: 'P0' | 'P1' | 'P2' | 'P3';
+  acceptanceCriteria: string[];
+}
+
+interface RequirementChanges {
+  title?: string;
+  description?: string;
+  priority?: 'P0' | 'P1' | 'P2' | 'P3';
+  acceptanceCriteria?: string[];
+}
+
+interface UpdateResult {
+  documentPath: string;
+  itemId: string;
+  newVersion: string;
+  changelogEntry: string;
+}
+```
+
+#### 3.11.5 CMP-016: SRS Updater Agent
+
+**Source Features**: SF-021 (UC-032)
+
+**Responsibility**: 기능 및 유즈케이스를 추가하고 PRD-SRS 추적성 매트릭스를 유지하여 SRS 문서를 업데이트합니다.
+
+```typescript
+interface ISRSUpdaterAgent {
+  /**
+   * Add a new software feature to the SRS
+   * @param feature New feature definition with linked PRD requirements
+   * @returns Updated feature ID and document version
+   */
+  addFeature(feature: NewFeature): Promise<UpdateResult>;
+
+  /**
+   * Add a new use case under an existing feature
+   * @param featureId Parent feature ID (e.g., "SF-017")
+   * @param useCase Use case definition
+   * @returns Updated use case ID and document version
+   */
+  addUseCase(featureId: string, useCase: NewUseCase): Promise<UpdateResult>;
+
+  /**
+   * Update the PRD-to-SRS traceability matrix
+   * @param links Array of requirement-to-feature mappings
+   */
+  updateTraceability(links: TraceabilityLink[]): Promise<void>;
+}
+
+interface NewFeature {
+  title: string;
+  description: string;
+  sourceRequirements: string[];   // FR-xxx IDs from PRD
+  useCases: NewUseCase[];
+}
+
+interface NewUseCase {
+  title: string;
+  actor: string;
+  preconditions: string[];
+  mainFlow: string[];
+  postconditions: string[];
+  alternativeFlows?: string[];
+}
+```
+
+#### 3.11.6 CMP-017: SDS Updater Agent
+
+**Source Features**: SF-022 (UC-033)
+
+**Responsibility**: SRS-SDS 추적성 매트릭스를 유지하면서 컴포넌트, API 정의, 아키텍처 변경사항을 추가하여 SDS 문서를 업데이트합니다.
+
+```typescript
+interface ISDSUpdaterAgent {
+  /**
+   * Add a new component definition to the SDS
+   * @param component New component with interface definition
+   * @returns Updated component ID and document version
+   */
+  addComponent(component: NewComponent): Promise<UpdateResult>;
+
+  /**
+   * Add or update an API definition for an existing component
+   * @param componentId Component ID (e.g., "CMP-012")
+   * @param api API definition
+   * @returns Updated document version
+   */
+  addAPI(componentId: string, api: APIDefinition): Promise<UpdateResult>;
+
+  /**
+   * Update architecture diagrams and descriptions
+   * @param section Architecture section identifier
+   * @param content Updated architecture content
+   */
+  updateArchitecture(section: string, content: string): Promise<UpdateResult>;
+}
+
+interface NewComponent {
+  name: string;
+  sourceFeatures: string[];       // SF-xxx IDs from SRS
+  responsibility: string;
+  interfaceDefinition: string;    // TypeScript interface as string
+}
+
+interface APIDefinition {
+  name: string;
+  signature: string;
+  description: string;
+  parameters: ParameterDef[];
+  returnType: string;
+}
+
+interface ParameterDef {
+  name: string;
+  type: string;
+  description: string;
+  required: boolean;
+}
+```
+
+#### 3.11.7 CMP-018: Regression Tester Agent
+
+**Source Features**: SF-023 (UC-034)
+
+**Responsibility**: 영향 분석에 기반하여 영향받는 테스트를 매핑하고, 회귀 테스트 스위트를 실행하며, 하위 호환성을 분석합니다.
+
+```typescript
+interface IRegressionTesterAgent {
+  /**
+   * Identify tests affected by a set of changes
+   * @param affectedComponents Component IDs from impact analysis
+   * @param affectedFiles File paths from impact analysis
+   * @returns Mapping of affected test files and test cases
+   */
+  mapAffectedTests(
+    affectedComponents: string[],
+    affectedFiles: string[]
+  ): Promise<AffectedTestMap>;
+
+  /**
+   * Execute the regression test suite for affected areas
+   * @param testMap Affected test mapping
+   * @returns Regression test results
+   */
+  runRegressionSuite(testMap: AffectedTestMap): Promise<RegressionReport>;
+
+  /**
+   * Analyze backward compatibility of proposed changes
+   * @param changes Proposed code changes
+   * @returns Compatibility analysis with breaking change detection
+   */
+  analyzeCompatibility(changes: CodeChange[]): Promise<CompatibilityAnalysis>;
+}
+
+interface AffectedTestMap {
+  testFiles: string[];
+  testCases: TestCaseRef[];
+  estimatedDuration: number;      // seconds
+}
+
+interface TestCaseRef {
+  file: string;
+  name: string;
+  component: string;
+}
+
+interface RegressionReport {
+  totalTests: number;
+  passed: number;
+  failed: number;
+  skipped: number;
+  duration: number;               // seconds
+  failures: TestFailure[];
+  coverageDelta: number;          // percentage change
+}
+
+interface TestFailure {
+  testFile: string;
+  testName: string;
+  error: string;
+  component: string;
+}
+
+interface CompatibilityAnalysis {
+  isBackwardCompatible: boolean;
+  breakingChanges: BreakingChange[];
+}
+
+interface BreakingChange {
+  type: 'api' | 'schema' | 'behavior' | 'interface';
+  description: string;
+  affectedConsumers: string[];
+  migrationPath: string;
+}
+```
+
+**Output**: `.ad-sdlc/scratchpad/analysis/{project_id}/regression_report.yaml`
+
+#### 3.11.8 CMP-019: Doc-Code Comparator Agent
+
+**Source Features**: SF-024 (UC-035)
+
+**Responsibility**: 명세 문서를 실제 코드베이스와 비교하여 드리프트, 누락된 구현, 문서화되지 않은 기능을 감지합니다.
+
+```typescript
+interface IDocCodeComparatorAgent {
+  /**
+   * Compare specification documents against codebase implementation
+   * @param currentState Traceability map from Document Reader
+   * @param codeInventory Code inventory from Code Reader
+   * @returns Gap report with discrepancies and recommendations
+   */
+  compareSpecs(
+    currentState: TraceabilityMap,
+    codeInventory: CodeInventory
+  ): Promise<GapReport>;
+
+  /**
+   * Generate a detailed gap report with prioritized action items
+   * @param comparison Raw comparison results
+   * @returns Structured gap report
+   */
+  generateGapReport(comparison: ComparisonResult[]): Promise<GapReport>;
+}
+
+interface GapReport {
+  timestamp: string;
+  summary: GapSummary;
+  gaps: Gap[];
+  recommendations: GapRecommendation[];
+}
+
+interface GapSummary {
+  totalSpecItems: number;
+  implementedCount: number;
+  missingCount: number;
+  driftCount: number;
+  undocumentedCount: number;
+}
+
+interface Gap {
+  type: 'missing_implementation' | 'spec_drift' | 'undocumented_feature' | 'stale_spec';
+  specId?: string;              // Document item ID if applicable
+  filePath?: string;            // Source file if applicable
+  description: string;
+  severity: 'low' | 'medium' | 'high';
+}
+
+interface GapRecommendation {
+  gapType: string;
+  action: 'implement' | 'update_spec' | 'document' | 'remove';
+  description: string;
+  priority: 'P0' | 'P1' | 'P2' | 'P3';
+}
+
+interface ComparisonResult {
+  specItem: DocumentItem;
+  implementationStatus: 'implemented' | 'partial' | 'missing' | 'drifted';
+  evidence: string[];
+}
+```
+
+**Output**: `.ad-sdlc/scratchpad/analysis/{project_id}/gap_report.yaml`
+
+#### 3.11.9 CMP-020: Code Reader Agent
+
+**Source Features**: SF-025 (UC-036)
+
+**Responsibility**: AST 파싱(TypeScript의 경우 ts-morph)을 사용하여 심층 코드 분석을 수행하고, 클래스, 함수, 의존성을 추출하여 코드 인벤토리를 구축합니다.
+
+```typescript
+interface ICodeReaderAgent {
+  /**
+   * Analyze AST of source files to extract structural information
+   * @param projectDir Project root directory
+   * @param filePatterns Glob patterns for files to analyze (e.g., ["src/**/*.ts"])
+   * @returns Structured code inventory
+   */
+  analyzeAST(projectDir: string, filePatterns: string[]): Promise<CodeInventory>;
+
+  /**
+   * Extract import/export dependencies between modules
+   * @param projectDir Project root directory
+   * @returns Module dependency map
+   */
+  extractDependencies(projectDir: string): Promise<ModuleDependencyMap>;
+}
+
+interface CodeInventory {
+  files: SourceFile[];
+  classes: ClassInfo[];
+  functions: FunctionInfo[];
+  interfaces: InterfaceInfo[];
+  exports: ExportInfo[];
+  totalLines: number;
+}
+
+interface SourceFile {
+  path: string;
+  language: string;
+  lines: number;
+  imports: string[];
+  exports: string[];
+}
+
+interface ClassInfo {
+  name: string;
+  filePath: string;
+  methods: string[];
+  properties: string[];
+  implements: string[];
+  extends?: string;
+}
+
+interface FunctionInfo {
+  name: string;
+  filePath: string;
+  parameters: string[];
+  returnType: string;
+  exported: boolean;
+}
+
+interface InterfaceInfo {
+  name: string;
+  filePath: string;
+  methods: string[];
+  properties: string[];
+  extends: string[];
+}
+
+interface ExportInfo {
+  name: string;
+  filePath: string;
+  type: 'class' | 'function' | 'interface' | 'constant' | 'type';
+}
+
+interface ModuleDependencyMap {
+  modules: ModuleNode[];
+  edges: ModuleEdge[];
+}
+
+interface ModuleNode {
+  path: string;
+  exportCount: number;
+  importCount: number;
+}
+
+interface ModuleEdge {
+  from: string;
+  to: string;
+  imports: string[];
+}
+```
+
+**Output**: `.ad-sdlc/scratchpad/analysis/{project_id}/code_inventory.yaml`
+
+#### 3.11.10 CMP-021: CI Fixer Agent
+
+**Source Features**: SF-026 (UC-037)
+
+**Responsibility**: CI/CD 파이프라인 실패(lint, 타입 체크, 테스트, 빌드)를 진단하고 자동화된 수정을 적용합니다.
+
+```typescript
+interface ICIFixerAgent {
+  /**
+   * Diagnose a CI failure from log output
+   * @param ciLog CI pipeline log output
+   * @param failureType Type of CI failure
+   * @returns Diagnosis with root cause and suggested fixes
+   */
+  diagnoseCIFailure(
+    ciLog: string,
+    failureType: CIFailureType
+  ): Promise<CIDiagnosis>;
+
+  /**
+   * Apply an automated fix for a diagnosed CI failure
+   * @param diagnosis CI failure diagnosis
+   * @returns Fix result with modified files and verification status
+   */
+  applyFix(diagnosis: CIDiagnosis): Promise<CIFixResult>;
+}
+
+type CIFailureType = 'lint' | 'type_check' | 'test' | 'build' | 'unknown';
+
+interface CIDiagnosis {
+  failureType: CIFailureType;
+  rootCause: string;
+  affectedFiles: string[];
+  suggestedFixes: SuggestedFix[];
+  confidence: number;             // 0.0 - 1.0
+}
+
+interface SuggestedFix {
+  description: string;
+  filePath: string;
+  changeType: 'edit' | 'add' | 'delete';
+  preview: string;                // Diff or code snippet
+}
+
+interface CIFixResult {
+  applied: boolean;
+  modifiedFiles: string[];
+  verificationPassed: boolean;
+  verificationOutput: string;
+  retryRecommended: boolean;
+}
+```
+
+---
+
+### 3.12 인프라 컴포넌트
+
+#### 3.12.1 CMP-022: Mode Detector Agent
+
+**Source Features**: SF-027 (UC-038)
+
+**Responsibility**: 프로젝트가 그린필드(신규) 프로젝트인지 Enhancement(기존) 프로젝트인지 감지하여 적절한 파이프라인을 선택합니다.
+
+```typescript
+interface IModeDetectorAgent {
+  /**
+   * Detect project mode based on directory contents and existing artifacts
+   * @param projectDir Project root directory
+   * @returns Detected mode with confidence score and evidence
+   */
+  detectMode(projectDir: string): Promise<ModeDetectionResult>;
+}
+
+interface ModeDetectionResult {
+  mode: 'greenfield' | 'enhancement';
+  confidence: number;             // 0.0 - 1.0
+  evidence: ModeEvidence[];
+}
+
+interface ModeEvidence {
+  factor: string;                 // e.g., "existing_source_code", "ad_sdlc_directory", "git_history"
+  detected: boolean;
+  weight: number;
+  details: string;
+}
+```
+
+#### 3.12.2 CMP-023: Project Initializer Agent
+
+**Source Features**: SF-028 (UC-039)
+
+**Responsibility**: `.ad-sdlc` 디렉토리 구조, 설정 파일, gitignore 항목을 생성하여 AD-SDLC 작업 공간을 초기화합니다.
+
+```typescript
+interface IProjectInitializerAgent {
+  /**
+   * Initialize the AD-SDLC project workspace
+   * @param projectDir Project root directory
+   * @param options Initialization options
+   * @returns Initialization result with created paths
+   */
+  initialize(projectDir: string, options: InitOptions): Promise<InitResult>;
+}
+
+interface InitOptions {
+  mode: 'greenfield' | 'enhancement';
+  projectName: string;
+  description?: string;
+  createGitIgnore: boolean;
+}
+
+interface InitResult {
+  success: boolean;
+  createdDirectories: string[];
+  createdFiles: string[];
+  configPath: string;
+}
+```
+
+#### 3.12.3 CMP-024: Repo Detector Agent
+
+**Source Features**: SF-029 (UC-041)
+
+**Responsibility**: 로컬 git 저장소 구성 및 원격 GitHub 저장소 가용성을 감지합니다.
+
+```typescript
+interface IRepoDetectorAgent {
+  /**
+   * Detect repository configuration for the project
+   * @param projectDir Project root directory
+   * @returns Repository detection result with local and remote info
+   */
+  detectRepository(projectDir: string): Promise<RepoDetectionResult>;
+}
+
+interface RepoDetectionResult {
+  hasLocalGit: boolean;
+  hasRemote: boolean;
+  remoteUrl?: string;
+  defaultBranch?: string;
+  owner?: string;
+  repoName?: string;
+  isGitHubRepo: boolean;
+}
+```
+
+#### 3.12.4 CMP-025: AD-SDLC Orchestrator Agent
+
+**Source Features**: SF-030 (UC-042, UC-043)
+
+**Responsibility**: 감지된 프로젝트 모드에 기반하여 전문 에이전트에 위임하면서 전체 AD-SDLC 워크플로우를 조율하는 최상위 파이프라인 오케스트레이터입니다.
+
+```typescript
+interface IADSDLCOrchestrator {
+  /**
+   * Execute the full AD-SDLC pipeline
+   * @param projectDir Project root directory
+   * @param userRequest User's project description or change request
+   * @returns Pipeline execution result
+   */
+  executePipeline(projectDir: string, userRequest: string): Promise<PipelineResult>;
+
+  /**
+   * Coordinate multiple agents in sequence or parallel
+   * @param agents Agent invocations to coordinate
+   * @param strategy Execution strategy (sequential or parallel)
+   * @returns Coordinated execution results
+   */
+  coordinateAgents(
+    agents: AgentInvocation[],
+    strategy: 'sequential' | 'parallel'
+  ): Promise<AgentResult[]>;
+}
+
+interface PipelineResult {
+  projectId: string;
+  mode: 'greenfield' | 'enhancement';
+  stages: StageResult[];
+  overallStatus: 'completed' | 'failed' | 'partial';
+  duration: number;               // seconds
+  artifacts: string[];            // Generated file paths
+}
+
+interface StageResult {
+  name: string;
+  agentType: string;
+  status: 'completed' | 'failed' | 'skipped';
+  duration: number;
+  output: string;
+  artifacts: string[];
+}
+```
+
+#### 3.12.5 CMP-026: Analysis Orchestrator Agent
+
+**Source Features**: SF-030 (UC-043)
+
+**Responsibility**: Enhancement 모드를 위한 분석 서브 파이프라인을 오케스트레이션합니다: DocumentReader -> CodeReader -> Comparator -> IssueGenerator.
+
+```typescript
+interface IAnalysisOrchestrator {
+  /**
+   * Execute the analysis pipeline for enhancement mode
+   * @param projectDir Project root directory
+   * @param changeRequest User's change request description
+   * @returns Analysis pipeline results including gap report and impact analysis
+   */
+  executeAnalysisPipeline(
+    projectDir: string,
+    changeRequest: string
+  ): Promise<AnalysisPipelineResult>;
+}
+
+interface AnalysisPipelineResult {
+  currentState: TraceabilityMap;
+  codeInventory: CodeInventory;
+  gapReport: GapReport;
+  impactReport: ImpactReport;
+  generatedIssues: number[];      // GitHub issue numbers
+  recommendedActions: Recommendation[];
+}
+```
+
+#### 3.12.6 CMP-027: GitHub Repo Setup Agent
+
+**Source Features**: SF-029 (UC-040)
+
+**Responsibility**: PRD 및 SRS에서 추출한 프로젝트 메타데이터를 기반으로 새 공개 GitHub 저장소를 생성하고 초기화합니다. README 생성, 라이선스 선택, .gitignore 생성, `gh` CLI를 사용한 초기 커밋을 수행합니다.
+
+```typescript
+interface IGitHubRepoSetupAgent {
+  /**
+   * GitHub 저장소 생성 및 초기화
+   * @param projectName PRD에서 추출한 프로젝트 이름
+   * @param description 프로젝트 설명
+   * @param options 저장소 생성 옵션
+   * @returns 저장소 URL 및 메타데이터
+   */
+  createRepository(
+    projectName: string,
+    description: string,
+    options: RepoSetupOptions
+  ): Promise<RepoSetupResult>;
+}
+
+interface RepoSetupOptions {
+  /** 라이선스 유형 (MIT, Apache-2.0 등) */
+  readonly license: string;
+  /** .gitignore 템플릿용 프로그래밍 언어 */
+  readonly language: string;
+  /** PRD에서 초기 README 생성 여부 */
+  readonly generateReadme: boolean;
+  /** GitHub 가시성 (public/private) */
+  readonly visibility: 'public' | 'private';
+}
+
+interface RepoSetupResult {
+  /** 전체 저장소 URL */
+  readonly repoUrl: string;
+  /** Owner/repo 형식 */
+  readonly repoFullName: string;
+  /** 기본 브랜치 이름 */
+  readonly defaultBranch: string;
+  /** 초기 커밋 SHA */
+  readonly initialCommitSha: string;
+}
+```
+
+**Output**: GitHub 저장소 생성 및 초기화 완료
+**Tools Required**: Bash (gh CLI, git)
+
+#### 3.12.7 CMP-028: Issue Reader Agent
+
+**Source Features**: SF-031 (UC-044)
+
+**Responsibility**: 저장소에서 기존 GitHub 이슈를 가져와 AD-SDLC 내부 형식으로 변환합니다. 이슈 메타데이터(레이블, 담당자, 마일스톤)를 파싱하고, 이슈 본문 참조에서 이슈 간 의존성을 추출하며, 의존성 그래프를 구축하고, Controller Agent와 호환되는 구조화된 이슈 목록을 생성합니다.
+
+```typescript
+interface IIssueReaderAgent {
+  /**
+   * GitHub 저장소에서 이슈 가져오기
+   * @param repoUrl GitHub 저장소 URL 또는 owner/repo
+   * @param options 가져오기 필터 옵션
+   * @returns 가져온 이슈 목록 및 의존성 그래프
+   */
+  importIssues(
+    repoUrl: string,
+    options: IssueImportOptions
+  ): Promise<IssueImportResult>;
+}
+
+interface IssueImportOptions {
+  /** 이슈 상태로 필터링 */
+  readonly state?: 'open' | 'closed' | 'all';
+  /** 레이블로 필터링 */
+  readonly labels?: readonly string[];
+  /** 마일스톤으로 필터링 */
+  readonly milestone?: string;
+  /** 최대 가져오기 이슈 수 */
+  readonly limit?: number;
+}
+
+interface IssueImportResult {
+  /** AD-SDLC 내부 형식의 가져온 이슈 */
+  readonly issues: readonly ImportedIssue[];
+  /** 이슈 간 의존성 그래프 */
+  readonly dependencyGraph: DependencyGraph;
+  /** 가져오기 통계 */
+  readonly stats: {
+    readonly total: number;
+    readonly imported: number;
+    readonly skipped: number;
+    readonly withDependencies: number;
+  };
+}
+
+interface ImportedIssue {
+  /** GitHub 이슈 번호 */
+  readonly number: number;
+  /** 이슈 제목 */
+  readonly title: string;
+  /** 파싱된 이슈 본문 */
+  readonly body: string;
+  /** GitHub 레이블 */
+  readonly labels: readonly string[];
+  /** 할당된 사용자 */
+  readonly assignees: readonly string[];
+  /** 감지된 의존성 (이슈 번호) */
+  readonly dependsOn: readonly number[];
+  /** 예상 복잡도 */
+  readonly complexity: 'small' | 'medium' | 'large';
+}
+```
+
+**Output**: `.ad-sdlc/scratchpad/issues/{project_id}/issue_list.json`, `.ad-sdlc/scratchpad/issues/{project_id}/dependency_graph.json`
+**Tools Required**: Bash (gh CLI)
+
+### 3.13 인프라 모듈
+
+이 교차 관심사(cross-cutting) 인프라 모듈들은 모든 에이전트 및 파이프라인 컴포넌트에
+공유 기능을 제공합니다. 에이전트 자체가 아닌 보안, 관측성, 자원 거버넌스를 시행하는
+기반 라이브러리입니다.
+
+#### 3.13.1 Security 모듈 (`src/security/`)
+
+**Purpose**: 파일 작업, 명령 실행, 입력 검증, 감사 로깅을 위한 심층 방어 보안 유틸리티를 제공합니다.
+
+| Component | Responsibility | Singleton Access |
+|-----------|---------------|------------------|
+| `CommandSanitizer` | 셸 명령 검증, 인젝션 공격 방지 | `getCommandSanitizer()` |
+| `CommandWhitelist` | 허용 명령 목록과 인자 패턴 유지 | `DEFAULT_COMMAND_WHITELIST` |
+| `InputValidator` | 사용자 입력 검증 (URL, 파일 경로, 텍스트) | `new InputValidator()` |
+| `PathSanitizer` | 경로 순회 공격 방지 (예: `../../etc/passwd`) | `new PathSanitizer()` |
+| `PathResolver` | 보안 검증이 포함된 프로젝트 인식 경로 해석 | `new PathResolver()` |
+| `SymlinkResolver` | 정책 기반 안전한 심볼릭 링크 처리 | `new SymlinkResolver()` |
+| `SecureFileOps` | 중앙 집중식 보안 파일 읽기/쓰기/mkdir 작업 | `getSecureFileOps()` |
+| `SecureFileHandler` | 무결성 검증이 포함된 파일 감시 | `getSecureFileHandler()` |
+| `AuditLogger` | 보안 관련 작업의 불변 감사 추적 | `getAuditLogger()` |
+| `RateLimiter` | API 호출을 위한 토큰 버킷 속도 제한 | `new RateLimiter()` |
+| `SecretManager` | 플러그인 백엔드 기반 보안 비밀 관리 | `getSecretManager()` |
+
+**핵심 설계 결정**:
+- 모든 파일 작업은 경로 검증을 위해 `SecureFileOps`를 통해 라우팅
+- 명령은 실행 전 `CommandWhitelist`로 검증
+- `AuditLogger`는 변조 방지 로깅으로 모든 보안 관련 이벤트를 기록
+- `RateLimiter`는 작업별 설정 가능한 토큰 버킷 알고리즘 사용
+
+#### 3.13.2 Monitoring 모듈 (`src/monitoring/`)
+
+**Purpose**: 전체 파이프라인에 걸쳐 관측성, 토큰 예산 관리, 성능 튜닝,
+알림 기능을 제공합니다.
+
+| Component | Responsibility | Singleton Access |
+|-----------|---------------|------------------|
+| `MetricsCollector` | 에이전트/스테이지별 카운터, 게이지, 히스토그램 메트릭 수집 | `getMetricsCollector()` |
+| `AlertManager` | 알림 조건 평가, 핸들러 트리거, 에스컬레이션 지원 | `getAlertManager()` |
+| `TokenBudgetManager` | 에이전트별 및 파이프라인별 토큰 예산 시행 | `getTokenBudgetManager()` |
+| `AgentBudgetRegistry` | 에이전트 예산 설정 등록, 에이전트 간 예산 이전 지원 | `getAgentBudgetRegistry()` |
+| `BudgetAggregator` | 에이전트/카테고리별 사용량 집계, 최적화 제안 생성 | `getBudgetAggregator()` |
+| `ContextPruner` | 토큰 제한에 맞게 대화 컨텍스트 정리 | `createContextPruner()` |
+| `ModelSelector` | 태스크 복잡도 기반 최적 모델 (Opus/Sonnet/Haiku) 선택 | `getModelSelector()` |
+| `QueryCache` | TTL 만료 기반 반복 LLM 쿼리용 LRU 캐시 | `getQueryCache()` |
+| `TokenUsageReport` | 추세 분석 및 추천이 포함된 사용량 보고서 생성 | `createTokenUsageReport()` |
+| `ParallelExecutionTuner` | 시스템 자원 기반 워커 풀 크기 동적 조정 | `getParallelExecutionTuner()` |
+| `LatencyOptimizer` | 에이전트 응답 지연 추적 및 워밍업 최적화 | `getLatencyOptimizer()` |
+| `ResponseTimeBenchmarks` | 파이프라인 스테이지별 성능 벤치마크 정의 및 검증 | `getResponseTimeBenchmarks()` |
+| `DashboardDataProvider` | 모니터링 대시보드용 집계 데이터 제공 | `getDashboardDataProvider()` |
+| `OpenTelemetryProvider` | 분산 추적을 위한 OpenTelemetry SDK 통합 | `getOpenTelemetryProvider()` |
+
+**핵심 설계 결정**:
+- `ModelSelector`는 태스크 복잡도 분석을 통해 Opus(복잡), Sonnet(표준), Haiku(단순) 모델 선택
+- `ParallelExecutionTuner`는 workflow.yaml의 `max_parallel: 5` 제약을 준수하면서 처리량 최적화
+- `TokenBudgetManager`는 계층형 예산 지원 (전역 → 파이프라인 → 카테고리 → 에이전트)
+- OpenTelemetry 스팬은 `propagateToSubagent()`를 통해 에이전트 간 전파
+
+**Tracing 유틸리티** (`tracing.ts`):
+
+```typescript
+// 일관된 계측을 위한 스팬 생성 헬퍼
+startAgentSpan(name: string, options: AgentSpanOptions): SpanWrapper
+startToolSpan(name: string, options: ToolSpanOptions): SpanWrapper
+startLLMSpan(name: string, options: LLMSpanOptions): SpanWrapper
+
+// 자동 스팬 생명주기 관리를 위한 고차 래퍼
+withAgentSpan<T>(name: string, fn: () => T, options?: AgentSpanOptions): T
+withToolSpan<T>(name: string, fn: () => T, options?: ToolSpanOptions): T
+withTracedAgent<T>(name: string, fn: () => T): T
+```
+
+#### 3.13.3 Telemetry 모듈 (`src/telemetry/`)
+
+**Purpose**: 엄격한 프라이버시 제어와 함께 선택적(opt-in) 익명 사용 분석을 제공합니다.
+
+| Component | Responsibility | Singleton Access |
+|-----------|---------------|------------------|
+| `Telemetry` | 동의 관리 및 이벤트 배칭 기능의 핵심 텔레메트리 엔진 | `getTelemetry()` |
+
+**프라이버시 우선 설계**:
+- **명시적 옵트인**: 사용자 동의 없이 데이터 수집 불가
+- **동의 기록**: 동의 상태, 타임스탬프, 정책 버전 저장
+- **이벤트 유형**: `command_executed`, `pipeline_completed`, `agent_invoked`, `feature_used`
+- **수집하지 않는 데이터**: 소스 코드, 파일 내용, 사용자 신원, API 키
+
+**이벤트 스키마**:
+
+```typescript
+interface TelemetryEvent {
+  type: TelemetryEventType;
+  timestamp: string;          // ISO 8601
+  sessionId: string;          // 익명 세션 ID
+  properties: Record<string, unknown>;
+}
+```
+
+#### 3.13.4 모듈 상호작용 다이어그램
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        Agent Layer                               │
+│  (Collector, PRD Writer, Worker, PR Reviewer 등)                │
+├──────────┬──────────────┬──────────────┬────────────────────────┤
+│          │              │              │                        │
+│  ┌───────▼──────┐ ┌────▼─────┐ ┌─────▼──────┐ ┌──────────────┐│
+│  │   Security    │ │Monitoring│ │ Telemetry  │ │   Logging    ││
+│  │              │ │          │ │            │ │              ││
+│  │ PathSanitizer│ │ Metrics  │ │  Consent   │ │   Logger     ││
+│  │ CmdSanitizer│ │ Alerts   │ │  Events    │ │   Rotation   ││
+│  │ SecureFileOps│ │ Budgets  │ │  Privacy   │ │   Query      ││
+│  │ AuditLogger │ │ ModelSel │ │            │ │              ││
+│  │ RateLimiter │ │ Tracing  │ │            │ │              ││
+│  └──────────────┘ └──────────┘ └────────────┘ └──────────────┘│
+└─────────────────────────────────────────────────────────────────┘
+```
+
 ---
 
 ## 4. Data Design
@@ -2132,6 +3167,7 @@ interface AgentInvocation {
 }
 
 type AgentType =
+  // Greenfield Pipeline Agents
   | 'collector'
   | 'prd-writer'
   | 'srs-writer'
@@ -2139,7 +3175,24 @@ type AgentType =
   | 'issue-generator'
   | 'controller'
   | 'worker'
-  | 'pr-reviewer';
+  | 'pr-reviewer'
+  // Enhancement Pipeline Agents
+  | 'document-reader'
+  | 'codebase-analyzer'
+  | 'impact-analyzer'
+  | 'prd-updater'
+  | 'srs-updater'
+  | 'sds-updater'
+  | 'regression-tester'
+  | 'doc-code-comparator'
+  | 'code-reader'
+  | 'ci-fixer'
+  // Infrastructure Agents
+  | 'mode-detector'
+  | 'project-initializer'
+  | 'repo-detector'
+  | 'ad-sdlc-orchestrator'
+  | 'analysis-orchestrator';
 
 type ModelType = 'sonnet' | 'opus' | 'haiku';
 
@@ -2706,6 +3759,21 @@ checkpoints:
 | SF-014 (Scratchpad State) | CMP-009 (State Manager) | 상태 관리 |
 | SF-015 (Activity Logging) | CMP-010 (Logger) | 활동 로깅 |
 | SF-016 (Error Handling) | CMP-011 (Error Handler) | 오류 처리 및 재시도 |
+| SF-017 (Document Reading) | CMP-012 (Document Reader Agent) | 기존 명세 문서 파싱 및 추적성 맵 구축 |
+| SF-018 (Codebase Analysis) | CMP-013 (Codebase Analyzer Agent) | 아키텍처 패턴 및 의존성 그래프 분석 |
+| SF-019 (Impact Analysis) | CMP-014 (Impact Analyzer Agent) | 변경 영향 분석 및 리스크 평가 |
+| SF-020 (PRD Update) | CMP-015 (PRD Updater Agent) | PRD 요구사항 추가, 수정, 폐기 |
+| SF-021 (SRS Update) | CMP-016 (SRS Updater Agent) | 기능, 유즈케이스 추가 및 추적성 업데이트 |
+| SF-022 (SDS Update) | CMP-017 (SDS Updater Agent) | 컴포넌트, API 추가 및 아키텍처 업데이트 |
+| SF-023 (Regression Testing) | CMP-018 (Regression Tester Agent) | 영향받는 테스트 매핑 및 회귀 테스트 실행 |
+| SF-024 (Doc-Code Comparison) | CMP-019 (Doc-Code Comparator Agent) | 명세와 코드베이스 비교 및 갭 리포트 생성 |
+| SF-025 (Code Reading) | CMP-020 (Code Reader Agent) | AST 분석 및 의존성 추출 |
+| SF-026 (CI Fixing) | CMP-021 (CI Fixer Agent) | CI 실패 진단 및 자동 수정 적용 |
+| SF-027 (Mode Detection) | CMP-022 (Mode Detector Agent) | 그린필드 vs Enhancement 모드 감지 |
+| SF-028 (Project Initialization) | CMP-023 (Project Initializer Agent) | .ad-sdlc 작업 공간 초기화 |
+| SF-029 (GitHub Repo Management) | CMP-024 (Repo Detector Agent), CMP-027 (GitHub Repo Setup Agent) | 기존 저장소 감지 및 새 저장소 생성 |
+| SF-030 (Pipeline Orchestration) | CMP-025 (AD-SDLC Orchestrator), CMP-026 (Analysis Orchestrator) | 최상위 및 분석 파이프라인 조율 |
+| SF-031 (Issue Import) | CMP-028 (Issue Reader Agent) | 기존 GitHub 이슈를 AD-SDLC 형식으로 가져오기 |
 
 ### 9.2 Component → API Mapping
 
@@ -2719,6 +3787,23 @@ checkpoints:
 | CMP-006 | prioritize, assignWork, monitorProgress | Read, Write, Edit |
 | CMP-007 | executeWork, implementCode, writeTests, selfVerify | Read, Write, Edit, Bash |
 | CMP-008 | createPR, reviewPR, checkQualityGates, decideMerge | Read, Bash (gh) |
+| CMP-012 | parseDocument, buildTraceabilityMap | Read |
+| CMP-013 | analyzeArchitecture, generateDependencyGraph | Read, Bash |
+| CMP-014 | analyzeImpact, assessRisk | Read |
+| CMP-015 | addRequirement, modifyRequirement, deprecateRequirement | Read, Write, Edit |
+| CMP-016 | addFeature, addUseCase, updateTraceability | Read, Write, Edit |
+| CMP-017 | addComponent, addAPI, updateArchitecture | Read, Write, Edit |
+| CMP-018 | mapAffectedTests, runRegressionSuite, analyzeCompatibility | Read, Bash |
+| CMP-019 | compareSpecs, generateGapReport | Read |
+| CMP-020 | analyzeAST, extractDependencies | Read, Bash (ts-morph) |
+| CMP-021 | diagnoseCIFailure, applyFix | Read, Write, Edit, Bash |
+| CMP-022 | detectMode | Read, Bash (git) |
+| CMP-023 | initialize | Write, Bash (git) |
+| CMP-024 | detectRepository | Bash (git, gh) |
+| CMP-025 | executePipeline, coordinateAgents | All Agent Interfaces |
+| CMP-026 | executeAnalysisPipeline | CMP-012, CMP-020, CMP-019, CMP-005 |
+| CMP-027 | createRepository | Bash (gh, git) |
+| CMP-028 | importIssues | Bash (gh) |
 
 ### 9.3 Full Traceability Chain
 
@@ -2852,6 +3937,7 @@ traceability_chain:
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 1.0.0 | 2025-12-27 | System Architect | Initial draft based on SRS-001 |
+| 1.1.0 | 2026-02-07 | System Architect | Enhancement Pipeline (CMP-012~CMP-028), 인프라 모듈 (Security/Monitoring/Telemetry), 추적 매트릭스 갱신, Component→API 매핑 갱신 |
 
 ---
 
