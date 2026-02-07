@@ -703,6 +703,99 @@ agents:
       avg_duration_seconds: 300
       success_rate: 0.95
 
+  ci-fixer:
+    id: "ci-fixer"
+    name: "CI Fixer Agent"
+    korean_name: "CI 수정 에이전트"
+    description: "Automatically diagnoses and fixes CI/CD failures including lint errors, type errors, test failures, and build failures"
+    definition_file: ".claude/agents/ci-fixer.md"
+    category: "execution"
+    order: 8.5
+
+    capabilities:
+      - "ci_failure_diagnosis"
+      - "lint_error_fix"
+      - "type_error_fix"
+      - "test_failure_fix"
+      - "build_failure_fix"
+
+    io:
+      inputs:
+        - ci_failure_logs
+        - implementation_result.yaml
+      outputs:
+        - fixed_files
+        - ci_fix_report.yaml
+
+    model_preference: "sonnet"
+    max_fix_attempts: 3
+    parallelizable: false
+    max_instances: 1
+
+    metrics:
+      avg_duration_seconds: 120
+      success_rate: 0.85
+
+  repo-detector:
+    id: "repo-detector"
+    name: "Repo Detector Agent"
+    korean_name: "저장소 감지 에이전트"
+    description: "Automatically determines whether the project uses an existing GitHub repository or requires a new one"
+    definition_file: ".claude/agents/repo-detector.md"
+    category: "infrastructure"
+    order: 2.5
+
+    capabilities:
+      - "local_git_detection"
+      - "remote_repo_detection"
+      - "repo_metadata_extraction"
+
+    io:
+      inputs:
+        - project_directory
+      outputs:
+        - repo_detection_result.yaml
+
+    model_preference: "haiku"
+    parallelizable: false
+    max_instances: 1
+
+    metrics:
+      avg_duration_seconds: 10
+      success_rate: 0.98
+
+  analysis-orchestrator:
+    id: "analysis-orchestrator"
+    name: "Analysis Orchestrator Agent"
+    korean_name: "분석 오케스트레이터"
+    description: "Coordinates the Enhancement analysis sub-pipeline: DocumentReader → CodeReader → Comparator → IssueGenerator"
+    definition_file: ".claude/agents/analysis-orchestrator.md"
+    category: "analysis_pipeline"
+    order: 0
+
+    capabilities:
+      - "pipeline_coordination"
+      - "document_code_analysis"
+      - "gap_detection"
+      - "issue_generation"
+
+    io:
+      inputs:
+        - project_directory
+        - change_request
+      outputs:
+        - gap_report.yaml
+        - impact_report.yaml
+        - generated_issues
+
+    model_preference: "sonnet"
+    parallelizable: false
+    max_instances: 1
+
+    metrics:
+      avg_duration_seconds: 600
+      success_rate: 0.90
+
 # =============================================================================
 # Agent Categories
 # =============================================================================
@@ -716,10 +809,11 @@ categories:
 
   infrastructure:
     name: "Infrastructure"
-    description: "Pre-pipeline agents that setup and detect project state"
+    description: "Pre-pipeline agents that setup and detect project state, including repo detection"
     agents:
       - project-initializer
       - mode-detector
+      - repo-detector
     execution_mode: "sequential"
 
   project_setup:
@@ -763,6 +857,7 @@ categories:
     agents:
       - worker
       - pr-reviewer
+      - ci-fixer
     execution_mode: "parallel"
 
   analysis_pipeline:
@@ -772,6 +867,7 @@ categories:
       - code-reader
       - document-reader
       - doc-code-comparator
+      - analysis-orchestrator
     execution_mode: "parallel"
 
   enhancement_pipeline:
@@ -840,6 +936,14 @@ relationships:
       requires: [impact-analyzer]
     regression-tester:
       requires: [codebase-analyzer, worker]
+    repo-detector:
+      requires: [mode-detector]
+      blocks: [github-repo-setup]
+    ci-fixer:
+      requires: [pr-reviewer]  # Triggered on CI failure after PR creation
+    analysis-orchestrator:
+      requires: [mode-detector]
+      orchestrates: [document-reader, code-reader, doc-code-comparator, issue-generator]
 
   data_flow:
     - from: project-initializer

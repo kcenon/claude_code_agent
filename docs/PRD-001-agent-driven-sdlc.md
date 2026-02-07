@@ -37,7 +37,7 @@
 **Agent-Driven SDLC (AD-SDLC)** - Agent-Based Software Development Lifecycle Automation System
 
 ### 1.2 Overview
-AD-SDLC is a multi-agent system built on the Claude Agent SDK that automates the entire software development lifecycle. From initial user requirements to PRD, SRS, SDS creation, GitHub Issue generation, code implementation, and PR review, 8 specialized agents collaborate to handle the process.
+AD-SDLC is a multi-agent system built on the Claude Agent SDK that automates the entire software development lifecycle. The system comprises 25 specialized agents across three pipeline modes (Greenfield, Enhancement, Import), covering the full process from initial user requirements through PRD, SRS, SDS creation, GitHub Issue generation, code implementation, and PR review.
 
 ### 1.3 Key Value Propositions
 - **End-to-End Automation**: Full process automation from requirements gathering to code deployment
@@ -210,6 +210,8 @@ User Satisfaction:
 
 ### 6.2 Agent Roles Summary
 
+#### 6.2.1 Core Agents (Greenfield Pipeline)
+
 | # | Agent Name | Description | Primary Responsibility |
 |---|------------|-------------|----------------------|
 | 1 | Collector Agent | Information Collection Agent | Analyze user input, gather and structure relevant information |
@@ -220,6 +222,33 @@ User Satisfaction:
 | 6 | Controller Agent | Control Agent | Analyze issues and assign work to Worker Agents |
 | 7 | Worker Agent | Task Agent | Execute implementation work for assigned Issues |
 | 8 | PR Review Agent | PR Review Agent | Create PRs, perform reviews, determine results |
+
+#### 6.2.2 Enhancement Pipeline Agents
+
+| # | Agent Name | Description | Primary Responsibility |
+|---|------------|-------------|----------------------|
+| 9 | Document Reader Agent | Document Parsing Agent | Parse existing PRD/SRS/SDS and extract structured state |
+| 10 | Codebase Analyzer Agent | Codebase Analysis Agent | Analyze architecture patterns and dependencies |
+| 11 | Impact Analyzer Agent | Impact Analysis Agent | Assess change impact and risk levels |
+| 12 | PRD Updater Agent | PRD Update Agent | Incrementally update PRD with new/modified/deprecated requirements |
+| 13 | SRS Updater Agent | SRS Update Agent | Incrementally update SRS maintaining PRD→SRS traceability |
+| 14 | SDS Updater Agent | SDS Update Agent | Incrementally update SDS maintaining SRS→SDS traceability |
+| 15 | Regression Tester Agent | Regression Test Agent | Run regression tests and report compatibility |
+| 16 | Code Reader Agent | Code Analysis Agent | AST-based source code analysis |
+| 17 | Doc-Code Comparator Agent | Gap Analysis Agent | Compare specifications against code implementation |
+| 18 | CI Fixer Agent | CI Fix Agent | Diagnose and fix CI/CD failures automatically |
+
+#### 6.2.3 Infrastructure & Orchestration Agents
+
+| # | Agent Name | Description | Primary Responsibility |
+|---|------------|-------------|----------------------|
+| 19 | AD-SDLC Orchestrator Agent | Pipeline Orchestrator | Coordinate full pipeline execution across all modes |
+| 20 | Analysis Orchestrator Agent | Analysis Orchestrator | Coordinate Enhancement analysis sub-pipeline |
+| 21 | Mode Detector Agent | Mode Detection Agent | Auto-detect Greenfield/Enhancement pipeline mode |
+| 22 | Project Initializer Agent | Project Init Agent | Initialize .ad-sdlc directory structure and configuration |
+| 23 | Repo Detector Agent | Repo Detection Agent | Detect existing GitHub repository presence |
+| 24 | GitHub Repo Setup Agent | Repo Setup Agent | Create and initialize GitHub repository |
+| 25 | Issue Reader Agent | Issue Import Agent | Import existing GitHub Issues to AD-SDLC format |
 
 ---
 
@@ -1240,6 +1269,32 @@ Validation Gates:
 - [ ] Full workflow E2E test passing
 - [ ] User guide completed
 - [ ] Performance benchmarks achieved
+
+### Phase 6: Enhancement Pipeline (4 weeks)
+
+| Week | Deliverable |
+|------|-------------|
+| 18-19 | Document Reader, Codebase Analyzer, Code Reader implementation |
+| 20-21 | Impact Analyzer, PRD/SRS/SDS Updater agents implementation |
+
+**Exit Criteria:**
+- [ ] Existing document parsing and traceability extraction working
+- [ ] Change impact analysis with risk assessment working
+- [ ] Incremental document update pipeline (PRD→SRS→SDS) working
+
+### Phase 7: Infrastructure & Advanced Features (3 weeks)
+
+| Week | Deliverable |
+|------|-------------|
+| 22 | Mode Detector, Project Initializer, Repo Detector implementation |
+| 23 | AD-SDLC Orchestrator, Analysis Orchestrator, Issue Reader implementation |
+| 24 | Regression Tester, CI Fixer, Doc-Code Comparator implementation |
+
+**Exit Criteria:**
+- [ ] Auto-detection of Greenfield/Enhancement mode working
+- [ ] Import pipeline (existing GitHub Issues → Implementation) working
+- [ ] Regression testing and CI auto-fix working
+- [ ] Full Enhancement Pipeline E2E test passing
 
 ---
 

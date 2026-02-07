@@ -7,7 +7,7 @@
 | **Document ID** | SDS-001 |
 | **Source SRS** | SRS-001 |
 | **Source PRD** | PRD-001 |
-| **Version** | 1.0.0 |
+| **Version** | 1.1.0 |
 | **Status** | Review |
 | **Created** | 2025-12-27 |
 | **Author** | System Architect |
@@ -48,7 +48,7 @@ This SDS covers the following design scope:
 | Category | Scope |
 |----------|-------|
 | **Architecture** | Multi-agent orchestration architecture, Scratchpad pattern |
-| **Components** | 8 specialized agent component designs |
+| **Components** | 28 component designs (25 specialized agents + 3 infrastructure services) |
 | **Data** | File-based state schema, data entity definitions |
 | **Interfaces** | Inter-agent communication, GitHub API integration, CLI interface |
 | **Security** | Authentication, authorization management, sensitive information protection |
@@ -3941,6 +3941,7 @@ traceability_chain:
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 1.0.0 | 2025-12-27 | System Architect | Initial draft based on SRS-001 |
+| 1.1.0 | 2026-02-07 | System Architect | Added Enhancement Pipeline components (CMP-012~CMP-028), Enhancement/Analysis/Import pipeline designs for SF-017~SF-031 |
 
 ---
 
