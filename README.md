@@ -262,6 +262,7 @@ your-project/
 ### Reference
 
 - [System Architecture](docs/system-architecture.md)
+- [Document Status Definitions](docs/DOCUMENT_STATUS_DEFINITIONS.md)
 - [PRD-001: Agent-Driven SDLC](docs/PRD-001-agent-driven-sdlc.md)
 - [SRS-001: Agent-Driven SDLC](docs/SRS-001-agent-driven-sdlc.md)
 - [SDS-001: Agent-Driven SDLC](docs/SDS-001-agent-driven-sdlc.md)
