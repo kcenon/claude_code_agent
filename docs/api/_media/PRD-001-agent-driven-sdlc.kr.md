@@ -856,8 +856,8 @@ Review Checklist:
 
 | Req ID | Requirement | Priority | Agent(s) |
 |--------|-------------|----------|----------|
-| FR-009 | 문서 간 추적성 매트릭스 유지 | P1 | All |
-| FR-010 | 각 단계별 사용자 승인 게이트 | P1 | All |
+| FR-009 | 문서 간 추적성 매트릭스 유지 | P1 | Orchestrator |
+| FR-010 | 각 단계별 사용자 승인 게이트 | P1 | Orchestrator |
 | FR-011 | 작업 진행률 실시간 모니터링 | P1 | Controller |
 | FR-012 | 실패 시 자동 재시도 (최대 3회) | P1 | Worker, PR Review |
 | FR-013 | 에이전트 활동 로깅 및 감사 추적 | P1 | All |

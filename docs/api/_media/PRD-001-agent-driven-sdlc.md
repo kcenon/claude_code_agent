@@ -861,8 +861,8 @@ Review Checklist:
 
 | Req ID | Requirement | Priority | Agent(s) |
 |--------|-------------|----------|----------|
-| FR-009 | Maintain traceability matrix between documents | P1 | All |
-| FR-010 | User approval gate at each stage | P1 | All |
+| FR-009 | Maintain traceability matrix between documents | P1 | Orchestrator |
+| FR-010 | User approval gate at each stage | P1 | Orchestrator |
 | FR-011 | Real-time work progress monitoring | P1 | Controller |
 | FR-012 | Auto-retry on failure (max 3 times) | P1 | Worker, PR Review |
 | FR-013 | Agent activity logging and audit trail | P1 | All |
