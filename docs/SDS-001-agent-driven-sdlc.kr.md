@@ -2568,7 +2568,7 @@ interface RepoDetectionResult {
 
 #### 3.12.4 CMP-025: AD-SDLC Orchestrator Agent
 
-**Source Features**: SF-030 (UC-042, UC-043)
+**Source Features**: SF-012 (UC-017, UC-018, UC-019), SF-013 (UC-019), SF-030 (UC-042, UC-043)
 
 **Responsibility**: 감지된 프로젝트 모드에 기반하여 전문 에이전트에 위임하면서 전체 AD-SDLC 워크플로우를 조율하는 최상위 파이프라인 오케스트레이터입니다.
 
@@ -3754,8 +3754,8 @@ checkpoints:
 | SF-009 (Self-Verification) | CMP-007 (Worker Agent) | 자체 검증 |
 | SF-010 (PR Creation & Review) | CMP-008 (PR Review Agent) | PR 생성 및 리뷰 |
 | SF-011 (Quality Gate & Merge) | CMP-008 (PR Review Agent) | 품질 게이트 및 머지 |
-| SF-012 (Traceability Matrix) | All Components | 추적성 유지 |
-| SF-013 (Approval Gate) | Orchestration Layer | 승인 게이트 시스템 |
+| SF-012 (Traceability Matrix) | CMP-025 (AD-SDLC Orchestrator) | 추적성 유지 |
+| SF-013 (Approval Gate) | CMP-025 (AD-SDLC Orchestrator) | 승인 게이트 시스템 |
 | SF-014 (Scratchpad State) | CMP-009 (State Manager) | 상태 관리 |
 | SF-015 (Activity Logging) | CMP-010 (Logger) | 활동 로깅 |
 | SF-016 (Error Handling) | CMP-011 (Error Handler) | 오류 처리 및 재시도 |
