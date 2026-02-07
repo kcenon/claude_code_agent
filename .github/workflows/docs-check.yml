@@ -1,0 +1,144 @@
+name: Document Traceability Check
+
+on:
+  pull_request:
+    paths:
+      - 'docs/**'
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  validate-traceability:
+    name: Validate Traceability Matrix
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Run traceability validation
+        id: validate
+        run: |
+          chmod +x scripts/ci/parse-doc-ids.sh scripts/ci/validate-traceability.sh
+          # Run with JSON output, capture result
+          set +e
+          RESULT=$(./scripts/ci/validate-traceability.sh --docs-dir docs --json 2>/dev/null)
+          EXIT_CODE=$?
+          set -e
+
+          echo "$RESULT" > traceability-report.json
+          echo "exit_code=$EXIT_CODE" >> "$GITHUB_OUTPUT"
+
+          # Extract key metrics for step summary
+          OVERALL=$(echo "$RESULT" | grep '"overall"' | grep -oE '[0-9]+')
+          FR_COUNT=$(echo "$RESULT" | grep '"fr":' | head -1 | grep -oE '[0-9]+')
+          SF_COUNT=$(echo "$RESULT" | grep '"sf":' | head -1 | grep -oE '[0-9]+')
+          CMP_COUNT=$(echo "$RESULT" | grep '"cmp":' | head -1 | grep -oE '[0-9]+')
+          PASS=$(echo "$RESULT" | grep '"pass"' | grep -oE 'true|false')
+
+          echo "overall=$OVERALL" >> "$GITHUB_OUTPUT"
+          echo "fr_count=$FR_COUNT" >> "$GITHUB_OUTPUT"
+          echo "sf_count=$SF_COUNT" >> "$GITHUB_OUTPUT"
+          echo "cmp_count=$CMP_COUNT" >> "$GITHUB_OUTPUT"
+          echo "pass=$PASS" >> "$GITHUB_OUTPUT"
+
+      - name: Generate job summary
+        if: always()
+        run: |
+          PASS="${{ steps.validate.outputs.pass }}"
+          OVERALL="${{ steps.validate.outputs.overall }}"
+          FR="${{ steps.validate.outputs.fr_count }}"
+          SF="${{ steps.validate.outputs.sf_count }}"
+          CMP="${{ steps.validate.outputs.cmp_count }}"
+
+          if [[ "$PASS" == "true" ]]; then
+            ICON="white_check_mark"
+            STATUS="PASS"
+          else
+            ICON="x"
+            STATUS="FAIL"
+          fi
+
+          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+          ## :${ICON}: Document Traceability: ${STATUS}
+
+          | Metric | Value |
+          |--------|-------|
+          | **Overall Coverage** | ${OVERALL}% |
+          | **PRD Requirements (FR)** | ${FR} |
+          | **SRS Features (SF)** | ${SF} |
+          | **SDS Components (CMP)** | ${CMP} |
+
+          <details>
+          <summary>Full Report (JSON)</summary>
+
+          \`\`\`json
+          $(cat traceability-report.json)
+          \`\`\`
+
+          </details>
+          EOF
+
+      - name: Comment on PR
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const report = JSON.parse(fs.readFileSync('traceability-report.json', 'utf8'));
+            const pass = report.pass;
+            const icon = pass ? ':white_check_mark:' : ':x:';
+            const status = pass ? 'PASS' : 'FAIL';
+
+            let body = `## ${icon} Document Traceability: ${status}\n\n`;
+            body += `| Metric | Value |\n|--------|-------|\n`;
+            body += `| Overall Coverage | ${report.coverage.overall}% |\n`;
+            body += `| FR → SF | ${report.coverage.fr_to_sf.covered}/${report.coverage.fr_to_sf.total} (${report.coverage.fr_to_sf.percentage}%) |\n`;
+            body += `| SF → CMP | ${report.coverage.sf_to_cmp.covered}/${report.coverage.sf_to_cmp.total} (${report.coverage.sf_to_cmp.percentage}%) |\n`;
+            body += `| Versions | PRD ${report.versions.prd} / SRS ${report.versions.srs} / SDS ${report.versions.sds} |\n`;
+
+            if (report.errors.length > 0) {
+              body += `\n### Errors\n`;
+              report.errors.forEach(e => { body += `- :x: ${e}\n`; });
+            }
+            if (report.warnings.length > 0) {
+              body += `\n### Warnings\n`;
+              report.warnings.forEach(w => { body += `- :warning: ${w}\n`; });
+            }
+
+            // Find existing comment to update instead of creating duplicate
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find(c =>
+              c.user.type === 'Bot' && c.body.includes('Document Traceability')
+            );
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body: body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: body,
+              });
+            }
+
+      - name: Fail if validation failed
+        if: steps.validate.outputs.exit_code != '0'
+        run: |
+          echo "::error::Document traceability validation failed. See report above."
+          exit 1
