@@ -1,13 +1,15 @@
-name: Document Traceability Check
+name: Document Checks
 
 on:
   pull_request:
     paths:
       - 'docs/**'
+      - 'doc-sync-points.yaml'
   push:
     branches: [main]
     paths:
       - 'docs/**'
+      - 'doc-sync-points.yaml'
 
 permissions:
   contents: read
@@ -142,3 +144,131 @@ jobs:
         run: |
           echo "::error::Document traceability validation failed. See report above."
           exit 1
+
+  check-cascade:
+    name: Check Document Cascade Updates
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Run cascade check
+        id: cascade
+        run: |
+          chmod +x scripts/ci/check-doc-cascade.sh
+          set +e
+          RESULT=$(./scripts/ci/check-doc-cascade.sh --base origin/${{ github.base_ref }} --json 2>/dev/null)
+          EXIT_CODE=$?
+          set -e
+
+          echo "$RESULT" > cascade-report.json
+          echo "exit_code=$EXIT_CODE" >> "$GITHUB_OUTPUT"
+
+          WARNING_COUNT=$(echo "$RESULT" | grep '"warning_count"' | grep -oE '[0-9]+')
+          echo "warning_count=${WARNING_COUNT:-0}" >> "$GITHUB_OUTPUT"
+
+      - name: Comment on PR
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let report;
+            try {
+              report = JSON.parse(fs.readFileSync('cascade-report.json', 'utf8'));
+            } catch (e) {
+              console.log('No cascade report generated');
+              return;
+            }
+
+            // Skip comment if no warnings or errors
+            if (report.warnings.length === 0 && report.errors.length === 0) {
+              console.log('No cascade issues found, skipping comment');
+              return;
+            }
+
+            const icon = report.pass ? ':warning:' : ':x:';
+            const status = report.pass ? 'WARNINGS' : 'FAIL';
+
+            let body = `## ${icon} Document Cascade Check: ${status}\n\n`;
+
+            if (report.changed_docs.length > 0) {
+              body += `**Changed documents**: ${report.changed_docs.join(', ')}\n\n`;
+            }
+
+            if (report.warnings.length > 0) {
+              body += `### Missing Cascade Updates\n`;
+              body += `The following documents may need updates to stay consistent:\n\n`;
+              report.warnings.forEach(w => { body += `- :warning: ${w}\n`; });
+              body += `\n`;
+            }
+
+            if (report.errors.length > 0) {
+              body += `### Errors\n`;
+              report.errors.forEach(e => { body += `- :x: ${e}\n`; });
+              body += `\n`;
+            }
+
+            if (report.missing_updates.length > 0) {
+              body += `### Documents to Review\n`;
+              report.missing_updates.forEach(m => { body += `- [ ] ${m}\n`; });
+              body += `\n`;
+            }
+
+            body += `> See [Document Update Protocol](../docs/DOCUMENT_UPDATE_PROTOCOL.md) for cascade update guidelines.\n`;
+
+            // Find existing cascade comment to update
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find(c =>
+              c.user.type === 'Bot' && c.body.includes('Document Cascade Check')
+            );
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body: body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: body,
+              });
+            }
+
+      - name: Generate job summary
+        if: always()
+        run: |
+          if [[ -f cascade-report.json ]]; then
+            WARNING_COUNT="${{ steps.cascade.outputs.warning_count }}"
+            if [[ "$WARNING_COUNT" == "0" ]]; then
+              ICON="white_check_mark"
+              STATUS="PASS"
+            else
+              ICON="warning"
+              STATUS="WARNINGS ($WARNING_COUNT)"
+            fi
+
+            cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+          ## :${ICON}: Document Cascade Check: ${STATUS}
+
+          <details>
+          <summary>Full Report (JSON)</summary>
+
+          \`\`\`json
+          $(cat cascade-report.json)
+          \`\`\`
+
+          </details>
+          EOF
+          fi
