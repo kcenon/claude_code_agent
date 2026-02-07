@@ -6,7 +6,7 @@
 |-------|-------|
 | **Document ID** | PRD-001 |
 | **Version** | 1.0.0 |
-| **Status** | Draft |
+| **Status** | Review |
 | **Created** | 2025-12-27 |
 | **Author** | System Architect |
 
@@ -841,41 +841,83 @@ Review Checklist:
 | FR-015 | 파일 시스템 기반 상태 공유 (Scratchpad) | P0 |
 | FR-016 | 외부 문서 소스 통합 (URL, 파일) | P1 |
 
+### 8.4 Enhancement Pipeline Requirements
+
+| Req ID | Requirement | Priority | Agent(s) |
+|--------|-------------|----------|----------|
+| FR-017 | 기존 PRD/SRS/SDS 문서 파싱 및 현재 상태 추출 | P0 | Document Reader |
+| FR-018 | 기존 코드베이스 구조, 패턴, 의존성 분석 | P0 | Codebase Analyzer |
+| FR-019 | 기존 시스템에 대한 변경 영향 분석 및 리스크 평가 | P0 | Impact Analyzer |
+| FR-020 | 요구사항 추가/수정/폐기를 통한 PRD 점진적 갱신 | P0 | PRD Updater |
+| FR-021 | PRD→SRS 추적성을 유지하며 SRS 점진적 갱신 | P0 | SRS Updater |
+| FR-022 | SRS→SDS 추적성을 유지하며 SDS 점진적 갱신 | P0 | SDS Updater |
+| FR-023 | 영향 받는 영역의 회귀 테스트 실행 및 호환성 보고 | P1 | Regression Tester |
+| FR-024 | 문서 사양과 코드 구현 간 비교 (Gap 분석) | P1 | Doc-Code Comparator |
+| FR-025 | 소스코드 AST 분석으로 클래스, 함수, 의존성 추출 | P1 | Code Reader |
+| FR-026 | CI/CD 실패 자동 진단 및 수정 | P1 | CI Fixer |
+
+### 8.5 Infrastructure & Pipeline Requirements
+
+| Req ID | Requirement | Priority | Agent(s) |
+|--------|-------------|----------|----------|
+| FR-027 | Greenfield/Enhancement 파이프라인 모드 자동 감지 | P0 | Mode Detector |
+| FR-028 | .ad-sdlc 디렉토리 구조 및 설정 초기화 | P0 | Project Initializer |
+| FR-029 | 프로젝트 문서에서 GitHub 리포지토리 생성 및 초기화 | P1 | GitHub Repo Setup |
+| FR-030 | 기존 GitHub 리포지토리 존재 여부 감지 | P1 | Repo Detector |
+| FR-031 | 서브에이전트 호출을 통한 전체 파이프라인 실행 조율 | P0 | AD-SDLC Orchestrator |
+| FR-032 | Enhancement 분석 파이프라인 조율 (Document→Code→Compare→Issue) | P1 | Analysis Orchestrator |
+| FR-033 | 기존 GitHub Issues 가져오기 및 AD-SDLC 형식 변환 | P1 | Issue Reader |
+
 ---
 
 ## 9. Non-Functional Requirements
 
 ### 9.1 Performance
 
-| NFR ID | Requirement | Target |
-|--------|-------------|--------|
-| NFR-001 | 문서 생성 응답 시간 | < 5분 / 문서 |
-| NFR-002 | Issue 생성 처리량 | > 20 issues / 분 |
-| NFR-003 | Worker Agent 동시 실행 | 최대 10개 병렬 |
+| NFR ID | Requirement | Target | Priority |
+|--------|-------------|--------|----------|
+| NFR-001 | 문서 생성 응답 시간 | < 5분 / 문서 | P0 |
+| NFR-002 | Issue 생성 처리량 | > 20 issues / 분 | P0 |
+| NFR-003 | Worker Agent 동시 실행 | 최대 5개 병렬 | P0 |
+| NFR-004 | 상태 체크 주기 | 30초 | P1 |
+| NFR-005 | PR 리뷰 완료 시간 | < 5분 | P1 |
 
 ### 9.2 Reliability
 
-| NFR ID | Requirement | Target |
-|--------|-------------|--------|
-| NFR-004 | 시스템 가용성 | 99.5% |
-| NFR-005 | 문서 생성 성공률 | > 95% |
-| NFR-006 | 데이터 무손실 보장 | 100% |
+| NFR ID | Requirement | Target | Priority |
+|--------|-------------|--------|----------|
+| NFR-006 | 시스템 가용성 | 99.5% | P1 |
+| NFR-007 | 문서 생성 성공률 | > 95% | P0 |
+| NFR-008 | 코드 구현 성공률 | > 85% | P0 |
+| NFR-009 | 데이터 무손실 보장 | 100% | P0 |
+| NFR-010 | 재시도 후 복구율 | > 90% | P1 |
 
 ### 9.3 Security
 
-| NFR ID | Requirement | Target |
-|--------|-------------|--------|
-| NFR-007 | API 키/토큰 보안 저장 | 환경 변수 또는 Secret Manager |
-| NFR-008 | 민감 정보 마스킹 | 로그에서 자동 마스킹 |
-| NFR-009 | 접근 권한 관리 | GitHub OAuth 연동 |
+| NFR ID | Requirement | Target | Priority |
+|--------|-------------|--------|----------|
+| NFR-011 | API 키/토큰 보안 저장 | 환경 변수 또는 Secret Manager | P0 |
+| NFR-012 | 민감 정보 마스킹 | 로그에서 자동 마스킹 | P0 |
+| NFR-013 | 접근 권한 관리 | GitHub OAuth 또는 PAT 기반 인증 | P0 |
+| NFR-014 | 코드 보안 검사 | 생성 코드에 하드코딩된 비밀 금지 | P0 |
+| NFR-015 | 입력 검증 | 사용자 입력 및 외부 데이터 검증 | P1 |
 
 ### 9.4 Maintainability
 
-| NFR ID | Requirement | Target |
-|--------|-------------|--------|
-| NFR-010 | 에이전트 설정 외부화 | YAML 기반 설정 |
-| NFR-011 | 템플릿 커스터마이징 | 사용자 정의 템플릿 지원 |
-| NFR-012 | 로그 레벨 조정 | DEBUG/INFO/WARN/ERROR |
+| NFR ID | Requirement | Target | Priority |
+|--------|-------------|--------|----------|
+| NFR-016 | 에이전트 설정 외부화 | YAML 기반 설정 | P0 |
+| NFR-017 | 템플릿 커스터마이징 | 사용자 정의 템플릿 지원 | P1 |
+| NFR-018 | 로그 레벨 조정 | DEBUG/INFO/WARN/ERROR 런타임 조정 | P1 |
+| NFR-019 | 에이전트 정의 분리 | 에이전트당 독립 정의 파일 | P0 |
+| NFR-020 | 워크플로우 설정 | 파이프라인 스테이지 및 승인 게이트 설정 | P1 |
+
+### 9.5 Scalability
+
+| NFR ID | Requirement | Target | Priority |
+|--------|-------------|--------|----------|
+| NFR-021 | 병렬 Worker 확장 | 최대 Worker 수 설정 가능 | P1 |
+| NFR-022 | 대용량 문서 처리 | 컨텍스트 분할을 통한 대규모 입력 처리 | P1 |
 
 ---
 

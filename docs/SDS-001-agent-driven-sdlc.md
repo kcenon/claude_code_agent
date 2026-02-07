@@ -8,7 +8,7 @@
 | **Source SRS** | SRS-001 |
 | **Source PRD** | PRD-001 |
 | **Version** | 1.0.0 |
-| **Status** | Draft |
+| **Status** | Review |
 | **Created** | 2025-12-27 |
 | **Author** | System Architect |
 
@@ -271,8 +271,9 @@ Events:
 |-------|------------|---------|-----------|
 | **Runtime** | Claude Agent SDK | Latest | Official Agent SDK |
 | **CLI** | Claude Code CLI | Latest | Developer-friendly interface |
-| **Model** | Claude Sonnet 4 | claude-sonnet-4-* | Cost/performance balance |
-| **Model (Critical)** | Claude Opus 4.5 | claude-opus-4-5-* | For complex reasoning tasks |
+| **Model** | Claude Sonnet 4.5 | claude-sonnet-4-5-20250929 | Cost/performance balance |
+| **Model (Critical)** | Claude Opus 4.6 | claude-opus-4-6 | For complex reasoning tasks |
+| **Model (Light)** | Claude Haiku 4.5 | claude-haiku-4-5-20251001 | Quick, low-cost tasks |
 | **VCS** | Git | 2.30+ | Version control |
 | **Issue Tracking** | GitHub CLI | 2.0+ | GitHub integration |
 | **Config Format** | YAML | 1.2 | Configuration files |
@@ -363,6 +364,23 @@ project-root/
 | CMP-009 | State Manager | State Manager | SF-014 | Scratchpad state management |
 | CMP-010 | Logger | Logging Service | SF-015 | Activity logging and auditing |
 | CMP-011 | Error Handler | Error Handler | SF-016 | Retry and recovery management |
+| CMP-012 | Document Reader Agent | Document Reader | SF-017 | Parse existing PRD/SRS/SDS documents |
+| CMP-013 | Codebase Analyzer Agent | Codebase Analyzer | SF-018 | Analyze architecture patterns and dependencies |
+| CMP-014 | Impact Analyzer Agent | Impact Analyzer | SF-019 | Assess change impact and risk |
+| CMP-015 | PRD Updater Agent | PRD Updater | SF-020 | Incremental PRD updates |
+| CMP-016 | SRS Updater Agent | SRS Updater | SF-021 | Incremental SRS updates |
+| CMP-017 | SDS Updater Agent | SDS Updater | SF-022 | Incremental SDS updates |
+| CMP-018 | Regression Tester Agent | Regression Tester | SF-023 | Run regression tests and assess coverage |
+| CMP-019 | Doc-Code Comparator Agent | Doc-Code Comparator | SF-024 | Compare spec vs code, generate gap report |
+| CMP-020 | Code Reader Agent | Code Reader | SF-025 | AST-based source code analysis |
+| CMP-021 | CI Fixer Agent | CI Fixer | SF-026 | Diagnose and fix CI/CD failures |
+| CMP-022 | Mode Detector Agent | Mode Detector | SF-027 | Detect Greenfield/Enhancement pipeline mode |
+| CMP-023 | Project Initializer Agent | Project Initializer | SF-028 | Initialize .ad-sdlc workspace |
+| CMP-024 | Repo Detector Agent | Repo Detector | SF-029 | Detect existing GitHub repository |
+| CMP-025 | AD-SDLC Orchestrator Agent | Pipeline Orchestrator | SF-030 | Full pipeline coordination |
+| CMP-026 | Analysis Orchestrator Agent | Analysis Orchestrator | SF-030 | Enhancement analysis sub-pipeline |
+| CMP-027 | GitHub Repo Setup Agent | GitHub Repo Setup | SF-029 | Create and initialize GitHub repository |
+| CMP-028 | Issue Reader Agent | Issue Reader | SF-031 | Import existing GitHub Issues |
 
 ### 3.2 CMP-001: Collector Agent
 
@@ -1841,6 +1859,1025 @@ type CircuitState = 'closed' | 'open' | 'half_open';
 
 ---
 
+### 3.11 Enhancement Pipeline Components
+
+#### 3.11.1 CMP-012: Document Reader Agent
+
+**Source Features**: SF-017 (UC-025, UC-026)
+
+**Responsibility**: Parse existing PRD/SRS/SDS markdown files and build a unified traceability map of all requirements, features, components, and their relationships.
+
+```typescript
+interface IDocumentReaderAgent {
+  /**
+   * Parse a specification document and extract structured data
+   * @param filePath Path to the markdown document (PRD, SRS, or SDS)
+   * @returns Parsed document structure with requirements, features, or components
+   */
+  parseDocument(filePath: string): Promise<ParsedDocument>;
+
+  /**
+   * Build a complete traceability map across all specification documents
+   * @param projectDir Project root directory containing docs/
+   * @returns Traceability mappings between PRD requirements, SRS features, and SDS components
+   */
+  buildTraceabilityMap(projectDir: string): Promise<TraceabilityMap>;
+}
+
+interface ParsedDocument {
+  type: 'PRD' | 'SRS' | 'SDS';
+  version: string;
+  items: DocumentItem[];
+  metadata: Record<string, string>;
+}
+
+interface DocumentItem {
+  id: string;           // e.g., "FR-001", "SF-001", "CMP-001"
+  title: string;
+  description: string;
+  references: string[]; // IDs of linked items in other documents
+}
+
+interface TraceabilityMap {
+  requirements: DocumentItem[];   // PRD items
+  features: DocumentItem[];       // SRS items
+  components: DocumentItem[];     // SDS items
+  mappings: TraceabilityLink[];
+}
+
+interface TraceabilityLink {
+  sourceId: string;
+  targetId: string;
+  linkType: 'implements' | 'traces_to' | 'depends_on';
+}
+```
+
+**Output**: `.ad-sdlc/scratchpad/analysis/{project_id}/current_state.yaml`
+
+#### 3.11.2 CMP-013: Codebase Analyzer Agent
+
+**Source Features**: SF-018 (UC-027, UC-028)
+
+**Responsibility**: Analyze the existing codebase to detect architecture patterns, build system, coding conventions, and generate a dependency graph.
+
+```typescript
+interface ICodebaseAnalyzerAgent {
+  /**
+   * Analyze codebase architecture and detect patterns
+   * @param projectDir Project root directory
+   * @returns Architecture overview including patterns, conventions, and structure
+   */
+  analyzeArchitecture(projectDir: string): Promise<ArchitectureOverview>;
+
+  /**
+   * Generate a dependency graph of modules and packages
+   * @param projectDir Project root directory
+   * @returns Dependency graph with nodes (modules) and edges (dependencies)
+   */
+  generateDependencyGraph(projectDir: string): Promise<DependencyGraph>;
+}
+
+interface ArchitectureOverview {
+  projectType: string;          // e.g., "monorepo", "single-package"
+  language: string;             // e.g., "TypeScript", "Python"
+  buildSystem: string;          // e.g., "npm", "gradle", "cmake"
+  patterns: ArchitecturePattern[];
+  conventions: CodingConvention[];
+  structure: DirectoryStructure;
+}
+
+interface ArchitecturePattern {
+  name: string;                 // e.g., "MVC", "Clean Architecture", "Monolith"
+  confidence: number;           // 0.0 - 1.0
+  evidence: string[];           // File paths or patterns supporting detection
+}
+
+interface CodingConvention {
+  category: string;             // e.g., "naming", "formatting", "testing"
+  rule: string;
+  examples: string[];
+}
+
+interface DirectoryStructure {
+  root: string;
+  sourceDirectories: string[];
+  testDirectories: string[];
+  configFiles: string[];
+}
+```
+
+**Output**: `.ad-sdlc/scratchpad/analysis/{project_id}/architecture_overview.yaml`, `.ad-sdlc/scratchpad/analysis/{project_id}/dependency_graph.json`
+
+#### 3.11.3 CMP-014: Impact Analyzer Agent
+
+**Source Features**: SF-019 (UC-029, UC-030)
+
+**Responsibility**: Given a user change request, analyze impact on existing requirements, features, and components. Assess risk and recommend an update strategy.
+
+```typescript
+interface IImpactAnalyzerAgent {
+  /**
+   * Analyze the impact of a proposed change across the system
+   * @param changeRequest User's change description
+   * @param currentState Current state from Document Reader
+   * @param architecture Architecture overview from Codebase Analyzer
+   * @returns Impact report with scope, affected components, and risk assessment
+   */
+  analyzeImpact(
+    changeRequest: string,
+    currentState: TraceabilityMap,
+    architecture: ArchitectureOverview
+  ): Promise<ImpactReport>;
+
+  /**
+   * Assess risk level and recommend mitigation strategies
+   * @param impactReport Previously generated impact report
+   * @returns Risk assessment with severity, likelihood, and recommendations
+   */
+  assessRisk(impactReport: ImpactReport): Promise<RiskAssessment>;
+}
+
+interface ImpactReport {
+  changeRequest: string;
+  changeScope: 'minor' | 'moderate' | 'major' | 'breaking';
+  affectedRequirements: string[];   // FR-xxx IDs
+  affectedFeatures: string[];       // SF-xxx IDs
+  affectedComponents: string[];     // CMP-xxx IDs
+  affectedFiles: string[];
+  riskAssessment: RiskAssessment;
+  recommendations: Recommendation[];
+}
+
+interface RiskAssessment {
+  overallRisk: 'low' | 'medium' | 'high' | 'critical';
+  factors: RiskFactor[];
+}
+
+interface RiskFactor {
+  category: string;           // e.g., "breaking_change", "data_migration", "api_compatibility"
+  severity: 'low' | 'medium' | 'high';
+  description: string;
+  mitigation: string;
+}
+
+interface Recommendation {
+  type: 'add' | 'modify' | 'deprecate' | 'remove';
+  targetDocument: 'PRD' | 'SRS' | 'SDS';
+  targetId: string;
+  description: string;
+  priority: 'P0' | 'P1' | 'P2' | 'P3';
+}
+```
+
+**Output**: `.ad-sdlc/scratchpad/analysis/{project_id}/impact_report.yaml`
+
+#### 3.11.4 CMP-015: PRD Updater Agent
+
+**Source Features**: SF-020 (UC-031)
+
+**Responsibility**: Update the PRD document by adding, modifying, or deprecating requirements while maintaining version history and changelog.
+
+```typescript
+interface IPRDUpdaterAgent {
+  /**
+   * Add a new functional or non-functional requirement to the PRD
+   * @param requirement New requirement definition
+   * @returns Updated requirement ID and document version
+   */
+  addRequirement(requirement: NewRequirement): Promise<UpdateResult>;
+
+  /**
+   * Modify an existing requirement
+   * @param requirementId ID of the requirement to modify (e.g., "FR-017")
+   * @param changes Fields to update
+   * @returns Updated document version
+   */
+  modifyRequirement(requirementId: string, changes: RequirementChanges): Promise<UpdateResult>;
+
+  /**
+   * Mark a requirement as deprecated with rationale
+   * @param requirementId ID of the requirement to deprecate
+   * @param reason Deprecation reason
+   * @returns Updated document version
+   */
+  deprecateRequirement(requirementId: string, reason: string): Promise<UpdateResult>;
+}
+
+interface NewRequirement {
+  type: 'FR' | 'NFR';
+  title: string;
+  description: string;
+  priority: 'P0' | 'P1' | 'P2' | 'P3';
+  acceptanceCriteria: string[];
+}
+
+interface RequirementChanges {
+  title?: string;
+  description?: string;
+  priority?: 'P0' | 'P1' | 'P2' | 'P3';
+  acceptanceCriteria?: string[];
+}
+
+interface UpdateResult {
+  documentPath: string;
+  itemId: string;
+  newVersion: string;
+  changelogEntry: string;
+}
+```
+
+#### 3.11.5 CMP-016: SRS Updater Agent
+
+**Source Features**: SF-021 (UC-032)
+
+**Responsibility**: Update the SRS document by adding features and use cases, and maintaining the PRD-to-SRS traceability matrix.
+
+```typescript
+interface ISRSUpdaterAgent {
+  /**
+   * Add a new software feature to the SRS
+   * @param feature New feature definition with linked PRD requirements
+   * @returns Updated feature ID and document version
+   */
+  addFeature(feature: NewFeature): Promise<UpdateResult>;
+
+  /**
+   * Add a new use case under an existing feature
+   * @param featureId Parent feature ID (e.g., "SF-017")
+   * @param useCase Use case definition
+   * @returns Updated use case ID and document version
+   */
+  addUseCase(featureId: string, useCase: NewUseCase): Promise<UpdateResult>;
+
+  /**
+   * Update the PRD-to-SRS traceability matrix
+   * @param links Array of requirement-to-feature mappings
+   */
+  updateTraceability(links: TraceabilityLink[]): Promise<void>;
+}
+
+interface NewFeature {
+  title: string;
+  description: string;
+  sourceRequirements: string[];   // FR-xxx IDs from PRD
+  useCases: NewUseCase[];
+}
+
+interface NewUseCase {
+  title: string;
+  actor: string;
+  preconditions: string[];
+  mainFlow: string[];
+  postconditions: string[];
+  alternativeFlows?: string[];
+}
+```
+
+#### 3.11.6 CMP-017: SDS Updater Agent
+
+**Source Features**: SF-022 (UC-033)
+
+**Responsibility**: Update the SDS document by adding components, API definitions, and architecture changes, while maintaining the SRS-to-SDS traceability matrix.
+
+```typescript
+interface ISDSUpdaterAgent {
+  /**
+   * Add a new component definition to the SDS
+   * @param component New component with interface definition
+   * @returns Updated component ID and document version
+   */
+  addComponent(component: NewComponent): Promise<UpdateResult>;
+
+  /**
+   * Add or update an API definition for an existing component
+   * @param componentId Component ID (e.g., "CMP-012")
+   * @param api API definition
+   * @returns Updated document version
+   */
+  addAPI(componentId: string, api: APIDefinition): Promise<UpdateResult>;
+
+  /**
+   * Update architecture diagrams and descriptions
+   * @param section Architecture section identifier
+   * @param content Updated architecture content
+   */
+  updateArchitecture(section: string, content: string): Promise<UpdateResult>;
+}
+
+interface NewComponent {
+  name: string;
+  sourceFeatures: string[];       // SF-xxx IDs from SRS
+  responsibility: string;
+  interfaceDefinition: string;    // TypeScript interface as string
+}
+
+interface APIDefinition {
+  name: string;
+  signature: string;
+  description: string;
+  parameters: ParameterDef[];
+  returnType: string;
+}
+
+interface ParameterDef {
+  name: string;
+  type: string;
+  description: string;
+  required: boolean;
+}
+```
+
+#### 3.11.7 CMP-018: Regression Tester Agent
+
+**Source Features**: SF-023 (UC-034)
+
+**Responsibility**: Map affected tests based on impact analysis, execute regression suites, and analyze backward compatibility.
+
+```typescript
+interface IRegressionTesterAgent {
+  /**
+   * Identify tests affected by a set of changes
+   * @param affectedComponents Component IDs from impact analysis
+   * @param affectedFiles File paths from impact analysis
+   * @returns Mapping of affected test files and test cases
+   */
+  mapAffectedTests(
+    affectedComponents: string[],
+    affectedFiles: string[]
+  ): Promise<AffectedTestMap>;
+
+  /**
+   * Execute the regression test suite for affected areas
+   * @param testMap Affected test mapping
+   * @returns Regression test results
+   */
+  runRegressionSuite(testMap: AffectedTestMap): Promise<RegressionReport>;
+
+  /**
+   * Analyze backward compatibility of proposed changes
+   * @param changes Proposed code changes
+   * @returns Compatibility analysis with breaking change detection
+   */
+  analyzeCompatibility(changes: CodeChange[]): Promise<CompatibilityAnalysis>;
+}
+
+interface AffectedTestMap {
+  testFiles: string[];
+  testCases: TestCaseRef[];
+  estimatedDuration: number;      // seconds
+}
+
+interface TestCaseRef {
+  file: string;
+  name: string;
+  component: string;
+}
+
+interface RegressionReport {
+  totalTests: number;
+  passed: number;
+  failed: number;
+  skipped: number;
+  duration: number;               // seconds
+  failures: TestFailure[];
+  coverageDelta: number;          // percentage change
+}
+
+interface TestFailure {
+  testFile: string;
+  testName: string;
+  error: string;
+  component: string;
+}
+
+interface CompatibilityAnalysis {
+  isBackwardCompatible: boolean;
+  breakingChanges: BreakingChange[];
+}
+
+interface BreakingChange {
+  type: 'api' | 'schema' | 'behavior' | 'interface';
+  description: string;
+  affectedConsumers: string[];
+  migrationPath: string;
+}
+```
+
+**Output**: `.ad-sdlc/scratchpad/analysis/{project_id}/regression_report.yaml`
+
+#### 3.11.8 CMP-019: Doc-Code Comparator Agent
+
+**Source Features**: SF-024 (UC-035)
+
+**Responsibility**: Compare specification documents against the actual codebase to detect drift, missing implementations, and undocumented features.
+
+```typescript
+interface IDocCodeComparatorAgent {
+  /**
+   * Compare specification documents against codebase implementation
+   * @param currentState Traceability map from Document Reader
+   * @param codeInventory Code inventory from Code Reader
+   * @returns Gap report with discrepancies and recommendations
+   */
+  compareSpecs(
+    currentState: TraceabilityMap,
+    codeInventory: CodeInventory
+  ): Promise<GapReport>;
+
+  /**
+   * Generate a detailed gap report with prioritized action items
+   * @param comparison Raw comparison results
+   * @returns Structured gap report
+   */
+  generateGapReport(comparison: ComparisonResult[]): Promise<GapReport>;
+}
+
+interface GapReport {
+  timestamp: string;
+  summary: GapSummary;
+  gaps: Gap[];
+  recommendations: GapRecommendation[];
+}
+
+interface GapSummary {
+  totalSpecItems: number;
+  implementedCount: number;
+  missingCount: number;
+  driftCount: number;
+  undocumentedCount: number;
+}
+
+interface Gap {
+  type: 'missing_implementation' | 'spec_drift' | 'undocumented_feature' | 'stale_spec';
+  specId?: string;              // Document item ID if applicable
+  filePath?: string;            // Source file if applicable
+  description: string;
+  severity: 'low' | 'medium' | 'high';
+}
+
+interface GapRecommendation {
+  gapType: string;
+  action: 'implement' | 'update_spec' | 'document' | 'remove';
+  description: string;
+  priority: 'P0' | 'P1' | 'P2' | 'P3';
+}
+
+interface ComparisonResult {
+  specItem: DocumentItem;
+  implementationStatus: 'implemented' | 'partial' | 'missing' | 'drifted';
+  evidence: string[];
+}
+```
+
+**Output**: `.ad-sdlc/scratchpad/analysis/{project_id}/gap_report.yaml`
+
+#### 3.11.9 CMP-020: Code Reader Agent
+
+**Source Features**: SF-025 (UC-036)
+
+**Responsibility**: Perform deep code analysis using AST parsing (ts-morph for TypeScript) to extract classes, functions, dependencies, and build a code inventory.
+
+```typescript
+interface ICodeReaderAgent {
+  /**
+   * Analyze AST of source files to extract structural information
+   * @param projectDir Project root directory
+   * @param filePatterns Glob patterns for files to analyze (e.g., ["src/**/*.ts"])
+   * @returns Structured code inventory
+   */
+  analyzeAST(projectDir: string, filePatterns: string[]): Promise<CodeInventory>;
+
+  /**
+   * Extract import/export dependencies between modules
+   * @param projectDir Project root directory
+   * @returns Module dependency map
+   */
+  extractDependencies(projectDir: string): Promise<ModuleDependencyMap>;
+}
+
+interface CodeInventory {
+  files: SourceFile[];
+  classes: ClassInfo[];
+  functions: FunctionInfo[];
+  interfaces: InterfaceInfo[];
+  exports: ExportInfo[];
+  totalLines: number;
+}
+
+interface SourceFile {
+  path: string;
+  language: string;
+  lines: number;
+  imports: string[];
+  exports: string[];
+}
+
+interface ClassInfo {
+  name: string;
+  filePath: string;
+  methods: string[];
+  properties: string[];
+  implements: string[];
+  extends?: string;
+}
+
+interface FunctionInfo {
+  name: string;
+  filePath: string;
+  parameters: string[];
+  returnType: string;
+  exported: boolean;
+}
+
+interface InterfaceInfo {
+  name: string;
+  filePath: string;
+  methods: string[];
+  properties: string[];
+  extends: string[];
+}
+
+interface ExportInfo {
+  name: string;
+  filePath: string;
+  type: 'class' | 'function' | 'interface' | 'constant' | 'type';
+}
+
+interface ModuleDependencyMap {
+  modules: ModuleNode[];
+  edges: ModuleEdge[];
+}
+
+interface ModuleNode {
+  path: string;
+  exportCount: number;
+  importCount: number;
+}
+
+interface ModuleEdge {
+  from: string;
+  to: string;
+  imports: string[];
+}
+```
+
+**Output**: `.ad-sdlc/scratchpad/analysis/{project_id}/code_inventory.yaml`
+
+#### 3.11.10 CMP-021: CI Fixer Agent
+
+**Source Features**: SF-026 (UC-037)
+
+**Responsibility**: Diagnose CI/CD pipeline failures (lint, type check, test, build) and apply automated fixes.
+
+```typescript
+interface ICIFixerAgent {
+  /**
+   * Diagnose a CI failure from log output
+   * @param ciLog CI pipeline log output
+   * @param failureType Type of CI failure
+   * @returns Diagnosis with root cause and suggested fixes
+   */
+  diagnoseCIFailure(
+    ciLog: string,
+    failureType: CIFailureType
+  ): Promise<CIDiagnosis>;
+
+  /**
+   * Apply an automated fix for a diagnosed CI failure
+   * @param diagnosis CI failure diagnosis
+   * @returns Fix result with modified files and verification status
+   */
+  applyFix(diagnosis: CIDiagnosis): Promise<CIFixResult>;
+}
+
+type CIFailureType = 'lint' | 'type_check' | 'test' | 'build' | 'unknown';
+
+interface CIDiagnosis {
+  failureType: CIFailureType;
+  rootCause: string;
+  affectedFiles: string[];
+  suggestedFixes: SuggestedFix[];
+  confidence: number;             // 0.0 - 1.0
+}
+
+interface SuggestedFix {
+  description: string;
+  filePath: string;
+  changeType: 'edit' | 'add' | 'delete';
+  preview: string;                // Diff or code snippet
+}
+
+interface CIFixResult {
+  applied: boolean;
+  modifiedFiles: string[];
+  verificationPassed: boolean;
+  verificationOutput: string;
+  retryRecommended: boolean;
+}
+```
+
+---
+
+### 3.12 Infrastructure Components
+
+#### 3.12.1 CMP-022: Mode Detector Agent
+
+**Source Features**: SF-027 (UC-038)
+
+**Responsibility**: Detect whether the project is a greenfield (new) or enhancement (existing) project to select the appropriate pipeline.
+
+```typescript
+interface IModeDetectorAgent {
+  /**
+   * Detect project mode based on directory contents and existing artifacts
+   * @param projectDir Project root directory
+   * @returns Detected mode with confidence score and evidence
+   */
+  detectMode(projectDir: string): Promise<ModeDetectionResult>;
+}
+
+interface ModeDetectionResult {
+  mode: 'greenfield' | 'enhancement';
+  confidence: number;             // 0.0 - 1.0
+  evidence: ModeEvidence[];
+}
+
+interface ModeEvidence {
+  factor: string;                 // e.g., "existing_source_code", "ad_sdlc_directory", "git_history"
+  detected: boolean;
+  weight: number;
+  details: string;
+}
+```
+
+#### 3.12.2 CMP-023: Project Initializer Agent
+
+**Source Features**: SF-028 (UC-039)
+
+**Responsibility**: Initialize the AD-SDLC workspace by creating the `.ad-sdlc` directory structure, configuration files, and gitignore entries.
+
+```typescript
+interface IProjectInitializerAgent {
+  /**
+   * Initialize the AD-SDLC project workspace
+   * @param projectDir Project root directory
+   * @param options Initialization options
+   * @returns Initialization result with created paths
+   */
+  initialize(projectDir: string, options: InitOptions): Promise<InitResult>;
+}
+
+interface InitOptions {
+  mode: 'greenfield' | 'enhancement';
+  projectName: string;
+  description?: string;
+  createGitIgnore: boolean;
+}
+
+interface InitResult {
+  success: boolean;
+  createdDirectories: string[];
+  createdFiles: string[];
+  configPath: string;
+}
+```
+
+#### 3.12.3 CMP-024: Repo Detector Agent
+
+**Source Features**: SF-029 (UC-041)
+
+**Responsibility**: Detect local git repository configuration and remote GitHub repository availability.
+
+```typescript
+interface IRepoDetectorAgent {
+  /**
+   * Detect repository configuration for the project
+   * @param projectDir Project root directory
+   * @returns Repository detection result with local and remote info
+   */
+  detectRepository(projectDir: string): Promise<RepoDetectionResult>;
+}
+
+interface RepoDetectionResult {
+  hasLocalGit: boolean;
+  hasRemote: boolean;
+  remoteUrl?: string;
+  defaultBranch?: string;
+  owner?: string;
+  repoName?: string;
+  isGitHubRepo: boolean;
+}
+```
+
+#### 3.12.4 CMP-025: AD-SDLC Orchestrator Agent
+
+**Source Features**: SF-030 (UC-042, UC-043)
+
+**Responsibility**: Top-level pipeline orchestrator that coordinates the entire AD-SDLC workflow, delegating to specialized agents based on the detected project mode.
+
+```typescript
+interface IADSDLCOrchestrator {
+  /**
+   * Execute the full AD-SDLC pipeline
+   * @param projectDir Project root directory
+   * @param userRequest User's project description or change request
+   * @returns Pipeline execution result
+   */
+  executePipeline(projectDir: string, userRequest: string): Promise<PipelineResult>;
+
+  /**
+   * Coordinate multiple agents in sequence or parallel
+   * @param agents Agent invocations to coordinate
+   * @param strategy Execution strategy (sequential or parallel)
+   * @returns Coordinated execution results
+   */
+  coordinateAgents(
+    agents: AgentInvocation[],
+    strategy: 'sequential' | 'parallel'
+  ): Promise<AgentResult[]>;
+}
+
+interface PipelineResult {
+  projectId: string;
+  mode: 'greenfield' | 'enhancement';
+  stages: StageResult[];
+  overallStatus: 'completed' | 'failed' | 'partial';
+  duration: number;               // seconds
+  artifacts: string[];            // Generated file paths
+}
+
+interface StageResult {
+  name: string;
+  agentType: string;
+  status: 'completed' | 'failed' | 'skipped';
+  duration: number;
+  output: string;
+  artifacts: string[];
+}
+```
+
+#### 3.12.5 CMP-026: Analysis Orchestrator Agent
+
+**Source Features**: SF-030 (UC-043)
+
+**Responsibility**: Orchestrate the analysis sub-pipeline for enhancement mode: DocumentReader -> CodeReader -> Comparator -> IssueGenerator.
+
+```typescript
+interface IAnalysisOrchestrator {
+  /**
+   * Execute the analysis pipeline for enhancement mode
+   * @param projectDir Project root directory
+   * @param changeRequest User's change request description
+   * @returns Analysis pipeline results including gap report and impact analysis
+   */
+  executeAnalysisPipeline(
+    projectDir: string,
+    changeRequest: string
+  ): Promise<AnalysisPipelineResult>;
+}
+
+interface AnalysisPipelineResult {
+  currentState: TraceabilityMap;
+  codeInventory: CodeInventory;
+  gapReport: GapReport;
+  impactReport: ImpactReport;
+  generatedIssues: number[];      // GitHub issue numbers
+  recommendedActions: Recommendation[];
+}
+```
+
+#### 3.12.6 CMP-027: GitHub Repo Setup Agent
+
+**Source Features**: SF-029 (UC-040)
+**Responsibility**: Creates and initializes a new public GitHub repository based on project metadata extracted from PRD and SRS. Generates README, selects license, creates .gitignore, and performs initial commit using the `gh` CLI.
+
+```typescript
+interface IGitHubRepoSetupAgent {
+  /**
+   * Create and initialize a GitHub repository
+   * @param projectName Project name extracted from PRD
+   * @param description Project description
+   * @param options Repository creation options
+   * @returns Repository URL and metadata
+   */
+  createRepository(
+    projectName: string,
+    description: string,
+    options: RepoSetupOptions
+  ): Promise<RepoSetupResult>;
+}
+
+interface RepoSetupOptions {
+  /** License type (MIT, Apache-2.0, etc.) */
+  readonly license: string;
+  /** Programming language for .gitignore template */
+  readonly language: string;
+  /** Whether to create initial README from PRD */
+  readonly generateReadme: boolean;
+  /** GitHub visibility (public/private) */
+  readonly visibility: 'public' | 'private';
+}
+
+interface RepoSetupResult {
+  /** Full repository URL */
+  readonly repoUrl: string;
+  /** Owner/repo format */
+  readonly repoFullName: string;
+  /** Default branch name */
+  readonly defaultBranch: string;
+  /** Initial commit SHA */
+  readonly initialCommitSha: string;
+}
+```
+
+**Output**: GitHub repository created and initialized
+**Tools Required**: Bash (gh CLI, git)
+
+#### 3.12.7 CMP-028: Issue Reader Agent
+
+**Source Features**: SF-031 (UC-044)
+**Responsibility**: Imports existing GitHub Issues from a repository and converts them to AD-SDLC internal format. Parses issue metadata (labels, assignees, milestones), extracts inter-issue dependencies from issue body references, builds a dependency graph, and generates a structured issue list compatible with the Controller Agent.
+
+```typescript
+interface IIssueReaderAgent {
+  /**
+   * Import issues from GitHub repository
+   * @param repoUrl GitHub repository URL or owner/repo
+   * @param options Import filter options
+   * @returns Imported issue list and dependency graph
+   */
+  importIssues(
+    repoUrl: string,
+    options: IssueImportOptions
+  ): Promise<IssueImportResult>;
+}
+
+interface IssueImportOptions {
+  /** Filter by issue state */
+  readonly state?: 'open' | 'closed' | 'all';
+  /** Filter by labels */
+  readonly labels?: readonly string[];
+  /** Filter by milestone */
+  readonly milestone?: string;
+  /** Maximum number of issues to import */
+  readonly limit?: number;
+}
+
+interface IssueImportResult {
+  /** Imported issues in AD-SDLC internal format */
+  readonly issues: readonly ImportedIssue[];
+  /** Dependency graph between issues */
+  readonly dependencyGraph: DependencyGraph;
+  /** Import statistics */
+  readonly stats: {
+    readonly total: number;
+    readonly imported: number;
+    readonly skipped: number;
+    readonly withDependencies: number;
+  };
+}
+
+interface ImportedIssue {
+  /** GitHub issue number */
+  readonly number: number;
+  /** Issue title */
+  readonly title: string;
+  /** Parsed issue body */
+  readonly body: string;
+  /** GitHub labels */
+  readonly labels: readonly string[];
+  /** Assigned users */
+  readonly assignees: readonly string[];
+  /** Detected dependencies (issue numbers) */
+  readonly dependsOn: readonly number[];
+  /** Estimated complexity */
+  readonly complexity: 'small' | 'medium' | 'large';
+}
+```
+
+**Output**: `.ad-sdlc/scratchpad/issues/{project_id}/issue_list.json`, `.ad-sdlc/scratchpad/issues/{project_id}/dependency_graph.json`
+**Tools Required**: Bash (gh CLI)
+
+### 3.13 Infrastructure Modules
+
+These cross-cutting infrastructure modules provide shared capabilities to all agents
+and pipeline components. They are not agents themselves but foundational libraries
+that enforce security, observability, and resource governance.
+
+#### 3.13.1 Security Module (`src/security/`)
+
+**Purpose**: Provides defense-in-depth security utilities for file operations,
+command execution, input validation, and audit logging.
+
+| Component | Responsibility | Singleton Access |
+|-----------|---------------|------------------|
+| `CommandSanitizer` | Sanitizes shell commands, prevents injection attacks | `getCommandSanitizer()` |
+| `CommandWhitelist` | Maintains allowed command list with argument patterns | `DEFAULT_COMMAND_WHITELIST` |
+| `InputValidator` | Validates user inputs (URLs, file paths, text) | `new InputValidator()` |
+| `PathSanitizer` | Prevents path traversal attacks (e.g., `../../etc/passwd`) | `new PathSanitizer()` |
+| `PathResolver` | Project-aware path resolution with security validation | `new PathResolver()` |
+| `SymlinkResolver` | Secure symbolic link handling with configurable policies | `new SymlinkResolver()` |
+| `SecureFileOps` | Centralized secure file read/write/mkdir operations | `getSecureFileOps()` |
+| `SecureFileHandler` | File watching with integrity verification | `getSecureFileHandler()` |
+| `AuditLogger` | Immutable audit trail for security-sensitive operations | `getAuditLogger()` |
+| `RateLimiter` | Token-bucket rate limiting for API calls | `new RateLimiter()` |
+| `SecretManager` | Secure secret storage with pluggable backends | `getSecretManager()` |
+
+**Key Design Decisions**:
+- All file operations route through `SecureFileOps` to enforce path validation
+- Commands are validated against `CommandWhitelist` before execution
+- `AuditLogger` records all security-sensitive events with tamper-evident logging
+- `RateLimiter` uses token-bucket algorithm with per-operation configurable limits
+
+#### 3.13.2 Monitoring Module (`src/monitoring/`)
+
+**Purpose**: Provides observability, token budget management, performance tuning,
+and alerting capabilities across the entire pipeline.
+
+| Component | Responsibility | Singleton Access |
+|-----------|---------------|------------------|
+| `MetricsCollector` | Collects counter, gauge, histogram metrics per agent/stage | `getMetricsCollector()` |
+| `AlertManager` | Evaluates alert conditions, triggers handlers, supports escalation | `getAlertManager()` |
+| `TokenBudgetManager` | Enforces per-agent and per-pipeline token budgets | `getTokenBudgetManager()` |
+| `AgentBudgetRegistry` | Registers agent budget configs, supports inter-agent budget transfer | `getAgentBudgetRegistry()` |
+| `BudgetAggregator` | Aggregates usage across agents/categories, generates optimization suggestions | `getBudgetAggregator()` |
+| `ContextPruner` | Prunes conversation context to fit within token limits | `createContextPruner()` |
+| `ModelSelector` | Selects optimal model (Opus/Sonnet/Haiku) based on task complexity | `getModelSelector()` |
+| `QueryCache` | LRU cache for repeated LLM queries with TTL expiry | `getQueryCache()` |
+| `TokenUsageReport` | Generates usage reports with trend analysis and recommendations | `createTokenUsageReport()` |
+| `ParallelExecutionTuner` | Dynamically adjusts worker pool size based on system resources | `getParallelExecutionTuner()` |
+| `LatencyOptimizer` | Tracks and optimizes agent response latencies with warmup | `getLatencyOptimizer()` |
+| `ResponseTimeBenchmarks` | Defines and validates performance benchmarks per pipeline stage | `getResponseTimeBenchmarks()` |
+| `DashboardDataProvider` | Provides aggregated data for monitoring dashboards | `getDashboardDataProvider()` |
+| `OpenTelemetryProvider` | OpenTelemetry SDK integration for distributed tracing | `getOpenTelemetryProvider()` |
+
+**Key Design Decisions**:
+- `ModelSelector` uses task complexity analysis to choose between Opus (complex), Sonnet (standard), and Haiku (simple) models
+- `ParallelExecutionTuner` respects `max_parallel: 5` constraint from workflow.yaml while optimizing throughput
+- `TokenBudgetManager` supports hierarchical budgets (global → pipeline → category → agent)
+- OpenTelemetry spans propagate across agent boundaries via `propagateToSubagent()`
+
+**Tracing Utilities** (`tracing.ts`):
+
+```typescript
+// Span creation helpers for consistent instrumentation
+startAgentSpan(name: string, options: AgentSpanOptions): SpanWrapper
+startToolSpan(name: string, options: ToolSpanOptions): SpanWrapper
+startLLMSpan(name: string, options: LLMSpanOptions): SpanWrapper
+
+// Higher-order wrappers for automatic span lifecycle management
+withAgentSpan<T>(name: string, fn: () => T, options?: AgentSpanOptions): T
+withToolSpan<T>(name: string, fn: () => T, options?: ToolSpanOptions): T
+withTracedAgent<T>(name: string, fn: () => T): T
+```
+
+#### 3.13.3 Telemetry Module (`src/telemetry/`)
+
+**Purpose**: Provides opt-in anonymous usage analytics with strict privacy controls.
+
+| Component | Responsibility | Singleton Access |
+|-----------|---------------|------------------|
+| `Telemetry` | Core telemetry engine with consent management and event batching | `getTelemetry()` |
+
+**Privacy-First Design**:
+- **Explicit Opt-In**: No data collected without user consent
+- **Consent Record**: Stores consent status, timestamp, and policy version
+- **Event Types**: `command_executed`, `pipeline_completed`, `agent_invoked`, `feature_used`
+- **Data NOT Collected**: Source code, file contents, user identities, API keys
+
+**Event Schema**:
+
+```typescript
+interface TelemetryEvent {
+  type: TelemetryEventType;
+  timestamp: string;          // ISO 8601
+  sessionId: string;          // Anonymous session ID
+  properties: Record<string, unknown>;
+}
+```
+
+#### 3.13.4 Module Interaction Diagram
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        Agent Layer                               │
+│  (Collector, PRD Writer, Worker, PR Reviewer, etc.)             │
+├──────────┬──────────────┬──────────────┬────────────────────────┤
+│          │              │              │                        │
+│  ┌───────▼──────┐ ┌────▼─────┐ ┌─────▼──────┐ ┌──────────────┐│
+│  │   Security    │ │Monitoring│ │ Telemetry  │ │   Logging    ││
+│  │              │ │          │ │            │ │              ││
+│  │ PathSanitizer│ │ Metrics  │ │  Consent   │ │   Logger     ││
+│  │ CmdSanitizer│ │ Alerts   │ │  Events    │ │   Rotation   ││
+│  │ SecureFileOps│ │ Budgets  │ │  Privacy   │ │   Query      ││
+│  │ AuditLogger │ │ ModelSel │ │            │ │              ││
+│  │ RateLimiter │ │ Tracing  │ │            │ │              ││
+│  └──────────────┘ └──────────┘ └────────────┘ └──────────────┘│
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
 ## 4. Data Design
 
 ### 4.1 Entity-Relationship Diagram
@@ -2132,6 +3169,7 @@ interface AgentInvocation {
 }
 
 type AgentType =
+  // Greenfield Pipeline Agents
   | 'collector'
   | 'prd-writer'
   | 'srs-writer'
@@ -2139,7 +3177,26 @@ type AgentType =
   | 'issue-generator'
   | 'controller'
   | 'worker'
-  | 'pr-reviewer';
+  | 'pr-reviewer'
+  // Enhancement Pipeline Agents
+  | 'document-reader'
+  | 'codebase-analyzer'
+  | 'impact-analyzer'
+  | 'prd-updater'
+  | 'srs-updater'
+  | 'sds-updater'
+  | 'regression-tester'
+  | 'doc-code-comparator'
+  | 'code-reader'
+  | 'ci-fixer'
+  // Infrastructure Agents
+  | 'mode-detector'
+  | 'project-initializer'
+  | 'repo-detector'
+  | 'ad-sdlc-orchestrator'
+  | 'analysis-orchestrator'
+  | 'github-repo-setup'
+  | 'issue-reader';
 
 type ModelType = 'sonnet' | 'opus' | 'haiku';
 
@@ -2706,6 +3763,21 @@ checkpoints:
 | SF-014 (Scratchpad State) | CMP-009 (State Manager) | State management |
 | SF-015 (Activity Logging) | CMP-010 (Logger) | Activity logging |
 | SF-016 (Error Handling) | CMP-011 (Error Handler) | Error handling and retry |
+| SF-017 (Document Reading) | CMP-012 (Document Reader Agent) | Parse existing spec documents and build traceability map |
+| SF-018 (Codebase Analysis) | CMP-013 (Codebase Analyzer Agent) | Analyze architecture patterns and dependency graph |
+| SF-019 (Impact Analysis) | CMP-014 (Impact Analyzer Agent) | Analyze change impact and assess risk |
+| SF-020 (PRD Update) | CMP-015 (PRD Updater Agent) | Add, modify, and deprecate PRD requirements |
+| SF-021 (SRS Update) | CMP-016 (SRS Updater Agent) | Add features, use cases, and update traceability |
+| SF-022 (SDS Update) | CMP-017 (SDS Updater Agent) | Add components, APIs, and update architecture |
+| SF-023 (Regression Testing) | CMP-018 (Regression Tester Agent) | Map affected tests and run regression suite |
+| SF-024 (Doc-Code Comparison) | CMP-019 (Doc-Code Comparator Agent) | Compare specs against codebase and generate gap report |
+| SF-025 (Code Reading) | CMP-020 (Code Reader Agent) | AST analysis and dependency extraction |
+| SF-026 (CI Fixing) | CMP-021 (CI Fixer Agent) | Diagnose CI failures and apply automated fixes |
+| SF-027 (Mode Detection) | CMP-022 (Mode Detector Agent) | Detect greenfield vs enhancement mode |
+| SF-028 (Project Initialization) | CMP-023 (Project Initializer Agent) | Initialize .ad-sdlc workspace |
+| SF-029 (GitHub Repo Management) | CMP-024 (Repo Detector Agent), CMP-027 (GitHub Repo Setup Agent) | Detect existing repos and create new ones |
+| SF-030 (Pipeline Orchestration) | CMP-025 (AD-SDLC Orchestrator), CMP-026 (Analysis Orchestrator) | Top-level and analysis pipeline coordination |
+| SF-031 (Issue Import) | CMP-028 (Issue Reader Agent) | Import existing GitHub Issues into AD-SDLC format |
 
 ### 9.2 Component → API Mapping
 
@@ -2719,6 +3791,23 @@ checkpoints:
 | CMP-006 | prioritize, assignWork, monitorProgress | Read, Write, Edit |
 | CMP-007 | executeWork, implementCode, writeTests, selfVerify | Read, Write, Edit, Bash |
 | CMP-008 | createPR, reviewPR, checkQualityGates, decideMerge | Read, Bash (gh) |
+| CMP-012 | parseDocument, buildTraceabilityMap | Read |
+| CMP-013 | analyzeArchitecture, generateDependencyGraph | Read, Bash |
+| CMP-014 | analyzeImpact, assessRisk | Read |
+| CMP-015 | addRequirement, modifyRequirement, deprecateRequirement | Read, Write, Edit |
+| CMP-016 | addFeature, addUseCase, updateTraceability | Read, Write, Edit |
+| CMP-017 | addComponent, addAPI, updateArchitecture | Read, Write, Edit |
+| CMP-018 | mapAffectedTests, runRegressionSuite, analyzeCompatibility | Read, Bash |
+| CMP-019 | compareSpecs, generateGapReport | Read |
+| CMP-020 | analyzeAST, extractDependencies | Read, Bash (ts-morph) |
+| CMP-021 | diagnoseCIFailure, applyFix | Read, Write, Edit, Bash |
+| CMP-022 | detectMode | Read, Bash (git) |
+| CMP-023 | initialize | Write, Bash (git) |
+| CMP-024 | detectRepository | Bash (git, gh) |
+| CMP-025 | executePipeline, coordinateAgents | All Agent Interfaces |
+| CMP-026 | executeAnalysisPipeline | CMP-012, CMP-020, CMP-019, CMP-005 |
+| CMP-027 | createRepository | Bash (gh, git) |
+| CMP-028 | importIssues | Bash (gh) |
 
 ### 9.3 Full Traceability Chain
 

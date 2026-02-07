@@ -23,14 +23,25 @@ global:
   # Human-in-the-loop approval gates
   # Only used when approval_mode is "custom"
   # Set to true to enable manual review at each stage
+  # Keys match actual pipeline stage names in modes.*.stages[].name
   approval_gates:
-    after_collection: false
-    after_prd: false
-    after_srs: false
-    after_github_repo_setup: false
-    after_sds: false
-    after_issues: false
-    before_merge: false
+    # Greenfield Pipeline stages
+    collection: false           # After collector agent
+    prd_generation: false       # After PRD writer
+    srs_generation: false       # After SRS writer
+    repo_detection: false       # After repo detector
+    github_repo_setup: false    # After GitHub repo setup
+    sds_generation: false       # After SDS writer
+    issue_generation: false     # After issue generator
+    review: false               # Before PR merge
+    # Enhancement Pipeline stages
+    doc_code_comparison: false  # After gap analysis
+    impact_analysis: false      # After impact assessment
+    prd_update: false           # After PRD updater
+    srs_update: false           # After SRS updater
+    sds_update: false           # After SDS updater
+    # Import Pipeline stages
+    issue_reading: false        # After issue import
 
   # Retry policy for agents
   retry_policy:
@@ -97,8 +108,19 @@ pipeline:
           outputs:
             - "${scratchpad_dir}/documents/${project_id}/srs.md"
             - "${output_docs_dir}/srs/SRS-${project_id}.md"
-          next: "github_repo_setup"
+          next: "repo_detection"
           approval_required: true
+
+        - name: "repo_detection"
+          agent: "repo-detector"
+          description: "Detect existing GitHub repository presence"
+          inputs:
+            - "${scratchpad_dir}/documents/${project_id}/prd.md"
+          outputs:
+            - "${scratchpad_dir}/repo/${project_id}/detection_result.yaml"
+          next: "github_repo_setup"
+          approval_required: false
+          conditional: true  # Skip github_repo_setup if repo already exists
 
         - name: "github_repo_setup"
           agent: "github-repo-setup"
@@ -167,6 +189,14 @@ pipeline:
             - "${scratchpad_dir}/progress/${project_id}/reviews/*.yaml"
           next: null  # End of pipeline
           approval_required: false
+          on_ci_failure:
+            agent: "ci-fixer"
+            description: "Automatically diagnose and fix CI/CD failures"
+            max_attempts: 3
+            inputs:
+              - "${scratchpad_dir}/progress/${project_id}/reviews/*.yaml"
+            outputs:
+              - "${scratchpad_dir}/progress/${project_id}/ci_fixes/*.yaml"
 
     # =========================================================================
     # Enhancement Mode - Incremental update pipeline for existing projects
@@ -202,7 +232,29 @@ pipeline:
                 - "${scratchpad_dir}/analysis/${project_id}/architecture_overview.yaml"
                 - "${scratchpad_dir}/analysis/${project_id}/dependency_graph.json"
               approval_required: false
+
+            - name: "code_reading"
+              agent: "code-reader"
+              description: "Analyze source code AST for classes, functions, and dependencies"
+              inputs:
+                - type: "source_code"
+                - "src/**/*"
+              outputs:
+                - "${scratchpad_dir}/analysis/${project_id}/code_inventory.yaml"
+              approval_required: false
+          next: "doc_code_comparison"
+
+        - name: "doc_code_comparison"
+          agent: "doc-code-comparator"
+          description: "Compare document specifications against code implementation"
+          inputs:
+            - "${scratchpad_dir}/current_state/${project_id}/current_state.yaml"
+            - "${scratchpad_dir}/analysis/${project_id}/code_inventory.yaml"
+            - "${scratchpad_dir}/analysis/${project_id}/architecture_overview.yaml"
+          outputs:
+            - "${scratchpad_dir}/analysis/${project_id}/gap_report.yaml"
           next: "impact_analysis"
+          approval_required: false
 
         - name: "impact_analysis"
           agent: "impact-analyzer"
@@ -320,6 +372,14 @@ pipeline:
             - "${scratchpad_dir}/progress/${project_id}/reviews/*.yaml"
           next: null  # End of pipeline
           approval_required: false
+          on_ci_failure:
+            agent: "ci-fixer"
+            description: "Automatically diagnose and fix CI/CD failures"
+            max_attempts: 3
+            inputs:
+              - "${scratchpad_dir}/progress/${project_id}/reviews/*.yaml"
+            outputs:
+              - "${scratchpad_dir}/progress/${project_id}/ci_fixes/*.yaml"
 
     # =========================================================================
     # Import Mode - Start from existing GitHub issues
@@ -373,6 +433,14 @@ pipeline:
             - "${scratchpad_dir}/progress/${project_id}/reviews/*.yaml"
           next: null  # End of pipeline
           approval_required: false
+          on_ci_failure:
+            agent: "ci-fixer"
+            description: "Automatically diagnose and fix CI/CD failures"
+            max_attempts: 3
+            inputs:
+              - "${scratchpad_dir}/progress/${project_id}/reviews/*.yaml"
+            outputs:
+              - "${scratchpad_dir}/progress/${project_id}/ci_fixes/*.yaml"
 
   # Legacy compatibility: stages array for backward compatibility
   # When no mode is specified, this defaults to greenfield stages
@@ -402,6 +470,9 @@ agents:
       - Glob
       - Grep
     template: ".ad-sdlc/templates/prd-template.md"
+    quality_gate_ref: "quality_gates.document_quality.prd"
+    timeout_ref: "global.timeouts.document_generation"  # 300s
+    retry_ref: "global.retry_policy"
 
   srs-writer:
     model: "sonnet"
@@ -412,6 +483,9 @@ agents:
       - Glob
       - Grep
     template: ".ad-sdlc/templates/srs-template.md"
+    quality_gate_ref: "quality_gates.document_quality.srs"
+    timeout_ref: "global.timeouts.document_generation"
+    retry_ref: "global.retry_policy"
 
   github-repo-setup:
     model: "sonnet"
@@ -439,6 +513,9 @@ agents:
       - Glob
       - Grep
     template: ".ad-sdlc/templates/sds-template.md"
+    quality_gate_ref: "quality_gates.document_quality.sds"
+    timeout_ref: "global.timeouts.document_generation"
+    retry_ref: "global.retry_policy"
 
   issue-generator:
     model: "sonnet"
@@ -513,7 +590,10 @@ agents:
       run_tests: true
       run_lint: true
       run_build: true
-      coverage_threshold: 80
+      coverage_threshold: 80  # References quality_gates.code_quality.coverage_threshold
+    quality_gate_ref: "quality_gates.code_quality"  # Enforced before submitting results
+    timeout_ref: "global.timeouts.implementation"  # 1800s
+    retry_ref: "global.retry_policy"  # max 3 attempts, exponential backoff
 
   pr-reviewer:
     model: "sonnet"
@@ -527,11 +607,15 @@ agents:
     review:
       auto_merge: false
       require_all_checks: true
-      coverage_threshold: 80
-      max_complexity: 10
+      coverage_threshold: 80  # References quality_gates.code_quality.coverage_threshold
+      max_complexity: 10  # References quality_gates.code_quality.max_complexity
     github:
       merge_strategy: "squash"  # merge, squash, rebase
       delete_branch_after_merge: true
+    quality_gate_ref: "quality_gates.code_quality"  # Enforced before merge decision
+    security_gate_ref: "quality_gates.security"  # Enforced: no hardcoded secrets
+    timeout_ref: "global.timeouts.pr_review"  # 300s
+    retry_ref: "global.retry_policy"  # max 3 attempts, exponential backoff
 
   # ---------------------------------------------------------------------------
   # Enhancement Pipeline Agent Configurations
@@ -651,6 +735,71 @@ agents:
       min_coverage: 80
       max_regression_risk: "medium"
 
+  repo-detector:
+    model: "haiku"
+    tools:
+      - Read
+      - Bash
+      - Glob
+    detection:
+      check_remote: true
+      check_local_git: true
+
+  code-reader:
+    model: "sonnet"
+    tools:
+      - Read
+      - Write
+      - Glob
+      - Grep
+    analysis:
+      extract_classes: true
+      extract_functions: true
+      extract_interfaces: true
+      extract_dependencies: true
+
+  doc-code-comparator:
+    model: "sonnet"
+    tools:
+      - Read
+      - Write
+      - Glob
+      - Grep
+    comparison:
+      generate_gap_report: true
+      auto_create_issues: false
+
+  ci-fixer:
+    model: "sonnet"
+    tools:
+      - Read
+      - Write
+      - Edit
+      - Bash
+      - Glob
+      - Grep
+    fix_categories:
+      - lint_errors
+      - type_errors
+      - test_failures
+      - build_failures
+    max_fix_attempts: 3
+
+  analysis-orchestrator:
+    model: "sonnet"
+    tools:
+      - Read
+      - Write
+      - Glob
+      - Grep
+      - Bash
+    pipeline:
+      steps:
+        - "document-reader"
+        - "code-reader"
+        - "doc-code-comparator"
+        - "issue-generator"
+
 # =============================================================================
 # Quality Gates
 # =============================================================================
@@ -732,10 +881,20 @@ github:
 # Token Budgets
 # =============================================================================
 # Per-agent token budget configuration for cost control and monitoring
-# Default model: Opus (claude-opus-4-5-20251101)
+#
+# Model Assignment Priority Rules (highest to lowest):
+#   1. Agent-specific `model` in workflow.yaml agents section (e.g., agents.worker.model)
+#   2. Agent-specific `model_preference` in agents.yaml (e.g., agents.orchestrator.model_preference)
+#   3. Category default in token_budgets.defaults (e.g., defaults.document)
+#   4. Global default_model below
+#
+# Example resolution:
+#   - worker has model: "sonnet" in workflow.yaml → uses Sonnet
+#   - orchestrator has model_preference: "opus" in agents.yaml → uses Opus
+#   - new agent with no override → uses default_model (opus)
 token_budgets:
   # Default model preference for all agents
-  default_model: "opus"  # claude-opus-4-5-20251101
+  default_model: "opus"  # claude-opus-4-6
 
   # Pipeline-level limits (aggregate of all agents)
   # High enough to allow multiple agents with 150000 tokens each
@@ -795,7 +954,7 @@ logging:
     - status
 
 monitoring:
-  enabled: false
+  enabled: true
   metrics:
     - stage_duration
     - agent_invocations
