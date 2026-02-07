@@ -116,6 +116,7 @@ describe('Enhancement Pipeline Mode Configuration', () => {
       const stageNames = stages.map((s) => s.name);
 
       expect(stageNames).toContain('analysis_parallel');
+      expect(stageNames).toContain('doc_code_comparison');
       expect(stageNames).toContain('impact_analysis');
       expect(stageNames).toContain('document_update');
       expect(stageNames).toContain('issue_generation');
@@ -128,7 +129,10 @@ describe('Enhancement Pipeline Mode Configuration', () => {
       const stages = workflowConfig.pipeline.modes.enhancement.stages;
 
       const analysisStage = stages.find((s) => s.name === 'analysis_parallel');
-      expect(analysisStage?.next).toBe('impact_analysis');
+      expect(analysisStage?.next).toBe('doc_code_comparison');
+
+      const docCodeStage = stages.find((s) => s.name === 'doc_code_comparison');
+      expect(docCodeStage?.next).toBe('impact_analysis');
 
       const impactStage = stages.find((s) => s.name === 'impact_analysis');
       expect(impactStage?.next).toBe('document_update');
@@ -145,11 +149,12 @@ describe('Enhancement Pipeline Mode Configuration', () => {
 
       expect(analysisStage?.parallel).toBe(true);
       expect(analysisStage?.substages).toBeDefined();
-      expect(analysisStage?.substages?.length).toBe(2);
+      expect(analysisStage?.substages?.length).toBe(3);
 
       const substageNames = analysisStage?.substages?.map((s) => s.name);
       expect(substageNames).toContain('document_reading');
       expect(substageNames).toContain('codebase_analysis');
+      expect(substageNames).toContain('code_reading');
     });
 
     it('should have parallel execution stage with implementation and regression_testing substages', () => {

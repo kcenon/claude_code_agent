@@ -6,6 +6,19 @@ version: "1.0.0"
 # =============================================================================
 # Agent Definitions
 # =============================================================================
+#
+# Order Scoping Rules:
+#   Order values are scoped per pipeline mode / category. The same order number
+#   in different categories does NOT indicate the same execution step.
+#   - Orchestration (order -1): Runs first, coordinates everything
+#   - Infrastructure (order -2..0): Pre-pipeline setup (init, detect)
+#   - Greenfield document_pipeline (order 1..4): collector → prd → srs → sds
+#   - Enhancement enhancement_pipeline (order 1..3): doc-reader → codebase → impact
+#   - Issue management (order 4.5..6): issue-reader → issue-gen → controller
+#   - Execution (order 7..8): worker → pr-reviewer
+#   - Analysis pipeline (order 9..10): code-reader → comparator
+#   - Enhancement regression (order 11): regression-tester
+#
 agents:
   # ---------------------------------------------------------------------------
   # Orchestration Agents (Top-level pipeline coordination)
@@ -934,7 +947,7 @@ relationships:
 # =============================================================================
 models:
   sonnet:
-    id: "claude-sonnet-4-20250514"
+    id: "claude-sonnet-4-5-20250929"
     context_window: 200000
     max_output: 64000
     cost_per_1k_input: 0.003
@@ -945,7 +958,7 @@ models:
       - "analysis"
 
   opus:
-    id: "claude-opus-4-20250514"
+    id: "claude-opus-4-6"
     context_window: 200000
     max_output: 32000
     cost_per_1k_input: 0.015
@@ -956,11 +969,11 @@ models:
       - "critical_reviews"
 
   haiku:
-    id: "claude-haiku-3-20240307"
+    id: "claude-haiku-4-5-20251001"
     context_window: 200000
-    max_output: 4096
-    cost_per_1k_input: 0.00025
-    cost_per_1k_output: 0.00125
+    max_output: 8192
+    cost_per_1k_input: 0.0008
+    cost_per_1k_output: 0.004
     best_for:
       - "quick_searches"
       - "simple_transformations"

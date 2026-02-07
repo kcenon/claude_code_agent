@@ -200,6 +200,8 @@ export interface ImplementationResult {
   readonly notes?: string;
   /** Blockers (if blocked) */
   readonly blockers?: readonly string[];
+  /** Number of retry attempts before completion (0 for first-time success) */
+  readonly retryCount?: number;
 }
 
 /**
