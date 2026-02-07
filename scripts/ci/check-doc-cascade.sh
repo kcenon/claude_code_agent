@@ -67,126 +67,136 @@ fi
 
 log_info "Analyzing changed files against $BASE_REF"
 
-# --- Document file mappings ---
-# Primary EN documents
-declare -A DOC_FILES
-DOC_FILES=(
-    ["PRD"]="docs/PRD-001-agent-driven-sdlc.md"
-    ["SRS"]="docs/SRS-001-agent-driven-sdlc.md"
-    ["SDS"]="docs/SDS-001-agent-driven-sdlc.md"
-)
+# --- Document file mappings (bash 3 compatible, no associative arrays) ---
+# Lookup functions return file paths by document key (PRD, SRS, SDS)
+doc_file() {
+    case "$1" in
+        PRD) echo "docs/PRD-001-agent-driven-sdlc.md" ;;
+        SRS) echo "docs/SRS-001-agent-driven-sdlc.md" ;;
+        SDS) echo "docs/SDS-001-agent-driven-sdlc.md" ;;
+    esac
+}
 
-# Korean counterparts
-declare -A KR_FILES
-KR_FILES=(
-    ["PRD"]="docs/PRD-001-agent-driven-sdlc.kr.md"
-    ["SRS"]="docs/SRS-001-agent-driven-sdlc.kr.md"
-    ["SDS"]="docs/SDS-001-agent-driven-sdlc.kr.md"
-)
+kr_file() {
+    case "$1" in
+        PRD) echo "docs/PRD-001-agent-driven-sdlc.kr.md" ;;
+        SRS) echo "docs/SRS-001-agent-driven-sdlc.kr.md" ;;
+        SDS) echo "docs/SDS-001-agent-driven-sdlc.kr.md" ;;
+    esac
+}
 
-# API media mirrors (EN)
-declare -A MIRROR_FILES
-MIRROR_FILES=(
-    ["PRD"]="docs/api/_media/PRD-001-agent-driven-sdlc.md"
-    ["SRS"]="docs/api/_media/SRS-001-agent-driven-sdlc.md"
-    ["SDS"]="docs/api/_media/SDS-001-agent-driven-sdlc.md"
-)
+mirror_file() {
+    case "$1" in
+        PRD) echo "docs/api/_media/PRD-001-agent-driven-sdlc.md" ;;
+        SRS) echo "docs/api/_media/SRS-001-agent-driven-sdlc.md" ;;
+        SDS) echo "docs/api/_media/SDS-001-agent-driven-sdlc.md" ;;
+    esac
+}
 
-# API media mirrors (KR)
-declare -A KR_MIRROR_FILES
-KR_MIRROR_FILES=(
-    ["PRD"]="docs/api/_media/PRD-001-agent-driven-sdlc.kr.md"
-    ["SRS"]="docs/api/_media/SRS-001-agent-driven-sdlc.kr.md"
-    ["SDS"]="docs/api/_media/SDS-001-agent-driven-sdlc.kr.md"
-)
+kr_mirror_file() {
+    case "$1" in
+        PRD) echo "docs/api/_media/PRD-001-agent-driven-sdlc.kr.md" ;;
+        SRS) echo "docs/api/_media/SRS-001-agent-driven-sdlc.kr.md" ;;
+        SDS) echo "docs/api/_media/SDS-001-agent-driven-sdlc.kr.md" ;;
+    esac
+}
 
 # --- Helpers ---
 file_changed() {
     echo "$CHANGED_FILES" | grep -qx "$1"
 }
 
-# --- Collect warnings and errors ---
-declare -a WARNINGS=()
-declare -a ERRORS=()
-declare -a CHANGED_DOCS=()
-declare -a MISSING_UPDATES=()
+# --- Collect warnings and errors using temp files (bash 3 compatible) ---
+TMPDIR="${TMPDIR:-/tmp}/cascade-$$"
+mkdir -p "$TMPDIR"
+trap 'rm -rf "$TMPDIR"' EXIT
 
-add_warning() { WARNINGS+=("$1"); }
-add_error()   { ERRORS+=("$1"); }
+> "$TMPDIR/warnings.txt"
+> "$TMPDIR/errors.txt"
+> "$TMPDIR/changed_docs.txt"
+> "$TMPDIR/missing_updates.txt"
+
+add_warning() { echo "$1" >> "$TMPDIR/warnings.txt"; }
+add_error()   { echo "$1" >> "$TMPDIR/errors.txt"; }
 
 # --- Detect which primary documents changed ---
 for doc in PRD SRS SDS; do
-    if file_changed "${DOC_FILES[$doc]}"; then
-        CHANGED_DOCS+=("$doc")
-        log_info "Detected change: ${DOC_FILES[$doc]}"
+    en=$(doc_file "$doc")
+    if file_changed "$en"; then
+        echo "$doc" >> "$TMPDIR/changed_docs.txt"
+        log_info "Detected change: $en"
     fi
 done
 
 # --- Rule 1: Cascade hierarchy check ---
+PRD_EN=$(doc_file "PRD")
+SRS_EN=$(doc_file "SRS")
+SDS_EN=$(doc_file "SDS")
+
 # SDS changed → SRS and PRD should be reviewed
-if file_changed "${DOC_FILES[SDS]}"; then
-    if ! file_changed "${DOC_FILES[SRS]}"; then
+if file_changed "$SDS_EN"; then
+    if ! file_changed "$SRS_EN"; then
         msg="SDS-001 modified but SRS-001 not updated — review SRS overview/scope sections"
         log_warn "$msg"
         add_warning "$msg"
-        MISSING_UPDATES+=("SRS-001")
+        echo "SRS-001" >> "$TMPDIR/missing_updates.txt"
     fi
-    if ! file_changed "${DOC_FILES[PRD]}"; then
+    if ! file_changed "$PRD_EN"; then
         msg="SDS-001 modified but PRD-001 not updated — review PRD overview/agent summary sections"
         log_warn "$msg"
         add_warning "$msg"
-        MISSING_UPDATES+=("PRD-001")
+        echo "PRD-001" >> "$TMPDIR/missing_updates.txt"
     fi
 fi
 
 # SRS changed → PRD should be reviewed, SDS may need updates
-if file_changed "${DOC_FILES[SRS]}"; then
-    if ! file_changed "${DOC_FILES[PRD]}"; then
+if file_changed "$SRS_EN"; then
+    if ! file_changed "$PRD_EN"; then
         msg="SRS-001 modified but PRD-001 not updated — review PRD scope/overview alignment"
         log_warn "$msg"
         add_warning "$msg"
-        MISSING_UPDATES+=("PRD-001")
+        echo "PRD-001" >> "$TMPDIR/missing_updates.txt"
     fi
-    if ! file_changed "${DOC_FILES[SDS]}"; then
+    if ! file_changed "$SDS_EN"; then
         msg="SRS-001 modified but SDS-001 not updated — review SDS component designs for consistency"
         log_warn "$msg"
         add_warning "$msg"
-        MISSING_UPDATES+=("SDS-001")
+        echo "SDS-001" >> "$TMPDIR/missing_updates.txt"
     fi
 fi
 
 # PRD changed → SRS and SDS should be reviewed
-if file_changed "${DOC_FILES[PRD]}"; then
-    if ! file_changed "${DOC_FILES[SRS]}"; then
+if file_changed "$PRD_EN"; then
+    if ! file_changed "$SRS_EN"; then
         msg="PRD-001 modified but SRS-001 not updated — review SRS scope and feature alignment"
         log_warn "$msg"
         add_warning "$msg"
-        MISSING_UPDATES+=("SRS-001")
+        echo "SRS-001" >> "$TMPDIR/missing_updates.txt"
     fi
-    if ! file_changed "${DOC_FILES[SDS]}"; then
+    if ! file_changed "$SDS_EN"; then
         msg="PRD-001 modified but SDS-001 not updated — review SDS scope and component alignment"
         log_warn "$msg"
         add_warning "$msg"
-        MISSING_UPDATES+=("SDS-001")
+        echo "SDS-001" >> "$TMPDIR/missing_updates.txt"
     fi
 fi
 
 # --- Rule 2: EN/KR pair check ---
 for doc in PRD SRS SDS; do
-    en_file="${DOC_FILES[$doc]}"
-    kr_file="${KR_FILES[$doc]}"
+    en=$(doc_file "$doc")
+    kr=$(kr_file "$doc")
 
     # EN changed but KR not
-    if file_changed "$en_file" && ! file_changed "$kr_file"; then
-        msg="$en_file modified but Korean counterpart $kr_file not updated"
+    if file_changed "$en" && ! file_changed "$kr"; then
+        msg="$en modified but Korean counterpart $kr not updated"
         log_warn "$msg"
         add_warning "$msg"
-        MISSING_UPDATES+=("$(basename "$kr_file")")
+        echo "$(basename "$kr")" >> "$TMPDIR/missing_updates.txt"
     fi
 
     # KR changed but EN not (unusual — flag it)
-    if file_changed "$kr_file" && ! file_changed "$en_file"; then
-        msg="$kr_file modified but English source $en_file not updated — verify KR changes align with EN"
+    if file_changed "$kr" && ! file_changed "$en"; then
+        msg="$kr modified but English source $en not updated — verify KR changes align with EN"
         log_warn "$msg"
         add_warning "$msg"
     fi
@@ -194,29 +204,28 @@ done
 
 # --- Rule 3: Primary -> api/_media mirror check ---
 for doc in PRD SRS SDS; do
-    en_file="${DOC_FILES[$doc]}"
-    mirror_file="${MIRROR_FILES[$doc]}"
-    kr_file="${KR_FILES[$doc]}"
-    kr_mirror="${KR_MIRROR_FILES[$doc]}"
+    en=$(doc_file "$doc")
+    mirror=$(mirror_file "$doc")
+    kr=$(kr_file "$doc")
+    kr_mirror=$(kr_mirror_file "$doc")
 
     # EN primary changed but mirror not
-    if file_changed "$en_file" && ! file_changed "$mirror_file"; then
-        # Only warn if mirror file exists in the repo
-        if [[ -f "$mirror_file" ]]; then
-            msg="$en_file modified but mirror $mirror_file not updated"
+    if file_changed "$en" && ! file_changed "$mirror"; then
+        if [[ -f "$mirror" ]]; then
+            msg="$en modified but mirror $mirror not updated"
             log_warn "$msg"
             add_warning "$msg"
-            MISSING_UPDATES+=("$(basename "$mirror_file") (mirror)")
+            echo "$(basename "$mirror") (mirror)" >> "$TMPDIR/missing_updates.txt"
         fi
     fi
 
     # KR primary changed but KR mirror not
-    if file_changed "$kr_file" && ! file_changed "$kr_mirror"; then
+    if file_changed "$kr" && ! file_changed "$kr_mirror"; then
         if [[ -f "$kr_mirror" ]]; then
-            msg="$kr_file modified but mirror $kr_mirror not updated"
+            msg="$kr modified but mirror $kr_mirror not updated"
             log_warn "$msg"
             add_warning "$msg"
-            MISSING_UPDATES+=("$(basename "$kr_mirror") (mirror)")
+            echo "$(basename "$kr_mirror") (mirror)" >> "$TMPDIR/missing_updates.txt"
         fi
     fi
 done
@@ -227,12 +236,9 @@ if file_changed "doc-sync-points.yaml"; then
 fi
 
 # --- Determine pass/fail ---
-# Warnings are advisory; errors cause failure
-# For cascade checks, all issues are warnings (advisory, not blocking)
-# The traceability check (validate-traceability.sh) handles hard failures
 PASS=true
-ERROR_COUNT=${#ERRORS[@]}
-WARNING_COUNT=${#WARNINGS[@]}
+WARNING_COUNT=$(wc -l < "$TMPDIR/warnings.txt" | tr -d ' ')
+ERROR_COUNT=$(wc -l < "$TMPDIR/errors.txt" | tr -d ' ')
 
 if [[ $ERROR_COUNT -gt 0 ]]; then
     PASS=false
@@ -249,43 +255,31 @@ fi
 TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
 # Deduplicate missing updates
-UNIQUE_MISSING=$(printf '%s\n' "${MISSING_UPDATES[@]}" 2>/dev/null | sort -u || echo "")
+UNIQUE_MISSING=$(sort -u "$TMPDIR/missing_updates.txt" 2>/dev/null || echo "")
 
 if [[ "$JSON_MODE" == "true" ]]; then
-    # Build JSON arrays
-    warnings_json="["
-    first=true
-    for w in "${WARNINGS[@]+"${WARNINGS[@]}"}"; do
-        [[ -z "$w" ]] && continue
-        $first || warnings_json+=","
-        first=false
-        # Escape quotes in warning messages
-        escaped=$(echo "$w" | sed 's/"/\\"/g')
-        warnings_json+="\"$escaped\""
-    done
-    warnings_json+="]"
+    # Helper: convert file lines to JSON array
+    file_to_json_array() {
+        local file="$1"
+        local result="["
+        local first=true
+        while IFS= read -r line; do
+            [[ -z "$line" ]] && continue
+            $first || result+=","
+            first=false
+            local escaped
+            escaped=$(echo "$line" | sed 's/"/\\"/g')
+            result+="\"$escaped\""
+        done < "$file"
+        result+="]"
+        echo "$result"
+    }
 
-    errors_json="["
-    first=true
-    for e in "${ERRORS[@]+"${ERRORS[@]}"}"; do
-        [[ -z "$e" ]] && continue
-        $first || errors_json+=","
-        first=false
-        escaped=$(echo "$e" | sed 's/"/\\"/g')
-        errors_json+="\"$escaped\""
-    done
-    errors_json+="]"
+    warnings_json=$(file_to_json_array "$TMPDIR/warnings.txt")
+    errors_json=$(file_to_json_array "$TMPDIR/errors.txt")
+    changed_json=$(file_to_json_array "$TMPDIR/changed_docs.txt")
 
-    changed_json="["
-    first=true
-    for d in "${CHANGED_DOCS[@]+"${CHANGED_DOCS[@]}"}"; do
-        [[ -z "$d" ]] && continue
-        $first || changed_json+=","
-        first=false
-        changed_json+="\"$d\""
-    done
-    changed_json+="]"
-
+    # Build missing_updates JSON from deduplicated list
     missing_json="["
     first=true
     if [[ -n "$UNIQUE_MISSING" ]]; then
@@ -322,11 +316,13 @@ else
     echo "  Base ref:  $BASE_REF"
     echo ""
 
-    if [[ ${#CHANGED_DOCS[@]} -gt 0 ]]; then
+    CHANGED_DOC_COUNT=$(wc -l < "$TMPDIR/changed_docs.txt" | tr -d ' ')
+    if [[ $CHANGED_DOC_COUNT -gt 0 ]]; then
         echo "  Changed documents:"
-        for d in "${CHANGED_DOCS[@]}"; do
-            echo "    - ${DOC_FILES[$d]}"
-        done
+        while IFS= read -r d; do
+            [[ -z "$d" ]] && continue
+            echo "    - $(doc_file "$d")"
+        done < "$TMPDIR/changed_docs.txt"
         echo ""
     else
         echo "  No primary documents changed"
@@ -335,17 +331,19 @@ else
 
     if [[ $WARNING_COUNT -gt 0 ]]; then
         echo -e "  ${YELLOW}Warnings ($WARNING_COUNT):${NC}"
-        for w in "${WARNINGS[@]}"; do
+        while IFS= read -r w; do
+            [[ -z "$w" ]] && continue
             echo -e "    ${YELLOW}- $w${NC}"
-        done
+        done < "$TMPDIR/warnings.txt"
         echo ""
     fi
 
     if [[ $ERROR_COUNT -gt 0 ]]; then
         echo -e "  ${RED}Errors ($ERROR_COUNT):${NC}"
-        for e in "${ERRORS[@]}"; do
+        while IFS= read -r e; do
+            [[ -z "$e" ]] && continue
             echo -e "    ${RED}- $e${NC}"
-        done
+        done < "$TMPDIR/errors.txt"
         echo ""
     fi
 
