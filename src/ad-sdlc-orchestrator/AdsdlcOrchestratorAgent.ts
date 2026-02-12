@@ -368,7 +368,10 @@ export class AdsdlcOrchestratorAgent implements IAgent {
         }
       } else if (parallelGroup.length === 1) {
         // Single parallel stage — run sequentially
-        sequentialGroup.unshift(parallelGroup[0]!);
+        const singleStage = parallelGroup[0];
+        if (singleStage) {
+          sequentialGroup.unshift(singleStage);
+        }
       }
 
       // Execute sequential stages one by one
