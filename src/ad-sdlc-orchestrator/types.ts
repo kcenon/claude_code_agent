@@ -331,3 +331,208 @@ export const GREENFIELD_STAGES: readonly PipelineStageDefinition[] = [
     dependsOn: ['implementation'],
   },
 ];
+
+/**
+ * Enhancement pipeline stage definitions
+ *
+ * Stages for improving existing projects: analyze documents and code,
+ * compare for gaps, assess impact, update documents, generate issues,
+ * implement, run regression tests, and review.
+ */
+export const ENHANCEMENT_STAGES: readonly PipelineStageDefinition[] = [
+  {
+    name: 'document_reading',
+    agentType: 'document-reader',
+    description: 'Parse existing PRD/SRS/SDS documents',
+    parallel: true,
+    approvalRequired: false,
+    dependsOn: [],
+  },
+  {
+    name: 'codebase_analysis',
+    agentType: 'codebase-analyzer',
+    description: 'Analyze existing code structure and architecture',
+    parallel: true,
+    approvalRequired: false,
+    dependsOn: [],
+  },
+  {
+    name: 'code_reading',
+    agentType: 'code-reader',
+    description: 'Read and inventory source code modules',
+    parallel: true,
+    approvalRequired: false,
+    dependsOn: [],
+  },
+  {
+    name: 'doc_code_comparison',
+    agentType: 'doc-code-comparator',
+    description: 'Compare documentation state against codebase',
+    parallel: false,
+    approvalRequired: false,
+    dependsOn: ['document_reading', 'codebase_analysis', 'code_reading'],
+  },
+  {
+    name: 'impact_analysis',
+    agentType: 'impact-analyzer',
+    description: 'Assess impact of proposed changes',
+    parallel: false,
+    approvalRequired: true,
+    dependsOn: ['doc_code_comparison'],
+  },
+  {
+    name: 'prd_update',
+    agentType: 'prd-updater',
+    description: 'Incrementally update PRD with new requirements',
+    parallel: false,
+    approvalRequired: true,
+    dependsOn: ['impact_analysis'],
+  },
+  {
+    name: 'srs_update',
+    agentType: 'srs-updater',
+    description: 'Incrementally update SRS with new features',
+    parallel: false,
+    approvalRequired: true,
+    dependsOn: ['prd_update'],
+  },
+  {
+    name: 'sds_update',
+    agentType: 'sds-updater',
+    description: 'Incrementally update SDS with new components',
+    parallel: false,
+    approvalRequired: true,
+    dependsOn: ['srs_update'],
+  },
+  {
+    name: 'issue_generation',
+    agentType: 'issue-generator',
+    description: 'Generate issues from updated SDS',
+    parallel: false,
+    approvalRequired: true,
+    dependsOn: ['sds_update'],
+  },
+  {
+    name: 'orchestration',
+    agentType: 'controller',
+    description: 'Orchestrate work distribution',
+    parallel: false,
+    approvalRequired: false,
+    dependsOn: ['issue_generation'],
+  },
+  {
+    name: 'implementation',
+    agentType: 'worker',
+    description: 'Implement assigned issues',
+    parallel: true,
+    approvalRequired: false,
+    dependsOn: ['orchestration'],
+  },
+  {
+    name: 'regression_testing',
+    agentType: 'regression-tester',
+    description: 'Validate existing functionality is not broken',
+    parallel: false,
+    approvalRequired: false,
+    dependsOn: ['implementation'],
+  },
+  {
+    name: 'review',
+    agentType: 'pr-reviewer',
+    description: 'Create and review pull requests',
+    parallel: false,
+    approvalRequired: false,
+    dependsOn: ['regression_testing'],
+  },
+];
+
+/**
+ * Import pipeline stage definitions
+ *
+ * Lightweight pipeline that imports existing GitHub issues and
+ * proceeds directly to orchestration, implementation, and review.
+ */
+export const IMPORT_STAGES: readonly PipelineStageDefinition[] = [
+  {
+    name: 'issue_reading',
+    agentType: 'issue-reader',
+    description: 'Import existing GitHub issues into AD-SDLC format',
+    parallel: false,
+    approvalRequired: false,
+    dependsOn: [],
+  },
+  {
+    name: 'orchestration',
+    agentType: 'controller',
+    description: 'Orchestrate work distribution from imported issues',
+    parallel: false,
+    approvalRequired: false,
+    dependsOn: ['issue_reading'],
+  },
+  {
+    name: 'implementation',
+    agentType: 'worker',
+    description: 'Implement assigned issues',
+    parallel: true,
+    approvalRequired: false,
+    dependsOn: ['orchestration'],
+  },
+  {
+    name: 'review',
+    agentType: 'pr-reviewer',
+    description: 'Create and review pull requests',
+    parallel: false,
+    approvalRequired: false,
+    dependsOn: ['implementation'],
+  },
+];
+
+/**
+ * Approval gate decision
+ */
+export interface ApprovalDecision {
+  /** Whether to proceed */
+  readonly approved: boolean;
+  /** Reason for the decision */
+  readonly reason: string;
+  /** Who made the decision (system or user) */
+  readonly decidedBy: 'system' | 'user';
+  /** Timestamp of the decision */
+  readonly decidedAt: string;
+}
+
+/**
+ * Pipeline monitoring snapshot
+ */
+export interface PipelineMonitorSnapshot {
+  /** Session identifier */
+  readonly sessionId: string;
+  /** Pipeline mode */
+  readonly mode: PipelineMode;
+  /** Overall status */
+  readonly status: PipelineStatus;
+  /** Total stages in the pipeline */
+  readonly totalStages: number;
+  /** Number of completed stages */
+  readonly completedStages: number;
+  /** Number of failed stages */
+  readonly failedStages: number;
+  /** Number of skipped stages */
+  readonly skippedStages: number;
+  /** Currently running stage name, if any */
+  readonly currentStage: StageName | null;
+  /** Elapsed time in milliseconds */
+  readonly elapsedMs: number;
+  /** Per-stage summaries */
+  readonly stageSummaries: readonly StageSummary[];
+}
+
+/**
+ * Summary of a single stage for monitoring
+ */
+export interface StageSummary {
+  readonly name: StageName;
+  readonly status: PipelineStageStatus;
+  readonly durationMs: number;
+  readonly retryCount: number;
+}
