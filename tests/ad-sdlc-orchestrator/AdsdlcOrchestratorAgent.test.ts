@@ -736,3 +736,278 @@ describe('DEFAULT_ORCHESTRATOR_CONFIG', () => {
     expect(DEFAULT_ORCHESTRATOR_CONFIG.logLevel).toBe('INFO');
   });
 });
+
+// ---------------------------------------------------------------------------
+// Pipeline Dependency Chain Validation (Part 3 — Integration Tests)
+// ---------------------------------------------------------------------------
+
+describe('Pipeline Dependency Chain — Topological Order', () => {
+  function validateTopologicalOrder(stages: readonly PipelineStageDefinition[]): boolean {
+    const completed = new Set<string>();
+    for (const stage of stages) {
+      for (const dep of stage.dependsOn) {
+        if (!completed.has(dep)) {
+          return false;
+        }
+      }
+      completed.add(stage.name);
+    }
+    return true;
+  }
+
+  it('GREENFIELD_STAGES should be in valid topological order', () => {
+    expect(validateTopologicalOrder(GREENFIELD_STAGES)).toBe(true);
+  });
+
+  it('ENHANCEMENT_STAGES should be in valid topological order (accounting for parallel roots)', () => {
+    // Parallel root stages have no dependencies, so they pass topological validation
+    expect(validateTopologicalOrder(ENHANCEMENT_STAGES)).toBe(true);
+  });
+
+  it('IMPORT_STAGES should be in valid topological order', () => {
+    expect(validateTopologicalOrder(IMPORT_STAGES)).toBe(true);
+  });
+
+  it('should not have circular dependencies in any pipeline', () => {
+    function hasCircularDeps(stages: readonly PipelineStageDefinition[]): boolean {
+      const stageMap = new Map(stages.map((s) => [s.name, s]));
+      const visited = new Set<string>();
+      const inStack = new Set<string>();
+
+      function dfs(name: string): boolean {
+        if (inStack.has(name)) return true;
+        if (visited.has(name)) return false;
+        visited.add(name);
+        inStack.add(name);
+
+        const stage = stageMap.get(name);
+        if (stage !== undefined) {
+          for (const dep of stage.dependsOn) {
+            if (dfs(dep)) return true;
+          }
+        }
+
+        inStack.delete(name);
+        return false;
+      }
+
+      for (const stage of stages) {
+        if (dfs(stage.name)) return true;
+      }
+      return false;
+    }
+
+    expect(hasCircularDeps(GREENFIELD_STAGES)).toBe(false);
+    expect(hasCircularDeps(ENHANCEMENT_STAGES)).toBe(false);
+    expect(hasCircularDeps(IMPORT_STAGES)).toBe(false);
+  });
+});
+
+describe('Pipeline Stage Sequencing — End-to-End', () => {
+  let tempDir: string;
+
+  beforeEach(async () => {
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'pipeline-sequencing-'));
+  });
+
+  afterEach(async () => {
+    await fs.rm(tempDir, { recursive: true, force: true });
+  });
+
+  it('greenfield pipeline should execute all 12 stages in dependency order', async () => {
+    const executionOrder: string[] = [];
+
+    class OrderTrackingOrchestrator extends AdsdlcOrchestratorAgent {
+      protected override async invokeAgent(
+        stage: { name: string; agentType: string },
+        _session: unknown
+      ): Promise<string> {
+        executionOrder.push(stage.name);
+        return `Stage "${stage.name}" completed`;
+      }
+    }
+
+    const agent = new OrderTrackingOrchestrator();
+    await agent.initialize();
+    const result = await agent.executePipeline(tempDir, 'test');
+
+    expect(result.overallStatus).toBe('completed');
+    expect(executionOrder).toHaveLength(GREENFIELD_STAGES.length);
+
+    // Verify each stage runs after all its dependencies
+    for (const stage of GREENFIELD_STAGES) {
+      const stageIdx = executionOrder.indexOf(stage.name);
+      expect(stageIdx).toBeGreaterThanOrEqual(0);
+
+      for (const dep of stage.dependsOn) {
+        const depIdx = executionOrder.indexOf(dep);
+        expect(depIdx).toBeLessThan(stageIdx);
+      }
+    }
+
+    await agent.dispose();
+  });
+
+  it('enhancement pipeline should execute parallel roots before sequential stages', async () => {
+    const executionOrder: string[] = [];
+
+    class OrderTrackingOrchestrator extends AdsdlcOrchestratorAgent {
+      protected override async invokeAgent(
+        stage: { name: string; agentType: string },
+        _session: unknown
+      ): Promise<string> {
+        executionOrder.push(stage.name);
+        return `Stage "${stage.name}" completed`;
+      }
+    }
+
+    const agent = new OrderTrackingOrchestrator();
+    await agent.initialize();
+    await agent.startSession({
+      projectDir: tempDir,
+      userRequest: 'enhancement test',
+      overrideMode: 'enhancement',
+    });
+    const result = await agent.executePipeline(tempDir, 'enhancement test');
+
+    expect(result.overallStatus).toBe('completed');
+    expect(executionOrder).toHaveLength(ENHANCEMENT_STAGES.length);
+
+    // Parallel roots (document_reading, codebase_analysis, code_reading)
+    // must all appear before doc_code_comparison
+    const compIdx = executionOrder.indexOf('doc_code_comparison');
+    expect(executionOrder.indexOf('document_reading')).toBeLessThan(compIdx);
+    expect(executionOrder.indexOf('codebase_analysis')).toBeLessThan(compIdx);
+    expect(executionOrder.indexOf('code_reading')).toBeLessThan(compIdx);
+
+    // Sequential chain: impact_analysis → prd_update → srs_update → sds_update
+    const impactIdx = executionOrder.indexOf('impact_analysis');
+    const prdIdx = executionOrder.indexOf('prd_update');
+    const srsIdx = executionOrder.indexOf('srs_update');
+    const sdsIdx = executionOrder.indexOf('sds_update');
+    expect(compIdx).toBeLessThan(impactIdx);
+    expect(impactIdx).toBeLessThan(prdIdx);
+    expect(prdIdx).toBeLessThan(srsIdx);
+    expect(srsIdx).toBeLessThan(sdsIdx);
+
+    // regression_testing must come after implementation
+    const implIdx = executionOrder.indexOf('implementation');
+    const regIdx = executionOrder.indexOf('regression_testing');
+    expect(implIdx).toBeLessThan(regIdx);
+
+    await agent.dispose();
+  });
+
+  it('import pipeline should follow strict sequential chain', async () => {
+    const executionOrder: string[] = [];
+
+    class OrderTrackingOrchestrator extends AdsdlcOrchestratorAgent {
+      protected override async invokeAgent(
+        stage: { name: string; agentType: string },
+        _session: unknown
+      ): Promise<string> {
+        executionOrder.push(stage.name);
+        return `Stage "${stage.name}" completed`;
+      }
+    }
+
+    const agent = new OrderTrackingOrchestrator();
+    await agent.initialize();
+    await agent.startSession({
+      projectDir: tempDir,
+      userRequest: 'import test',
+      overrideMode: 'import',
+    });
+    const result = await agent.executePipeline(tempDir, 'import test');
+
+    expect(result.overallStatus).toBe('completed');
+    expect(executionOrder).toEqual(['issue_reading', 'orchestration', 'implementation', 'review']);
+
+    await agent.dispose();
+  });
+});
+
+describe('Cross-Pipeline Agent Type Consistency', () => {
+  it('shared stage names should use the same agent type across pipelines', () => {
+    // Stages that appear in multiple pipelines
+    const shared = ['orchestration', 'implementation', 'review', 'issue_generation'];
+
+    const allStages = [...GREENFIELD_STAGES, ...ENHANCEMENT_STAGES, ...IMPORT_STAGES];
+    const stageTypeMap = new Map<string, Set<string>>();
+
+    for (const stage of allStages) {
+      if (shared.includes(stage.name)) {
+        if (!stageTypeMap.has(stage.name)) {
+          stageTypeMap.set(stage.name, new Set());
+        }
+        stageTypeMap.get(stage.name)!.add(stage.agentType);
+      }
+    }
+
+    // Each shared stage name should map to exactly one agent type
+    for (const [stageName, types] of stageTypeMap) {
+      expect(types.size).toBe(1);
+    }
+  });
+
+  it('every stage should have a non-empty agentType and description', () => {
+    const allStages = [...GREENFIELD_STAGES, ...ENHANCEMENT_STAGES, ...IMPORT_STAGES];
+
+    for (const stage of allStages) {
+      expect(stage.agentType).toBeTruthy();
+      expect(stage.description).toBeTruthy();
+    }
+  });
+
+  it('greenfield pipeline should include repo-detector and github-repo-setup stages', () => {
+    const stageNames = GREENFIELD_STAGES.map((s) => s.name);
+    expect(stageNames).toContain('repo_detection');
+    expect(stageNames).toContain('github_repo_setup');
+
+    // github_repo_setup should depend on repo_detection
+    const repoSetup = GREENFIELD_STAGES.find((s) => s.name === 'github_repo_setup');
+    expect(repoSetup).toBeDefined();
+    expect(repoSetup!.dependsOn).toContain('repo_detection');
+  });
+
+  it('enhancement pipeline should NOT include repo-detector or github-repo-setup', () => {
+    const stageNames = ENHANCEMENT_STAGES.map((s) => s.name);
+    expect(stageNames).not.toContain('repo_detection');
+    expect(stageNames).not.toContain('github_repo_setup');
+  });
+});
+
+describe('Module Registration in agents/index.ts', () => {
+  let agentsIndexSource: string;
+
+  beforeAll(async () => {
+    const agentsIndexPath = path.resolve(__dirname, '../../src/agents/index.ts');
+    agentsIndexSource = await fs.readFile(agentsIndexPath, 'utf-8');
+  });
+
+  it('should register AdsdlcOrchestrator namespace export in agents/index.ts', () => {
+    expect(agentsIndexSource).toContain(
+      "export * as AdsdlcOrchestrator from '../ad-sdlc-orchestrator/index.js'"
+    );
+  });
+
+  it('should export pipeline stage definitions from orchestrator barrel', async () => {
+    // Verify the barrel file re-exports stages and config
+    const barrelPath = path.resolve(__dirname, '../../src/ad-sdlc-orchestrator/index.ts');
+    const barrelSource = await fs.readFile(barrelPath, 'utf-8');
+
+    expect(barrelSource).toContain('GREENFIELD_STAGES');
+    expect(barrelSource).toContain('ENHANCEMENT_STAGES');
+    expect(barrelSource).toContain('IMPORT_STAGES');
+    expect(barrelSource).toContain('DEFAULT_ORCHESTRATOR_CONFIG');
+  });
+
+  it('should export error classes from orchestrator barrel', async () => {
+    const barrelPath = path.resolve(__dirname, '../../src/ad-sdlc-orchestrator/index.ts');
+    const barrelSource = await fs.readFile(barrelPath, 'utf-8');
+
+    expect(barrelSource).toContain('OrchestratorError');
+    expect(barrelSource).toContain('PipelineFailedError');
+    expect(barrelSource).toContain('InvalidProjectDirError');
+  });
+});
