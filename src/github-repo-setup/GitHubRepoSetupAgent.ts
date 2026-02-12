@@ -28,7 +28,6 @@ import { DEFAULT_REPO_SETUP_CONFIG, GITIGNORE_TEMPLATES } from './types.js';
 import {
   GhAuthenticationError,
   GitInitError,
-  NoActiveSetupSessionError,
   RepoAlreadyExistsError,
   RepoCreationError,
   SetupOutputWriteError,
@@ -531,15 +530,6 @@ export class GitHubRepoSetupAgent implements IAgent {
     }
   }
 
-  /**
-   * Ensure session exists
-   */
-  private ensureSession(): RepoSetupSession {
-    if (!this.session) {
-      throw new NoActiveSetupSessionError();
-    }
-    return this.session;
-  }
 }
 
 // ---------------------------------------------------------------------------
