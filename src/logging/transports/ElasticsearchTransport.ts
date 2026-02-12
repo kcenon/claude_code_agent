@@ -8,7 +8,14 @@
  * @module logging/transports
  */
 
-import { Client, type ClientOptions } from '@elastic/elasticsearch';
+import { Client } from '@elastic/elasticsearch';
+
+/**
+ * Elasticsearch client options inferred from the Client constructor.
+ * The ESM entry point of @elastic/elasticsearch@9.3.0 does not export
+ * ClientOptions directly, so we extract it from the constructor signature.
+ */
+type ClientOptions = NonNullable<ConstructorParameters<typeof Client>[0]>;
 import { BaseTransport } from './BaseTransport.js';
 import type { TransportLogEntry, ElasticsearchTransportConfig } from './types.js';
 
