@@ -27,10 +27,7 @@ import type {
   StageName,
   StageResult,
 } from './types.js';
-import {
-  DEFAULT_ORCHESTRATOR_CONFIG,
-  GREENFIELD_STAGES,
-} from './types.js';
+import { DEFAULT_ORCHESTRATOR_CONFIG, GREENFIELD_STAGES } from './types.js';
 import {
   InvalidProjectDirError,
   PipelineFailedError,
@@ -125,10 +122,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
     await this.validateProjectDir(request.projectDir);
 
     const mode = request.overrideMode ?? 'greenfield';
-    const scratchpadDir = path.resolve(
-      request.projectDir,
-      this.config.scratchpadDir
-    );
+    const scratchpadDir = path.resolve(request.projectDir, this.config.scratchpadDir);
 
     this.session = {
       sessionId: randomUUID(),
@@ -151,18 +145,17 @@ export class AdsdlcOrchestratorAgent implements IAgent {
    * This is the main entry point. It detects the mode and delegates
    * to the appropriate pipeline execution method.
    */
-  async executePipeline(
-    projectDir: string,
-    userRequest: string
-  ): Promise<PipelineResult> {
+  async executePipeline(projectDir: string, userRequest: string): Promise<PipelineResult> {
     if (!this.initialized) {
       await this.initialize();
     }
 
-    const session = this.session ?? await this.startSession({
-      projectDir,
-      userRequest,
-    });
+    const session =
+      this.session ??
+      (await this.startSession({
+        projectDir,
+        userRequest,
+      }));
 
     const startTime = Date.now();
     this.session = { ...session, status: 'running' };
@@ -400,9 +393,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
   /**
    * Execute agent invocations in parallel
    */
-  private executeParallel(
-    agents: readonly AgentInvocation[]
-  ): Promise<StageResult[]> {
+  private executeParallel(agents: readonly AgentInvocation[]): Promise<StageResult[]> {
     const promises = agents.map((invocation) => {
       const startTime = Date.now();
       const result: StageResult = {
@@ -424,9 +415,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
   /**
    * Execute agent invocations sequentially
    */
-  private executeSequential(
-    agents: readonly AgentInvocation[]
-  ): Promise<StageResult[]> {
+  private executeSequential(agents: readonly AgentInvocation[]): Promise<StageResult[]> {
     const results: StageResult[] = [];
 
     for (const invocation of agents) {
@@ -534,10 +523,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
   /**
    * Persist pipeline state to the scratchpad directory
    */
-  private async persistState(
-    session: OrchestratorSession,
-    result: PipelineResult
-  ): Promise<void> {
+  private async persistState(session: OrchestratorSession, result: PipelineResult): Promise<void> {
     if (!yaml) return;
 
     try {
@@ -592,9 +578,7 @@ let agentInstance: AdsdlcOrchestratorAgent | null = null;
 /**
  * Get or create the singleton AD-SDLC Orchestrator Agent instance
  */
-export function getAdsdlcOrchestratorAgent(
-  config?: OrchestratorConfig
-): AdsdlcOrchestratorAgent {
+export function getAdsdlcOrchestratorAgent(config?: OrchestratorConfig): AdsdlcOrchestratorAgent {
   if (agentInstance === null) {
     agentInstance = new AdsdlcOrchestratorAgent(config);
   }

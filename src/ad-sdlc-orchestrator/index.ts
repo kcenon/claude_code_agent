@@ -43,10 +43,7 @@ export type {
 } from './types.js';
 
 // Constants
-export {
-  DEFAULT_ORCHESTRATOR_CONFIG,
-  GREENFIELD_STAGES,
-} from './types.js';
+export { DEFAULT_ORCHESTRATOR_CONFIG, GREENFIELD_STAGES } from './types.js';
 
 // Error exports
 export {

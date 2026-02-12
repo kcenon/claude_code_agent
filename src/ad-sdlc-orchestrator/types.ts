@@ -48,11 +48,7 @@ export type EnhancementStageName =
 /**
  * Pipeline stage names for Import mode
  */
-export type ImportStageName =
-  | 'issue_reading'
-  | 'orchestration'
-  | 'implementation'
-  | 'review';
+export type ImportStageName = 'issue_reading' | 'orchestration' | 'implementation' | 'review';
 
 /**
  * Union of all stage names

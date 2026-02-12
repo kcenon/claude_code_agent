@@ -97,9 +97,7 @@ export class StageDependencyError extends OrchestratorError {
   public readonly failedDependencies: readonly StageName[];
 
   constructor(stage: StageName, failedDependencies: readonly StageName[]) {
-    super(
-      `Cannot execute stage "${stage}": dependencies failed: ${failedDependencies.join(', ')}`
-    );
+    super(`Cannot execute stage "${stage}": dependencies failed: ${failedDependencies.join(', ')}`);
     this.name = 'StageDependencyError';
     this.stage = stage;
     this.failedDependencies = failedDependencies;
@@ -128,9 +126,7 @@ export class PipelineFailedError extends OrchestratorError {
   public readonly failedStages: readonly StageName[];
 
   constructor(pipelineId: string, mode: PipelineMode, failedStages: readonly StageName[]) {
-    super(
-      `Pipeline "${pipelineId}" (${mode}) failed. Failed stages: ${failedStages.join(', ')}`
-    );
+    super(`Pipeline "${pipelineId}" (${mode}) failed. Failed stages: ${failedStages.join(', ')}`);
     this.name = 'PipelineFailedError';
     this.pipelineId = pipelineId;
     this.mode = mode;
