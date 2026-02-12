@@ -727,6 +727,9 @@ export * as CIFixer from '../ci-fixer/index.js';
 // PR Reviewer
 export * as PRReviewer from '../pr-reviewer/index.js';
 
+// GitHub Repo Setup - has conflicts with repo-detector (visibility, session types)
+export * as GitHubRepoSetup from '../github-repo-setup/index.js';
+
 // Project Initializer - already exported individually via control-plane,
 // so use namespace to avoid duplicate export conflicts in src/index.ts
 export * as ProjectInit from '../project-initializer/index.js';
