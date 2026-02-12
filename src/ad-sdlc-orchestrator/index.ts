@@ -40,10 +40,19 @@ export type {
   // Configuration types
   OrchestratorConfig,
   StageTimeoutConfig,
+  // Approval and monitoring types
+  ApprovalDecision,
+  PipelineMonitorSnapshot,
+  StageSummary,
 } from './types.js';
 
 // Constants
-export { DEFAULT_ORCHESTRATOR_CONFIG, GREENFIELD_STAGES } from './types.js';
+export {
+  DEFAULT_ORCHESTRATOR_CONFIG,
+  GREENFIELD_STAGES,
+  ENHANCEMENT_STAGES,
+  IMPORT_STAGES,
+} from './types.js';
 
 // Error exports
 export {

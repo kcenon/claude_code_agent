@@ -21,10 +21,15 @@ import {
 import {
   DEFAULT_ORCHESTRATOR_CONFIG,
   GREENFIELD_STAGES,
+  ENHANCEMENT_STAGES,
+  IMPORT_STAGES,
 } from '../../src/ad-sdlc-orchestrator/types.js';
 import type {
+  ApprovalDecision,
   OrchestratorConfig,
   PipelineRequest,
+  PipelineStageDefinition,
+  StageResult,
 } from '../../src/ad-sdlc-orchestrator/types.js';
 
 describe('AdsdlcOrchestratorAgent', () => {
@@ -210,24 +215,56 @@ describe('AdsdlcOrchestratorAgent', () => {
 
     it('should throw InvalidProjectDirError for invalid path', async () => {
       await agent.initialize();
-      await expect(
-        agent.executePipeline('/nonexistent/path', 'test')
-      ).rejects.toThrow(InvalidProjectDirError);
+      await expect(agent.executePipeline('/nonexistent/path', 'test')).rejects.toThrow(
+        InvalidProjectDirError
+      );
     });
 
-    it('should return empty stages for unimplemented modes', async () => {
+    it('should execute enhancement pipeline with all stages', async () => {
       await agent.initialize();
 
       await agent.startSession({
         projectDir: tempDir,
-        userRequest: 'test',
+        userRequest: 'Improve existing code',
         overrideMode: 'enhancement',
       });
 
-      const result = await agent.executePipeline(tempDir, 'test');
-      // Enhancement pipeline returns empty stages in Part 1
-      expect(result.stages).toHaveLength(0);
+      const result = await agent.executePipeline(tempDir, 'Improve existing code');
+      expect(result.mode).toBe('enhancement');
+      expect(result.stages).toHaveLength(ENHANCEMENT_STAGES.length);
       expect(result.overallStatus).toBe('completed');
+
+      const stageNames = result.stages.map((s) => s.name);
+      expect(stageNames).toContain('document_reading');
+      expect(stageNames).toContain('codebase_analysis');
+      expect(stageNames).toContain('code_reading');
+      expect(stageNames).toContain('doc_code_comparison');
+      expect(stageNames).toContain('impact_analysis');
+      expect(stageNames).toContain('prd_update');
+      expect(stageNames).toContain('srs_update');
+      expect(stageNames).toContain('sds_update');
+      expect(stageNames).toContain('regression_testing');
+    });
+
+    it('should execute import pipeline with all stages', async () => {
+      await agent.initialize();
+
+      await agent.startSession({
+        projectDir: tempDir,
+        userRequest: 'Import issues from repo',
+        overrideMode: 'import',
+      });
+
+      const result = await agent.executePipeline(tempDir, 'Import issues from repo');
+      expect(result.mode).toBe('import');
+      expect(result.stages).toHaveLength(IMPORT_STAGES.length);
+      expect(result.overallStatus).toBe('completed');
+
+      const stageNames = result.stages.map((s) => s.name);
+      expect(stageNames).toContain('issue_reading');
+      expect(stageNames).toContain('orchestration');
+      expect(stageNames).toContain('implementation');
+      expect(stageNames).toContain('review');
     });
   });
 
@@ -374,6 +411,210 @@ describe('AdsdlcOrchestratorAgent', () => {
       expect(result.stages[0]!.retryCount).toBe(2);
     });
   });
+
+  describe('approval gate', () => {
+    it('should auto-approve in auto mode', async () => {
+      const autoAgent = new AdsdlcOrchestratorAgent({ approvalMode: 'auto' });
+      await autoAgent.initialize();
+
+      await autoAgent.startSession({
+        projectDir: tempDir,
+        userRequest: 'test',
+        overrideMode: 'import',
+      });
+
+      const result = await autoAgent.executePipeline(tempDir, 'test');
+      // All stages should complete (no approval blocks)
+      expect(result.overallStatus).toBe('completed');
+      await autoAgent.dispose();
+    });
+
+    it('should deny approval in critical mode when prior stages failed', async () => {
+      class CriticalFailOrchestrator extends AdsdlcOrchestratorAgent {
+        protected override async invokeAgent(
+          stage: { name: string; agentType: string },
+          _session: unknown
+        ): Promise<string> {
+          // Fail the first enhancement analysis stage
+          if (stage.name === 'document_reading') {
+            throw new Error('Document reading failed');
+          }
+          return `Stage "${stage.name}" completed`;
+        }
+
+        protected override sleep(_ms: number): Promise<void> {
+          return Promise.resolve();
+        }
+      }
+
+      const criticalAgent = new CriticalFailOrchestrator({
+        approvalMode: 'critical',
+        maxRetries: 0,
+      });
+      await criticalAgent.initialize();
+
+      await criticalAgent.startSession({
+        projectDir: tempDir,
+        userRequest: 'test',
+        overrideMode: 'enhancement',
+      });
+
+      try {
+        await criticalAgent.executePipeline(tempDir, 'test');
+      } catch {
+        // Expected failure
+      }
+
+      const status = criticalAgent.getStatus();
+      // document_reading failed → doc_code_comparison skipped → impact_analysis denied
+      expect(status.stages.some((s) => s.status === 'failed')).toBe(true);
+      expect(status.stages.some((s) => s.status === 'skipped')).toBe(true);
+      await criticalAgent.dispose();
+    });
+
+    it('should use custom approval logic when overridden', async () => {
+      class CustomApprovalOrchestrator extends AdsdlcOrchestratorAgent {
+        protected override approveStage(
+          _stage: PipelineStageDefinition,
+          _priorResults: readonly StageResult[]
+        ): Promise<ApprovalDecision> {
+          return Promise.resolve({
+            approved: true,
+            reason: 'Custom approved',
+            decidedBy: 'user',
+            decidedAt: new Date().toISOString(),
+          });
+        }
+      }
+
+      const customAgent = new CustomApprovalOrchestrator({ approvalMode: 'custom' });
+      await customAgent.initialize();
+
+      await customAgent.startSession({
+        projectDir: tempDir,
+        userRequest: 'test',
+        overrideMode: 'import',
+      });
+
+      const result = await customAgent.executePipeline(tempDir, 'test');
+      expect(result.overallStatus).toBe('completed');
+      await customAgent.dispose();
+    });
+  });
+
+  describe('monitorPipeline', () => {
+    it('should return empty snapshot when no session exists', () => {
+      const snapshot = agent.monitorPipeline();
+      expect(snapshot.sessionId).toBe('');
+      expect(snapshot.status).toBe('pending');
+      expect(snapshot.totalStages).toBe(0);
+      expect(snapshot.currentStage).toBeNull();
+      expect(snapshot.stageSummaries).toHaveLength(0);
+    });
+
+    it('should return pipeline state after execution', async () => {
+      await agent.initialize();
+      await agent.executePipeline(tempDir, 'test');
+
+      const snapshot = agent.monitorPipeline();
+      expect(snapshot.sessionId).toBeTruthy();
+      expect(snapshot.mode).toBe('greenfield');
+      expect(snapshot.totalStages).toBe(GREENFIELD_STAGES.length);
+      expect(snapshot.completedStages).toBe(GREENFIELD_STAGES.length);
+      expect(snapshot.failedStages).toBe(0);
+      expect(snapshot.elapsedMs).toBeGreaterThanOrEqual(0);
+      expect(snapshot.stageSummaries).toHaveLength(GREENFIELD_STAGES.length);
+    });
+
+    it('should reflect enhancement pipeline stages', async () => {
+      await agent.initialize();
+
+      await agent.startSession({
+        projectDir: tempDir,
+        userRequest: 'test',
+        overrideMode: 'enhancement',
+      });
+
+      await agent.executePipeline(tempDir, 'test');
+      const snapshot = agent.monitorPipeline();
+
+      expect(snapshot.mode).toBe('enhancement');
+      expect(snapshot.totalStages).toBe(ENHANCEMENT_STAGES.length);
+    });
+  });
+
+  describe('parallel stage execution', () => {
+    it('should execute parallel enhancement analysis stages concurrently', async () => {
+      const executionOrder: string[] = [];
+
+      class TrackingOrchestrator extends AdsdlcOrchestratorAgent {
+        protected override async invokeAgent(
+          stage: { name: string; agentType: string },
+          _session: unknown
+        ): Promise<string> {
+          executionOrder.push(stage.name);
+          return `Stage "${stage.name}" completed`;
+        }
+      }
+
+      const trackingAgent = new TrackingOrchestrator();
+      await trackingAgent.initialize();
+
+      await trackingAgent.startSession({
+        projectDir: tempDir,
+        userRequest: 'test',
+        overrideMode: 'enhancement',
+      });
+
+      const result = await trackingAgent.executePipeline(tempDir, 'test');
+      expect(result.overallStatus).toBe('completed');
+      expect(result.stages).toHaveLength(ENHANCEMENT_STAGES.length);
+
+      // The first three analysis stages should all appear before doc_code_comparison
+      const comparisonIdx = executionOrder.indexOf('doc_code_comparison');
+      expect(executionOrder.indexOf('document_reading')).toBeLessThan(comparisonIdx);
+      expect(executionOrder.indexOf('codebase_analysis')).toBeLessThan(comparisonIdx);
+      expect(executionOrder.indexOf('code_reading')).toBeLessThan(comparisonIdx);
+      await trackingAgent.dispose();
+    });
+  });
+
+  describe('graceful degradation', () => {
+    it('should return partial status when some stages fail', async () => {
+      class PartialFailOrchestrator extends AdsdlcOrchestratorAgent {
+        protected override async invokeAgent(
+          stage: { name: string; agentType: string },
+          _session: unknown
+        ): Promise<string> {
+          // Fail regression_testing in import pipeline (which has no approval gates)
+          if (stage.name === 'implementation') {
+            throw new Error('Worker failed');
+          }
+          return `Stage "${stage.name}" completed`;
+        }
+
+        protected override sleep(_ms: number): Promise<void> {
+          return Promise.resolve();
+        }
+      }
+
+      const partialAgent = new PartialFailOrchestrator({ maxRetries: 0 });
+      await partialAgent.initialize();
+
+      await partialAgent.startSession({
+        projectDir: tempDir,
+        userRequest: 'test',
+        overrideMode: 'import',
+      });
+
+      // Should not throw — partial completion returns result
+      const result = await partialAgent.executePipeline(tempDir, 'test');
+      expect(result.overallStatus).toBe('partial');
+      expect(result.warnings.length).toBeGreaterThan(0);
+      expect(result.warnings[0]).toContain('partially');
+      await partialAgent.dispose();
+    });
+  });
 });
 
 describe('GREENFIELD_STAGES', () => {
@@ -403,6 +644,82 @@ describe('GREENFIELD_STAGES', () => {
     expect(stageMap.get('srs_generation')).toBe('srs-writer');
     expect(stageMap.get('sds_generation')).toBe('sds-writer');
     expect(stageMap.get('issue_generation')).toBe('issue-generator');
+    expect(stageMap.get('orchestration')).toBe('controller');
+    expect(stageMap.get('implementation')).toBe('worker');
+    expect(stageMap.get('review')).toBe('pr-reviewer');
+  });
+});
+
+describe('ENHANCEMENT_STAGES', () => {
+  it('should define 13 stages', () => {
+    expect(ENHANCEMENT_STAGES).toHaveLength(13);
+  });
+
+  it('should start with parallel analysis stages', () => {
+    const firstThree = ENHANCEMENT_STAGES.slice(0, 3);
+    expect(firstThree.every((s) => s.parallel)).toBe(true);
+    expect(firstThree.every((s) => s.dependsOn.length === 0)).toBe(true);
+  });
+
+  it('should end with regression testing and review', () => {
+    const lastTwo = ENHANCEMENT_STAGES.slice(-2);
+    expect(lastTwo[0]!.name).toBe('regression_testing');
+    expect(lastTwo[1]!.name).toBe('review');
+  });
+
+  it('should have doc_code_comparison depend on all three analysis stages', () => {
+    const comparison = ENHANCEMENT_STAGES.find((s) => s.name === 'doc_code_comparison');
+    expect(comparison).toBeDefined();
+    expect(comparison!.dependsOn).toContain('document_reading');
+    expect(comparison!.dependsOn).toContain('codebase_analysis');
+    expect(comparison!.dependsOn).toContain('code_reading');
+  });
+
+  it('should have valid dependency chains', () => {
+    const stageNames = new Set(ENHANCEMENT_STAGES.map((s) => s.name));
+    for (const stage of ENHANCEMENT_STAGES) {
+      for (const dep of stage.dependsOn) {
+        expect(stageNames.has(dep)).toBe(true);
+      }
+    }
+  });
+
+  it('should assign correct agent types', () => {
+    const stageMap = new Map(ENHANCEMENT_STAGES.map((s) => [s.name, s.agentType]));
+    expect(stageMap.get('document_reading')).toBe('document-reader');
+    expect(stageMap.get('codebase_analysis')).toBe('codebase-analyzer');
+    expect(stageMap.get('code_reading')).toBe('code-reader');
+    expect(stageMap.get('doc_code_comparison')).toBe('doc-code-comparator');
+    expect(stageMap.get('impact_analysis')).toBe('impact-analyzer');
+    expect(stageMap.get('prd_update')).toBe('prd-updater');
+    expect(stageMap.get('srs_update')).toBe('srs-updater');
+    expect(stageMap.get('sds_update')).toBe('sds-updater');
+    expect(stageMap.get('regression_testing')).toBe('regression-tester');
+  });
+});
+
+describe('IMPORT_STAGES', () => {
+  it('should define 4 stages', () => {
+    expect(IMPORT_STAGES).toHaveLength(4);
+  });
+
+  it('should start with issue_reading and end with review', () => {
+    expect(IMPORT_STAGES[0]!.name).toBe('issue_reading');
+    expect(IMPORT_STAGES[IMPORT_STAGES.length - 1]!.name).toBe('review');
+  });
+
+  it('should have valid dependency chains', () => {
+    const stageNames = new Set(IMPORT_STAGES.map((s) => s.name));
+    for (const stage of IMPORT_STAGES) {
+      for (const dep of stage.dependsOn) {
+        expect(stageNames.has(dep)).toBe(true);
+      }
+    }
+  });
+
+  it('should assign correct agent types', () => {
+    const stageMap = new Map(IMPORT_STAGES.map((s) => [s.name, s.agentType]));
+    expect(stageMap.get('issue_reading')).toBe('issue-reader');
     expect(stageMap.get('orchestration')).toBe('controller');
     expect(stageMap.get('implementation')).toBe('worker');
     expect(stageMap.get('review')).toBe('pr-reviewer');

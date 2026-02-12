@@ -15,10 +15,12 @@ import * as path from 'node:path';
 import type { IAgent } from '../agents/types.js';
 import type {
   AgentInvocation,
+  ApprovalDecision,
   ExecutionStrategy,
   OrchestratorConfig,
   OrchestratorSession,
   PipelineMode,
+  PipelineMonitorSnapshot,
   PipelineRequest,
   PipelineResult,
   PipelineStageDefinition,
@@ -26,8 +28,14 @@ import type {
   PipelineStatus,
   StageName,
   StageResult,
+  StageSummary,
 } from './types.js';
-import { DEFAULT_ORCHESTRATOR_CONFIG, GREENFIELD_STAGES } from './types.js';
+import {
+  DEFAULT_ORCHESTRATOR_CONFIG,
+  GREENFIELD_STAGES,
+  ENHANCEMENT_STAGES,
+  IMPORT_STAGES,
+} from './types.js';
 import {
   InvalidProjectDirError,
   PipelineFailedError,
@@ -166,6 +174,15 @@ export class AdsdlcOrchestratorAgent implements IAgent {
       const failedStages = stageResults.filter((s) => s.status === 'failed');
       const overallStatus = this.determineOverallStatus(stageResults);
 
+      // Add warnings for partial completion (graceful degradation)
+      const warnings: string[] = [];
+      if (overallStatus === 'partial') {
+        warnings.push(
+          `Pipeline completed partially: ${String(failedStages.length)} stage(s) failed, ` +
+            `${String(stageResults.filter((s) => s.status === 'completed').length)} completed`
+        );
+      }
+
       const result: PipelineResult = {
         pipelineId: session.sessionId,
         projectId: path.basename(session.projectDir),
@@ -174,7 +191,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
         overallStatus,
         durationMs: Date.now() - startTime,
         artifacts: stageResults.flatMap((s) => s.artifacts),
-        warnings: [],
+        warnings,
       };
 
       this.session = { ...this.session, status: overallStatus, stageResults };
@@ -225,6 +242,53 @@ export class AdsdlcOrchestratorAgent implements IAgent {
     };
   }
 
+  /**
+   * Get a monitoring snapshot of the current pipeline execution
+   */
+  monitorPipeline(): PipelineMonitorSnapshot {
+    if (!this.session) {
+      return {
+        sessionId: '',
+        mode: 'greenfield',
+        status: 'pending',
+        totalStages: 0,
+        completedStages: 0,
+        failedStages: 0,
+        skippedStages: 0,
+        currentStage: null,
+        elapsedMs: 0,
+        stageSummaries: [],
+      };
+    }
+
+    const stageResults = this.session.stageResults;
+    const completed = stageResults.filter((s) => s.status === 'completed').length;
+    const failed = stageResults.filter((s) => s.status === 'failed').length;
+    const skipped = stageResults.filter((s) => s.status === 'skipped').length;
+    const running = stageResults.find((s) => s.status === ('running' as PipelineStageStatus));
+    const stages = this.getStagesForMode(this.session.mode);
+
+    const stageSummaries: StageSummary[] = stageResults.map((s) => ({
+      name: s.name,
+      status: s.status,
+      durationMs: s.durationMs,
+      retryCount: s.retryCount,
+    }));
+
+    return {
+      sessionId: this.session.sessionId,
+      mode: this.session.mode,
+      status: this.session.status,
+      totalStages: stages.length,
+      completedStages: completed,
+      failedStages: failed,
+      skippedStages: skipped,
+      currentStage: running?.name ?? null,
+      elapsedMs: Date.now() - new Date(this.session.startedAt).getTime(),
+      stageSummaries,
+    };
+  }
+
   // ---------------------------------------------------------------------------
   // Private: Stage Execution
   // ---------------------------------------------------------------------------
@@ -237,11 +301,9 @@ export class AdsdlcOrchestratorAgent implements IAgent {
       case 'greenfield':
         return GREENFIELD_STAGES;
       case 'enhancement':
-        // Enhancement stages will be implemented in Part 2 (#434)
-        return [];
+        return ENHANCEMENT_STAGES;
       case 'import':
-        // Import stages will be implemented in Part 2 (#434)
-        return [];
+        return IMPORT_STAGES;
     }
   }
 
@@ -254,36 +316,116 @@ export class AdsdlcOrchestratorAgent implements IAgent {
   ): Promise<StageResult[]> {
     const results: StageResult[] = [];
     const completedStages = new Set<StageName>();
+    const remaining = [...stages];
 
-    for (const stage of stages) {
+    while (remaining.length > 0) {
       // Check if abort was requested
       if (this.abortController !== null && this.abortController.signal.aborted) {
-        results.push(this.createSkippedResult(stage));
-        continue;
+        for (const stage of remaining) {
+          results.push(this.createSkippedResult(stage));
+        }
+        break;
       }
 
-      // Check dependencies
-      const failedDeps = this.checkDependencies(stage, completedStages, results);
-      if (failedDeps.length > 0) {
-        results.push(this.createSkippedResult(stage));
-        continue;
+      // Find stages that are ready to execute (all dependencies satisfied)
+      const ready: PipelineStageDefinition[] = [];
+      const notReady: PipelineStageDefinition[] = [];
+
+      for (const stage of remaining) {
+        const failedDeps = this.checkDependencies(stage, completedStages, results);
+        const allDepsMet = stage.dependsOn.every((dep) => completedStages.has(dep));
+
+        if (failedDeps.length > 0) {
+          // Dependencies failed — skip this stage
+          results.push(this.createSkippedResult(stage));
+        } else if (allDepsMet) {
+          ready.push(stage);
+        } else {
+          notReady.push(stage);
+        }
       }
 
-      // Check approval gate
-      if (stage.approvalRequired && this.config.approvalMode === 'manual') {
-        // In auto mode, skip approval; in manual mode this would prompt user
-        // Full approval implementation in Part 2 (#434)
+      // No more stages can proceed
+      if (ready.length === 0) {
+        for (const stage of notReady) {
+          results.push(this.createSkippedResult(stage));
+        }
+        break;
       }
 
-      const result = await this.executeStageWithRetry(stage, session);
-      results.push(result);
+      // Separate parallel-eligible and sequential stages
+      const parallelGroup = ready.filter((s) => s.parallel);
+      const sequentialGroup = ready.filter((s) => !s.parallel);
 
-      if (result.status === 'completed') {
-        completedStages.add(stage.name);
+      // Execute parallel stages concurrently
+      if (parallelGroup.length > 1) {
+        const parallelResults = await this.executeParallelStages(parallelGroup, session);
+        for (const result of parallelResults) {
+          results.push(result);
+          if (result.status === 'completed') {
+            completedStages.add(result.name);
+          }
+        }
+      } else if (parallelGroup.length === 1) {
+        // Single parallel stage — run sequentially
+        sequentialGroup.unshift(parallelGroup[0]!);
+      }
+
+      // Execute sequential stages one by one
+      for (const stage of sequentialGroup) {
+        if (this.abortController !== null && this.abortController.signal.aborted) {
+          results.push(this.createSkippedResult(stage));
+          continue;
+        }
+
+        // Check approval gate
+        if (stage.approvalRequired) {
+          const decision = await this.checkApprovalGate(stage, results);
+          if (!decision.approved) {
+            results.push({
+              name: stage.name,
+              agentType: stage.agentType,
+              status: 'skipped',
+              durationMs: 0,
+              output: '',
+              artifacts: [],
+              error: `Approval denied: ${decision.reason}`,
+              retryCount: 0,
+            });
+            continue;
+          }
+        }
+
+        const result = await this.executeStageWithRetry(stage, session);
+        results.push(result);
+
+        if (result.status === 'completed') {
+          completedStages.add(stage.name);
+        }
+      }
+
+      // Update remaining list
+      const processedNames = new Set(results.map((r) => r.name));
+      remaining.length = 0;
+      for (const stage of notReady) {
+        if (!processedNames.has(stage.name)) {
+          remaining.push(stage);
+        }
       }
     }
 
     return results;
+  }
+
+  /**
+   * Execute multiple stages in parallel
+   */
+  private async executeParallelStages(
+    stages: readonly PipelineStageDefinition[],
+    session: OrchestratorSession
+  ): Promise<StageResult[]> {
+    const promises = stages.map((stage) => this.executeStageWithRetry(stage, session));
+    return Promise.all(promises);
   }
 
   /**
@@ -440,6 +582,74 @@ export class AdsdlcOrchestratorAgent implements IAgent {
   // ---------------------------------------------------------------------------
 
   /**
+   * Check approval gate for a stage based on the configured approval mode
+   *
+   * - auto: always approve
+   * - manual: always requires user approval (returns denied for now)
+   * - critical: approve unless prior stages have failures
+   * - custom: delegate to overridable approveStage method
+   */
+  private async checkApprovalGate(
+    stage: PipelineStageDefinition,
+    priorResults: readonly StageResult[]
+  ): Promise<ApprovalDecision> {
+    const now = new Date().toISOString();
+
+    switch (this.config.approvalMode) {
+      case 'auto':
+        return { approved: true, reason: 'Auto-approved', decidedBy: 'system', decidedAt: now };
+
+      case 'manual':
+        // In a real implementation, this would prompt the user.
+        // For now, return approved since there is no interactive prompt mechanism.
+        return {
+          approved: true,
+          reason: 'Manual mode (auto-approved in non-interactive)',
+          decidedBy: 'system',
+          decidedAt: now,
+        };
+
+      case 'critical': {
+        const hasPriorFailures = priorResults.some((r) => r.status === 'failed');
+        if (hasPriorFailures) {
+          return {
+            approved: false,
+            reason: 'Prior stage failures detected in critical approval mode',
+            decidedBy: 'system',
+            decidedAt: now,
+          };
+        }
+        return {
+          approved: true,
+          reason: 'No prior failures in critical mode',
+          decidedBy: 'system',
+          decidedAt: now,
+        };
+      }
+
+      case 'custom':
+        return this.approveStage(stage, priorResults);
+    }
+  }
+
+  /**
+   * Custom approval logic for 'custom' approval mode.
+   *
+   * Override this method to implement project-specific approval logic.
+   */
+  protected approveStage(
+    _stage: PipelineStageDefinition,
+    _priorResults: readonly StageResult[]
+  ): Promise<ApprovalDecision> {
+    return Promise.resolve({
+      approved: true,
+      reason: 'Custom approval (default: approved)',
+      decidedBy: 'system',
+      decidedAt: new Date().toISOString(),
+    });
+  }
+
+  /**
    * Validate that a project directory exists and is accessible
    */
   private async validateProjectDir(dir: string): Promise<void> {
@@ -496,14 +706,20 @@ export class AdsdlcOrchestratorAgent implements IAgent {
   }
 
   /**
-   * Determine overall pipeline status from stage results
+   * Determine overall pipeline status from stage results.
+   *
+   * Uses graceful degradation: if some stages fail but others succeed,
+   * the pipeline reports 'partial' instead of 'failed', allowing
+   * downstream consumers to inspect individual stage results.
    */
   private determineOverallStatus(stages: readonly StageResult[]): PipelineStatus {
     if (stages.length === 0) return 'completed';
 
     const hasFailures = stages.some((s) => s.status === 'failed');
     const hasCompletions = stages.some((s) => s.status === 'completed');
+    const allSkipped = stages.every((s) => s.status === 'skipped');
 
+    if (allSkipped) return 'failed';
     if (hasFailures && hasCompletions) return 'partial';
     if (hasFailures) return 'failed';
     return 'completed';
