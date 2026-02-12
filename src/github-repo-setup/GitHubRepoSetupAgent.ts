@@ -529,7 +529,6 @@ export class GitHubRepoSetupAgent implements IAgent {
       );
     }
   }
-
 }
 
 // ---------------------------------------------------------------------------
