@@ -726,3 +726,58 @@ export * as CIFixer from '../ci-fixer/index.js';
 
 // PR Reviewer
 export * as PRReviewer from '../pr-reviewer/index.js';
+
+// Re-export project-initializer module
+export {
+  ProjectInitializer,
+  createProjectInitializer,
+  resetProjectInitializer,
+  PrerequisiteValidator,
+  getPrerequisiteValidator,
+  resetPrerequisiteValidator,
+  InteractiveWizard,
+  createInteractiveWizard,
+  InitError,
+  PrerequisiteError,
+  ProjectExistsError,
+  TemplateNotFoundError as InitTemplateNotFoundError,
+  TemplateVersionError,
+  TemplateMigrationError,
+  ConfigurationError as InitConfigurationError,
+  FileSystemError as InitFileSystemError,
+  GitHubError as InitGitHubError,
+  CURRENT_TEMPLATE_VERSION,
+  QUALITY_GATE_CONFIGS,
+  TEMPLATE_CONFIGS,
+  clearMigrations,
+  compareVersions,
+  findMigrationPath,
+  formatVersion,
+  getCurrentVersion,
+  getMigrations,
+  isVersionCompatible,
+  migrateTemplate,
+  needsMigration,
+  parseVersion,
+  registerMigration,
+  validateTemplateCompatibility,
+  versionsEqual,
+} from '../project-initializer/index.js';
+
+export type {
+  InitOptions,
+  InitResult,
+  PrerequisiteCheck,
+  PrerequisiteResult,
+  PrerequisiteValidationResult,
+  QualityGateConfig as InitQualityGateConfig,
+  QualityGateLevel,
+  TechStack,
+  TemplateCompatibilityResult,
+  TemplateConfig as InitTemplateConfig,
+  TemplateMigrationResult,
+  TemplateMigrationStep,
+  TemplateType,
+  TemplateVersion as InitTemplateVersion,
+  WorkflowConfig as InitWorkflowConfig,
+} from '../project-initializer/index.js';

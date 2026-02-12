@@ -8,7 +8,7 @@ import {
   getPrerequisiteValidator,
   PrerequisiteValidator,
   resetPrerequisiteValidator,
-} from '../../src/init/PrerequisiteValidator.js';
+} from '../../src/project-initializer/PrerequisiteValidator.js';
 
 describe('PrerequisiteValidator', () => {
   beforeEach(() => {

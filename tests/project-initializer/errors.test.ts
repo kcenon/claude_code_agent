@@ -14,7 +14,7 @@ import {
   TemplateMigrationError,
   TemplateNotFoundError,
   TemplateVersionError,
-} from '../../src/init/errors.js';
+} from '../../src/project-initializer/errors.js';
 
 describe('Init Errors', () => {
   describe('InitError', () => {
