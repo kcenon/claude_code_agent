@@ -18,9 +18,9 @@ import {
   registerMigration,
   validateTemplateCompatibility,
   versionsEqual,
-} from '../../src/init/TemplateVersioning.js';
-import type { TemplateConfig, TemplateVersion } from '../../src/init/types.js';
-import { CURRENT_TEMPLATE_VERSION } from '../../src/init/types.js';
+} from '../../src/project-initializer/TemplateVersioning.js';
+import type { TemplateConfig, TemplateVersion } from '../../src/project-initializer/types.js';
+import { CURRENT_TEMPLATE_VERSION } from '../../src/project-initializer/types.js';
 
 describe('TemplateVersioning', () => {
   afterEach(() => {

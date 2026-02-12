@@ -11,9 +11,9 @@ import {
   createProjectInitializer,
   ProjectInitializer,
   resetProjectInitializer,
-} from '../../src/init/ProjectInitializer.js';
-import { resetPrerequisiteValidator } from '../../src/init/PrerequisiteValidator.js';
-import type { InitOptions } from '../../src/init/types.js';
+} from '../../src/project-initializer/ProjectInitializer.js';
+import { resetPrerequisiteValidator } from '../../src/project-initializer/PrerequisiteValidator.js';
+import type { InitOptions } from '../../src/project-initializer/types.js';
 
 describe('ProjectInitializer', () => {
   const testDir = path.join(process.cwd(), 'test-output');

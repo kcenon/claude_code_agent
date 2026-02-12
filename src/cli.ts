@@ -15,8 +15,8 @@ import {
   createInteractiveWizard,
   createProjectInitializer,
   getPrerequisiteValidator,
-} from './init/index.js';
-import type { InitOptions, TechStack, TemplateType } from './init/types.js';
+} from './project-initializer/index.js';
+import type { InitOptions, TechStack, TemplateType } from './project-initializer/types.js';
 import {
   validateAllConfigs,
   validateConfigFile,

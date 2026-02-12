@@ -201,7 +201,7 @@ export {
   registerMigration,
   validateTemplateCompatibility,
   versionsEqual,
-} from '../init/index.js';
+} from '../project-initializer/index.js';
 
 export type {
   InitOptions,
@@ -219,4 +219,4 @@ export type {
   TemplateType,
   TemplateVersion,
   WorkflowConfig as InitWorkflowConfig,
-} from '../init/index.js';
+} from '../project-initializer/index.js';

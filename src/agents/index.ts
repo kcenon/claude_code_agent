@@ -726,3 +726,7 @@ export * as CIFixer from '../ci-fixer/index.js';
 
 // PR Reviewer
 export * as PRReviewer from '../pr-reviewer/index.js';
+
+// Project Initializer - already exported individually via control-plane,
+// so use namespace to avoid duplicate export conflicts in src/index.ts
+export * as ProjectInit from '../project-initializer/index.js';
