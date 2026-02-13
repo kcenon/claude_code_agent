@@ -152,6 +152,8 @@ export class RedisBackend implements IScratchpadBackend {
 
   /**
    * Get the Redis key for a section/key combination
+   * @param section
+   * @param key
    */
   private getRedisKey(section: string, key: string): string {
     return `${this.prefix}${section}:${key}`;
@@ -159,6 +161,7 @@ export class RedisBackend implements IScratchpadBackend {
 
   /**
    * Get the Redis key for a distributed lock
+   * @param lockName
    */
   private getLockKey(lockName: string): string {
     return `${this.prefix}lock:${lockName}`;
@@ -166,6 +169,7 @@ export class RedisBackend implements IScratchpadBackend {
 
   /**
    * Parse section and key from a Redis key
+   * @param redisKey
    */
   private parseRedisKey(redisKey: string): { section: string; key: string } | null {
     if (!redisKey.startsWith(this.prefix)) {
@@ -198,6 +202,9 @@ export class RedisBackend implements IScratchpadBackend {
     await this.fallbackBackend.initialize();
   }
 
+  /**
+   *
+   */
   async initialize(): Promise<void> {
     try {
       // Dynamic import of ioredis
@@ -266,6 +273,11 @@ export class RedisBackend implements IScratchpadBackend {
     return this.useFallback;
   }
 
+  /**
+   *
+   * @param section
+   * @param key
+   */
   async read<T>(section: string, key: string): Promise<T | null> {
     const fallback = this.getActiveBackend();
     if (fallback !== null) {
@@ -284,6 +296,12 @@ export class RedisBackend implements IScratchpadBackend {
     return JSON.parse(value) as T;
   }
 
+  /**
+   *
+   * @param section
+   * @param key
+   * @param value
+   */
   // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters
   async write<T>(section: string, key: string, value: T): Promise<void> {
     const fallback = this.getActiveBackend();
@@ -303,6 +321,11 @@ export class RedisBackend implements IScratchpadBackend {
     }
   }
 
+  /**
+   *
+   * @param section
+   * @param key
+   */
   async delete(section: string, key: string): Promise<boolean> {
     const fallback = this.getActiveBackend();
     if (fallback !== null) {
@@ -317,6 +340,10 @@ export class RedisBackend implements IScratchpadBackend {
     return deleted > 0;
   }
 
+  /**
+   *
+   * @param section
+   */
   async list(section: string): Promise<string[]> {
     const fallback = this.getActiveBackend();
     if (fallback !== null) {
@@ -336,6 +363,11 @@ export class RedisBackend implements IScratchpadBackend {
       .filter((key): key is string => key !== null);
   }
 
+  /**
+   *
+   * @param section
+   * @param key
+   */
   async exists(section: string, key: string): Promise<boolean> {
     const fallback = this.getActiveBackend();
     if (fallback !== null) {
@@ -350,6 +382,10 @@ export class RedisBackend implements IScratchpadBackend {
     return result > 0;
   }
 
+  /**
+   *
+   * @param operations
+   */
   async batch(operations: BatchOperation[]): Promise<void> {
     const fallback = this.getActiveBackend();
     if (fallback !== null) {
@@ -385,6 +421,9 @@ export class RedisBackend implements IScratchpadBackend {
     }
   }
 
+  /**
+   *
+   */
   async healthCheck(): Promise<BackendHealth> {
     const fallback = this.getActiveBackend();
     if (fallback !== null) {
@@ -415,6 +454,9 @@ export class RedisBackend implements IScratchpadBackend {
     }
   }
 
+  /**
+   *
+   */
   async close(): Promise<void> {
     if (this.client) {
       await this.client.quit();
@@ -563,6 +605,7 @@ export class RedisBackend implements IScratchpadBackend {
 
   /**
    * Sleep for a specified duration
+   * @param ms
    */
   private sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));

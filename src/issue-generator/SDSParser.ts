@@ -96,6 +96,7 @@ export class SDSParser {
 
   /**
    * Parse document metadata from the header table
+   * @param lines
    */
   private parseMetadata(lines: readonly string[]): SDSMetadata {
     const metadata: Record<string, string> = {};
@@ -144,6 +145,7 @@ export class SDSParser {
 
   /**
    * Parse components from the Component Design section
+   * @param lines
    */
   private parseComponents(lines: readonly string[]): readonly SDSComponent[] {
     const components: SDSComponent[] = [];
@@ -296,6 +298,15 @@ export class SDSParser {
 
   /**
    * Finalize a component with all its collected data
+   * @param state
+   * @param state.id
+   * @param state.name
+   * @param state.sourceFeature
+   * @param state.priority
+   * @param descriptionLines
+   * @param implNotesLines
+   * @param dependencies
+   * @param interfaceBuffer
    */
   private finalizeComponent(
     state: { id: string; name: string; sourceFeature: string | null; priority: Priority },
@@ -321,6 +332,7 @@ export class SDSParser {
 
   /**
    * Parse interface definitions from TypeScript code
+   * @param lines
    */
   private parseInterfaces(lines: readonly string[]): readonly SDSInterface[] {
     const interfaces: SDSInterface[] = [];
@@ -347,6 +359,7 @@ export class SDSParser {
 
   /**
    * Parse method signatures from interface code
+   * @param lines
    */
   private parseMethods(lines: readonly string[]): readonly SDSMethod[] {
     const methods: SDSMethod[] = [];
@@ -372,6 +385,7 @@ export class SDSParser {
 
   /**
    * Extract component IDs from dependency list
+   * @param dependencies
    */
   private extractComponentDependencies(dependencies: readonly string[]): readonly string[] {
     return dependencies
@@ -384,6 +398,7 @@ export class SDSParser {
 
   /**
    * Parse priority value
+   * @param value
    */
   private parsePriority(value: string): Priority {
     const normalized = value.trim().toUpperCase();
@@ -400,6 +415,7 @@ export class SDSParser {
 
   /**
    * Parse technology stack from Section 2.3
+   * @param lines
    */
   private parseTechnologyStack(lines: readonly string[]): readonly TechnologyEntry[] {
     const stack: TechnologyEntry[] = [];
@@ -456,6 +472,7 @@ export class SDSParser {
 
   /**
    * Parse traceability matrix from Section 9
+   * @param lines
    */
   private parseTraceabilityMatrix(lines: readonly string[]): readonly TraceabilityEntry[] {
     const matrix: TraceabilityEntry[] = [];
@@ -512,6 +529,7 @@ export class SDSParser {
 
   /**
    * Parse use case references from a cell value
+   * @param value
    */
   private parseUseCases(value: string): readonly string[] {
     const matches = value.match(/UC-\d{3}/g);
@@ -520,6 +538,7 @@ export class SDSParser {
 
   /**
    * Validate parsed SDS structure
+   * @param sds
    * @throws SDSParseError if validation fails in strict mode
    */
   public validate(sds: ParsedSDS): readonly string[] {

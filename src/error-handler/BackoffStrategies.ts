@@ -143,6 +143,7 @@ export class FibonacciBackoff implements BackoffStrategy {
   /**
    * Calculate fibonacci number iteratively (efficient for small n)
    * fib(1)=1, fib(2)=1, fib(3)=2, fib(4)=3, fib(5)=5, fib(6)=8, fib(7)=13...
+   * @param n
    */
   private fibonacci(n: number): number {
     if (n <= 2) return 1;

@@ -187,6 +187,7 @@ export class FileTransport extends BaseTransport {
 
   /**
    * Ensure directory exists
+   * @param dirPath
    */
   private async ensureDirectory(dirPath: string): Promise<void> {
     if (!fs.existsSync(dirPath)) {
@@ -301,6 +302,7 @@ export class FileTransport extends BaseTransport {
 
   /**
    * Compress a log file
+   * @param filePath
    */
   private async compressFile(filePath: string): Promise<void> {
     const gzPath = `${filePath}.gz`;
@@ -365,6 +367,7 @@ export class FileTransport extends BaseTransport {
 
   /**
    * Format entry as JSON line
+   * @param entry
    */
   private formatEntry(entry: TransportLogEntry): string {
     const jsonEntry: Record<string, unknown> = {
@@ -422,6 +425,7 @@ export class FileTransport extends BaseTransport {
 
   /**
    * Write a line to the current log file
+   * @param line
    */
   private async writeLine(line: string): Promise<void> {
     const lineWithNewline = `${line}\n`;

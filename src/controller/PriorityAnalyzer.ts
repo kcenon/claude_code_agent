@@ -102,6 +102,8 @@ export class PriorityAnalyzer {
 
   /**
    * Validate the structure of a parsed dependency graph
+   * @param data
+   * @param _filePath
    */
   private validateGraph(data: unknown, _filePath: string): RawDependencyGraph {
     const errors: string[] = [];
@@ -187,6 +189,8 @@ export class PriorityAnalyzer {
 
   /**
    * Validate a single node object
+   * @param node
+   * @param index
    */
   private validateNode(node: Record<string, unknown>, index: number): string[] {
     const errors: string[] = [];
@@ -219,6 +223,9 @@ export class PriorityAnalyzer {
 
   /**
    * Validate a single edge object
+   * @param edge
+   * @param index
+   * @param nodeIds
    */
   private validateEdge(
     edge: Record<string, unknown>,
@@ -249,6 +256,7 @@ export class PriorityAnalyzer {
 
   /**
    * Create an IssueNode from validated data
+   * @param data
    */
   private createIssueNode(data: Record<string, unknown>): IssueNode {
     const base = {
@@ -333,6 +341,7 @@ export class PriorityAnalyzer {
 
   /**
    * Build internal graph representation
+   * @param graph
    */
   private buildInternalGraph(graph: RawDependencyGraph): void {
     // Create nodes
@@ -389,6 +398,8 @@ export class PriorityAnalyzer {
   /**
    * DFS helper for cycle detection
    * Records cycles instead of throwing exceptions
+   * @param node
+   * @param path
    */
   private dfsDetectCycle(node: InternalNode, path: string[]): void {
     node.visited = true;
@@ -609,6 +620,7 @@ export class PriorityAnalyzer {
 
   /**
    * Compute priority score for a single node
+   * @param node
    */
   private computePriorityScore(node: InternalNode): number {
     let score = 0;
@@ -889,6 +901,7 @@ export class PriorityAnalyzer {
 
   /**
    * Build the analyzed issue result for a node
+   * @param node
    */
   private buildAnalyzedIssue(node: InternalNode): AnalyzedIssue {
     return {
@@ -905,6 +918,7 @@ export class PriorityAnalyzer {
 
   /**
    * Internal method to get transitive dependencies (no error throwing)
+   * @param issueId
    */
   private getTransitiveDependenciesInternal(issueId: string): readonly string[] {
     const result = new Set<string>();

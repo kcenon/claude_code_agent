@@ -81,6 +81,8 @@ export class PRDParser {
 
   /**
    * Parse document metadata from PRD
+   * @param content
+   * @param projectId
    */
   private parseMetadata(content: string, projectId: string): PRDDocumentMetadata {
     // Try to extract from metadata table
@@ -98,6 +100,7 @@ export class PRDParser {
 
   /**
    * Extract product name from PRD
+   * @param content
    */
   private extractProductName(content: string): string {
     // Try from title (# PRD: Product Name)
@@ -119,6 +122,7 @@ export class PRDParser {
 
   /**
    * Extract product description from PRD
+   * @param content
    */
   private extractProductDescription(content: string): string {
     // Look for Executive Summary or Product Overview section
@@ -137,6 +141,7 @@ export class PRDParser {
 
   /**
    * Parse functional requirements from PRD
+   * @param content
    */
   private parseFunctionalRequirements(content: string): ParsedPRDRequirement[] {
     const requirements: ParsedPRDRequirement[] = [];
@@ -184,6 +189,9 @@ export class PRDParser {
 
   /**
    * Parse requirement body to extract details
+   * @param id
+   * @param title
+   * @param body
    */
   private parseRequirementBody(id: string, title: string, body: string): ParsedPRDRequirement {
     // Extract priority
@@ -226,6 +234,7 @@ export class PRDParser {
 
   /**
    * Normalize priority string to Priority type
+   * @param priority
    */
   private normalizePriority(priority: string): Priority {
     const upper = priority.toUpperCase();
@@ -237,6 +246,7 @@ export class PRDParser {
 
   /**
    * Extract acceptance criteria from requirement body
+   * @param body
    */
   private extractAcceptanceCriteria(body: string): string[] {
     const criteria: string[] = [];
@@ -263,6 +273,7 @@ export class PRDParser {
 
   /**
    * Extract dependencies from requirement body
+   * @param body
    */
   private extractDependencies(body: string): string[] {
     const dependencies: string[] = [];
@@ -285,6 +296,7 @@ export class PRDParser {
 
   /**
    * Parse functional requirements using alternative format
+   * @param content
    */
   private parseFunctionalRequirementsAlternative(content: string): ParsedPRDRequirement[] {
     const requirements: ParsedPRDRequirement[] = [];
@@ -326,6 +338,7 @@ export class PRDParser {
 
   /**
    * Parse non-functional requirements from PRD
+   * @param content
    */
   private parseNonFunctionalRequirements(content: string): ParsedNFR[] {
     const nfrs: ParsedNFR[] = [];
@@ -373,6 +386,7 @@ export class PRDParser {
 
   /**
    * Infer NFR category from title
+   * @param title
    */
   private inferNFRCategory(title: string): string {
     const lower = title.toLowerCase();
@@ -387,6 +401,7 @@ export class PRDParser {
 
   /**
    * Parse NFRs using alternative format
+   * @param content
    */
   private parseNFRAlternative(content: string): ParsedNFR[] {
     const nfrs: ParsedNFR[] = [];
@@ -436,6 +451,7 @@ export class PRDParser {
 
   /**
    * Parse constraints from PRD
+   * @param content
    */
   private parseConstraints(content: string): ParsedConstraint[] {
     const constraints: ParsedConstraint[] = [];
@@ -490,6 +506,7 @@ export class PRDParser {
 
   /**
    * Normalize constraint type
+   * @param type
    */
   private normalizeConstraintType(type: string): string {
     const lower = type.toLowerCase();
@@ -503,6 +520,7 @@ export class PRDParser {
 
   /**
    * Parse assumptions from PRD
+   * @param content
    */
   private parseAssumptions(content: string): string[] {
     const assumptions: string[] = [];
@@ -528,6 +546,7 @@ export class PRDParser {
 
   /**
    * Extract list items from text
+   * @param text
    */
   private extractListItems(text: string): string[] {
     const items: string[] = [];
@@ -544,6 +563,7 @@ export class PRDParser {
 
   /**
    * Parse user personas from PRD
+   * @param content
    */
   private parseUserPersonas(content: string): UserPersona[] {
     const personas: UserPersona[] = [];
@@ -586,6 +606,7 @@ export class PRDParser {
 
   /**
    * Parse goals and metrics from PRD
+   * @param content
    */
   private parseGoals(content: string): Goal[] {
     const goals: Goal[] = [];

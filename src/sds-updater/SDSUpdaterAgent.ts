@@ -97,12 +97,18 @@ export class SDSUpdaterAgent implements IAgent {
     this.config = { ...DEFAULT_SDS_UPDATER_CONFIG, ...config };
   }
 
+  /**
+   *
+   */
   public async initialize(): Promise<void> {
     if (this.initialized) return;
     await loadYaml();
     this.initialized = true;
   }
 
+  /**
+   *
+   */
   public async dispose(): Promise<void> {
     await Promise.resolve();
     this.session = null;
@@ -111,6 +117,7 @@ export class SDSUpdaterAgent implements IAgent {
 
   /**
    * Start a new SDS update session
+   * @param projectId
    */
   public async startSession(projectId: string): Promise<SDSUpdaterSession> {
     await loadYaml();
@@ -130,6 +137,7 @@ export class SDSUpdaterAgent implements IAgent {
 
   /**
    * Load an existing SDS document for updating
+   * @param sdsPath
    */
   public async loadSDS(sdsPath?: string): Promise<ParsedSDS> {
     const session = this.ensureSession();
@@ -172,6 +180,7 @@ export class SDSUpdaterAgent implements IAgent {
 
   /**
    * Apply a change request to the loaded SDS
+   * @param changeRequest
    */
   public async applyChange(changeRequest: SDSChangeRequest): Promise<SDSUpdateOperationResult> {
     const session = this.ensureSession();
@@ -1549,6 +1558,7 @@ let globalSDSUpdaterAgent: SDSUpdaterAgent | null = null;
 
 /**
  * Get the global SDS Updater Agent instance
+ * @param config
  */
 export function getSDSUpdaterAgent(config?: SDSUpdaterConfig): SDSUpdaterAgent {
   if (globalSDSUpdaterAgent === null) {

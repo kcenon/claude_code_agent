@@ -230,6 +230,10 @@ export class ParallelExecutionTuner {
 
   /**
    * Build reasoning string for recommendation
+   * @param resources
+   * @param cpuBased
+   * @param memoryBased
+   * @param loadAdjustment
    */
   private buildReasoningString(
     resources: SystemResources,
@@ -258,6 +262,7 @@ export class ParallelExecutionTuner {
 
   /**
    * Calculate optimal batch configuration
+   * @param itemCount
    */
   public calculateBatchConfig(itemCount: number): BatchConfig {
     const recommendation = this.calculateOptimalWorkerCount();
@@ -330,6 +335,11 @@ export class ParallelExecutionTuner {
 
   /**
    * Record a tuning history entry
+   * @param workerCount
+   * @param batchSize
+   * @param itemsProcessed
+   * @param totalTimeMs
+   * @param errorCount
    */
   public recordTuningResult(
     workerCount: number,
@@ -495,6 +505,7 @@ export class ParallelExecutionTuner {
 
   /**
    * Set current worker count
+   * @param count
    */
   public setCurrentWorkerCount(count: number): void {
     this.currentWorkerCount = Math.max(1, Math.min(count, this.config.maxWorkerCount));
@@ -509,6 +520,7 @@ export class ParallelExecutionTuner {
 
   /**
    * Set current batch size
+   * @param size
    */
   public setCurrentBatchSize(size: number): void {
     this.currentBatchSize = Math.max(1, size);
@@ -530,6 +542,7 @@ export class ParallelExecutionTuner {
 
   /**
    * Get recent contention events
+   * @param durationMs
    */
   public getRecentContentionEvents(durationMs: number = 60000): readonly ContentionEvent[] {
     const cutoff = Date.now() - durationMs;
@@ -538,6 +551,7 @@ export class ParallelExecutionTuner {
 
   /**
    * Start resource monitoring
+   * @param callback
    */
   public startMonitoring(callback?: (event: ContentionEvent) => void): void {
     if (this.monitoringTimer !== null) return;
@@ -617,6 +631,7 @@ let globalParallelExecutionTuner: ParallelExecutionTuner | null = null;
 
 /**
  * Get or create the global ParallelExecutionTuner instance
+ * @param config
  */
 export function getParallelExecutionTuner(
   config?: ParallelExecutionTunerConfig

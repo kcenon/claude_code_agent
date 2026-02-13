@@ -118,6 +118,7 @@ export class BackendFactory {
 
   /**
    * Check if a backend type is supported
+   * @param type
    */
   static isSupported(type: string): type is BackendType {
     return ['file', 'sqlite', 'redis'].includes(type);

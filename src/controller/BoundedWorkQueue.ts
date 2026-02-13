@@ -75,6 +75,7 @@ export class BoundedWorkQueue {
 
   /**
    * Set event callback for queue notifications
+   * @param callback
    */
   public onEvent(callback: QueueEventCallback): void {
     this.eventCallback = callback;
@@ -191,6 +192,7 @@ export class BoundedWorkQueue {
 
   /**
    * Get a queue entry without removing it
+   * @param issueId
    */
   public get(issueId: string): WorkQueueEntry | undefined {
     const entry = this.queue.get(issueId);
@@ -202,6 +204,7 @@ export class BoundedWorkQueue {
 
   /**
    * Check if a task is in the queue
+   * @param issueId
    */
   public has(issueId: string): boolean {
     return this.queue.has(issueId);
@@ -275,6 +278,7 @@ export class BoundedWorkQueue {
 
   /**
    * Clear a task from the dead letter queue
+   * @param issueId
    */
   public clearFromDeadLetter(issueId: string): boolean {
     return this.deadLetter.delete(issueId);
@@ -328,6 +332,9 @@ export class BoundedWorkQueue {
 
   /**
    * Handle full queue based on rejection policy
+   * @param issueId
+   * @param priorityScore
+   * @param reason
    */
   private async handleFull(
     issueId: string,
@@ -349,6 +356,8 @@ export class BoundedWorkQueue {
 
   /**
    * Drop oldest entry to make room for new task
+   * @param issueId
+   * @param priorityScore
    */
   private async handleDropOldest(issueId: string, priorityScore: number): Promise<EnqueueResult> {
     const oldest = this.getOldestEntry();
@@ -365,6 +374,8 @@ export class BoundedWorkQueue {
 
   /**
    * Drop lowest priority entry if new task has higher priority
+   * @param issueId
+   * @param priorityScore
    */
   private async handleDropLowestPriority(
     issueId: string,
@@ -423,6 +434,8 @@ export class BoundedWorkQueue {
 
   /**
    * Move an entry to the dead letter queue
+   * @param entry
+   * @param reason
    */
   private async moveToDeadLetter(entry: MutableWorkQueueEntry, reason: string): Promise<void> {
     if (!this.config.enableDeadLetter) {
@@ -514,6 +527,9 @@ export class BoundedWorkQueue {
 
   /**
    * Emit a queue event
+   * @param type
+   * @param taskId
+   * @param data
    */
   private async emitEvent(
     type: QueueEvent['type'],
@@ -540,6 +556,7 @@ export class BoundedWorkQueue {
 
   /**
    * Sleep for specified milliseconds
+   * @param ms
    */
   private sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));

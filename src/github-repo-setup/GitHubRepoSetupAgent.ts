@@ -59,12 +59,18 @@ export class GitHubRepoSetupAgent implements IAgent {
     };
   }
 
+  /**
+   *
+   */
   public async initialize(): Promise<void> {
     if (this.initialized) return;
     await Promise.resolve();
     this.initialized = true;
   }
 
+  /**
+   *
+   */
   public async dispose(): Promise<void> {
     await Promise.resolve();
     this.session = null;
@@ -73,6 +79,8 @@ export class GitHubRepoSetupAgent implements IAgent {
 
   /**
    * Start a new setup session
+   * @param projectName
+   * @param rootPath
    */
   public startSession(projectName: string, rootPath: string): RepoSetupSession {
     const now = new Date().toISOString();
@@ -103,6 +111,9 @@ export class GitHubRepoSetupAgent implements IAgent {
    *
    * Implements the IGitHubRepoSetupAgent.createRepository interface
    * from SDS-001 Section 3.27.
+   * @param projectName
+   * @param description
+   * @param options
    */
   public async createRepository(
     projectName: string,
@@ -189,6 +200,9 @@ export class GitHubRepoSetupAgent implements IAgent {
 
   /**
    * Create a GitHub repository using gh CLI
+   * @param projectName
+   * @param description
+   * @param options
    */
   private createGhRepo(
     projectName: string,
@@ -238,6 +252,8 @@ export class GitHubRepoSetupAgent implements IAgent {
 
   /**
    * Clone the newly created repository
+   * @param repoFullName
+   * @param targetDir
    */
   private cloneRepo(repoFullName: string, targetDir: string): void {
     const result = this.runGhCommandWithArgs(process.cwd(), [
@@ -271,6 +287,9 @@ export class GitHubRepoSetupAgent implements IAgent {
 
   /**
    * Generate README.md from project metadata
+   * @param repoDir
+   * @param projectName
+   * @param description
    */
   private generateReadme(repoDir: string, projectName: string, description: string): void {
     const readmePath = path.join(repoDir, 'README.md');
@@ -300,6 +319,8 @@ export class GitHubRepoSetupAgent implements IAgent {
 
   /**
    * Generate .gitignore based on language
+   * @param repoDir
+   * @param language
    */
   private generateGitignore(repoDir: string, language: string): void {
     const gitignorePath = path.join(repoDir, '.gitignore');
@@ -324,6 +345,7 @@ export class GitHubRepoSetupAgent implements IAgent {
 
   /**
    * Get .gitignore entries for a language
+   * @param language
    */
   private getGitignoreEntries(language: string): string[] {
     const base = [
@@ -377,6 +399,7 @@ export class GitHubRepoSetupAgent implements IAgent {
 
   /**
    * Perform initial commit and push
+   * @param repoDir
    */
   private initialCommitAndPush(repoDir: string): string {
     // Stage all files
@@ -417,6 +440,7 @@ export class GitHubRepoSetupAgent implements IAgent {
 
   /**
    * Get the default branch name from the repository
+   * @param repoDir
    */
   private getDefaultBranch(repoDir: string): string {
     const result = this.runGitCommand(repoDir, 'rev-parse --abbrev-ref HEAD');
@@ -432,6 +456,8 @@ export class GitHubRepoSetupAgent implements IAgent {
 
   /**
    * Run a git command using CommandSanitizer
+   * @param cwd
+   * @param command
    */
   private runGitCommand(
     cwd: string,
@@ -455,6 +481,8 @@ export class GitHubRepoSetupAgent implements IAgent {
 
   /**
    * Run a gh command using a string
+   * @param cwd
+   * @param command
    */
   private runGhCommand(
     cwd: string,
@@ -478,6 +506,8 @@ export class GitHubRepoSetupAgent implements IAgent {
 
   /**
    * Run a gh command with pre-parsed arguments
+   * @param cwd
+   * @param args
    */
   private runGhCommandWithArgs(
     cwd: string,
@@ -503,6 +533,9 @@ export class GitHubRepoSetupAgent implements IAgent {
 
   /**
    * Save setup result to scratchpad
+   * @param rootPath
+   * @param projectName
+   * @param result
    */
   private saveResult(rootPath: string, projectName: string, result: RepoSetupResult): void {
     const scratchpadPath = path.join(rootPath, this.config.scratchpadBasePath, 'repo', projectName);
@@ -539,6 +572,7 @@ let instance: GitHubRepoSetupAgent | null = null;
 
 /**
  * Get the singleton GitHub Repo Setup Agent instance
+ * @param config
  */
 export function getGitHubRepoSetupAgent(config?: RepoSetupConfig): GitHubRepoSetupAgent {
   if (instance === null) {

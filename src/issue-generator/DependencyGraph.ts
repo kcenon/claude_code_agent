@@ -124,6 +124,8 @@ export class DependencyGraphBuilder {
 
   /**
    * DFS helper for cycle detection
+   * @param node
+   * @param path
    */
   private dfsDetectCycle(node: InternalNode, path: string[]): void {
     node.visited = true;
@@ -217,6 +219,7 @@ export class DependencyGraphBuilder {
 
   /**
    * Calculate priority based on number of dependents
+   * @param node
    */
   private calculatePriority(node: InternalNode): number {
     // Higher priority for nodes with more dependents
@@ -294,6 +297,7 @@ export class DependencyGraphBuilder {
 
   /**
    * Get direct dependencies for an issue
+   * @param issueId
    */
   public getDependencies(issueId: string): readonly string[] {
     const node = this.nodes.get(issueId);
@@ -302,6 +306,7 @@ export class DependencyGraphBuilder {
 
   /**
    * Get direct dependents for an issue
+   * @param issueId
    */
   public getDependents(issueId: string): readonly string[] {
     const node = this.nodes.get(issueId);
@@ -310,6 +315,8 @@ export class DependencyGraphBuilder {
 
   /**
    * Check if issue A depends on issue B (directly or transitively)
+   * @param issueA
+   * @param issueB
    */
   public dependsOn(issueA: string, issueB: string): boolean {
     const visited = new Set<string>();
@@ -340,6 +347,7 @@ export class DependencyGraphBuilder {
 
   /**
    * Get all transitive dependencies for an issue
+   * @param issueId
    */
   public getTransitiveDependencies(issueId: string): readonly string[] {
     const result = new Set<string>();

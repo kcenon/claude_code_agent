@@ -144,6 +144,7 @@ export class EffortEstimator {
 
   /**
    * Calculate estimation factors for a component
+   * @param component
    */
   private calculateFactors(component: SDSComponent): EstimationFactors {
     const complexity = this.analyzeComplexity(component);
@@ -161,6 +162,7 @@ export class EffortEstimator {
 
   /**
    * Analyze component complexity based on various factors
+   * @param component
    */
   private analyzeComplexity(component: SDSComponent): number {
     let score = this.minComplexity;
@@ -206,6 +208,7 @@ export class EffortEstimator {
 
   /**
    * Count total methods across all interfaces
+   * @param component
    */
   private countMethods(component: SDSComponent): number {
     return component.interfaces.reduce((sum, iface) => sum + iface.methods.length, 0);
@@ -213,6 +216,7 @@ export class EffortEstimator {
 
   /**
    * Calculate weighted score from factors
+   * @param factors
    */
   private calculateScore(factors: EstimationFactors): number {
     // Normalize each factor to 0-10 scale
@@ -233,6 +237,7 @@ export class EffortEstimator {
 
   /**
    * Convert score to effort size
+   * @param score
    */
   private scoreToSize(score: number): EffortSize {
     if (score < this.thresholds.xs) return 'XS';
@@ -244,6 +249,7 @@ export class EffortEstimator {
 
   /**
    * Get effort size description
+   * @param size
    */
   public static getSizeDescription(size: EffortSize): string {
     const descriptions: Record<EffortSize, string> = {
@@ -258,6 +264,8 @@ export class EffortEstimator {
 
   /**
    * Check if a component should be decomposed based on size
+   * @param component
+   * @param maxSize
    */
   public shouldDecompose(component: SDSComponent, maxSize: EffortSize = 'L'): boolean {
     const estimation = this.estimate(component);

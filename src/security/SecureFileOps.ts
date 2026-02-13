@@ -103,6 +103,9 @@ interface WatcherState {
   active: boolean;
 }
 
+/**
+ *
+ */
 export class SecureFileOps {
   private readonly resolver: PathResolver;
   private readonly enableAuditLog: boolean;
@@ -838,6 +841,12 @@ export class SecureFileOps {
 
   /**
    * Debounce file watch events
+   * @param watcherState
+   * @param watcherId
+   * @param relativePath
+   * @param absolutePath
+   * @param eventType
+   * @param debounceMs
    */
   private debounceWatchEvent(
     watcherState: WatcherState,
@@ -887,6 +896,7 @@ export class SecureFileOps {
 
   /**
    * Check if a path is within the security boundary
+   * @param absolutePath
    */
   private isPathWithinBoundary(absolutePath: string): boolean {
     try {
@@ -913,6 +923,10 @@ export class SecureFileOps {
 
   /**
    * Check if a filename matches the pattern filter
+   * @param filename
+   * @param patterns
+   * @param patterns.include
+   * @param patterns.exclude
    */
   private matchesPatternFilter(
     filename: string,
@@ -951,6 +965,8 @@ export class SecureFileOps {
   /**
    * Simple glob pattern matching for file names
    * Supports: * (any chars), ? (single char), ** (recursive)
+   * @param filename
+   * @param pattern
    */
   private matchGlob(filename: string, pattern: string): boolean {
     // Convert glob pattern to regex
@@ -966,6 +982,7 @@ export class SecureFileOps {
 
   /**
    * Validate that a symlink target is within allowed boundaries (sync)
+   * @param absolutePath
    */
   private validateSymlinkTargetSync(absolutePath: string): void {
     try {
@@ -989,6 +1006,9 @@ export class SecureFileOps {
 
   /**
    * Log file operation to audit log
+   * @param type
+   * @param resource
+   * @param action
    */
   private logFileOperation(type: AuditEventType, resource: string, action: string): void {
     if (!this.enableAuditLog) {

@@ -84,12 +84,18 @@ export class RegressionTesterAgent implements IAgent {
     };
   }
 
+  /**
+   *
+   */
   public async initialize(): Promise<void> {
     if (this.initialized) return;
     await Promise.resolve();
     this.initialized = true;
   }
 
+  /**
+   *
+   */
   public async dispose(): Promise<void> {
     await Promise.resolve();
     this.currentSession = null;
@@ -112,6 +118,9 @@ export class RegressionTesterAgent implements IAgent {
 
   /**
    * Start a new regression testing session
+   * @param projectId
+   * @param projectPath
+   * @param changedFiles
    */
   public async startSession(
     projectId: string,
@@ -305,6 +314,7 @@ export class RegressionTesterAgent implements IAgent {
 
   /**
    * Discover test files in the project
+   * @param projectPath
    */
   private async discoverTestFiles(projectPath: string): Promise<TestFile[]> {
     const testFiles: TestFile[] = [];
@@ -336,6 +346,7 @@ export class RegressionTesterAgent implements IAgent {
 
   /**
    * Detect test framework used in project
+   * @param projectPath
    */
   private async detectTestFramework(projectPath: string): Promise<TestFramework> {
     // Check package.json for Node.js projects
@@ -413,6 +424,8 @@ export class RegressionTesterAgent implements IAgent {
 
   /**
    * Load dependency graph from Codebase Analyzer output
+   * @param projectPath
+   * @param projectId
    */
   private async loadDependencyGraph(
     projectPath: string,
@@ -436,6 +449,9 @@ export class RegressionTesterAgent implements IAgent {
 
   /**
    * Build test-to-code mappings
+   * @param projectPath
+   * @param testFiles
+   * @param dependencyGraph
    */
   private async buildTestMappings(
     projectPath: string,
@@ -486,6 +502,9 @@ export class RegressionTesterAgent implements IAgent {
 
   /**
    * Identify tests affected by changed files
+   * @param changedFiles
+   * @param testMappings
+   * @param dependencyGraph
    */
   private identifyAffectedTests(
     changedFiles: readonly ChangedFile[],
@@ -554,6 +573,8 @@ export class RegressionTesterAgent implements IAgent {
 
   /**
    * Execute affected tests (synchronous mock implementation)
+   * @param affectedTests
+   * @param testFiles
    */
   private executeTests(
     affectedTests: readonly AffectedTest[],
@@ -629,6 +650,7 @@ export class RegressionTesterAgent implements IAgent {
 
   /**
    * Detect compatibility issues
+   * @param testExecution
    */
   private detectCompatibilityIssues(testExecution: TestExecutionSummary): CompatibilityIssue[] {
     const issues: CompatibilityIssue[] = [];
@@ -655,6 +677,9 @@ export class RegressionTesterAgent implements IAgent {
 
   /**
    * Generate recommendations
+   * @param testExecution
+   * @param compatibilityIssues
+   * @param coverageImpact
    */
   private generateRecommendations(
     testExecution: TestExecutionSummary,
@@ -702,6 +727,15 @@ export class RegressionTesterAgent implements IAgent {
 
   /**
    * Create regression report
+   * @param projectId
+   * @param changedFiles
+   * @param testFiles
+   * @param testMappings
+   * @param affectedTests
+   * @param testExecution
+   * @param coverageImpact
+   * @param compatibilityIssues
+   * @param recommendations
    */
   private createReport(
     projectId: string,
@@ -771,6 +805,9 @@ export class RegressionTesterAgent implements IAgent {
 
   /**
    * Save report to scratchpad
+   * @param projectPath
+   * @param projectId
+   * @param report
    */
   private async saveReport(
     projectPath: string,
@@ -1089,6 +1126,7 @@ export class RegressionTesterAgent implements IAgent {
 
 /**
  * Get singleton instance
+ * @param config
  */
 export function getRegressionTesterAgent(config?: RegressionTesterConfig): RegressionTesterAgent {
   if (instance === null) {

@@ -138,6 +138,7 @@ export class PrerequisiteValidator {
 
   /**
    * Add a custom prerequisite check
+   * @param check
    */
   addCheck(check: PrerequisiteCheck): void {
     this.checks.push(check);

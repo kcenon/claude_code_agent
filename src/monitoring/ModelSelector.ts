@@ -174,6 +174,7 @@ export class ModelSelector {
 
   /**
    * Select optimal model for a task
+   * @param task
    */
   public selectModel(task: TaskAnalysis): ModelSelectionResult {
     // Check for agent override
@@ -228,6 +229,7 @@ export class ModelSelector {
 
   /**
    * Get model profile
+   * @param model
    */
   public getModelProfile(model: ModelType): ModelProfile {
     return MODEL_PROFILES[model];
@@ -235,6 +237,8 @@ export class ModelSelector {
 
   /**
    * Estimate cost for a task with a specific model
+   * @param model
+   * @param task
    */
   public estimateCost(model: ModelType, task: TaskAnalysis): number {
     const profile = MODEL_PROFILES[model];
@@ -245,6 +249,11 @@ export class ModelSelector {
 
   /**
    * Analyze task complexity from content
+   * @param content
+   * @param options
+   * @param options.hasCodeGeneration
+   * @param options.hasReasoning
+   * @param options.requiresAccuracy
    */
   public analyzeComplexity(
     content: string,
@@ -284,6 +293,7 @@ export class ModelSelector {
 
   /**
    * Get recommended model for an agent type
+   * @param agentType
    */
   public getAgentRecommendation(agentType: string): ModelType {
     const recommendations: Record<string, ModelType> = {
@@ -304,6 +314,8 @@ export class ModelSelector {
 
   /**
    * Calculate model scores based on task requirements
+   * @param task
+   * @param minModel
    */
   private calculateModelScores(task: TaskAnalysis, minModel: ModelType): Record<ModelType, number> {
     const scores: Record<ModelType, number> = {
@@ -358,6 +370,8 @@ export class ModelSelector {
 
   /**
    * Get selection reason
+   * @param model
+   * @param task
    */
   private getSelectionReason(model: ModelType, task: TaskAnalysis): string {
     const profile = MODEL_PROFILES[model];
@@ -383,6 +397,10 @@ export class ModelSelector {
 
   /**
    * Create selection result
+   * @param model
+   * @param reason
+   * @param task
+   * @param confidence
    */
   private createResult(
     model: ModelType,
@@ -415,6 +433,9 @@ export class ModelSelector {
 
   /**
    * Get reason why alternative was not selected
+   * @param alt
+   * @param selected
+   * @param task
    */
   private getAlternativeReason(alt: ModelType, selected: ModelType, task: TaskAnalysis): string {
     const altProfile = MODEL_PROFILES[alt];
@@ -445,6 +466,7 @@ let globalModelSelector: ModelSelector | null = null;
 
 /**
  * Get or create the global ModelSelector instance
+ * @param config
  */
 export function getModelSelector(config?: ModelSelectorConfig): ModelSelector {
   if (globalModelSelector === null) {

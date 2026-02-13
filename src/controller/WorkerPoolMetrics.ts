@@ -125,6 +125,7 @@ export class WorkerPoolMetrics {
 
   /**
    * Set event callback for metrics events
+   * @param callback
    */
   public onEvent(callback: MetricsEventCallback): void {
     this.eventCallback = callback;
@@ -132,6 +133,8 @@ export class WorkerPoolMetrics {
 
   /**
    * Emit a metrics event
+   * @param type
+   * @param data
    */
   private emitEvent(type: MetricsEventType, data: Record<string, unknown>): void {
     if (this.eventCallback !== undefined) {
@@ -150,6 +153,10 @@ export class WorkerPoolMetrics {
 
   /**
    * Update pool state from WorkerPoolManager
+   * @param totalWorkers
+   * @param activeWorkers
+   * @param idleWorkers
+   * @param errorWorkers
    */
   public updatePoolState(
     totalWorkers: number,
@@ -176,6 +183,10 @@ export class WorkerPoolMetrics {
 
   /**
    * Update queue state
+   * @param depth
+   * @param maxCapacity
+   * @param deadLetterCount
+   * @param backpressureActive
    */
   public updateQueueState(
     depth: number,
@@ -210,6 +221,9 @@ export class WorkerPoolMetrics {
 
   /**
    * Record task start
+   * @param orderId
+   * @param issueId
+   * @param workerId
    */
   public recordTaskStart(orderId: string, issueId: string, workerId: string): void {
     if (!this.config.enabled) return;
@@ -229,6 +243,8 @@ export class WorkerPoolMetrics {
 
   /**
    * Record task completion
+   * @param orderId
+   * @param success
    */
   public recordTaskCompletion(orderId: string, success: boolean): void {
     if (!this.config.enabled) return;
@@ -373,6 +389,8 @@ export class WorkerPoolMetrics {
 
   /**
    * Calculate percentile from sorted array
+   * @param sortedArray
+   * @param p
    */
   private percentile(sortedArray: number[], p: number): number {
     if (sortedArray.length === 0) return 0;
@@ -391,6 +409,7 @@ export class WorkerPoolMetrics {
 
   /**
    * Get recent completion records
+   * @param limit
    */
   public getRecentCompletions(limit?: number): readonly TaskCompletionRecord[] {
     const records = this.completionRecords.map((r) => ({ ...r }));
@@ -656,6 +675,7 @@ export class WorkerPoolMetrics {
 
   /**
    * Export metrics in specified format
+   * @param format
    */
   public export(format: MetricsExportFormat): string {
     switch (format) {

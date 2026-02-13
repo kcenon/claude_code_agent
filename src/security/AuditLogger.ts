@@ -141,6 +141,7 @@ export class AuditLogger {
 
   /**
    * Write a log entry to file
+   * @param entry
    */
   private writeEntry(entry: AuditLogEntry): void {
     const line = JSON.stringify(entry) + '\n';
@@ -169,6 +170,7 @@ export class AuditLogger {
 
   /**
    * Format and log entry to console
+   * @param entry
    */
   private logToConsole(entry: AuditLogEntry): void {
     const icon = entry.result === 'success' ? '✓' : entry.result === 'blocked' ? '⛔' : '✗';
@@ -192,6 +194,9 @@ export class AuditLogger {
 
   /**
    * Log API key usage
+   * @param keyName
+   * @param actor
+   * @param success
    */
   public logApiKeyUsage(keyName: string, actor: string, success: boolean): void {
     this.log({
@@ -205,6 +210,9 @@ export class AuditLogger {
 
   /**
    * Log GitHub issue creation
+   * @param issueNumber
+   * @param repo
+   * @param actor
    */
   public logGitHubIssueCreated(issueNumber: number, repo: string, actor: string): void {
     this.log({
@@ -218,6 +226,9 @@ export class AuditLogger {
 
   /**
    * Log GitHub PR creation
+   * @param prNumber
+   * @param repo
+   * @param actor
    */
   public logGitHubPRCreated(prNumber: number, repo: string, actor: string): void {
     this.log({
@@ -231,6 +242,9 @@ export class AuditLogger {
 
   /**
    * Log GitHub PR merge
+   * @param prNumber
+   * @param repo
+   * @param actor
    */
   public logGitHubPRMerged(prNumber: number, repo: string, actor: string): void {
     this.log({
@@ -244,6 +258,8 @@ export class AuditLogger {
 
   /**
    * Log file creation
+   * @param filePath
+   * @param actor
    */
   public logFileCreated(filePath: string, actor: string): void {
     this.log({
@@ -257,6 +273,8 @@ export class AuditLogger {
 
   /**
    * Log file deletion
+   * @param filePath
+   * @param actor
    */
   public logFileDeleted(filePath: string, actor: string): void {
     this.log({
@@ -270,6 +288,8 @@ export class AuditLogger {
 
   /**
    * Log file modification
+   * @param filePath
+   * @param actor
    */
   public logFileModified(filePath: string, actor: string): void {
     this.log({
@@ -283,6 +303,8 @@ export class AuditLogger {
 
   /**
    * Log secret access
+   * @param secretName
+   * @param actor
    */
   public logSecretAccessed(secretName: string, actor: string): void {
     this.log({
@@ -296,6 +318,9 @@ export class AuditLogger {
 
   /**
    * Log validation failure
+   * @param field
+   * @param actor
+   * @param details
    */
   public logValidationFailed(
     field: string,
@@ -318,6 +343,9 @@ export class AuditLogger {
 
   /**
    * Log security violation
+   * @param violationType
+   * @param actor
+   * @param details
    */
   public logSecurityViolation(
     violationType: string,
@@ -371,6 +399,7 @@ export class AuditLogger {
 
   /**
    * Set the session ID
+   * @param sessionId
    */
   public setSessionId(sessionId: string): void {
     this.sessionId = sessionId;

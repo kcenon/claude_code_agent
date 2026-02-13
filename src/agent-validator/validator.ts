@@ -37,6 +37,8 @@ const FRONTMATTER_REGEX = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/;
 
 /**
  * Parse frontmatter from markdown content
+ * @param content
+ * @param filePath
  */
 function parseFrontmatter(
   content: string,
@@ -63,6 +65,8 @@ function parseFrontmatter(
 
 /**
  * Format Zod errors into validation errors
+ * @param error
+ * @param filePath
  */
 function formatZodErrors(error: ZodError, filePath: string): AgentValidationError[] {
   return error.issues.map((issue) => ({
@@ -78,6 +82,8 @@ function formatZodErrors(error: ZodError, filePath: string): AgentValidationErro
 
 /**
  * Validate frontmatter against schema
+ * @param data
+ * @param filePath
  */
 function validateFrontmatter(data: unknown, filePath: string): AgentFrontmatter {
   const result = AgentFrontmatterSchema.safeParse(data);
@@ -91,6 +97,8 @@ function validateFrontmatter(data: unknown, filePath: string): AgentFrontmatter 
 
 /**
  * Check for recommended sections in markdown content
+ * @param content
+ * @param filePath
  */
 function checkRecommendedSections(content: string, filePath: string): AgentValidationError[] {
   const warnings: AgentValidationError[] = [];
@@ -110,6 +118,7 @@ function checkRecommendedSections(content: string, filePath: string): AgentValid
 
 /**
  * Load and validate agent registry (agents.yaml)
+ * @param registryPath
  */
 function loadAgentRegistry(registryPath: string): Map<string, string> {
   const registry = new Map<string, string>();
@@ -136,6 +145,9 @@ function loadAgentRegistry(registryPath: string): Map<string, string> {
 
 /**
  * Check if agent is registered in agents.yaml
+ * @param agentName
+ * @param filePath
+ * @param registry
  */
 function checkRegistryConsistency(
   agentName: string,
@@ -178,6 +190,8 @@ function checkRegistryConsistency(
 
 /**
  * Validate a single agent definition file
+ * @param filePath
+ * @param options
  */
 export function validateAgentFile(
   filePath: string,
@@ -267,6 +281,7 @@ export function validateAgentFile(
 
 /**
  * Validate all agent definition files in a directory
+ * @param options
  */
 export function validateAllAgents(options: ValidateAgentOptions = {}): AgentValidationReport {
   const agentsDir =
@@ -321,6 +336,7 @@ export function validateAllAgents(options: ValidateAgentOptions = {}): AgentVali
 
 /**
  * Format validation report as string
+ * @param report
  */
 export function formatValidationReport(report: AgentValidationReport): string {
   const lines: string[] = [];

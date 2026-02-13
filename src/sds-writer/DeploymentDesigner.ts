@@ -136,6 +136,8 @@ export class DeploymentDesigner {
 
   /**
    * Determine deployment pattern based on components and NFRs
+   * @param components
+   * @param nfrs
    */
   private determinePattern(
     components: readonly SDSComponent[],
@@ -178,6 +180,7 @@ export class DeploymentDesigner {
 
   /**
    * Generate environment specifications
+   * @param nfrs
    */
   private generateEnvironments(nfrs: readonly ParsedNFR[]): EnvironmentSpec[] {
     const environments: EnvironmentSpec[] = [];
@@ -212,6 +215,7 @@ export class DeploymentDesigner {
 
   /**
    * Derive production infrastructure details from NFRs
+   * @param nfrText
    */
   private deriveProductionInfrastructure(nfrText: string): string {
     const features: string[] = [];
@@ -245,6 +249,7 @@ export class DeploymentDesigner {
 
   /**
    * Generate scaling strategy from NFRs
+   * @param nfrs
    */
   private generateScalingStrategy(nfrs: readonly ParsedNFR[]): ScalingSpec {
     const nfrText = nfrs.map((n) => n.description.toLowerCase()).join(' ');
@@ -291,6 +296,7 @@ export class DeploymentDesigner {
 
   /**
    * Extract instance limits from NFR text
+   * @param nfrText
    */
   private extractInstanceLimits(nfrText: string): {
     minInstances: number;
@@ -317,6 +323,8 @@ export class DeploymentDesigner {
 
   /**
    * Generate configuration specifications from components and NFRs
+   * @param components
+   * @param nfrs
    */
   private generateConfigurations(
     components: readonly SDSComponent[],
@@ -380,6 +388,7 @@ export class DeploymentDesigner {
 
   /**
    * Extract configurations from NFRs
+   * @param nfrs
    */
   private extractNFRConfigurations(nfrs: readonly ParsedNFR[]): ConfigurationSpec[] {
     const configs: ConfigurationSpec[] = [];
@@ -453,6 +462,7 @@ export class DeploymentDesigner {
 
   /**
    * Extract configurations from components
+   * @param components
    */
   private extractComponentConfigurations(components: readonly SDSComponent[]): ConfigurationSpec[] {
     const configs: ConfigurationSpec[] = [];
@@ -525,6 +535,9 @@ export class DeploymentDesigner {
 
   /**
    * Generate infrastructure diagram in mermaid format
+   * @param pattern
+   * @param components
+   * @param configurations
    */
   private generateInfrastructureDiagram(
     pattern: DeploymentSpec['pattern'],
@@ -598,6 +611,7 @@ export class DeploymentDesigner {
 
   /**
    * Group components into logical services
+   * @param components
    */
   private groupComponentsIntoServices(components: readonly SDSComponent[]): string[] {
     const services = new Set<string>();
@@ -623,6 +637,7 @@ export class DeploymentDesigner {
 
   /**
    * Detect external services from configurations
+   * @param configurations
    */
   private detectExternalServices(
     configurations: readonly ConfigurationSpec[]
@@ -654,6 +669,9 @@ export class DeploymentDesigner {
 
   /**
    * Validate design and collect warnings
+   * @param components
+   * @param nfrs
+   * @param warnings
    */
   private validateDesign(
     components: readonly SDSComponent[],
@@ -687,6 +705,7 @@ export class DeploymentDesigner {
 
   /**
    * Generate deployment specification as markdown
+   * @param result
    */
   public toMarkdown(result: DeploymentDesignResult): string {
     const lines: string[] = [];

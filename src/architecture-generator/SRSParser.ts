@@ -98,6 +98,7 @@ export class SRSParser {
 
   /**
    * Parse an SRS file from the given path
+   * @param filePath
    */
   public parseFile(filePath: string): ParsedSRS {
     if (!fs.existsSync(filePath)) {
@@ -110,6 +111,7 @@ export class SRSParser {
 
   /**
    * Parse SRS content string
+   * @param content
    */
   public parse(content: string): ParsedSRS {
     const errors: string[] = [];
@@ -135,6 +137,8 @@ export class SRSParser {
 
   /**
    * Parse document metadata from the header table
+   * @param content
+   * @param errors
    */
   private parseMetadata(content: string, errors: string[]): SRSMetadata {
     const metadataSection = this.extractSection(content, '# SRS:', '## ') ?? '';
@@ -168,6 +172,7 @@ export class SRSParser {
 
   /**
    * Extract document ID from content
+   * @param content
    */
   private extractDocumentId(content: string): string | undefined {
     const match = content.match(/SRS-(\w+)/);
@@ -176,6 +181,7 @@ export class SRSParser {
 
   /**
    * Extract product name from title
+   * @param content
    */
   private extractProductName(content: string): string | undefined {
     const match = content.match(/^#\s+SRS:\s*(.+)$/m);
@@ -184,6 +190,8 @@ export class SRSParser {
 
   /**
    * Parse system features from the document
+   * @param content
+   * @param errors
    */
   private parseFeatures(content: string, errors: string[]): SRSFeature[] {
     const features: SRSFeature[] = [];
@@ -210,6 +218,8 @@ export class SRSParser {
 
   /**
    * Parse a single feature block
+   * @param block
+   * @param errors
    */
   private parseFeatureBlock(block: string, errors: string[]): SRSFeature | null {
     const headerMatch = block.match(FEATURE_HEADER_REGEX);
@@ -236,6 +246,8 @@ export class SRSParser {
 
   /**
    * Parse use cases from a feature block
+   * @param featureBlock
+   * @param errors
    */
   private parseUseCases(featureBlock: string, errors: string[]): SRSUseCase[] {
     const useCases: SRSUseCase[] = [];
@@ -253,6 +265,8 @@ export class SRSParser {
 
   /**
    * Parse a single use case block
+   * @param block
+   * @param _errors
    */
   private parseUseCaseBlock(block: string, _errors: string[]): SRSUseCase | null {
     const headerMatch = block.match(USE_CASE_HEADER_REGEX);
@@ -283,6 +297,8 @@ export class SRSParser {
 
   /**
    * Parse non-functional requirements
+   * @param content
+   * @param errors
    */
   private parseNFRs(content: string, errors: string[]): NonFunctionalRequirement[] {
     const nfrs: NonFunctionalRequirement[] = [];
@@ -306,6 +322,8 @@ export class SRSParser {
 
   /**
    * Parse a single NFR block
+   * @param block
+   * @param _errors
    */
   private parseNFRBlock(block: string, _errors: string[]): NonFunctionalRequirement | null {
     const headerMatch = block.match(NFR_HEADER_REGEX);
@@ -331,6 +349,8 @@ export class SRSParser {
 
   /**
    * Infer NFR category from name and description
+   * @param name
+   * @param description
    */
   private inferNFRCategory(name: string, description: string): NFRCategory {
     const text = `${name} ${description}`.toLowerCase();
@@ -346,6 +366,8 @@ export class SRSParser {
 
   /**
    * Parse constraints
+   * @param content
+   * @param errors
    */
   private parseConstraints(content: string, errors: string[]): Constraint[] {
     const constraints: Constraint[] = [];
@@ -369,6 +391,8 @@ export class SRSParser {
 
   /**
    * Parse a single constraint block
+   * @param block
+   * @param _errors
    */
   private parseConstraintBlock(block: string, _errors: string[]): Constraint | null {
     const headerMatch = block.match(CONSTRAINT_HEADER_REGEX);
@@ -393,6 +417,8 @@ export class SRSParser {
 
   /**
    * Infer constraint type from name and description
+   * @param name
+   * @param description
    */
   private inferConstraintType(name: string, description: string): ConstraintType {
     const text = `${name} ${description}`.toLowerCase();
@@ -408,6 +434,7 @@ export class SRSParser {
 
   /**
    * Parse assumptions section
+   * @param content
    */
   private parseAssumptions(content: string): string[] {
     const assumptionSection = this.extractSection(content, '## Assumptions', '## ');
@@ -425,6 +452,9 @@ export class SRSParser {
 
   /**
    * Extract a section between two headers
+   * @param content
+   * @param startHeader
+   * @param endPattern
    */
   private extractSection(
     content: string,
@@ -445,6 +475,8 @@ export class SRSParser {
 
   /**
    * Split content by header pattern
+   * @param content
+   * @param headerPattern
    */
   private splitByHeaders(content: string, headerPattern: RegExp): string[] {
     const blocks: string[] = [];
@@ -469,6 +501,7 @@ export class SRSParser {
 
   /**
    * Extract description (first paragraph after header)
+   * @param block
    */
   private extractDescription(block: string): string {
     const lines = block.split('\n');
@@ -505,6 +538,7 @@ export class SRSParser {
 
   /**
    * Extract priority from block
+   * @param block
    */
   private extractPriority(block: string): 'P0' | 'P1' | 'P2' | 'P3' {
     const match = block.match(PRIORITY_REGEX);
@@ -516,6 +550,8 @@ export class SRSParser {
 
   /**
    * Extract a specific field value
+   * @param block
+   * @param fieldName
    */
   private extractField(block: string, fieldName: string): string | undefined {
     const regex = new RegExp(`\\*\\*${fieldName}\\*\\*[:\\s]+(.+)`, 'i');
@@ -525,6 +561,8 @@ export class SRSParser {
 
   /**
    * Extract a list under a specific header
+   * @param block
+   * @param headerName
    */
   private extractList(block: string, headerName: string): string[] {
     const regex = new RegExp(`\\*\\*${headerName}\\*\\*[:\\s]*([\\s\\S]*?)(?=\\*\\*|$)`, 'i');
@@ -539,6 +577,7 @@ export class SRSParser {
 
   /**
    * Extract bullet list items
+   * @param content
    */
   private extractBulletList(content: string): string[] {
     const items: string[] = [];
@@ -559,6 +598,7 @@ export class SRSParser {
 
   /**
    * Extract NFR references from feature block
+   * @param block
    */
   private extractNFRReferences(block: string): string[] {
     const references: string[] = [];

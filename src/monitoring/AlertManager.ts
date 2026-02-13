@@ -142,6 +142,7 @@ export class AlertManager {
 
   /**
    * Register a custom alert definition
+   * @param alert
    */
   public registerAlert(alert: AlertDefinition): void {
     this.alerts.set(alert.name, alert);
@@ -149,6 +150,7 @@ export class AlertManager {
 
   /**
    * Unregister an alert definition
+   * @param name
    */
   public unregisterAlert(name: string): boolean {
     return this.alerts.delete(name);
@@ -156,6 +158,7 @@ export class AlertManager {
 
   /**
    * Get an alert definition by name
+   * @param name
    */
   public getAlert(name: string): AlertDefinition | undefined {
     return this.alerts.get(name);
@@ -170,6 +173,7 @@ export class AlertManager {
 
   /**
    * Register an alert handler
+   * @param handler
    */
   public addHandler(handler: AlertHandler): void {
     this.handlers.push(handler);
@@ -177,6 +181,7 @@ export class AlertManager {
 
   /**
    * Remove an alert handler
+   * @param handler
    */
   public removeHandler(handler: AlertHandler): boolean {
     const index = this.handlers.indexOf(handler);
@@ -189,6 +194,7 @@ export class AlertManager {
 
   /**
    * Check if alert is in cooldown
+   * @param alertName
    */
   private isInCooldown(alertName: string): boolean {
     const lastTime = this.lastFired.get(alertName);
@@ -202,6 +208,10 @@ export class AlertManager {
 
   /**
    * Fire an alert
+   * @param name
+   * @param message
+   * @param context
+   * @param severityOverride
    */
   public fire(
     name: string,
@@ -245,6 +255,10 @@ export class AlertManager {
 
   /**
    * Fire an ad-hoc alert without a definition
+   * @param name
+   * @param message
+   * @param severity
+   * @param context
    */
   public fireAdHoc(
     name: string,
@@ -275,6 +289,9 @@ export class AlertManager {
 
   /**
    * Fire a critical alert
+   * @param name
+   * @param message
+   * @param context
    */
   public critical(name: string, message: string, context?: Record<string, unknown>): boolean {
     return this.fire(name, message, context, 'critical');
@@ -282,6 +299,9 @@ export class AlertManager {
 
   /**
    * Fire a warning alert
+   * @param name
+   * @param message
+   * @param context
    */
   public warning(name: string, message: string, context?: Record<string, unknown>): boolean {
     return this.fire(name, message, context, 'warning');
@@ -289,6 +309,9 @@ export class AlertManager {
 
   /**
    * Fire an info alert
+   * @param name
+   * @param message
+   * @param context
    */
   public info(name: string, message: string, context?: Record<string, unknown>): boolean {
     return this.fire(name, message, context, 'info');
@@ -296,6 +319,8 @@ export class AlertManager {
 
   /**
    * Resolve an alert
+   * @param name
+   * @param message
    */
   public resolve(name: string, message?: string): void {
     // Remove from unacknowledged alerts
@@ -314,6 +339,7 @@ export class AlertManager {
 
   /**
    * Process an alert event
+   * @param event
    */
   private processAlert(event: AlertEvent): void {
     // Add to history
@@ -342,6 +368,7 @@ export class AlertManager {
 
   /**
    * Log alert to console
+   * @param event
    */
   private logToConsole(event: AlertEvent): void {
     const isResolved = event.resolved === true;
@@ -367,6 +394,7 @@ export class AlertManager {
 
   /**
    * Write alert to file
+   * @param event
    */
   private writeAlertToFile(event: AlertEvent): void {
     const filename = path.join(this.alertsDir, 'alerts.jsonl');
@@ -380,6 +408,7 @@ export class AlertManager {
 
   /**
    * Get alert history
+   * @param limit
    */
   public getHistory(limit?: number): AlertEvent[] {
     const entries = [...this.history].reverse();
@@ -388,6 +417,8 @@ export class AlertManager {
 
   /**
    * Get alerts by severity
+   * @param severity
+   * @param limit
    */
   public getAlertsBySeverity(severity: AlertSeverity, limit = 50): AlertEvent[] {
     return this.history
@@ -505,6 +536,9 @@ export class AlertManager {
 
   /**
    * Escalate an alert
+   * @param alertName
+   * @param event
+   * @param escalation
    */
   private escalateAlert(
     alertName: string,
@@ -541,6 +575,7 @@ export class AlertManager {
 
   /**
    * Acknowledge an alert to prevent further escalation
+   * @param alertName
    */
   public acknowledge(alertName: string): boolean {
     const event = this.unacknowledgedAlerts.get(alertName);
@@ -579,6 +614,7 @@ export class AlertManager {
 
   /**
    * Get unacknowledged alerts that need escalation soon
+   * @param withinMs
    */
   public getAlertsNeedingEscalation(withinMs: number): AlertEventWithEscalation[] {
     const now = Date.now();
@@ -608,6 +644,10 @@ export class AlertManager {
 
   /**
    * Create a type-safe alert condition
+   * @param metric
+   * @param operator
+   * @param threshold
+   * @param unit
    */
   public static createCondition(
     metric: AlertConditionTyped['metric'],
@@ -624,6 +664,7 @@ export class AlertManager {
 
   /**
    * Parse a legacy condition string to typed condition
+   * @param condition
    */
   public static parseConditionString(condition: string): AlertConditionTyped | null {
     // Pattern: metric operator value[unit]
@@ -671,6 +712,7 @@ export class AlertManager {
 
   /**
    * Normalize operator string to typed operator
+   * @param op
    */
   private static normalizeOperator(op: string): AlertConditionTyped['operator'] | null {
     const normalized = op.trim();
@@ -690,6 +732,8 @@ export class AlertManager {
 
   /**
    * Evaluate a typed condition against current metrics
+   * @param condition
+   * @param metrics
    */
   public evaluateCondition(
     condition: AlertConditionTyped,
@@ -738,6 +782,10 @@ export class AlertManager {
 
   /**
    * Fire an alert if its typed condition evaluates to true
+   * @param name
+   * @param message
+   * @param metrics
+   * @param context
    */
   public fireIfConditionMet(
     name: string,
@@ -767,6 +815,14 @@ export class AlertManager {
 
   /**
    * Register an alert with type-safe condition
+   * @param name
+   * @param description
+   * @param severity
+   * @param condition
+   * @param options
+   * @param options.windowMs
+   * @param options.cooldownMs
+   * @param options.escalation
    */
   public registerTypedAlert(
     name: string,
@@ -818,6 +874,7 @@ let globalAlertManager: AlertManager | null = null;
 
 /**
  * Get or create the global AlertManager instance
+ * @param options
  */
 export function getAlertManager(options?: AlertManagerOptions): AlertManager {
   if (globalAlertManager === null) {

@@ -118,6 +118,7 @@ export class SelfVerificationAgent {
 
   /**
    * Run a single verification step with retry attempts
+   * @param step
    */
   private async runStepWithRetry(step: VerificationStep): Promise<VerificationStepResult> {
     let lastResult = await this.runStep(step);
@@ -145,6 +146,7 @@ export class SelfVerificationAgent {
 
   /**
    * Run a single verification step
+   * @param step
    */
   public async runStep(step: VerificationStep): Promise<VerificationStepResult> {
     const startTime = Date.now();
@@ -172,6 +174,9 @@ export class SelfVerificationAgent {
 
   /**
    * Attempt to fix a failed verification step
+   * @param step
+   * @param stepResult
+   * @param iteration
    */
   private async attemptFix(
     step: VerificationStep,
@@ -232,6 +237,8 @@ export class SelfVerificationAgent {
 
   /**
    * Analyze verification output to suggest fixes
+   * @param step
+   * @param output
    */
   public analyzeError(step: VerificationStep, output: string): FixSuggestion[] {
     const suggestions: FixSuggestion[] = [];
@@ -276,6 +283,8 @@ export class SelfVerificationAgent {
 
   /**
    * Parse errors from verification output
+   * @param step
+   * @param output
    */
   public parseErrors(step: VerificationStep, output: string): VerificationError[] {
     const errors: VerificationError[] = [];
@@ -365,6 +374,7 @@ export class SelfVerificationAgent {
 
   /**
    * Get a fix suggestion for a specific error
+   * @param error
    */
   private getSuggestionForError(error: VerificationError): FixSuggestion | null {
     // Common patterns that can be auto-fixed
@@ -408,6 +418,8 @@ export class SelfVerificationAgent {
 
   /**
    * Parse error and warning counts from output
+   * @param step
+   * @param output
    */
   private parseOutputCounts(
     step: VerificationStep,
@@ -461,6 +473,7 @@ export class SelfVerificationAgent {
 
   /**
    * Get the command for a verification step
+   * @param step
    */
   private getCommandForStep(step: VerificationStep): string {
     switch (step) {
@@ -478,6 +491,7 @@ export class SelfVerificationAgent {
   /**
    * Run a shell command with timeout using safe execution
    * Uses execFile to bypass shell and prevent command injection
+   * @param command
    */
   private async runCommand(command: string): Promise<CommandResult> {
     const sanitizer = getCommandSanitizer();
@@ -516,6 +530,7 @@ export class SelfVerificationAgent {
 
   /**
    * Determine the final status based on failed steps
+   * @param failedSteps
    */
   private determineFinalStatus(failedSteps: readonly VerificationStep[]): SelfVerificationStatus {
     if (failedSteps.length === 0) {
@@ -537,6 +552,7 @@ export class SelfVerificationAgent {
 
   /**
    * Analyze failures to provide a summary for escalation
+   * @param failedSteps
    */
   private analyzeFailures(failedSteps: readonly VerificationStep[]): string {
     const analyses: string[] = [];
@@ -566,6 +582,11 @@ export class SelfVerificationAgent {
 
   /**
    * Build the verification report
+   * @param taskId
+   * @param finalStatus
+   * @param totalDurationMs
+   * @param failedSteps
+   * @param errorLogs
    */
   private buildReport(
     taskId: string,

@@ -106,6 +106,8 @@ export class StateHistoryManager implements IStateHistory {
 
   /**
    * Get history file path
+   * @param section
+   * @param projectId
    */
   private getHistoryPath(section: ScratchpadSection, projectId: string): string {
     return path.join(this.scratchpad.getProjectPath(section, projectId), STATE_HISTORY_FILE);
@@ -113,6 +115,7 @@ export class StateHistoryManager implements IStateHistory {
 
   /**
    * Get checkpoints file path
+   * @param projectId
    */
   private getCheckpointsPath(projectId: string): string {
     return path.join(this.scratchpad.getProjectPath('progress', projectId), CHECKPOINTS_FILE);
@@ -120,6 +123,7 @@ export class StateHistoryManager implements IStateHistory {
 
   /**
    * Get recovery audit file path
+   * @param projectId
    */
   private getAuditPath(projectId: string): string {
     return path.join(this.scratchpad.getProjectPath('progress', projectId), RECOVERY_AUDIT_FILE);
@@ -161,6 +165,12 @@ export class StateHistoryManager implements IStateHistory {
    * @param initialValue - Initial value for the history
    */
   /* eslint-disable @typescript-eslint/no-unnecessary-type-parameters */
+  /**
+   *
+   * @param projectId
+   * @param section
+   * @param initialValue
+   */
   async initializeHistory<T>(
     projectId: string,
     section: ScratchpadSection,

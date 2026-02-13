@@ -259,6 +259,8 @@ export const LOG_LEVEL_PRIORITY: Record<LogLevel, number> = {
 
 /**
  * Check if a log level meets the minimum level requirement
+ * @param level
+ * @param minLevel
  */
 export function shouldLog(level: LogLevel, minLevel: LogLevel): boolean {
   return LOG_LEVEL_PRIORITY[level] >= LOG_LEVEL_PRIORITY[minLevel];

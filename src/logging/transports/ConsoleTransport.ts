@@ -141,6 +141,7 @@ export class ConsoleTransport extends BaseTransport {
 
   /**
    * Format a log entry for output
+   * @param entry
    */
   private formatEntry(entry: TransportLogEntry): string {
     if (this.format === 'json') {
@@ -151,6 +152,7 @@ export class ConsoleTransport extends BaseTransport {
 
   /**
    * Format entry as JSON
+   * @param entry
    */
   private formatAsJson(entry: TransportLogEntry): string {
     const jsonEntry: Record<string, unknown> = {
@@ -208,6 +210,7 @@ export class ConsoleTransport extends BaseTransport {
 
   /**
    * Format entry as pretty-printed output
+   * @param entry
    */
   private formatAsPretty(entry: TransportLogEntry): string {
     const parts: string[] = [];
@@ -288,6 +291,8 @@ export class ConsoleTransport extends BaseTransport {
 
   /**
    * Write output to console based on log level
+   * @param level
+   * @param output
    */
   private writeToConsole(level: LogLevel, output: string): void {
     switch (level) {

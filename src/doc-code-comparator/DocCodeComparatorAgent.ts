@@ -201,12 +201,18 @@ export class DocCodeComparatorAgent implements IAgent {
     this.config = { ...DEFAULT_DOC_CODE_COMPARATOR_CONFIG, ...config };
   }
 
+  /**
+   *
+   */
   public async initialize(): Promise<void> {
     if (this.initialized) return;
     await loadYaml();
     this.initialized = true;
   }
 
+  /**
+   *
+   */
   public async dispose(): Promise<void> {
     await Promise.resolve();
     this.session = null;
@@ -216,6 +222,7 @@ export class DocCodeComparatorAgent implements IAgent {
 
   /**
    * Start a new comparison session
+   * @param projectId
    */
   public async startSession(projectId: string): Promise<ComparisonSession> {
     await loadYaml();
@@ -239,6 +246,8 @@ export class DocCodeComparatorAgent implements IAgent {
 
   /**
    * Run the comparison process
+   * @param documentInventoryPath
+   * @param codeInventoryPath
    */
   public async compare(
     documentInventoryPath?: string,
@@ -1135,6 +1144,7 @@ let globalDocCodeComparatorAgent: DocCodeComparatorAgent | null = null;
 
 /**
  * Get the global Doc-Code Comparator Agent instance
+ * @param config
  */
 export function getDocCodeComparatorAgent(
   config?: DocCodeComparatorConfig

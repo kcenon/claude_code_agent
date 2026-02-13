@@ -51,6 +51,9 @@ export class QualityGate {
 
   /**
    * Evaluate quality metrics against quality gates
+   * @param metrics
+   * @param checks
+   * @param comments
    */
   public evaluate(
     metrics: QualityMetrics,
@@ -83,6 +86,11 @@ export class QualityGate {
 
   /**
    * Evaluate required quality gates
+   * @param metrics
+   * @param checks
+   * @param comments
+   * @param gates
+   * @param failures
    */
   private evaluateRequiredGates(
     metrics: QualityMetrics,
@@ -153,6 +161,11 @@ export class QualityGate {
 
   /**
    * Evaluate recommended quality gates
+   * @param metrics
+   * @param _checks
+   * @param comments
+   * @param gates
+   * @param warnings
    */
   private evaluateRecommendedGates(
     metrics: QualityMetrics,
@@ -207,6 +220,8 @@ export class QualityGate {
 
   /**
    * Count comments by severity
+   * @param comments
+   * @param severity
    */
   private countBySeverity(comments: readonly ReviewComment[], severity: CommentSeverity): number {
     return comments.filter((c) => c.severity === severity && !c.resolved).length;
@@ -214,6 +229,7 @@ export class QualityGate {
 
   /**
    * Get human-readable summary of gate evaluation
+   * @param result
    */
   public getSummary(result: QualityGateResult): string {
     const lines: string[] = [];

@@ -147,6 +147,8 @@ function resolveEnvVarsInObject<T>(obj: T): T {
 
 /**
  * Get environment variable value with type conversion
+ * @param key
+ * @param type
  */
 function getEnvValue(key: string, type: 'string'): string | undefined;
 function getEnvValue(key: string, type: 'number'): number | undefined;
@@ -168,6 +170,7 @@ function getEnvValue(key: string, type: 'string' | 'number'): string | number | 
 
 /**
  * Get the configuration file path
+ * @param baseDir
  */
 function getConfigFilePath(baseDir?: string): string {
   const root = baseDir ?? tryGetProjectRoot() ?? process.cwd();
@@ -176,6 +179,7 @@ function getConfigFilePath(baseDir?: string): string {
 
 /**
  * Load raw scratchpad config from workflow.yaml
+ * @param baseDir
  */
 async function loadRawConfig(baseDir?: string): Promise<RawScratchpadConfig | undefined> {
   const filePath = getConfigFilePath(baseDir);
@@ -196,6 +200,7 @@ async function loadRawConfig(baseDir?: string): Promise<RawScratchpadConfig | un
 
 /**
  * Remove undefined values from an object
+ * @param obj
  */
 function removeUndefined<T extends Record<string, unknown>>(obj: T): Partial<T> {
   const result: Partial<T> = {};
@@ -209,6 +214,7 @@ function removeUndefined<T extends Record<string, unknown>>(obj: T): Partial<T> 
 
 /**
  * Convert snake_case raw config to camelCase ScratchpadBackendConfig
+ * @param raw
  */
 function convertToBackendConfig(raw: RawScratchpadConfig): ScratchpadBackendConfig {
   const config: Record<string, unknown> = {};
@@ -304,6 +310,7 @@ function convertToBackendConfig(raw: RawScratchpadConfig): ScratchpadBackendConf
 
 /**
  * Apply environment variable overrides to config
+ * @param config
  */
 function applyEnvVarOverrides(config: ScratchpadBackendConfig): ScratchpadBackendConfig {
   const result: Record<string, unknown> = { ...config };

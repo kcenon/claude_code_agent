@@ -103,12 +103,18 @@ export class CIFixAgent implements IAgent {
     });
   }
 
+  /**
+   *
+   */
   public async initialize(): Promise<void> {
     if (this.initialized) return;
     await Promise.resolve();
     this.initialized = true;
   }
 
+  /**
+   *
+   */
   public async dispose(): Promise<void> {
     await Promise.resolve();
     this.initialized = false;
@@ -234,6 +240,7 @@ export class CIFixAgent implements IAgent {
 
   /**
    * Read handoff document
+   * @param handoffPath
    */
   private async readHandoff(handoffPath: string): Promise<CIFixHandoff> {
     if (!existsSync(handoffPath)) {
@@ -250,6 +257,11 @@ export class CIFixAgent implements IAgent {
 
   /**
    * Create initial handoff for a PR
+   * @param prNumber
+   * @param options
+   * @param options.branch
+   * @param options.originalIssue
+   * @param options.implementationSummary
    */
   private async createInitialHandoff(
     prNumber: number,
@@ -287,6 +299,7 @@ export class CIFixAgent implements IAgent {
 
   /**
    * Persist handoff document
+   * @param handoff
    */
   private async persistHandoff(handoff: CIFixHandoff): Promise<string> {
     const handoffDir = join(this.config.projectRoot, this.config.resultsPath);
@@ -304,6 +317,7 @@ export class CIFixAgent implements IAgent {
 
   /**
    * Fetch and analyze CI logs
+   * @param handoff
    */
   private async fetchAndAnalyzeLogs(handoff: CIFixHandoff): Promise<CIAnalysisResult> {
     let allLogs = '';
@@ -335,6 +349,7 @@ export class CIFixAgent implements IAgent {
 
   /**
    * Fetch CI logs for a run
+   * @param runId
    */
   private async fetchCILogs(runId: number): Promise<string> {
     try {
@@ -347,6 +362,7 @@ export class CIFixAgent implements IAgent {
 
   /**
    * Fetch workflow logs for a PR
+   * @param prNumber
    */
   private async fetchWorkflowLogs(prNumber: number): Promise<string> {
     const result = await this.executeCommand(
@@ -357,6 +373,8 @@ export class CIFixAgent implements IAgent {
 
   /**
    * Apply fixes based on analysis
+   * @param analysis
+   * @param _handoff
    */
   private async applyFixes(
     analysis: CIAnalysisResult,
@@ -375,6 +393,8 @@ export class CIFixAgent implements IAgent {
 
   /**
    * Commit and push fixes
+   * @param handoff
+   * @param fixes
    */
   private async commitAndPush(
     handoff: CIFixHandoff,
@@ -434,6 +454,8 @@ Fixes applied by CI Fix Agent for PR #${String(handoff.prNumber)}`;
 
   /**
    * Determine fix outcome
+   * @param verification
+   * @param analysis
    */
   private determineOutcome(
     verification: VerificationResult,
@@ -467,6 +489,10 @@ Fixes applied by CI Fix Agent for PR #${String(handoff.prNumber)}`;
 
   /**
    * Determine next action
+   * @param handoff
+   * @param outcome
+   * @param _analysis
+   * @param verification
    */
   private determineNextAction(
     handoff: CIFixHandoff,
@@ -513,6 +539,8 @@ Fixes applied by CI Fix Agent for PR #${String(handoff.prNumber)}`;
 
   /**
    * Check if progress was made compared to previous attempts
+   * @param previousAttempts
+   * @param currentVerification
    */
   private hasProgress(
     previousAttempts: readonly CIFixAttempt[],
@@ -543,6 +571,8 @@ Fixes applied by CI Fix Agent for PR #${String(handoff.prNumber)}`;
 
   /**
    * Create delegation handoff for next CI Fix Agent
+   * @param originalHandoff
+   * @param result
    */
   private async createDelegationHandoff(
     originalHandoff: CIFixHandoff,
@@ -572,6 +602,8 @@ Fixes applied by CI Fix Agent for PR #${String(handoff.prNumber)}`;
 
   /**
    * Escalate to human review
+   * @param handoff
+   * @param result
    */
   private async escalate(handoff: CIFixHandoff, result: CIFixResult): Promise<void> {
     // Add label to PR
@@ -588,6 +620,8 @@ Fixes applied by CI Fix Agent for PR #${String(handoff.prNumber)}`;
 
   /**
    * Generate escalation comment for PR
+   * @param handoff
+   * @param result
    */
   private generateEscalationComment(handoff: CIFixHandoff, result: CIFixResult): string {
     const unresolvedIssues = result.analysis.identifiedCauses
@@ -618,6 +652,7 @@ _This escalation was generated automatically by the CI Fix Agent._`;
 
   /**
    * Persist fix result
+   * @param result
    */
   private async persistResult(result: CIFixResult): Promise<void> {
     const resultsDir = join(this.config.projectRoot, this.config.resultsPath);
@@ -644,6 +679,7 @@ _This escalation was generated automatically by the CI Fix Agent._`;
 
   /**
    * Get PR info from GitHub
+   * @param prNumber
    */
   private async getPRInfo(prNumber: number): Promise<{ branch: string; state: string }> {
     const result = await this.executeCommand(
@@ -658,6 +694,7 @@ _This escalation was generated automatically by the CI Fix Agent._`;
 
   /**
    * Get failed checks for a PR
+   * @param prNumber
    */
   private async getFailedChecks(prNumber: number): Promise<CICheck[]> {
     const result = await this.executeCommand(
@@ -687,6 +724,7 @@ _This escalation was generated automatically by the CI Fix Agent._`;
 
   /**
    * Get changed files for a PR
+   * @param prNumber
    */
   private async getChangedFiles(prNumber: number): Promise<string[]> {
     const result = await this.executeCommand(
@@ -712,6 +750,7 @@ _This escalation was generated automatically by the CI Fix Agent._`;
   /**
    * Execute a shell command using safe execution
    * Uses injected ICommandExecutor for testability
+   * @param command
    */
   private async executeCommand(command: string): Promise<CommandResult> {
     return this.commandExecutor.execute(command, {
@@ -725,6 +764,7 @@ _This escalation was generated automatically by the CI Fix Agent._`;
   /**
    * Escape content for use within double quotes in command strings
    * Uses the centralized sanitizer method
+   * @param str
    */
   private escapeForParser(str: string): string {
     const sanitizer = getCommandSanitizer();
@@ -741,6 +781,7 @@ _This escalation was generated automatically by the CI Fix Agent._`;
 
 /**
  * Get singleton instance of CIFixAgent
+ * @param config
  */
 export function getCIFixAgent(config?: CIFixerAgentConfig): CIFixAgent {
   if (instance === null) {

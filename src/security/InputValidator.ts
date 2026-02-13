@@ -489,6 +489,9 @@ export class InputValidator {
 
   /**
    * Log a path rejection event for security audit
+   * @param inputPath
+   * @param reason
+   * @param details
    */
   private logPathRejection(
     inputPath: string,
@@ -506,6 +509,7 @@ export class InputValidator {
 
   /**
    * Sanitize a path for safe logging (remove control chars, truncate)
+   * @param inputPath
    */
   private sanitizePathForLogging(inputPath: string): string {
     // Remove control characters and truncate for safe logging

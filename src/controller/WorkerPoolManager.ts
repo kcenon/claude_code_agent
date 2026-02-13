@@ -111,6 +111,9 @@ interface InternalWorkerPoolConfig {
   readonly metricsConfig: WorkerPoolMetricsConfig | undefined;
 }
 
+/**
+ *
+ */
 export class WorkerPoolManager {
   private readonly config: InternalWorkerPoolConfig;
   private readonly workers: Map<string, MutableWorkerInfo>;
@@ -251,6 +254,7 @@ export class WorkerPoolManager {
 
   /**
    * Convert mutable worker to readonly WorkerInfo
+   * @param worker
    */
   private toWorkerInfo(worker: MutableWorkerInfo): WorkerInfo {
     const base = {
@@ -270,6 +274,7 @@ export class WorkerPoolManager {
 
   /**
    * Find a work order by issue ID
+   * @param issueId
    */
   private findOrderByIssueId(issueId: string): WorkOrder | undefined {
     for (const order of this.workOrders.values()) {
@@ -295,6 +300,7 @@ export class WorkerPoolManager {
 
   /**
    * Get worker info by ID
+   * @param workerId
    * @throws WorkerNotFoundError if worker doesn't exist
    */
   public getWorker(workerId: string): WorkerInfo {
@@ -307,6 +313,7 @@ export class WorkerPoolManager {
 
   /**
    * Get worker status by ID
+   * @param workerId
    * @throws WorkerNotFoundError if worker doesn't exist
    */
   public getWorkerStatus(workerId: string): WorkerStatus {
@@ -319,6 +326,8 @@ export class WorkerPoolManager {
 
   /**
    * Create a work order for an issue
+   * @param issue
+   * @param context
    */
   public async createWorkOrder(
     issue: IssueNode | AnalyzedIssue,
@@ -384,6 +393,7 @@ export class WorkerPoolManager {
 
   /**
    * Get priority numeric value from priority string
+   * @param priority
    */
   private getPriorityValue(priority: string): number {
     switch (priority) {
@@ -402,6 +412,7 @@ export class WorkerPoolManager {
 
   /**
    * Persist a work order to disk
+   * @param workOrder
    */
   private async persistWorkOrder(workOrder: WorkOrder): Promise<void> {
     const projectPath = this.config.workOrdersPath;
@@ -417,6 +428,8 @@ export class WorkerPoolManager {
 
   /**
    * Assign work to a worker
+   * @param workerId
+   * @param workOrder
    * @throws WorkerNotFoundError if worker doesn't exist
    * @throws WorkerNotAvailableError if worker is not idle
    * @throws WorkerAssignmentError if assignment fails
@@ -465,6 +478,7 @@ export class WorkerPoolManager {
 
   /**
    * Get a work order by ID
+   * @param orderId
    * @throws WorkOrderNotFoundError if order doesn't exist
    */
   public getWorkOrder(orderId: string): WorkOrder {
@@ -477,6 +491,8 @@ export class WorkerPoolManager {
 
   /**
    * Mark a worker as completed
+   * @param workerId
+   * @param result
    */
   public async completeWork(workerId: string, result: WorkOrderResult): Promise<void> {
     const worker = this.workers.get(workerId);
@@ -514,6 +530,9 @@ export class WorkerPoolManager {
 
   /**
    * Mark a worker as failed
+   * @param workerId
+   * @param orderId
+   * @param error
    */
   public async failWork(workerId: string, orderId: string, error: Error): Promise<void> {
     const worker = this.workers.get(workerId);
@@ -542,6 +561,7 @@ export class WorkerPoolManager {
 
   /**
    * Release a worker back to idle state
+   * @param workerId
    */
   public releaseWorker(workerId: string): void {
     const worker = this.workers.get(workerId);
@@ -557,6 +577,7 @@ export class WorkerPoolManager {
 
   /**
    * Reset a worker from error state
+   * @param workerId
    */
   public resetWorker(workerId: string): void {
     const worker = this.workers.get(workerId);
@@ -575,6 +596,8 @@ export class WorkerPoolManager {
    *
    * If bounded queue is enabled, this will apply size limits and backpressure.
    * Use enqueueBounded() for explicit result handling with bounded queue.
+   * @param issueId
+   * @param priorityScore
    */
   public enqueue(issueId: string, priorityScore: number): void {
     if (this.boundedQueue !== null) {
@@ -596,6 +619,8 @@ export class WorkerPoolManager {
    * Only available when bounded queue is enabled.
    * Returns detailed result including success/failure reason and backpressure info.
    *
+   * @param issueId
+   * @param priorityScore
    * @throws Error if bounded queue is not enabled
    */
   public async enqueueBounded(issueId: string, priorityScore: number): Promise<EnqueueResult> {
@@ -677,6 +702,7 @@ export class WorkerPoolManager {
 
   /**
    * Check if an issue is in the queue
+   * @param issueId
    */
   public isQueued(issueId: string): boolean {
     if (this.boundedQueue !== null) {
@@ -702,6 +728,7 @@ export class WorkerPoolManager {
    * Set event callback for queue notifications
    *
    * Only effective when bounded queue is enabled.
+   * @param callback
    */
   public onQueueEvent(callback: QueueEventCallback): void {
     if (this.boundedQueue !== null) {
@@ -732,6 +759,7 @@ export class WorkerPoolManager {
    * Retry a task from the dead letter queue
    *
    * Only available when bounded queue is enabled.
+   * @param issueId
    */
   public async retryFromDeadLetter(issueId: string): Promise<boolean> {
     if (this.boundedQueue === null) {
@@ -742,6 +770,7 @@ export class WorkerPoolManager {
 
   /**
    * Check if an issue is being worked on
+   * @param issueId
    */
   public isInProgress(issueId: string): boolean {
     for (const worker of this.workers.values()) {
@@ -754,6 +783,7 @@ export class WorkerPoolManager {
 
   /**
    * Set completion callback
+   * @param callback
    */
   public onCompletion(callback: WorkerCompletionCallback): void {
     this.onCompletionCallback = callback;
@@ -761,6 +791,7 @@ export class WorkerPoolManager {
 
   /**
    * Set failure callback
+   * @param callback
    */
   public onFailure(callback: WorkerFailureCallback): void {
     this.onFailureCallback = callback;
@@ -782,6 +813,7 @@ export class WorkerPoolManager {
 
   /**
    * Save controller state to disk
+   * @param projectId
    */
   public async saveState(projectId: string): Promise<void> {
     const state: ControllerState = {
@@ -808,6 +840,7 @@ export class WorkerPoolManager {
 
   /**
    * Load controller state from disk
+   * @param projectId
    */
   public async loadState(projectId: string): Promise<ControllerState | null> {
     const statePath = join(this.config.workOrdersPath, 'controller_state.json');
@@ -836,6 +869,7 @@ export class WorkerPoolManager {
 
   /**
    * Restore internal state from loaded state
+   * @param state
    */
   private restoreFromState(state: ControllerState): void {
     // Restore workers

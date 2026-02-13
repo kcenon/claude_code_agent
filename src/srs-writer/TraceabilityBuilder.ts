@@ -127,6 +127,8 @@ export class TraceabilityBuilder {
 
   /**
    * Find NFRs related to a requirement
+   * @param requirement
+   * @param parsedPRD
    */
   private findRelatedNFRs(requirement: ParsedPRDRequirement, parsedPRD: ParsedPRD): string[] {
     const relatedNFRs: string[] = [];
@@ -162,6 +164,8 @@ export class TraceabilityBuilder {
 
   /**
    * Check if there's keyword overlap between texts
+   * @param text1
+   * @param text2
    */
   private hasKeywordOverlap(text1: string, text2: string): boolean {
     // Extract significant words (4+ characters)
@@ -182,6 +186,8 @@ export class TraceabilityBuilder {
 
   /**
    * Check if a category is relevant to the description
+   * @param description
+   * @param category
    */
   private isCategoryRelevant(description: string, category: string): boolean {
     const categoryKeywords: Record<string, string[]> = {
@@ -294,6 +300,7 @@ export class TraceabilityBuilder {
 
   /**
    * Generate reverse traceability (feature to requirements)
+   * @param matrix
    */
   public buildReverseTraceability(matrix: TraceabilityMatrix): Map<string, string[]> {
     const reverseMap = new Map<string, string[]>();

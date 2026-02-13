@@ -129,6 +129,7 @@ export function getEnvConfigFilePath(basePath: string, env: ConfigEnvironment): 
 
 /**
  * Check if a value is a plain object (not array, null, etc.)
+ * @param value
  */
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -181,6 +182,7 @@ export function deepMergeConfig<T>(base: T, override: Partial<T>): T {
  * - Entry doesn't exist
  * - TTL has expired
  * - File has been modified since caching
+ * @param filePath
  */
 function isCacheValid(filePath: string): boolean {
   const entry = configCache.get(filePath);
@@ -205,6 +207,7 @@ function isCacheValid(filePath: string): boolean {
 
 /**
  * Get cached configuration if valid
+ * @param filePath
  */
 function getCachedConfig(filePath: string): unknown {
   if (!isCacheValid(filePath)) {
@@ -215,6 +218,8 @@ function getCachedConfig(filePath: string): unknown {
 
 /**
  * Store configuration in cache
+ * @param filePath
+ * @param data
  */
 function setCachedConfig(filePath: string, data: unknown): void {
   try {
@@ -270,6 +275,7 @@ export function getConfigCacheStats(): {
 
 /**
  * Get the configuration directory path
+ * @param baseDir
  */
 export function getConfigDir(baseDir?: string): string {
   return resolve(baseDir ?? tryGetProjectRoot() ?? process.cwd(), DEFAULT_CONFIG_DIR);
@@ -277,6 +283,8 @@ export function getConfigDir(baseDir?: string): string {
 
 /**
  * Get the full path to a configuration file
+ * @param type
+ * @param baseDir
  */
 export function getConfigFilePath(type: ConfigFileType, baseDir?: string): string {
   return join(getConfigDir(baseDir), CONFIG_FILES[type]);
@@ -284,6 +292,7 @@ export function getConfigFilePath(type: ConfigFileType, baseDir?: string): strin
 
 /**
  * Get paths to all configuration files
+ * @param baseDir
  */
 export function getAllConfigFilePaths(baseDir?: string): Record<ConfigFileType, string> {
   const configDir = getConfigDir(baseDir);
@@ -604,6 +613,7 @@ export async function validateAllConfigs(baseDir?: string): Promise<ValidationRe
 
 /**
  * Check if configuration files exist
+ * @param baseDir
  */
 export function configFilesExist(baseDir?: string): { workflow: boolean; agents: boolean } {
   const paths = getAllConfigFilePaths(baseDir);
@@ -615,6 +625,7 @@ export function configFilesExist(baseDir?: string): { workflow: boolean; agents:
 
 /**
  * Determine configuration file type from path
+ * @param filePath
  */
 export function getConfigFileType(filePath: string): ConfigFileType | null {
   if (filePath.endsWith('workflow.yaml')) {

@@ -387,6 +387,7 @@ export class SDSWriterAgent implements IAgent {
 
   /**
    * Update session with partial data
+   * @param updates
    */
   private updateSession(updates: Partial<SDSGenerationSession>): void {
     if (!this.session) return;
@@ -400,6 +401,7 @@ export class SDSWriterAgent implements IAgent {
 
   /**
    * Generate security specification from NFRs
+   * @param nfrs
    */
   private generateSecuritySpec(
     nfrs: readonly { id: string; category: string; description: string; metric?: string }[]
@@ -438,6 +440,7 @@ export class SDSWriterAgent implements IAgent {
 
   /**
    * Generate deployment specification from NFRs
+   * @param nfrs
    */
   private generateDeploymentSpec(
     nfrs: readonly { id: string; category: string; description: string; metric?: string }[]
@@ -478,6 +481,14 @@ export class SDSWriterAgent implements IAgent {
 
   /**
    * Generate complete SDS document
+   * @param projectId
+   * @param srs
+   * @param components
+   * @param apis
+   * @param dataModels
+   * @param traceabilityMatrix
+   * @param security
+   * @param deployment
    */
   private generateSDSDocument(
     projectId: string,
@@ -528,6 +539,14 @@ export class SDSWriterAgent implements IAgent {
 
   /**
    * Generate markdown content for SDS
+   * @param metadata
+   * @param srs
+   * @param components
+   * @param apis
+   * @param dataModels
+   * @param traceabilityMatrix
+   * @param security
+   * @param deployment
    */
   private generateMarkdownContent(
     metadata: SDSMetadata,
@@ -826,6 +845,8 @@ export class SDSWriterAgent implements IAgent {
 
   /**
    * Write output files
+   * @param projectId
+   * @param sds
    */
   private async writeOutputFiles(
     projectId: string,

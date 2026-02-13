@@ -95,6 +95,7 @@ export class GapAnalyzer {
 
   /**
    * Analyze project information for gaps
+   * @param info
    */
   private analyzeProjectInfo(info: CollectedInfo): GapItem[] {
     const gaps: GapItem[] = [];
@@ -130,6 +131,7 @@ export class GapAnalyzer {
 
   /**
    * Analyze functional requirements for gaps
+   * @param info
    */
   private analyzeFunctionalRequirements(info: CollectedInfo): GapItem[] {
     const gaps: GapItem[] = [];
@@ -199,6 +201,7 @@ export class GapAnalyzer {
 
   /**
    * Analyze non-functional requirements for gaps
+   * @param info
    */
   private analyzeNonFunctionalRequirements(info: CollectedInfo): GapItem[] {
     const gaps: GapItem[] = [];
@@ -243,6 +246,7 @@ export class GapAnalyzer {
 
   /**
    * Analyze constraints and assumptions for gaps
+   * @param info
    */
   private analyzeConstraintsAndAssumptions(info: CollectedInfo): GapItem[] {
     const gaps: GapItem[] = [];
@@ -286,6 +290,7 @@ export class GapAnalyzer {
 
   /**
    * Analyze dependencies for gaps
+   * @param info
    */
   private analyzeDependencies(info: CollectedInfo): GapItem[] {
     const gaps: GapItem[] = [];
@@ -312,6 +317,8 @@ export class GapAnalyzer {
 
   /**
    * Calculate completeness score based on collected info and gaps
+   * @param info
+   * @param gaps
    */
   private calculateCompletenessScore(info: CollectedInfo, gaps: GapItem[]): number {
     // Base score starts at 1.0
@@ -349,6 +356,12 @@ export class GapAnalyzer {
 
   /**
    * Create a gap item with auto-generated ID
+   * @param category
+   * @param severity
+   * @param section
+   * @param description
+   * @param suggestion
+   * @param relatedId
    */
   private createGap(
     category: GapCategory,

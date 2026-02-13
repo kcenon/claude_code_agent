@@ -114,6 +114,7 @@ export class SRSParser {
 
   /**
    * Parse document metadata from the header table
+   * @param lines
    */
   private parseMetadata(lines: readonly string[]): SRSDocumentMetadata {
     const metadata: Record<string, string> = {};
@@ -145,6 +146,7 @@ export class SRSParser {
 
   /**
    * Extract project ID from document ID
+   * @param documentId
    */
   private extractProjectId(documentId: string): string {
     // SRS-001 -> 001, SRS-agent-driven-sdlc -> agent-driven-sdlc
@@ -154,6 +156,7 @@ export class SRSParser {
 
   /**
    * Parse product information
+   * @param lines
    */
   private parseProductInfo(lines: readonly string[]): {
     productName: string;
@@ -215,6 +218,7 @@ export class SRSParser {
 
   /**
    * Parse features from the Features section
+   * @param lines
    */
   private parseFeatures(lines: readonly string[]): readonly ParsedSRSFeature[] {
     const features: ParsedSRSFeature[] = [];
@@ -328,6 +332,9 @@ export class SRSParser {
 
   /**
    * Finalize a feature with all collected data
+   * @param feature
+   * @param descriptionLines
+   * @param acceptanceCriteria
    */
   private finalizeFeature(
     feature: Partial<ParsedSRSFeature>,
@@ -347,6 +354,7 @@ export class SRSParser {
 
   /**
    * Parse use cases from the Use Cases section
+   * @param lines
    */
   private parseUseCases(lines: readonly string[]): readonly ParsedUseCase[] {
     const useCases: ParsedUseCase[] = [];
@@ -544,6 +552,11 @@ export class SRSParser {
 
   /**
    * Finalize a use case with all collected data
+   * @param useCase
+   * @param preconditions
+   * @param mainScenario
+   * @param postconditions
+   * @param alternativeScenarios
    */
   private finalizeUseCase(
     useCase: Partial<ParsedUseCase>,
@@ -566,6 +579,7 @@ export class SRSParser {
 
   /**
    * Parse NFRs from the Non-Functional Requirements section
+   * @param lines
    */
   private parseNFRs(lines: readonly string[]): readonly ParsedNFR[] {
     const nfrs: ParsedNFR[] = [];
@@ -642,6 +656,7 @@ export class SRSParser {
 
   /**
    * Extract NFR category from name
+   * @param name
    */
   private extractNFRCategory(name: string): string {
     const lowerName = name.toLowerCase();
@@ -657,6 +672,8 @@ export class SRSParser {
 
   /**
    * Finalize an NFR with collected data
+   * @param nfr
+   * @param descriptionLines
    */
   private finalizeNFR(nfr: MutableParsedNFR, descriptionLines: string[]): ParsedNFR {
     const base = {
@@ -675,6 +692,7 @@ export class SRSParser {
 
   /**
    * Parse constraints from the Constraints section
+   * @param lines
    */
   private parseConstraints(lines: readonly string[]): readonly ParsedConstraint[] {
     const constraints: ParsedConstraint[] = [];
@@ -746,6 +764,7 @@ export class SRSParser {
 
   /**
    * Extract constraint type from name
+   * @param name
    */
   private extractConstraintType(name: string): string {
     const lowerName = name.toLowerCase();
@@ -759,6 +778,8 @@ export class SRSParser {
 
   /**
    * Finalize a constraint with collected data
+   * @param constraint
+   * @param descriptionLines
    */
   private finalizeConstraint(
     constraint: Partial<ParsedConstraint>,
@@ -773,6 +794,7 @@ export class SRSParser {
 
   /**
    * Parse assumptions from the Assumptions section
+   * @param lines
    */
   private parseAssumptions(lines: readonly string[]): readonly string[] {
     const assumptions: string[] = [];
@@ -804,6 +826,7 @@ export class SRSParser {
 
   /**
    * Parse priority value
+   * @param value
    */
   private parsePriority(value: string): Priority {
     const normalized = value.trim().toUpperCase();
@@ -820,6 +843,7 @@ export class SRSParser {
 
   /**
    * Validate parsed SRS structure
+   * @param srs
    * @throws SRSParseError if validation fails in strict mode
    */
   public validate(srs: ParsedSRS): readonly string[] {

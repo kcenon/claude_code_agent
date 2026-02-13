@@ -138,6 +138,8 @@ export abstract class BaseSecretProvider implements ISecretProvider {
    * Get a secret by name
    *
    * Checks cache first, then retrieves from provider if not cached or expired.
+   * @param name
+   * @param version
    */
   public async getSecret(name: string, version?: string): Promise<Secret | null> {
     if (this.state !== 'ready') {
@@ -252,6 +254,7 @@ export abstract class BaseSecretProvider implements ISecretProvider {
 
   /**
    * Check if a cached secret is expired
+   * @param cached
    */
   protected isExpired(cached: CachedSecret): boolean {
     return Date.now() - cached.cachedAt > cached.ttl;
@@ -259,6 +262,8 @@ export abstract class BaseSecretProvider implements ISecretProvider {
 
   /**
    * Handle an error by tracking it
+   * @param _context
+   * @param error
    */
   protected handleError(_context: string, error: unknown): void {
     this.lastErrorTime = new Date();

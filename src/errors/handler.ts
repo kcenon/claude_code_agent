@@ -59,6 +59,8 @@ const ERROR_CATEGORY_MAP: Record<string, ErrorCategory> = {
 export class ErrorHandler {
   /**
    * Handle an error with logging and optional output
+   * @param error
+   * @param options
    */
   static handle(error: unknown, options: ErrorHandleOptions = {}): AppError {
     const appError = AppError.normalize(error);
@@ -86,6 +88,7 @@ export class ErrorHandler {
 
   /**
    * Normalize any error to AppError
+   * @param error
    */
   static normalize(error: unknown): AppError {
     return AppError.normalize(error);
@@ -93,6 +96,7 @@ export class ErrorHandler {
 
   /**
    * Categorize an error for retry decision
+   * @param error
    */
   static categorize(error: Error): ErrorCategory {
     if (error instanceof AppError) {
@@ -146,6 +150,7 @@ export class ErrorHandler {
 
   /**
    * Get suggested action based on error
+   * @param error
    */
   static getSuggestedAction(error: Error): string {
     const appError = error instanceof AppError ? error : AppError.normalize(error);
@@ -165,6 +170,8 @@ export class ErrorHandler {
 
   /**
    * Create extended error information
+   * @param error
+   * @param additionalContext
    */
   static createErrorInfo(error: Error, additionalContext: ErrorContext = {}): ErrorInfo {
     const appError = error instanceof AppError ? error : AppError.normalize(error);
@@ -187,6 +194,7 @@ export class ErrorHandler {
 
   /**
    * Check if error is retryable
+   * @param error
    */
   static isRetryable(error: Error): boolean {
     if (error instanceof AppError) {
@@ -197,6 +205,7 @@ export class ErrorHandler {
 
   /**
    * Check if error requires escalation
+   * @param error
    */
   static requiresEscalation(error: Error): boolean {
     if (error instanceof AppError) {
@@ -207,6 +216,8 @@ export class ErrorHandler {
 
   /**
    * Log error to console with appropriate level
+   * @param error
+   * @param level
    */
   private static log(error: AppError, level: 'debug' | 'info' | 'warn' | 'error' = 'error'): void {
     const formatted = error.format('log');
@@ -229,6 +240,7 @@ export class ErrorHandler {
 
   /**
    * Report critical errors
+   * @param error
    */
   private static report(error: AppError): void {
     // Log critical error details
@@ -240,6 +252,8 @@ export class ErrorHandler {
 
   /**
    * Create a function that wraps errors with a specific code
+   * @param code
+   * @param defaultContext
    */
   static createWrapper(
     code: string,
@@ -250,6 +264,10 @@ export class ErrorHandler {
 
   /**
    * Assert condition and throw AppError if false
+   * @param condition
+   * @param code
+   * @param message
+   * @param context
    */
   static assert(
     condition: boolean,
@@ -268,6 +286,9 @@ export class ErrorHandler {
 
   /**
    * Execute a function and wrap any thrown error
+   * @param fn
+   * @param code
+   * @param context
    */
   static async wrapAsync<T>(
     fn: () => Promise<T>,
@@ -283,6 +304,9 @@ export class ErrorHandler {
 
   /**
    * Execute a function and wrap any thrown error (sync version)
+   * @param fn
+   * @param code
+   * @param context
    */
   static wrapSync<T>(fn: () => T, code: string, context: ErrorContext = {}): T {
     try {

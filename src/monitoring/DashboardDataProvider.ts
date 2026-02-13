@@ -77,6 +77,7 @@ export class DashboardDataProvider {
 
   /**
    * Get a specific panel's data
+   * @param panelId
    */
   public getPanel(panelId: string): DashboardPanel | null {
     return this.cachedData.get(panelId) ?? null;
@@ -286,6 +287,7 @@ export class DashboardDataProvider {
 
   /**
    * Get recent errors
+   * @param limit
    */
   public getRecentErrors(limit = 50): LogEntry[] {
     const logger = getLogger();
@@ -372,6 +374,7 @@ let globalDashboardDataProvider: DashboardDataProvider | null = null;
 
 /**
  * Get or create the global DashboardDataProvider instance
+ * @param options
  */
 export function getDashboardDataProvider(
   options?: DashboardDataProviderOptions

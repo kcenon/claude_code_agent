@@ -114,6 +114,8 @@ export class CodebaseAnalyzerAgent implements IAgent {
 
   /**
    * Start a new analysis session
+   * @param projectId
+   * @param rootPath
    */
   public async startSession(projectId: string, rootPath: string): Promise<CodebaseAnalysisSession> {
     await loadYaml();
@@ -306,6 +308,7 @@ export class CodebaseAnalyzerAgent implements IAgent {
 
   /**
    * Recursively scan directory for files
+   * @param dirPath
    */
   private async scanDirectory(dirPath: string): Promise<string[]> {
     const files: string[] = [];
@@ -353,6 +356,8 @@ export class CodebaseAnalyzerAgent implements IAgent {
 
   /**
    * Categorize files and extract basic info
+   * @param filePaths
+   * @param rootPath
    */
   private async categorizeFiles(filePaths: string[], rootPath: string): Promise<FileInfo[]> {
     const fileInfos: FileInfo[] = [];
@@ -400,6 +405,7 @@ export class CodebaseAnalyzerAgent implements IAgent {
 
   /**
    * Detect programming language from file extension
+   * @param extension
    */
   private detectLanguage(extension: string): ProgrammingLanguage {
     const languageMap: Record<string, ProgrammingLanguage> = {
@@ -432,6 +438,7 @@ export class CodebaseAnalyzerAgent implements IAgent {
 
   /**
    * Check if file is a test file
+   * @param relativePath
    */
   private isTestFile(relativePath: string): boolean {
     const testPatterns = [
@@ -447,6 +454,7 @@ export class CodebaseAnalyzerAgent implements IAgent {
 
   /**
    * Detect build system
+   * @param rootPath
    */
   private async detectBuildSystem(rootPath: string): Promise<BuildSystemInfo> {
     const buildFileChecks: Array<{
@@ -559,6 +567,8 @@ export class CodebaseAnalyzerAgent implements IAgent {
 
   /**
    * Analyze directory structure
+   * @param files
+   * @param _rootPath
    */
   private analyzeStructure(files: FileInfo[], _rootPath: string): DirectoryStructure {
     const sourceDirs = new Map<
@@ -685,6 +695,7 @@ export class CodebaseAnalyzerAgent implements IAgent {
 
   /**
    * Detect test framework from file path
+   * @param filePath
    */
   private detectTestFramework(filePath: string): string | undefined {
     const fileName = path.basename(filePath);
@@ -713,6 +724,9 @@ export class CodebaseAnalyzerAgent implements IAgent {
 
   /**
    * Build dependency graph
+   * @param files
+   * @param rootPath
+   * @param buildSystem
    */
   private async buildDependencyGraph(
     files: FileInfo[],
@@ -866,6 +880,7 @@ export class CodebaseAnalyzerAgent implements IAgent {
 
   /**
    * Get module ID from file path
+   * @param filePath
    */
   private getModuleId(filePath: string): string {
     // Remove extension and normalize
@@ -875,6 +890,9 @@ export class CodebaseAnalyzerAgent implements IAgent {
 
   /**
    * Parse import statements from file content
+   * @param content
+   * @param language
+   * @param sourcePath
    */
   private parseImports(
     content: string,
@@ -949,6 +967,8 @@ export class CodebaseAnalyzerAgent implements IAgent {
 
   /**
    * Check if import is external (from node_modules, pip packages, etc.)
+   * @param importPath
+   * @param language
    */
   private isExternalImport(importPath: string, language: ProgrammingLanguage): boolean {
     if (language === 'typescript' || language === 'javascript') {
@@ -972,6 +992,9 @@ export class CodebaseAnalyzerAgent implements IAgent {
 
   /**
    * Resolve import path to actual file path
+   * @param importPath
+   * @param sourcePath
+   * @param language
    */
   private resolveImportPath(
     importPath: string,
@@ -1006,6 +1029,7 @@ export class CodebaseAnalyzerAgent implements IAgent {
 
   /**
    * Detect circular dependencies in the graph
+   * @param edges
    */
   private detectCircularDependencies(edges: DependencyEdge[]): string[][] {
     const cycles: string[][] = [];
@@ -1052,6 +1076,8 @@ export class CodebaseAnalyzerAgent implements IAgent {
 
   /**
    * Detect architecture patterns
+   * @param structure
+   * @param files
    */
   private detectArchitecturePatterns(
     structure: DirectoryStructure,
@@ -1202,6 +1228,8 @@ export class CodebaseAnalyzerAgent implements IAgent {
 
   /**
    * Detect coding conventions
+   * @param files
+   * @param analysisRootPath
    */
   private async detectConventions(
     files: FileInfo[],
@@ -1314,6 +1342,7 @@ export class CodebaseAnalyzerAgent implements IAgent {
 
   /**
    * Detect naming style of an identifier
+   * @param name
    */
   private detectNamingStyle(name: string): NamingConvention {
     if (/^[a-z][a-zA-Z0-9]*$/.test(name) && !name.includes('_')) {
@@ -1336,6 +1365,7 @@ export class CodebaseAnalyzerAgent implements IAgent {
 
   /**
    * Detect test pattern
+   * @param files
    */
   private detectTestPattern(files: FileInfo[]): TestPattern {
     const testFiles = files.filter((f) => f.isTest);
@@ -1377,6 +1407,7 @@ export class CodebaseAnalyzerAgent implements IAgent {
 
   /**
    * Detect file structure pattern
+   * @param files
    */
   private detectFileStructurePattern(files: FileInfo[]): FileStructurePattern {
     const patterns: string[] = [];
@@ -1419,6 +1450,7 @@ export class CodebaseAnalyzerAgent implements IAgent {
 
   /**
    * Calculate code metrics
+   * @param files
    */
   private calculateMetrics(files: FileInfo[]): CodeMetrics {
     const languageCounts = new Map<ProgrammingLanguage, { files: number; lines: number }>();
@@ -1503,6 +1535,8 @@ export class CodebaseAnalyzerAgent implements IAgent {
 
   /**
    * Write architecture overview to YAML file
+   * @param projectId
+   * @param overview
    */
   private async writeArchitectureOverview(
     projectId: string,
@@ -1610,6 +1644,8 @@ export class CodebaseAnalyzerAgent implements IAgent {
 
   /**
    * Write dependency graph to JSON file
+   * @param projectId
+   * @param graph
    */
   private async writeDependencyGraph(projectId: string, graph: DependencyGraph): Promise<string> {
     const outputDir = path.join(this.config.scratchpadBasePath, 'analysis', projectId);
@@ -1639,6 +1675,7 @@ let codebaseAnalyzerInstance: CodebaseAnalyzerAgent | null = null;
 
 /**
  * Get the singleton instance of CodebaseAnalyzerAgent
+ * @param config
  */
 export function getCodebaseAnalyzerAgent(config?: CodebaseAnalyzerConfig): CodebaseAnalyzerAgent {
   if (codebaseAnalyzerInstance === null) {

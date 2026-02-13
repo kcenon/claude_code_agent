@@ -221,6 +221,8 @@ export class GitHubReviewClient {
    *
    * Uses POST /repos/{owner}/{repo}/pulls/{pull_number}/reviews
    * with comments array for efficient batch submission.
+   * @param request
+   * @param commitSha
    */
   private async createBatchReview(
     request: MultiFileReviewRequest,
@@ -274,6 +276,9 @@ export class GitHubReviewClient {
 
   /**
    * Submit a review without line comments
+   * @param prNumber
+   * @param body
+   * @param event
    */
   private async submitReviewOnly(
     prNumber: number,
@@ -305,6 +310,7 @@ export class GitHubReviewClient {
 
   /**
    * Get the head commit SHA for a PR
+   * @param prNumber
    */
   private async getPRHeadCommit(prNumber: number): Promise<string> {
     const result = await this.executeCommand(
@@ -348,6 +354,11 @@ export class GitHubReviewClient {
    *
    * Helper method to convert internal review comments to the format
    * expected by the GitHub API.
+   * @param file
+   * @param line
+   * @param severity
+   * @param comment
+   * @param suggestedFix
    */
   public static convertToLineComment(
     file: string,
@@ -375,6 +386,7 @@ export class GitHubReviewClient {
 
   /**
    * Get emoji for severity level
+   * @param severity
    */
   private static getSeverityEmoji(severity: string): string {
     switch (severity) {
@@ -393,6 +405,7 @@ export class GitHubReviewClient {
 
   /**
    * Execute a shell command using safe execution
+   * @param command
    */
   private async executeCommand(command: string): Promise<CommandResult> {
     const sanitizer = getCommandSanitizer();
@@ -424,6 +437,7 @@ export class GitHubReviewClient {
 
   /**
    * Escape string for shell command
+   * @param str
    */
   private escapeForShell(str: string): string {
     const sanitizer = getCommandSanitizer();
@@ -443,6 +457,10 @@ export class GitHubReviewClient {
  */
 let instance: GitHubReviewClient | null = null;
 
+/**
+ *
+ * @param config
+ */
 export function getGitHubReviewClient(config?: GitHubReviewClientConfig): GitHubReviewClient {
   if (!instance) {
     instance = new GitHubReviewClient(config);

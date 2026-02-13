@@ -101,6 +101,7 @@ export class DocumentReaderAgent implements IAgent {
 
   /**
    * Start a new document reading session
+   * @param projectId
    */
   public async startSession(projectId: string): Promise<DocumentReadingSession> {
     await loadYaml();
@@ -975,6 +976,7 @@ let globalDocumentReaderAgent: DocumentReaderAgent | null = null;
 
 /**
  * Get the global Document Reader Agent instance
+ * @param config
  */
 export function getDocumentReaderAgent(config?: DocumentReaderConfig): DocumentReaderAgent {
   if (globalDocumentReaderAgent === null) {

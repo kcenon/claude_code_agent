@@ -33,6 +33,8 @@ export class DiagramGenerator {
 
   /**
    * Generate all diagrams for the architecture
+   * @param srs
+   * @param analysis
    */
   public generate(srs: ParsedSRS, analysis: ArchitectureAnalysis): MermaidDiagram[] {
     const diagrams: MermaidDiagram[] = [];
@@ -59,6 +61,8 @@ export class DiagramGenerator {
 
   /**
    * Generate architecture overview diagram
+   * @param srs
+   * @param analysis
    */
   public generateArchitectureOverview(
     srs: ParsedSRS,
@@ -90,6 +94,8 @@ export class DiagramGenerator {
 
   /**
    * Generate component interaction diagram
+   * @param srs
+   * @param analysis
    */
   public generateComponentInteraction(
     srs: ParsedSRS,
@@ -126,6 +132,7 @@ export class DiagramGenerator {
 
   /**
    * Generate deployment diagram
+   * @param analysis
    */
   public generateDeploymentDiagram(analysis: ArchitectureAnalysis): MermaidDiagram {
     let code = 'graph TB\n';
@@ -149,6 +156,8 @@ export class DiagramGenerator {
 
   /**
    * Generate data flow diagram
+   * @param srs
+   * @param _analysis
    */
   public generateDataFlowDiagram(srs: ParsedSRS, _analysis: ArchitectureAnalysis): MermaidDiagram {
     let code = 'flowchart LR\n';
@@ -196,6 +205,8 @@ export class DiagramGenerator {
 
   /**
    * Extract components from SRS features
+   * @param srs
+   * @param analysis
    */
   private extractComponents(srs: ParsedSRS, analysis: ArchitectureAnalysis): DiagramComponent[] {
     const components: DiagramComponent[] = [];
@@ -220,6 +231,7 @@ export class DiagramGenerator {
 
   /**
    * Get default components for architecture pattern
+   * @param pattern
    */
   private getPatternComponents(pattern: ArchitecturePattern): DiagramComponent[] {
     const patterns: Record<ArchitecturePattern, DiagramComponent[]> = {
@@ -464,6 +476,8 @@ export class DiagramGenerator {
 
   /**
    * Convert SRS feature to diagram component
+   * @param feature
+   * @param existingComponents
    */
   private featureToComponent(
     feature: SRSFeature,
@@ -505,6 +519,7 @@ export class DiagramGenerator {
 
   /**
    * Validate and fix component connections
+   * @param components
    */
   private validateConnections(components: DiagramComponent[]): DiagramComponent[] {
     const componentIds = new Set(components.map((c) => c.id));
@@ -517,6 +532,7 @@ export class DiagramGenerator {
 
   /**
    * Group components by layer
+   * @param components
    */
   private groupByLayer(components: DiagramComponent[]): Record<string, DiagramComponent[]> {
     const groups: Record<string, DiagramComponent[]> = {};
@@ -536,6 +552,8 @@ export class DiagramGenerator {
 
   /**
    * Generate Mermaid subgraph for a layer
+   * @param layerName
+   * @param components
    */
   private generateLayerSubgraph(layerName: string, components: DiagramComponent[]): string {
     let code = `    subgraph ${this.sanitizeId(layerName)}["${layerName} Layer"]\n`;
@@ -551,6 +569,7 @@ export class DiagramGenerator {
 
   /**
    * Generate connections between components
+   * @param components
    */
   private generateConnections(components: DiagramComponent[]): string {
     let code = '';
@@ -567,6 +586,7 @@ export class DiagramGenerator {
 
   /**
    * Get Mermaid shape for component type
+   * @param type
    */
   private getComponentShape(type: DiagramComponent['type']): { open: string; close: string } {
     const shapes: Record<DiagramComponent['type'], { open: string; close: string }> = {
@@ -582,6 +602,7 @@ export class DiagramGenerator {
 
   /**
    * Get Mermaid arrow for connection type
+   * @param type
    */
   private getConnectionArrow(type: 'sync' | 'async' | 'event' | 'data'): string {
     const arrows: Record<string, string> = {
@@ -596,6 +617,7 @@ export class DiagramGenerator {
 
   /**
    * Generate pattern-specific styling
+   * @param pattern
    */
   private generatePatternStyling(pattern: ArchitecturePattern): string {
     let code = '\n';
@@ -699,6 +721,7 @@ export class DiagramGenerator {
 
   /**
    * Extract data flows from SRS
+   * @param srs
    */
   private extractDataFlows(srs: ParsedSRS): {
     sources: { id: string; name: string }[];
@@ -742,6 +765,7 @@ export class DiagramGenerator {
 
   /**
    * Wrap code in Mermaid code block
+   * @param code
    */
   private wrapInCodeBlock(code: string): string {
     return '```mermaid\n' + code + '```';
@@ -749,6 +773,7 @@ export class DiagramGenerator {
 
   /**
    * Sanitize ID for Mermaid
+   * @param name
    */
   private sanitizeId(name: string): string {
     return name.replace(/[^a-zA-Z0-9]/g, '_');
@@ -756,6 +781,8 @@ export class DiagramGenerator {
 
   /**
    * Truncate name to max length
+   * @param name
+   * @param maxLength
    */
   private truncateName(name: string, maxLength: number): string {
     if (name.length <= maxLength) {

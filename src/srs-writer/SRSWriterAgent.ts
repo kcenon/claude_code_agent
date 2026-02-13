@@ -449,6 +449,7 @@ export class SRSWriterAgent implements IAgent {
 
   /**
    * Create SRS metadata
+   * @param session
    */
   private createMetadata(session: SRSGenerationSession): SRSMetadata {
     return {
@@ -462,6 +463,7 @@ export class SRSWriterAgent implements IAgent {
 
   /**
    * Convert parsed NFRs to proper format
+   * @param parsedPRD
    */
   private convertNFRs(parsedPRD: ParsedPRD): NonFunctionalRequirement[] {
     return parsedPRD.nonFunctionalRequirements.map((nfr) => ({
@@ -475,6 +477,7 @@ export class SRSWriterAgent implements IAgent {
 
   /**
    * Normalize NFR category
+   * @param category
    */
   private normalizeNFRCategory(
     category: string
@@ -499,6 +502,7 @@ export class SRSWriterAgent implements IAgent {
 
   /**
    * Convert parsed constraints to proper format
+   * @param parsedPRD
    */
   private convertConstraints(parsedPRD: ParsedPRD): Constraint[] {
     return parsedPRD.constraints.map((con) => ({
@@ -511,6 +515,7 @@ export class SRSWriterAgent implements IAgent {
 
   /**
    * Normalize constraint type
+   * @param type
    */
   private normalizeConstraintType(
     type: string
@@ -526,6 +531,7 @@ export class SRSWriterAgent implements IAgent {
 
   /**
    * Infer architecture impact from constraint description
+   * @param description
    */
   private inferArchitectureImpact(description: string): string {
     const lower = description.toLowerCase();
@@ -546,6 +552,12 @@ export class SRSWriterAgent implements IAgent {
 
   /**
    * Generate SRS markdown content
+   * @param parsedPRD
+   * @param metadata
+   * @param decompositionResult
+   * @param traceabilityMatrix
+   * @param nfrs
+   * @param constraints
    */
   private generateContent(
     parsedPRD: ParsedPRD,
@@ -707,6 +719,7 @@ export class SRSWriterAgent implements IAgent {
 
   /**
    * Get category number for section numbering
+   * @param category
    */
   private getCategoryNumber(category: string): number {
     const order = [
@@ -724,6 +737,7 @@ export class SRSWriterAgent implements IAgent {
 
   /**
    * Capitalize first letter
+   * @param str
    */
   private capitalize(str: string): string {
     return str.charAt(0).toUpperCase() + str.slice(1);
@@ -731,6 +745,9 @@ export class SRSWriterAgent implements IAgent {
 
   /**
    * Calculate generation statistics
+   * @param session
+   * @param generatedSRS
+   * @param processingTimeMs
    */
   private calculateStats(
     session: SRSGenerationSession,
@@ -752,6 +769,7 @@ export class SRSWriterAgent implements IAgent {
 
   /**
    * Ensure there is an active session in the expected state
+   * @param expectedStates
    */
   private ensureSession(
     expectedStates: readonly ('pending' | 'parsing' | 'decomposing' | 'generating' | 'completed')[]
@@ -786,6 +804,7 @@ export class SRSWriterAgent implements IAgent {
 
   /**
    * Ensure directory exists
+   * @param dirPath
    */
   private async ensureDir(dirPath: string): Promise<void> {
     await fs.promises.mkdir(dirPath, { recursive: true });

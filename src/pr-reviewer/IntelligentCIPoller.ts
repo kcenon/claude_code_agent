@@ -251,6 +251,8 @@ export class IntelligentCIPoller {
 
   /**
    * Determine the type of failure based on check name and error
+   * @param checkName
+   * @param errorMessage
    */
   public determineFailureType(checkName: string, errorMessage?: string): FailureType {
     const lowerName = checkName.toLowerCase();
@@ -339,6 +341,7 @@ export class IntelligentCIPoller {
 
   /**
    * Register an event listener
+   * @param listener
    */
   public onEvent(listener: PollerEventListener): () => void {
     this.listeners.push(listener);
@@ -359,6 +362,8 @@ export class IntelligentCIPoller {
 
   /**
    * Calculate the next polling interval with exponential backoff and jitter
+   * @param currentInterval
+   * @param state
    */
   private calculateNextInterval(currentInterval: number, state: string): number {
     // Apply different backoff based on state
@@ -384,6 +389,7 @@ export class IntelligentCIPoller {
 
   /**
    * Delay for specified milliseconds
+   * @param ms
    */
   private delay(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
@@ -391,6 +397,7 @@ export class IntelligentCIPoller {
 
   /**
    * Emit an event to all listeners
+   * @param event
    */
   private emit(event: PollerEvent): void {
     for (const listener of this.listeners) {

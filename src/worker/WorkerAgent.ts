@@ -510,6 +510,7 @@ export class WorkerAgent implements IAgent {
    * Analyze context from work order
    * Reads related files and analyzes code patterns
    * Uses SecureFileOps for path traversal prevention
+   * @param workOrder
    */
   public async analyzeContext(workOrder: WorkOrder): Promise<CodeContext> {
     try {
@@ -549,6 +550,7 @@ export class WorkerAgent implements IAgent {
 
   /**
    * Analyze code patterns from file contents
+   * @param files
    */
   private analyzePatterns(files: readonly FileContext[]): CodePatterns {
     // Start with defaults
@@ -631,6 +633,7 @@ export class WorkerAgent implements IAgent {
 
   /**
    * Create a feature branch for the implementation
+   * @param workOrder
    */
   public async createBranch(workOrder: WorkOrder): Promise<string> {
     const prefix = this.determineBranchPrefix(workOrder);
@@ -656,6 +659,7 @@ export class WorkerAgent implements IAgent {
 
   /**
    * Determine the branch prefix based on work order
+   * @param workOrder
    */
   private determineBranchPrefix(workOrder: WorkOrder): BranchPrefix {
     const issueId = workOrder.issueId.toLowerCase();
@@ -731,6 +735,7 @@ export class WorkerAgent implements IAgent {
    * Generate tests for the implemented code
    * Analyzes source files and generates comprehensive test suites
    * Uses SecureFileOps for path traversal prevention
+   * @param context
    */
   public async generateTests(context: ExecutionContext): Promise<TestGenerationResult> {
     const { codeContext } = context;
@@ -821,6 +826,7 @@ export class WorkerAgent implements IAgent {
 
   /**
    * Commit changes to git
+   * @param workOrder
    */
   public async commitChanges(workOrder: WorkOrder): Promise<void> {
     try {
@@ -858,6 +864,7 @@ export class WorkerAgent implements IAgent {
 
   /**
    * Determine commit type from work order
+   * @param workOrder
    */
   private determineCommitType(workOrder: WorkOrder): CommitType {
     const issueId = workOrder.issueId.toLowerCase();
@@ -889,6 +896,8 @@ export class WorkerAgent implements IAgent {
 
   /**
    * Format commit message following conventional commits
+   * @param type
+   * @param workOrder
    */
   private formatCommitMessage(type: CommitType, workOrder: WorkOrder): string {
     const scope = workOrder.context.sdsComponent ?? '';
@@ -907,6 +916,13 @@ export class WorkerAgent implements IAgent {
 
   /**
    * Create implementation result
+   * @param workOrder
+   * @param status
+   * @param startedAt
+   * @param branchName
+   * @param verification
+   * @param notes
+   * @param blockers
    */
   public createResult(
     workOrder: WorkOrder,
@@ -968,6 +984,7 @@ export class WorkerAgent implements IAgent {
   /**
    * Save implementation result to disk
    * Uses SecureFileOps for path traversal prevention
+   * @param result
    */
   public async saveResult(result: ImplementationResult): Promise<void> {
     // Construct relative path from project root
@@ -993,6 +1010,7 @@ export class WorkerAgent implements IAgent {
 
   /**
    * Record a file change
+   * @param change
    */
   public recordFileChange(change: FileChange): void {
     this.fileChanges.set(change.filePath, change);
@@ -1000,6 +1018,8 @@ export class WorkerAgent implements IAgent {
 
   /**
    * Record test creation
+   * @param filePath
+   * @param testCount
    */
   public recordTestFile(filePath: string, testCount: number): void {
     this.testsCreated.set(filePath, testCount);
@@ -1020,6 +1040,7 @@ export class WorkerAgent implements IAgent {
   /**
    * Execute a git command using safe execution
    * Uses execFile to bypass shell and prevent command injection
+   * @param command
    */
   private async execGit(command: string): Promise<{ stdout: string; stderr: string }> {
     const sanitizer = getCommandSanitizer();
@@ -1045,6 +1066,7 @@ export class WorkerAgent implements IAgent {
   /**
    * Run a shell command using safe execution
    * Uses execFile to bypass shell and prevent command injection
+   * @param command
    */
   private async runCommand(command: string): Promise<CommandResult> {
     const sanitizer = getCommandSanitizer();
@@ -1070,6 +1092,7 @@ export class WorkerAgent implements IAgent {
 
   /**
    * Build retry policy with defaults
+   * @param override
    */
   private buildRetryPolicy(override?: Partial<RetryPolicy>): RetryPolicy {
     const base: RetryPolicy = {
@@ -1095,6 +1118,8 @@ export class WorkerAgent implements IAgent {
    * - transient: Full retries with backoff (network issues, timeouts)
    * - recoverable: Retry with fix attempts (test failures, lint errors)
    * - fatal: No retry (missing dependencies, permission denied)
+   * @param policy
+   * @param category
    */
   private getCategoryRetryConfig(
     policy: RetryPolicy,
@@ -1118,6 +1143,8 @@ export class WorkerAgent implements IAgent {
 
   /**
    * Calculate delay for retry attempt
+   * @param attempt
+   * @param policy
    */
   private calculateDelay(attempt: number, policy: RetryPolicy): number {
     let delay: number;
@@ -1141,6 +1168,7 @@ export class WorkerAgent implements IAgent {
 
   /**
    * Sleep for a given duration
+   * @param ms
    */
   private async sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
@@ -1148,6 +1176,7 @@ export class WorkerAgent implements IAgent {
 
   /**
    * Create a slugified version of a string for branch names
+   * @param text
    */
   private slugify(text: string): string {
     return text
@@ -1158,6 +1187,7 @@ export class WorkerAgent implements IAgent {
 
   /**
    * Escape quotes for shell commands
+   * @param text
    */
   private escapeQuotes(text: string): string {
     return text.replace(/"/g, '\\"');
@@ -1179,6 +1209,7 @@ export class WorkerAgent implements IAgent {
 
   /**
    * Convert object to YAML string
+   * @param obj
    */
   private toYaml(obj: Record<string, unknown>): string {
     const yaml: string[] = [];
@@ -1229,6 +1260,7 @@ export class WorkerAgent implements IAgent {
 
   /**
    * Format a value for YAML output
+   * @param value
    */
   private formatYamlValue(value: unknown): string {
     if (value === null || value === undefined) {

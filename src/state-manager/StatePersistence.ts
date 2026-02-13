@@ -93,6 +93,7 @@ export class StatePersistence implements IStatePersistence {
 
   /**
    * Get metadata file path
+   * @param projectId
    */
   getMetaPath(projectId: string): string {
     return path.join(this.scratchpad.getProjectPath('progress', projectId), STATE_META_FILE);
@@ -100,6 +101,8 @@ export class StatePersistence implements IStatePersistence {
 
   /**
    * Get section state file path
+   * @param section
+   * @param projectId
    */
   getSectionStatePath(section: ScratchpadSection, projectId: string): string {
     switch (section) {
@@ -286,6 +289,13 @@ export class StatePersistence implements IStatePersistence {
    * @returns Previous value and whether this was a create operation
    */
 
+  /**
+   *
+   * @param section
+   * @param projectId
+   * @param data
+   * @param _options
+   */
   async setState<T extends object>(
     section: ScratchpadSection,
     projectId: string,

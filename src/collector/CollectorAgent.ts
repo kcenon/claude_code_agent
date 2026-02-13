@@ -482,6 +482,7 @@ export class CollectorAgent implements IAgent {
 
   /**
    * Get an answered value by searching question text
+   * @param searchText
    */
   private getAnsweredValue(searchText: string): string | undefined {
     const answer = this.session?.answeredQuestions.find((a) => {
@@ -590,6 +591,7 @@ export class CollectorAgent implements IAgent {
   /**
    * Ensure there is an active session in the expected state
    *
+   * @param expectedState
    * @returns The current session
    */
   private ensureSession(expectedState: 'collecting' | 'clarifying'): CollectionSession {

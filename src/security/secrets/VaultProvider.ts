@@ -171,6 +171,8 @@ export class VaultProvider extends BaseSecretProvider {
 
   /**
    * Retrieve a secret from Vault
+   * @param name
+   * @param version
    */
   protected async doGetSecret(name: string, version?: string): Promise<Secret | null> {
     if (this.client === null) {

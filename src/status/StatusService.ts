@@ -219,6 +219,8 @@ export class StatusService {
 
   /**
    * Display status in text format
+   * @param status
+   * @param verbose
    */
   private displayTextStatus(status: PipelineStatus, verbose: boolean): void {
     console.log(chalk.blue('\n📊 Pipeline Status\n'));
@@ -242,6 +244,8 @@ export class StatusService {
 
   /**
    * Display single project status
+   * @param project
+   * @param verbose
    */
   private displayProjectStatus(project: ProjectStatus, verbose: boolean): void {
     const stateColor = this.isTerminalState(project.currentState) ? chalk.dim : chalk.green;
@@ -321,6 +325,7 @@ export class StatusService {
 
   /**
    * Build stage information based on current state
+   * @param currentState
    */
   private buildStageInfo(currentState: ProjectState): StageInfo[] {
     const currentIndex = this.getStateStageIndex(currentState);
@@ -350,6 +355,7 @@ export class StatusService {
 
   /**
    * Get stage index for a state
+   * @param state
    */
   private getStateStageIndex(state: ProjectState): number {
     for (let i = 0; i < PIPELINE_STAGES.length; i++) {
@@ -363,6 +369,7 @@ export class StatusService {
 
   /**
    * Get project name from info
+   * @param projectId
    */
   private async getProjectName(projectId: string): Promise<string | undefined> {
     try {
@@ -380,6 +387,7 @@ export class StatusService {
 
   /**
    * Get issue status counts
+   * @param projectId
    */
   private async getIssueCounts(projectId: string): Promise<IssueStatusCounts> {
     try {
@@ -437,6 +445,7 @@ export class StatusService {
 
   /**
    * Get worker status
+   * @param projectId
    */
   private async getWorkerStatus(projectId: string): Promise<WorkerStatus[]> {
     try {
@@ -494,6 +503,7 @@ export class StatusService {
 
   /**
    * Get recent activity from history
+   * @param projectId
    */
   private async getRecentActivity(projectId: string): Promise<ActivityEntry[]> {
     try {
@@ -530,6 +540,8 @@ export class StatusService {
 
   /**
    * Calculate overall progress percentage
+   * @param currentState
+   * @param issues
    */
   private calculateProgress(currentState: ProjectState, issues: IssueStatusCounts): number {
     // Base progress from stages
@@ -557,6 +569,7 @@ export class StatusService {
 
   /**
    * Check if state is terminal
+   * @param state
    */
   private isTerminalState(state: ProjectState): boolean {
     return state === 'merged' || state === 'cancelled';
@@ -564,6 +577,7 @@ export class StatusService {
 
   /**
    * Get status icon
+   * @param status
    */
   private getStatusIcon(status: StageStatus): string {
     switch (status) {
@@ -583,6 +597,7 @@ export class StatusService {
 
   /**
    * Format status text
+   * @param status
    */
   private formatStatus(status: StageStatus): string {
     switch (status) {
@@ -602,6 +617,7 @@ export class StatusService {
 
   /**
    * Get activity icon
+   * @param type
    */
   private getActivityIcon(type: ActivityEntry['type']): string {
     switch (type) {
@@ -619,6 +635,7 @@ export class StatusService {
 
   /**
    * Format duration in human readable form
+   * @param seconds
    */
   private formatDuration(seconds: number): string {
     if (seconds < 60) {
@@ -636,6 +653,7 @@ export class StatusService {
 
   /**
    * Format progress bar
+   * @param percent
    */
   private formatProgressBar(percent: number): string {
     const filled = Math.round(percent / 5);

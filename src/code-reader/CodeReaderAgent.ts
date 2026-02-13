@@ -90,6 +90,7 @@ export class CodeReaderAgent {
 
   /**
    * Start a new code reading session
+   * @param projectId
    */
   public async startSession(projectId: string): Promise<CodeReadingSession> {
     await loadYaml();
@@ -1017,6 +1018,7 @@ let globalCodeReaderAgent: CodeReaderAgent | null = null;
 
 /**
  * Get the global Code Reader Agent instance
+ * @param config
  */
 export function getCodeReaderAgent(config?: CodeReaderConfig): CodeReaderAgent {
   if (globalCodeReaderAgent === null) {

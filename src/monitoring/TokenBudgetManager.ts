@@ -200,6 +200,9 @@ export class TokenBudgetManager {
 
   /**
    * Record token usage and check budget
+   * @param inputTokens
+   * @param outputTokens
+   * @param costUsd
    */
   public recordUsage(
     inputTokens: number,
@@ -227,6 +230,9 @@ export class TokenBudgetManager {
 
   /**
    * Add a usage record to history
+   * @param inputTokens
+   * @param outputTokens
+   * @param costUsd
    */
   private addUsageRecord(inputTokens: number, outputTokens: number, costUsd: number): void {
     const record: UsageRecord = {
@@ -473,6 +479,8 @@ export class TokenBudgetManager {
 
   /**
    * Estimate if a request will exceed budget
+   * @param estimatedInputTokens
+   * @param estimatedOutputTokens
    */
   public estimateUsage(
     estimatedInputTokens: number,
@@ -609,6 +617,7 @@ export class TokenBudgetManager {
 
   /**
    * Calculate exponentially smoothed averages
+   * @param records
    */
   private calculateSmoothedAverages(records: UsageRecord[]): {
     avgTokens: number;
@@ -639,6 +648,7 @@ export class TokenBudgetManager {
 
   /**
    * Calculate operation rate (operations per millisecond)
+   * @param records
    */
   private calculateOperationRate(records: UsageRecord[]): number | undefined {
     const firstRecord = records[0];
@@ -661,6 +671,7 @@ export class TokenBudgetManager {
 
   /**
    * Calculate usage trend
+   * @param records
    */
   private calculateUsageTrend(records: UsageRecord[]): 'increasing' | 'stable' | 'decreasing' {
     if (records.length < 3) {
@@ -688,6 +699,7 @@ export class TokenBudgetManager {
 
   /**
    * Calculate forecast confidence based on data consistency
+   * @param records
    */
   private calculateForecastConfidence(records: UsageRecord[]): number {
     if (records.length < 2) {
@@ -779,6 +791,9 @@ export class TokenBudgetManager {
 
   /**
    * Create a warning object
+   * @param type
+   * @param thresholdPercent
+   * @param currentPercent
    */
   private createWarning(
     type: 'token' | 'cost',
@@ -799,6 +814,7 @@ export class TokenBudgetManager {
 
   /**
    * Get severity level for a threshold
+   * @param threshold
    */
   private getSeverityForThreshold(threshold: number): AlertSeverity {
     if (threshold >= 90) return 'critical';
@@ -980,6 +996,7 @@ export class TokenBudgetManager {
 
   /**
    * List all persisted budget sessions
+   * @param persistenceDir
    */
   public static listPersistedSessions(persistenceDir?: string): string[] {
     const dir = persistenceDir ?? DEFAULT_PERSISTENCE_DIR;
@@ -1001,6 +1018,8 @@ export class TokenBudgetManager {
 
   /**
    * Load a specific persisted session
+   * @param sessionId
+   * @param persistenceDir
    */
   public static loadSession(
     sessionId: string,
@@ -1023,6 +1042,8 @@ export class TokenBudgetManager {
 
   /**
    * Delete a specific persisted session
+   * @param sessionId
+   * @param persistenceDir
    */
   public static deleteSession(sessionId: string, persistenceDir?: string): boolean {
     const dir = persistenceDir ?? DEFAULT_PERSISTENCE_DIR;
@@ -1042,6 +1063,8 @@ export class TokenBudgetManager {
    * Clean up old persisted sessions
    *
    * Removes sessions older than the specified age (in milliseconds)
+   * @param olderThanMs
+   * @param persistenceDir
    */
   public static cleanupOldSessions(olderThanMs: number, persistenceDir?: string): number {
     const dir = persistenceDir ?? DEFAULT_PERSISTENCE_DIR;
@@ -1081,6 +1104,7 @@ let globalBudgetManager: TokenBudgetManager | null = null;
 
 /**
  * Get or create the global TokenBudgetManager instance
+ * @param config
  */
 export function getTokenBudgetManager(config?: TokenBudgetConfig): TokenBudgetManager {
   if (globalBudgetManager === null) {

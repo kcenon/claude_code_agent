@@ -342,6 +342,7 @@ export class AgentFactory {
 
   /**
    * Resolve dependencies for an agent
+   * @param agentId
    */
   private async resolveDependencies(agentId: string): Promise<AgentDependencies> {
     const metadata = this.registry.get(agentId);

@@ -98,12 +98,18 @@ export class IssueReaderAgent implements IAgent {
     };
   }
 
+  /**
+   *
+   */
   public async initialize(): Promise<void> {
     if (this.initialized) return;
     await Promise.resolve();
     this.initialized = true;
   }
 
+  /**
+   *
+   */
   public async dispose(): Promise<void> {
     await Promise.resolve();
     this.session = null;
@@ -116,6 +122,7 @@ export class IssueReaderAgent implements IAgent {
 
   /**
    * Start a new import session
+   * @param repository
    */
   public startSession(repository: string): IssueReaderSession {
     const now = new Date().toISOString();
@@ -148,6 +155,8 @@ export class IssueReaderAgent implements IAgent {
    * Import issues from a GitHub repository
    *
    * Implements the IIssueReaderAgent.importIssues interface from SDS-001 Section 3.28.
+   * @param repoUrl
+   * @param options
    */
   public async importIssues(
     repoUrl: string,
@@ -229,6 +238,8 @@ export class IssueReaderAgent implements IAgent {
 
   /**
    * Fetch issues from GitHub using gh CLI
+   * @param repository
+   * @param options
    */
   private fetchIssues(repository: string, options: IssueImportOptions): readonly GhIssueRaw[] {
     const args = [
@@ -279,6 +290,8 @@ export class IssueReaderAgent implements IAgent {
 
   /**
    * Convert raw GitHub issues to AD-SDLC internal format
+   * @param rawIssues
+   * @param repository
    */
   private convertIssues(
     rawIssues: readonly GhIssueRaw[],
@@ -318,6 +331,7 @@ export class IssueReaderAgent implements IAgent {
 
   /**
    * Map raw GitHub labels to structured AD-SDLC labels
+   * @param labelNames
    */
   private mapLabels(labelNames: readonly string[]): ImportedIssueLabels {
     let priority: Priority = DEFAULT_PRIORITY;
@@ -351,6 +365,8 @@ export class IssueReaderAgent implements IAgent {
 
   /**
    * Extract dependency relationships from issue body text
+   * @param body
+   * @param validNumbers
    */
   private extractDependencies(
     body: string,
@@ -394,6 +410,7 @@ export class IssueReaderAgent implements IAgent {
 
   /**
    * Estimate issue complexity from effort size
+   * @param size
    */
   private estimateComplexity(size: EffortSize): 'small' | 'medium' | 'large' {
     if (size === 'XS' || size === 'S') return 'small';
@@ -407,6 +424,7 @@ export class IssueReaderAgent implements IAgent {
 
   /**
    * Build a dependency graph from imported issues
+   * @param issues
    */
   private buildDependencyGraph(issues: readonly ImportedIssue[]): ImportDependencyGraph {
     const numberToId = new Map<number, ImportedIssue>();
@@ -496,6 +514,8 @@ export class IssueReaderAgent implements IAgent {
 
   /**
    * Perform topological sort using Kahn's algorithm on depends_on edges
+   * @param issues
+   * @param numberToId
    */
   private topologicalSort(
     issues: readonly ImportedIssue[],
@@ -558,6 +578,8 @@ export class IssueReaderAgent implements IAgent {
 
   /**
    * Find nodes that are blocked (have unresolved dependencies)
+   * @param issues
+   * @param numberToId
    */
   private findBlockedNodes(
     issues: readonly ImportedIssue[],
@@ -582,6 +604,7 @@ export class IssueReaderAgent implements IAgent {
 
   /**
    * Compute import statistics
+   * @param issues
    */
   private computeStats(issues: readonly ImportedIssue[]): ImportStats {
     const byPriority: Record<Priority, number> = { P0: 0, P1: 0, P2: 0, P3: 0 };
@@ -612,6 +635,7 @@ export class IssueReaderAgent implements IAgent {
 
   /**
    * Run a gh command via CommandSanitizer
+   * @param args
    */
   private runGhCommand(args: readonly string[]): {
     success: boolean;
@@ -638,6 +662,7 @@ export class IssueReaderAgent implements IAgent {
 
   /**
    * Normalize a repository URL to owner/repo format
+   * @param repoUrl
    */
   private normalizeRepoUrl(repoUrl: string): string {
     // Already in owner/repo format
@@ -660,6 +685,8 @@ export class IssueReaderAgent implements IAgent {
 
   /**
    * Save import results to scratchpad
+   * @param repository
+   * @param result
    */
   private saveOutput(repository: string, result: IssueImportResult): void {
     const projectId = repository.replace('/', '_');
@@ -708,6 +735,7 @@ let instance: IssueReaderAgent | null = null;
 
 /**
  * Get the singleton Issue Reader Agent instance
+ * @param config
  */
 export function getIssueReaderAgent(config?: IssueReaderConfig): IssueReaderAgent {
   if (instance === null) {

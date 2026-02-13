@@ -107,6 +107,8 @@ export class SpanWrapper {
 
   /**
    * Set an attribute on the span
+   * @param key
+   * @param value
    */
   public setAttribute(key: string, value: string | number | boolean): this {
     this.span?.setAttribute(key, value);
@@ -115,6 +117,7 @@ export class SpanWrapper {
 
   /**
    * Set multiple attributes on the span
+   * @param attributes
    */
   public setAttributes(attributes: Record<string, string | number | boolean>): this {
     if (this.span !== null) {
@@ -127,6 +130,8 @@ export class SpanWrapper {
 
   /**
    * Add an event to the span
+   * @param name
+   * @param attributes
    */
   public addEvent(name: string, attributes?: Record<string, string | number | boolean>): this {
     this.span?.addEvent(name, attributes);
@@ -135,6 +140,9 @@ export class SpanWrapper {
 
   /**
    * Record token usage on the span
+   * @param inputTokens
+   * @param outputTokens
+   * @param costUsd
    */
   public recordTokenUsage(inputTokens: number, outputTokens: number, costUsd?: number): this {
     if (this.span !== null) {
@@ -149,6 +157,7 @@ export class SpanWrapper {
 
   /**
    * End the span with success status
+   * @param attributes
    */
   public endSuccess(attributes?: Record<string, string | number>): void {
     if (this.ended) {
@@ -160,6 +169,7 @@ export class SpanWrapper {
 
   /**
    * End the span with error status
+   * @param error
    */
   public endError(error: Error): void {
     if (this.ended) {

@@ -35,6 +35,8 @@ export function compareVersions(a: TemplateVersion, b: TemplateVersion): -1 | 0 
 
 /**
  * Check if two versions are equal
+ * @param a
+ * @param b
  */
 export function versionsEqual(a: TemplateVersion, b: TemplateVersion): boolean {
   return compareVersions(a, b) === 0;
@@ -42,6 +44,7 @@ export function versionsEqual(a: TemplateVersion, b: TemplateVersion): boolean {
 
 /**
  * Format a version as a string (e.g., "1.0.0")
+ * @param version
  */
 export function formatVersion(version: TemplateVersion): string {
   return `${String(version.major)}.${String(version.minor)}.${String(version.patch)}`;
@@ -74,6 +77,8 @@ export function parseVersion(versionString: string): TemplateVersion | null {
  * Versions are compatible if:
  * - Major versions match (breaking changes require migration)
  * - Source minor version <= target minor version
+ * @param source
+ * @param target
  */
 export function isVersionCompatible(source: TemplateVersion, target: TemplateVersion): boolean {
   // Major version must match for compatibility
@@ -91,6 +96,7 @@ const migrationRegistry: TemplateMigrationStep[] = [];
 
 /**
  * Register a migration step
+ * @param step
  */
 export function registerMigration(step: TemplateMigrationStep): void {
   migrationRegistry.push(step);
@@ -326,6 +332,7 @@ export function migrateTemplate(config: TemplateConfig): TemplateMigrationResult
 
 /**
  * Check if a template configuration needs migration
+ * @param config
  */
 export function needsMigration(config: TemplateConfig): boolean {
   return compareVersions(config.version, CURRENT_TEMPLATE_VERSION) < 0;

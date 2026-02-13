@@ -178,6 +178,7 @@ export class FixStrategies {
   /**
    * Attempt to fix a single type error
    * Uses SecureFileOps for path traversal prevention
+   * @param failure
    */
   private async attemptTypeErrorFix(failure: CIFailure): Promise<AppliedFix> {
     if (failure.file === undefined) {
@@ -225,6 +226,9 @@ export class FixStrategies {
 
   /**
    * Try different type error fix strategies
+   * @param lines
+   * @param lineNumber
+   * @param errorMessage
    */
   private attemptTypeErrorFixStrategies(
     lines: string[],
@@ -261,6 +265,8 @@ export class FixStrategies {
 
   /**
    * Add non-null assertion to fix 'possibly undefined' errors
+   * @param lines
+   * @param lineNumber
    */
   private addNonNullAssertion(lines: string[], lineNumber: number): string | null {
     const lineIndex = lineNumber - 1;
@@ -275,6 +281,8 @@ export class FixStrategies {
 
   /**
    * Add explicit 'any' type annotation
+   * @param lines
+   * @param lineNumber
    */
   private addExplicitAny(lines: string[], lineNumber: number): string | null {
     const lineIndex = lineNumber - 1;
@@ -323,6 +331,7 @@ export class FixStrategies {
 
   /**
    * Attempt to fix a single test failure
+   * @param failure
    */
   private async attemptTestFix(failure: CIFailure): Promise<AppliedFix> {
     if (this.dryRun) {
@@ -442,6 +451,7 @@ export class FixStrategies {
 
   /**
    * Attempt to fix a single build failure
+   * @param failure
    */
   private attemptBuildFix(failure: CIFailure): AppliedFix {
     // Check for module not found errors
@@ -463,6 +473,7 @@ export class FixStrategies {
 
   /**
    * Attempt to install missing module
+   * @param failure
    */
   private attemptModuleInstall(failure: CIFailure): AppliedFix {
     // Extract module name from error message
@@ -656,6 +667,10 @@ export class FixStrategies {
   /**
    * Execute a shell command using safe execution
    * Uses injected ICommandExecutor for testability
+   * @param command
+   * @param options
+   * @param options.timeout
+   * @param options.ignoreExitCode
    */
   private async executeCommand(
     command: string,
@@ -675,6 +690,7 @@ export class FixStrategies {
   /**
    * Check if a command/script exists
    * Uses SecureFileOps for path traversal prevention
+   * @param npmScript
    */
   private async commandExists(npmScript: string): Promise<boolean> {
     try {
@@ -691,6 +707,9 @@ export class FixStrategies {
 
   /**
    * Create a dry-run result
+   * @param type
+   * @param file
+   * @param description
    */
   private createDryRunResult(
     type: CIFailureCategory,
