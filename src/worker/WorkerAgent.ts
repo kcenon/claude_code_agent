@@ -721,6 +721,10 @@ export class WorkerAgent implements IAgent {
         });
       }
     }
+
+    // Async contract: this method is async to support LLM integration where
+    // code generation requires awaiting API responses and file I/O
+    await Promise.resolve();
   }
 
   /**
