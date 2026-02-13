@@ -703,6 +703,9 @@ export type {
 // Issue Generator - has conflicts with code-reader, worker
 export * as IssueGen from '../issue-generator/index.js';
 
+// Issue Reader - import pipeline entry point, alternative to issue-generator
+export * as IssueReader from '../issue-reader/index.js';
+
 // Code Reader - has conflicts with issue-generator, worker
 export * as CodeReader from '../code-reader/index.js';
 
