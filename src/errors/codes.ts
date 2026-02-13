@@ -227,6 +227,27 @@ export const MonitoringErrorCodes = {
 } as const;
 
 /**
+ * Control-Plane module error codes (CPL-xxx)
+ */
+export const ControlPlaneErrorCodes = {
+  // Pipeline errors (001-009)
+  CPL_PIPELINE_START_ERROR: 'CPL-001',
+  CPL_PIPELINE_RESUME_ERROR: 'CPL-002',
+  CPL_PIPELINE_STATE_ERROR: 'CPL-003',
+
+  // Agent lifecycle errors (010-019)
+  CPL_AGENT_NOT_REGISTERED: 'CPL-010',
+  CPL_AGENT_ALREADY_REGISTERED: 'CPL-011',
+  CPL_AGENT_LIFECYCLE_ERROR: 'CPL-012',
+
+  // Mode detection errors (020-029)
+  CPL_MODE_DETECTION_ERROR: 'CPL-020',
+
+  // Initialization errors (030-039)
+  CPL_INIT_ERROR: 'CPL-030',
+} as const;
+
+/**
  * Generic error codes (GEN-xxx)
  */
 export const GenericErrorCodes = {
@@ -397,6 +418,7 @@ export const ErrorCodes = {
   ...ConfigErrorCodes,
   ...SecurityErrorCodes,
   ...MonitoringErrorCodes,
+  ...ControlPlaneErrorCodes,
   ...GenericErrorCodes,
   ...DocumentErrorCodes,
   ...AgentErrorCodes,
@@ -546,6 +568,16 @@ export const ErrorCodeDescriptions: Record<ErrorCode, string> = {
   [ErrorCodes.MON_METRIC_ERROR]: 'Metric operation error',
   [ErrorCodes.MON_ALERT_ERROR]: 'Alert operation error',
   [ErrorCodes.MON_HEALTH_CHECK_ERROR]: 'Health check error',
+
+  // Control-Plane
+  [ErrorCodes.CPL_PIPELINE_START_ERROR]: 'Failed to start pipeline',
+  [ErrorCodes.CPL_PIPELINE_RESUME_ERROR]: 'Failed to resume pipeline',
+  [ErrorCodes.CPL_PIPELINE_STATE_ERROR]: 'Pipeline state error',
+  [ErrorCodes.CPL_AGENT_NOT_REGISTERED]: 'Agent not registered',
+  [ErrorCodes.CPL_AGENT_ALREADY_REGISTERED]: 'Agent already registered',
+  [ErrorCodes.CPL_AGENT_LIFECYCLE_ERROR]: 'Agent lifecycle error',
+  [ErrorCodes.CPL_MODE_DETECTION_ERROR]: 'Mode detection failed',
+  [ErrorCodes.CPL_INIT_ERROR]: 'Control-plane initialization failed',
 
   // Generic
   [ErrorCodes.GEN_UNKNOWN]: 'Unknown error',
