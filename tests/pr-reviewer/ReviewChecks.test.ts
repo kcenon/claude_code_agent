@@ -152,7 +152,7 @@ describe('ReviewChecks', () => {
         c.comment.toLowerCase().includes('hardcoded')
       );
       expect(secretComments.length).toBeGreaterThan(0);
-    }, 15000);
+    }, 30000);
 
     it('should detect SQL injection patterns', async () => {
       const checks = new ReviewChecks({

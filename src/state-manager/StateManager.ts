@@ -208,14 +208,7 @@ export class StateManager {
    * @param data - State data to write
    * @param options - Update options
    */
-  /* eslint-disable @typescript-eslint/no-unnecessary-type-parameters */
-  /**
-   *
-   * @param section
-   * @param projectId
-   * @param data
-   * @param options
-   */
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters
   async setState<T extends object>(
     section: ScratchpadSection,
     projectId: string,
@@ -243,7 +236,6 @@ export class StateManager {
       isCreate ? 'create' : 'update'
     );
   }
-  /* eslint-enable @typescript-eslint/no-unnecessary-type-parameters */
 
   /**
    * Update state for a section (partial update/merge)
@@ -478,7 +470,8 @@ export class StateManager {
 
   /**
    * Collect section states for checkpoint
-   * @param projectId
+   * @param projectId - Project identifier to collect state for
+   * @returns Partial record of section states
    */
   private async collectSectionStates(
     projectId: string
@@ -668,6 +661,7 @@ export class StateManager {
 
   /**
    * Get the underlying scratchpad instance
+   * @returns The Scratchpad instance used by this StateManager
    */
   getScratchpad(): Scratchpad {
     return this.scratchpad;
@@ -697,12 +691,8 @@ export function getStateManager(options?: StateManagerOptions): StateManager {
  */
 export function resetStateManager(): void {
   if (globalStateManager !== null) {
-    globalStateManager.cleanup().catch((error: unknown) => {
-      // Log cleanup errors to console in development for debugging
-      if (process.env.NODE_ENV !== 'production') {
-        const errorMsg = error instanceof Error ? error.message : String(error);
-        console.debug(`StateManager cleanup failed: ${errorMsg}`);
-      }
+    globalStateManager.cleanup().catch(() => {
+      // Cleanup errors during reset are intentionally suppressed
     });
     globalStateManager = null;
   }

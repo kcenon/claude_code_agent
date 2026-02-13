@@ -122,7 +122,8 @@ export class SerializationError extends DataPlaneError {
 
 /**
  * Convert a camelCase string to snake_case
- * @param str
+ * @param str - The camelCase string to convert
+ * @returns The snake_case converted string
  */
 export function camelToSnake(str: string): string {
   return str.replace(/([A-Z])/g, '_$1').toLowerCase();
@@ -130,7 +131,8 @@ export function camelToSnake(str: string): string {
 
 /**
  * Convert a snake_case string to camelCase
- * @param str
+ * @param str - The snake_case string to convert
+ * @returns The camelCase converted string
  */
 export function snakeToCamel(str: string): string {
   return str.replace(/_([a-z])/g, (_, letter: string) => letter.toUpperCase());
@@ -138,7 +140,8 @@ export function snakeToCamel(str: string): string {
 
 /**
  * Recursively convert all keys in an object from camelCase to snake_case
- * @param obj
+ * @param obj - The object with camelCase keys to convert
+ * @returns The object with all keys converted to snake_case
  */
 export function toSnakeCase(obj: unknown): unknown {
   if (obj === null || obj === undefined) return obj;
@@ -155,7 +158,8 @@ export function toSnakeCase(obj: unknown): unknown {
 
 /**
  * Recursively convert all keys in an object from snake_case to camelCase
- * @param obj
+ * @param obj - The object with snake_case keys to convert
+ * @returns The object with all keys converted to camelCase
  */
 export function toCamelCase(obj: unknown): unknown {
   if (obj === null || obj === undefined) return obj;

@@ -37,8 +37,9 @@ const FRONTMATTER_REGEX = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/;
 
 /**
  * Parse frontmatter from markdown content
- * @param content
- * @param filePath
+ * @param content - Raw markdown content to parse
+ * @param filePath - File path for error reporting
+ * @returns Object containing parsed frontmatter and body content
  */
 function parseFrontmatter(
   content: string,
@@ -65,8 +66,9 @@ function parseFrontmatter(
 
 /**
  * Format Zod errors into validation errors
- * @param error
- * @param filePath
+ * @param error - Zod validation error to format
+ * @param filePath - File path for error context
+ * @returns Array of formatted validation errors
  */
 function formatZodErrors(error: ZodError, filePath: string): AgentValidationError[] {
   return error.issues.map((issue) => ({
@@ -82,8 +84,9 @@ function formatZodErrors(error: ZodError, filePath: string): AgentValidationErro
 
 /**
  * Validate frontmatter against schema
- * @param data
- * @param filePath
+ * @param data - Parsed frontmatter data to validate
+ * @param filePath - File path for error reporting
+ * @returns Validated AgentFrontmatter object
  */
 function validateFrontmatter(data: unknown, filePath: string): AgentFrontmatter {
   const result = AgentFrontmatterSchema.safeParse(data);
@@ -97,8 +100,9 @@ function validateFrontmatter(data: unknown, filePath: string): AgentFrontmatter 
 
 /**
  * Check for recommended sections in markdown content
- * @param content
- * @param filePath
+ * @param content - Markdown body content to check
+ * @param filePath - File path for error context
+ * @returns Array of validation errors for missing sections
  */
 function checkRecommendedSections(content: string, filePath: string): AgentValidationError[] {
   const warnings: AgentValidationError[] = [];
@@ -118,7 +122,8 @@ function checkRecommendedSections(content: string, filePath: string): AgentValid
 
 /**
  * Load and validate agent registry (agents.yaml)
- * @param registryPath
+ * @param registryPath - Absolute path to agents.yaml
+ * @returns Map of agent ID to definition file path
  */
 function loadAgentRegistry(registryPath: string): Map<string, string> {
   const registry = new Map<string, string>();
@@ -145,9 +150,10 @@ function loadAgentRegistry(registryPath: string): Map<string, string> {
 
 /**
  * Check if agent is registered in agents.yaml
- * @param agentName
- * @param filePath
- * @param registry
+ * @param agentName - Agent name from frontmatter
+ * @param filePath - Actual file path of the agent definition
+ * @param registry - Loaded agent registry map
+ * @returns Array of validation errors for registry mismatches
  */
 function checkRegistryConsistency(
   agentName: string,
@@ -190,8 +196,9 @@ function checkRegistryConsistency(
 
 /**
  * Validate a single agent definition file
- * @param filePath
- * @param options
+ * @param filePath - Absolute path to the agent definition file
+ * @param options - Validation options
+ * @returns Validation result with errors and warnings
  */
 export function validateAgentFile(
   filePath: string,
@@ -281,7 +288,8 @@ export function validateAgentFile(
 
 /**
  * Validate all agent definition files in a directory
- * @param options
+ * @param options - Validation options
+ * @returns Comprehensive validation report
  */
 export function validateAllAgents(options: ValidateAgentOptions = {}): AgentValidationReport {
   const agentsDir =
@@ -336,7 +344,8 @@ export function validateAllAgents(options: ValidateAgentOptions = {}): AgentVali
 
 /**
  * Format validation report as string
- * @param report
+ * @param report - Validation report to format
+ * @returns Formatted string representation of the report
  */
 export function formatValidationReport(report: AgentValidationReport): string {
   const lines: string[] = [];
