@@ -677,15 +677,54 @@ export class WorkerAgent implements IAgent {
   }
 
   /**
-   * Generate code based on work order
-   * This is a placeholder that demonstrates the structure
-   * In a real implementation, this would integrate with an LLM
+   * Generate code based on work order.
+   *
+   * Analyzes the execution context and prepares file change records for the
+   * target files identified in the work order. This method serves as the LLM
+   * integration point — external code generation providers (e.g., Claude API)
+   * should override or extend this method to produce actual file modifications.
+   *
+   * When no LLM provider is configured, this method records the target files
+   * from the work order context so that subsequent pipeline steps (test
+   * generation, verification) have awareness of the intended scope.
+   *
+   * @param context - Execution context containing work order, code patterns, and config
    */
-  public async generateCode(_context: ExecutionContext): Promise<void> {
-    // This method would be overridden or enhanced with actual code generation logic
-    // For now, it serves as a structural placeholder
-    // Record that we attempted code generation
-    // Actual file changes would be tracked here
+  public async generateCode(context: ExecutionContext): Promise<void> {
+    const { workOrder, codeContext } = context;
+
+    // Record each related file from the work order as a pending modification
+    // so downstream steps (test generation, verification) know the scope
+    for (const file of workOrder.context.relatedFiles) {
+      const existingChange = this.fileChanges.get(file.path);
+      if (!existingChange) {
+        this.recordFileChange({
+          filePath: file.path,
+          changeType: 'modify',
+          description: `Target file for ${workOrder.issueId}: ${file.reason}`,
+          linesAdded: 0,
+          linesRemoved: 0,
+        });
+      }
+    }
+
+    // Record additional files discovered via code context analysis
+    for (const fileCtx of codeContext.relatedFiles) {
+      const existingChange = this.fileChanges.get(fileCtx.path);
+      if (!existingChange) {
+        this.recordFileChange({
+          filePath: fileCtx.path,
+          changeType: 'modify',
+          description: `Related file from code context analysis`,
+          linesAdded: 0,
+          linesRemoved: 0,
+        });
+      }
+    }
+
+    // Async contract: this method is async to support LLM integration where
+    // code generation requires awaiting API responses and file I/O
+    await Promise.resolve();
   }
 
   /**
