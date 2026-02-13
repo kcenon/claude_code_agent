@@ -69,7 +69,7 @@ export class PipelineOperationError extends ControlPlaneError {
   constructor(
     operation: 'start' | 'resume' | 'state',
     message: string,
-    options: AppErrorOptions = {},
+    options: AppErrorOptions = {}
   ) {
     const codeMap = {
       start: ControlPlaneErrorCodes.CPL_PIPELINE_START_ERROR,
@@ -88,7 +88,12 @@ export class PipelineOperationError extends ControlPlaneError {
  * Error in agent registry operations
  */
 export class AgentRegistryError extends ControlPlaneError {
-  constructor(agentId: string, reason: 'not_registered' | 'already_registered' | 'lifecycle', message: string, options: AppErrorOptions = {}) {
+  constructor(
+    agentId: string,
+    reason: 'not_registered' | 'already_registered' | 'lifecycle',
+    message: string,
+    options: AppErrorOptions = {}
+  ) {
     const codeMap = {
       not_registered: ControlPlaneErrorCodes.CPL_AGENT_NOT_REGISTERED,
       already_registered: ControlPlaneErrorCodes.CPL_AGENT_ALREADY_REGISTERED,
@@ -183,7 +188,7 @@ export class ControlPlane {
         error,
         ControlPlaneErrorCodes.CPL_INIT_ERROR,
         `Failed to initialize project: ${projectId}`,
-        { projectId, rootPath },
+        { projectId, rootPath }
       );
     }
   }
@@ -204,7 +209,7 @@ export class ControlPlane {
         error,
         ControlPlaneErrorCodes.CPL_PIPELINE_STATE_ERROR,
         `Failed to transition project ${projectId} to ${toState}`,
-        { projectId, toState },
+        { projectId, toState }
       );
     }
   }
@@ -224,7 +229,7 @@ export class ControlPlane {
         error,
         ControlPlaneErrorCodes.CPL_PIPELINE_STATE_ERROR,
         `Failed to get state for project: ${projectId}`,
-        { projectId },
+        { projectId }
       );
     }
   }
@@ -244,7 +249,7 @@ export class ControlPlane {
         error,
         ControlPlaneErrorCodes.CPL_PIPELINE_STATE_ERROR,
         `Failed to get summary for project: ${projectId}`,
-        { projectId },
+        { projectId }
       );
     }
   }
@@ -267,7 +272,7 @@ export class ControlPlane {
     projectId: string,
     rootPath: string,
     userInput?: string,
-    overrideMode?: PipelineMode,
+    overrideMode?: PipelineMode
   ): Promise<ModeDetectionResult> {
     try {
       const detector = getModeDetector(this.options.modeDetector as ModeDetectorConfig | undefined);
@@ -278,7 +283,7 @@ export class ControlPlane {
         error,
         ControlPlaneErrorCodes.CPL_MODE_DETECTION_ERROR,
         `Mode detection failed for project: ${projectId}`,
-        { projectId, rootPath },
+        { projectId, rootPath }
       );
     }
   }
@@ -305,14 +310,16 @@ export class ControlPlane {
    */
   async startAnalysis(input: AnalysisInput): Promise<AnalysisSession> {
     try {
-      const orchestrator = getAnalysisOrchestratorAgent(this.options.orchestrator as AnalysisOrchestratorConfig | undefined);
+      const orchestrator = getAnalysisOrchestratorAgent(
+        this.options.orchestrator as AnalysisOrchestratorConfig | undefined
+      );
       return await orchestrator.startAnalysis(input);
     } catch (error) {
       throw this.wrapError(
         error,
         ControlPlaneErrorCodes.CPL_PIPELINE_START_ERROR,
         `Failed to start analysis for: ${input.projectPath}`,
-        { projectPath: input.projectPath, scope: input.scope },
+        { projectPath: input.projectPath, scope: input.scope }
       );
     }
   }
@@ -328,17 +335,19 @@ export class ControlPlane {
   async resumeAnalysis(
     analysisId: string,
     rootPath: string,
-    retryFailed: boolean = true,
+    retryFailed: boolean = true
   ): Promise<AnalysisSession> {
     try {
-      const orchestrator = getAnalysisOrchestratorAgent(this.options.orchestrator as AnalysisOrchestratorConfig | undefined);
+      const orchestrator = getAnalysisOrchestratorAgent(
+        this.options.orchestrator as AnalysisOrchestratorConfig | undefined
+      );
       return await orchestrator.resume(analysisId, rootPath, retryFailed);
     } catch (error) {
       throw this.wrapError(
         error,
         ControlPlaneErrorCodes.CPL_PIPELINE_RESUME_ERROR,
         `Failed to resume analysis: ${analysisId}`,
-        { analysisId, rootPath },
+        { analysisId, rootPath }
       );
     }
   }
@@ -352,14 +361,16 @@ export class ControlPlane {
    */
   async getAnalysisStatus(analysisId: string, rootPath: string): Promise<PipelineState> {
     try {
-      const orchestrator = getAnalysisOrchestratorAgent(this.options.orchestrator as AnalysisOrchestratorConfig | undefined);
+      const orchestrator = getAnalysisOrchestratorAgent(
+        this.options.orchestrator as AnalysisOrchestratorConfig | undefined
+      );
       return await orchestrator.getStatus(analysisId, rootPath);
     } catch (error) {
       throw this.wrapError(
         error,
         ControlPlaneErrorCodes.CPL_PIPELINE_STATE_ERROR,
         `Failed to get analysis status: ${analysisId}`,
-        { analysisId, rootPath },
+        { analysisId, rootPath }
       );
     }
   }
@@ -379,11 +390,7 @@ export class ControlPlane {
    */
   registerAgent(id: string, name: string, metadata: Record<string, unknown> = {}): AgentInfo {
     if (this.agents.has(id)) {
-      throw new AgentRegistryError(
-        id,
-        'already_registered',
-        `Agent already registered: ${id}`,
-      );
+      throw new AgentRegistryError(id, 'already_registered', `Agent already registered: ${id}`);
     }
 
     const info: AgentInfo = {
@@ -409,11 +416,7 @@ export class ControlPlane {
   updateAgentStatus(id: string, status: AgentStatus): AgentInfo {
     const info = this.agents.get(id);
     if (!info) {
-      throw new AgentRegistryError(
-        id,
-        'not_registered',
-        `Agent not registered: ${id}`,
-      );
+      throw new AgentRegistryError(id, 'not_registered', `Agent not registered: ${id}`);
     }
 
     info.status = status;
@@ -485,7 +488,7 @@ export class ControlPlane {
     code: string,
     message: string,
     context: Record<string, unknown>,
-    category: ErrorCategory = 'recoverable',
+    category: ErrorCategory = 'recoverable'
   ): ControlPlaneError {
     if (error instanceof ControlPlaneError) {
       return error;

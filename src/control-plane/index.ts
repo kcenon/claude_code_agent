@@ -23,11 +23,7 @@ export {
   AgentRegistryError,
 } from './ControlPlane.js';
 
-export type {
-  AgentStatus,
-  AgentInfo,
-  ControlPlaneOptions,
-} from './ControlPlane.js';
+export type { AgentStatus, AgentInfo, ControlPlaneOptions } from './ControlPlane.js';
 
 // Re-export state-manager module
 export {
