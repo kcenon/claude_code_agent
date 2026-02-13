@@ -5,9 +5,9 @@
 | Field | Value |
 |-------|-------|
 | **Document ID** | PRD-001 |
-| **Version** | 1.0.0 |
+| **Version** | 1.1.0 |
 | **Status** | Review |
-| **Implementation** | Not Started |
+| **Implementation** | Partial |
 | **Created** | 2025-12-27 |
 | **Author** | System Architect |
 
@@ -38,7 +38,7 @@
 **Agent-Driven SDLC (AD-SDLC)** - Agent-Based Software Development Lifecycle Automation System
 
 ### 1.2 Overview
-AD-SDLC is a multi-agent system built on the Claude Agent SDK that automates the entire software development lifecycle. The system comprises 25 specialized agents across three pipeline modes (Greenfield, Enhancement, Import), covering the full process from initial user requirements through PRD, SRS, SDS creation, GitHub Issue generation, code implementation, and PR review.
+AD-SDLC is a multi-agent system built on the Claude Agent SDK that automates the entire software development lifecycle. The system comprises 25 specialized agents and 3 infrastructure services (28 total components) across three pipeline modes (Greenfield, Enhancement, Import), covering the full process from initial user requirements through PRD, SRS, SDS creation, GitHub Issue generation, code implementation, and PR review.
 
 ### 1.3 Key Value Propositions
 - **End-to-End Automation**: Full process automation from requirements gathering to code deployment
@@ -1322,6 +1322,7 @@ Validation Gates:
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 1.0.0 | 2025-12-27 | System Architect | Initial draft |
+| 1.1.0 | 2026-02-07 | System Architect | Enhancement Pipeline features (FR-017~FR-033), correct agent count to 28 total components |
 
 ---
 
