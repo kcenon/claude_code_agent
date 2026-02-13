@@ -49,7 +49,7 @@
 | Category | Scope |
 |----------|-------|
 | **Architecture** | 멀티 에이전트 오케스트레이션 아키텍처, Scratchpad 패턴 |
-| **Components** | 28개 컴포넌트 설계 (25개 특화 에이전트 + 3개 인프라 서비스) |
+| **Components** | 32개 컴포넌트 설계 (25개 특화 에이전트 + 4개 지원 컴포넌트 + 3개 인프라 서비스) |
 | **Data** | 파일 기반 상태 스키마, 데이터 엔티티 정의 |
 | **Interfaces** | 에이전트 간 통신, GitHub API 연동, CLI 인터페이스 |
 | **Security** | 인증, 권한 관리, 민감 정보 보호 |
@@ -2882,12 +2882,13 @@ interface TelemetryEvent {
 ### 3.14 지원 컴포넌트
 
 이 컴포넌트들은 핵심 에이전트 파이프라인을 보강하는 특화된 생성, 검증,
-관측 기능을 제공합니다. 위의 인프라 모듈과 달리, `IAgent` 인터페이스를
+관측 기능을 제공합니다. CMP-030, CMP-031, CMP-032는 `IAgent` 인터페이스를
 구현하며 `AgentFactory`가 관리하는 에이전트 수명주기에 참여합니다.
+CMP-029는 프로젝트 초기화 시 사용되는 무상태 검증 라이브러리입니다.
 
 #### 3.14.1 CMP-029: Agent Definition Validator
 
-**Source Features**: SF-028 (UC-038)
+**Source Features**: SF-028 (UC-039)
 **Responsibility**: 에이전트 정의 파일(`.claude/agents/*.md`)을 Zod 기반 스키마에 대해 검증하고, `agents.yaml` 레지스트리와의 일관성을 확인합니다. 마크다운 파일에서 YAML 프론트매터를 파싱하고, 구조(이름, 설명, 도구, 모델)를 검증하며, 권장 섹션을 확인하고, 오류 및 경고가 포함된 검증 보고서를 생성합니다.
 
 ```typescript
@@ -3141,7 +3142,7 @@ interface APIEndpoint {
 
 #### 3.14.4 CMP-032: Monitoring Service
 
-**Source Features**: SF-015 (UC-025)
+**Source Features**: SF-015 (UC-022, UC-023)
 **Responsibility**: AD-SDLC 파이프라인을 위한 종합적인 관측성 및 비용 제어 인프라를 제공합니다. 메트릭 수집, 에스컬레이션이 포함된 알림, 예측 기능이 있는 계층적 토큰 예산 관리, OpenTelemetry를 통한 분산 추적, 지능형 모델 선택, 쿼리 캐싱, 실시간 대시보드 데이터 집계를 포함합니다. 전체 하위 컴포넌트 목록은 Section 3.13.2를 참조하세요.
 
 ```typescript

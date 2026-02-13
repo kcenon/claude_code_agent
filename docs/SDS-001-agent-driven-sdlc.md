@@ -49,7 +49,7 @@ This SDS covers the following design scope:
 | Category | Scope |
 |----------|-------|
 | **Architecture** | Multi-agent orchestration architecture, Scratchpad pattern |
-| **Components** | 28 component designs (25 specialized agents + 3 infrastructure services) |
+| **Components** | 32 component designs (25 specialized agents + 4 support components + 3 infrastructure services) |
 | **Data** | File-based state schema, data entity definitions |
 | **Interfaces** | Inter-agent communication, GitHub API integration, CLI interface |
 | **Security** | Authentication, authorization management, sensitive information protection |
@@ -2884,13 +2884,14 @@ interface TelemetryEvent {
 ### 3.14 Support Components
 
 These components provide specialized generation, validation, and observability
-capabilities that augment the core agent pipeline. Unlike the infrastructure
-modules above, they implement the `IAgent` interface and participate in the
-agent lifecycle managed by `AgentFactory`.
+capabilities that augment the core agent pipeline. CMP-030, CMP-031, and
+CMP-032 implement the `IAgent` interface and participate in the agent lifecycle
+managed by `AgentFactory`. CMP-029 is a stateless validation library used
+during project initialization.
 
 #### 3.14.1 CMP-029: Agent Definition Validator
 
-**Source Features**: SF-028 (UC-038)
+**Source Features**: SF-028 (UC-039)
 **Responsibility**: Validates agent definition files (`.claude/agents/*.md`) against a Zod-based schema and checks consistency with the `agents.yaml` registry. Parses YAML frontmatter from markdown files, validates structure (name, description, tools, model), verifies recommended sections, and produces validation reports with errors and warnings.
 
 ```typescript
@@ -3144,7 +3145,7 @@ interface APIEndpoint {
 
 #### 3.14.4 CMP-032: Monitoring Service
 
-**Source Features**: SF-015 (UC-025)
+**Source Features**: SF-015 (UC-022, UC-023)
 **Responsibility**: Provides comprehensive observability and cost control infrastructure for the AD-SDLC pipeline. Includes metrics collection, alerting with escalation, hierarchical token budget enforcement with forecasting, distributed tracing via OpenTelemetry, intelligent model selection, query caching, and real-time dashboard data aggregation. See Section 3.13.2 for the complete sub-component listing.
 
 ```typescript
