@@ -532,7 +532,8 @@ export class IssueReaderAgent implements IAgent {
 
     const order: string[] = [];
     while (queue.length > 0) {
-      const current = queue.shift()!;
+      const current = queue.shift();
+      if (current === undefined) break;
       order.push(current);
 
       for (const neighbor of adjacency.get(current) ?? []) {
