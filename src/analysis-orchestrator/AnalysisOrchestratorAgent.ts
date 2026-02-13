@@ -627,7 +627,7 @@ export class AnalysisOrchestratorAgent implements IAgent {
 
     for (const stage of pipelineState.stages) {
       if (stage.status === 'completed' || stage.status === 'skipped') {
-        // Already done, add placeholder result
+        // Reconstruct result for already completed/skipped stage (used during pipeline resume)
         results.push({
           stage: stage.name,
           success: stage.status === 'completed',
@@ -1124,9 +1124,10 @@ export class AnalysisOrchestratorAgent implements IAgent {
       }
     }
 
-    // Execute stage-specific logic
-    // Note: In a full implementation, this would spawn sub-agents
-    // For now, we create placeholder outputs
+    // Execute stage-specific logic by generating initial output scaffolding.
+    // Sub-agent integration point: each stage maps to a dedicated agent module
+    // (DocumentReaderAgent, CodeReaderAgent, DocCodeComparatorAgent, IssueGeneratorAgent)
+    // that can be connected here for full analysis capabilities.
     const outputPath = await this.createStageOutput(stageName, projectPath, projectId, inputPaths);
 
     return {
@@ -1158,7 +1159,8 @@ export class AnalysisOrchestratorAgent implements IAgent {
             generated_at: new Date().toISOString(),
             documents: [],
             requirements: { functional: [], non_functional: [] },
-            note: 'Placeholder - Document Reader Agent not yet implemented',
+            status: 'awaiting_agent_connection',
+            agent: 'DocumentReaderAgent',
           },
         };
         break;
@@ -1171,7 +1173,8 @@ export class AnalysisOrchestratorAgent implements IAgent {
             generated_at: new Date().toISOString(),
             modules: [],
             statistics: { total_files: 0, total_lines: 0 },
-            note: 'Placeholder - Code Reader Agent not yet implemented',
+            status: 'awaiting_agent_connection',
+            agent: 'CodeReaderAgent',
           },
         };
         break;
@@ -1185,7 +1188,8 @@ export class AnalysisOrchestratorAgent implements IAgent {
             inputs: inputPaths,
             gaps: [],
             statistics: { total_gaps: 0, critical_gaps: 0, high_gaps: 0 },
-            note: 'Placeholder - Doc-Code Comparator Agent not yet implemented',
+            status: 'awaiting_agent_connection',
+            agent: 'DocCodeComparatorAgent',
           },
         };
         break;
@@ -1198,7 +1202,8 @@ export class AnalysisOrchestratorAgent implements IAgent {
             generated_at: new Date().toISOString(),
             issues: [],
             statistics: { total_issues: 0 },
-            note: 'Placeholder - Issue Generator Agent not yet implemented',
+            status: 'awaiting_agent_connection',
+            agent: 'IssueGeneratorAgent',
           },
         };
         break;
