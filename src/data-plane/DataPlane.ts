@@ -607,7 +607,7 @@ export class DataPlane {
       throw new DataValidationError(
         schemaName,
         'validation',
-        `Invalid ${schemaName} data for project ${projectId}: ${result.errors?.map((e) => `${e.path}: ${e.message}`).join(', ')}`,
+        `Invalid ${schemaName} data for project ${projectId}: ${result.errors?.map((e) => `${e.path}: ${e.message}`).join(', ') ?? 'unknown validation error'}`,
         {
           context: { projectId, schemaName, errors: result.errors },
           severity: ErrorSeverity.MEDIUM,
@@ -628,7 +628,7 @@ export class DataPlane {
       throw new DataValidationError(
         schemaName,
         'validation',
-        `Cannot write invalid ${schemaName}: ${result.errors?.map((e) => `${e.path}: ${e.message}`).join(', ')}`,
+        `Cannot write invalid ${schemaName}: ${result.errors?.map((e) => `${e.path}: ${e.message}`).join(', ') ?? 'unknown validation error'}`,
         {
           context: { schemaName, errors: result.errors },
           severity: ErrorSeverity.MEDIUM,
