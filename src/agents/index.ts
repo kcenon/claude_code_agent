@@ -727,6 +727,9 @@ export * as CIFixer from '../ci-fixer/index.js';
 // PR Reviewer
 export * as PRReviewer from '../pr-reviewer/index.js';
 
+// AD-SDLC Orchestrator - top-level pipeline coordinator
+export * as AdsdlcOrchestrator from '../ad-sdlc-orchestrator/index.js';
+
 // GitHub Repo Setup - has conflicts with repo-detector (visibility, session types)
 export * as GitHubRepoSetup from '../github-repo-setup/index.js';
 
