@@ -54,6 +54,7 @@ export {
   SecurityErrorCodes,
   MonitoringErrorCodes,
   ControlPlaneErrorCodes,
+  DataPlaneErrorCodes,
   GenericErrorCodes,
   DocumentErrorCodes,
   AgentErrorCodes,
