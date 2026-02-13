@@ -53,6 +53,7 @@ export {
   ConfigErrorCodes,
   SecurityErrorCodes,
   MonitoringErrorCodes,
+  ControlPlaneErrorCodes,
   GenericErrorCodes,
   DocumentErrorCodes,
   AgentErrorCodes,

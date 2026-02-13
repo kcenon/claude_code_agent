@@ -2,14 +2,28 @@
  * Control Plane - Orchestration and State Management
  *
  * This module exports components responsible for:
+ * - Unified control-plane facade (ControlPlane class)
  * - Project state management
  * - Issue prioritization and analysis
  * - Pipeline orchestration
  * - Mode detection
+ * - Agent lifecycle tracking
  * - Initialization
  *
  * @packageDocumentation
  */
+
+// Control-Plane facade
+export {
+  ControlPlane,
+  getControlPlane,
+  resetControlPlane,
+  ControlPlaneError,
+  PipelineOperationError,
+  AgentRegistryError,
+} from './ControlPlane.js';
+
+export type { AgentStatus, AgentInfo, ControlPlaneOptions } from './ControlPlane.js';
 
 // Re-export state-manager module
 export {
