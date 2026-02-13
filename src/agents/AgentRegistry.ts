@@ -211,10 +211,10 @@ export class AgentRegistry {
 
   /**
    * Recursively resolve dependencies
-   * @param agentId
-   * @param visited
-   * @param chain
-   * @param path
+   * @param agentId - Agent ID to resolve dependencies for
+   * @param visited - Set of already visited agent IDs
+   * @param chain - Resolved dependency chain being built
+   * @param path - Current traversal path for cycle detection
    */
   private resolveDependencies(
     agentId: string,
@@ -245,7 +245,8 @@ export class AgentRegistry {
 
   /**
    * Validate agent metadata
-   * @param metadata
+   * @param metadata - Agent metadata to validate
+   * @returns Error message string if invalid, null if valid
    */
   private validateMetadata(metadata: AgentMetadata): string | null {
     if (!metadata.agentId || typeof metadata.agentId !== 'string') {
@@ -280,7 +281,8 @@ export class AgentRegistry {
 
   /**
    * Check if a dependency object is valid
-   * @param dep
+   * @param dep - Value to check as a valid dependency
+   * @returns True if the value is a valid AgentDependency
    */
   private isValidDependency(dep: unknown): dep is AgentDependency {
     if (dep === null || typeof dep !== 'object') {

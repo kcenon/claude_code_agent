@@ -64,9 +64,10 @@ export class ModeDetector {
 
   /**
    * Start a new detection session
-   * @param projectId
-   * @param rootPath
-   * @param userInput
+   * @param projectId - Unique project identifier
+   * @param rootPath - Absolute path to the project root directory
+   * @param userInput - Optional user input text for keyword analysis
+   * @returns The created ModeDetectionSession
    */
   public startSession(
     projectId: string,
@@ -92,6 +93,7 @@ export class ModeDetector {
 
   /**
    * Get current session
+   * @returns The current session or null if none active
    */
   public getSession(): ModeDetectionSession | null {
     return this.session;
@@ -99,7 +101,8 @@ export class ModeDetector {
 
   /**
    * Detect pipeline mode for the current session
-   * @param userOverrideMode
+   * @param userOverrideMode - Optional explicit mode override from user
+   * @returns Promise resolving to the detection result
    */
   public detect(userOverrideMode?: PipelineMode): Promise<ModeDetectionResult> {
     try {
@@ -202,7 +205,8 @@ export class ModeDetector {
 
   /**
    * Check for existing documentation
-   * @param rootPath
+   * @param rootPath - Project root path to check for documents
+   * @returns Evidence of existing documentation
    */
   private checkDocuments(rootPath: string): DocumentEvidence {
     const docsPath = path.join(rootPath, this.config.docsBasePath);
@@ -230,7 +234,8 @@ export class ModeDetector {
 
   /**
    * Check if directory has markdown files
-   * @param dirPath
+   * @param dirPath - Directory path to check for .md files
+   * @returns True if directory contains markdown files
    */
   private hasMarkdownFiles(dirPath: string): boolean {
     if (!fs.existsSync(dirPath)) {
@@ -247,7 +252,8 @@ export class ModeDetector {
 
   /**
    * Check for existing codebase
-   * @param rootPath
+   * @param rootPath - Project root path to check for source code
+   * @returns Evidence of existing codebase
    */
   private checkCodebase(rootPath: string): CodebaseEvidence {
     const sourcePatterns = ['src', 'lib', 'app', 'packages', 'modules'];
@@ -310,7 +316,8 @@ export class ModeDetector {
 
   /**
    * Count source files and lines in a directory
-   * @param dirPath
+   * @param dirPath - Directory path to scan recursively
+   * @returns Object containing file count and total lines
    */
   private countSourceFiles(dirPath: string): { files: number; lines: number } {
     const extensions = [
@@ -374,7 +381,8 @@ export class ModeDetector {
 
   /**
    * Analyze user input for keywords
-   * @param userInput
+   * @param userInput - User input text to analyze for keywords
+   * @returns Keyword evidence with signal strength
    */
   private analyzeKeywords(userInput: string): KeywordEvidence {
     const input = userInput.toLowerCase();
@@ -413,7 +421,8 @@ export class ModeDetector {
 
   /**
    * Calculate detection scores
-   * @param evidence
+   * @param evidence - Collected detection evidence
+   * @returns Weighted detection scores
    */
   private calculateScores(evidence: DetectionEvidence): DetectionScores {
     // Document score (0.0 = no docs, 1.0 = all docs present)
@@ -455,8 +464,9 @@ export class ModeDetector {
 
   /**
    * Determine mode and confidence from evidence and scores
-   * @param evidence
-   * @param scores
+   * @param evidence - Collected detection evidence
+   * @param scores - Calculated detection scores
+   * @returns Object with mode, confidence, and confidence level
    */
   private determineMode(
     evidence: DetectionEvidence,
@@ -544,9 +554,10 @@ export class ModeDetector {
 
   /**
    * Generate human-readable reasoning
-   * @param evidence
-   * @param scores
-   * @param mode
+   * @param evidence - Collected detection evidence
+   * @param scores - Calculated detection scores
+   * @param mode - Selected pipeline mode
+   * @returns Human-readable reasoning string
    */
   private generateReasoning(
     evidence: DetectionEvidence,
@@ -608,8 +619,9 @@ export class ModeDetector {
 
   /**
    * Generate recommendations
-   * @param evidence
-   * @param mode
+   * @param evidence - Collected detection evidence
+   * @param mode - Selected pipeline mode
+   * @returns Array of recommendation strings
    */
   private generateRecommendations(evidence: DetectionEvidence, mode: PipelineMode): string[] {
     const recommendations: string[] = [];
@@ -643,9 +655,9 @@ export class ModeDetector {
 
   /**
    * Save detection result to scratchpad
-   * @param rootPath
-   * @param projectId
-   * @param result
+   * @param rootPath - Project root path for output
+   * @param projectId - Unique project identifier
+   * @param result - Detection result to save
    */
   private saveResult(rootPath: string, projectId: string, result: ModeDetectionResult): void {
     const scratchpadPath = path.join(rootPath, this.config.scratchpadBasePath, 'mode_detection');
@@ -700,6 +712,7 @@ export class ModeDetector {
 
   /**
    * Ensure session exists
+   * @returns The active session
    */
   private ensureSession(): ModeDetectionSession {
     if (!this.session) {
@@ -714,7 +727,8 @@ let instance: ModeDetector | null = null;
 
 /**
  * Get the singleton Mode Detector instance
- * @param config
+ * @param config - Optional configuration for first-time creation
+ * @returns The singleton ModeDetector instance
  */
 export function getModeDetector(config?: ModeDetectorConfig): ModeDetector {
   if (instance === null) {

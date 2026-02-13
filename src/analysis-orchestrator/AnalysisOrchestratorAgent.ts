@@ -71,8 +71,9 @@ async function loadYaml(): Promise<void> {
 /**
  * Safely converts an unknown value to a string.
  * Returns empty string for objects to avoid [object Object] output.
- * @param value
- * @param defaultValue
+ * @param value - The unknown value to convert
+ * @param defaultValue - Fallback string when conversion is not possible
+ * @returns The string representation of the value
  */
 function toSafeString(value: unknown, defaultValue: string = ''): string {
   if (value === null || value === undefined) return defaultValue;
@@ -107,7 +108,7 @@ class StageCircuitBreaker {
 
   /**
    * Record a failure for a stage
-   * @param stageName
+   * @param stageName - Pipeline stage that failed
    */
   recordFailure(stageName: PipelineStageName): void {
     if (!this.config.enabled) return;
@@ -122,7 +123,7 @@ class StageCircuitBreaker {
 
   /**
    * Record a success for a stage (resets failure count)
-   * @param stageName
+   * @param stageName - Pipeline stage that succeeded
    */
   recordSuccess(stageName: PipelineStageName): void {
     if (!this.config.enabled) return;
@@ -134,7 +135,8 @@ class StageCircuitBreaker {
 
   /**
    * Check if the circuit is open for a stage
-   * @param stageName
+   * @param stageName - Pipeline stage to check
+   * @returns True if the circuit is open (stage should not be retried)
    */
   isOpen(stageName: PipelineStageName): boolean {
     if (!this.config.enabled) return false;
@@ -152,7 +154,8 @@ class StageCircuitBreaker {
 
   /**
    * Get circuit state for a stage
-   * @param stageName
+   * @param stageName - Pipeline stage to query
+   * @returns Current circuit state: 'closed', 'open', or 'half-open'
    */
   getState(stageName: PipelineStageName): CircuitState {
     if (!this.config.enabled) return 'closed';
@@ -168,7 +171,8 @@ class StageCircuitBreaker {
 
   /**
    * Get failure count for a stage
-   * @param stageName
+   * @param stageName - Pipeline stage to query
+   * @returns Number of consecutive failures recorded
    */
   getFailureCount(stageName: PipelineStageName): number {
     return this.failures.get(stageName) ?? 0;
@@ -176,7 +180,8 @@ class StageCircuitBreaker {
 
   /**
    * Get remaining time until circuit closes (in ms)
-   * @param stageName
+   * @param stageName - Pipeline stage to query
+   * @returns Milliseconds remaining until circuit resets to closed
    */
   getRemainingResetTime(stageName: PipelineStageName): number {
     const openTime = this.openUntil.get(stageName);
@@ -186,7 +191,7 @@ class StageCircuitBreaker {
 
   /**
    * Manually reset circuit for a stage
-   * @param stageName
+   * @param stageName - Pipeline stage to reset
    */
   reset(stageName: PipelineStageName): void {
     this.failures.delete(stageName);
@@ -250,7 +255,7 @@ export class AnalysisOrchestratorAgent implements IAgent {
   }
 
   /**
-   *
+   * Initialize the orchestrator agent (loads YAML parser)
    */
   public async initialize(): Promise<void> {
     if (this.initialized) return;
@@ -259,7 +264,7 @@ export class AnalysisOrchestratorAgent implements IAgent {
   }
 
   /**
-   *
+   * Dispose the orchestrator agent and release all resources
    */
   public async dispose(): Promise<void> {
     await Promise.resolve();
@@ -278,7 +283,8 @@ export class AnalysisOrchestratorAgent implements IAgent {
 
   /**
    * Start a new analysis session
-   * @param input
+   * @param input - Analysis configuration including project path, scope, and options
+   * @returns The newly created analysis session
    */
   public async startAnalysis(input: AnalysisInput): Promise<AnalysisSession> {
     await loadYaml();
@@ -342,6 +348,7 @@ export class AnalysisOrchestratorAgent implements IAgent {
 
   /**
    * Execute the analysis pipeline
+   * @returns Analysis result with status, report, and output paths
    */
   public async execute(): Promise<AnalysisResult> {
     const session = this.ensureSession();
@@ -471,6 +478,7 @@ export class AnalysisOrchestratorAgent implements IAgent {
 
   /**
    * Get current session
+   * @returns The active analysis session, or null if none
    */
   public getSession(): AnalysisSession | null {
     return this.session;
@@ -478,8 +486,9 @@ export class AnalysisOrchestratorAgent implements IAgent {
 
   /**
    * Get analysis status by ID
-   * @param analysisId
-   * @param rootPath
+   * @param analysisId - Unique analysis session identifier
+   * @param rootPath - Project root path where pipeline state is stored
+   * @returns The pipeline state for the specified analysis
    */
   public async getStatus(analysisId: string, rootPath: string): Promise<PipelineState> {
     const statePath = path.join(
@@ -508,9 +517,10 @@ export class AnalysisOrchestratorAgent implements IAgent {
 
   /**
    * Resume a failed analysis
-   * @param analysisId
-   * @param rootPath
-   * @param retryFailed
+   * @param analysisId - Unique analysis session identifier to resume
+   * @param rootPath - Project root path where pipeline state is stored
+   * @param retryFailed - Whether to reset failed stages to pending for retry
+   * @returns The resumed analysis session
    */
   public async resume(
     analysisId: string,
@@ -732,9 +742,10 @@ export class AnalysisOrchestratorAgent implements IAgent {
 
   /**
    * Execute parallel stages with timeout, fail-fast, and partial result handling
-   * @param parallelStages
-   * @param pipelineState
-   * @param existingResults
+   * @param parallelStages - Stage names to execute concurrently
+   * @param pipelineState - Current pipeline state
+   * @param existingResults - Results from previously completed stages
+   * @returns Parallel execution result with per-stage status
    */
   private async executeParallelStages(
     parallelStages: PipelineStageName[],
@@ -937,10 +948,11 @@ export class AnalysisOrchestratorAgent implements IAgent {
 
   /**
    * Execute a stage with abort signal support
-   * @param stageName
-   * @param pipelineState
-   * @param previousResults
-   * @param signal
+   * @param stageName - Pipeline stage to execute
+   * @param pipelineState - Current pipeline state
+   * @param previousResults - Results from prior stages
+   * @param signal - Abort signal for cancellation
+   * @returns Stage execution result
    */
   private async executeStageWithAbort(
     stageName: PipelineStageName,
@@ -988,7 +1000,8 @@ export class AnalysisOrchestratorAgent implements IAgent {
 
   /**
    * Check if a stage is critical for fail-fast purposes
-   * @param stageName
+   * @param stageName - Pipeline stage to check
+   * @returns True if failure of this stage should abort parallel execution
    */
   private isCriticalParallelStage(stageName: PipelineStageName): boolean {
     const requiredStages = this.parallelExecutionConfig.requiredStages;
@@ -1001,8 +1014,9 @@ export class AnalysisOrchestratorAgent implements IAgent {
 
   /**
    * Check if partial results are sufficient to continue
-   * @param successCount
-   * @param totalCount
+   * @param successCount - Number of successfully completed stages
+   * @param totalCount - Total number of parallel stages
+   * @returns True if enough stages succeeded to proceed
    */
   private checkPartialResultsSufficient(successCount: number, totalCount: number): boolean {
     if (!this.parallelExecutionConfig.allowPartialResults) {
@@ -1096,9 +1110,10 @@ export class AnalysisOrchestratorAgent implements IAgent {
 
   /**
    * Execute a stage with timeout enforcement
-   * @param stageName
-   * @param pipelineState
-   * @param previousResults
+   * @param stageName - Pipeline stage to execute
+   * @param pipelineState - Current pipeline state
+   * @param previousResults - Results from prior stages
+   * @returns Stage execution result
    */
   private async executeStageWithTimeout(
     stageName: PipelineStageName,
@@ -1137,7 +1152,8 @@ export class AnalysisOrchestratorAgent implements IAgent {
 
   /**
    * Get timeout for a specific stage
-   * @param stageName
+   * @param stageName - Pipeline stage to query
+   * @returns Timeout duration in milliseconds
    */
   private getStageTimeout(stageName: PipelineStageName): number {
     return this.stageTimeouts[stageName];
@@ -1668,7 +1684,8 @@ let agentInstance: AnalysisOrchestratorAgent | null = null;
 
 /**
  * Get singleton instance of AnalysisOrchestratorAgent
- * @param config
+ * @param config - Optional configuration for first-time creation
+ * @returns The singleton AnalysisOrchestratorAgent instance
  */
 export function getAnalysisOrchestratorAgent(
   config?: AnalysisOrchestratorConfig
