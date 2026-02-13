@@ -582,7 +582,7 @@ agents:
       - Grep
     coding:
       language: "typescript"  # Adjust per project
-      test_framework: "jest"
+      test_framework: "vitest"
       lint_command: "npm run lint"
       test_command: "npm test"
       build_command: "npm run build"
