@@ -248,6 +248,26 @@ export const ControlPlaneErrorCodes = {
 } as const;
 
 /**
+ * Data-Plane module error codes (DPL-xxx)
+ */
+export const DataPlaneErrorCodes = {
+  // Data access errors (001-009)
+  DPL_READ_ERROR: 'DPL-001',
+  DPL_WRITE_ERROR: 'DPL-002',
+  DPL_NOT_FOUND: 'DPL-003',
+
+  // Validation errors (010-019)
+  DPL_VALIDATION_ERROR: 'DPL-010',
+  DPL_SCHEMA_MISMATCH: 'DPL-011',
+
+  // Serialization errors (020-029)
+  DPL_SERIALIZATION_ERROR: 'DPL-020',
+
+  // Initialization errors (030-039)
+  DPL_INIT_ERROR: 'DPL-030',
+} as const;
+
+/**
  * Generic error codes (GEN-xxx)
  */
 export const GenericErrorCodes = {
@@ -419,6 +439,7 @@ export const ErrorCodes = {
   ...SecurityErrorCodes,
   ...MonitoringErrorCodes,
   ...ControlPlaneErrorCodes,
+  ...DataPlaneErrorCodes,
   ...GenericErrorCodes,
   ...DocumentErrorCodes,
   ...AgentErrorCodes,
@@ -578,6 +599,15 @@ export const ErrorCodeDescriptions: Record<ErrorCode, string> = {
   [ErrorCodes.CPL_AGENT_LIFECYCLE_ERROR]: 'Agent lifecycle error',
   [ErrorCodes.CPL_MODE_DETECTION_ERROR]: 'Mode detection failed',
   [ErrorCodes.CPL_INIT_ERROR]: 'Control-plane initialization failed',
+
+  // Data-Plane
+  [ErrorCodes.DPL_READ_ERROR]: 'Data-plane read operation failed',
+  [ErrorCodes.DPL_WRITE_ERROR]: 'Data-plane write operation failed',
+  [ErrorCodes.DPL_NOT_FOUND]: 'Data-plane resource not found',
+  [ErrorCodes.DPL_VALIDATION_ERROR]: 'Data-plane validation failed',
+  [ErrorCodes.DPL_SCHEMA_MISMATCH]: 'Schema version mismatch',
+  [ErrorCodes.DPL_SERIALIZATION_ERROR]: 'Data serialization/deserialization failed',
+  [ErrorCodes.DPL_INIT_ERROR]: 'Data-plane initialization failed',
 
   // Generic
   [ErrorCodes.GEN_UNKNOWN]: 'Unknown error',
