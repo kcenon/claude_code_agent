@@ -381,6 +381,10 @@ project-root/
 | CMP-026 | Analysis Orchestrator Agent | 분석 오케스트레이터 | SF-030 | Enhancement 분석 서브 파이프라인 |
 | CMP-027 | GitHub Repo Setup Agent | GitHub 저장소 설정 에이전트 | SF-029 | GitHub 저장소 생성 및 초기화 |
 | CMP-028 | Issue Reader Agent | 이슈 리더 에이전트 | SF-031 | 기존 GitHub 이슈 가져오기 |
+| CMP-029 | Agent Definition Validator | 에이전트 정의 검증기 | SF-028 | 에이전트 정의 파일 스키마 및 레지스트리 검증 |
+| CMP-030 | Architecture Generator | 아키텍처 생성기 | SF-004 | SRS 문서로부터 아키텍처 설계 생성 |
+| CMP-031 | Component Generator | 컴포넌트 생성기 | SF-004 | 컴포넌트 설계, 인터페이스 사양, API 문서 생성 |
+| CMP-032 | Monitoring Service | 모니터링 서비스 | SF-015 | 관측성, 토큰 예산 관리, 알림, 성능 튜닝 |
 
 ### 3.2 CMP-001: Collector Agent
 
@@ -2874,6 +2878,352 @@ interface TelemetryEvent {
 │  └──────────────┘ └──────────┘ └────────────┘ └──────────────┘│
 └─────────────────────────────────────────────────────────────────┘
 ```
+
+### 3.14 지원 컴포넌트
+
+이 컴포넌트들은 핵심 에이전트 파이프라인을 보강하는 특화된 생성, 검증,
+관측 기능을 제공합니다. 위의 인프라 모듈과 달리, `IAgent` 인터페이스를
+구현하며 `AgentFactory`가 관리하는 에이전트 수명주기에 참여합니다.
+
+#### 3.14.1 CMP-029: Agent Definition Validator
+
+**Source Features**: SF-028 (UC-038)
+**Responsibility**: 에이전트 정의 파일(`.claude/agents/*.md`)을 Zod 기반 스키마에 대해 검증하고, `agents.yaml` 레지스트리와의 일관성을 확인합니다. 마크다운 파일에서 YAML 프론트매터를 파싱하고, 구조(이름, 설명, 도구, 모델)를 검증하며, 권장 섹션을 확인하고, 오류 및 경고가 포함된 검증 보고서를 생성합니다.
+
+```typescript
+interface IAgentDefinitionValidator {
+  /**
+   * 단일 에이전트 정의 파일 검증
+   * @param filePath 에이전트 정의 마크다운 파일 경로
+   * @param options 검증 옵션
+   * @returns 오류 및 경고가 포함된 검증 결과
+   */
+  validateAgentFile(
+    filePath: string,
+    options?: ValidateAgentOptions
+  ): AgentValidationResult;
+
+  /**
+   * 디렉토리 내 모든 에이전트 정의 파일 검증
+   * @param options 디렉토리 경로를 포함한 검증 옵션
+   * @returns 일괄 검증 보고서
+   */
+  validateAllAgents(
+    options?: ValidateAgentOptions
+  ): AgentValidationReport;
+
+  /**
+   * 검증 보고서를 사람이 읽을 수 있는 문자열로 포맷
+   * @param report 포맷할 검증 보고서
+   * @returns 포맷된 보고서 문자열
+   */
+  formatValidationReport(
+    report: AgentValidationReport
+  ): string;
+}
+
+interface ValidateAgentOptions {
+  /** agents.yaml 레지스트리와 일관성 확인 */
+  readonly checkRegistry?: boolean;
+  /** 출력에 경고 포함 */
+  readonly includeWarnings?: boolean;
+  /** 커스텀 에이전트 디렉토리 경로 */
+  readonly agentsDir?: string;
+  /** 커스텀 레지스트리 파일 경로 */
+  readonly registryPath?: string;
+}
+
+interface AgentValidationResult {
+  /** 검증된 파일 경로 */
+  readonly filePath: string;
+  /** 파일의 유효성 여부 */
+  readonly valid: boolean;
+  /** 검증 오류 */
+  readonly errors: AgentValidationError[];
+  /** 검증 경고 */
+  readonly warnings: AgentValidationError[];
+  /** 파싱된 에이전트 정의 (유효한 경우) */
+  readonly agent?: AgentDefinition;
+}
+
+interface AgentValidationReport {
+  /** 보고서 생성 타임스탬프 */
+  readonly timestamp: string;
+  /** 검증된 총 파일 수 */
+  readonly totalFiles: number;
+  /** 유효한 파일 수 */
+  readonly validCount: number;
+  /** 유효하지 않은 파일 수 */
+  readonly invalidCount: number;
+  /** 경고 수 */
+  readonly warningCount: number;
+  /** 파일별 검증 결과 */
+  readonly results: AgentValidationResult[];
+}
+```
+
+**Output**: `AgentValidationReport` 데이터 구조 (디스크 쓰기 없음)
+**Tools Required**: Read (에이전트 정의 파일, agents.yaml)
+**Dependencies**: `src/utils` (프로젝트 루트 감지), `src/config/paths` (기본 경로)
+
+#### 3.14.2 CMP-030: Architecture Generator
+
+**Source Features**: SF-004 (UC-007)
+**Responsibility**: SRS 문서로부터 종합적인 시스템 아키텍처 설계를 생성합니다. 기능, 유스케이스, 비기능 요구사항, 제약조건을 분석하여 아키텍처 패턴, 기술 스택, Mermaid 다이어그램, 디렉토리 구조를 권장합니다. 마크다운 형식의 SDS 아키텍처 섹션을 출력합니다.
+
+```typescript
+interface IArchitectureGenerator extends IAgent {
+  /**
+   * SRS 파일로부터 아키텍처 설계 생성
+   * @param srsPath SRS 마크다운 파일 경로
+   * @param options 생성 옵션
+   * @returns 완전한 아키텍처 설계
+   */
+  generateFromFile(
+    srsPath: string,
+    options?: ArchitectureGeneratorOptions
+  ): ArchitectureDesign;
+
+  /**
+   * 아키텍처를 생성하고 디스크에 저장
+   * @param srsPath SRS 파일 경로
+   * @param projectId 프로젝트 식별자
+   * @param options 생성 옵션
+   * @returns 설계 및 출력 파일 경로
+   */
+  generateAndSave(
+    srsPath: string,
+    projectId: string,
+    options?: ArchitectureGeneratorOptions
+  ): { design: ArchitectureDesign; outputPath: string };
+
+  /**
+   * 아키텍처 설계를 마크다운으로 변환
+   * @param design 렌더링할 아키텍처 설계
+   * @returns 마크다운 문자열
+   */
+  designToMarkdown(design: ArchitectureDesign): string;
+}
+
+interface ArchitectureDesign {
+  /** 아키텍처 패턴 분석 및 권장사항 */
+  readonly analysis: ArchitectureAnalysis;
+  /** 권장 기술 스택 */
+  readonly technologyStack: TechnologyStack;
+  /** 생성된 Mermaid 다이어그램 */
+  readonly diagrams: MermaidDiagram[];
+  /** 디렉토리 구조 사양 */
+  readonly directoryStructure: DirectoryStructure;
+  /** 생성 메타데이터 */
+  readonly metadata: ArchitectureMetadata;
+}
+
+interface ArchitectureAnalysis {
+  /** 권장 주요 아키텍처 패턴 */
+  readonly primaryPattern: ArchitecturePattern;
+  /** 보조 패턴 */
+  readonly supportingPatterns: ArchitecturePattern[];
+  /** 선택 근거 */
+  readonly rationale: string;
+  /** 패턴별 권장사항 */
+  readonly recommendations: PatternRecommendation[];
+  /** 식별된 아키텍처 관심사 */
+  readonly concerns: ArchitecturalConcern[];
+}
+
+type ArchitecturePattern =
+  | 'hierarchical-multi-agent'
+  | 'pipeline'
+  | 'event-driven'
+  | 'microservices'
+  | 'layered'
+  | 'hexagonal'
+  | 'cqrs'
+  | 'scratchpad';
+```
+
+**Output**: `docs/sds/SDS-{projectId}-architecture.md`
+**Tools Required**: Read (SRS 파일), Write (SDS 출력)
+**Dependencies**: 없음 (자체 포함 모듈)
+
+#### 3.14.3 CMP-031: Component Generator
+
+**Source Features**: SF-004 (UC-007)
+**Responsibility**: 파싱된 SRS 문서를 인터페이스 사양, API 문서, 의존성 분석, 추적성 행렬이 포함된 상세한 컴포넌트 설계로 변환합니다. 유스케이스 분석으로부터 SDS 컴포넌트 섹션과 TypeScript 타입 정의를 생성합니다.
+
+```typescript
+interface IComponentGenerator extends IAgent {
+  /**
+   * 파싱된 SRS로부터 컴포넌트 설계 생성
+   * @param srs 파싱된 SRS 문서
+   * @param options 생성 옵션
+   * @returns 완전한 컴포넌트 설계
+   */
+  generate(
+    srs: ParsedSRS,
+    options?: ComponentGeneratorOptions
+  ): ComponentDesign;
+
+  /**
+   * 컴포넌트 설계를 생성하고 디스크에 저장
+   * @param srs 파싱된 SRS 문서
+   * @param projectId 프로젝트 식별자
+   * @param options 생성 옵션
+   * @returns 설계 및 출력 파일 경로
+   */
+  generateAndSave(
+    srs: ParsedSRS,
+    projectId: string,
+    options?: ComponentGeneratorOptions
+  ): { design: ComponentDesign; outputPath: string };
+
+  /**
+   * 설계로부터 TypeScript 인터페이스 생성
+   * @param design 컴포넌트 설계
+   * @returns TypeScript 인터페이스 선언
+   */
+  generateTypeScriptInterfaces(
+    design: ComponentDesign
+  ): string;
+}
+
+interface ComponentDesign {
+  /** 컴포넌트 정의 */
+  readonly components: ComponentDefinition[];
+  /** API 엔드포인트 사양 */
+  readonly apiSpecification: APIEndpoint[];
+  /** 기능-컴포넌트 추적성 */
+  readonly traceabilityMatrix: TraceabilityEntry[];
+  /** 컴포넌트 간 의존성 */
+  readonly dependencies: ComponentDependency[];
+  /** 생성 메타데이터 */
+  readonly metadata: ComponentDesignMetadata;
+}
+
+interface ComponentDefinition {
+  /** 컴포넌트 식별자 */
+  readonly id: string;
+  /** 컴포넌트 이름 */
+  readonly name: string;
+  /** 컴포넌트 책임 */
+  readonly responsibility: string;
+  /** 소스 기능 참조 */
+  readonly sourceFeature: string;
+  /** 인터페이스 사양 */
+  readonly interfaces: InterfaceSpec[];
+  /** 컴포넌트 의존성 */
+  readonly dependencies: string[];
+  /** 아키텍처 레이어 */
+  readonly layer: 'presentation' | 'application' | 'domain' | 'infrastructure' | 'integration';
+}
+
+interface APIEndpoint {
+  /** 엔드포인트 경로 */
+  readonly endpoint: string;
+  /** HTTP 메서드 */
+  readonly method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+  /** 엔드포인트 설명 */
+  readonly description: string;
+  /** 요청 스키마 */
+  readonly request: Record<string, unknown>;
+  /** 응답 스키마 */
+  readonly response: Record<string, unknown>;
+  /** 인증 필요 여부 */
+  readonly authenticated: boolean;
+  /** 속도 제한 설정 */
+  readonly rateLimit?: string;
+}
+```
+
+**Output**: `docs/sds/SDS-{projectId}-components.md`
+**Tools Required**: Read (SRS 파일), Write (SDS 출력)
+**Dependencies**: `src/architecture-generator` (ParsedSRS 타입), `src/logging` (Logger)
+
+#### 3.14.4 CMP-032: Monitoring Service
+
+**Source Features**: SF-015 (UC-025)
+**Responsibility**: AD-SDLC 파이프라인을 위한 종합적인 관측성 및 비용 제어 인프라를 제공합니다. 메트릭 수집, 에스컬레이션이 포함된 알림, 예측 기능이 있는 계층적 토큰 예산 관리, OpenTelemetry를 통한 분산 추적, 지능형 모델 선택, 쿼리 캐싱, 실시간 대시보드 데이터 집계를 포함합니다. 전체 하위 컴포넌트 목록은 Section 3.13.2를 참조하세요.
+
+```typescript
+interface IMetricsCollector {
+  /**
+   * 에이전트 호출 메트릭 기록
+   * @param agentId 에이전트 식별자
+   * @param metrics 호출 메트릭 (토큰, 지속시간, 상태)
+   */
+  recordAgentInvocation(
+    agentId: string,
+    metrics: AgentInvocationMetrics
+  ): void;
+
+  /**
+   * 파이프라인 단계 메트릭 기록
+   * @param stage 파이프라인 단계 이름
+   * @param durationMs 단계 실행 시간
+   * @param status 단계 완료 상태
+   */
+  recordPipelineStage(
+    stage: string,
+    durationMs: number,
+    status: 'success' | 'failure' | 'skipped'
+  ): void;
+
+  /** 버퍼된 메트릭을 디스크에 플러시 */
+  flush(): Promise<void>;
+}
+
+interface ITokenBudgetManager {
+  /**
+   * 에이전트의 토큰 사용량 추적
+   * @param agentId 에이전트 식별자
+   * @param usage 토큰 사용 데이터 (입력, 출력, 모델)
+   * @returns 남은 토큰 및 경고가 포함된 예산 상태
+   */
+  trackUsage(
+    agentId: string,
+    usage: TokenUsage
+  ): BudgetStatus;
+
+  /**
+   * 에이전트 또는 세션의 남은 예산 조회
+   * @param agentId 선택적 에이전트 필터
+   * @returns 예측이 포함된 남은 예산
+   */
+  getRemainingBudget(agentId?: string): BudgetRemaining;
+}
+
+interface IModelSelector {
+  /**
+   * 작업 복잡도 및 제약조건에 기반한 최적 모델 권장
+   * @param task 작업 설명 및 특성
+   * @param constraints 예산 및 지연시간 제약
+   * @returns 근거가 포함된 모델 권장
+   */
+  selectModel(
+    task: TaskCharacteristics,
+    constraints: ModelConstraints
+  ): ModelRecommendation;
+}
+
+interface IAlertManager {
+  /**
+   * 조건에 따른 알림 발생
+   * @param alertId 알림 식별자
+   * @param condition 알림 조건 및 컨텍스트
+   */
+  fireAlert(alertId: string, condition: AlertCondition): void;
+
+  /**
+   * 활성 알림 확인
+   * @param alertId 알림 식별자
+   */
+  acknowledgeAlert(alertId: string): void;
+}
+```
+
+**Output**: `.ad-sdlc/metrics/`, `.ad-sdlc/alerts/`, `.ad-sdlc/budget/`, `.ad-sdlc/cache/`
+**Tools Required**: Read/Write (메트릭 및 예산 영속성)
+**Dependencies**: `src/config/paths` (디렉토리 해석), `src/logging` (Logger)
 
 ---
 
