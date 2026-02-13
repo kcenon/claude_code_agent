@@ -107,7 +107,7 @@ export class AgentFactory {
    * For singleton agents, returns the cached instance if available.
    * For transient agents, creates a new instance each time.
    *
-   * @typeParam T - The agent type to create
+   * @template T - The agent type to create
    * @param agentId - ID of the agent to create
    * @param options - Creation options
    * @returns The agent instance
@@ -273,7 +273,7 @@ export class AgentFactory {
    * Useful for optional agents that may not always be needed,
    * improving startup performance by avoiding unnecessary initialization.
    *
-   * @typeParam T - The agent type to create
+   * @template T - The agent type to create
    * @param agentId - ID of the agent to create lazily
    * @param options - Lazy creation options
    * @returns LazyAgent proxy for deferred creation

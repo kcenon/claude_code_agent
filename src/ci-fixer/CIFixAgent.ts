@@ -208,6 +208,9 @@ export class CIFixAgent implements IAgent {
    *
    * @param prNumber - PR number to fix
    * @param options - Additional options
+   * @param options.branch - Branch name for the PR
+   * @param options.originalIssue - Original issue reference
+   * @param options.implementationSummary - Summary of the implementation
    * @returns CI fix result
    */
   public async fixPR(
