@@ -357,6 +357,7 @@ export class LogContext {
 
   /**
    * Create a new context from options
+   * @param options
    */
   private createContext(options: CreateContextOptions): LogContextData {
     const traceId = options.trace?.traceId ?? generateTraceId();

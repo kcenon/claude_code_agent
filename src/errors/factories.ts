@@ -18,6 +18,9 @@ import type { ErrorContext, AppErrorOptions } from './types.js';
 
 /**
  * Create error for document not found
+ * @param documentType
+ * @param path
+ * @param context
  */
 export function documentNotFoundError(
   documentType: string,
@@ -33,6 +36,10 @@ export function documentNotFoundError(
 
 /**
  * Create error for document parse failure
+ * @param documentType
+ * @param path
+ * @param reason
+ * @param context
  */
 export function documentParseError(
   documentType: string,
@@ -53,6 +60,9 @@ export function documentParseError(
 
 /**
  * Create error for document validation failure
+ * @param documentType
+ * @param errors
+ * @param context
  */
 export function documentValidationError(
   documentType: string,
@@ -72,6 +82,10 @@ export function documentValidationError(
 
 /**
  * Create error for document write failure
+ * @param documentType
+ * @param path
+ * @param reason
+ * @param context
  */
 export function documentWriteError(
   documentType: string,
@@ -96,6 +110,9 @@ export function documentWriteError(
 
 /**
  * Create error for agent initialization failure
+ * @param agentType
+ * @param reason
+ * @param context
  */
 export function agentInitError(
   agentType: string,
@@ -115,6 +132,10 @@ export function agentInitError(
 
 /**
  * Create error for agent execution failure
+ * @param agentType
+ * @param operation
+ * @param reason
+ * @param context
  */
 export function agentExecutionError(
   agentType: string,
@@ -135,6 +156,10 @@ export function agentExecutionError(
 
 /**
  * Create error for agent timeout
+ * @param agentType
+ * @param operation
+ * @param timeoutMs
+ * @param context
  */
 export function agentTimeoutError(
   agentType: string,
@@ -155,6 +180,8 @@ export function agentTimeoutError(
 
 /**
  * Create error for agent not found
+ * @param agentType
+ * @param context
  */
 export function agentNotFoundError(agentType: string, context?: ErrorContext): AppError {
   return new AppError(
@@ -174,6 +201,10 @@ export function agentNotFoundError(agentType: string, context?: ErrorContext): A
 
 /**
  * Create error for file access failure
+ * @param operation
+ * @param path
+ * @param reason
+ * @param context
  */
 export function fileAccessError(
   operation: 'read' | 'write' | 'delete',
@@ -194,6 +225,9 @@ export function fileAccessError(
 
 /**
  * Create error for lock acquisition failure
+ * @param resource
+ * @param timeoutMs
+ * @param context
  */
 export function lockAcquisitionError(
   resource: string,
@@ -213,6 +247,9 @@ export function lockAcquisitionError(
 
 /**
  * Create error for lock timeout
+ * @param resource
+ * @param holderId
+ * @param context
  */
 export function lockTimeoutError(
   resource: string,
@@ -232,6 +269,9 @@ export function lockTimeoutError(
 
 /**
  * Create error for configuration load failure
+ * @param configPath
+ * @param reason
+ * @param context
  */
 export function configLoadError(
   configPath: string,
@@ -255,6 +295,9 @@ export function configLoadError(
 
 /**
  * Create error for path traversal attempt
+ * @param path
+ * @param baseDir
+ * @param context
  */
 export function pathTraversalError(
   path: string,
@@ -274,6 +317,9 @@ export function pathTraversalError(
 
 /**
  * Create error for command injection attempt
+ * @param command
+ * @param pattern
+ * @param context
  */
 export function commandInjectionError(
   command: string,
@@ -293,6 +339,9 @@ export function commandInjectionError(
 
 /**
  * Create error for permission denied
+ * @param resource
+ * @param action
+ * @param context
  */
 export function permissionDeniedError(
   resource: string,
@@ -312,6 +361,10 @@ export function permissionDeniedError(
 
 /**
  * Create error for rate limit exceeded
+ * @param resource
+ * @param limit
+ * @param windowMs
+ * @param context
  */
 export function rateLimitExceededError(
   resource: string,
@@ -336,6 +389,10 @@ export function rateLimitExceededError(
 
 /**
  * Create error for GitHub API failure
+ * @param operation
+ * @param statusCode
+ * @param message
+ * @param context
  */
 export function githubApiError(
   operation: string,
@@ -356,6 +413,10 @@ export function githubApiError(
 
 /**
  * Create error for CI execution failure
+ * @param pipeline
+ * @param stage
+ * @param reason
+ * @param context
  */
 export function ciExecutionError(
   pipeline: string,
@@ -376,6 +437,10 @@ export function ciExecutionError(
 
 /**
  * Create error for network failure
+ * @param operation
+ * @param endpoint
+ * @param reason
+ * @param context
  */
 export function networkError(
   operation: string,
@@ -400,6 +465,10 @@ export function networkError(
 
 /**
  * Create generic validation error
+ * @param field
+ * @param expected
+ * @param received
+ * @param context
  */
 export function validationError(
   field: string,
@@ -420,6 +489,8 @@ export function validationError(
 
 /**
  * Create not implemented error
+ * @param feature
+ * @param context
  */
 export function notImplementedError(feature: string, context?: ErrorContext): AppError {
   return new AppError(ErrorCodes.GEN_NOT_IMPLEMENTED, `Feature not implemented: ${feature}`, {
@@ -431,6 +502,9 @@ export function notImplementedError(feature: string, context?: ErrorContext): Ap
 
 /**
  * Create operation timeout error
+ * @param operation
+ * @param timeoutMs
+ * @param context
  */
 export function operationTimeoutError(
   operation: string,
@@ -455,6 +529,9 @@ export function operationTimeoutError(
 /**
  * Create a module-specific error factory
  *
+ * @param moduleName
+ * @param defaultCode
+ * @param defaultOptions
  * @example
  * ```typescript
  * const createPRDError = createModuleErrorFactory('PRD Writer', ErrorCodes.DOC_PARSE_ERROR);
@@ -477,6 +554,7 @@ export function createModuleErrorFactory(
 /**
  * Create an error factory bound to specific error codes
  *
+ * @param codeMap
  * @example
  * ```typescript
  * const errors = createBoundErrorFactories({

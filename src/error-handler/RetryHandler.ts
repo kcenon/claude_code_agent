@@ -44,6 +44,7 @@ import { CircuitBreaker } from './CircuitBreaker.js';
 
 /**
  * Validates a retry policy configuration
+ * @param policy
  * @throws InvalidRetryPolicyError if policy is invalid
  */
 function validatePolicy(policy: RetryPolicy): void {
@@ -78,6 +79,7 @@ function validatePolicy(policy: RetryPolicy): void {
 
 /**
  * Merges partial policy with defaults
+ * @param partial
  */
 function mergePolicy(partial?: Partial<RetryPolicy>): RetryPolicy {
   const policy: RetryPolicy = {
@@ -95,6 +97,7 @@ function mergePolicy(partial?: Partial<RetryPolicy>): RetryPolicy {
 
 /**
  * Default error classifier using pattern matching
+ * @param error
  */
 export function defaultErrorClassifier(error: Error): ErrorCategory {
   const message = error.message.toLowerCase();
@@ -126,6 +129,8 @@ export function defaultErrorClassifier(error: Error): ErrorCategory {
  *
  * Supports all backoff strategies: fixed, linear, exponential, and fibonacci.
  * Delegates to unified backoff calculation for consistency across the codebase.
+ * @param attempt
+ * @param policy
  */
 export function calculateDelay(attempt: number, policy: RetryPolicy): number {
   const jitterRatio = policy.enableJitter ? policy.jitterFactor : 0;
@@ -173,6 +178,8 @@ export function calculateDelay(attempt: number, policy: RetryPolicy): number {
 
 /**
  * Sleep for a specified duration with abort signal support
+ * @param ms
+ * @param signal
  */
 async function sleep(ms: number, signal?: AbortSignal): Promise<void> {
   if (ms <= 0) return;
@@ -206,6 +213,9 @@ async function sleep(ms: number, signal?: AbortSignal): Promise<void> {
 
 /**
  * Wrap an operation with a timeout
+ * @param operation
+ * @param config
+ * @param operationName
  */
 async function withTimeout<T>(
   operation: () => Promise<T>,
@@ -574,6 +584,8 @@ export class RetryHandler {
 
   /**
    * Execute an operation with this handler's retry policy
+   * @param operation
+   * @param options
    */
   public async execute<T>(
     operation: () => Promise<T>,
@@ -588,6 +600,8 @@ export class RetryHandler {
 
   /**
    * Execute an operation and return detailed result
+   * @param operation
+   * @param options
    */
   public async executeWithResult<T>(
     operation: () => Promise<T>,
@@ -602,6 +616,7 @@ export class RetryHandler {
 
   /**
    * Classify an error using this handler's classifier
+   * @param error
    */
   public classifyError(error: Error): ErrorCategory {
     return this.errorClassifier(error);
@@ -609,6 +624,7 @@ export class RetryHandler {
 
   /**
    * Calculate delay for a specific attempt
+   * @param attempt
    */
   public calculateDelayForAttempt(attempt: number): number {
     return calculateDelay(attempt, this.policy);

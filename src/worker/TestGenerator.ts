@@ -78,6 +78,9 @@ export class TestGenerator {
 
   /**
    * Generate tests for a source file
+   * @param sourceFile
+   * @param sourceContent
+   * @param patterns
    */
   public generateTests(
     sourceFile: string,
@@ -122,6 +125,8 @@ export class TestGenerator {
 
   /**
    * Generate tests for multiple files
+   * @param files
+   * @param patterns
    */
   public generateTestsForFiles(
     files: readonly FileContext[],
@@ -183,6 +188,7 @@ export class TestGenerator {
    * Analyze source code to extract testable elements
    *
    * Delegates to CodeAnalyzer module.
+   * @param content
    */
   public analyzeCode(content: string): CodeAnalysis {
     return this.codeAnalyzer.analyzeCode(content);
@@ -192,6 +198,8 @@ export class TestGenerator {
    * Generate test file content
    *
    * Delegates to FrameworkAdapters module.
+   * @param suite
+   * @param patterns
    */
   public generateTestFileContent(suite: TestSuite, patterns: CodePatterns): string {
     const adapter = this.adapterFactory.getAdapter(suite.framework);

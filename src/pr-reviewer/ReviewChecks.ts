@@ -123,6 +123,7 @@ export class ReviewChecks {
 
   /**
    * Run all review checks on changed files
+   * @param changes
    */
   public async runAllChecks(changes: readonly FileChange[]): Promise<{
     comments: ReviewComment[];
@@ -337,6 +338,8 @@ export class ReviewChecks {
 
   /**
    * Split file changes into batches
+   * @param changes
+   * @param batchSize
    */
   private splitIntoBatches(
     changes: readonly FileChange[],
@@ -351,6 +354,7 @@ export class ReviewChecks {
 
   /**
    * Merge duplicate check items, keeping the worst result for each check name
+   * @param items
    */
   private mergeCheckItems(items: readonly SecurityCheckItem[]): SecurityCheckItem[] {
     const itemMap = new Map<string, SecurityCheckItem>();
@@ -381,6 +385,7 @@ export class ReviewChecks {
 
   /**
    * Run security-focused checks
+   * @param changes
    */
   private async runSecurityChecks(
     changes: readonly FileChange[]
@@ -413,6 +418,7 @@ export class ReviewChecks {
 
   /**
    * Check for hardcoded secrets
+   * @param changes
    */
   private async checkForSecrets(
     changes: readonly FileChange[]
@@ -473,6 +479,7 @@ export class ReviewChecks {
 
   /**
    * Check for SQL injection vulnerabilities
+   * @param changes
    */
   private async checkForSQLInjection(
     changes: readonly FileChange[]
@@ -532,6 +539,7 @@ export class ReviewChecks {
 
   /**
    * Check for XSS vulnerabilities
+   * @param changes
    */
   private async checkForXSS(
     changes: readonly FileChange[]
@@ -592,6 +600,7 @@ export class ReviewChecks {
 
   /**
    * Check for input validation
+   * @param changes
    */
   private async checkInputValidation(
     changes: readonly FileChange[]
@@ -653,6 +662,7 @@ export class ReviewChecks {
 
   /**
    * Run quality-focused checks
+   * @param changes
    */
   private async runQualityChecks(
     changes: readonly FileChange[]
@@ -680,6 +690,7 @@ export class ReviewChecks {
 
   /**
    * Check for SOLID principles
+   * @param changes
    */
   private async checkSOLIDPrinciples(
     changes: readonly FileChange[]
@@ -740,6 +751,7 @@ export class ReviewChecks {
 
   /**
    * Check for code duplication
+   * @param _changes
    */
   private checkCodeDuplication(_changes: readonly FileChange[]): {
     item: SecurityCheckItem;
@@ -758,6 +770,7 @@ export class ReviewChecks {
 
   /**
    * Check for error handling
+   * @param changes
    */
   private async checkErrorHandling(
     changes: readonly FileChange[]
@@ -876,6 +889,7 @@ export class ReviewChecks {
 
   /**
    * Run performance-focused checks
+   * @param changes
    */
   private async runPerformanceChecks(
     changes: readonly FileChange[]
@@ -937,6 +951,7 @@ export class ReviewChecks {
 
   /**
    * Run documentation-focused checks
+   * @param changes
    */
   private async runDocumentationChecks(
     changes: readonly FileChange[]
@@ -997,6 +1012,10 @@ export class ReviewChecks {
 
   /**
    * Calculate quality metrics
+   * @param changes
+   * @param testingResults
+   * @param testingResults.items
+   * @param testingResults.coverage
    */
   private async calculateMetrics(
     changes: readonly FileChange[],
@@ -1049,6 +1068,7 @@ export class ReviewChecks {
 
   /**
    * Run static analysis checks (TypeScript type checking)
+   * @param changes
    */
   private async runStaticAnalysisChecks(
     changes: readonly FileChange[]
@@ -1131,6 +1151,7 @@ export class ReviewChecks {
 
   /**
    * Run cyclomatic complexity analysis on functions
+   * @param changes
    */
   private async runComplexityAnalysis(
     changes: readonly FileChange[]
@@ -1186,6 +1207,7 @@ export class ReviewChecks {
 
   /**
    * Calculate cyclomatic complexity for each function in the file
+   * @param content
    */
   private calculateFunctionComplexities(
     content: string
@@ -1258,6 +1280,7 @@ export class ReviewChecks {
 
   /**
    * Calculate cyclomatic complexity for a code block
+   * @param code
    */
   private calculateComplexity(code: string): number {
     let complexity = 1; // Base complexity
@@ -1361,6 +1384,7 @@ export class ReviewChecks {
 
   /**
    * Run anti-pattern detection checks
+   * @param changes
    */
   private async runAntiPatternChecks(
     changes: readonly FileChange[]
@@ -1393,6 +1417,7 @@ export class ReviewChecks {
 
   /**
    * Check for magic numbers in code
+   * @param changes
    */
   private async checkMagicNumbers(
     changes: readonly FileChange[]
@@ -1466,6 +1491,7 @@ export class ReviewChecks {
 
   /**
    * Check for path traversal vulnerabilities
+   * @param changes
    */
   private async checkPathTraversal(
     changes: readonly FileChange[]
@@ -1530,6 +1556,7 @@ export class ReviewChecks {
 
   /**
    * Check for duplicate code patterns
+   * @param changes
    */
   private async checkDuplicateCode(
     changes: readonly FileChange[]
@@ -1605,6 +1632,7 @@ export class ReviewChecks {
 
   /**
    * Check for god class anti-pattern
+   * @param changes
    */
   private async checkGodClass(
     changes: readonly FileChange[]
@@ -1667,6 +1695,7 @@ export class ReviewChecks {
   /**
    * Execute a shell command using safe execution
    * Uses execFile to bypass shell and prevent command injection
+   * @param command
    */
   private async executeCommand(command: string): Promise<CommandResult> {
     const sanitizer = getCommandSanitizer();

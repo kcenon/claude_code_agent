@@ -113,12 +113,18 @@ export class ArchitectureGenerator implements IAgent {
     this.directoryGenerator = new DirectoryStructureGenerator();
   }
 
+  /**
+   *
+   */
   public async initialize(): Promise<void> {
     if (this.initialized) return;
     await Promise.resolve();
     this.initialized = true;
   }
 
+  /**
+   *
+   */
   public async dispose(): Promise<void> {
     await Promise.resolve();
     this.initialized = false;
@@ -126,6 +132,8 @@ export class ArchitectureGenerator implements IAgent {
 
   /**
    * Generate complete architecture design from SRS file
+   * @param srsPath
+   * @param options
    */
   public generateFromFile(
     srsPath: string,
@@ -141,6 +149,8 @@ export class ArchitectureGenerator implements IAgent {
 
   /**
    * Generate complete architecture design from SRS content
+   * @param srsContent
+   * @param options
    */
   public generateFromContent(
     srsContent: string,
@@ -156,6 +166,8 @@ export class ArchitectureGenerator implements IAgent {
 
   /**
    * Generate complete architecture design from parsed SRS
+   * @param srs
+   * @param options
    */
   public generateFromParsedSRS(
     srs: ParsedSRS,
@@ -216,6 +228,9 @@ export class ArchitectureGenerator implements IAgent {
 
   /**
    * Generate architecture and save to files
+   * @param srsPath
+   * @param projectId
+   * @param options
    */
   public generateAndSave(
     srsPath: string,
@@ -230,6 +245,8 @@ export class ArchitectureGenerator implements IAgent {
 
   /**
    * Save architecture design to markdown file
+   * @param design
+   * @param projectId
    */
   public saveDesign(design: ArchitectureDesign, projectId: string): string {
     const markdown = this.designToMarkdown(design);
@@ -252,6 +269,7 @@ export class ArchitectureGenerator implements IAgent {
 
   /**
    * Convert architecture design to markdown format
+   * @param design
    */
   public designToMarkdown(design: ArchitectureDesign): string {
     const lines: string[] = [];
@@ -404,6 +422,7 @@ export class ArchitectureGenerator implements IAgent {
 
   /**
    * Get SRS file path for a project
+   * @param projectId
    */
   public getSRSPath(projectId: string): string {
     return path.join(this.config.scratchpadDir, projectId, 'srs.md');
@@ -411,6 +430,7 @@ export class ArchitectureGenerator implements IAgent {
 
   /**
    * Check if SRS exists for a project
+   * @param projectId
    */
   public srsExists(projectId: string): boolean {
     return fs.existsSync(this.getSRSPath(projectId));
@@ -418,6 +438,7 @@ export class ArchitectureGenerator implements IAgent {
 
   /**
    * Log message if verbose mode is enabled
+   * @param message
    */
   private log(message: string): void {
     console.log(`[ArchitectureGenerator] ${message}`);
@@ -430,6 +451,7 @@ export class ArchitectureGenerator implements IAgent {
 
 /**
  * Get singleton instance of ArchitectureGenerator
+ * @param config
  */
 export function getArchitectureGenerator(
   config?: ArchitectureGeneratorConfig

@@ -117,6 +117,8 @@ export class BudgetAggregator {
 
   /**
    * Register agent category mapping
+   * @param agentName
+   * @param category
    */
   public registerAgentCategory(agentName: string, category: AgentCategory): void {
     this.categoryMappings.set(agentName, category);
@@ -124,6 +126,7 @@ export class BudgetAggregator {
 
   /**
    * Register multiple agent category mappings
+   * @param mappings
    */
   public registerCategoryMappings(mappings: readonly AgentCategoryMapping[]): void {
     for (const mapping of mappings) {
@@ -133,6 +136,7 @@ export class BudgetAggregator {
 
   /**
    * Record a usage trend point
+   * @param status
    */
   public recordTrendPoint(status: PipelineBudgetStatus): void {
     const point: UsageTrendPoint = {
@@ -165,6 +169,7 @@ export class BudgetAggregator {
 
   /**
    * Generate agent usage summaries from pipeline status
+   * @param status
    */
   public generateAgentSummaries(status: PipelineBudgetStatus): AgentUsageSummary[] {
     const summaries: AgentUsageSummary[] = [];
@@ -192,6 +197,7 @@ export class BudgetAggregator {
 
   /**
    * Generate category usage summaries
+   * @param status
    */
   public generateCategorySummaries(status: PipelineBudgetStatus): CategoryUsageSummary[] {
     const categoryData: Map<AgentCategory, { tokens: number; cost: number; count: number }> =
@@ -231,6 +237,8 @@ export class BudgetAggregator {
 
   /**
    * Generate optimization suggestions
+   * @param status
+   * @param agentSummaries
    */
   public generateSuggestions(
     status: PipelineBudgetStatus,
@@ -301,6 +309,7 @@ export class BudgetAggregator {
 
   /**
    * Generate a comprehensive budget report
+   * @param status
    */
   public generateReport(status: PipelineBudgetStatus): BudgetReport {
     const agentSummaries = this.generateAgentSummaries(status);
@@ -319,6 +328,7 @@ export class BudgetAggregator {
 
   /**
    * Format report as a readable string
+   * @param report
    */
   public formatReportAsString(report: BudgetReport): string {
     const lines: string[] = [
@@ -391,6 +401,8 @@ let globalBudgetAggregator: BudgetAggregator | null = null;
 
 /**
  * Get or create the global BudgetAggregator instance
+ * @param options
+ * @param options.maxTrendPoints
  */
 export function getBudgetAggregator(options?: { maxTrendPoints?: number }): BudgetAggregator {
   if (globalBudgetAggregator === null) {

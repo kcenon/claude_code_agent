@@ -86,12 +86,18 @@ export class PRDUpdaterAgent implements IAgent {
     this.config = { ...DEFAULT_PRD_UPDATER_CONFIG, ...config };
   }
 
+  /**
+   *
+   */
   public async initialize(): Promise<void> {
     if (this.initialized) return;
     await loadYaml();
     this.initialized = true;
   }
 
+  /**
+   *
+   */
   public async dispose(): Promise<void> {
     await Promise.resolve();
     this.session = null;
@@ -100,6 +106,7 @@ export class PRDUpdaterAgent implements IAgent {
 
   /**
    * Start a new PRD update session
+   * @param projectId
    */
   public async startSession(projectId: string): Promise<PRDUpdaterSession> {
     await loadYaml();
@@ -119,6 +126,7 @@ export class PRDUpdaterAgent implements IAgent {
 
   /**
    * Load an existing PRD document for updating
+   * @param prdPath
    */
   public async loadPRD(prdPath?: string): Promise<ParsedPRD> {
     const session = this.ensureSession();
@@ -162,6 +170,7 @@ export class PRDUpdaterAgent implements IAgent {
 
   /**
    * Apply a change request to the loaded PRD
+   * @param changeRequest
    */
   public async applyChange(changeRequest: ChangeRequest): Promise<PRDUpdateOperationResult> {
     const session = this.ensureSession();
@@ -1153,6 +1162,7 @@ let globalPRDUpdaterAgent: PRDUpdaterAgent | null = null;
 
 /**
  * Get the global PRD Updater Agent instance
+ * @param config
  */
 export function getPRDUpdaterAgent(config?: PRDUpdaterConfig): PRDUpdaterAgent {
   if (globalPRDUpdaterAgent === null) {

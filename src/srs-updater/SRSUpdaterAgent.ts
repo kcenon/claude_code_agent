@@ -93,12 +93,18 @@ export class SRSUpdaterAgent implements IAgent {
     this.config = { ...DEFAULT_SRS_UPDATER_CONFIG, ...config };
   }
 
+  /**
+   *
+   */
   public async initialize(): Promise<void> {
     if (this.initialized) return;
     await loadYaml();
     this.initialized = true;
   }
 
+  /**
+   *
+   */
   public async dispose(): Promise<void> {
     await Promise.resolve();
     this.session = null;
@@ -107,6 +113,7 @@ export class SRSUpdaterAgent implements IAgent {
 
   /**
    * Start a new SRS update session
+   * @param projectId
    */
   public async startSession(projectId: string): Promise<SRSUpdaterSession> {
     await loadYaml();
@@ -126,6 +133,7 @@ export class SRSUpdaterAgent implements IAgent {
 
   /**
    * Load an existing SRS document for updating
+   * @param srsPath
    */
   public async loadSRS(srsPath?: string): Promise<ParsedSRS> {
     const session = this.ensureSession();
@@ -169,6 +177,7 @@ export class SRSUpdaterAgent implements IAgent {
 
   /**
    * Apply a change request to the loaded SRS
+   * @param changeRequest
    */
   public async applyChange(changeRequest: SRSChangeRequest): Promise<SRSUpdateOperationResult> {
     const session = this.ensureSession();
@@ -1543,6 +1552,7 @@ let globalSRSUpdaterAgent: SRSUpdaterAgent | null = null;
 
 /**
  * Get the global SRS Updater Agent instance
+ * @param config
  */
 export function getSRSUpdaterAgent(config?: SRSUpdaterConfig): SRSUpdaterAgent {
   if (globalSRSUpdaterAgent === null) {

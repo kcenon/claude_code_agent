@@ -78,12 +78,18 @@ export class RepoDetector implements IAgent {
     };
   }
 
+  /**
+   *
+   */
   public async initialize(): Promise<void> {
     if (this.initialized) return;
     await Promise.resolve();
     this.initialized = true;
   }
 
+  /**
+   *
+   */
   public async dispose(): Promise<void> {
     await Promise.resolve();
     this.session = null;
@@ -92,6 +98,8 @@ export class RepoDetector implements IAgent {
 
   /**
    * Start a new detection session
+   * @param projectId
+   * @param rootPath
    */
   public startSession(projectId: string, rootPath: string): RepoDetectionSession {
     const now = new Date().toISOString();
@@ -205,6 +213,7 @@ export class RepoDetector implements IAgent {
 
   /**
    * Check Git initialization status
+   * @param rootPath
    */
   private checkGitStatus(rootPath: string): GitStatus {
     const gitDir = path.join(rootPath, '.git');
@@ -261,6 +270,8 @@ export class RepoDetector implements IAgent {
 
   /**
    * Check remote repository configuration
+   * @param rootPath
+   * @param gitInitialized
    */
   private checkRemoteStatus(rootPath: string, gitInitialized: boolean): RemoteStatus {
     if (!gitInitialized) {
@@ -293,6 +304,7 @@ export class RepoDetector implements IAgent {
 
   /**
    * Detect remote type from URL
+   * @param url
    */
   private detectRemoteType(url: string): RemoteType {
     const lowerUrl = url.toLowerCase();
@@ -312,6 +324,8 @@ export class RepoDetector implements IAgent {
 
   /**
    * Check GitHub repository status
+   * @param rootPath
+   * @param remoteStatus
    */
   private checkGitHubStatus(rootPath: string, remoteStatus: RemoteStatus): GitHubStatus {
     // If not GitHub, return empty status
@@ -388,6 +402,7 @@ export class RepoDetector implements IAgent {
 
   /**
    * Parse GitHub URL to extract owner and name
+   * @param url
    */
   private parseGitHubUrl(url: string): { owner: string; name: string } | null {
     // Handle HTTPS URLs
@@ -425,6 +440,9 @@ export class RepoDetector implements IAgent {
 
   /**
    * Determine repository mode and recommendation
+   * @param gitStatus
+   * @param remoteStatus
+   * @param githubStatus
    */
   private determineMode(
     gitStatus: GitStatus,
@@ -508,6 +526,8 @@ export class RepoDetector implements IAgent {
   /**
    * Run a Git command with timeout using safe execution
    * Uses execFileSync to bypass shell and prevent command injection
+   * @param rootPath
+   * @param command
    */
   private runGitCommand(
     rootPath: string,
@@ -534,6 +554,8 @@ export class RepoDetector implements IAgent {
   /**
    * Run a gh CLI command with timeout using safe execution
    * Uses execFileSync to bypass shell and prevent command injection
+   * @param rootPath
+   * @param command
    */
   private runGhCommand(
     rootPath: string,
@@ -559,6 +581,9 @@ export class RepoDetector implements IAgent {
 
   /**
    * Save detection result to scratchpad
+   * @param rootPath
+   * @param projectId
+   * @param result
    */
   private saveResult(rootPath: string, projectId: string, result: RepoDetectionResult): void {
     const scratchpadPath = path.join(rootPath, this.config.scratchpadBasePath, 'repo', projectId);
@@ -626,6 +651,7 @@ let instance: RepoDetector | null = null;
 
 /**
  * Get the singleton Repository Detector instance
+ * @param config
  */
 export function getRepoDetector(config?: RepoDetectorConfig): RepoDetector {
   if (instance === null) {

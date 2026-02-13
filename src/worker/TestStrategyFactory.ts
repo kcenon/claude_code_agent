@@ -80,6 +80,7 @@ export class TestStrategyFactory {
 
   /**
    * Register a test strategy
+   * @param strategy
    */
   public registerStrategy(strategy: ITestStrategy): void {
     this.strategies.set(strategy.type, strategy);
@@ -87,6 +88,7 @@ export class TestStrategyFactory {
 
   /**
    * Get a registered strategy
+   * @param type
    */
   public getStrategy(type: string): ITestStrategy | undefined {
     return this.strategies.get(type);
@@ -94,6 +96,7 @@ export class TestStrategyFactory {
 
   /**
    * Generate test suites for classes
+   * @param analysis
    */
   public generateClassSuites(analysis: CodeAnalysis): readonly TestSuiteBlock[] {
     const suites: TestSuiteBlock[] = [];
@@ -110,6 +113,7 @@ export class TestStrategyFactory {
 
   /**
    * Generate test suites for functions
+   * @param analysis
    */
   public generateFunctionSuites(analysis: CodeAnalysis): readonly TestSuiteBlock[] {
     const suites: TestSuiteBlock[] = [];
@@ -126,6 +130,8 @@ export class TestStrategyFactory {
 
   /**
    * Generate test suite for a class
+   * @param classInfo
+   * @param dependencies
    */
   public generateClassTestSuite(
     classInfo: ClassInfo,
@@ -160,6 +166,7 @@ export class TestStrategyFactory {
 
   /**
    * Generate initialization test suite
+   * @param classInfo
    */
   public generateInitializationSuite(classInfo: ClassInfo): TestSuiteBlock {
     const testCases: TestCase[] = [];
@@ -229,6 +236,9 @@ export class TestStrategyFactory {
 
   /**
    * Generate test suite for a method
+   * @param className
+   * @param method
+   * @param dependencies
    */
   public generateMethodTestSuite(
     className: string,
@@ -328,6 +338,8 @@ export class TestStrategyFactory {
 
   /**
    * Generate test suite for a function
+   * @param func
+   * @param dependencies
    */
   public generateFunctionTestSuite(
     func: FunctionInfo,
@@ -398,6 +410,7 @@ export class TestStrategyFactory {
 
   /**
    * Count total tests in a suite block
+   * @param suite
    */
   public countTests(suite: TestSuiteBlock): number {
     let count = suite.testCases.length;
@@ -409,6 +422,8 @@ export class TestStrategyFactory {
 
   /**
    * Count tests by category
+   * @param suite
+   * @param counts
    */
   public countTestsByCategory(suite: TestSuiteBlock, counts: Record<TestCategory, number>): void {
     for (const testCase of suite.testCases) {

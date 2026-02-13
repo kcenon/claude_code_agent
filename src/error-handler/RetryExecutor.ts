@@ -173,6 +173,7 @@ export const RETRY_POLICIES = {
 
 /**
  * Default error classifier using pattern matching
+ * @param error
  */
 export function defaultErrorClassifier(error: Error): ErrorCategory {
   const message = error.message.toLowerCase();
@@ -201,6 +202,8 @@ export function defaultErrorClassifier(error: Error): ErrorCategory {
 
 /**
  * Sleep for a specified duration with abort signal support
+ * @param ms
+ * @param signal
  */
 async function sleep(ms: number, signal?: AbortSignal): Promise<void> {
   if (ms <= 0) return;
@@ -227,6 +230,9 @@ async function sleep(ms: number, signal?: AbortSignal): Promise<void> {
 
 /**
  * Wrap an operation with a timeout
+ * @param operation
+ * @param timeoutMs
+ * @param operationName
  */
 async function withTimeout<T>(
   operation: () => Promise<T>,

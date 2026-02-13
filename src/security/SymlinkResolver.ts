@@ -378,6 +378,7 @@ export class SymlinkResolver {
 
   /**
    * Check if a path is within allowed boundaries
+   * @param targetPath
    */
   private isWithinAllowedBoundary(targetPath: string): boolean {
     const isWithinBase = this.isPathWithin(targetPath, this.baseDir);
@@ -387,6 +388,8 @@ export class SymlinkResolver {
 
   /**
    * Check if a path is within a directory (case-sensitive aware)
+   * @param targetPath
+   * @param basePath
    */
   private isPathWithin(targetPath: string, basePath: string): boolean {
     let normalizedTarget = path.normalize(targetPath);
@@ -403,6 +406,7 @@ export class SymlinkResolver {
 
   /**
    * Read symlink target path
+   * @param linkPath
    */
   private readSymlinkTarget(linkPath: string): string | undefined {
     try {
@@ -414,6 +418,7 @@ export class SymlinkResolver {
 
   /**
    * Read symlink target path asynchronously
+   * @param linkPath
    */
   private async readSymlinkTargetAsync(linkPath: string): Promise<string | undefined> {
     try {

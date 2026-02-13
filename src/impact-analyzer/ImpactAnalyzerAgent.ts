@@ -119,6 +119,8 @@ export class ImpactAnalyzerAgent implements IAgent {
 
   /**
    * Start a new analysis session
+   * @param projectId
+   * @param changeRequest
    */
   public async startSession(
     projectId: string,
@@ -149,6 +151,8 @@ export class ImpactAnalyzerAgent implements IAgent {
 
   /**
    * Check available inputs for analysis
+   * @param projectId
+   * @param rootPath
    */
   public async checkAvailableInputs(projectId: string, rootPath: string): Promise<AvailableInputs> {
     const basePath = path.join(rootPath, this.config.scratchpadBasePath);
@@ -182,6 +186,7 @@ export class ImpactAnalyzerAgent implements IAgent {
 
   /**
    * Analyze the change request and generate impact report
+   * @param rootPath
    */
   public async analyze(rootPath: string): Promise<ImpactAnalysisResult> {
     const session = this.ensureSession();
@@ -366,6 +371,7 @@ export class ImpactAnalyzerAgent implements IAgent {
 
   /**
    * Parse change request from text
+   * @param input
    */
   public parseChangeRequest(input: string): ChangeRequest {
     if (!input || input.trim().length === 0) {
@@ -1400,6 +1406,7 @@ let agentInstance: ImpactAnalyzerAgent | null = null;
 
 /**
  * Get singleton instance of ImpactAnalyzerAgent
+ * @param config
  */
 export function getImpactAnalyzerAgent(config?: ImpactAnalyzerConfig): ImpactAnalyzerAgent {
   if (agentInstance === null) {

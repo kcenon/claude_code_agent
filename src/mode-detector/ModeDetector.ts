@@ -64,6 +64,9 @@ export class ModeDetector {
 
   /**
    * Start a new detection session
+   * @param projectId
+   * @param rootPath
+   * @param userInput
    */
   public startSession(
     projectId: string,
@@ -96,6 +99,7 @@ export class ModeDetector {
 
   /**
    * Detect pipeline mode for the current session
+   * @param userOverrideMode
    */
   public detect(userOverrideMode?: PipelineMode): Promise<ModeDetectionResult> {
     try {
@@ -198,6 +202,7 @@ export class ModeDetector {
 
   /**
    * Check for existing documentation
+   * @param rootPath
    */
   private checkDocuments(rootPath: string): DocumentEvidence {
     const docsPath = path.join(rootPath, this.config.docsBasePath);
@@ -225,6 +230,7 @@ export class ModeDetector {
 
   /**
    * Check if directory has markdown files
+   * @param dirPath
    */
   private hasMarkdownFiles(dirPath: string): boolean {
     if (!fs.existsSync(dirPath)) {
@@ -241,6 +247,7 @@ export class ModeDetector {
 
   /**
    * Check for existing codebase
+   * @param rootPath
    */
   private checkCodebase(rootPath: string): CodebaseEvidence {
     const sourcePatterns = ['src', 'lib', 'app', 'packages', 'modules'];
@@ -303,6 +310,7 @@ export class ModeDetector {
 
   /**
    * Count source files and lines in a directory
+   * @param dirPath
    */
   private countSourceFiles(dirPath: string): { files: number; lines: number } {
     const extensions = [
@@ -366,6 +374,7 @@ export class ModeDetector {
 
   /**
    * Analyze user input for keywords
+   * @param userInput
    */
   private analyzeKeywords(userInput: string): KeywordEvidence {
     const input = userInput.toLowerCase();
@@ -404,6 +413,7 @@ export class ModeDetector {
 
   /**
    * Calculate detection scores
+   * @param evidence
    */
   private calculateScores(evidence: DetectionEvidence): DetectionScores {
     // Document score (0.0 = no docs, 1.0 = all docs present)
@@ -445,6 +455,8 @@ export class ModeDetector {
 
   /**
    * Determine mode and confidence from evidence and scores
+   * @param evidence
+   * @param scores
    */
   private determineMode(
     evidence: DetectionEvidence,
@@ -532,6 +544,9 @@ export class ModeDetector {
 
   /**
    * Generate human-readable reasoning
+   * @param evidence
+   * @param scores
+   * @param mode
    */
   private generateReasoning(
     evidence: DetectionEvidence,
@@ -593,6 +608,8 @@ export class ModeDetector {
 
   /**
    * Generate recommendations
+   * @param evidence
+   * @param mode
    */
   private generateRecommendations(evidence: DetectionEvidence, mode: PipelineMode): string[] {
     const recommendations: string[] = [];
@@ -626,6 +643,9 @@ export class ModeDetector {
 
   /**
    * Save detection result to scratchpad
+   * @param rootPath
+   * @param projectId
+   * @param result
    */
   private saveResult(rootPath: string, projectId: string, result: ModeDetectionResult): void {
     const scratchpadPath = path.join(rootPath, this.config.scratchpadBasePath, 'mode_detection');
@@ -694,6 +714,7 @@ let instance: ModeDetector | null = null;
 
 /**
  * Get the singleton Mode Detector instance
+ * @param config
  */
 export function getModeDetector(config?: ModeDetectorConfig): ModeDetector {
   if (instance === null) {

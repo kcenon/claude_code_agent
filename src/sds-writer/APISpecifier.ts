@@ -140,6 +140,7 @@ export class APISpecifier {
 
   /**
    * Generate a single API endpoint from a use case
+   * @param input
    */
   public specifyEndpoint(input: APIDesignInput): APIEndpoint | null {
     const { component, useCase, nfrs } = input;
@@ -184,6 +185,8 @@ export class APISpecifier {
 
   /**
    * Analyze use case to determine HTTP method and path
+   * @param useCase
+   * @param component
    */
   private analyzeUseCase(
     useCase: ParsedUseCase,
@@ -258,6 +261,7 @@ export class APISpecifier {
 
   /**
    * Extract resource name from component name
+   * @param componentName
    */
   private extractResourceName(componentName: string): string {
     return componentName
@@ -270,6 +274,7 @@ export class APISpecifier {
 
   /**
    * Convert string to kebab-case
+   * @param str
    */
   private toKebabCase(str: string): string {
     return str
@@ -280,6 +285,8 @@ export class APISpecifier {
 
   /**
    * Generate request and response schemas
+   * @param useCase
+   * @param resourceName
    */
   private generateSchemas(
     useCase: ParsedUseCase,
@@ -309,6 +316,7 @@ export class APISpecifier {
 
   /**
    * Extract properties from use case scenario
+   * @param useCase
    */
   private extractPropertiesFromScenario(useCase: ParsedUseCase): DataProperty[] {
     const properties: DataProperty[] = [];
@@ -401,6 +409,7 @@ export class APISpecifier {
 
   /**
    * Extract path parameters from path template
+   * @param path
    */
   private extractPathParameters(path: string): APIParameter[] {
     const parameters: APIParameter[] = [];
@@ -424,6 +433,7 @@ export class APISpecifier {
 
   /**
    * Convert camelCase to readable string
+   * @param str
    */
   private toReadable(str: string): string {
     return str
@@ -434,6 +444,8 @@ export class APISpecifier {
 
   /**
    * Extract query parameters from use case
+   * @param useCase
+   * @param method
    */
   private extractQueryParameters(useCase: ParsedUseCase, method: HttpMethod): APIParameter[] {
     if (method !== 'GET') {
@@ -476,6 +488,8 @@ export class APISpecifier {
 
   /**
    * Determine security level from use case and NFRs
+   * @param useCase
+   * @param nfrs
    */
   private determineSecurityLevel(
     useCase: ParsedUseCase,
@@ -533,6 +547,8 @@ export class APISpecifier {
 
   /**
    * Generate error responses for an endpoint
+   * @param useCase
+   * @param method
    */
   private generateErrorResponses(useCase: ParsedUseCase, method: HttpMethod): ErrorResponse[] {
     const errors: ErrorResponse[] = [];
@@ -608,6 +624,7 @@ export class APISpecifier {
 
   /**
    * Generate description for endpoint
+   * @param useCase
    */
   private generateDescription(useCase: ParsedUseCase): string {
     const parts: string[] = [];

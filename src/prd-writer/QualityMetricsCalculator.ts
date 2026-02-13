@@ -356,6 +356,9 @@ export class QualityMetricsCalculator {
 
   /**
    * Calculate overall score as weighted average
+   * @param completeness
+   * @param consistency
+   * @param clarity
    */
   private calculateOverall(completeness: number, consistency: number, clarity: number): number {
     const totalWeight =
@@ -371,6 +374,10 @@ export class QualityMetricsCalculator {
 
   /**
    * Calculate clarity score based on analysis
+   * @param issues
+   * @param avgSentenceLength
+   * @param passivePercentage
+   * @param ambiguousCount
    */
   private calculateClarityScore(
     issues: ClarityIssue[],
@@ -406,6 +413,7 @@ export class QualityMetricsCalculator {
 
   /**
    * Find ambiguous terms in text
+   * @param text
    */
   private findAmbiguousTerms(text: string): string[] {
     const lowerText = text.toLowerCase();
@@ -423,6 +431,7 @@ export class QualityMetricsCalculator {
 
   /**
    * Extract sentences from text
+   * @param text
    */
   private extractSentences(text: string): string[] {
     // Split by sentence-ending punctuation, keeping the delimiter
@@ -436,6 +445,7 @@ export class QualityMetricsCalculator {
 
   /**
    * Count words in a sentence
+   * @param sentence
    */
   private countWords(sentence: string): number {
     return sentence.split(/\s+/).filter((w) => w.length > 0).length;
@@ -443,6 +453,7 @@ export class QualityMetricsCalculator {
 
   /**
    * Check if sentence is in passive voice
+   * @param sentence
    */
   private isPassiveVoice(sentence: string): boolean {
     for (const pattern of PASSIVE_INDICATORS) {
@@ -457,6 +468,7 @@ export class QualityMetricsCalculator {
 
   /**
    * Check for vague references
+   * @param sentence
    */
   private hasVagueReference(sentence: string): boolean {
     // Check for "it", "this", "that" at the start of a sentence or after a period
@@ -477,6 +489,11 @@ export class QualityMetricsCalculator {
 
   /**
    * Create a clarity issue with auto-generated ID
+   * @param location
+   * @param type
+   * @param description
+   * @param text
+   * @param suggestion
    */
   private createClarityIssue(
     location: string,

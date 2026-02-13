@@ -258,6 +258,7 @@ export class InformationExtractor {
 
   /**
    * Extract project name and description from content
+   * @param content
    */
   private extractProjectInfo(content: string): {
     name?: string | undefined;
@@ -300,6 +301,8 @@ export class InformationExtractor {
 
   /**
    * Extract requirements from content
+   * @param content
+   * @param source
    */
   private extractRequirements(
     content: string,
@@ -419,6 +422,8 @@ export class InformationExtractor {
 
   /**
    * Extract constraints from content
+   * @param content
+   * @param source
    */
   private extractConstraints(content: string, source: string): ExtractedConstraint[] {
     const constraints: ExtractedConstraint[] = [];
@@ -448,6 +453,8 @@ export class InformationExtractor {
 
   /**
    * Extract assumptions from content
+   * @param content
+   * @param source
    */
   private extractAssumptions(content: string, source: string): ExtractedAssumption[] {
     const assumptions: ExtractedAssumption[] = [];
@@ -489,6 +496,8 @@ export class InformationExtractor {
 
   /**
    * Extract dependencies from content
+   * @param content
+   * @param source
    */
   private extractDependencies(content: string, source: string): ExtractedDependency[] {
     const dependencies: ExtractedDependency[] = [];
@@ -518,6 +527,14 @@ export class InformationExtractor {
 
   /**
    * Generate clarification questions based on extracted information
+   * @param info
+   * @param info.projectName
+   * @param info.projectDescription
+   * @param info.functionalRequirements
+   * @param info.nonFunctionalRequirements
+   * @param info.constraints
+   * @param info.assumptions
+   * @param info.dependencies
    */
   private generateClarificationQuestions(info: {
     projectName?: string | undefined;
@@ -599,6 +616,7 @@ export class InformationExtractor {
 
   /**
    * Split content into segments (sentences, bullet points, etc.)
+   * @param content
    */
   private splitIntoSegments(content: string): string[] {
     const segments: string[] = [];
@@ -636,6 +654,7 @@ export class InformationExtractor {
 
   /**
    * Check if a segment looks like a requirement
+   * @param text
    */
   private isRequirementLike(text: string): boolean {
     const indicators = [
@@ -661,6 +680,7 @@ export class InformationExtractor {
 
   /**
    * Detect NFR category from text
+   * @param text
    */
   private detectNfrCategory(
     text: string
@@ -688,6 +708,7 @@ export class InformationExtractor {
 
   /**
    * Detect priority from text
+   * @param text
    */
   private detectPriority(text: string): Priority {
     for (const [priority, keywords] of Object.entries(PRIORITY_KEYWORDS)) {
@@ -700,6 +721,7 @@ export class InformationExtractor {
 
   /**
    * Detect constraint type from text
+   * @param text
    */
   private detectConstraintType(
     text: string
@@ -714,6 +736,7 @@ export class InformationExtractor {
 
   /**
    * Detect dependency type from text
+   * @param text
    */
   private detectDependencyType(text: string): 'api' | 'library' | 'service' | 'tool' | undefined {
     for (const [type, keywords] of Object.entries(DEPENDENCY_KEYWORDS)) {
@@ -726,6 +749,7 @@ export class InformationExtractor {
 
   /**
    * Extract a title from a segment
+   * @param segment
    */
   private extractTitle(segment: string): string {
     // Take first part up to first punctuation or 60 chars
@@ -738,6 +762,8 @@ export class InformationExtractor {
 
   /**
    * Extract dependency name from segment
+   * @param segment
+   * @param type
    */
   private extractDependencyName(segment: string, type: string): string | undefined {
     // Look for quoted names
@@ -767,6 +793,8 @@ export class InformationExtractor {
 
   /**
    * Calculate confidence score for an extraction
+   * @param segment
+   * @param isRelevant
    */
   private calculateConfidence(segment: string, isRelevant: boolean): number {
     if (!isRelevant) return 0;

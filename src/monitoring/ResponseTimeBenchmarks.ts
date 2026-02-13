@@ -206,6 +206,8 @@ export class ResponseTimeBenchmarks {
 
   /**
    * Deep merge benchmark configurations
+   * @param defaults
+   * @param custom
    */
   private mergeBenchmarks(defaults: AllBenchmarks, custom: Partial<AllBenchmarks>): AllBenchmarks {
     return {
@@ -229,6 +231,7 @@ export class ResponseTimeBenchmarks {
 
   /**
    * Get pipeline benchmarks for a complexity level
+   * @param complexity
    */
   public getPipelineBenchmarks(complexity: FeatureComplexity): PipelineBenchmarks {
     return this.benchmarks.pipeline[complexity];
@@ -250,6 +253,9 @@ export class ResponseTimeBenchmarks {
 
   /**
    * Create a benchmark target
+   * @param name
+   * @param targetMs
+   * @param description
    */
   public createTarget(name: string, targetMs: number, description: string): BenchmarkTarget {
     return {
@@ -263,6 +269,9 @@ export class ResponseTimeBenchmarks {
 
   /**
    * Validate a timing against a benchmark
+   * @param name
+   * @param actualMs
+   * @param target
    */
   public validateTiming(name: string, actualMs: number, target: BenchmarkTarget): BenchmarkResult {
     let status: 'pass' | 'warning' | 'fail';
@@ -290,6 +299,11 @@ export class ResponseTimeBenchmarks {
 
   /**
    * Validate pipeline timing
+   * @param complexity
+   * @param timings
+   * @param timings.documentGenerationMs
+   * @param timings.issueGenerationMs
+   * @param timings.totalMs
    */
   public validatePipeline(
     complexity: FeatureComplexity,
@@ -336,6 +350,7 @@ export class ResponseTimeBenchmarks {
 
   /**
    * Validate stage timings
+   * @param stageTimes
    */
   public validateStages(
     stageTimes: Partial<Record<keyof StageBenchmarks, number>>
@@ -356,6 +371,7 @@ export class ResponseTimeBenchmarks {
 
   /**
    * Validate latency metrics
+   * @param latencies
    */
   public validateLatency(
     latencies: Partial<Record<keyof LatencyBenchmarks, number>>
@@ -376,6 +392,7 @@ export class ResponseTimeBenchmarks {
 
   /**
    * Summarize validation results
+   * @param results
    */
   private summarizeResults(results: BenchmarkResult[]): ValidationResult {
     const passed = results.filter((r) => r.status === 'pass').length;
@@ -398,6 +415,10 @@ export class ResponseTimeBenchmarks {
 
   /**
    * Record a benchmark run
+   * @param sessionId
+   * @param complexity
+   * @param stageTimes
+   * @param totalTimeMs
    */
   public recordRun(
     sessionId: string,
@@ -435,6 +456,7 @@ export class ResponseTimeBenchmarks {
 
   /**
    * Get history for a specific complexity
+   * @param complexity
    */
   public getHistoryByComplexity(complexity: FeatureComplexity): readonly BenchmarkHistoryEntry[] {
     return this.history.filter((h) => h.complexity === complexity);
@@ -442,6 +464,7 @@ export class ResponseTimeBenchmarks {
 
   /**
    * Get performance trend
+   * @param complexity
    */
   public getPerformanceTrend(complexity?: FeatureComplexity): {
     readonly avgTotalMs: number;
@@ -556,6 +579,8 @@ export class ResponseTimeBenchmarks {
 
   /**
    * Check if E2E target is met
+   * @param complexity
+   * @param totalTimeMs
    */
   public checkE2ETarget(
     complexity: FeatureComplexity,
@@ -594,6 +619,7 @@ let globalResponseTimeBenchmarks: ResponseTimeBenchmarks | null = null;
 
 /**
  * Get or create the global ResponseTimeBenchmarks instance
+ * @param customBenchmarks
  */
 export function getResponseTimeBenchmarks(
   customBenchmarks?: Partial<AllBenchmarks>

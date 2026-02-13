@@ -69,6 +69,8 @@ export class ShellCommandExecutor implements ICommandExecutor {
 
   /**
    * Execute a command using the secure CommandSanitizer
+   * @param command
+   * @param options
    */
   public async execute(command: string, options?: ExecuteOptions): Promise<ExecutionResult> {
     const sanitizer = getCommandSanitizer();
@@ -183,6 +185,8 @@ export class MockCommandExecutor implements ICommandExecutor {
 
   /**
    * Execute a mocked command
+   * @param command
+   * @param options
    */
   public execute(command: string, options?: ExecuteOptions): Promise<ExecutionResult> {
     // Only add options if defined to maintain exactOptionalPropertyTypes compatibility

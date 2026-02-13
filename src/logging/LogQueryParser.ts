@@ -91,6 +91,7 @@ export class LogQueryParser {
 
   /**
    * Parse a query string into a LogQueryExpression
+   * @param query
    */
   public parse(query: string): LogQueryParseResult {
     this.query = query.trim();
@@ -137,6 +138,10 @@ export class LogQueryParser {
 
   /**
    * Execute a parsed query against log entries
+   * @param expression
+   * @param entries
+   * @param limit
+   * @param offset
    */
   public execute(
     expression: LogQueryExpression,
@@ -154,6 +159,10 @@ export class LogQueryParser {
 
   /**
    * Parse and execute a query string in one step
+   * @param query
+   * @param entries
+   * @param limit
+   * @param offset
    */
   public search(
     query: string,
@@ -465,6 +474,8 @@ export class LogQueryParser {
 
   /**
    * Evaluate an expression against a log entry
+   * @param expression
+   * @param entry
    */
   private evaluateExpression(expression: LogQueryExpression, entry: LogEntry): boolean {
     if (expression.type === 'condition') {
@@ -494,6 +505,8 @@ export class LogQueryParser {
 
   /**
    * Evaluate a single condition against a log entry
+   * @param condition
+   * @param entry
    */
   private evaluateCondition(condition: LogQueryCondition | undefined, entry: LogEntry): boolean {
     if (condition === undefined) return false;
@@ -539,6 +552,9 @@ export class LogQueryParser {
 
   /**
    * Evaluate a time condition (supports ranges)
+   * @param timestamp
+   * @param start
+   * @param end
    */
   private evaluateTimeCondition(timestamp: string, start: string, end?: string): boolean {
     const entryTime = new Date(timestamp).getTime();
@@ -566,6 +582,8 @@ export class LogQueryParser {
 
   /**
    * Parse a time value string to timestamp
+   * @param value
+   * @param isEndOfRange
    */
   private parseTimeValue(value: string, isEndOfRange = false): number {
     // Try parsing as ISO string first

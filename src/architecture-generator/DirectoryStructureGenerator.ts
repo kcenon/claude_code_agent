@@ -609,6 +609,9 @@ const PATTERN_TEMPLATES: Record<ArchitecturePattern, DirectoryTemplate> = {
 export class DirectoryStructureGenerator {
   /**
    * Generate directory structure
+   * @param srs
+   * @param analysis
+   * @param stack
    */
   public generate(
     srs: ParsedSRS,
@@ -629,6 +632,7 @@ export class DirectoryStructureGenerator {
 
   /**
    * Get template for pattern
+   * @param pattern
    */
   private getTemplate(pattern: ArchitecturePattern): DirectoryTemplate {
     return PATTERN_TEMPLATES[pattern];
@@ -636,6 +640,9 @@ export class DirectoryStructureGenerator {
 
   /**
    * Customize structure based on technology stack
+   * @param template
+   * @param _srs
+   * @param stack
    */
   private customizeStructure(
     template: DirectoryTemplate,
@@ -738,6 +745,8 @@ export class DirectoryStructureGenerator {
 
   /**
    * Add feature-specific directories
+   * @param structure
+   * @param srs
    */
   private addFeatureDirectories(structure: DirectoryStructure, srs: ParsedSRS): DirectoryStructure {
     // Find the src directory
@@ -787,6 +796,7 @@ export class DirectoryStructureGenerator {
 
   /**
    * Convert feature name to directory name
+   * @param name
    */
   private toDirectoryName(name: string): string {
     return name
@@ -798,6 +808,7 @@ export class DirectoryStructureGenerator {
 
   /**
    * Generate ASCII tree representation
+   * @param structure
    */
   public static toAsciiTree(structure: DirectoryStructure): string {
     const lines: string[] = [`${structure.root}/`];
@@ -807,6 +818,9 @@ export class DirectoryStructureGenerator {
 
   /**
    * Recursively build ASCII tree
+   * @param entries
+   * @param prefix
+   * @param lines
    */
   private static buildTree(
     entries: readonly DirectoryEntry[],

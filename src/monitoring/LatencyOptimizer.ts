@@ -148,6 +148,10 @@ export class LatencyOptimizer {
 
   /**
    * Measure and track an operation's latency
+   * @param operation
+   * @param targetType
+   * @param fn
+   * @param context
    */
   public measure<T>(
     operation: string,
@@ -166,6 +170,10 @@ export class LatencyOptimizer {
 
   /**
    * Measure and track an async operation's latency
+   * @param operation
+   * @param targetType
+   * @param fn
+   * @param context
    */
   public async measureAsync<T>(
     operation: string,
@@ -184,6 +192,10 @@ export class LatencyOptimizer {
 
   /**
    * Record a latency measurement
+   * @param operation
+   * @param latencyMs
+   * @param targetMs
+   * @param context
    */
   private recordMeasurement(
     operation: string,
@@ -212,6 +224,8 @@ export class LatencyOptimizer {
 
   /**
    * Pre-warm an agent by preloading its definition
+   * @param agentName
+   * @param definitionPath
    */
   public async prewarmAgent(agentName: string, definitionPath: string): Promise<WarmupStatus> {
     if (!this.config.enablePrewarming) {
@@ -268,6 +282,7 @@ export class LatencyOptimizer {
 
   /**
    * Pre-warm multiple agents in parallel
+   * @param agents
    */
   public async prewarmAgents(
     agents: Array<{ name: string; definitionPath: string }>
@@ -277,6 +292,7 @@ export class LatencyOptimizer {
 
   /**
    * Check if an agent is pre-warmed
+   * @param agentName
    */
   public isAgentWarmed(agentName: string): boolean {
     return this.preloadedAgents.has(agentName);
@@ -284,6 +300,7 @@ export class LatencyOptimizer {
 
   /**
    * Get cached agent definition if available
+   * @param agentName
    */
   public getCachedAgentDefinition(agentName: string): string | null {
     if (!this.preloadedAgents.has(agentName)) {
@@ -301,6 +318,7 @@ export class LatencyOptimizer {
 
   /**
    * Get warmup status for a resource
+   * @param resource
    */
   public getWarmupStatus(resource: string): WarmupStatus | null {
     return this.warmupStatus.get(resource) ?? null;
@@ -315,6 +333,7 @@ export class LatencyOptimizer {
 
   /**
    * Start periodic warmup timer
+   * @param agents
    */
   public startWarmupTimer(agents: Array<{ name: string; definitionPath: string }>): void {
     if (this.warmupTimer !== null) return;
@@ -340,6 +359,7 @@ export class LatencyOptimizer {
 
   /**
    * Execute multiple I/O operations in parallel
+   * @param operations
    */
   public async parallelIO<T>(operations: Array<() => Promise<T>>): Promise<T[]> {
     const startTime = performance.now();
@@ -361,6 +381,7 @@ export class LatencyOptimizer {
 
   /**
    * Get latency statistics for an operation type
+   * @param operation
    */
   public getLatencyStats(operation?: string): {
     readonly count: number;
@@ -485,6 +506,7 @@ let globalLatencyOptimizer: LatencyOptimizer | null = null;
 
 /**
  * Get or create the global LatencyOptimizer instance
+ * @param config
  */
 export function getLatencyOptimizer(config?: LatencyOptimizerConfig): LatencyOptimizer {
   if (globalLatencyOptimizer === null) {

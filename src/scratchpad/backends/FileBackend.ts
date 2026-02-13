@@ -56,6 +56,8 @@ export class FileBackend implements IScratchpadBackend {
 
   /**
    * Get the file path for a section/key combination
+   * @param section
+   * @param key
    */
   private getFilePath(section: string, key: string): string {
     return path.join(this.basePath, section, `${key}${this.extension}`);
@@ -63,6 +65,7 @@ export class FileBackend implements IScratchpadBackend {
 
   /**
    * Get the section directory path
+   * @param section
    */
   private getSectionPath(section: string): string {
     return path.join(this.basePath, section);
@@ -70,6 +73,7 @@ export class FileBackend implements IScratchpadBackend {
 
   /**
    * Serialize data to string
+   * @param data
    */
   private serialize(data: unknown): string {
     if (this.format === 'raw') {
@@ -87,6 +91,7 @@ export class FileBackend implements IScratchpadBackend {
 
   /**
    * Deserialize string to data
+   * @param content
    */
   private deserialize(content: string): unknown {
     if (this.format === 'raw') {
@@ -100,6 +105,7 @@ export class FileBackend implements IScratchpadBackend {
 
   /**
    * Ensure a directory exists
+   * @param dirPath
    */
   private async ensureDir(dirPath: string): Promise<void> {
     await fs.promises.mkdir(dirPath, { recursive: true, mode: this.dirMode });
@@ -107,6 +113,8 @@ export class FileBackend implements IScratchpadBackend {
 
   /**
    * Write file atomically (write to temp, then rename)
+   * @param filePath
+   * @param content
    */
   private async atomicWrite(filePath: string, content: string): Promise<void> {
     const dir = path.dirname(filePath);
@@ -130,10 +138,18 @@ export class FileBackend implements IScratchpadBackend {
     }
   }
 
+  /**
+   *
+   */
   async initialize(): Promise<void> {
     await this.ensureDir(this.basePath);
   }
 
+  /**
+   *
+   * @param section
+   * @param key
+   */
   async read<T>(section: string, key: string): Promise<T | null> {
     const filePath = this.getFilePath(section, key);
 
@@ -148,6 +164,12 @@ export class FileBackend implements IScratchpadBackend {
     }
   }
 
+  /**
+   *
+   * @param section
+   * @param key
+   * @param value
+   */
   // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters
   async write<T>(section: string, key: string, value: T): Promise<void> {
     const filePath = this.getFilePath(section, key);
@@ -155,6 +177,11 @@ export class FileBackend implements IScratchpadBackend {
     await this.atomicWrite(filePath, content);
   }
 
+  /**
+   *
+   * @param section
+   * @param key
+   */
   async delete(section: string, key: string): Promise<boolean> {
     const filePath = this.getFilePath(section, key);
 
@@ -169,6 +196,10 @@ export class FileBackend implements IScratchpadBackend {
     }
   }
 
+  /**
+   *
+   * @param section
+   */
   async list(section: string): Promise<string[]> {
     const sectionPath = this.getSectionPath(section);
 
@@ -185,6 +216,11 @@ export class FileBackend implements IScratchpadBackend {
     }
   }
 
+  /**
+   *
+   * @param section
+   * @param key
+   */
   async exists(section: string, key: string): Promise<boolean> {
     const filePath = this.getFilePath(section, key);
 
@@ -196,6 +232,10 @@ export class FileBackend implements IScratchpadBackend {
     }
   }
 
+  /**
+   *
+   * @param operations
+   */
   async batch(operations: BatchOperation[]): Promise<void> {
     // File backend doesn't have true transactions, so we execute sequentially
     // For atomicity, we could use a journal-based approach, but that's complex
@@ -209,6 +249,9 @@ export class FileBackend implements IScratchpadBackend {
     }
   }
 
+  /**
+   *
+   */
   async healthCheck(): Promise<BackendHealth> {
     try {
       const startTime = Date.now();
@@ -229,6 +272,9 @@ export class FileBackend implements IScratchpadBackend {
     }
   }
 
+  /**
+   *
+   */
   async close(): Promise<void> {
     // No resources to release for file backend
   }

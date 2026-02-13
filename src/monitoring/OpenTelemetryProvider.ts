@@ -241,6 +241,7 @@ export class OpenTelemetryProvider {
 
   /**
    * Create a span exporter based on configuration
+   * @param config
    */
   private createExporter(config: OpenTelemetryExporterConfig): SpanExporter | null {
     switch (config.type) {

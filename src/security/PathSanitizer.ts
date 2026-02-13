@@ -203,6 +203,7 @@ export class PathSanitizer {
 
   /**
    * Check if a path contains a null byte
+   * @param inputPath
    */
   public containsNullByte(inputPath: string): boolean {
     return inputPath.includes('\0');
@@ -210,6 +211,7 @@ export class PathSanitizer {
 
   /**
    * Validate individual path components
+   * @param inputPath
    */
   private validateComponents(inputPath: string): { valid: boolean; error?: string } {
     const components = inputPath.split(path.sep).filter((c) => c.length > 0);
@@ -239,6 +241,7 @@ export class PathSanitizer {
 
   /**
    * Check for traversal after normalization
+   * @param normalizedPath
    */
   private containsTraversalAfterNormalize(normalizedPath: string): boolean {
     const components = normalizedPath.split(path.sep);
@@ -254,6 +257,7 @@ export class PathSanitizer {
 
   /**
    * Check if a path is within allowed boundaries
+   * @param absolutePath
    */
   private isWithinBoundary(absolutePath: string): boolean {
     const isWithinBase = this.isPathWithin(absolutePath, this.baseDir);
@@ -263,6 +267,8 @@ export class PathSanitizer {
 
   /**
    * Check if a path is within a directory
+   * @param targetPath
+   * @param basePath
    */
   private isPathWithin(targetPath: string, basePath: string): boolean {
     let normalizedTarget = path.normalize(targetPath);
@@ -279,6 +285,9 @@ export class PathSanitizer {
 
   /**
    * Create a rejection result and log to audit
+   * @param inputPath
+   * @param reasonCode
+   * @param error
    */
   private reject(
     inputPath: string,
@@ -304,6 +313,7 @@ export class PathSanitizer {
 
   /**
    * Sanitize path for safe logging (remove control chars, truncate)
+   * @param inputPath
    */
   private sanitizeForLogging(inputPath: string): string {
     // Remove control characters and truncate

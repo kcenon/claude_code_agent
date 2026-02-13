@@ -83,7 +83,7 @@ const DEFAULT_MAX_SIZE = 1000;
  * for LRU eviction. When an entry is accessed, it's moved to the end
  * of the Map (most recently used position).
  *
- * @typeParam T - Type of cached values
+ * @template T - Type of cached values
  */
 export class LRUCache<T> {
   private readonly cache: Map<string, CacheEntry<T>> = new Map();

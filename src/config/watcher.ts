@@ -22,6 +22,8 @@ import { getLogger } from '../logging/index.js';
 
 /**
  * Create a debounced function for file path handling
+ * @param fn
+ * @param delay
  */
 function debounceFilePath(
   fn: (filePath: string) => Promise<void>,

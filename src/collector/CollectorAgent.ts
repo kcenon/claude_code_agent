@@ -482,6 +482,7 @@ export class CollectorAgent implements IAgent {
 
   /**
    * Get an answered value by searching question text
+   * @param searchText
    */
   private getAnsweredValue(searchText: string): string | undefined {
     const answer = this.session?.answeredQuestions.find((a) => {
@@ -590,6 +591,7 @@ export class CollectorAgent implements IAgent {
   /**
    * Ensure there is an active session in the expected state
    *
+   * @param expectedState
    * @returns The current session
    */
   private ensureSession(expectedState: 'collecting' | 'clarifying'): CollectionSession {
@@ -620,6 +622,8 @@ export class CollectorAgent implements IAgent {
    *
    * @param text - Text content to collect from
    * @param options - Optional project name and description
+   * @param options.projectName - Project name override
+   * @param options.projectDescription - Project description override
    * @returns CollectionResult
    */
   public async collectFromText(
@@ -646,6 +650,8 @@ export class CollectorAgent implements IAgent {
    *
    * @param filePath - Path to file
    * @param options - Optional project name and description
+   * @param options.projectName - Project name override
+   * @param options.projectDescription - Project description override
    * @returns CollectionResult
    */
   public async collectFromFile(
@@ -671,6 +677,8 @@ export class CollectorAgent implements IAgent {
    *
    * @param filePaths - Array of file paths to process
    * @param options - Optional project name and description
+   * @param options.projectName - Project name override
+   * @param options.projectDescription - Project description override
    * @returns CollectionResult with merged information from all files
    */
   public async collectFromFiles(
@@ -731,6 +739,10 @@ export class CollectorAgent implements IAgent {
    *
    * @param items - Array of batch input items (text, file, or URL)
    * @param options - Optional project name, description, and batch processing options
+   * @param options.projectName - Project name override
+   * @param options.projectDescription - Project description override
+   * @param options.continueOnError - Whether to continue processing on individual item failure
+   * @param options.parallelLimit - Maximum number of items to process concurrently
    * @returns CollectionResult with merged information from all inputs
    *
    * @example

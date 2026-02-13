@@ -119,6 +119,7 @@ export class ComponentDesigner {
 
   /**
    * Design a single component from a feature
+   * @param input
    */
   public designComponent(input: ComponentDesignInput): SDSComponent {
     const { feature, useCases, nfrs, constraints, componentIndex } = input;
@@ -166,6 +167,7 @@ export class ComponentDesigner {
 
   /**
    * Group use cases by their source feature ID
+   * @param useCases
    */
   private groupUseCasesByFeature(useCases: readonly ParsedUseCase[]): Map<string, ParsedUseCase[]> {
     const map = new Map<string, ParsedUseCase[]>();
@@ -184,6 +186,7 @@ export class ComponentDesigner {
 
   /**
    * Generate component name from feature name
+   * @param featureName
    */
   private generateComponentName(featureName: string): string {
     // Remove common prefixes and clean up
@@ -223,6 +226,7 @@ export class ComponentDesigner {
 
   /**
    * Generate responsibility statement from feature
+   * @param feature
    */
   private generateResponsibility(feature: ParsedSRSFeature): string {
     if (feature.description) {
@@ -239,6 +243,7 @@ export class ComponentDesigner {
 
   /**
    * Generate description from feature
+   * @param feature
    */
   private generateDescription(feature: ParsedSRSFeature): string {
     const parts: string[] = [];
@@ -257,6 +262,9 @@ export class ComponentDesigner {
 
   /**
    * Generate interfaces for a component
+   * @param componentName
+   * @param feature
+   * @param useCases
    */
   private generateInterfaces(
     componentName: string,
@@ -285,6 +293,8 @@ export class ComponentDesigner {
 
   /**
    * Generate main interface for a component
+   * @param componentName
+   * @param feature
    */
   private generateMainInterface(
     componentName: string,
@@ -321,6 +331,8 @@ export class ComponentDesigner {
 
   /**
    * Generate interface from a use case
+   * @param componentName
+   * @param useCase
    */
   private generateUseCaseInterface(
     componentName: string,
@@ -360,6 +372,7 @@ export class ComponentDesigner {
 
   /**
    * Sanitize use case name for interface naming
+   * @param name
    */
   private sanitizeUseCaseName(name: string): string {
     return name
@@ -371,6 +384,7 @@ export class ComponentDesigner {
 
   /**
    * Generate method from acceptance criterion
+   * @param criterion
    */
   private generateMethodFromCriterion(criterion: string): SDSMethod | null {
     // Parse criterion for action verbs
@@ -403,6 +417,8 @@ export class ComponentDesigner {
 
   /**
    * Generate method from use case scenario
+   * @param scenarioName
+   * @param steps
    */
   private generateMethodFromScenario(
     scenarioName: string,
@@ -438,6 +454,7 @@ export class ComponentDesigner {
 
   /**
    * Generate method name from action description
+   * @param action
    */
   private generateMethodName(action: string): string {
     // Extract key verbs and nouns
@@ -510,6 +527,7 @@ export class ComponentDesigner {
 
   /**
    * Extract parameters from action description
+   * @param action
    */
   private extractParameters(action: string): MethodParameter[] {
     const parameters: MethodParameter[] = [];
@@ -547,6 +565,7 @@ export class ComponentDesigner {
 
   /**
    * Infer return type from action description
+   * @param action
    */
   private inferReturnType(action: string): string {
     const lowerAction = action.toLowerCase();
@@ -590,6 +609,7 @@ export class ComponentDesigner {
 
   /**
    * Generate default CRUD methods for a feature
+   * @param featureName
    */
   private generateDefaultMethods(featureName: string): SDSMethod[] {
     const entityName = featureName.replace(/\s+/g, '').replace(/^(.)/, (c) => c.toUpperCase());
@@ -633,6 +653,8 @@ export class ComponentDesigner {
 
   /**
    * Generate TypeScript interface code
+   * @param name
+   * @param methods
    */
   private generateInterfaceCode(name: string, methods: readonly SDSMethod[]): string {
     const methodLines = methods.map((m) => `  ${m.signature};`).join('\n');
@@ -642,6 +664,9 @@ export class ComponentDesigner {
 
   /**
    * Generate implementation notes from NFRs and constraints
+   * @param feature
+   * @param nfrs
+   * @param constraints
    */
   private generateImplementationNotes(
     feature: ParsedSRSFeature,
@@ -681,6 +706,8 @@ export class ComponentDesigner {
 
   /**
    * Suggest technology based on feature and NFRs
+   * @param feature
+   * @param nfrs
    */
   private suggestTechnology(
     feature: ParsedSRSFeature,
@@ -720,6 +747,8 @@ export class ComponentDesigner {
 
   /**
    * Resolve dependencies between components
+   * @param components
+   * @param features
    */
   private resolveDependencies(
     components: readonly SDSComponent[],

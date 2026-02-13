@@ -117,6 +117,7 @@ export class QueryCache<T = unknown> {
 
   /**
    * Get cached value for a query
+   * @param query
    */
   public get(query: string): CacheLookupResult<T> {
     const hash = this.hashQuery(query);
@@ -153,6 +154,9 @@ export class QueryCache<T = unknown> {
 
   /**
    * Set cached value for a query
+   * @param query
+   * @param value
+   * @param estimatedTokens
    */
   public set(query: string, value: T, estimatedTokens: number): void {
     const hash = this.hashQuery(query);
@@ -178,6 +182,7 @@ export class QueryCache<T = unknown> {
 
   /**
    * Check if query is cached
+   * @param query
    */
   public has(query: string): boolean {
     const hash = this.hashQuery(query);
@@ -187,6 +192,7 @@ export class QueryCache<T = unknown> {
 
   /**
    * Delete cached entry
+   * @param query
    */
   public delete(query: string): boolean {
     const hash = this.hashQuery(query);
@@ -248,6 +254,7 @@ export class QueryCache<T = unknown> {
 
   /**
    * Record tokens saved from cache hit
+   * @param tokens
    */
   public recordTokensSaved(tokens: number): void {
     this.totalTokensSaved += tokens;
@@ -255,6 +262,7 @@ export class QueryCache<T = unknown> {
 
   /**
    * Hash a query string
+   * @param query
    */
   private hashQuery(query: string): string {
     const normalized = this.normalizeQuery(query);
@@ -263,6 +271,7 @@ export class QueryCache<T = unknown> {
 
   /**
    * Normalize a query for comparison
+   * @param query
    */
   private normalizeQuery(query: string): string {
     return query.toLowerCase().replace(/\s+/g, ' ').trim();
@@ -270,6 +279,7 @@ export class QueryCache<T = unknown> {
 
   /**
    * Check if an entry is expired
+   * @param entry
    */
   private isExpired(entry: CacheEntry<T>): boolean {
     const age = Date.now() - entry.createdAt.getTime();
@@ -278,6 +288,8 @@ export class QueryCache<T = unknown> {
 
   /**
    * Update access time for an entry
+   * @param hash
+   * @param entry
    */
   private updateAccessTime(hash: string, entry: CacheEntry<T>): void {
     const updated: CacheEntry<T> = {
@@ -290,6 +302,7 @@ export class QueryCache<T = unknown> {
 
   /**
    * Find similar cached query
+   * @param query
    */
   private findSimilar(query: string): { entry: CacheEntry<T>; score: number } | null {
     const normalizedQuery = this.normalizeQuery(query);
@@ -313,6 +326,8 @@ export class QueryCache<T = unknown> {
 
   /**
    * Calculate Jaccard similarity between two strings
+   * @param a
+   * @param b
    */
   private calculateSimilarity(a: string, b: string): number {
     const wordsA = new Set(a.split(' '));
@@ -394,6 +409,7 @@ let globalQueryCache: QueryCache | null = null;
 
 /**
  * Get or create the global QueryCache instance
+ * @param config
  */
 export function getQueryCache<T = unknown>(config?: QueryCacheConfig): QueryCache<T> {
   if (globalQueryCache === null) {

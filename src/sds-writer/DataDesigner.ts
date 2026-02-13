@@ -120,6 +120,7 @@ export class DataDesigner {
 
   /**
    * Design a single data model from a component
+   * @param input
    */
   public designModel(input: DataModelDesignInput): DataModel | null {
     const { component, features, modelIndex } = input;
@@ -166,6 +167,8 @@ export class DataDesigner {
 
   /**
    * Get related features for a component
+   * @param component
+   * @param featureById
    */
   private getRelatedFeatures(
     component: SDSComponent,
@@ -183,6 +186,7 @@ export class DataDesigner {
 
   /**
    * Check if a component needs a data model
+   * @param component
    */
   private needsDataModel(component: SDSComponent): boolean {
     const nameLower = component.name.toLowerCase();
@@ -241,6 +245,7 @@ export class DataDesigner {
 
   /**
    * Extract model name from component name
+   * @param componentName
    */
   private extractModelName(componentName: string): string {
     return componentName
@@ -253,6 +258,8 @@ export class DataDesigner {
 
   /**
    * Determine data model category
+   * @param component
+   * @param features
    */
   private determineCategory(
     component: SDSComponent,
@@ -286,6 +293,8 @@ export class DataDesigner {
 
   /**
    * Extract properties from component and features
+   * @param component
+   * @param features
    */
   private extractProperties(
     component: SDSComponent,
@@ -354,6 +363,7 @@ export class DataDesigner {
 
   /**
    * Check if parameter is a system parameter (not for data model)
+   * @param name
    */
   private isSystemParam(name: string): boolean {
     const systemParams = [
@@ -371,6 +381,7 @@ export class DataDesigner {
 
   /**
    * Map TypeScript type to data model type
+   * @param tsType
    */
   private mapToDataType(tsType: string): string {
     const typeLower = tsType.toLowerCase();
@@ -387,6 +398,7 @@ export class DataDesigner {
 
   /**
    * Extract properties from acceptance criteria
+   * @param criteria
    */
   private extractPropertiesFromCriteria(criteria: readonly string[]): DataProperty[] {
     const fullText = criteria.join(' ');
@@ -395,6 +407,7 @@ export class DataDesigner {
 
   /**
    * Extract properties from text
+   * @param text
    */
   private extractPropertiesFromText(text: string): DataProperty[] {
     const properties: DataProperty[] = [];
@@ -486,6 +499,7 @@ export class DataDesigner {
 
   /**
    * Add standard properties to model
+   * @param properties
    */
   private addStandardProperties(properties: readonly DataProperty[]): DataProperty[] {
     const allProps = [...properties];
@@ -525,6 +539,8 @@ export class DataDesigner {
 
   /**
    * Generate indexes for a model
+   * @param modelName
+   * @param properties
    */
   private generateIndexes(modelName: string, properties: readonly DataProperty[]): DataIndex[] {
     const indexes: DataIndex[] = [];
@@ -563,6 +579,7 @@ export class DataDesigner {
 
   /**
    * Convert to snake_case
+   * @param str
    */
   private toSnakeCase(str: string): string {
     return str
@@ -573,6 +590,7 @@ export class DataDesigner {
 
   /**
    * Generate description for model
+   * @param component
    */
   private generateDescription(component: SDSComponent): string {
     return `Data model for ${component.name}. ${component.responsibility}`;
@@ -580,6 +598,7 @@ export class DataDesigner {
 
   /**
    * Resolve relationships between models
+   * @param models
    */
   private resolveRelationships(models: readonly DataModel[]): readonly DataModel[] {
     // Create model name lookup

@@ -205,6 +205,7 @@ export class CompletionGenerator {
 
   /**
    * Generate completion script for the specified shell
+   * @param shell
    */
   generate(shell: ShellType): CompletionResult {
     try {
@@ -427,6 +428,7 @@ ${optionCompletions}
 
   /**
    * Get installation instructions for the specified shell
+   * @param shell
    */
   private getInstallationInstructions(shell: ShellType): string {
     const path = SHELL_COMPLETION_PATHS[shell];

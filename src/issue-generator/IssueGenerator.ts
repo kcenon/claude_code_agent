@@ -196,6 +196,8 @@ export class IssueGenerator {
 
   /**
    * Resolve component dependencies to issue IDs
+   * @param issues
+   * @param componentToIssue
    */
   private resolveDependencies(
     issues: readonly GeneratedIssue[],
@@ -223,6 +225,8 @@ export class IssueGenerator {
 
   /**
    * Build generation summary
+   * @param issues
+   * @param sds
    */
   private buildSummary(issues: readonly GeneratedIssue[], sds: ParsedSDS): GenerationSummary {
     const byPriority: Record<Priority, number> = {
@@ -282,6 +286,8 @@ export class IssueGenerator {
 
   /**
    * Save results to output files
+   * @param result
+   * @param projectId
    */
   private async saveResults(result: IssueGenerationResult, projectId: string): Promise<void> {
     const outputDir = path.join(this.config.outputPath, projectId);
@@ -338,6 +344,7 @@ export class IssueGenerator {
 
   /**
    * Get graph statistics
+   * @param result
    */
   public getGraphStatistics(result: IssueGenerationResult): {
     totalNodes: number;
@@ -360,6 +367,7 @@ export class IssueGenerator {
 /**
  * Get the global IssueGenerator instance
  * Creates a new instance with default config if none exists
+ * @param config
  */
 export function getIssueGenerator(config?: IssueGeneratorConfig): IssueGenerator {
   if (!globalInstance) {

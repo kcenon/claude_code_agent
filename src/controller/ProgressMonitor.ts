@@ -75,6 +75,9 @@ interface MutableRecentActivity {
  */
 type GetHealthStatusFn = () => HealthMonitorStatus;
 
+/**
+ *
+ */
 export class ProgressMonitor {
   private readonly config: Required<Omit<ProgressMonitorConfig, 'stuckWorkerConfig'>> & {
     stuckWorkerConfig: Required<Omit<StuckWorkerConfig, 'taskThresholds'>> & {
@@ -217,6 +220,7 @@ export class ProgressMonitor {
 
   /**
    * Set the total number of issues to track
+   * @param count
    */
   public setTotalIssues(count: number): void {
     this.totalIssues = count;
@@ -224,6 +228,9 @@ export class ProgressMonitor {
 
   /**
    * Record a task completion
+   * @param issueId
+   * @param startedAt
+   * @param success
    */
   public recordCompletion(issueId: string, startedAt: Date, success: boolean): void {
     const now = new Date();
@@ -256,6 +263,8 @@ export class ProgressMonitor {
 
   /**
    * Record a task start
+   * @param issueId
+   * @param workerId
    */
   public recordStart(issueId: string, workerId: string): void {
     this.addActivity({
@@ -269,6 +278,8 @@ export class ProgressMonitor {
 
   /**
    * Record a task being blocked
+   * @param issueId
+   * @param reason
    */
   public recordBlocked(issueId: string, reason: string): void {
     this.addActivity({
@@ -281,6 +292,7 @@ export class ProgressMonitor {
 
   /**
    * Add an activity to the recent activities log
+   * @param activity
    */
   private addActivity(activity: MutableRecentActivity): void {
     this.recentActivities.unshift(activity);
@@ -293,6 +305,7 @@ export class ProgressMonitor {
 
   /**
    * Register an event listener
+   * @param callback
    */
   public onEvent(callback: ProgressEventCallback): void {
     this.eventListeners.push(callback);
@@ -300,6 +313,8 @@ export class ProgressMonitor {
 
   /**
    * Emit an event to all listeners
+   * @param type
+   * @param data
    */
   private async emitEvent(type: ProgressEventType, data: Record<string, unknown>): Promise<void> {
     if (!this.config.enableNotifications) {
@@ -323,6 +338,8 @@ export class ProgressMonitor {
 
   /**
    * Check progress and detect bottlenecks
+   * @param getWorkerPoolStatus
+   * @param getWorkQueue
    */
   private async checkProgress(
     getWorkerPoolStatus: () => WorkerPoolStatus,
@@ -360,6 +377,7 @@ export class ProgressMonitor {
 
   /**
    * Detect worker state changes and record activities
+   * @param workerStatus
    */
   private detectWorkerStateChanges(workerStatus: WorkerPoolStatus): void {
     for (const worker of workerStatus.workers) {
@@ -383,6 +401,8 @@ export class ProgressMonitor {
 
   /**
    * Detect bottlenecks in the system
+   * @param workerStatus
+   * @param workQueue
    */
   public detectBottlenecks(
     workerStatus: WorkerPoolStatus,
@@ -536,6 +556,8 @@ export class ProgressMonitor {
 
   /**
    * Get suggested action for stuck worker based on duration
+   * @param duration
+   * @param threshold
    */
   private getSuggestedActionForStuckWorker(
     duration: number,
@@ -552,6 +574,11 @@ export class ProgressMonitor {
 
   /**
    * Create a bottleneck object
+   * @param type
+   * @param description
+   * @param affectedIssues
+   * @param suggestedAction
+   * @param severity
    */
   private createBottleneck(
     type: BottleneckType,
@@ -572,6 +599,8 @@ export class ProgressMonitor {
 
   /**
    * Calculate progress metrics
+   * @param workerStatus
+   * @param workQueue
    */
   public calculateMetrics(
     workerStatus: WorkerPoolStatus,
@@ -632,6 +661,7 @@ export class ProgressMonitor {
 
   /**
    * Check for milestones and emit events
+   * @param metrics
    */
   private async checkMilestones(metrics: ProgressMetrics): Promise<void> {
     const milestones = [25, 50, 75, 100];
@@ -662,6 +692,7 @@ export class ProgressMonitor {
   /**
    * Set a health status provider function
    * This allows integration with WorkerHealthMonitor
+   * @param provider
    */
   public setHealthStatusProvider(provider: GetHealthStatusFn): void {
     this.getHealthStatus = provider;
@@ -669,6 +700,9 @@ export class ProgressMonitor {
 
   /**
    * Generate a progress report
+   * @param metrics
+   * @param workerStatus
+   * @param bottlenecks
    */
   public generateReport(
     metrics: ProgressMetrics,
@@ -697,6 +731,7 @@ export class ProgressMonitor {
 
   /**
    * Generate markdown report content
+   * @param report
    */
   public generateMarkdownReport(report: ProgressReport): string {
     const lines: string[] = [];
@@ -805,6 +840,7 @@ export class ProgressMonitor {
 
   /**
    * Format worker duration for display
+   * @param worker
    */
   private formatDuration(worker: WorkerInfo): string {
     if (worker.startedAt === null) {
@@ -824,6 +860,7 @@ export class ProgressMonitor {
 
   /**
    * Save report to disk
+   * @param report
    */
   public async saveReport(report: ProgressReport): Promise<void> {
     const reportDir = this.config.reportPath;
@@ -881,6 +918,7 @@ export class ProgressMonitor {
 
   /**
    * Clear a resolved bottleneck
+   * @param bottleneckId
    */
   public clearBottleneck(bottleneckId: string): boolean {
     return this.detectedBottlenecks.delete(bottleneckId);
@@ -936,6 +974,7 @@ export class ProgressMonitor {
 
   /**
    * Set task reassignment handler for stuck worker recovery
+   * @param handler
    */
   public setTaskReassignHandler(handler: TaskReassignHandler): void {
     this.stuckWorkerHandler.setTaskReassignHandler(handler);
@@ -943,6 +982,7 @@ export class ProgressMonitor {
 
   /**
    * Set worker restart handler for stuck worker recovery
+   * @param handler
    */
   public setWorkerRestartHandler(handler: WorkerRestartHandler): void {
     this.stuckWorkerHandler.setWorkerRestartHandler(handler);
@@ -950,6 +990,7 @@ export class ProgressMonitor {
 
   /**
    * Set deadline extension handler for stuck worker recovery
+   * @param handler
    */
   public setDeadlineExtendHandler(handler: DeadlineExtendHandler): void {
     this.stuckWorkerHandler.setDeadlineExtendHandler(handler);
@@ -957,6 +998,7 @@ export class ProgressMonitor {
 
   /**
    * Set critical escalation handler
+   * @param handler
    */
   public setCriticalEscalationHandler(handler: CriticalEscalationHandler): void {
     this.stuckWorkerHandler.setCriticalEscalationHandler(handler);
@@ -964,6 +1006,7 @@ export class ProgressMonitor {
 
   /**
    * Set pipeline pause handler for critical escalations
+   * @param handler
    */
   public setPipelinePauseHandler(handler: PipelinePauseHandler): void {
     this.stuckWorkerHandler.setPipelinePauseHandler(handler);

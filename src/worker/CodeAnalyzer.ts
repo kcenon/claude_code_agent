@@ -27,6 +27,7 @@ import type {
 export class CodeAnalyzer {
   /**
    * Analyze source code to extract testable elements
+   * @param content
    */
   public analyzeCode(content: string): CodeAnalysis {
     const classes = this.extractClasses(content);
@@ -44,6 +45,7 @@ export class CodeAnalyzer {
 
   /**
    * Extract class information from source code
+   * @param content
    */
   public extractClasses(content: string): readonly ClassInfo[] {
     const classes: ClassInfo[] = [];
@@ -83,6 +85,7 @@ export class CodeAnalyzer {
 
   /**
    * Extract function information from source code
+   * @param content
    */
   public extractFunctions(content: string): readonly FunctionInfo[] {
     const functions: FunctionInfo[] = [];
@@ -162,6 +165,7 @@ export class CodeAnalyzer {
 
   /**
    * Extract dependencies from import statements
+   * @param content
    */
   public extractDependencies(content: string): readonly DependencyInfo[] {
     const dependencies: DependencyInfo[] = [];
@@ -205,6 +209,7 @@ export class CodeAnalyzer {
 
   /**
    * Extract export statements
+   * @param content
    */
   public extractExports(content: string): readonly ExportInfo[] {
     const exports: ExportInfo[] = [];
@@ -281,6 +286,7 @@ export class CodeAnalyzer {
 
   /**
    * Extract constructor parameters from class content
+   * @param classContent
    */
   public extractConstructorParams(classContent: string): readonly ParameterInfo[] {
     const constructorMatch = classContent.match(/constructor\s*\(([^)]*)\)/);
@@ -293,6 +299,7 @@ export class CodeAnalyzer {
 
   /**
    * Extract methods from class content
+   * @param classContent
    */
   public extractMethods(classContent: string): readonly MethodInfo[] {
     const methods: MethodInfo[] = [];
@@ -336,6 +343,7 @@ export class CodeAnalyzer {
 
   /**
    * Extract properties from class content
+   * @param classContent
    */
   public extractProperties(classContent: string): readonly PropertyInfo[] {
     const properties: PropertyInfo[] = [];
@@ -363,6 +371,7 @@ export class CodeAnalyzer {
 
   /**
    * Parse parameter string into ParameterInfo array
+   * @param paramString
    */
   public parseParameters(paramString: string): readonly ParameterInfo[] {
     if (paramString.trim() === '') return [];
@@ -419,6 +428,7 @@ export class CodeAnalyzer {
 
   /**
    * Split parameters handling nested generics
+   * @param paramString
    */
   public splitParameters(paramString: string): readonly string[] {
     const result: string[] = [];
@@ -449,6 +459,8 @@ export class CodeAnalyzer {
 
   /**
    * Extract block content starting from a line
+   * @param lines
+   * @param startLine
    */
   public extractBlockContent(lines: readonly string[], startLine: number): string {
     let braceCount = 0;
@@ -480,6 +492,7 @@ export class CodeAnalyzer {
 
   /**
    * Estimate cyclomatic complexity of code block
+   * @param content
    */
   public estimateComplexity(content: string): number {
     let complexity = 1;

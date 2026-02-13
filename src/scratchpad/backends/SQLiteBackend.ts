@@ -73,6 +73,9 @@ export class SQLiteBackend implements IScratchpadBackend {
     this.busyTimeout = config.busyTimeout ?? DEFAULT_BUSY_TIMEOUT;
   }
 
+  /**
+   *
+   */
   async initialize(): Promise<void> {
     // Ensure directory exists
     const dir = path.dirname(this.dbPath);
@@ -156,6 +159,11 @@ export class SQLiteBackend implements IScratchpadBackend {
     };
   }
 
+  /**
+   *
+   * @param section
+   * @param key
+   */
   read<T>(section: string, key: string): Promise<T | null> {
     try {
       const { read: stmtRead } = this.getStatements();
@@ -171,6 +179,12 @@ export class SQLiteBackend implements IScratchpadBackend {
     }
   }
 
+  /**
+   *
+   * @param section
+   * @param key
+   * @param value
+   */
   // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters
   write<T>(section: string, key: string, value: T): Promise<void> {
     try {
@@ -184,6 +198,11 @@ export class SQLiteBackend implements IScratchpadBackend {
     }
   }
 
+  /**
+   *
+   * @param section
+   * @param key
+   */
   delete(section: string, key: string): Promise<boolean> {
     try {
       const { delete: stmtDelete } = this.getStatements();
@@ -195,6 +214,10 @@ export class SQLiteBackend implements IScratchpadBackend {
     }
   }
 
+  /**
+   *
+   * @param section
+   */
   list(section: string): Promise<string[]> {
     try {
       const { list: stmtList } = this.getStatements();
@@ -206,6 +229,11 @@ export class SQLiteBackend implements IScratchpadBackend {
     }
   }
 
+  /**
+   *
+   * @param section
+   * @param key
+   */
   exists(section: string, key: string): Promise<boolean> {
     try {
       const { exists: stmtExists } = this.getStatements();
@@ -217,6 +245,10 @@ export class SQLiteBackend implements IScratchpadBackend {
     }
   }
 
+  /**
+   *
+   * @param operations
+   */
   batch(operations: BatchOperation[]): Promise<void> {
     try {
       const db = this.getDb();
@@ -240,6 +272,9 @@ export class SQLiteBackend implements IScratchpadBackend {
     }
   }
 
+  /**
+   *
+   */
   healthCheck(): Promise<BackendHealth> {
     try {
       const db = this.getDb();
@@ -262,6 +297,9 @@ export class SQLiteBackend implements IScratchpadBackend {
     }
   }
 
+  /**
+   *
+   */
   close(): Promise<void> {
     if (this.db) {
       this.db.close();

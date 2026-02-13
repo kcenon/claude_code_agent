@@ -31,6 +31,7 @@ import { getLogger } from '../logging/Logger.js';
 
 /**
  * Validates circuit breaker configuration
+ * @param config
  * @throws InvalidCircuitBreakerConfigError if config is invalid
  */
 function validateConfig(config: CircuitBreakerConfig): void {
@@ -59,6 +60,7 @@ function validateConfig(config: CircuitBreakerConfig): void {
 
 /**
  * Merges partial config with defaults
+ * @param partial
  */
 function mergeConfig(partial?: Partial<CircuitBreakerConfig>): CircuitBreakerConfig {
   const config: CircuitBreakerConfig = {
@@ -303,6 +305,7 @@ export class CircuitBreaker {
 
   /**
    * Handle failed operation
+   * @param error
    */
   private onFailure(error: Error): void {
     const logger = getLogger();
@@ -337,6 +340,7 @@ export class CircuitBreaker {
 
   /**
    * Transition to a new state
+   * @param newState
    */
   private transitionTo(newState: CircuitState): void {
     const logger = getLogger();
@@ -414,6 +418,7 @@ export class CircuitBreaker {
 
   /**
    * Emit an event to all registered callbacks
+   * @param event
    */
   private emitEvent(event: CircuitBreakerEvent): void {
     for (const callback of this.eventCallbacks) {
@@ -436,6 +441,7 @@ export class CircuitBreaker {
   /**
    * Record a failed operation result (for external integration)
    * Use this when the operation is managed externally (e.g., by RetryHandler)
+   * @param error
    */
   public recordFailure(error: Error): void {
     this.onFailure(error);

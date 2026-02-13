@@ -515,6 +515,7 @@ export class CloudWatchTransport extends BaseTransport {
 
   /**
    * Check if error is ResourceAlreadyExistsException
+   * @param error
    */
   private isResourceAlreadyExistsError(error: unknown): boolean {
     return (
@@ -527,6 +528,7 @@ export class CloudWatchTransport extends BaseTransport {
 
   /**
    * Check if error is InvalidSequenceTokenException
+   * @param error
    */
   private isInvalidSequenceTokenError(error: unknown): boolean {
     return (
@@ -539,6 +541,7 @@ export class CloudWatchTransport extends BaseTransport {
 
   /**
    * Check if error is DataAlreadyAcceptedException
+   * @param error
    */
   private isDataAlreadyAcceptedError(error: unknown): boolean {
     return (
@@ -551,6 +554,7 @@ export class CloudWatchTransport extends BaseTransport {
 
   /**
    * Extract sequence token from error message
+   * @param error
    */
   private extractSequenceTokenFromError(error: unknown): string | undefined {
     if (

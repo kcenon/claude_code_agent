@@ -15,7 +15,14 @@ import { InvalidSecretConfigError } from './errors.js';
 
 const ENV_VAR_PATTERN = /\${([A-Z_][A-Z0-9_]*)(?::-([^}]*))?}/gi;
 
+/**
+ *
+ */
 export class SecretProviderFactory {
+  /**
+   *
+   * @param config
+   */
   public createProvider(config: SecretProviderConfig): ISecretProvider {
     const resolvedConfig = this.resolveEnvVars(config);
 
@@ -39,6 +46,10 @@ export class SecretProviderFactory {
     }
   }
 
+  /**
+   *
+   * @param config
+   */
   public async createManager(config: SecretManagerConfig): Promise<ProviderSecretManager> {
     const manager = new ProviderSecretManager(config);
 
@@ -107,6 +118,9 @@ export class SecretProviderFactory {
 
 let factoryInstance: SecretProviderFactory | null = null;
 
+/**
+ *
+ */
 export function getSecretProviderFactory(): SecretProviderFactory {
   if (factoryInstance === null) {
     factoryInstance = new SecretProviderFactory();
@@ -114,6 +128,10 @@ export function getSecretProviderFactory(): SecretProviderFactory {
   return factoryInstance;
 }
 
+/**
+ *
+ * @param config
+ */
 export async function createManagerFromConfig(
   config: SecretManagerConfig
 ): Promise<ProviderSecretManager> {

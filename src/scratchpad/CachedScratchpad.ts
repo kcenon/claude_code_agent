@@ -467,6 +467,7 @@ export class CachedScratchpad extends Scratchpad {
 
   /**
    * Read file with cache support
+   * @param filePath
    */
   private async readWithCache(filePath: string): Promise<CachedContent | null> {
     // Check for pending write first
@@ -502,6 +503,7 @@ export class CachedScratchpad extends Scratchpad {
 
   /**
    * Load file from disk and cache it
+   * @param filePath
    */
   private async loadAndCache(filePath: string): Promise<CachedContent | null> {
     try {
@@ -528,6 +530,8 @@ export class CachedScratchpad extends Scratchpad {
 
   /**
    * Check if cached content is still valid
+   * @param filePath
+   * @param cachedMtime
    */
   private async isCacheValid(filePath: string, cachedMtime: number): Promise<boolean> {
     try {
@@ -540,6 +544,9 @@ export class CachedScratchpad extends Scratchpad {
 
   /**
    * Update cache with new content
+   * @param filePath
+   * @param content
+   * @param parsed
    */
   private updateCache(filePath: string, content: string, parsed: unknown): void {
     const entry: CachedContent = {
@@ -552,6 +559,8 @@ export class CachedScratchpad extends Scratchpad {
 
   /**
    * Parse content based on format
+   * @param content
+   * @param format
    */
   private parseContent(content: string, format: Exclude<SerializationFormat, 'auto'>): unknown {
     // Use parent's deserialize method via read
@@ -568,6 +577,9 @@ export class CachedScratchpad extends Scratchpad {
 
   /**
    * Serialize data based on format
+   * @param data
+   * @param filePath
+   * @param format
    */
   private serializeData(data: unknown, filePath: string, format?: SerializationFormat): string {
     const resolvedFormat =

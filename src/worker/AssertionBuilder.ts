@@ -82,6 +82,8 @@ export class AssertionBuilder implements IAssertionBuilder {
 
   /**
    * Build an assertion from expected value and actual expression
+   * @param expected
+   * @param actual
    */
   public build(expected: ExpectedValue, actual: string): Assertion {
     const matcher = this.selectMatcher(expected.type);
@@ -96,6 +98,7 @@ export class AssertionBuilder implements IAssertionBuilder {
 
   /**
    * Infer expected value from context
+   * @param context
    */
   public inferExpected(context: InferenceContext): ExpectedValue {
     const { returnType } = context;
@@ -130,6 +133,8 @@ export class AssertionBuilder implements IAssertionBuilder {
 
   /**
    * Format assertion for a specific framework
+   * @param assertion
+   * @param framework
    */
   public formatAssertion(assertion: Assertion, framework: 'jest' | 'vitest' | 'mocha'): string {
     const { actual, expected, matcher, negated } = assertion;
@@ -156,6 +161,9 @@ export class AssertionBuilder implements IAssertionBuilder {
 
   /**
    * Format test name according to naming convention
+   * @param expected
+   * @param condition
+   * @param config
    */
   public formatTestName(
     expected: string,
@@ -176,6 +184,7 @@ export class AssertionBuilder implements IAssertionBuilder {
 
   /**
    * Infer return description from method
+   * @param method
    */
   public inferReturnDescription(method: MethodInfo): string {
     if (method.returnType.includes('void')) return 'complete_successfully';
@@ -188,6 +197,7 @@ export class AssertionBuilder implements IAssertionBuilder {
 
   /**
    * Infer return description from function
+   * @param func
    */
   public inferFunctionReturnDescription(func: FunctionInfo): string {
     if (func.returnType.includes('void')) return 'complete_successfully';
@@ -200,6 +210,8 @@ export class AssertionBuilder implements IAssertionBuilder {
 
   /**
    * Estimate coverage percentage
+   * @param analysis
+   * @param testCount
    */
   public estimateCoverage(analysis: CodeAnalysis, testCount: number): number {
     // Rough estimation: each test covers approximately 10% of a method/function
@@ -216,6 +228,7 @@ export class AssertionBuilder implements IAssertionBuilder {
 
   /**
    * Select appropriate matcher based on type
+   * @param type
    */
   private selectMatcher(type: string): string {
     switch (type) {
@@ -238,6 +251,7 @@ export class AssertionBuilder implements IAssertionBuilder {
 
   /**
    * Convert Jest/Vitest matcher to Chai matcher
+   * @param matcher
    */
   private chaiMatcher(matcher: string): string {
     const matcherMap: Record<string, string> = {

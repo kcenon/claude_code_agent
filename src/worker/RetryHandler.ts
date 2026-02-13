@@ -111,6 +111,9 @@ export class RetryHandler {
    * Execute an operation with retry mechanism
    * @param operation - The async operation to execute
    * @param context - Context information for the operation
+   * @param context.taskId - Unique identifier for the task
+   * @param context.step - Current worker step being executed
+   * @param context.workOrder - Work order data for the operation
    * @returns Operation result with success/failure information
    */
   public async executeWithRetry<T>(

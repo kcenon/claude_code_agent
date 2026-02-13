@@ -110,6 +110,7 @@ export class StuckWorkerHandler {
 
   /**
    * Get threshold for a specific task type
+   * @param taskType
    */
   public getThresholdForTask(taskType: string | null): TaskTypeThreshold {
     if (taskType !== null && this.config.taskThresholds[taskType] !== undefined) {
@@ -125,6 +126,10 @@ export class StuckWorkerHandler {
 
   /**
    * Track a worker that started working
+   * @param workerId
+   * @param issueId
+   * @param startedAt
+   * @param taskType
    */
   public trackWorker(
     workerId: string,
@@ -145,6 +150,7 @@ export class StuckWorkerHandler {
 
   /**
    * Stop tracking a worker (task completed or worker released)
+   * @param workerId
    */
   public untrackWorker(workerId: string): void {
     this.trackedWorkers.delete(workerId);
@@ -152,6 +158,7 @@ export class StuckWorkerHandler {
 
   /**
    * Check all tracked workers and handle stuck conditions
+   * @param workers
    */
   public async checkWorkers(workers: readonly WorkerInfo[]): Promise<StuckWorkerEscalation[]> {
     const now = Date.now();
@@ -183,6 +190,8 @@ export class StuckWorkerHandler {
 
   /**
    * Handle worker duration and determine escalation level
+   * @param state
+   * @param duration
    */
   private async handleWorkerDuration(
     state: TrackedWorkerState,
@@ -208,6 +217,8 @@ export class StuckWorkerHandler {
 
   /**
    * Determine escalation level based on duration
+   * @param duration
+   * @param threshold
    */
   private determineEscalationLevel(
     duration: number,
@@ -227,6 +238,9 @@ export class StuckWorkerHandler {
 
   /**
    * Handle escalation based on level
+   * @param state
+   * @param level
+   * @param duration
    */
   private async handleEscalation(
     state: TrackedWorkerState,
@@ -256,6 +270,8 @@ export class StuckWorkerHandler {
 
   /**
    * Get suggested action based on escalation level and attempts
+   * @param level
+   * @param attempts
    */
   private getSuggestedAction(level: StuckWorkerEscalationLevel, attempts: number): string {
     switch (level) {
@@ -276,6 +292,9 @@ export class StuckWorkerHandler {
 
   /**
    * Attempt recovery based on escalation level
+   * @param state
+   * @param level
+   * @param duration
    */
   private async attemptRecovery(
     state: TrackedWorkerState,
@@ -357,6 +376,8 @@ export class StuckWorkerHandler {
 
   /**
    * Determine which recovery action to take
+   * @param state
+   * @param level
    */
   private determineRecoveryAction(
     state: TrackedWorkerState,
@@ -387,6 +408,8 @@ export class StuckWorkerHandler {
 
   /**
    * Execute the recovery action
+   * @param state
+   * @param action
    */
   private async executeRecoveryAction(
     state: TrackedWorkerState,
@@ -453,6 +476,8 @@ export class StuckWorkerHandler {
 
   /**
    * Handle critical escalation
+   * @param state
+   * @param duration
    */
   private async handleCriticalEscalation(
     state: TrackedWorkerState,
@@ -486,6 +511,9 @@ export class StuckWorkerHandler {
 
   /**
    * Emit escalation event based on level
+   * @param level
+   * @param state
+   * @param duration
    */
   private async emitEscalationEvent(
     level: StuckWorkerEscalationLevel,
@@ -510,6 +538,8 @@ export class StuckWorkerHandler {
 
   /**
    * Emit an event to all listeners
+   * @param type
+   * @param data
    */
   private async emitEvent(type: ProgressEventType, data: Record<string, unknown>): Promise<void> {
     const event: ProgressEvent = {
@@ -529,6 +559,7 @@ export class StuckWorkerHandler {
 
   /**
    * Register event listener
+   * @param callback
    */
   public onEvent(callback: ProgressEventCallback): void {
     this.eventListeners.push(callback);
@@ -536,6 +567,7 @@ export class StuckWorkerHandler {
 
   /**
    * Set task reassignment handler
+   * @param handler
    */
   public setTaskReassignHandler(handler: TaskReassignHandler): void {
     this.onTaskReassign = handler;
@@ -543,6 +575,7 @@ export class StuckWorkerHandler {
 
   /**
    * Set worker restart handler
+   * @param handler
    */
   public setWorkerRestartHandler(handler: WorkerRestartHandler): void {
     this.onWorkerRestart = handler;
@@ -550,6 +583,7 @@ export class StuckWorkerHandler {
 
   /**
    * Set deadline extension handler
+   * @param handler
    */
   public setDeadlineExtendHandler(handler: DeadlineExtendHandler): void {
     this.onDeadlineExtend = handler;
@@ -557,6 +591,7 @@ export class StuckWorkerHandler {
 
   /**
    * Set critical escalation handler
+   * @param handler
    */
   public setCriticalEscalationHandler(handler: CriticalEscalationHandler): void {
     this.onCriticalEscalation = handler;
@@ -564,6 +599,7 @@ export class StuckWorkerHandler {
 
   /**
    * Set pipeline pause handler
+   * @param handler
    */
   public setPipelinePauseHandler(handler: PipelinePauseHandler): void {
     this.onPipelinePause = handler;

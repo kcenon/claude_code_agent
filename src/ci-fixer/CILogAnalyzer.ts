@@ -312,6 +312,8 @@ export class CILogAnalyzer {
 
   /**
    * Calculate confidence score for a match
+   * @param pattern
+   * @param _matchedText
    */
   private calculateConfidence(pattern: CILogPattern, _matchedText: string): number {
     // Base confidence from pattern specificity
@@ -332,6 +334,9 @@ export class CILogAnalyzer {
 
   /**
    * Find all matches for a pattern in the logs
+   * @param logs
+   * @param pattern
+   * @param matchedRanges
    */
   private findMatches(
     logs: string,
@@ -373,6 +378,10 @@ export class CILogAnalyzer {
 
   /**
    * Check if a range overlaps with existing ranges
+   * @param range
+   * @param range.start
+   * @param range.end
+   * @param existingRanges
    */
   private isRangeOverlapping(
     range: { start: number; end: number },
@@ -385,6 +394,8 @@ export class CILogAnalyzer {
 
   /**
    * Find error lines that weren't matched by any pattern
+   * @param logs
+   * @param matchedRanges
    */
   private findUnidentifiedCauses(
     logs: string,
@@ -426,6 +437,7 @@ export class CILogAnalyzer {
 
   /**
    * Group failures by category
+   * @param failures
    */
   private groupByCategory(
     failures: readonly CIFailure[]
@@ -442,6 +454,7 @@ export class CILogAnalyzer {
 
   /**
    * Truncate logs if too large
+   * @param logs
    */
   private truncateLogs(logs: string): string {
     if (logs.length <= this.maxLogSize) {
@@ -458,6 +471,8 @@ export class CILogAnalyzer {
 
   /**
    * Extract test details for a specific test file
+   * @param output
+   * @param testFile
    */
   private extractTestDetails(output: string, testFile: string): string {
     const lines = output.split('\n');
@@ -480,6 +495,12 @@ export class CILogAnalyzer {
  */
 let analyzerInstance: CILogAnalyzer | null = null;
 
+/**
+ *
+ * @param options
+ * @param options.customPatterns
+ * @param options.maxLogSize
+ */
 export function getCILogAnalyzer(options?: {
   customPatterns?: readonly CILogPattern[];
   maxLogSize?: number;

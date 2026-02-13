@@ -73,6 +73,8 @@ abstract class BaseFrameworkAdapter implements IFrameworkAdapter {
 
   /**
    * Format a complete test suite into file content
+   * @param suite
+   * @param patterns
    */
   public formatTestSuite(suite: TestSuite, patterns: CodePatterns): string {
     const lines: string[] = [];
@@ -95,6 +97,11 @@ abstract class BaseFrameworkAdapter implements IFrameworkAdapter {
 
   /**
    * Format a test suite block (describe block)
+   * @param suite
+   * @param indent
+   * @param quote
+   * @param semi
+   * @param depth
    */
   public formatSuiteBlock(
     suite: TestSuiteBlock,
@@ -144,6 +151,11 @@ abstract class BaseFrameworkAdapter implements IFrameworkAdapter {
 
   /**
    * Format a single test case
+   * @param testCase
+   * @param indent
+   * @param quote
+   * @param semi
+   * @param depth
    */
   public formatTestCase(
     testCase: TestCase,
@@ -176,6 +188,8 @@ abstract class BaseFrameworkAdapter implements IFrameworkAdapter {
 
   /**
    * Get relative path between directories
+   * @param from
+   * @param to
    */
   protected getRelativePath(from: string, to: string): string {
     // Simplified relative path calculation
@@ -203,6 +217,7 @@ abstract class BaseFrameworkAdapter implements IFrameworkAdapter {
 
   /**
    * Get test file path for a source file
+   * @param sourceFile
    */
   public getTestFilePath(sourceFile: string): string {
     const dir = dirname(sourceFile);
@@ -225,6 +240,9 @@ export class VitestAdapter extends BaseFrameworkAdapter {
 
   /**
    * Generate Vitest-specific imports
+   * @param suite
+   * @param quote
+   * @param semi
    */
   public generateImports(suite: TestSuite, quote: string, semi: string): string {
     const lines: string[] = [];
@@ -253,6 +271,9 @@ export class JestAdapter extends BaseFrameworkAdapter {
 
   /**
    * Generate Jest-specific imports
+   * @param suite
+   * @param quote
+   * @param semi
    */
   public generateImports(suite: TestSuite, quote: string, semi: string): string {
     const lines: string[] = [];
@@ -281,6 +302,9 @@ export class MochaAdapter extends BaseFrameworkAdapter {
 
   /**
    * Generate Mocha-specific imports
+   * @param suite
+   * @param quote
+   * @param semi
    */
   public generateImports(suite: TestSuite, quote: string, semi: string): string {
     const lines: string[] = [];
@@ -302,6 +326,11 @@ export class MochaAdapter extends BaseFrameworkAdapter {
 
   /**
    * Override test case formatting for Mocha style
+   * @param testCase
+   * @param indent
+   * @param quote
+   * @param semi
+   * @param depth
    */
   public formatTestCase(
     testCase: TestCase,
@@ -346,6 +375,7 @@ export class FrameworkAdapterFactory {
 
   /**
    * Get adapter for a framework
+   * @param framework
    */
   public getAdapter(framework: 'jest' | 'vitest' | 'mocha'): IFrameworkAdapter {
     const adapter = this.adapters.get(framework);
@@ -362,6 +392,7 @@ export class FrameworkAdapterFactory {
 
   /**
    * Register a custom adapter
+   * @param adapter
    */
   public registerAdapter(adapter: IFrameworkAdapter): void {
     this.adapters.set(adapter.framework, adapter);

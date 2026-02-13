@@ -153,6 +153,7 @@ export class JsonSyntaxError extends Error {
 
 /**
  * Get schema name from Zod schema
+ * @param schema
  */
 function getSchemaName(schema: z.ZodType): string {
   // Try to get description first

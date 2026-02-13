@@ -124,6 +124,7 @@ export class ConsistencyChecker {
 
   /**
    * Analyze priority distribution across requirements
+   * @param info
    */
   private analyzePriorityDistribution(info: CollectedInfo): PriorityDistribution {
     const functionalReqs = info.requirements?.functional ?? [];
@@ -174,6 +175,7 @@ export class ConsistencyChecker {
 
   /**
    * Check for duplicate requirements
+   * @param info
    */
   private checkDuplicates(info: CollectedInfo): ConsistencyIssue[] {
     const issues: ConsistencyIssue[] = [];
@@ -215,6 +217,7 @@ export class ConsistencyChecker {
 
   /**
    * Check for conflicting requirements
+   * @param info
    */
   private checkConflicts(info: CollectedInfo): ConsistencyIssue[] {
     const issues: ConsistencyIssue[] = [];
@@ -278,6 +281,7 @@ export class ConsistencyChecker {
 
   /**
    * Analyze dependencies in requirements
+   * @param info
    */
   private analyzeDependencies(info: CollectedInfo): DependencyAnalysis {
     const functionalReqs = info.requirements?.functional ?? [];
@@ -348,6 +352,8 @@ export class ConsistencyChecker {
 
   /**
    * Calculate string similarity using Jaccard index
+   * @param str1
+   * @param str2
    */
   private calculateSimilarity(str1: string, str2: string): number {
     const set1 = new Set(str1.toLowerCase().split(/\s+/));
@@ -362,6 +368,8 @@ export class ConsistencyChecker {
 
   /**
    * Check if text contains any of the specified terms
+   * @param text
+   * @param terms
    */
   private containsConflictingTerms(text: string, terms: string[]): boolean {
     const lowerText = text.toLowerCase();
@@ -370,6 +378,8 @@ export class ConsistencyChecker {
 
   /**
    * Check if two descriptions are contradictory
+   * @param desc1
+   * @param desc2
    */
   private areContradictory(desc1: string, desc2: string): boolean {
     const contradictionPairs: Array<[string, string]> = [
@@ -404,6 +414,8 @@ export class ConsistencyChecker {
 
   /**
    * Get common non-trivial words between two texts
+   * @param text1
+   * @param text2
    */
   private getCommonNonTrivialWords(text1: string, text2: string): string[] {
     const trivialWords = new Set([
@@ -447,6 +459,11 @@ export class ConsistencyChecker {
 
   /**
    * Create a consistency issue with auto-generated ID
+   * @param type
+   * @param severity
+   * @param description
+   * @param relatedIds
+   * @param suggestion
    */
   private createIssue(
     type: ConsistencyIssueType,

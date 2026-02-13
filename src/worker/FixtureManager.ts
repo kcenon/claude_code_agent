@@ -122,6 +122,7 @@ export class FixtureManager implements IFixtureManager {
 
   /**
    * Create a fixture from a schema
+   * @param schema
    */
   public createFixture(schema: FixtureSchema): Fixture {
     let value: string;
@@ -144,6 +145,7 @@ export class FixtureManager implements IFixtureManager {
 
   /**
    * Create a mock from a dependency
+   * @param dependency
    */
   public createMock(dependency: DependencyInfo): Mock {
     const name = dependency.imports[0] ?? 'unknownMock';
@@ -158,6 +160,7 @@ export class FixtureManager implements IFixtureManager {
 
   /**
    * Generate test data from specification
+   * @param spec
    */
   public generateTestData(spec: DataSpec): TestData {
     const name = `test${spec.type.charAt(0).toUpperCase()}${spec.type.slice(1)}`;
@@ -171,6 +174,9 @@ export class FixtureManager implements IFixtureManager {
 
   /**
    * Generate mocks for a method
+   * @param _method
+   * @param dependencies
+   * @param config
    */
   public generateMocksForMethod(
     _method: MethodInfo,
@@ -202,6 +208,9 @@ export class FixtureManager implements IFixtureManager {
 
   /**
    * Generate mocks for a function
+   * @param func
+   * @param dependencies
+   * @param config
    */
   public generateMocksForFunction(
     func: FunctionInfo,
@@ -217,6 +226,8 @@ export class FixtureManager implements IFixtureManager {
 
   /**
    * Generate class setup code
+   * @param classInfo
+   * @param dependencies
    */
   public generateClassSetup(classInfo: ClassInfo, dependencies: readonly DependencyInfo[]): string {
     const lines: string[] = [];
@@ -252,6 +263,7 @@ export class FixtureManager implements IFixtureManager {
 
   /**
    * Generate beforeEach setup code
+   * @param classInfo
    */
   public generateBeforeEach(classInfo: ClassInfo): string {
     const lines: string[] = [];
@@ -274,6 +286,7 @@ export class FixtureManager implements IFixtureManager {
 
   /**
    * Get default value for a type
+   * @param type
    */
   private getDefaultValue(type: string): string {
     const lowerType = type.toLowerCase();
@@ -295,6 +308,7 @@ export class FixtureManager implements IFixtureManager {
 
   /**
    * Generate mock implementation for a dependency
+   * @param dependency
    */
   private generateMockImplementation(dependency: DependencyInfo): string {
     const imports = dependency.imports;

@@ -274,6 +274,7 @@ export class CICircuitBreaker {
 
   /**
    * Register an event listener
+   * @param listener
    */
   public onEvent(listener: CircuitBreakerEventListener): () => void {
     this.listeners.push(listener);
@@ -294,6 +295,7 @@ export class CICircuitBreaker {
 
   /**
    * Transition to a new state
+   * @param newState
    */
   private transitionTo(newState: CircuitState): void {
     if (this.state === newState) {
@@ -319,6 +321,7 @@ export class CICircuitBreaker {
 
   /**
    * Emit an event to all listeners
+   * @param event
    */
   private emit(event: CircuitBreakerEvent): void {
     for (const listener of this.listeners) {

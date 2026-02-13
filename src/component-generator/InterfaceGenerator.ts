@@ -100,6 +100,7 @@ export class InterfaceGenerator {
 
   /**
    * Generate interfaces from use cases
+   * @param useCases
    */
   public generateInterfaces(useCases: readonly SRSUseCase[]): InterfaceSpec[] {
     const interfaces: InterfaceSpec[] = [];
@@ -119,6 +120,7 @@ export class InterfaceGenerator {
 
   /**
    * Generate interfaces from a single use case
+   * @param useCase
    */
   private generateFromUseCase(useCase: SRSUseCase): InterfaceSpec[] {
     const interfaces: InterfaceSpec[] = [];
@@ -141,6 +143,7 @@ export class InterfaceGenerator {
 
   /**
    * Determine interface type from use case
+   * @param useCase
    */
   private determineInterfaceType(useCase: SRSUseCase): InterfaceType {
     const text = `${useCase.name} ${useCase.description}`.toLowerCase();
@@ -163,6 +166,7 @@ export class InterfaceGenerator {
 
   /**
    * Generate API endpoint from use case
+   * @param useCase
    */
   private generateAPIEndpoint(useCase: SRSUseCase): APIEndpoint {
     const { method, action } = this.determineHttpMethod(useCase);
@@ -184,6 +188,7 @@ export class InterfaceGenerator {
 
   /**
    * Determine HTTP method from use case
+   * @param useCase
    */
   private determineHttpMethod(useCase: SRSUseCase): { method: HttpMethod; action: string } {
     const text = `${useCase.name} ${useCase.description}`.toLowerCase();
@@ -200,6 +205,7 @@ export class InterfaceGenerator {
 
   /**
    * Determine resource name from use case
+   * @param useCase
    */
   private determineResource(useCase: SRSUseCase): string {
     const text = `${useCase.name} ${useCase.description}`.toLowerCase();
@@ -222,6 +228,9 @@ export class InterfaceGenerator {
 
   /**
    * Build endpoint path
+   * @param resource
+   * @param action
+   * @param method
    */
   private buildEndpoint(resource: string, action: string, method: HttpMethod): string {
     const base = `/api/v1/${resource}`;
@@ -242,6 +251,8 @@ export class InterfaceGenerator {
 
   /**
    * Generate request specification
+   * @param useCase
+   * @param method
    */
   private generateRequestSpec(useCase: SRSUseCase, method: HttpMethod): RequestSpec {
     const headers: HeaderSpec[] = [];
@@ -308,6 +319,7 @@ export class InterfaceGenerator {
 
   /**
    * Generate request body schema from use case
+   * @param useCase
    */
   private generateRequestBody(useCase: SRSUseCase): BodySchema {
     const fields = this.extractFieldsFromUseCase(useCase);
@@ -320,6 +332,7 @@ export class InterfaceGenerator {
 
   /**
    * Extract fields from use case main flow
+   * @param useCase
    */
   private extractFieldsFromUseCase(useCase: SRSUseCase): FieldSpec[] {
     const fields: FieldSpec[] = [];
@@ -351,6 +364,7 @@ export class InterfaceGenerator {
 
   /**
    * Extract field information from a step description
+   * @param step
    */
   private extractFieldsFromStep(step: string): FieldSpec[] {
     const fields: FieldSpec[] = [];
@@ -399,6 +413,8 @@ export class InterfaceGenerator {
 
   /**
    * Generate response specification
+   * @param useCase
+   * @param method
    */
   private generateResponseSpec(useCase: SRSUseCase, method: HttpMethod): ResponseSpec {
     const successStatus = this.getSuccessStatus(method);
@@ -422,6 +438,7 @@ export class InterfaceGenerator {
 
   /**
    * Get success status code based on method
+   * @param method
    */
   private getSuccessStatus(method: HttpMethod): number {
     switch (method) {
@@ -436,6 +453,7 @@ export class InterfaceGenerator {
 
   /**
    * Get success description based on method
+   * @param method
    */
   private getSuccessDescription(method: HttpMethod): string {
     switch (method) {
@@ -453,6 +471,8 @@ export class InterfaceGenerator {
 
   /**
    * Generate success response body
+   * @param useCase
+   * @param method
    */
   private generateSuccessBody(useCase: SRSUseCase, method: HttpMethod): BodySchema | undefined {
     if (method === 'DELETE') {
@@ -499,6 +519,7 @@ export class InterfaceGenerator {
 
   /**
    * Generate common error responses
+   * @param method
    */
   private generateErrorResponses(method: HttpMethod): ErrorResponse[] {
     const errors: ErrorResponse[] = [DEFAULT_ERROR_RESPONSES[400], DEFAULT_ERROR_RESPONSES[401]];
@@ -518,6 +539,7 @@ export class InterfaceGenerator {
 
   /**
    * Check if use case requires authentication
+   * @param useCase
    */
   private requiresAuthentication(useCase: SRSUseCase): boolean {
     const text =
@@ -539,6 +561,7 @@ export class InterfaceGenerator {
 
   /**
    * Generate unique interface ID
+   * @param type
    */
   private generateInterfaceId(type: InterfaceType): string {
     const prefix = INTERFACE_TYPE_PREFIXES[type] ?? 'INT';

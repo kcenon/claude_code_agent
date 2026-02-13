@@ -274,6 +274,8 @@ export class TechnologyStackGenerator {
 
   /**
    * Generate technology stack based on analysis
+   * @param srs
+   * @param analysis
    */
   public generate(srs: ParsedSRS, analysis: ArchitectureAnalysis): TechnologyStack {
     try {
@@ -306,6 +308,7 @@ export class TechnologyStackGenerator {
 
   /**
    * Extract NFR priorities from SRS
+   * @param srs
    */
   private extractNFRPriorities(srs: ParsedSRS): Map<NFRCategory, number> {
     const priorities = new Map<NFRCategory, number>();
@@ -321,6 +324,7 @@ export class TechnologyStackGenerator {
 
   /**
    * Get numeric score for priority
+   * @param priority
    */
   private getPriorityScore(priority: 'P0' | 'P1' | 'P2' | 'P3'): number {
     const scores: Record<string, number> = {
@@ -334,6 +338,10 @@ export class TechnologyStackGenerator {
 
   /**
    * Select best technology for a layer
+   * @param layer
+   * @param options
+   * @param analysis
+   * @param nfrPriorities
    */
   private selectTechnology(
     layer: TechnologyLayer,
@@ -371,6 +379,9 @@ export class TechnologyStackGenerator {
 
   /**
    * Score a technology option
+   * @param option
+   * @param analysis
+   * @param nfrPriorities
    */
   private scoreTechnology(
     option: TechnologyOption,
@@ -407,6 +418,8 @@ export class TechnologyStackGenerator {
 
   /**
    * Get reason why alternative wasn't selected
+   * @param alternative
+   * @param selected
    */
   private getAlternativeReason(alternative: TechnologyOption, selected: TechnologyOption): string {
     const missingStrengths = alternative.strengths.filter((s) => !selected.strengths.includes(s));
@@ -420,6 +433,8 @@ export class TechnologyStackGenerator {
 
   /**
    * Build overall stack rationale
+   * @param layers
+   * @param analysis
    */
   private buildStackRationale(
     layers: TechnologyLayerEntry[],
@@ -442,6 +457,7 @@ export class TechnologyStackGenerator {
 
   /**
    * Check compatibility between selected technologies
+   * @param layers
    */
   private checkCompatibility(layers: TechnologyLayerEntry[]): string[] {
     const notes: string[] = [];

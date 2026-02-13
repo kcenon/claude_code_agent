@@ -125,6 +125,7 @@ export class InteractiveWizard {
 
   /**
    * Prompt for confirmation before proceeding
+   * @param message
    */
   async confirm(message: string): Promise<boolean> {
     const answer = await inquirer.prompt<ConfirmAnswer>([
@@ -140,6 +141,7 @@ export class InteractiveWizard {
 
   /**
    * Display a summary of the configuration and ask for confirmation
+   * @param options
    */
   async confirmConfiguration(options: InitOptions): Promise<boolean> {
     const summaryData: Record<string, string> = {

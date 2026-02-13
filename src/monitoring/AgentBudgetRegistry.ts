@@ -119,6 +119,8 @@ export class AgentBudgetRegistry {
 
   /**
    * Get or create a budget manager for an agent
+   * @param agentName
+   * @param config
    */
   public getAgentBudget(
     agentName: string,
@@ -134,6 +136,8 @@ export class AgentBudgetRegistry {
 
   /**
    * Create a new budget manager for an agent
+   * @param agentName
+   * @param config
    */
   private createAgentBudget(
     agentName: string,
@@ -198,6 +202,10 @@ export class AgentBudgetRegistry {
 
   /**
    * Record usage for an agent and check budgets
+   * @param agentName
+   * @param inputTokens
+   * @param outputTokens
+   * @param costUsd
    */
   public recordAgentUsage(
     agentName: string,
@@ -257,6 +265,7 @@ export class AgentBudgetRegistry {
 
   /**
    * Get agent budget configuration
+   * @param agentName
    */
   public getAgentConfig(agentName: string): AgentTokenBudgetConfig | undefined {
     return this.agentBudgets.get(agentName)?.config;
@@ -337,6 +346,7 @@ export class AgentBudgetRegistry {
 
   /**
    * Reset specific agent budget
+   * @param agentName
    */
   public resetAgent(agentName: string): void {
     const entry = this.agentBudgets.get(agentName);
@@ -356,6 +366,7 @@ export class AgentBudgetRegistry {
 
   /**
    * Remove an agent from the registry
+   * @param agentName
    */
   public removeAgent(agentName: string): boolean {
     return this.agentBudgets.delete(agentName);
@@ -377,6 +388,9 @@ export class AgentBudgetRegistry {
 
   /**
    * Estimate if a request will exceed agent or pipeline budget
+   * @param agentName
+   * @param estimatedInputTokens
+   * @param estimatedOutputTokens
    */
   public estimateUsage(
     agentName: string,
@@ -625,6 +639,9 @@ export class AgentBudgetRegistry {
 
   /**
    * Helper to create transfer result for failed transfers
+   * @param success
+   * @param error
+   * @param timestamp
    */
   private createTransferResult(
     success: false,
@@ -646,6 +663,7 @@ let globalAgentBudgetRegistry: AgentBudgetRegistry | null = null;
 
 /**
  * Get or create the global AgentBudgetRegistry instance
+ * @param config
  */
 export function getAgentBudgetRegistry(config?: AgentBudgetRegistryConfig): AgentBudgetRegistry {
   if (globalAgentBudgetRegistry === null) {

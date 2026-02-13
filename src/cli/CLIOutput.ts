@@ -48,6 +48,7 @@ export class CLIOutput {
 
   /**
    * Write an info message to stdout
+   * @param message
    */
   info(message: string): void {
     this.stdout.write(`${message}\n`);
@@ -55,6 +56,7 @@ export class CLIOutput {
 
   /**
    * Write a warning message to stderr
+   * @param message
    */
   warn(message: string): void {
     this.stderr.write(`${message}\n`);
@@ -62,6 +64,7 @@ export class CLIOutput {
 
   /**
    * Write an error message to stderr
+   * @param message
    */
   error(message: string): void {
     this.stderr.write(`${message}\n`);
@@ -76,6 +79,8 @@ export class CLIOutput {
 
   /**
    * Display a summary with title and key-value pairs
+   * @param title
+   * @param data
    */
   summary(title: string, data: Record<string, string>): void {
     this.stdout.write(`\n${title}:\n`);
@@ -88,6 +93,8 @@ export class CLIOutput {
 
   /**
    * Display a formatted table
+   * @param headers
+   * @param rows
    */
   table(headers: readonly string[], rows: readonly (readonly string[])[]): void {
     if (headers.length === 0) {
@@ -131,6 +138,7 @@ export class CLIOutput {
 
   /**
    * Display a progress indicator message
+   * @param message
    */
   progress(message: string): void {
     this.stdout.write(`${message}...\n`);
@@ -138,6 +146,7 @@ export class CLIOutput {
 
   /**
    * Display a success message with checkmark
+   * @param message
    */
   success(message: string): void {
     this.stdout.write(`✓ ${message}\n`);
@@ -145,6 +154,7 @@ export class CLIOutput {
 
   /**
    * Display a failure message with cross mark
+   * @param message
    */
   failure(message: string): void {
     this.stderr.write(`✗ ${message}\n`);
@@ -152,6 +162,7 @@ export class CLIOutput {
 
   /**
    * Display a divider line
+   * @param length
    */
   divider(length: number = 40): void {
     this.stdout.write('─'.repeat(length) + '\n');
@@ -159,6 +170,8 @@ export class CLIOutput {
 
   /**
    * Display an indented message
+   * @param message
+   * @param level
    */
   indent(message: string, level: number = 1): void {
     const spaces = '  '.repeat(level);
@@ -167,6 +180,7 @@ export class CLIOutput {
 
   /**
    * Write raw output to stdout without newline
+   * @param content
    */
   raw(content: string): void {
     this.stdout.write(content);
@@ -174,6 +188,7 @@ export class CLIOutput {
 
   /**
    * Write JSON formatted output
+   * @param data
    */
   json(data: unknown): void {
     this.stdout.write(JSON.stringify(data, null, 2) + '\n');
@@ -185,6 +200,7 @@ let instance: CLIOutput | null = null;
 
 /**
  * Get or create the global CLIOutput instance
+ * @param options
  */
 export function getCLIOutput(options?: CLIOutputOptions): CLIOutput {
   if (instance === null) {

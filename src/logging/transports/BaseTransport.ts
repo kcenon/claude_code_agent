@@ -155,6 +155,7 @@ export abstract class BaseTransport implements ILogTransport {
    *
    * Buffers the entry and flushes if buffer is full (when batching is enabled).
    * Ships immediately if batching is disabled.
+   * @param entry
    */
   public async log(entry: TransportLogEntry): Promise<void> {
     if (this.state !== 'ready') {
@@ -260,6 +261,7 @@ export abstract class BaseTransport implements ILogTransport {
 
   /**
    * Ship entries with retry logic
+   * @param entries
    */
   private async shipWithRetry(entries: TransportLogEntry[]): Promise<void> {
     let lastError: unknown;
@@ -287,6 +289,8 @@ export abstract class BaseTransport implements ILogTransport {
 
   /**
    * Handle an error by tracking it
+   * @param context
+   * @param error
    */
   protected handleError(context: string, error: unknown): void {
     this.lastErrorTime = new Date();
@@ -298,6 +302,7 @@ export abstract class BaseTransport implements ILogTransport {
 
   /**
    * Delay for retry logic
+   * @param ms
    */
   private delay(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));

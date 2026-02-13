@@ -333,6 +333,7 @@ export class ProviderSecretManager {
 
   /**
    * Reset circuit breaker for a specific provider
+   * @param providerName
    */
   public resetCircuitBreaker(providerName: string): void {
     const cb = this.circuitBreakers.get(providerName);
@@ -347,6 +348,7 @@ export class ProviderSecretManager {
 
   /**
    * Convert a secret name to environment variable format
+   * @param name
    */
   private toEnvName(name: string): string {
     return name.replace(/[/.:@-]/g, '_').toUpperCase();
@@ -354,6 +356,7 @@ export class ProviderSecretManager {
 
   /**
    * Check if a provider is available (circuit breaker not open)
+   * @param providerName
    */
   private isProviderAvailable(providerName: string): boolean {
     const cb = this.circuitBreakers.get(providerName);
@@ -362,6 +365,7 @@ export class ProviderSecretManager {
 
   /**
    * Check if circuit breaker allows requests
+   * @param cb
    */
   private isCircuitReady(cb: CircuitBreakerInstance): boolean {
     if (cb.state === 'closed') {
@@ -384,6 +388,7 @@ export class ProviderSecretManager {
 
   /**
    * Record a successful request for circuit breaker
+   * @param providerName
    */
   private recordSuccess(providerName: string): void {
     const cb = this.circuitBreakers.get(providerName);
@@ -406,6 +411,7 @@ export class ProviderSecretManager {
 
   /**
    * Record a failed request for circuit breaker
+   * @param providerName
    */
   private recordFailure(providerName: string): void {
     const cb = this.circuitBreakers.get(providerName);

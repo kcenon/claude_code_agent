@@ -209,6 +209,13 @@ export class StateManager {
    * @param options - Update options
    */
   /* eslint-disable @typescript-eslint/no-unnecessary-type-parameters */
+  /**
+   *
+   * @param section
+   * @param projectId
+   * @param data
+   * @param options
+   */
   async setState<T extends object>(
     section: ScratchpadSection,
     projectId: string,
@@ -471,6 +478,7 @@ export class StateManager {
 
   /**
    * Collect section states for checkpoint
+   * @param projectId
    */
   private async collectSectionStates(
     projectId: string

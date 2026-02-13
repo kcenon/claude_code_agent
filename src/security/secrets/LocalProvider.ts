@@ -66,6 +66,8 @@ export class LocalProvider extends BaseSecretProvider {
    * - `database-password` -> `DATABASE_PASSWORD`
    *
    * If envPrefix is configured, it's prepended to the variable name.
+   * @param name
+   * @param _version
    */
   protected doGetSecret(name: string, _version?: string): Promise<Secret | null> {
     const envName = this.toEnvName(name);

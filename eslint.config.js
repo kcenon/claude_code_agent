@@ -43,7 +43,12 @@ export default tseslint.config(
       'jsdoc/require-param': 'warn',
       'jsdoc/require-returns': 'warn',
       'jsdoc/check-param-names': 'warn',
-      'jsdoc/check-tag-names': 'warn',
+      'jsdoc/check-tag-names': [
+        'warn',
+        {
+          definedTags: ['packageDocumentation', 'note'],
+        },
+      ],
       'jsdoc/require-param-description': 'warn',
       'jsdoc/require-returns-description': 'warn',
       // Prevent direct console usage - use structured logging instead

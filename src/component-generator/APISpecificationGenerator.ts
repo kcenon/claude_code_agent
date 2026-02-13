@@ -27,6 +27,7 @@ import type {
 export class APISpecificationGenerator {
   /**
    * Extract all API endpoints from components
+   * @param components
    */
   public extractAPIEndpoints(components: readonly ComponentDefinition[]): APIEndpoint[] {
     const endpoints: APIEndpoint[] = [];
@@ -45,6 +46,7 @@ export class APISpecificationGenerator {
 
   /**
    * Generate API specification table in markdown format
+   * @param endpoints
    */
   public generateSpecificationTable(endpoints: readonly APIEndpoint[]): string {
     const lines: string[] = [];
@@ -70,6 +72,8 @@ export class APISpecificationGenerator {
 
   /**
    * Generate detailed API documentation in markdown format
+   * @param endpoints
+   * @param interfaces
    */
   public generateDetailedDocumentation(
     endpoints: readonly APIEndpoint[],
@@ -122,6 +126,9 @@ export class APISpecificationGenerator {
 
   /**
    * Generate OpenAPI specification (YAML format)
+   * @param endpoints
+   * @param title
+   * @param version
    */
   public generateOpenAPISpec(
     endpoints: readonly APIEndpoint[],
@@ -151,6 +158,7 @@ export class APISpecificationGenerator {
 
   /**
    * Generate TypeScript interface definitions from API endpoints
+   * @param endpoints
    */
   public generateTypeScriptInterfaces(endpoints: readonly APIEndpoint[]): string {
     const lines: string[] = [];
@@ -204,6 +212,7 @@ export class APISpecificationGenerator {
 
   /**
    * Format request section for documentation
+   * @param endpoint
    */
   private formatRequestSection(endpoint: APIEndpoint): string[] {
     const lines: string[] = [];
@@ -264,6 +273,7 @@ export class APISpecificationGenerator {
 
   /**
    * Format response section for documentation
+   * @param endpoint
    */
   private formatResponseSection(endpoint: APIEndpoint): string[] {
     const lines: string[] = [];
@@ -298,6 +308,7 @@ export class APISpecificationGenerator {
 
   /**
    * Format body schema as JSON example
+   * @param body
    */
   private formatBodyExample(body: BodySchema): string {
     const example = body.example ?? this.generateExampleFromFields(body.fields);
@@ -306,6 +317,7 @@ export class APISpecificationGenerator {
 
   /**
    * Generate example object from field specifications
+   * @param fields
    */
   private generateExampleFromFields(fields: readonly FieldSpec[]): Record<string, unknown> {
     const example: Record<string, unknown> = {};
@@ -319,6 +331,7 @@ export class APISpecificationGenerator {
 
   /**
    * Generate example value for a field
+   * @param field
    */
   private generateFieldExample(field: FieldSpec): unknown {
     switch (field.type) {
@@ -348,6 +361,7 @@ export class APISpecificationGenerator {
 
   /**
    * Get example string value based on field name
+   * @param name
    */
   private getStringExample(name: string): string {
     const examples: Record<string, string> = {
@@ -371,6 +385,7 @@ export class APISpecificationGenerator {
 
   /**
    * Group endpoints by path
+   * @param endpoints
    */
   private groupEndpointsByPath(endpoints: readonly APIEndpoint[]): Map<string, APIEndpoint[]> {
     const groups = new Map<string, APIEndpoint[]>();
@@ -386,6 +401,7 @@ export class APISpecificationGenerator {
 
   /**
    * Format OpenAPI operation
+   * @param endpoint
    */
   private formatOpenAPIOperation(endpoint: APIEndpoint): string[] {
     const lines: string[] = [];
@@ -407,6 +423,8 @@ export class APISpecificationGenerator {
 
   /**
    * Derive interface name from endpoint
+   * @param endpoint
+   * @param suffix
    */
   private deriveInterfaceName(endpoint: APIEndpoint, suffix: string): string {
     const parts = endpoint.endpoint.split('/').filter((p) => p !== '' && !p.startsWith('{'));
@@ -419,6 +437,9 @@ export class APISpecificationGenerator {
 
   /**
    * Generate TypeScript interface from field specifications
+   * @param name
+   * @param fields
+   * @param indent
    */
   private generateTypeScriptInterface(
     name: string,
@@ -443,6 +464,7 @@ export class APISpecificationGenerator {
 
   /**
    * Convert field spec to TypeScript type
+   * @param field
    */
   private fieldToTypeScriptType(field: FieldSpec): string {
     return this.dataTypeToTypeScript(field.type, field.fields, field.items);
@@ -450,6 +472,9 @@ export class APISpecificationGenerator {
 
   /**
    * Convert data type to TypeScript type
+   * @param type
+   * @param nestedFields
+   * @param arrayItems
    */
   private dataTypeToTypeScript(
     type: DataType,

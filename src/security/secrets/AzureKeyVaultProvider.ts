@@ -138,7 +138,7 @@ export class AzureKeyVaultProvider extends BaseSecretProvider {
 
     try {
       // @ts-expect-error - Optional dependency, may not be installed
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+
       const identityModule = (await import('@azure/identity')) as unknown as AzureIdentityModule;
 
       if (this.useManagedIdentity) {
@@ -177,6 +177,8 @@ export class AzureKeyVaultProvider extends BaseSecretProvider {
 
   /**
    * Retrieve a secret from Azure Key Vault
+   * @param name
+   * @param version
    */
   protected async doGetSecret(name: string, version?: string): Promise<Secret | null> {
     if (this.client === null) {

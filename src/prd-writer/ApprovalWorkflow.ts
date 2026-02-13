@@ -254,6 +254,8 @@ export class ApprovalWorkflow {
 
   /**
    * Validate feedback based on decision
+   * @param decision
+   * @param feedback
    */
   private validateFeedback(decision: ApprovalDecision, feedback?: string): void {
     const hasFeedback = feedback !== undefined && feedback.trim().length > 0;
@@ -269,6 +271,8 @@ export class ApprovalWorkflow {
 
   /**
    * Handle approve decision
+   * @param projectId
+   * @param documentType
    */
   private async handleApprove(projectId: string, documentType: ApprovableDocument): Promise<void> {
     const stateConfig = DOCUMENT_STATE_MAP[documentType];
@@ -299,6 +303,9 @@ export class ApprovalWorkflow {
 
   /**
    * Handle request_changes decision
+   * @param projectId
+   * @param documentType
+   * @param feedback
    */
   private async handleRequestChanges(
     projectId: string,
@@ -328,6 +335,8 @@ export class ApprovalWorkflow {
 
   /**
    * Handle reject decision
+   * @param projectId
+   * @param _documentType
    */
   private async handleReject(projectId: string, _documentType: ApprovableDocument): Promise<void> {
     // Transition to cancelled state
@@ -341,6 +350,8 @@ export class ApprovalWorkflow {
 
   /**
    * Copy approved document to public docs directory
+   * @param projectId
+   * @param documentType
    */
   private async copyToPublicDocs(
     projectId: string,
@@ -367,6 +378,8 @@ export class ApprovalWorkflow {
 
   /**
    * Get document metadata
+   * @param projectId
+   * @param documentType
    */
   private getDocumentMetadata(projectId: string, documentType: ApprovableDocument): PRDMetadata {
     const now = new Date().toISOString();
@@ -385,6 +398,8 @@ export class ApprovalWorkflow {
 
   /**
    * Get approval history file path
+   * @param projectId
+   * @param documentType
    */
   private getHistoryPath(projectId: string, documentType: ApprovableDocument): string {
     const scratchpad = getScratchpad({ basePath: this.config.scratchpadBasePath });
@@ -396,6 +411,9 @@ export class ApprovalWorkflow {
 
   /**
    * Add entry to approval history
+   * @param projectId
+   * @param documentType
+   * @param entry
    */
   private async addHistoryEntry(
     projectId: string,
@@ -415,6 +433,9 @@ export class ApprovalWorkflow {
 
   /**
    * Save approval history
+   * @param projectId
+   * @param documentType
+   * @param history
    */
   private async saveApprovalHistory(
     projectId: string,

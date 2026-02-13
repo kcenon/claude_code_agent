@@ -75,6 +75,9 @@ export class IssueTransformer {
 
   /**
    * Transform a single component to an issue
+   * @param component
+   * @param traceabilityMatrix
+   * @param estimation
    */
   public transformComponent(
     component: SDSComponent,
@@ -112,6 +115,8 @@ export class IssueTransformer {
 
   /**
    * Decompose a large component into multiple issues
+   * @param component
+   * @param traceabilityMatrix
    */
   private decomposeComponent(
     component: SDSComponent,
@@ -216,6 +221,7 @@ export class IssueTransformer {
 
   /**
    * Generate issue title from component
+   * @param component
    */
   private generateTitle(component: SDSComponent): string {
     if (component.name) {
@@ -226,6 +232,8 @@ export class IssueTransformer {
 
   /**
    * Build traceability links
+   * @param component
+   * @param matrix
    */
   private buildTraceability(
     component: SDSComponent,
@@ -252,6 +260,8 @@ export class IssueTransformer {
 
   /**
    * Build issue labels
+   * @param component
+   * @param estimation
    */
   private buildLabels(component: SDSComponent, estimation: IssueEstimation): IssueLabels {
     return {
@@ -266,6 +276,7 @@ export class IssueTransformer {
 
   /**
    * Build technical guidance
+   * @param component
    */
   private buildTechnical(component: SDSComponent): IssueTechnical {
     const suggestedApproach: string[] = [];
@@ -294,6 +305,7 @@ export class IssueTransformer {
 
   /**
    * Build dependency relationships
+   * @param component
    */
   private buildDependencies(component: SDSComponent): IssueDependencies {
     // Note: Actual issue IDs will be resolved later by IssueGenerator
@@ -305,6 +317,10 @@ export class IssueTransformer {
 
   /**
    * Generate the issue body in markdown
+   * @param component
+   * @param traceability
+   * @param technical
+   * @param estimation
    */
   private generateBody(
     component: SDSComponent,
@@ -403,6 +419,7 @@ export class IssueTransformer {
 
   /**
    * Generate acceptance criteria from component
+   * @param component
    */
   private generateAcceptanceCriteria(component: SDSComponent): string {
     const criteria: string[] = [];
@@ -427,6 +444,9 @@ export class IssueTransformer {
 
   /**
    * Generate body for epic (parent) issue
+   * @param component
+   * @param subTasks
+   * @param traceability
    */
   private generateEpicBody(
     component: SDSComponent,
@@ -463,6 +483,10 @@ export class IssueTransformer {
 
   /**
    * Generate body for sub-task issue
+   * @param component
+   * @param task
+   * @param parentId
+   * @param traceability
    */
   private generateSubTaskBody(
     component: SDSComponent,

@@ -112,6 +112,7 @@ export class MetricsCollector {
 
   /**
    * Set session ID
+   * @param sessionId
    */
   public setSessionId(sessionId: string): void {
     this.sessionId = sessionId;
@@ -126,6 +127,7 @@ export class MetricsCollector {
 
   /**
    * Set the model for cost calculation
+   * @param model
    */
   public setModel(model: string): void {
     this.model = model;
@@ -133,6 +135,7 @@ export class MetricsCollector {
 
   /**
    * Get labels key for map storage
+   * @param labels
    */
   private getLabelsKey(labels?: Record<string, string>): string {
     if (labels === undefined) return '';
@@ -144,6 +147,7 @@ export class MetricsCollector {
 
   /**
    * Record agent invocation start
+   * @param _agent
    */
   public recordAgentStart(_agent: string): number {
     return Date.now();
@@ -151,6 +155,9 @@ export class MetricsCollector {
 
   /**
    * Record agent invocation completion
+   * @param agent
+   * @param startTime
+   * @param success
    */
   public recordAgentEnd(agent: string, startTime: number, success: boolean): void {
     const duration = Date.now() - startTime;
@@ -179,6 +186,9 @@ export class MetricsCollector {
 
   /**
    * Record token usage
+   * @param agent
+   * @param inputTokens
+   * @param outputTokens
    */
   public recordTokenUsage(agent: string, inputTokens: number, outputTokens: number): void {
     const usage = this.tokenUsage.get(agent) ?? { input: 0, output: 0 };
@@ -192,6 +202,7 @@ export class MetricsCollector {
 
   /**
    * Record pipeline stage start
+   * @param stage
    */
   public recordStageStart(stage: string): void {
     this.stageDurations.set(stage, {
@@ -203,6 +214,8 @@ export class MetricsCollector {
 
   /**
    * Record pipeline stage completion
+   * @param stage
+   * @param success
    */
   public recordStageEnd(stage: string, success: boolean): void {
     const stageData = this.stageDurations.get(stage);
@@ -228,6 +241,9 @@ export class MetricsCollector {
 
   /**
    * Increment a counter metric
+   * @param name
+   * @param value
+   * @param labels
    */
   public incrementCounter(name: string, value: number, labels?: Record<string, string>): void {
     const key = this.getLabelsKey(labels);
@@ -239,6 +255,9 @@ export class MetricsCollector {
 
   /**
    * Set a gauge metric
+   * @param name
+   * @param value
+   * @param labels
    */
   public setGauge(name: string, value: number, labels?: Record<string, string>): void {
     const key = this.getLabelsKey(labels);
@@ -249,6 +268,10 @@ export class MetricsCollector {
 
   /**
    * Record a histogram observation
+   * @param name
+   * @param value
+   * @param labels
+   * @param buckets
    */
   public recordHistogram(
     name: string,
@@ -267,6 +290,7 @@ export class MetricsCollector {
 
   /**
    * Get agent metrics
+   * @param agent
    */
   public getAgentMetrics(agent: string): AgentMetrics | null {
     const counts = this.agentInvocations.get(agent);
@@ -344,6 +368,8 @@ export class MetricsCollector {
 
   /**
    * Get counter value
+   * @param name
+   * @param labels
    */
   public getCounter(name: string, labels?: Record<string, string>): number {
     const key = this.getLabelsKey(labels);
@@ -352,6 +378,8 @@ export class MetricsCollector {
 
   /**
    * Get gauge value
+   * @param name
+   * @param labels
    */
   public getGauge(name: string, labels?: Record<string, string>): number {
     const key = this.getLabelsKey(labels);
@@ -360,6 +388,8 @@ export class MetricsCollector {
 
   /**
    * Get histogram data
+   * @param name
+   * @param labels
    */
   public getHistogram(name: string, labels?: Record<string, string>): HistogramData | null {
     const key = this.getLabelsKey(labels);
@@ -425,6 +455,7 @@ export class MetricsCollector {
 
   /**
    * Parse labels key back to record
+   * @param key
    */
   private parseLabelsKey(key: string): Record<string, string> | null {
     if (key === '') return null;
@@ -550,6 +581,7 @@ let globalMetricsCollector: MetricsCollector | null = null;
 
 /**
  * Get or create the global MetricsCollector instance
+ * @param options
  */
 export function getMetricsCollector(options?: MetricsCollectorOptions): MetricsCollector {
   if (globalMetricsCollector === null) {

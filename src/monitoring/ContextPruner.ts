@@ -146,6 +146,7 @@ export class ContextPruner {
 
   /**
    * Prune content sections to fit within token limit
+   * @param sections
    */
   public prune(sections: readonly ContentSection[]): PruningResult {
     const availableTokens =
@@ -217,6 +218,7 @@ export class ContextPruner {
 
   /**
    * Estimate token count for text
+   * @param text
    */
   public estimateTokens(text: string): number {
     // Rough estimation: ~4 characters per token
@@ -225,6 +227,13 @@ export class ContextPruner {
 
   /**
    * Create a content section from text
+   * @param id
+   * @param content
+   * @param options
+   * @param options.priority
+   * @param options.timestamp
+   * @param options.type
+   * @param options.required
    */
   public createSection(
     id: string,
@@ -260,6 +269,7 @@ export class ContextPruner {
 
   /**
    * Score sections based on strategy
+   * @param sections
    */
   private scoreSections(sections: readonly ContentSection[]): ScoredSection[] {
     const now = Date.now();
@@ -303,6 +313,9 @@ export class ContextPruner {
 
   /**
    * Calculate recency score (0-1, higher = more recent)
+   * @param section
+   * @param now
+   * @param maxAge
    */
   private calculateRecencyScore(section: ContentSection, now: number, maxAge: number): number {
     if (section.timestamp === undefined) {
@@ -317,6 +330,7 @@ export class ContextPruner {
 
   /**
    * Calculate relevance score (0-1, higher = more relevant)
+   * @param section
    */
   private calculateRelevanceScore(section: ContentSection): number {
     const keywords = this.config.relevanceKeywords;
@@ -338,6 +352,7 @@ export class ContextPruner {
 
   /**
    * Calculate priority score (0-1, normalized from priority value)
+   * @param section
    */
   private calculatePriorityScore(section: ContentSection): number {
     if (section.priority === undefined) {
@@ -350,6 +365,7 @@ export class ContextPruner {
 
   /**
    * Get maximum age among sections with timestamps
+   * @param sections
    */
   private getMaxAge(sections: readonly ContentSection[]): number {
     const timestamps: number[] = [];
@@ -368,6 +384,7 @@ export class ContextPruner {
 
   /**
    * Suggest optimal token limit based on model
+   * @param model
    */
   public static suggestTokenLimit(model: string): number {
     const limits: Record<string, number> = {
@@ -383,6 +400,8 @@ export class ContextPruner {
 
 /**
  * Factory function to create a ContextPruner with common configurations
+ * @param maxTokens
+ * @param options
  */
 export function createContextPruner(
   maxTokens: number,

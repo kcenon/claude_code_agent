@@ -156,6 +156,9 @@ export class UseCaseGenerator {
 
   /**
    * Generate a primary use case for the main feature flow
+   * @param feature
+   * @param requirement
+   * @param actors
    */
   private generatePrimaryUseCase(
     feature: SRSFeature,
@@ -194,6 +197,10 @@ export class UseCaseGenerator {
 
   /**
    * Generate use cases from acceptance criteria
+   * @param feature
+   * @param requirement
+   * @param actors
+   * @param coveredCriteria
    */
   private generateFromAcceptanceCriteria(
     feature: SRSFeature,
@@ -235,6 +242,7 @@ export class UseCaseGenerator {
 
   /**
    * Check if a criterion is significant enough for a separate use case
+   * @param criterion
    */
   private isSignificantCriterion(criterion: string): boolean {
     const significantPatterns = [
@@ -250,6 +258,11 @@ export class UseCaseGenerator {
 
   /**
    * Create a use case from a single criterion
+   * @param ucId
+   * @param criterion
+   * @param feature
+   * @param requirement
+   * @param actors
    */
   private createUseCaseFromCriterion(
     ucId: string,
@@ -283,6 +296,10 @@ export class UseCaseGenerator {
 
   /**
    * Generate a supplementary use case when minimum is not met
+   * @param feature
+   * @param requirement
+   * @param actors
+   * @param index
    */
   private generateSupplementaryUseCase(
     feature: SRSFeature,
@@ -322,6 +339,8 @@ export class UseCaseGenerator {
 
   /**
    * Select the primary actor based on requirement context
+   * @param requirement
+   * @param actors
    */
   private selectPrimaryActor(requirement: ParsedPRDRequirement, actors: readonly string[]): string {
     const text = `${requirement.title} ${requirement.description} ${requirement.userStory ?? ''}`;
@@ -347,6 +366,9 @@ export class UseCaseGenerator {
 
   /**
    * Identify secondary actors from requirement
+   * @param requirement
+   * @param actors
+   * @param primaryActor
    */
   private identifySecondaryActors(
     requirement: ParsedPRDRequirement,
@@ -375,6 +397,7 @@ export class UseCaseGenerator {
 
   /**
    * Generate main flow steps from requirement
+   * @param requirement
    */
   private generateMainFlow(requirement: ParsedPRDRequirement): FlowStep[] {
     const steps: FlowStep[] = [];
@@ -414,6 +437,7 @@ export class UseCaseGenerator {
 
   /**
    * Parse user story into flow steps
+   * @param userStory
    */
   private parseUserStoryToSteps(userStory: string): FlowStep[] {
     const steps: FlowStep[] = [];
@@ -448,6 +472,7 @@ export class UseCaseGenerator {
 
   /**
    * Generate flow steps from requirement description
+   * @param requirement
    */
   private generateStepsFromDescription(requirement: ParsedPRDRequirement): FlowStep[] {
     const steps: FlowStep[] = [];
@@ -482,6 +507,7 @@ export class UseCaseGenerator {
 
   /**
    * Generate flow from a criterion
+   * @param criterion
    */
   private generateFlowFromCriterion(criterion: string): FlowStep[] {
     const steps: FlowStep[] = [];
@@ -511,6 +537,8 @@ export class UseCaseGenerator {
 
   /**
    * Generate alternative flows based on main flow
+   * @param requirement
+   * @param mainFlow
    */
   private generateAlternativeFlows(
     requirement: ParsedPRDRequirement,
@@ -570,6 +598,8 @@ export class UseCaseGenerator {
 
   /**
    * Determine which main flow step an alternative branches from
+   * @param condition
+   * @param mainFlow
    */
   private determineBranchPoint(condition: string, mainFlow: readonly FlowStep[]): number {
     const lowerCondition = condition.toLowerCase();
@@ -596,6 +626,7 @@ export class UseCaseGenerator {
 
   /**
    * Generate exception flows for error scenarios
+   * @param requirement
    */
   private generateExceptionFlows(requirement: ParsedPRDRequirement): ExceptionFlow[] {
     const exceptions: ExceptionFlow[] = [];
@@ -640,6 +671,7 @@ export class UseCaseGenerator {
 
   /**
    * Extract exception type from criterion text
+   * @param criterion
    */
   private extractExceptionType(criterion: string): string {
     const patterns: Array<{ pattern: RegExp; type: string }> = [
@@ -663,6 +695,8 @@ export class UseCaseGenerator {
 
   /**
    * Infer exception handling from criterion
+   * @param criterion
+   * @param exceptionType
    */
   private inferExceptionHandling(criterion: string, exceptionType: string): string {
     // Check if criterion specifies handling
@@ -688,6 +722,7 @@ export class UseCaseGenerator {
 
   /**
    * Generate preconditions from requirement
+   * @param requirement
    */
   private generatePreconditions(requirement: ParsedPRDRequirement): string[] {
     const preconditions: string[] = [];
@@ -715,6 +750,7 @@ export class UseCaseGenerator {
 
   /**
    * Generate postconditions from requirement
+   * @param requirement
    */
   private generatePostconditions(requirement: ParsedPRDRequirement): string[] {
     const postconditions: string[] = [];
@@ -748,6 +784,7 @@ export class UseCaseGenerator {
 
   /**
    * Generate use case title from requirement title
+   * @param title
    */
   private generateTitle(title: string): string {
     let processedTitle = title.trim();
@@ -761,6 +798,7 @@ export class UseCaseGenerator {
 
   /**
    * Extract title from criterion text
+   * @param criterion
    */
   private extractTitleFromCriterion(criterion: string): string {
     // Try to extract action
@@ -783,6 +821,9 @@ export class UseCaseGenerator {
 
   /**
    * Track which criteria are covered by a use case
+   * @param useCase
+   * @param requirement
+   * @param coveredCriteria
    */
   private trackCoveredCriteria(
     useCase: DetailedUseCase,

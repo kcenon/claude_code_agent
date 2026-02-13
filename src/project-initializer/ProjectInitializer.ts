@@ -33,6 +33,7 @@ import { QUALITY_GATE_CONFIGS, TEMPLATE_CONFIGS } from './types.js';
  * 1. Explicitly provided targetDir
  * 2. Initialized project root from ProjectContext
  * 3. Current working directory (fallback)
+ * @param targetDir
  */
 function resolveTargetDir(targetDir?: string): string {
   if (targetDir !== undefined && targetDir !== '') {
@@ -156,6 +157,7 @@ export class ProjectInitializer {
 
   /**
    * Get the directory structure to create
+   * @param projectPath
    */
   private getDirectoryStructure(projectPath: string): string[] {
     return [
@@ -187,6 +189,7 @@ export class ProjectInitializer {
 
   /**
    * Create a directory if it doesn't exist
+   * @param dirPath
    */
   private createDirectory(dirPath: string): Promise<void> {
     try {
@@ -201,6 +204,7 @@ export class ProjectInitializer {
 
   /**
    * Generate configuration files
+   * @param projectPath
    */
   private async generateConfigFiles(projectPath: string): Promise<string[]> {
     const createdFiles: string[] = [];
@@ -224,6 +228,8 @@ export class ProjectInitializer {
 
   /**
    * Generate workflow configuration
+   * @param templateConfig
+   * @param qualityGates
    */
   private generateWorkflowConfig(
     templateConfig: TemplateConfig,
@@ -304,6 +310,7 @@ export class ProjectInitializer {
 
   /**
    * Generate template files
+   * @param projectPath
    */
   private async generateTemplateFiles(projectPath: string): Promise<string[]> {
     const createdFiles: string[] = [];
@@ -338,6 +345,7 @@ export class ProjectInitializer {
 
   /**
    * Generate agent definition files
+   * @param projectPath
    */
   private async generateAgentDefinitions(projectPath: string): Promise<string[]> {
     const createdFiles: string[] = [];
@@ -365,6 +373,8 @@ export class ProjectInitializer {
 
   /**
    * Write content to a file
+   * @param filePath
+   * @param content
    */
   private writeFile(filePath: string, content: string): Promise<void> {
     try {
@@ -377,6 +387,7 @@ export class ProjectInitializer {
 
   /**
    * Update .gitignore with AD-SDLC entries
+   * @param projectPath
    */
   private async updateGitignore(projectPath: string): Promise<boolean> {
     const gitignorePath = path.join(projectPath, '.gitignore');
@@ -397,6 +408,7 @@ export class ProjectInitializer {
 
   /**
    * Create a basic README file
+   * @param projectPath
    */
   private async createReadme(projectPath: string): Promise<void> {
     const content = `# ${this.options.projectName}
@@ -836,6 +848,7 @@ You are the PR Reviewer agent responsible for reviewing pull requests.
 
   /**
    * Get template configuration
+   * @param template
    */
   getTemplateConfig(template: TemplateType): TemplateConfig {
     return TEMPLATE_CONFIGS[template];
@@ -847,6 +860,7 @@ let initializerInstance: ProjectInitializer | null = null;
 
 /**
  * Create a new ProjectInitializer with given options
+ * @param options
  */
 export function createProjectInitializer(options: InitOptions): ProjectInitializer {
   initializerInstance = new ProjectInitializer(options);
