@@ -382,6 +382,10 @@ project-root/
 | CMP-026 | Analysis Orchestrator Agent | Analysis Orchestrator | SF-030 | Enhancement analysis sub-pipeline |
 | CMP-027 | GitHub Repo Setup Agent | GitHub Repo Setup | SF-029 | Create and initialize GitHub repository |
 | CMP-028 | Issue Reader Agent | Issue Reader | SF-031 | Import existing GitHub Issues |
+| CMP-029 | Agent Definition Validator | Agent Definition Validator | SF-028 | Validate agent definition files against schema and registry |
+| CMP-030 | Architecture Generator | Architecture Generator | SF-004 | Generate architecture designs from SRS documents |
+| CMP-031 | Component Generator | Component Generator | SF-004 | Generate component designs, interface specs, and API documentation |
+| CMP-032 | Monitoring Service | Monitoring Service | SF-015 | Observability, token budget management, alerting, and performance tuning |
 
 ### 3.2 CMP-001: Collector Agent
 
@@ -2876,6 +2880,353 @@ interface TelemetryEvent {
 │  └──────────────┘ └──────────┘ └────────────┘ └──────────────┘│
 └─────────────────────────────────────────────────────────────────┘
 ```
+
+### 3.14 Support Components
+
+These components provide specialized generation, validation, and observability
+capabilities that augment the core agent pipeline. Unlike the infrastructure
+modules above, they implement the `IAgent` interface and participate in the
+agent lifecycle managed by `AgentFactory`.
+
+#### 3.14.1 CMP-029: Agent Definition Validator
+
+**Source Features**: SF-028 (UC-038)
+**Responsibility**: Validates agent definition files (`.claude/agents/*.md`) against a Zod-based schema and checks consistency with the `agents.yaml` registry. Parses YAML frontmatter from markdown files, validates structure (name, description, tools, model), verifies recommended sections, and produces validation reports with errors and warnings.
+
+```typescript
+interface IAgentDefinitionValidator {
+  /**
+   * Validate a single agent definition file
+   * @param filePath Path to the agent definition markdown file
+   * @param options Validation options
+   * @returns Validation result with errors and warnings
+   */
+  validateAgentFile(
+    filePath: string,
+    options?: ValidateAgentOptions
+  ): AgentValidationResult;
+
+  /**
+   * Validate all agent definition files in a directory
+   * @param options Validation options including directory path
+   * @returns Batch validation report
+   */
+  validateAllAgents(
+    options?: ValidateAgentOptions
+  ): AgentValidationReport;
+
+  /**
+   * Format a validation report as human-readable string
+   * @param report Validation report to format
+   * @returns Formatted report string
+   */
+  formatValidationReport(
+    report: AgentValidationReport
+  ): string;
+}
+
+interface ValidateAgentOptions {
+  /** Check consistency with agents.yaml registry */
+  readonly checkRegistry?: boolean;
+  /** Include warnings in output */
+  readonly includeWarnings?: boolean;
+  /** Custom agents directory path */
+  readonly agentsDir?: string;
+  /** Custom registry file path */
+  readonly registryPath?: string;
+}
+
+interface AgentValidationResult {
+  /** Path to the validated file */
+  readonly filePath: string;
+  /** Whether the file is valid */
+  readonly valid: boolean;
+  /** Validation errors */
+  readonly errors: AgentValidationError[];
+  /** Validation warnings */
+  readonly warnings: AgentValidationError[];
+  /** Parsed agent definition (if valid) */
+  readonly agent?: AgentDefinition;
+}
+
+interface AgentValidationReport {
+  /** Report generation timestamp */
+  readonly timestamp: string;
+  /** Total files validated */
+  readonly totalFiles: number;
+  /** Number of valid files */
+  readonly validCount: number;
+  /** Number of invalid files */
+  readonly invalidCount: number;
+  /** Number of warnings */
+  readonly warningCount: number;
+  /** Per-file validation results */
+  readonly results: AgentValidationResult[];
+}
+```
+
+**Output**: `AgentValidationReport` data structure (no disk writes)
+**Tools Required**: Read (agent definition files, agents.yaml)
+**Dependencies**: `src/utils` (project root detection), `src/config/paths` (default paths)
+
+#### 3.14.2 CMP-030: Architecture Generator
+
+**Source Features**: SF-004 (UC-007)
+**Responsibility**: Generates comprehensive system architecture designs from SRS documents. Analyzes features, use cases, non-functional requirements, and constraints to recommend architecture patterns, technology stacks, Mermaid diagrams, and directory structures. Produces markdown-formatted SDS architecture sections.
+
+```typescript
+interface IArchitectureGenerator extends IAgent {
+  /**
+   * Generate architecture design from an SRS file
+   * @param srsPath Path to the SRS markdown file
+   * @param options Generation options
+   * @returns Complete architecture design
+   */
+  generateFromFile(
+    srsPath: string,
+    options?: ArchitectureGeneratorOptions
+  ): ArchitectureDesign;
+
+  /**
+   * Generate architecture and save to disk
+   * @param srsPath Path to the SRS file
+   * @param projectId Project identifier
+   * @param options Generation options
+   * @returns Design and output file path
+   */
+  generateAndSave(
+    srsPath: string,
+    projectId: string,
+    options?: ArchitectureGeneratorOptions
+  ): { design: ArchitectureDesign; outputPath: string };
+
+  /**
+   * Convert architecture design to markdown
+   * @param design Architecture design to render
+   * @returns Markdown string
+   */
+  designToMarkdown(design: ArchitectureDesign): string;
+}
+
+interface ArchitectureDesign {
+  /** Architecture pattern analysis and recommendations */
+  readonly analysis: ArchitectureAnalysis;
+  /** Recommended technology stack */
+  readonly technologyStack: TechnologyStack;
+  /** Generated Mermaid diagrams */
+  readonly diagrams: MermaidDiagram[];
+  /** Directory structure specification */
+  readonly directoryStructure: DirectoryStructure;
+  /** Generation metadata */
+  readonly metadata: ArchitectureMetadata;
+}
+
+interface ArchitectureAnalysis {
+  /** Recommended primary architecture pattern */
+  readonly primaryPattern: ArchitecturePattern;
+  /** Supporting patterns */
+  readonly supportingPatterns: ArchitecturePattern[];
+  /** Selection rationale */
+  readonly rationale: string;
+  /** Pattern-specific recommendations */
+  readonly recommendations: PatternRecommendation[];
+  /** Identified architectural concerns */
+  readonly concerns: ArchitecturalConcern[];
+}
+
+type ArchitecturePattern =
+  | 'hierarchical-multi-agent'
+  | 'pipeline'
+  | 'event-driven'
+  | 'microservices'
+  | 'layered'
+  | 'hexagonal'
+  | 'cqrs'
+  | 'scratchpad';
+```
+
+**Output**: `docs/sds/SDS-{projectId}-architecture.md`
+**Tools Required**: Read (SRS files), Write (SDS output)
+**Dependencies**: None (self-contained module)
+
+#### 3.14.3 CMP-031: Component Generator
+
+**Source Features**: SF-004 (UC-007)
+**Responsibility**: Converts parsed SRS documents into detailed component designs with interface specifications, API documentation, dependency analysis, and traceability matrices. Generates SDS component sections and TypeScript type definitions from use case analysis.
+
+```typescript
+interface IComponentGenerator extends IAgent {
+  /**
+   * Generate component design from parsed SRS
+   * @param srs Parsed SRS document
+   * @param options Generation options
+   * @returns Complete component design
+   */
+  generate(
+    srs: ParsedSRS,
+    options?: ComponentGeneratorOptions
+  ): ComponentDesign;
+
+  /**
+   * Generate component design and save to disk
+   * @param srs Parsed SRS document
+   * @param projectId Project identifier
+   * @param options Generation options
+   * @returns Design and output file path
+   */
+  generateAndSave(
+    srs: ParsedSRS,
+    projectId: string,
+    options?: ComponentGeneratorOptions
+  ): { design: ComponentDesign; outputPath: string };
+
+  /**
+   * Generate TypeScript interfaces from design
+   * @param design Component design
+   * @returns TypeScript interface declarations
+   */
+  generateTypeScriptInterfaces(
+    design: ComponentDesign
+  ): string;
+}
+
+interface ComponentDesign {
+  /** Component definitions */
+  readonly components: ComponentDefinition[];
+  /** API endpoint specifications */
+  readonly apiSpecification: APIEndpoint[];
+  /** Feature-to-component traceability */
+  readonly traceabilityMatrix: TraceabilityEntry[];
+  /** Inter-component dependencies */
+  readonly dependencies: ComponentDependency[];
+  /** Generation metadata */
+  readonly metadata: ComponentDesignMetadata;
+}
+
+interface ComponentDefinition {
+  /** Component identifier */
+  readonly id: string;
+  /** Component name */
+  readonly name: string;
+  /** Component responsibility */
+  readonly responsibility: string;
+  /** Source feature reference */
+  readonly sourceFeature: string;
+  /** Interface specifications */
+  readonly interfaces: InterfaceSpec[];
+  /** Component dependencies */
+  readonly dependencies: string[];
+  /** Architecture layer */
+  readonly layer: 'presentation' | 'application' | 'domain' | 'infrastructure' | 'integration';
+}
+
+interface APIEndpoint {
+  /** Endpoint path */
+  readonly endpoint: string;
+  /** HTTP method */
+  readonly method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+  /** Endpoint description */
+  readonly description: string;
+  /** Request schema */
+  readonly request: Record<string, unknown>;
+  /** Response schema */
+  readonly response: Record<string, unknown>;
+  /** Requires authentication */
+  readonly authenticated: boolean;
+  /** Rate limit configuration */
+  readonly rateLimit?: string;
+}
+```
+
+**Output**: `docs/sds/SDS-{projectId}-components.md`
+**Tools Required**: Read (SRS files), Write (SDS output)
+**Dependencies**: `src/architecture-generator` (ParsedSRS types), `src/logging` (Logger)
+
+#### 3.14.4 CMP-032: Monitoring Service
+
+**Source Features**: SF-015 (UC-025)
+**Responsibility**: Provides comprehensive observability and cost control infrastructure for the AD-SDLC pipeline. Includes metrics collection, alerting with escalation, hierarchical token budget enforcement with forecasting, distributed tracing via OpenTelemetry, intelligent model selection, query caching, and real-time dashboard data aggregation. See Section 3.13.2 for the complete sub-component listing.
+
+```typescript
+interface IMetricsCollector {
+  /**
+   * Record an agent invocation metric
+   * @param agentId Agent identifier
+   * @param metrics Invocation metrics (tokens, duration, status)
+   */
+  recordAgentInvocation(
+    agentId: string,
+    metrics: AgentInvocationMetrics
+  ): void;
+
+  /**
+   * Record a pipeline stage metric
+   * @param stage Pipeline stage name
+   * @param durationMs Stage execution duration
+   * @param status Stage completion status
+   */
+  recordPipelineStage(
+    stage: string,
+    durationMs: number,
+    status: 'success' | 'failure' | 'skipped'
+  ): void;
+
+  /** Flush buffered metrics to disk */
+  flush(): Promise<void>;
+}
+
+interface ITokenBudgetManager {
+  /**
+   * Track token usage for an agent
+   * @param agentId Agent identifier
+   * @param usage Token usage data (input, output, model)
+   * @returns Budget status with remaining tokens and warnings
+   */
+  trackUsage(
+    agentId: string,
+    usage: TokenUsage
+  ): BudgetStatus;
+
+  /**
+   * Get remaining budget for an agent or session
+   * @param agentId Optional agent filter
+   * @returns Budget remaining with forecast
+   */
+  getRemainingBudget(agentId?: string): BudgetRemaining;
+}
+
+interface IModelSelector {
+  /**
+   * Recommend optimal model based on task complexity and constraints
+   * @param task Task description and characteristics
+   * @param constraints Budget and latency constraints
+   * @returns Model recommendation with rationale
+   */
+  selectModel(
+    task: TaskCharacteristics,
+    constraints: ModelConstraints
+  ): ModelRecommendation;
+}
+
+interface IAlertManager {
+  /**
+   * Fire an alert based on a condition
+   * @param alertId Alert identifier
+   * @param condition Alert condition and context
+   */
+  fireAlert(alertId: string, condition: AlertCondition): void;
+
+  /**
+   * Acknowledge an active alert
+   * @param alertId Alert identifier
+   */
+  acknowledgeAlert(alertId: string): void;
+}
+```
+
+**Output**: `.ad-sdlc/metrics/`, `.ad-sdlc/alerts/`, `.ad-sdlc/budget/`, `.ad-sdlc/cache/`
+**Tools Required**: Read/Write (metric and budget persistence)
+**Dependencies**: `src/config/paths` (directory resolution), `src/logging` (Logger)
 
 ---
 
