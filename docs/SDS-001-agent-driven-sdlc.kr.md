@@ -3310,7 +3310,7 @@ interface TelemetryEvent {
 
 #### 3.14.6 CMP-034: Security Module
 
-**Source Features**: Cross-cutting (NFR — 보안 요구사항)
+**Applicability**: Cross-cutting (NFR — 보안 요구사항)
 **Responsibility**: AD-SDLC 시스템을 위한 종합적 보안 인프라를 제공합니다. 입력 검증, 경로 새니타이즈, 심볼릭 링크 해석, 화이트리스트 기반 명령어 새니타이즈, 속도 제한, 감사 로깅, 보안 파일 작업, 시크릿 관리를 포함합니다. 상태를 유지하지 않는 라이브러리 컬렉션입니다(IAgent 구현이 아님).
 
 ```typescript
@@ -3495,7 +3495,7 @@ interface PipelineStage {
 
 #### 3.14.8 CMP-036: Completion Generator
 
-**Source Features**: CLI Tooling (독립 유틸리티)
+**Applicability**: CLI Tooling (독립 유틸리티)
 **Responsibility**: AD-SDLC CLI를 위한 쉘별 자동완성 스크립트를 생성합니다. bash, zsh, fish 쉘을 지원합니다. 등록된 CLI 명령어 정의(서브커맨드, 옵션, 값 열거 포함)를 기반으로 완성 스크립트를 생성합니다. 각 쉘 유형에 대한 설치 지침을 제공합니다. 독립 싱글톤입니다(IAgent 구현이 아님).
 
 ```typescript

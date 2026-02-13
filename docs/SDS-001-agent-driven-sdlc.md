@@ -3313,7 +3313,7 @@ interface TelemetryEvent {
 
 #### 3.14.6 CMP-034: Security Module
 
-**Source Features**: Cross-cutting (NFR — security requirements)
+**Applicability**: Cross-cutting (NFR — security requirements)
 **Responsibility**: Provides comprehensive security infrastructure for the AD-SDLC system including input validation, path sanitization, symlink resolution, command sanitization with whitelist enforcement, rate limiting, audit logging, secure file operations, and secret management. This is a stateless library collection (not an IAgent implementation) exposing multiple focused classes.
 
 ```typescript
@@ -3498,7 +3498,7 @@ interface PipelineStage {
 
 #### 3.14.8 CMP-036: Completion Generator
 
-**Source Features**: CLI Tooling (standalone utility)
+**Applicability**: CLI Tooling (standalone utility)
 **Responsibility**: Generates shell-specific autocompletion scripts for the AD-SDLC CLI. Supports bash, zsh, and fish shells. Produces completion scripts based on registered CLI command definitions including subcommands, options, and value enumerations. Provides installation instructions for each shell type. This is a standalone singleton (not an IAgent implementation).
 
 ```typescript
