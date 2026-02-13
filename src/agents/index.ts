@@ -739,3 +739,13 @@ export * as GitHubRepoSetup from '../github-repo-setup/index.js';
 // Project Initializer - already exported individually via control-plane,
 // so use namespace to avoid duplicate export conflicts in src/index.ts
 export * as ProjectInit from '../project-initializer/index.js';
+
+// Controller - has conflicts with many modules (Priority, CircularDependencyError, DependencyEdge, etc.)
+export * as Controller from '../controller/index.js';
+
+// Mode Detector - has conflicts with repo-detector (DetectionStatus, DetectionStats, ProjectNotFoundError)
+// and control-plane exports ModeDetector class individually, so use short namespace
+export * as ModeDetect from '../mode-detector/index.js';
+
+// Analysis Orchestrator - has conflicts with mode-detector, impact-analyzer (NoActiveSessionError, etc.)
+export * as AnalysisOrchestrator from '../analysis-orchestrator/index.js';
