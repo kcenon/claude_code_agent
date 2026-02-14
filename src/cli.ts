@@ -188,7 +188,7 @@ program
 
 /**
  * Format validation result for CLI output
- * @param result
+ * @param result - The file validation result to display
  */
 function formatFileResult(result: FileValidationResult): void {
   const statusIcon = result.valid ? chalk.green('✓') : chalk.red('✗');
@@ -206,7 +206,7 @@ function formatFileResult(result: FileValidationResult): void {
 
 /**
  * Format validation report as JSON
- * @param report
+ * @param report - The validation report to serialize as JSON
  */
 function formatReportAsJson(report: ValidationReport): void {
   console.log(JSON.stringify(report, null, 2));
@@ -644,7 +644,8 @@ program
 
 /**
  * Helper functions for status display
- * @param status
+ * @param status - The pipeline stage status string
+ * @returns A chalk-colored icon representing the status
  */
 function getStatusIcon(status: string): string {
   switch (status) {
@@ -852,7 +853,8 @@ telemetryCommand
 
 /**
  * Format consent status for display
- * @param status
+ * @param status - The telemetry consent status string
+ * @returns A chalk-colored consent status label
  */
 function formatConsentStatus(status: string): string {
   switch (status) {

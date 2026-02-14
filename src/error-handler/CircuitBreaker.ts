@@ -31,7 +31,7 @@ import { getLogger } from '../logging/Logger.js';
 
 /**
  * Validates circuit breaker configuration
- * @param config
+ * @param config - The circuit breaker configuration to validate
  * @throws InvalidCircuitBreakerConfigError if config is invalid
  */
 function validateConfig(config: CircuitBreakerConfig): void {
@@ -60,7 +60,8 @@ function validateConfig(config: CircuitBreakerConfig): void {
 
 /**
  * Merges partial config with defaults
- * @param partial
+ * @param partial - Optional partial configuration to merge with defaults
+ * @returns The fully resolved circuit breaker configuration
  */
 function mergeConfig(partial?: Partial<CircuitBreakerConfig>): CircuitBreakerConfig {
   const config: CircuitBreakerConfig = {
@@ -112,6 +113,7 @@ export class CircuitBreaker {
 
   /**
    * Get the circuit breaker configuration
+   * @returns The current circuit breaker configuration
    */
   public getConfig(): CircuitBreakerConfig {
     return this.config;
@@ -119,6 +121,7 @@ export class CircuitBreaker {
 
   /**
    * Get current circuit breaker status for monitoring
+   * @returns The current status including state, failure count, and timing details
    */
   public getStatus(): CircuitBreakerStatus {
     const now = Date.now();
@@ -143,6 +146,7 @@ export class CircuitBreaker {
 
   /**
    * Get current circuit state
+   * @returns The current circuit state (CLOSED, OPEN, or HALF_OPEN)
    */
   public getState(): CircuitState {
     return this.state;
@@ -150,6 +154,7 @@ export class CircuitBreaker {
 
   /**
    * Get current failure count
+   * @returns The number of consecutive failures recorded
    */
   public getFailureCount(): number {
     return this.failureCount;
@@ -157,6 +162,7 @@ export class CircuitBreaker {
 
   /**
    * Check if circuit is accepting requests
+   * @returns True if the circuit is currently allowing operations
    */
   public isAcceptingRequests(): boolean {
     if (this.state === 'CLOSED') {
@@ -177,6 +183,7 @@ export class CircuitBreaker {
 
   /**
    * Check if circuit should transition from OPEN to HALF_OPEN
+   * @returns True if the reset timeout has elapsed
    */
   private shouldAttemptReset(): boolean {
     if (this.state !== 'OPEN' || this.lastFailureTime === undefined) {
@@ -189,6 +196,7 @@ export class CircuitBreaker {
 
   /**
    * Get remaining time until circuit can attempt reset
+   * @returns Remaining time in milliseconds until reset is possible
    */
   public getRemainingTimeout(): number {
     if (this.state !== 'OPEN' || this.lastFailureTime === undefined) {
@@ -305,7 +313,7 @@ export class CircuitBreaker {
 
   /**
    * Handle failed operation
-   * @param error
+   * @param error - The error that caused the operation to fail
    */
   private onFailure(error: Error): void {
     const logger = getLogger();
@@ -340,7 +348,7 @@ export class CircuitBreaker {
 
   /**
    * Transition to a new state
-   * @param newState
+   * @param newState - The target circuit state to transition to
    */
   private transitionTo(newState: CircuitState): void {
     const logger = getLogger();
@@ -418,7 +426,7 @@ export class CircuitBreaker {
 
   /**
    * Emit an event to all registered callbacks
-   * @param event
+   * @param event - The circuit breaker event to emit
    */
   private emitEvent(event: CircuitBreakerEvent): void {
     for (const callback of this.eventCallbacks) {
@@ -441,7 +449,7 @@ export class CircuitBreaker {
   /**
    * Record a failed operation result (for external integration)
    * Use this when the operation is managed externally (e.g., by RetryHandler)
-   * @param error
+   * @param error - The error that caused the failure
    */
   public recordFailure(error: Error): void {
     this.onFailure(error);
@@ -449,6 +457,7 @@ export class CircuitBreaker {
 
   /**
    * Check if the circuit is currently healthy (CLOSED state with no recent failures)
+   * @returns True if the circuit is closed with zero failures
    */
   public isHealthy(): boolean {
     return this.state === 'CLOSED' && this.failureCount === 0;
@@ -456,6 +465,7 @@ export class CircuitBreaker {
 
   /**
    * Get a health check result for monitoring systems
+   * @returns An object containing the health status and detailed circuit breaker status
    */
   public getHealthCheck(): { healthy: boolean; details: CircuitBreakerStatus } {
     return {

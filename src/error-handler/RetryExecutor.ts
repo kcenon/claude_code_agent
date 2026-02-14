@@ -173,7 +173,8 @@ export const RETRY_POLICIES = {
 
 /**
  * Default error classifier using pattern matching
- * @param error
+ * @param error - The error to classify
+ * @returns The error category indicating retryability
  */
 export function defaultErrorClassifier(error: Error): ErrorCategory {
   const message = error.message.toLowerCase();
@@ -202,8 +203,9 @@ export function defaultErrorClassifier(error: Error): ErrorCategory {
 
 /**
  * Sleep for a specified duration with abort signal support
- * @param ms
- * @param signal
+ * @param ms - Duration to sleep in milliseconds
+ * @param signal - Optional abort signal to cancel the sleep
+ * @returns A promise that resolves after the specified duration
  */
 async function sleep(ms: number, signal?: AbortSignal): Promise<void> {
   if (ms <= 0) return;
@@ -230,9 +232,10 @@ async function sleep(ms: number, signal?: AbortSignal): Promise<void> {
 
 /**
  * Wrap an operation with a timeout
- * @param operation
- * @param timeoutMs
- * @param operationName
+ * @param operation - The async operation to execute with a timeout
+ * @param timeoutMs - Timeout duration in milliseconds
+ * @param operationName - Optional name of the operation for error messages
+ * @returns A promise resolving to the operation result
  */
 async function withTimeout<T>(
   operation: () => Promise<T>,
@@ -322,6 +325,7 @@ export class RetryExecutor {
 
   /**
    * Get the configured policy
+   * @returns The current unified retry policy configuration
    */
   public getPolicy(): UnifiedRetryPolicy {
     return this.policy;

@@ -18,9 +18,10 @@ import type { ErrorContext, AppErrorOptions } from './types.js';
 
 /**
  * Create error for document not found
- * @param documentType
- * @param path
- * @param context
+ * @param documentType - The type of document that was not found
+ * @param path - The file path where the document was expected
+ * @param context - Additional error context information
+ * @returns The constructed document-not-found AppError
  */
 export function documentNotFoundError(
   documentType: string,
@@ -36,10 +37,11 @@ export function documentNotFoundError(
 
 /**
  * Create error for document parse failure
- * @param documentType
- * @param path
- * @param reason
- * @param context
+ * @param documentType - The type of document that failed to parse
+ * @param path - The file path of the document
+ * @param reason - The reason parsing failed
+ * @param context - Additional error context information
+ * @returns The constructed document-parse-error AppError
  */
 export function documentParseError(
   documentType: string,
@@ -60,9 +62,10 @@ export function documentParseError(
 
 /**
  * Create error for document validation failure
- * @param documentType
- * @param errors
- * @param context
+ * @param documentType - The type of document that failed validation
+ * @param errors - The list of validation error messages
+ * @param context - Additional error context information
+ * @returns The constructed document-validation-error AppError
  */
 export function documentValidationError(
   documentType: string,
@@ -82,10 +85,11 @@ export function documentValidationError(
 
 /**
  * Create error for document write failure
- * @param documentType
- * @param path
- * @param reason
- * @param context
+ * @param documentType - The type of document that failed to write
+ * @param path - The target file path for the write operation
+ * @param reason - The reason the write failed
+ * @param context - Additional error context information
+ * @returns The constructed document-write-error AppError
  */
 export function documentWriteError(
   documentType: string,
@@ -110,9 +114,10 @@ export function documentWriteError(
 
 /**
  * Create error for agent initialization failure
- * @param agentType
- * @param reason
- * @param context
+ * @param agentType - The type of agent that failed to initialize
+ * @param reason - The reason initialization failed
+ * @param context - Additional error context information
+ * @returns The constructed agent-init-error AppError
  */
 export function agentInitError(
   agentType: string,
@@ -132,10 +137,11 @@ export function agentInitError(
 
 /**
  * Create error for agent execution failure
- * @param agentType
- * @param operation
- * @param reason
- * @param context
+ * @param agentType - The type of agent that failed
+ * @param operation - The operation that was being executed
+ * @param reason - The reason execution failed
+ * @param context - Additional error context information
+ * @returns The constructed agent-execution-error AppError
  */
 export function agentExecutionError(
   agentType: string,
@@ -156,10 +162,11 @@ export function agentExecutionError(
 
 /**
  * Create error for agent timeout
- * @param agentType
- * @param operation
- * @param timeoutMs
- * @param context
+ * @param agentType - The type of agent that timed out
+ * @param operation - The operation that timed out
+ * @param timeoutMs - The timeout threshold in milliseconds
+ * @param context - Additional error context information
+ * @returns The constructed agent-timeout-error AppError
  */
 export function agentTimeoutError(
   agentType: string,
@@ -180,8 +187,9 @@ export function agentTimeoutError(
 
 /**
  * Create error for agent not found
- * @param agentType
- * @param context
+ * @param agentType - The type of agent that was not found
+ * @param context - Additional error context information
+ * @returns The constructed agent-not-found AppError
  */
 export function agentNotFoundError(agentType: string, context?: ErrorContext): AppError {
   return new AppError(
@@ -201,10 +209,11 @@ export function agentNotFoundError(agentType: string, context?: ErrorContext): A
 
 /**
  * Create error for file access failure
- * @param operation
- * @param path
- * @param reason
- * @param context
+ * @param operation - The file operation that failed
+ * @param path - The file path that could not be accessed
+ * @param reason - The reason the file access failed
+ * @param context - Additional error context information
+ * @returns The constructed file-access-error AppError
  */
 export function fileAccessError(
   operation: 'read' | 'write' | 'delete',
@@ -225,9 +234,10 @@ export function fileAccessError(
 
 /**
  * Create error for lock acquisition failure
- * @param resource
- * @param timeoutMs
- * @param context
+ * @param resource - The resource that could not be locked
+ * @param timeoutMs - The lock acquisition timeout in milliseconds
+ * @param context - Additional error context information
+ * @returns The constructed lock-acquisition-error AppError
  */
 export function lockAcquisitionError(
   resource: string,
@@ -247,9 +257,10 @@ export function lockAcquisitionError(
 
 /**
  * Create error for lock timeout
- * @param resource
- * @param holderId
- * @param context
+ * @param resource - The resource whose lock timed out
+ * @param holderId - The identifier of the current lock holder
+ * @param context - Additional error context information
+ * @returns The constructed lock-timeout-error AppError
  */
 export function lockTimeoutError(
   resource: string,
@@ -269,9 +280,10 @@ export function lockTimeoutError(
 
 /**
  * Create error for configuration load failure
- * @param configPath
- * @param reason
- * @param context
+ * @param configPath - The path to the configuration file that failed to load
+ * @param reason - The reason the configuration load failed
+ * @param context - Additional error context information
+ * @returns The constructed config-load-error AppError
  */
 export function configLoadError(
   configPath: string,
@@ -295,9 +307,10 @@ export function configLoadError(
 
 /**
  * Create error for path traversal attempt
- * @param path
- * @param baseDir
- * @param context
+ * @param path - The path that triggered the traversal detection
+ * @param baseDir - The base directory that the path must not escape
+ * @param context - Additional error context information
+ * @returns The constructed path-traversal-error AppError
  */
 export function pathTraversalError(
   path: string,
@@ -317,9 +330,10 @@ export function pathTraversalError(
 
 /**
  * Create error for command injection attempt
- * @param command
- * @param pattern
- * @param context
+ * @param command - The command string that triggered the injection detection
+ * @param pattern - The matched injection pattern
+ * @param context - Additional error context information
+ * @returns The constructed command-injection-error AppError
  */
 export function commandInjectionError(
   command: string,
@@ -339,9 +353,10 @@ export function commandInjectionError(
 
 /**
  * Create error for permission denied
- * @param resource
- * @param action
- * @param context
+ * @param resource - The resource that access was denied for
+ * @param action - The action that was denied
+ * @param context - Additional error context information
+ * @returns The constructed permission-denied AppError
  */
 export function permissionDeniedError(
   resource: string,
@@ -361,10 +376,11 @@ export function permissionDeniedError(
 
 /**
  * Create error for rate limit exceeded
- * @param resource
- * @param limit
- * @param windowMs
- * @param context
+ * @param resource - The resource that exceeded the rate limit
+ * @param limit - The maximum number of allowed requests
+ * @param windowMs - The rate limit window in milliseconds
+ * @param context - Additional error context information
+ * @returns The constructed rate-limit-exceeded AppError
  */
 export function rateLimitExceededError(
   resource: string,
@@ -389,10 +405,11 @@ export function rateLimitExceededError(
 
 /**
  * Create error for GitHub API failure
- * @param operation
- * @param statusCode
- * @param message
- * @param context
+ * @param operation - The GitHub API operation that failed
+ * @param statusCode - The HTTP status code returned, if available
+ * @param message - The error message from the API
+ * @param context - Additional error context information
+ * @returns The constructed GitHub-API-error AppError
  */
 export function githubApiError(
   operation: string,
@@ -413,10 +430,11 @@ export function githubApiError(
 
 /**
  * Create error for CI execution failure
- * @param pipeline
- * @param stage
- * @param reason
- * @param context
+ * @param pipeline - The CI pipeline that failed
+ * @param stage - The pipeline stage where the failure occurred
+ * @param reason - The reason the CI execution failed
+ * @param context - Additional error context information
+ * @returns The constructed CI-execution-error AppError
  */
 export function ciExecutionError(
   pipeline: string,
@@ -437,10 +455,11 @@ export function ciExecutionError(
 
 /**
  * Create error for network failure
- * @param operation
- * @param endpoint
- * @param reason
- * @param context
+ * @param operation - The network operation that failed
+ * @param endpoint - The target endpoint URL or address
+ * @param reason - The reason the network request failed
+ * @param context - Additional error context information
+ * @returns The constructed network-error AppError
  */
 export function networkError(
   operation: string,
@@ -465,10 +484,11 @@ export function networkError(
 
 /**
  * Create generic validation error
- * @param field
- * @param expected
- * @param received
- * @param context
+ * @param field - The name of the field that failed validation
+ * @param expected - The expected type or format description
+ * @param received - The actual value that was received
+ * @param context - Additional error context information
+ * @returns The constructed validation-error AppError
  */
 export function validationError(
   field: string,
@@ -489,8 +509,9 @@ export function validationError(
 
 /**
  * Create not implemented error
- * @param feature
- * @param context
+ * @param feature - The name of the unimplemented feature
+ * @param context - Additional error context information
+ * @returns The constructed not-implemented AppError
  */
 export function notImplementedError(feature: string, context?: ErrorContext): AppError {
   return new AppError(ErrorCodes.GEN_NOT_IMPLEMENTED, `Feature not implemented: ${feature}`, {
@@ -502,9 +523,10 @@ export function notImplementedError(feature: string, context?: ErrorContext): Ap
 
 /**
  * Create operation timeout error
- * @param operation
- * @param timeoutMs
- * @param context
+ * @param operation - The name of the operation that timed out
+ * @param timeoutMs - The timeout threshold in milliseconds
+ * @param context - Additional error context information
+ * @returns The constructed operation-timeout AppError
  */
 export function operationTimeoutError(
   operation: string,
@@ -529,9 +551,10 @@ export function operationTimeoutError(
 /**
  * Create a module-specific error factory
  *
- * @param moduleName
- * @param defaultCode
- * @param defaultOptions
+ * @param moduleName - The name of the module to scope errors to
+ * @param defaultCode - The default error code for this module
+ * @param defaultOptions - Default options applied to all errors from this factory
+ * @returns A factory function that creates module-scoped AppError instances
  * @example
  * ```typescript
  * const createPRDError = createModuleErrorFactory('PRD Writer', ErrorCodes.DOC_PARSE_ERROR);
@@ -554,7 +577,8 @@ export function createModuleErrorFactory(
 /**
  * Create an error factory bound to specific error codes
  *
- * @param codeMap
+ * @param codeMap - A mapping of factory names to their error codes
+ * @returns An object of named factory functions for creating AppError instances
  * @example
  * ```typescript
  * const errors = createBoundErrorFactories({
