@@ -155,7 +155,8 @@ export abstract class BaseTransport implements ILogTransport {
    *
    * Buffers the entry and flushes if buffer is full (when batching is enabled).
    * Ships immediately if batching is disabled.
-   * @param entry
+   *
+   * @param entry - Log entry to buffer or ship immediately
    */
   public async log(entry: TransportLogEntry): Promise<void> {
     if (this.state !== 'ready') {
@@ -229,6 +230,8 @@ export abstract class BaseTransport implements ILogTransport {
 
   /**
    * Get transport health status
+   *
+   * @returns Current health snapshot including state, buffer size, and error info
    */
   public getHealth(): TransportHealth {
     const health: TransportHealth = {
@@ -254,6 +257,8 @@ export abstract class BaseTransport implements ILogTransport {
 
   /**
    * Check if transport is ready
+   *
+   * @returns True if the transport state is 'ready' and can accept logs
    */
   public isReady(): boolean {
     return this.state === 'ready';
@@ -261,7 +266,8 @@ export abstract class BaseTransport implements ILogTransport {
 
   /**
    * Ship entries with retry logic
-   * @param entries
+   *
+   * @param entries - Buffered log entries to ship to the destination
    */
   private async shipWithRetry(entries: TransportLogEntry[]): Promise<void> {
     let lastError: unknown;
@@ -289,8 +295,9 @@ export abstract class BaseTransport implements ILogTransport {
 
   /**
    * Handle an error by tracking it
-   * @param context
-   * @param error
+   *
+   * @param context - Descriptive label for where the error occurred
+   * @param error - The caught error or rejection value
    */
   protected handleError(context: string, error: unknown): void {
     this.lastErrorTime = new Date();
@@ -303,7 +310,9 @@ export abstract class BaseTransport implements ILogTransport {
 
   /**
    * Delay for retry logic
-   * @param ms
+   *
+   * @param ms - Number of milliseconds to wait before resolving
+   * @returns Promise that resolves after the specified delay
    */
   private delay(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));

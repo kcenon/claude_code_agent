@@ -230,6 +230,8 @@ export class CloudWatchTransport extends BaseTransport {
    * Close the CloudWatch transport
    *
    * Destroys the CloudWatch Logs client.
+   *
+   * @returns Resolved promise after client cleanup is complete
    */
   protected doClose(): Promise<void> {
     if (this.client !== null) {
@@ -515,7 +517,9 @@ export class CloudWatchTransport extends BaseTransport {
 
   /**
    * Check if error is ResourceAlreadyExistsException
-   * @param error
+   *
+   * @param error - The caught error to inspect
+   * @returns True if the error indicates the resource already exists
    */
   private isResourceAlreadyExistsError(error: unknown): boolean {
     return (
@@ -528,7 +532,9 @@ export class CloudWatchTransport extends BaseTransport {
 
   /**
    * Check if error is InvalidSequenceTokenException
-   * @param error
+   *
+   * @param error - The caught error to inspect
+   * @returns True if the error indicates a stale sequence token
    */
   private isInvalidSequenceTokenError(error: unknown): boolean {
     return (
@@ -541,7 +547,9 @@ export class CloudWatchTransport extends BaseTransport {
 
   /**
    * Check if error is DataAlreadyAcceptedException
-   * @param error
+   *
+   * @param error - The caught error to inspect
+   * @returns True if the error indicates a duplicate batch submission
    */
   private isDataAlreadyAcceptedError(error: unknown): boolean {
     return (
@@ -554,7 +562,9 @@ export class CloudWatchTransport extends BaseTransport {
 
   /**
    * Extract sequence token from error message
-   * @param error
+   *
+   * @param error - The caught error containing the expected sequence token
+   * @returns The expected sequence token, or undefined if not extractable
    */
   private extractSequenceTokenFromError(error: unknown): string | undefined {
     if (
