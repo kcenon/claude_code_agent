@@ -117,7 +117,8 @@ export class QueryCache<T = unknown> {
 
   /**
    * Get cached value for a query
-   * @param query
+   * @param query - Query string to look up in cache
+   * @returns Cache lookup result with hit status and value
    */
   public get(query: string): CacheLookupResult<T> {
     const hash = this.hashQuery(query);
@@ -154,9 +155,9 @@ export class QueryCache<T = unknown> {
 
   /**
    * Set cached value for a query
-   * @param query
-   * @param value
-   * @param estimatedTokens
+   * @param query - Query string to cache
+   * @param value - Value to store in cache
+   * @param estimatedTokens - Estimated tokens saved by caching this query
    */
   public set(query: string, value: T, estimatedTokens: number): void {
     const hash = this.hashQuery(query);
@@ -182,7 +183,8 @@ export class QueryCache<T = unknown> {
 
   /**
    * Check if query is cached
-   * @param query
+   * @param query - Query string to check for in cache
+   * @returns True if query is cached and not expired
    */
   public has(query: string): boolean {
     const hash = this.hashQuery(query);
@@ -192,7 +194,8 @@ export class QueryCache<T = unknown> {
 
   /**
    * Delete cached entry
-   * @param query
+   * @param query - Query string to remove from cache
+   * @returns True if entry was found and deleted
    */
   public delete(query: string): boolean {
     const hash = this.hashQuery(query);
@@ -214,6 +217,7 @@ export class QueryCache<T = unknown> {
 
   /**
    * Get cache statistics
+   * @returns Cache statistics including hits, misses, and tokens saved
    */
   public getStats(): CacheStats {
     const entries = Array.from(this.cache.values());
@@ -237,6 +241,7 @@ export class QueryCache<T = unknown> {
 
   /**
    * Get entry count
+   * @returns Current number of entries in cache
    */
   public get size(): number {
     return this.cache.size;
@@ -254,7 +259,7 @@ export class QueryCache<T = unknown> {
 
   /**
    * Record tokens saved from cache hit
-   * @param tokens
+   * @param tokens - Number of tokens saved
    */
   public recordTokensSaved(tokens: number): void {
     this.totalTokensSaved += tokens;
@@ -262,7 +267,8 @@ export class QueryCache<T = unknown> {
 
   /**
    * Hash a query string
-   * @param query
+   * @param query - Query string to hash
+   * @returns SHA-256 hash of normalized query (first 16 chars)
    */
   private hashQuery(query: string): string {
     const normalized = this.normalizeQuery(query);
@@ -271,7 +277,8 @@ export class QueryCache<T = unknown> {
 
   /**
    * Normalize a query for comparison
-   * @param query
+   * @param query - Query string to normalize
+   * @returns Normalized query (lowercase, trimmed, single spaces)
    */
   private normalizeQuery(query: string): string {
     return query.toLowerCase().replace(/\s+/g, ' ').trim();
@@ -279,7 +286,8 @@ export class QueryCache<T = unknown> {
 
   /**
    * Check if an entry is expired
-   * @param entry
+   * @param entry - Cache entry to check for expiration
+   * @returns True if entry age exceeds TTL
    */
   private isExpired(entry: CacheEntry<T>): boolean {
     const age = Date.now() - entry.createdAt.getTime();
@@ -288,8 +296,8 @@ export class QueryCache<T = unknown> {
 
   /**
    * Update access time for an entry
-   * @param hash
-   * @param entry
+   * @param hash - Entry hash key
+   * @param entry - Cache entry to update
    */
   private updateAccessTime(hash: string, entry: CacheEntry<T>): void {
     const updated: CacheEntry<T> = {
@@ -302,7 +310,8 @@ export class QueryCache<T = unknown> {
 
   /**
    * Find similar cached query
-   * @param query
+   * @param query - Query string to find similar match for
+   * @returns Best matching cached entry and similarity score, or null
    */
   private findSimilar(query: string): { entry: CacheEntry<T>; score: number } | null {
     const normalizedQuery = this.normalizeQuery(query);
@@ -326,8 +335,9 @@ export class QueryCache<T = unknown> {
 
   /**
    * Calculate Jaccard similarity between two strings
-   * @param a
-   * @param b
+   * @param a - First normalized query string
+   * @param b - Second normalized query string
+   * @returns Jaccard similarity score (0-1, higher = more similar)
    */
   private calculateSimilarity(a: string, b: string): number {
     const wordsA = new Set(a.split(' '));
@@ -409,7 +419,8 @@ let globalQueryCache: QueryCache | null = null;
 
 /**
  * Get or create the global QueryCache instance
- * @param config
+ * @param config - Optional configuration for new cache instance
+ * @returns Global QueryCache singleton instance
  */
 export function getQueryCache<T = unknown>(config?: QueryCacheConfig): QueryCache<T> {
   if (globalQueryCache === null) {

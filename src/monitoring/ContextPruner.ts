@@ -146,7 +146,8 @@ export class ContextPruner {
 
   /**
    * Prune content sections to fit within token limit
-   * @param sections
+   * @param sections - Content sections to analyze and potentially prune
+   * @returns Pruning result with retained and pruned sections
    */
   public prune(sections: readonly ContentSection[]): PruningResult {
     const availableTokens =
@@ -218,7 +219,8 @@ export class ContextPruner {
 
   /**
    * Estimate token count for text
-   * @param text
+   * @param text - Text to estimate token count for
+   * @returns Estimated number of tokens
    */
   public estimateTokens(text: string): number {
     // Rough estimation: ~4 characters per token
@@ -227,13 +229,14 @@ export class ContextPruner {
 
   /**
    * Create a content section from text
-   * @param id
-   * @param content
-   * @param options
-   * @param options.priority
-   * @param options.timestamp
-   * @param options.type
-   * @param options.required
+   * @param id - Unique identifier for the section
+   * @param content - Text content of the section
+   * @param options - Optional section configuration
+   * @param options.priority - Priority level (higher = more important)
+   * @param options.timestamp - Timestamp for recency scoring
+   * @param options.type - Section type for categorization
+   * @param options.required - Whether section cannot be pruned
+   * @returns Created content section with estimated tokens
    */
   public createSection(
     id: string,
@@ -269,7 +272,8 @@ export class ContextPruner {
 
   /**
    * Score sections based on strategy
-   * @param sections
+   * @param sections - Content sections to score
+   * @returns Scored sections with recency, relevance, and priority scores
    */
   private scoreSections(sections: readonly ContentSection[]): ScoredSection[] {
     const now = Date.now();
@@ -313,9 +317,10 @@ export class ContextPruner {
 
   /**
    * Calculate recency score (0-1, higher = more recent)
-   * @param section
-   * @param now
-   * @param maxAge
+   * @param section - Content section to score
+   * @param now - Current timestamp in milliseconds
+   * @param maxAge - Maximum age across all sections
+   * @returns Recency score from 0 to 1
    */
   private calculateRecencyScore(section: ContentSection, now: number, maxAge: number): number {
     if (section.timestamp === undefined) {
@@ -330,7 +335,8 @@ export class ContextPruner {
 
   /**
    * Calculate relevance score (0-1, higher = more relevant)
-   * @param section
+   * @param section - Content section to score based on keyword matching
+   * @returns Relevance score from 0 to 1
    */
   private calculateRelevanceScore(section: ContentSection): number {
     const keywords = this.config.relevanceKeywords;
@@ -352,7 +358,8 @@ export class ContextPruner {
 
   /**
    * Calculate priority score (0-1, normalized from priority value)
-   * @param section
+   * @param section - Content section to score based on priority value
+   * @returns Priority score normalized to 0-1 range
    */
   private calculatePriorityScore(section: ContentSection): number {
     if (section.priority === undefined) {
@@ -365,7 +372,8 @@ export class ContextPruner {
 
   /**
    * Get maximum age among sections with timestamps
-   * @param sections
+   * @param sections - Content sections to analyze for maximum age
+   * @returns Maximum age in milliseconds, or 0 if no timestamps
    */
   private getMaxAge(sections: readonly ContentSection[]): number {
     const timestamps: number[] = [];
@@ -384,7 +392,8 @@ export class ContextPruner {
 
   /**
    * Suggest optimal token limit based on model
-   * @param model
+   * @param model - Model identifier (haiku, sonnet, or opus)
+   * @returns Suggested token limit (80% of model capacity for safety)
    */
   public static suggestTokenLimit(model: string): number {
     const limits: Record<string, number> = {
@@ -400,8 +409,9 @@ export class ContextPruner {
 
 /**
  * Factory function to create a ContextPruner with common configurations
- * @param maxTokens
- * @param options
+ * @param maxTokens - Maximum tokens to keep in context
+ * @param options - Optional pruner configuration settings
+ * @returns Configured ContextPruner instance
  */
 export function createContextPruner(
   maxTokens: number,

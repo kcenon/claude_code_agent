@@ -141,6 +141,7 @@ export class LatencyOptimizer {
 
   /**
    * Get latency targets
+   * @returns Copy of the current latency targets configuration
    */
   public getTargets(): LatencyTargets {
     return { ...this.targets };
@@ -148,10 +149,11 @@ export class LatencyOptimizer {
 
   /**
    * Measure and track an operation's latency
-   * @param operation
-   * @param targetType
-   * @param fn
-   * @param context
+   * @param operation - Name of the operation being measured
+   * @param targetType - Type of latency target to compare against (agentStartup, handoffLatency, fileIO, apiConnection)
+   * @param fn - Synchronous function to execute and measure
+   * @param context - Optional additional context information to attach to the measurement
+   * @returns The result of executing the measured function
    */
   public measure<T>(
     operation: string,
@@ -170,10 +172,11 @@ export class LatencyOptimizer {
 
   /**
    * Measure and track an async operation's latency
-   * @param operation
-   * @param targetType
-   * @param fn
-   * @param context
+   * @param operation - Name of the operation being measured
+   * @param targetType - Type of latency target to compare against (agentStartup, handoffLatency, fileIO, apiConnection)
+   * @param fn - Asynchronous function to execute and measure
+   * @param context - Optional additional context information to attach to the measurement
+   * @returns Promise resolving to the result of executing the measured function
    */
   public async measureAsync<T>(
     operation: string,
@@ -192,10 +195,10 @@ export class LatencyOptimizer {
 
   /**
    * Record a latency measurement
-   * @param operation
-   * @param latencyMs
-   * @param targetMs
-   * @param context
+   * @param operation - Name of the operation that was measured
+   * @param latencyMs - Actual measured latency in milliseconds
+   * @param targetMs - Target latency threshold in milliseconds
+   * @param context - Optional additional context information to attach to the measurement
    */
   private recordMeasurement(
     operation: string,
@@ -224,8 +227,9 @@ export class LatencyOptimizer {
 
   /**
    * Pre-warm an agent by preloading its definition
-   * @param agentName
-   * @param definitionPath
+   * @param agentName - Unique identifier of the agent to pre-warm
+   * @param definitionPath - File system path to the agent's definition file
+   * @returns Promise resolving to warmup status indicating success or failure
    */
   public async prewarmAgent(agentName: string, definitionPath: string): Promise<WarmupStatus> {
     if (!this.config.enablePrewarming) {
@@ -282,7 +286,8 @@ export class LatencyOptimizer {
 
   /**
    * Pre-warm multiple agents in parallel
-   * @param agents
+   * @param agents - Array of agent configurations with name and definition path
+   * @returns Promise resolving to array of warmup statuses for all agents
    */
   public async prewarmAgents(
     agents: Array<{ name: string; definitionPath: string }>
@@ -292,7 +297,8 @@ export class LatencyOptimizer {
 
   /**
    * Check if an agent is pre-warmed
-   * @param agentName
+   * @param agentName - Unique identifier of the agent to check
+   * @returns True if the agent is currently pre-warmed and cached, false otherwise
    */
   public isAgentWarmed(agentName: string): boolean {
     return this.preloadedAgents.has(agentName);
@@ -300,7 +306,8 @@ export class LatencyOptimizer {
 
   /**
    * Get cached agent definition if available
-   * @param agentName
+   * @param agentName - Unique identifier of the agent whose cached definition to retrieve
+   * @returns Cached agent definition content as string, or null if not available
    */
   public getCachedAgentDefinition(agentName: string): string | null {
     if (!this.preloadedAgents.has(agentName)) {
@@ -318,7 +325,8 @@ export class LatencyOptimizer {
 
   /**
    * Get warmup status for a resource
-   * @param resource
+   * @param resource - Name of the resource (typically agent name) to check
+   * @returns Warmup status object if available, or null if resource has not been warmed
    */
   public getWarmupStatus(resource: string): WarmupStatus | null {
     return this.warmupStatus.get(resource) ?? null;
@@ -326,6 +334,7 @@ export class LatencyOptimizer {
 
   /**
    * Get all warmup statuses
+   * @returns Array of all recorded warmup statuses for all resources
    */
   public getAllWarmupStatuses(): WarmupStatus[] {
     return Array.from(this.warmupStatus.values());
@@ -333,7 +342,7 @@ export class LatencyOptimizer {
 
   /**
    * Start periodic warmup timer
-   * @param agents
+   * @param agents - Array of agent configurations to periodically pre-warm
    */
   public startWarmupTimer(agents: Array<{ name: string; definitionPath: string }>): void {
     if (this.warmupTimer !== null) return;
@@ -359,7 +368,8 @@ export class LatencyOptimizer {
 
   /**
    * Execute multiple I/O operations in parallel
-   * @param operations
+   * @param operations - Array of async functions representing I/O operations to execute concurrently
+   * @returns Promise resolving to array of results from all operations
    */
   public async parallelIO<T>(operations: Array<() => Promise<T>>): Promise<T[]> {
     const startTime = performance.now();
@@ -381,7 +391,8 @@ export class LatencyOptimizer {
 
   /**
    * Get latency statistics for an operation type
-   * @param operation
+   * @param operation - Optional operation name to filter statistics; if omitted, returns stats for all operations
+   * @returns Statistical summary including count, averages, percentiles, and target met rate
    */
   public getLatencyStats(operation?: string): {
     readonly count: number;
@@ -429,6 +440,7 @@ export class LatencyOptimizer {
 
   /**
    * Get all measurements
+   * @returns Array of all recorded latency measurements
    */
   public getMeasurements(): readonly LatencyMeasurement[] {
     return [...this.measurements];
@@ -436,6 +448,7 @@ export class LatencyOptimizer {
 
   /**
    * Get measurements that missed their target
+   * @returns Array of latency measurements that exceeded their target threshold
    */
   public getSlowMeasurements(): readonly LatencyMeasurement[] {
     return this.measurements.filter((m) => !m.targetMet);
@@ -477,6 +490,7 @@ export class LatencyOptimizer {
 
   /**
    * Check if current performance meets targets
+   * @returns Object indicating overall target achievement and per-operation details
    */
   public meetsTargets(): {
     readonly overall: boolean;
@@ -506,7 +520,8 @@ let globalLatencyOptimizer: LatencyOptimizer | null = null;
 
 /**
  * Get or create the global LatencyOptimizer instance
- * @param config
+ * @param config - Optional configuration to use when creating the instance (only applied on first creation)
+ * @returns The global LatencyOptimizer singleton instance
  */
 export function getLatencyOptimizer(config?: LatencyOptimizerConfig): LatencyOptimizer {
   if (globalLatencyOptimizer === null) {
