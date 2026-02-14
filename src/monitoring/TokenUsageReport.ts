@@ -196,10 +196,11 @@ export class TokenUsageReport {
 
   /**
    * Generate a full report
-   * @param tokenUsage
-   * @param agentMetrics
-   * @param stageDurations
-   * @param model
+   * @param tokenUsage - Token usage metrics to analyze
+   * @param agentMetrics - Performance metrics for each agent
+   * @param stageDurations - Duration data for each pipeline stage
+   * @param model - Model name for cost calculation (default: 'sonnet')
+   * @returns Complete token usage report with summary, breakdowns, and recommendations
    */
   public generate(
     tokenUsage: TokenUsageMetrics,
@@ -237,8 +238,8 @@ export class TokenUsageReport {
 
   /**
    * Record a trend data point
-   * @param tokens
-   * @param costUsd
+   * @param tokens - Number of tokens used in this data point
+   * @param costUsd - Cost in USD for this data point
    */
   public recordTrendPoint(tokens: number, costUsd: number): void {
     if (!this.config.includeTrends) return;
@@ -258,7 +259,8 @@ export class TokenUsageReport {
 
   /**
    * Export report to JSON
-   * @param report
+   * @param report - Token usage report to serialize
+   * @returns JSON string representation of the report
    */
   public toJSON(report: TokenUsageReportData): string {
     return JSON.stringify(report, null, 2);
@@ -266,7 +268,8 @@ export class TokenUsageReport {
 
   /**
    * Export report to Markdown
-   * @param report
+   * @param report - Token usage report to format
+   * @returns Markdown-formatted report string
    */
   public toMarkdown(report: TokenUsageReportData): string {
     const lines: string[] = [];
@@ -333,10 +336,11 @@ export class TokenUsageReport {
 
   /**
    * Generate summary
-   * @param tokenUsage
-   * @param _agentMetrics
-   * @param stageDurations
-   * @param sessionDurationMs
+   * @param tokenUsage - Token usage metrics to summarize
+   * @param _agentMetrics - Agent metrics (currently unused)
+   * @param stageDurations - Duration data for each pipeline stage
+   * @param sessionDurationMs - Total session duration in milliseconds
+   * @returns Summary of token usage including totals and key metrics
    */
   private generateSummary(
     tokenUsage: TokenUsageMetrics,
@@ -393,8 +397,9 @@ export class TokenUsageReport {
 
   /**
    * Calculate usage by model
-   * @param tokenUsage
-   * @param model
+   * @param tokenUsage - Token usage metrics containing input/output token counts
+   * @param model - Model name for cost calculation
+   * @returns Array of model usage details with tokens and cost
    */
   private calculateModelUsage(tokenUsage: TokenUsageMetrics, model: string): ModelUsage[] {
     const totalTokens = tokenUsage.totalInputTokens + tokenUsage.totalOutputTokens;
@@ -418,8 +423,9 @@ export class TokenUsageReport {
 
   /**
    * Calculate usage by agent
-   * @param tokenUsage
-   * @param agentMetrics
+   * @param tokenUsage - Token usage metrics containing per-agent breakdowns
+   * @param agentMetrics - Performance metrics including invocation counts
+   * @returns Array of agent usage details sorted by token consumption
    */
   private calculateAgentUsage(
     tokenUsage: TokenUsageMetrics,
@@ -453,8 +459,9 @@ export class TokenUsageReport {
 
   /**
    * Calculate usage by stage
-   * @param stageDurations
-   * @param tokenUsage
+   * @param stageDurations - Duration data for each pipeline stage
+   * @param tokenUsage - Token usage metrics to distribute across stages
+   * @returns Array of stage usage details with proportional token estimates
    */
   private calculateStageUsage(
     stageDurations: readonly StageDuration[],
@@ -484,9 +491,10 @@ export class TokenUsageReport {
 
   /**
    * Generate optimization recommendations
-   * @param tokenUsage
-   * @param agentMetrics
-   * @param byAgent
+   * @param tokenUsage - Token usage metrics to analyze for optimization
+   * @param agentMetrics - Agent performance metrics including invocation patterns
+   * @param byAgent - Per-agent usage details sorted by consumption
+   * @returns Array of optimization recommendations sorted by priority
    */
   private generateRecommendations(
     tokenUsage: TokenUsageMetrics,
@@ -562,9 +570,10 @@ export class TokenUsageReport {
 
   /**
    * Calculate cost for given tokens
-   * @param inputTokens
-   * @param outputTokens
-   * @param model
+   * @param inputTokens - Number of input tokens consumed
+   * @param outputTokens - Number of output tokens generated
+   * @param model - Model name for pricing lookup (default: 'sonnet')
+   * @returns Total cost in USD rounded to 4 decimal places
    */
   private calculateCost(inputTokens: number, outputTokens: number, model = 'sonnet'): number {
     const pricing = TOKEN_PRICING[model] ?? TOKEN_PRICING['sonnet'];
@@ -580,8 +589,9 @@ export class TokenUsageReport {
 
 /**
  * Create a new TokenUsageReport instance
- * @param sessionId
- * @param config
+ * @param sessionId - Unique identifier for the session
+ * @param config - Optional configuration for report generation
+ * @returns Configured TokenUsageReport instance
  */
 export function createTokenUsageReport(
   sessionId: string,

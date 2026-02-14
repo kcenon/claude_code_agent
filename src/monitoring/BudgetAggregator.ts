@@ -117,8 +117,8 @@ export class BudgetAggregator {
 
   /**
    * Register agent category mapping
-   * @param agentName
-   * @param category
+   * @param agentName - Name of the agent to register
+   * @param category - Agent category for aggregation grouping
    */
   public registerAgentCategory(agentName: string, category: AgentCategory): void {
     this.categoryMappings.set(agentName, category);
@@ -126,7 +126,7 @@ export class BudgetAggregator {
 
   /**
    * Register multiple agent category mappings
-   * @param mappings
+   * @param mappings - Array of agent-to-category mapping objects
    */
   public registerCategoryMappings(mappings: readonly AgentCategoryMapping[]): void {
     for (const mapping of mappings) {
@@ -136,7 +136,7 @@ export class BudgetAggregator {
 
   /**
    * Record a usage trend point
-   * @param status
+   * @param status - Current pipeline budget status snapshot
    */
   public recordTrendPoint(status: PipelineBudgetStatus): void {
     const point: UsageTrendPoint = {
@@ -155,6 +155,7 @@ export class BudgetAggregator {
 
   /**
    * Get usage trends
+   * @returns Recorded usage trend points in chronological order
    */
   public getUsageTrends(): readonly UsageTrendPoint[] {
     return this.usageTrends;
@@ -169,7 +170,8 @@ export class BudgetAggregator {
 
   /**
    * Generate agent usage summaries from pipeline status
-   * @param status
+   * @param status - Current pipeline budget status to analyze
+   * @returns Array of agent usage summaries sorted by cost (descending)
    */
   public generateAgentSummaries(status: PipelineBudgetStatus): AgentUsageSummary[] {
     const summaries: AgentUsageSummary[] = [];
@@ -197,7 +199,8 @@ export class BudgetAggregator {
 
   /**
    * Generate category usage summaries
-   * @param status
+   * @param status - Current pipeline budget status to aggregate by category
+   * @returns Array of category usage summaries sorted by cost (descending)
    */
   public generateCategorySummaries(status: PipelineBudgetStatus): CategoryUsageSummary[] {
     const categoryData: Map<AgentCategory, { tokens: number; cost: number; count: number }> =
@@ -237,8 +240,9 @@ export class BudgetAggregator {
 
   /**
    * Generate optimization suggestions
-   * @param status
-   * @param agentSummaries
+   * @param status - Current pipeline budget status for analysis
+   * @param agentSummaries - Pre-computed agent usage summaries
+   * @returns Array of actionable budget optimization suggestions
    */
   public generateSuggestions(
     status: PipelineBudgetStatus,
@@ -309,7 +313,8 @@ export class BudgetAggregator {
 
   /**
    * Generate a comprehensive budget report
-   * @param status
+   * @param status - Current pipeline budget status to report
+   * @returns Complete budget report with summaries and suggestions
    */
   public generateReport(status: PipelineBudgetStatus): BudgetReport {
     const agentSummaries = this.generateAgentSummaries(status);
@@ -328,7 +333,8 @@ export class BudgetAggregator {
 
   /**
    * Format report as a readable string
-   * @param report
+   * @param report - Budget report to format
+   * @returns Human-readable formatted report with ASCII borders and tables
    */
   public formatReportAsString(report: BudgetReport): string {
     const lines: string[] = [
@@ -401,8 +407,9 @@ let globalBudgetAggregator: BudgetAggregator | null = null;
 
 /**
  * Get or create the global BudgetAggregator instance
- * @param options
- * @param options.maxTrendPoints
+ * @param options - Configuration options for the aggregator
+ * @param options.maxTrendPoints - Maximum number of trend points to retain
+ * @returns The global BudgetAggregator singleton instance
  */
 export function getBudgetAggregator(options?: { maxTrendPoints?: number }): BudgetAggregator {
   if (globalBudgetAggregator === null) {

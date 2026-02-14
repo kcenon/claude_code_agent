@@ -174,7 +174,8 @@ export class ModelSelector {
 
   /**
    * Select optimal model for a task
-   * @param task
+   * @param task - Task analysis containing complexity, token estimates, and requirements
+   * @returns Model selection result with chosen model, reasoning, and alternatives
    */
   public selectModel(task: TaskAnalysis): ModelSelectionResult {
     // Check for agent override
@@ -229,7 +230,8 @@ export class ModelSelector {
 
   /**
    * Get model profile
-   * @param model
+   * @param model - Model type to retrieve profile for
+   * @returns Model profile with pricing, capabilities, and characteristics
    */
   public getModelProfile(model: ModelType): ModelProfile {
     return MODEL_PROFILES[model];
@@ -237,8 +239,9 @@ export class ModelSelector {
 
   /**
    * Estimate cost for a task with a specific model
-   * @param model
-   * @param task
+   * @param model - Model type to calculate cost for
+   * @param task - Task analysis with token estimates
+   * @returns Estimated cost in USD rounded to 4 decimal places
    */
   public estimateCost(model: ModelType, task: TaskAnalysis): number {
     const profile = MODEL_PROFILES[model];
@@ -249,11 +252,12 @@ export class ModelSelector {
 
   /**
    * Analyze task complexity from content
-   * @param content
-   * @param options
-   * @param options.hasCodeGeneration
-   * @param options.hasReasoning
-   * @param options.requiresAccuracy
+   * @param content - Task content to analyze for complexity signals
+   * @param options - Additional complexity indicators
+   * @param options.hasCodeGeneration - Whether task involves code generation
+   * @param options.hasReasoning - Whether task requires complex reasoning
+   * @param options.requiresAccuracy - Whether high accuracy is critical
+   * @returns Complexity level: 'simple', 'moderate', 'complex', or 'critical'
    */
   public analyzeComplexity(
     content: string,
@@ -293,7 +297,8 @@ export class ModelSelector {
 
   /**
    * Get recommended model for an agent type
-   * @param agentType
+   * @param agentType - Type of agent (e.g., 'collector', 'worker', 'validator')
+   * @returns Recommended model type based on agent capabilities needed
    */
   public getAgentRecommendation(agentType: string): ModelType {
     const recommendations: Record<string, ModelType> = {
@@ -314,8 +319,9 @@ export class ModelSelector {
 
   /**
    * Calculate model scores based on task requirements
-   * @param task
-   * @param minModel
+   * @param task - Task analysis with requirements and constraints
+   * @param minModel - Minimum model capability required for the task
+   * @returns Scores for each model type (higher is better, -1 if below minimum)
    */
   private calculateModelScores(task: TaskAnalysis, minModel: ModelType): Record<ModelType, number> {
     const scores: Record<ModelType, number> = {
@@ -370,8 +376,9 @@ export class ModelSelector {
 
   /**
    * Get selection reason
-   * @param model
-   * @param task
+   * @param model - Selected model type
+   * @param task - Task analysis that informed the selection
+   * @returns Human-readable explanation of why this model was selected
    */
   private getSelectionReason(model: ModelType, task: TaskAnalysis): string {
     const profile = MODEL_PROFILES[model];
@@ -397,10 +404,11 @@ export class ModelSelector {
 
   /**
    * Create selection result
-   * @param model
-   * @param reason
-   * @param task
-   * @param confidence
+   * @param model - Selected model type
+   * @param reason - Explanation for selection
+   * @param task - Task analysis used for selection
+   * @param confidence - Confidence score (0-1) in the selection
+   * @returns Complete model selection result with alternatives
    */
   private createResult(
     model: ModelType,
@@ -433,9 +441,10 @@ export class ModelSelector {
 
   /**
    * Get reason why alternative was not selected
-   * @param alt
-   * @param selected
-   * @param task
+   * @param alt - Alternative model being compared
+   * @param selected - The model that was selected
+   * @param task - Task analysis context
+   * @returns Explanation of why the alternative was not chosen
    */
   private getAlternativeReason(alt: ModelType, selected: ModelType, task: TaskAnalysis): string {
     const altProfile = MODEL_PROFILES[alt];
@@ -466,7 +475,8 @@ let globalModelSelector: ModelSelector | null = null;
 
 /**
  * Get or create the global ModelSelector instance
- * @param config
+ * @param config - Optional configuration for model selection
+ * @returns Global ModelSelector singleton instance
  */
 export function getModelSelector(config?: ModelSelectorConfig): ModelSelector {
   if (globalModelSelector === null) {
@@ -477,6 +487,7 @@ export function getModelSelector(config?: ModelSelectorConfig): ModelSelector {
 
 /**
  * Reset the global ModelSelector instance
+ * @returns void
  */
 export function resetModelSelector(): void {
   globalModelSelector = null;

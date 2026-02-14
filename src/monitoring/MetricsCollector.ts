@@ -112,7 +112,7 @@ export class MetricsCollector {
 
   /**
    * Set session ID
-   * @param sessionId
+   * @param sessionId - Unique identifier for the current session
    */
   public setSessionId(sessionId: string): void {
     this.sessionId = sessionId;
@@ -120,6 +120,7 @@ export class MetricsCollector {
 
   /**
    * Get session ID
+   * @returns The current session identifier
    */
   public getSessionId(): string {
     return this.sessionId;
@@ -127,7 +128,7 @@ export class MetricsCollector {
 
   /**
    * Set the model for cost calculation
-   * @param model
+   * @param model - Model name (sonnet, opus, haiku) for token cost estimation
    */
   public setModel(model: string): void {
     this.model = model;
@@ -135,7 +136,8 @@ export class MetricsCollector {
 
   /**
    * Get labels key for map storage
-   * @param labels
+   * @param labels - Optional key-value pairs to identify metric variants
+   * @returns Sorted comma-separated string representation of labels
    */
   private getLabelsKey(labels?: Record<string, string>): string {
     if (labels === undefined) return '';
@@ -147,7 +149,8 @@ export class MetricsCollector {
 
   /**
    * Record agent invocation start
-   * @param _agent
+   * @param _agent - Agent name (unused, reserved for future use)
+   * @returns Timestamp in milliseconds marking the start of agent execution
    */
   public recordAgentStart(_agent: string): number {
     return Date.now();
@@ -155,9 +158,9 @@ export class MetricsCollector {
 
   /**
    * Record agent invocation completion
-   * @param agent
-   * @param startTime
-   * @param success
+   * @param agent - Name of the agent that completed execution
+   * @param startTime - Timestamp from recordAgentStart() call
+   * @param success - Whether the agent execution succeeded
    */
   public recordAgentEnd(agent: string, startTime: number, success: boolean): void {
     const duration = Date.now() - startTime;
@@ -186,9 +189,9 @@ export class MetricsCollector {
 
   /**
    * Record token usage
-   * @param agent
-   * @param inputTokens
-   * @param outputTokens
+   * @param agent - Name of the agent consuming tokens
+   * @param inputTokens - Number of input tokens consumed
+   * @param outputTokens - Number of output tokens generated
    */
   public recordTokenUsage(agent: string, inputTokens: number, outputTokens: number): void {
     const usage = this.tokenUsage.get(agent) ?? { input: 0, output: 0 };
@@ -202,7 +205,7 @@ export class MetricsCollector {
 
   /**
    * Record pipeline stage start
-   * @param stage
+   * @param stage - Name of the pipeline stage being started
    */
   public recordStageStart(stage: string): void {
     this.stageDurations.set(stage, {
@@ -214,8 +217,8 @@ export class MetricsCollector {
 
   /**
    * Record pipeline stage completion
-   * @param stage
-   * @param success
+   * @param stage - Name of the pipeline stage being completed
+   * @param success - Whether the stage completed successfully
    */
   public recordStageEnd(stage: string, success: boolean): void {
     const stageData = this.stageDurations.get(stage);
@@ -241,9 +244,9 @@ export class MetricsCollector {
 
   /**
    * Increment a counter metric
-   * @param name
-   * @param value
-   * @param labels
+   * @param name - Metric name identifier
+   * @param value - Amount to increment the counter by
+   * @param labels - Optional labels to differentiate metric instances
    */
   public incrementCounter(name: string, value: number, labels?: Record<string, string>): void {
     const key = this.getLabelsKey(labels);
@@ -255,9 +258,9 @@ export class MetricsCollector {
 
   /**
    * Set a gauge metric
-   * @param name
-   * @param value
-   * @param labels
+   * @param name - Metric name identifier
+   * @param value - Current value to set the gauge to
+   * @param labels - Optional labels to differentiate metric instances
    */
   public setGauge(name: string, value: number, labels?: Record<string, string>): void {
     const key = this.getLabelsKey(labels);
@@ -268,10 +271,10 @@ export class MetricsCollector {
 
   /**
    * Record a histogram observation
-   * @param name
-   * @param value
-   * @param labels
-   * @param buckets
+   * @param name - Metric name identifier
+   * @param value - Observed value to record in the histogram
+   * @param labels - Optional labels to differentiate metric instances
+   * @param buckets - Bucket boundaries for histogram distribution
    */
   public recordHistogram(
     name: string,
@@ -290,7 +293,8 @@ export class MetricsCollector {
 
   /**
    * Get agent metrics
-   * @param agent
+   * @param agent - Name of the agent to retrieve metrics for
+   * @returns Aggregated metrics for the agent, or null if no data exists
    */
   public getAgentMetrics(agent: string): AgentMetrics | null {
     const counts = this.agentInvocations.get(agent);
@@ -319,6 +323,7 @@ export class MetricsCollector {
 
   /**
    * Get all agent metrics
+   * @returns Array of metrics for all agents that have been tracked
    */
   public getAllAgentMetrics(): AgentMetrics[] {
     const metrics: AgentMetrics[] = [];
@@ -333,6 +338,7 @@ export class MetricsCollector {
 
   /**
    * Get token usage metrics
+   * @returns Aggregated token usage and estimated cost across all agents
    */
   public getTokenUsageMetrics(): TokenUsageMetrics {
     let totalInput = 0;
@@ -361,6 +367,7 @@ export class MetricsCollector {
 
   /**
    * Get pipeline stage durations
+   * @returns Array of duration data for all recorded pipeline stages
    */
   public getStageDurations(): StageDuration[] {
     return Array.from(this.stageDurations.values());
@@ -368,8 +375,9 @@ export class MetricsCollector {
 
   /**
    * Get counter value
-   * @param name
-   * @param labels
+   * @param name - Metric name identifier
+   * @param labels - Optional labels to identify specific counter instance
+   * @returns Current counter value, or 0 if not found
    */
   public getCounter(name: string, labels?: Record<string, string>): number {
     const key = this.getLabelsKey(labels);
@@ -378,8 +386,9 @@ export class MetricsCollector {
 
   /**
    * Get gauge value
-   * @param name
-   * @param labels
+   * @param name - Metric name identifier
+   * @param labels - Optional labels to identify specific gauge instance
+   * @returns Current gauge value, or 0 if not found
    */
   public getGauge(name: string, labels?: Record<string, string>): number {
     const key = this.getLabelsKey(labels);
@@ -388,8 +397,9 @@ export class MetricsCollector {
 
   /**
    * Get histogram data
-   * @param name
-   * @param labels
+   * @param name - Metric name identifier
+   * @param labels - Optional labels to identify specific histogram instance
+   * @returns Histogram data with bucket counts and statistics, or null if not found
    */
   public getHistogram(name: string, labels?: Record<string, string>): HistogramData | null {
     const key = this.getLabelsKey(labels);
@@ -421,6 +431,7 @@ export class MetricsCollector {
 
   /**
    * Get all metric values
+   * @returns Array of all counter and gauge metrics with their current values
    */
   public getAllMetrics(): MetricValue[] {
     const metrics: MetricValue[] = [];
@@ -455,7 +466,8 @@ export class MetricsCollector {
 
   /**
    * Parse labels key back to record
-   * @param key
+   * @param key - Serialized labels string from getLabelsKey()
+   * @returns Parsed labels object, or null for empty key
    */
   private parseLabelsKey(key: string): Record<string, string> | null {
     if (key === '') return null;
@@ -499,6 +511,7 @@ export class MetricsCollector {
 
   /**
    * Export metrics in Prometheus format
+   * @returns Metrics formatted as Prometheus exposition format
    */
   public exportPrometheus(): string {
     const lines: string[] = [];
@@ -568,6 +581,7 @@ export class MetricsCollector {
 
   /**
    * Get the metrics directory
+   * @returns Path to the directory where metrics are stored
    */
   public getMetricsDir(): string {
     return this.metricsDir;
@@ -581,7 +595,8 @@ let globalMetricsCollector: MetricsCollector | null = null;
 
 /**
  * Get or create the global MetricsCollector instance
- * @param options
+ * @param options - Configuration options for the metrics collector
+ * @returns The global singleton MetricsCollector instance
  */
 export function getMetricsCollector(options?: MetricsCollectorOptions): MetricsCollector {
   if (globalMetricsCollector === null) {

@@ -119,8 +119,9 @@ export class AgentBudgetRegistry {
 
   /**
    * Get or create a budget manager for an agent
-   * @param agentName
-   * @param config
+   * @param agentName - Name of the agent to get budget manager for
+   * @param config - Optional partial configuration for agent budget
+   * @returns TokenBudgetManager instance for the specified agent
    */
   public getAgentBudget(
     agentName: string,
@@ -136,8 +137,9 @@ export class AgentBudgetRegistry {
 
   /**
    * Create a new budget manager for an agent
-   * @param agentName
-   * @param config
+   * @param agentName - Name of the agent to create budget manager for
+   * @param config - Optional partial configuration for the new agent budget
+   * @returns Newly created TokenBudgetManager instance
    */
   private createAgentBudget(
     agentName: string,
@@ -202,10 +204,11 @@ export class AgentBudgetRegistry {
 
   /**
    * Record usage for an agent and check budgets
-   * @param agentName
-   * @param inputTokens
-   * @param outputTokens
-   * @param costUsd
+   * @param agentName - Name of the agent that consumed resources
+   * @param inputTokens - Number of input tokens consumed
+   * @param outputTokens - Number of output tokens generated
+   * @param costUsd - Cost of the operation in US dollars
+   * @returns Budget status for the agent after recording usage
    */
   public recordAgentUsage(
     agentName: string,
@@ -245,6 +248,7 @@ export class AgentBudgetRegistry {
 
   /**
    * Get all agent budgets
+   * @returns Map of agent names to their current budget status
    */
   public getAllBudgets(): Map<string, BudgetStatus> {
     const budgets = new Map<string, BudgetStatus>();
@@ -258,6 +262,7 @@ export class AgentBudgetRegistry {
 
   /**
    * Get list of registered agent names
+   * @returns Array of all registered agent names
    */
   public getRegisteredAgents(): readonly string[] {
     return Array.from(this.agentBudgets.keys());
@@ -265,7 +270,8 @@ export class AgentBudgetRegistry {
 
   /**
    * Get agent budget configuration
-   * @param agentName
+   * @param agentName - Name of the agent to get configuration for
+   * @returns Agent budget configuration or undefined if not found
    */
   public getAgentConfig(agentName: string): AgentTokenBudgetConfig | undefined {
     return this.agentBudgets.get(agentName)?.config;
@@ -273,6 +279,7 @@ export class AgentBudgetRegistry {
 
   /**
    * Get aggregated pipeline status
+   * @returns Aggregated budget status across all agents in the pipeline
    */
   public getPipelineStatus(): PipelineBudgetStatus {
     let totalTokens = 0;
@@ -327,6 +334,7 @@ export class AgentBudgetRegistry {
 
   /**
    * Check if any agent exceeded budget
+   * @returns True if at least one agent has exceeded their budget limit
    */
   public hasExceededBudgets(): boolean {
     for (const entry of this.agentBudgets.values()) {
@@ -339,6 +347,7 @@ export class AgentBudgetRegistry {
 
   /**
    * Check if pipeline budget is exceeded
+   * @returns True if the total pipeline budget limit has been exceeded
    */
   public isPipelineBudgetExceeded(): boolean {
     return this.getPipelineStatus().limitExceeded;
@@ -346,7 +355,7 @@ export class AgentBudgetRegistry {
 
   /**
    * Reset specific agent budget
-   * @param agentName
+   * @param agentName - Name of the agent whose budget should be reset
    */
   public resetAgent(agentName: string): void {
     const entry = this.agentBudgets.get(agentName);
@@ -366,7 +375,8 @@ export class AgentBudgetRegistry {
 
   /**
    * Remove an agent from the registry
-   * @param agentName
+   * @param agentName - Name of the agent to remove
+   * @returns True if agent was found and removed, false if not found
    */
   public removeAgent(agentName: string): boolean {
     return this.agentBudgets.delete(agentName);
@@ -381,6 +391,7 @@ export class AgentBudgetRegistry {
 
   /**
    * Get total number of registered agents
+   * @returns Total count of agents currently registered
    */
   public get size(): number {
     return this.agentBudgets.size;
@@ -388,9 +399,10 @@ export class AgentBudgetRegistry {
 
   /**
    * Estimate if a request will exceed agent or pipeline budget
-   * @param agentName
-   * @param estimatedInputTokens
-   * @param estimatedOutputTokens
+   * @param agentName - Name of the agent that would perform the operation
+   * @param estimatedInputTokens - Expected number of input tokens for the operation
+   * @param estimatedOutputTokens - Expected number of output tokens for the operation
+   * @returns Object indicating if operation is allowed and reason if not
    */
   public estimateUsage(
     agentName: string,
@@ -423,6 +435,7 @@ export class AgentBudgetRegistry {
 
   /**
    * Get a summary report of all agent budgets
+   * @returns Formatted text report of pipeline and per-agent budget status
    */
   public getSummaryReport(): string {
     const status = this.getPipelineStatus();
@@ -625,6 +638,7 @@ export class AgentBudgetRegistry {
 
   /**
    * Get the history of budget transfers
+   * @returns Array of all budget transfer records between agents
    */
   public getTransferHistory(): readonly BudgetTransferRecord[] {
     return this.transferHistory;
@@ -639,9 +653,10 @@ export class AgentBudgetRegistry {
 
   /**
    * Helper to create transfer result for failed transfers
-   * @param success
-   * @param error
-   * @param timestamp
+   * @param success - Always false for this helper (failed transfers)
+   * @param error - Error message describing why the transfer failed
+   * @param timestamp - ISO timestamp of the failed transfer attempt
+   * @returns Budget transfer result object indicating failure
    */
   private createTransferResult(
     success: false,
@@ -663,7 +678,8 @@ let globalAgentBudgetRegistry: AgentBudgetRegistry | null = null;
 
 /**
  * Get or create the global AgentBudgetRegistry instance
- * @param config
+ * @param config - Optional configuration for the registry
+ * @returns Global singleton instance of AgentBudgetRegistry
  */
 export function getAgentBudgetRegistry(config?: AgentBudgetRegistryConfig): AgentBudgetRegistry {
   if (globalAgentBudgetRegistry === null) {

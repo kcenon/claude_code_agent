@@ -200,9 +200,10 @@ export class TokenBudgetManager {
 
   /**
    * Record token usage and check budget
-   * @param inputTokens
-   * @param outputTokens
-   * @param costUsd
+   * @param inputTokens - Number of input tokens consumed in the operation
+   * @param outputTokens - Number of output tokens generated in the operation
+   * @param costUsd - Cost of the operation in US dollars
+   * @returns Budget check result indicating if operation is allowed and any warnings
    */
   public recordUsage(
     inputTokens: number,
@@ -230,9 +231,9 @@ export class TokenBudgetManager {
 
   /**
    * Add a usage record to history
-   * @param inputTokens
-   * @param outputTokens
-   * @param costUsd
+   * @param inputTokens - Number of input tokens to record
+   * @param outputTokens - Number of output tokens to record
+   * @param costUsd - Cost to record in US dollars
    */
   private addUsageRecord(inputTokens: number, outputTokens: number, costUsd: number): void {
     const record: UsageRecord = {
@@ -253,6 +254,7 @@ export class TokenBudgetManager {
 
   /**
    * Check current budget status
+   * @returns Budget check result with current status and warnings
    */
   public checkBudget(): BudgetCheckResult {
     const warnings: BudgetWarning[] = [];
@@ -338,6 +340,7 @@ export class TokenBudgetManager {
 
   /**
    * Get current budget status
+   * @returns Detailed budget status including usage, limits, and warnings
    */
   public getStatus(): BudgetStatus {
     const tokenLimit = this.config.sessionTokenLimit;
@@ -401,6 +404,7 @@ export class TokenBudgetManager {
 
   /**
    * Check if override is active
+   * @returns True if budget override is currently enabled
    */
   public isOverrideActive(): boolean {
     return this.overrideActive;
@@ -422,6 +426,7 @@ export class TokenBudgetManager {
 
   /**
    * Get warning history
+   * @returns Array of all budget warnings that have been triggered
    */
   public getWarningHistory(): readonly BudgetWarning[] {
     return this.warningHistory;
@@ -465,6 +470,7 @@ export class TokenBudgetManager {
 
   /**
    * Get current token limit
+   * @returns Current session token limit or undefined if no limit is set
    */
   public getTokenLimit(): number | undefined {
     return this.config.sessionTokenLimit;
@@ -472,6 +478,7 @@ export class TokenBudgetManager {
 
   /**
    * Get current cost limit
+   * @returns Current session cost limit in USD or undefined if no limit is set
    */
   public getCostLimit(): number | undefined {
     return this.config.sessionCostLimitUsd;
@@ -479,8 +486,9 @@ export class TokenBudgetManager {
 
   /**
    * Estimate if a request will exceed budget
-   * @param estimatedInputTokens
-   * @param estimatedOutputTokens
+   * @param estimatedInputTokens - Expected number of input tokens for the operation
+   * @param estimatedOutputTokens - Expected number of output tokens for the operation
+   * @returns Budget check result indicating if estimated operation would be allowed
    */
   public estimateUsage(
     estimatedInputTokens: number,
@@ -506,6 +514,7 @@ export class TokenBudgetManager {
 
   /**
    * Get budget forecast based on historical usage patterns
+   * @returns Budget forecast with projected usage trends and estimated time to exhaustion
    */
   public getForecast(): BudgetForecast {
     // Check if we have enough data for forecasting
@@ -603,6 +612,7 @@ export class TokenBudgetManager {
 
   /**
    * Get usage history records
+   * @returns Array of historical usage records for forecasting and analysis
    */
   public getUsageHistory(): readonly UsageRecord[] {
     return this.usageHistory;
@@ -610,6 +620,7 @@ export class TokenBudgetManager {
 
   /**
    * Get projected overage alerts
+   * @returns Array of alerts for projected budget overages based on usage trends
    */
   public getProjectedOverageAlerts(): readonly ProjectedOverageAlert[] {
     return this.projectedOverageAlerts;
@@ -617,7 +628,8 @@ export class TokenBudgetManager {
 
   /**
    * Calculate exponentially smoothed averages
-   * @param records
+   * @param records - Array of usage records to analyze
+   * @returns Object containing smoothed average tokens and cost per operation
    */
   private calculateSmoothedAverages(records: UsageRecord[]): {
     avgTokens: number;
@@ -648,7 +660,8 @@ export class TokenBudgetManager {
 
   /**
    * Calculate operation rate (operations per millisecond)
-   * @param records
+   * @param records - Array of usage records with timestamps
+   * @returns Operations per millisecond or undefined if insufficient data
    */
   private calculateOperationRate(records: UsageRecord[]): number | undefined {
     const firstRecord = records[0];
@@ -671,7 +684,8 @@ export class TokenBudgetManager {
 
   /**
    * Calculate usage trend
-   * @param records
+   * @param records - Array of usage records to analyze for trend
+   * @returns Usage trend classification (increasing, stable, or decreasing)
    */
   private calculateUsageTrend(records: UsageRecord[]): 'increasing' | 'stable' | 'decreasing' {
     if (records.length < 3) {
@@ -699,7 +713,8 @@ export class TokenBudgetManager {
 
   /**
    * Calculate forecast confidence based on data consistency
-   * @param records
+   * @param records - Array of usage records to calculate confidence from
+   * @returns Confidence score between 0.25 and 1.0 based on data consistency
    */
   private calculateForecastConfidence(records: UsageRecord[]): number {
     if (records.length < 2) {
@@ -791,9 +806,10 @@ export class TokenBudgetManager {
 
   /**
    * Create a warning object
-   * @param type
-   * @param thresholdPercent
-   * @param currentPercent
+   * @param type - Type of budget warning (token or cost)
+   * @param thresholdPercent - Threshold percentage that was exceeded
+   * @param currentPercent - Current usage percentage
+   * @returns Formatted budget warning object
    */
   private createWarning(
     type: 'token' | 'cost',
@@ -814,7 +830,8 @@ export class TokenBudgetManager {
 
   /**
    * Get severity level for a threshold
-   * @param threshold
+   * @param threshold - Threshold percentage to evaluate
+   * @returns Alert severity level (critical, warning, or info)
    */
   private getSeverityForThreshold(threshold: number): AlertSeverity {
     if (threshold >= 90) return 'critical';
@@ -824,6 +841,7 @@ export class TokenBudgetManager {
 
   /**
    * Get reason message for limit exceeded
+   * @returns Detailed message explaining which limits were exceeded
    */
   private getLimitExceededReason(): string {
     const status = this.getStatus();
@@ -863,6 +881,7 @@ export class TokenBudgetManager {
 
   /**
    * Get the persistence file path for the current session
+   * @returns Full file path for the current session's budget state
    */
   private getPersistenceFilePath(): string {
     return path.join(this.persistenceDir, `budget-${this.sessionId}.json`);
@@ -870,6 +889,7 @@ export class TokenBudgetManager {
 
   /**
    * Save current budget state to persistence
+   * @returns True if save was successful, false otherwise
    */
   public saveToPersistence(): boolean {
     if (!this.persistenceEnabled) {
@@ -912,6 +932,7 @@ export class TokenBudgetManager {
 
   /**
    * Load budget state from persistence
+   * @returns True if state was successfully loaded, false otherwise
    */
   public loadFromPersistence(): boolean {
     if (!this.persistenceEnabled) {
@@ -963,6 +984,7 @@ export class TokenBudgetManager {
 
   /**
    * Delete persisted budget state
+   * @returns True if deletion was successful, false otherwise
    */
   public deletePersistence(): boolean {
     if (!this.persistenceEnabled) {
@@ -982,6 +1004,7 @@ export class TokenBudgetManager {
 
   /**
    * Get the session ID
+   * @returns Unique identifier for the current budget session
    */
   public getSessionId(): string {
     return this.sessionId;
@@ -989,6 +1012,7 @@ export class TokenBudgetManager {
 
   /**
    * Check if persistence is enabled
+   * @returns True if budget persistence is enabled for this session
    */
   public isPersistenceEnabled(): boolean {
     return this.persistenceEnabled;
@@ -996,7 +1020,8 @@ export class TokenBudgetManager {
 
   /**
    * List all persisted budget sessions
-   * @param persistenceDir
+   * @param persistenceDir - Directory to search for persisted sessions (defaults to configured path)
+   * @returns Array of session IDs that have persisted budget data
    */
   public static listPersistedSessions(persistenceDir?: string): string[] {
     const dir = persistenceDir ?? DEFAULT_PERSISTENCE_DIR;
@@ -1018,8 +1043,9 @@ export class TokenBudgetManager {
 
   /**
    * Load a specific persisted session
-   * @param sessionId
-   * @param persistenceDir
+   * @param sessionId - Session ID to load
+   * @param persistenceDir - Directory containing persisted sessions (defaults to configured path)
+   * @returns Budget persistence state or null if not found
    */
   public static loadSession(
     sessionId: string,
@@ -1042,8 +1068,9 @@ export class TokenBudgetManager {
 
   /**
    * Delete a specific persisted session
-   * @param sessionId
-   * @param persistenceDir
+   * @param sessionId - Session ID to delete
+   * @param persistenceDir - Directory containing persisted sessions (defaults to configured path)
+   * @returns True if deletion was successful, false otherwise
    */
   public static deleteSession(sessionId: string, persistenceDir?: string): boolean {
     const dir = persistenceDir ?? DEFAULT_PERSISTENCE_DIR;
@@ -1063,8 +1090,9 @@ export class TokenBudgetManager {
    * Clean up old persisted sessions
    *
    * Removes sessions older than the specified age (in milliseconds)
-   * @param olderThanMs
-   * @param persistenceDir
+   * @param olderThanMs - Age threshold in milliseconds for session deletion
+   * @param persistenceDir - Directory containing persisted sessions (defaults to configured path)
+   * @returns Number of sessions deleted
    */
   public static cleanupOldSessions(olderThanMs: number, persistenceDir?: string): number {
     const dir = persistenceDir ?? DEFAULT_PERSISTENCE_DIR;
@@ -1104,7 +1132,8 @@ let globalBudgetManager: TokenBudgetManager | null = null;
 
 /**
  * Get or create the global TokenBudgetManager instance
- * @param config
+ * @param config - Optional configuration for the budget manager
+ * @returns Global singleton instance of TokenBudgetManager
  */
 export function getTokenBudgetManager(config?: TokenBudgetConfig): TokenBudgetManager {
   if (globalBudgetManager === null) {
