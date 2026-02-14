@@ -297,6 +297,7 @@ export abstract class BaseTransport implements ILogTransport {
     this.lastError = error instanceof Error ? error.message : String(error);
 
     // Log to console for visibility
+    // eslint-disable-next-line no-console
     console.error(`[${this.name}] ${context}:`, this.lastError);
   }
 

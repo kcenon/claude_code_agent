@@ -8,6 +8,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { randomUUID } from 'node:crypto';
+import { getLogger } from '../logging/index.js';
 import * as yaml from 'js-yaml';
 import { PDFParse } from 'pdf-parse';
 import * as mammoth from 'mammoth';
@@ -245,7 +246,8 @@ export class InputParser {
           // PDF parser cleanup is best-effort; log for debugging
           const errorMsg = error instanceof Error ? error.message : String(error);
           if (process.env.DEBUG === 'true') {
-            console.debug(`PDF parser cleanup failed: ${errorMsg}`);
+            const logger = getLogger();
+            logger.debug(`PDF parser cleanup failed: ${errorMsg}`);
           }
         });
       }

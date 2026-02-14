@@ -13,6 +13,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import type { IAgent } from '../agents/types.js';
+import { getLogger } from '../logging/index.js';
 import { SRSParser } from './SRSParser.js';
 import { ArchitectureAnalyzer } from './ArchitectureAnalyzer.js';
 import { DiagramGenerator } from './DiagramGenerator.js';
@@ -441,7 +442,8 @@ export class ArchitectureGenerator implements IAgent {
    * @param message
    */
   private log(message: string): void {
-    console.log(`[ArchitectureGenerator] ${message}`);
+    const logger = getLogger();
+    logger.info(message, { component: 'ArchitectureGenerator' });
   }
 }
 

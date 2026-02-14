@@ -1,3 +1,4 @@
+/* eslint-disable no-console -- StatusService outputs directly to console for CLI display */
 /**
  * Status Service - Pipeline status retrieval and display
  *
@@ -292,7 +293,7 @@ export class StatusService {
         console.log(chalk.dim(`  In Progress: ${String(project.issues.inProgress)}`));
       }
       if (project.issues.blocked > 0) {
-        console.log(chalk.yellow(`  Blocked: ${String(project.issues.blocked)}`));
+        console.warn(chalk.yellow(`  Blocked: ${String(project.issues.blocked)}`));
       }
       console.log('');
     }

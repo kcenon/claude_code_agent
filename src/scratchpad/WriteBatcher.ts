@@ -29,6 +29,10 @@
  * ```
  */
 
+import { getLogger } from '../logging/index.js';
+
+const logger = getLogger();
+
 /**
  * Pending write operation
  */
@@ -182,10 +186,7 @@ export class WriteBatcher {
         this.flush().catch((error: unknown) => {
           // Primary error handling is done per-write in flush()
           // This catch prevents unhandled promise rejection
-          const errorMsg = error instanceof Error ? error.message : String(error);
-          if (process.env.DEBUG === 'true') {
-            console.debug(`Batch flush failed: ${errorMsg}`);
-          }
+          logger.debug('Batch flush failed', { error });
         });
       }
     });
@@ -364,10 +365,7 @@ export class WriteBatcher {
       this.flush().catch((error: unknown) => {
         // Primary error handling is done per-write
         // This catch prevents unhandled promise rejection
-        const errorMsg = error instanceof Error ? error.message : String(error);
-        if (process.env.DEBUG === 'true') {
-          console.debug(`Periodic flush failed: ${errorMsg}`);
-        }
+        logger.debug('Periodic flush failed', { error });
       });
     }, this.flushIntervalMs);
 

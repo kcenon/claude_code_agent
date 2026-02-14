@@ -28,6 +28,7 @@
 
 import { join } from 'node:path';
 import type { IAgent } from '../agents/types.js';
+import { getLogger } from '../logging/index.js';
 
 import type {
   WorkerAgentConfig,
@@ -530,7 +531,10 @@ export class WorkerAgent implements IAgent {
           } catch (error) {
             // Log but continue - some files may be inaccessible
             const errorMessage = error instanceof Error ? error.message : String(error);
-            console.warn(`Could not read file ${file.path}: ${errorMessage}`);
+            const logger = getLogger();
+            logger.warn(`Could not read file ${file.path}: ${errorMessage}`, {
+              filePath: file.path,
+            });
           }
         }
       }
