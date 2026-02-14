@@ -118,7 +118,8 @@ export class SelfVerificationAgent {
 
   /**
    * Run a single verification step with retry attempts
-   * @param step
+   * @param step - The verification step to execute (test, lint, build, or typecheck)
+   * @returns The final step result after all retry attempts
    */
   private async runStepWithRetry(step: VerificationStep): Promise<VerificationStepResult> {
     let lastResult = await this.runStep(step);
@@ -146,7 +147,8 @@ export class SelfVerificationAgent {
 
   /**
    * Run a single verification step
-   * @param step
+   * @param step - The verification step to execute (test, lint, build, or typecheck)
+   * @returns Step result with pass/fail status, output, and error/warning counts
    */
   public async runStep(step: VerificationStep): Promise<VerificationStepResult> {
     const startTime = Date.now();
@@ -174,9 +176,10 @@ export class SelfVerificationAgent {
 
   /**
    * Attempt to fix a failed verification step
-   * @param step
-   * @param stepResult
-   * @param iteration
+   * @param step - The verification step that failed
+   * @param stepResult - The result containing error output from the failed step
+   * @param iteration - Current retry iteration number (1-based)
+   * @returns Fix attempt result with success status and applied fixes
    */
   private async attemptFix(
     step: VerificationStep,
@@ -237,8 +240,9 @@ export class SelfVerificationAgent {
 
   /**
    * Analyze verification output to suggest fixes
-   * @param step
-   * @param output
+   * @param step - The verification step that produced the output
+   * @param output - The error output to analyze for patterns
+   * @returns Array of fix suggestions with auto/manual type and confidence scores
    */
   public analyzeError(step: VerificationStep, output: string): FixSuggestion[] {
     const suggestions: FixSuggestion[] = [];
@@ -283,8 +287,9 @@ export class SelfVerificationAgent {
 
   /**
    * Parse errors from verification output
-   * @param step
-   * @param output
+   * @param step - The verification step that produced the output
+   * @param output - The command output to parse for error patterns
+   * @returns Array of parsed errors with file paths, line numbers, and error codes
    */
   public parseErrors(step: VerificationStep, output: string): VerificationError[] {
     const errors: VerificationError[] = [];
@@ -374,7 +379,8 @@ export class SelfVerificationAgent {
 
   /**
    * Get a fix suggestion for a specific error
-   * @param error
+   * @param error - The parsed verification error to analyze
+   * @returns Fix suggestion if applicable, or null if no automatic fix is available
    */
   private getSuggestionForError(error: VerificationError): FixSuggestion | null {
     // Common patterns that can be auto-fixed
@@ -418,8 +424,9 @@ export class SelfVerificationAgent {
 
   /**
    * Parse error and warning counts from output
-   * @param step
-   * @param output
+   * @param step - The verification step that produced the output
+   * @param output - The command output containing error/warning counts
+   * @returns Object with errorCount and warningCount extracted from framework-specific formats
    */
   private parseOutputCounts(
     step: VerificationStep,
@@ -473,7 +480,8 @@ export class SelfVerificationAgent {
 
   /**
    * Get the command for a verification step
-   * @param step
+   * @param step - The verification step to get the command for
+   * @returns The configured shell command for the specified step
    */
   private getCommandForStep(step: VerificationStep): string {
     switch (step) {
@@ -491,7 +499,8 @@ export class SelfVerificationAgent {
   /**
    * Run a shell command with timeout using safe execution
    * Uses execFile to bypass shell and prevent command injection
-   * @param command
+   * @param command - The shell command string to execute
+   * @returns Command result with stdout, stderr, and exit code
    */
   private async runCommand(command: string): Promise<CommandResult> {
     const sanitizer = getCommandSanitizer();
@@ -530,7 +539,8 @@ export class SelfVerificationAgent {
 
   /**
    * Determine the final status based on failed steps
-   * @param failedSteps
+   * @param failedSteps - Array of verification steps that failed
+   * @returns Final status: 'passed' if all passed, 'escalated' if unresolved, 'failed' otherwise
    */
   private determineFinalStatus(failedSteps: readonly VerificationStep[]): SelfVerificationStatus {
     if (failedSteps.length === 0) {
@@ -552,7 +562,8 @@ export class SelfVerificationAgent {
 
   /**
    * Analyze failures to provide a summary for escalation
-   * @param failedSteps
+   * @param failedSteps - Array of verification steps that failed
+   * @returns Human-readable analysis summary with error counts and fix attempt statistics
    */
   private analyzeFailures(failedSteps: readonly VerificationStep[]): string {
     const analyses: string[] = [];
@@ -582,11 +593,12 @@ export class SelfVerificationAgent {
 
   /**
    * Build the verification report
-   * @param taskId
-   * @param finalStatus
-   * @param totalDurationMs
-   * @param failedSteps
-   * @param errorLogs
+   * @param taskId - The task/work order ID for tracking
+   * @param finalStatus - Final verification status (passed, failed, or escalated)
+   * @param totalDurationMs - Total time taken for all verification steps
+   * @param failedSteps - Array of verification steps that failed
+   * @param errorLogs - Truncated error output logs from failed steps
+   * @returns Complete verification report with step results, fix attempts, and summaries
    */
   private buildReport(
     taskId: string,
@@ -664,6 +676,7 @@ export class SelfVerificationAgent {
 
   /**
    * Get the configuration
+   * @returns Copy of the complete verification configuration with all defaults applied
    */
   public getConfig(): Required<SelfVerificationConfig> {
     return { ...this.config };
@@ -671,6 +684,7 @@ export class SelfVerificationAgent {
 
   /**
    * Get fix attempts made during last verification
+   * @returns Array of all fix attempts with iteration number, applied fixes, and success status
    */
   public getFixAttempts(): readonly FixAttempt[] {
     return [...this.fixAttempts];
@@ -678,6 +692,7 @@ export class SelfVerificationAgent {
 
   /**
    * Get step results from last verification
+   * @returns Map of verification steps to their results with pass/fail status and output
    */
   public getStepResults(): ReadonlyMap<VerificationStep, VerificationStepResult> {
     return new Map(this.stepResults);
@@ -685,6 +700,7 @@ export class SelfVerificationAgent {
 
   /**
    * Check if all steps passed in the last verification
+   * @returns True if all configured verification steps passed, false otherwise
    */
   public allStepsPassed(): boolean {
     for (const step of this.config.stepsToRun) {

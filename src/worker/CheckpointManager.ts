@@ -88,6 +88,7 @@ export class CheckpointManager {
 
   /**
    * Check if checkpointing is enabled
+   * @returns True if checkpointing is enabled in configuration
    */
   public isEnabled(): boolean {
     return this.config.enabled;
@@ -434,6 +435,7 @@ export class CheckpointManager {
 
   /**
    * Get the configuration
+   * @returns Copy of the current checkpoint manager configuration
    */
   public getConfig(): Required<CheckpointManagerConfig> {
     return { ...this.config };

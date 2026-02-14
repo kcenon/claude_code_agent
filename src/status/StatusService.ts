@@ -220,8 +220,8 @@ export class StatusService {
 
   /**
    * Display status in text format
-   * @param status
-   * @param verbose
+   * @param status - Pipeline status data containing all projects
+   * @param verbose - Whether to display detailed information including workers and activity
    */
   private displayTextStatus(status: PipelineStatus, verbose: boolean): void {
     console.log(chalk.blue('\n📊 Pipeline Status\n'));
@@ -245,8 +245,8 @@ export class StatusService {
 
   /**
    * Display single project status
-   * @param project
-   * @param verbose
+   * @param project - Project status information to display
+   * @param verbose - Whether to display detailed information including workers and activity
    */
   private displayProjectStatus(project: ProjectStatus, verbose: boolean): void {
     const stateColor = this.isTerminalState(project.currentState) ? chalk.dim : chalk.green;
@@ -326,7 +326,8 @@ export class StatusService {
 
   /**
    * Build stage information based on current state
-   * @param currentState
+   * @param currentState - Current project state in the pipeline
+   * @returns Array of stage information with status for each pipeline stage
    */
   private buildStageInfo(currentState: ProjectState): StageInfo[] {
     const currentIndex = this.getStateStageIndex(currentState);
@@ -356,7 +357,8 @@ export class StatusService {
 
   /**
    * Get stage index for a state
-   * @param state
+   * @param state - Project state to find in pipeline stages
+   * @returns Zero-based index of the stage containing this state, or -1 if not found
    */
   private getStateStageIndex(state: ProjectState): number {
     for (let i = 0; i < PIPELINE_STAGES.length; i++) {
@@ -370,7 +372,8 @@ export class StatusService {
 
   /**
    * Get project name from info
-   * @param projectId
+   * @param projectId - Project identifier to look up
+   * @returns Project name if found in project.yaml, undefined otherwise
    */
   private async getProjectName(projectId: string): Promise<string | undefined> {
     try {
@@ -388,7 +391,8 @@ export class StatusService {
 
   /**
    * Get issue status counts
-   * @param projectId
+   * @param projectId - Project identifier to query
+   * @returns Issue counts grouped by status (total, pending, in progress, completed, blocked)
    */
   private async getIssueCounts(projectId: string): Promise<IssueStatusCounts> {
     try {
@@ -446,7 +450,8 @@ export class StatusService {
 
   /**
    * Get worker status
-   * @param projectId
+   * @param projectId - Project identifier to query
+   * @returns Array of active worker statuses with their current tasks and progress
    */
   private async getWorkerStatus(projectId: string): Promise<WorkerStatus[]> {
     try {
@@ -504,7 +509,8 @@ export class StatusService {
 
   /**
    * Get recent activity from history
-   * @param projectId
+   * @param projectId - Project identifier to query
+   * @returns Array of recent activity entries from state history (up to 10 most recent)
    */
   private async getRecentActivity(projectId: string): Promise<ActivityEntry[]> {
     try {
@@ -541,8 +547,9 @@ export class StatusService {
 
   /**
    * Calculate overall progress percentage
-   * @param currentState
-   * @param issues
+   * @param currentState - Current project state in the pipeline
+   * @param issues - Issue status counts for progress calculation
+   * @returns Progress percentage from 0-100 based on stage completion and issue completion
    */
   private calculateProgress(currentState: ProjectState, issues: IssueStatusCounts): number {
     // Base progress from stages
@@ -570,7 +577,8 @@ export class StatusService {
 
   /**
    * Check if state is terminal
-   * @param state
+   * @param state - Project state to check
+   * @returns True if the state is terminal (merged or cancelled), false otherwise
    */
   private isTerminalState(state: ProjectState): boolean {
     return state === 'merged' || state === 'cancelled';
@@ -578,7 +586,8 @@ export class StatusService {
 
   /**
    * Get status icon
-   * @param status
+   * @param status - Stage status to get icon for
+   * @returns Colored Unicode symbol representing the status (✓ for completed, ⟳ for running, etc.)
    */
   private getStatusIcon(status: StageStatus): string {
     switch (status) {
@@ -598,7 +607,8 @@ export class StatusService {
 
   /**
    * Format status text
-   * @param status
+   * @param status - Stage status to format
+   * @returns Colored text description of the status (Done, Running, Failed, Skipped, Pending)
    */
   private formatStatus(status: StageStatus): string {
     switch (status) {
@@ -618,7 +628,8 @@ export class StatusService {
 
   /**
    * Get activity icon
-   * @param type
+   * @param type - Activity entry type
+   * @returns Colored Unicode symbol representing the activity type (✓ for success, ⚠ for warning, etc.)
    */
   private getActivityIcon(type: ActivityEntry['type']): string {
     switch (type) {
@@ -636,7 +647,8 @@ export class StatusService {
 
   /**
    * Format duration in human readable form
-   * @param seconds
+   * @param seconds - Duration in seconds
+   * @returns Human-readable duration string (e.g., "5s", "2m 30s", "1h 15m")
    */
   private formatDuration(seconds: number): string {
     if (seconds < 60) {
@@ -654,7 +666,8 @@ export class StatusService {
 
   /**
    * Format progress bar
-   * @param percent
+   * @param percent - Progress percentage from 0-100
+   * @returns ASCII progress bar with colored filled/empty segments (20 characters wide)
    */
   private formatProgressBar(percent: number): string {
     const filled = Math.round(percent / 5);

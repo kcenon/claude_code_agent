@@ -156,6 +156,7 @@ export class WorkerAgent implements IAgent {
   /**
    * Initialize the agent (IAgent interface)
    * Called after construction, before first use
+   * @returns Promise that resolves when initialization is complete
    */
   public async initialize(): Promise<void> {
     if (this.initialized) {
@@ -170,6 +171,7 @@ export class WorkerAgent implements IAgent {
   /**
    * Dispose of the agent and release resources (IAgent interface)
    * Called when the agent is no longer needed
+   * @returns Promise that resolves when cleanup is complete
    */
   public async dispose(): Promise<void> {
     await Promise.resolve();
@@ -183,6 +185,7 @@ export class WorkerAgent implements IAgent {
    *
    * @param workOrder - Work order to process
    * @param options - Execution options including resume capability
+   * @returns Promise resolving to complete implementation result with status and changes
    */
   public async implement(
     workOrder: WorkOrder,
@@ -493,8 +496,8 @@ export class WorkerAgent implements IAgent {
   /**
    * Check if a checkpoint exists for a work order
    *
-   * @param workOrderId - Work order ID
-   * @returns True if checkpoint exists
+   * @param workOrderId - Work order identifier to check
+   * @returns Promise resolving to true if checkpoint exists and is valid
    */
   public async hasCheckpoint(workOrderId: string): Promise<boolean> {
     return this.checkpointManager.hasCheckpoint(workOrderId);
@@ -502,6 +505,7 @@ export class WorkerAgent implements IAgent {
 
   /**
    * Get the checkpoint manager for external access
+   * @returns The CheckpointManager instance used by this worker
    */
   public getCheckpointManager(): CheckpointManager {
     return this.checkpointManager;
@@ -511,7 +515,8 @@ export class WorkerAgent implements IAgent {
    * Analyze context from work order
    * Reads related files and analyzes code patterns
    * Uses SecureFileOps for path traversal prevention
-   * @param workOrder
+   * @param workOrder - Work order containing context and related files to analyze
+   * @returns Promise resolving to code context with files and detected patterns
    */
   public async analyzeContext(workOrder: WorkOrder): Promise<CodeContext> {
     try {
@@ -554,7 +559,8 @@ export class WorkerAgent implements IAgent {
 
   /**
    * Analyze code patterns from file contents
-   * @param files
+   * @param files - Array of file contexts to analyze for coding patterns
+   * @returns Detected code patterns including indentation, quotes, test framework, etc.
    */
   private analyzePatterns(files: readonly FileContext[]): CodePatterns {
     // Start with defaults
@@ -637,7 +643,8 @@ export class WorkerAgent implements IAgent {
 
   /**
    * Create a feature branch for the implementation
-   * @param workOrder
+   * @param workOrder - Work order containing issue information for branch naming
+   * @returns Promise resolving to the created or checked out branch name
    */
   public async createBranch(workOrder: WorkOrder): Promise<string> {
     const prefix = this.determineBranchPrefix(workOrder);
@@ -663,7 +670,8 @@ export class WorkerAgent implements IAgent {
 
   /**
    * Determine the branch prefix based on work order
-   * @param workOrder
+   * @param workOrder - Work order containing issue ID to analyze
+   * @returns Branch prefix (feature, fix, docs, test, or refactor) based on issue type
    */
   private determineBranchPrefix(workOrder: WorkOrder): BranchPrefix {
     const issueId = workOrder.issueId.toLowerCase();
@@ -739,7 +747,8 @@ export class WorkerAgent implements IAgent {
    * Generate tests for the implemented code
    * Analyzes source files and generates comprehensive test suites
    * Uses SecureFileOps for path traversal prevention
-   * @param context
+   * @param context - Execution context containing code context and patterns
+   * @returns Promise resolving to test generation result with suite details and coverage
    */
   public async generateTests(context: ExecutionContext): Promise<TestGenerationResult> {
     const { codeContext } = context;
@@ -777,6 +786,7 @@ export class WorkerAgent implements IAgent {
 
   /**
    * Get the last test generation result
+   * @returns Last test generation result or null if no tests have been generated
    */
   public getLastTestGenerationResult(): TestGenerationResult | null {
     return this.lastTestGenerationResult;
@@ -784,6 +794,7 @@ export class WorkerAgent implements IAgent {
 
   /**
    * Get the test generator instance
+   * @returns The TestGenerator instance used by this worker
    */
   public getTestGenerator(): TestGenerator {
     return this.testGenerator;
@@ -794,6 +805,7 @@ export class WorkerAgent implements IAgent {
    *
    * Executes all verification commands concurrently for faster feedback.
    * If lint fails and autoFixLint is enabled, a sequential fix is attempted.
+   * @returns Promise resolving to verification result with test, lint, and build outcomes
    */
   public async runVerification(): Promise<VerificationResult> {
     // Run all verification commands in parallel
@@ -830,7 +842,7 @@ export class WorkerAgent implements IAgent {
 
   /**
    * Commit changes to git
-   * @param workOrder
+   * @param workOrder - Work order containing issue information for commit message
    */
   public async commitChanges(workOrder: WorkOrder): Promise<void> {
     try {
@@ -868,7 +880,8 @@ export class WorkerAgent implements IAgent {
 
   /**
    * Determine commit type from work order
-   * @param workOrder
+   * @param workOrder - Work order containing issue ID to analyze
+   * @returns Conventional commit type (feat, fix, docs, test, refactor, perf, style, or chore)
    */
   private determineCommitType(workOrder: WorkOrder): CommitType {
     const issueId = workOrder.issueId.toLowerCase();
@@ -900,8 +913,9 @@ export class WorkerAgent implements IAgent {
 
   /**
    * Format commit message following conventional commits
-   * @param type
-   * @param workOrder
+   * @param type - Conventional commit type prefix
+   * @param workOrder - Work order containing issue ID and context for message
+   * @returns Formatted commit message with type, scope, description, and issue reference
    */
   private formatCommitMessage(type: CommitType, workOrder: WorkOrder): string {
     const scope = workOrder.context.sdsComponent ?? '';
@@ -920,13 +934,14 @@ export class WorkerAgent implements IAgent {
 
   /**
    * Create implementation result
-   * @param workOrder
-   * @param status
-   * @param startedAt
-   * @param branchName
-   * @param verification
-   * @param notes
-   * @param blockers
+   * @param workOrder - Work order that was processed
+   * @param status - Implementation status (completed, failed, or blocked)
+   * @param startedAt - ISO timestamp when implementation started
+   * @param branchName - Git branch name used for implementation
+   * @param verification - Verification results from tests, lint, and build
+   * @param notes - Optional notes about the implementation
+   * @param blockers - Optional array of blocker descriptions if status is blocked
+   * @returns Complete implementation result with all changes and metadata
    */
   public createResult(
     workOrder: WorkOrder,
@@ -988,7 +1003,7 @@ export class WorkerAgent implements IAgent {
   /**
    * Save implementation result to disk
    * Uses SecureFileOps for path traversal prevention
-   * @param result
+   * @param result - Implementation result to persist as YAML
    */
   public async saveResult(result: ImplementationResult): Promise<void> {
     // Construct relative path from project root
@@ -1014,7 +1029,7 @@ export class WorkerAgent implements IAgent {
 
   /**
    * Record a file change
-   * @param change
+   * @param change - File change record to track (path, type, description, and line counts)
    */
   public recordFileChange(change: FileChange): void {
     this.fileChanges.set(change.filePath, change);
@@ -1022,8 +1037,8 @@ export class WorkerAgent implements IAgent {
 
   /**
    * Record test creation
-   * @param filePath
-   * @param testCount
+   * @param filePath - Path to the test file
+   * @param testCount - Number of test cases in the file
    */
   public recordTestFile(filePath: string, testCount: number): void {
     this.testsCreated.set(filePath, testCount);
@@ -1031,6 +1046,7 @@ export class WorkerAgent implements IAgent {
 
   /**
    * Get current git branch name
+   * @returns Promise resolving to current branch name or 'unknown' if detection fails
    */
   private async getCurrentBranch(): Promise<string> {
     try {
@@ -1044,7 +1060,8 @@ export class WorkerAgent implements IAgent {
   /**
    * Execute a git command using safe execution
    * Uses execFile to bypass shell and prevent command injection
-   * @param command
+   * @param command - Git command string to execute (without 'git' prefix)
+   * @returns Promise resolving to stdout and stderr output
    */
   private async execGit(command: string): Promise<{ stdout: string; stderr: string }> {
     const sanitizer = getCommandSanitizer();
@@ -1070,7 +1087,8 @@ export class WorkerAgent implements IAgent {
   /**
    * Run a shell command using safe execution
    * Uses execFile to bypass shell and prevent command injection
-   * @param command
+   * @param command - Shell command string to execute
+   * @returns Promise resolving to command result with stdout, stderr, and exit code
    */
   private async runCommand(command: string): Promise<CommandResult> {
     const sanitizer = getCommandSanitizer();
@@ -1096,7 +1114,8 @@ export class WorkerAgent implements IAgent {
 
   /**
    * Build retry policy with defaults
-   * @param override
+   * @param override - Optional partial retry policy to override defaults
+   * @returns Complete retry policy with all fields populated
    */
   private buildRetryPolicy(override?: Partial<RetryPolicy>): RetryPolicy {
     const base: RetryPolicy = {
@@ -1122,8 +1141,9 @@ export class WorkerAgent implements IAgent {
    * - transient: Full retries with backoff (network issues, timeouts)
    * - recoverable: Retry with fix attempts (test failures, lint errors)
    * - fatal: No retry (missing dependencies, permission denied)
-   * @param policy
-   * @param category
+   * @param policy - Base retry policy containing category-specific overrides
+   * @param category - Error category to get configuration for
+   * @returns Category-specific retry configuration with retry flag, max attempts, and fix requirement
    */
   private getCategoryRetryConfig(
     policy: RetryPolicy,
@@ -1147,8 +1167,9 @@ export class WorkerAgent implements IAgent {
 
   /**
    * Calculate delay for retry attempt
-   * @param attempt
-   * @param policy
+   * @param attempt - Current attempt number (1-based)
+   * @param policy - Retry policy containing backoff strategy and delay parameters
+   * @returns Delay in milliseconds for this retry attempt (capped at maxDelayMs)
    */
   private calculateDelay(attempt: number, policy: RetryPolicy): number {
     let delay: number;
@@ -1172,7 +1193,8 @@ export class WorkerAgent implements IAgent {
 
   /**
    * Sleep for a given duration
-   * @param ms
+   * @param ms - Duration to sleep in milliseconds
+   * @returns Promise that resolves after the specified duration
    */
   private async sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
@@ -1180,7 +1202,8 @@ export class WorkerAgent implements IAgent {
 
   /**
    * Create a slugified version of a string for branch names
-   * @param text
+   * @param text - Text to slugify
+   * @returns Lowercase slug with hyphens, suitable for branch names
    */
   private slugify(text: string): string {
     return text
@@ -1191,7 +1214,8 @@ export class WorkerAgent implements IAgent {
 
   /**
    * Escape quotes for shell commands
-   * @param text
+   * @param text - Text containing quotes to escape
+   * @returns Text with all double quotes escaped for safe shell usage
    */
   private escapeQuotes(text: string): string {
     return text.replace(/"/g, '\\"');
@@ -1199,6 +1223,7 @@ export class WorkerAgent implements IAgent {
 
   /**
    * Create a skipped verification result
+   * @returns Verification result with all checks marked as passed and outputs as 'Skipped'
    */
   private createSkippedVerification(): VerificationResult {
     return {
@@ -1213,7 +1238,8 @@ export class WorkerAgent implements IAgent {
 
   /**
    * Convert object to YAML string
-   * @param obj
+   * @param obj - Object to serialize as YAML
+   * @returns YAML string representation of the object
    */
   private toYaml(obj: Record<string, unknown>): string {
     const yaml: string[] = [];
@@ -1264,7 +1290,8 @@ export class WorkerAgent implements IAgent {
 
   /**
    * Format a value for YAML output
-   * @param value
+   * @param value - Value to format
+   * @returns YAML-safe string representation of the value
    */
   private formatYamlValue(value: unknown): string {
     if (value === null || value === undefined) {
@@ -1306,6 +1333,7 @@ export class WorkerAgent implements IAgent {
 
   /**
    * Get the configuration
+   * @returns Copy of the worker agent configuration
    */
   public getConfig(): Required<WorkerAgentConfig> {
     return { ...this.config };

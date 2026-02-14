@@ -504,7 +504,7 @@ export class RetryHandler {
 
   /**
    * Get current checkpoint
-   * @returns Current checkpoint or null
+   * @returns Current checkpoint or null if no checkpoint exists
    */
   public getCurrentCheckpoint(): ProgressCheckpoint | null {
     return this.currentCheckpoint;
@@ -512,7 +512,7 @@ export class RetryHandler {
 
   /**
    * Get all retry attempts
-   * @returns Array of retry attempts
+   * @returns Copy of all retry attempts recorded during execution
    */
   public getRetryAttempts(): readonly RetryAttempt[] {
     return [...this.retryAttempts];
@@ -520,7 +520,7 @@ export class RetryHandler {
 
   /**
    * Get configuration
-   * @returns Handler configuration
+   * @returns Copy of the current retry handler configuration
    */
   public getConfig(): Required<RetryHandlerConfig> {
     return { ...this.config };
@@ -528,7 +528,8 @@ export class RetryHandler {
 
   /**
    * Sleep for a given duration
-   * @param ms - Duration in milliseconds
+   * @param ms - Duration in milliseconds to sleep
+   * @returns Promise that resolves after the specified duration
    */
   private async sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
@@ -536,7 +537,7 @@ export class RetryHandler {
 
   /**
    * Log a message (if verbose enabled)
-   * @param message - Message to log
+   * @param message - Message to log with component context
    */
   private log(message: string): void {
     const logger = getLogger();

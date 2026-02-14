@@ -82,8 +82,9 @@ export class AssertionBuilder implements IAssertionBuilder {
 
   /**
    * Build an assertion from expected value and actual expression
-   * @param expected
-   * @param actual
+   * @param expected - Expected value with type information and literal flag
+   * @param actual - Expression string representing the actual value to test
+   * @returns Assertion object with matcher, actual, and expected values
    */
   public build(expected: ExpectedValue, actual: string): Assertion {
     const matcher = this.selectMatcher(expected.type);
@@ -98,7 +99,8 @@ export class AssertionBuilder implements IAssertionBuilder {
 
   /**
    * Infer expected value from context
-   * @param context
+   * @param context - Context containing return type, name, and async status
+   * @returns Inferred expected value based on the return type
    */
   public inferExpected(context: InferenceContext): ExpectedValue {
     const { returnType } = context;
@@ -133,8 +135,9 @@ export class AssertionBuilder implements IAssertionBuilder {
 
   /**
    * Format assertion for a specific framework
-   * @param assertion
-   * @param framework
+   * @param assertion - Assertion object with actual, expected, matcher, and negation flag
+   * @param framework - Target test framework (jest, vitest, or mocha)
+   * @returns Formatted assertion string using framework-specific syntax
    */
   public formatAssertion(assertion: Assertion, framework: 'jest' | 'vitest' | 'mocha'): string {
     const { actual, expected, matcher, negated } = assertion;
@@ -161,9 +164,10 @@ export class AssertionBuilder implements IAssertionBuilder {
 
   /**
    * Format test name according to naming convention
-   * @param expected
-   * @param condition
-   * @param config
+   * @param expected - Expected outcome or behavior description
+   * @param condition - Condition or scenario being tested
+   * @param config - Test generator configuration with naming convention preference
+   * @returns Formatted test name string following the configured convention
    */
   public formatTestName(
     expected: string,
@@ -184,7 +188,8 @@ export class AssertionBuilder implements IAssertionBuilder {
 
   /**
    * Infer return description from method
-   * @param method
+   * @param method - Method information including return type
+   * @returns Human-readable description of the expected return value
    */
   public inferReturnDescription(method: MethodInfo): string {
     if (method.returnType.includes('void')) return 'complete_successfully';
@@ -197,7 +202,8 @@ export class AssertionBuilder implements IAssertionBuilder {
 
   /**
    * Infer return description from function
-   * @param func
+   * @param func - Function information including return type
+   * @returns Human-readable description of the expected return value
    */
   public inferFunctionReturnDescription(func: FunctionInfo): string {
     if (func.returnType.includes('void')) return 'complete_successfully';
@@ -210,8 +216,9 @@ export class AssertionBuilder implements IAssertionBuilder {
 
   /**
    * Estimate coverage percentage
-   * @param analysis
-   * @param testCount
+   * @param analysis - Code analysis containing classes, methods, and functions
+   * @param testCount - Number of tests that have been generated
+   * @returns Estimated coverage percentage (0-100)
    */
   public estimateCoverage(analysis: CodeAnalysis, testCount: number): number {
     // Rough estimation: each test covers approximately 10% of a method/function
@@ -228,7 +235,8 @@ export class AssertionBuilder implements IAssertionBuilder {
 
   /**
    * Select appropriate matcher based on type
-   * @param type
+   * @param type - TypeScript type string to select matcher for
+   * @returns Jest/Vitest matcher name appropriate for the type
    */
   private selectMatcher(type: string): string {
     switch (type) {
@@ -251,7 +259,8 @@ export class AssertionBuilder implements IAssertionBuilder {
 
   /**
    * Convert Jest/Vitest matcher to Chai matcher
-   * @param matcher
+   * @param matcher - Jest/Vitest matcher name to convert
+   * @returns Equivalent Chai matcher syntax
    */
   private chaiMatcher(matcher: string): string {
     const matcherMap: Record<string, string> = {
@@ -271,6 +280,7 @@ export class AssertionBuilder implements IAssertionBuilder {
 
   /**
    * Get configuration
+   * @returns Copy of the current test generator configuration
    */
   public getConfig(): Required<TestGeneratorConfig> {
     return { ...this.config };

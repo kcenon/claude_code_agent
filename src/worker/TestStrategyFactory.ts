@@ -80,7 +80,7 @@ export class TestStrategyFactory {
 
   /**
    * Register a test strategy
-   * @param strategy
+   * @param strategy - Test strategy implementation to register for test generation
    */
   public registerStrategy(strategy: ITestStrategy): void {
     this.strategies.set(strategy.type, strategy);
@@ -88,7 +88,8 @@ export class TestStrategyFactory {
 
   /**
    * Get a registered strategy
-   * @param type
+   * @param type - Strategy type identifier ('unit', 'integration', or 'e2e')
+   * @returns The registered strategy or undefined if not found
    */
   public getStrategy(type: string): ITestStrategy | undefined {
     return this.strategies.get(type);
@@ -96,7 +97,8 @@ export class TestStrategyFactory {
 
   /**
    * Generate test suites for classes
-   * @param analysis
+   * @param analysis - Code analysis result containing class definitions
+   * @returns Array of test suite blocks for exported classes
    */
   public generateClassSuites(analysis: CodeAnalysis): readonly TestSuiteBlock[] {
     const suites: TestSuiteBlock[] = [];
@@ -113,7 +115,8 @@ export class TestStrategyFactory {
 
   /**
    * Generate test suites for functions
-   * @param analysis
+   * @param analysis - Code analysis result containing function definitions
+   * @returns Array of test suite blocks for exported functions
    */
   public generateFunctionSuites(analysis: CodeAnalysis): readonly TestSuiteBlock[] {
     const suites: TestSuiteBlock[] = [];
@@ -130,8 +133,9 @@ export class TestStrategyFactory {
 
   /**
    * Generate test suite for a class
-   * @param classInfo
-   * @param dependencies
+   * @param classInfo - Class information including methods, properties, and constructor params
+   * @param dependencies - Array of dependency information for mock generation
+   * @returns Complete test suite block with initialization and method tests
    */
   public generateClassTestSuite(
     classInfo: ClassInfo,
@@ -166,7 +170,8 @@ export class TestStrategyFactory {
 
   /**
    * Generate initialization test suite
-   * @param classInfo
+   * @param classInfo - Class information including constructor parameters
+   * @returns Test suite block containing initialization test cases
    */
   public generateInitializationSuite(classInfo: ClassInfo): TestSuiteBlock {
     const testCases: TestCase[] = [];
@@ -236,9 +241,10 @@ export class TestStrategyFactory {
 
   /**
    * Generate test suite for a method
-   * @param className
-   * @param method
-   * @param dependencies
+   * @param className - Name of the class containing the method
+   * @param method - Method information including parameters and return type
+   * @param dependencies - Array of dependency information for mock generation
+   * @returns Test suite block with happy path, edge case, and error handling tests
    */
   public generateMethodTestSuite(
     className: string,
@@ -338,8 +344,9 @@ export class TestStrategyFactory {
 
   /**
    * Generate test suite for a function
-   * @param func
-   * @param dependencies
+   * @param func - Function information including parameters and return type
+   * @param dependencies - Array of dependency information for mock generation
+   * @returns Test suite block with happy path, edge case, and error handling tests
    */
   public generateFunctionTestSuite(
     func: FunctionInfo,
@@ -410,7 +417,8 @@ export class TestStrategyFactory {
 
   /**
    * Count total tests in a suite block
-   * @param suite
+   * @param suite - Test suite block to count tests from
+   * @returns Total number of test cases including nested suites
    */
   public countTests(suite: TestSuiteBlock): number {
     let count = suite.testCases.length;
@@ -422,8 +430,8 @@ export class TestStrategyFactory {
 
   /**
    * Count tests by category
-   * @param suite
-   * @param counts
+   * @param suite - Test suite block to analyze
+   * @param counts - Mutable record to accumulate test counts by category
    */
   public countTestsByCategory(suite: TestSuiteBlock, counts: Record<TestCategory, number>): void {
     for (const testCase of suite.testCases) {
@@ -436,6 +444,7 @@ export class TestStrategyFactory {
 
   /**
    * Get configuration
+   * @returns Copy of the current test generator configuration
    */
   public getConfig(): Required<TestGeneratorConfig> {
     return { ...this.config };
