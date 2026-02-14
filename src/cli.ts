@@ -561,7 +561,9 @@ program
           );
         }
         if (result.report.codeAnalysis.available) {
-          output.info(`${chalk.green('  ✓ Code Analysis:')} ${result.report.codeAnalysis.summary ?? 'N/A'}`);
+          output.info(
+            `${chalk.green('  ✓ Code Analysis:')} ${result.report.codeAnalysis.summary ?? 'N/A'}`
+          );
         }
         if (result.report.comparison.available) {
           output.info(
