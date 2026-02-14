@@ -87,6 +87,7 @@ export interface CreateSpanOptions {
 
 /**
  * Generate a random span ID (16 hex characters)
+ * @returns 16-character hex string suitable for span identification
  */
 function generateSpanId(): string {
   return randomUUID().replace(/-/g, '').substring(0, 16);
@@ -94,6 +95,7 @@ function generateSpanId(): string {
 
 /**
  * Generate a random trace ID (32 hex characters)
+ * @returns 32-character hex string suitable for distributed trace identification
  */
 function generateTraceId(): string {
   return randomUUID().replace(/-/g, '');
@@ -132,6 +134,7 @@ export class LogContext {
 
   /**
    * Get the singleton LogContext instance
+   * @returns Shared LogContext instance, creating one if it does not exist
    */
   public static getInstance(): LogContext {
     if (LogContext.instance === null) {
@@ -194,6 +197,7 @@ export class LogContext {
 
   /**
    * Check if currently running within a context
+   * @returns True if an active LogContextData exists in the current async scope
    */
   public hasContext(): boolean {
     return this.storage.getStore() !== undefined;
@@ -357,7 +361,8 @@ export class LogContext {
 
   /**
    * Create a new context from options
-   * @param options
+   * @param options - Configuration for correlation ID, session, trace, agent, and metadata
+   * @returns Fully initialized LogContextData with generated IDs for any omitted fields
    */
   private createContext(options: CreateContextOptions): LogContextData {
     const traceId = options.trace?.traceId ?? generateTraceId();
@@ -436,6 +441,7 @@ export class LogContext {
 
 /**
  * Get the global LogContext instance
+ * @returns Singleton LogContext instance for context propagation
  */
 export function getLogContext(): LogContext {
   return LogContext.getInstance();

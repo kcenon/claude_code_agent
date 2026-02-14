@@ -411,8 +411,8 @@ export class Logger {
 
   /**
    * Log a debug message
-   * @param message
-   * @param context
+   * @param message - Human-readable log message to record
+   * @param context - Additional key-value metadata to attach to the log entry
    */
   debug(message: string, context?: Record<string, unknown>): void {
     this.log('DEBUG', message, context);
@@ -420,8 +420,8 @@ export class Logger {
 
   /**
    * Log an info message
-   * @param message
-   * @param context
+   * @param message - Human-readable log message to record
+   * @param context - Additional key-value metadata to attach to the log entry
    */
   info(message: string, context?: Record<string, unknown>): void {
     this.log('INFO', message, context);
@@ -429,8 +429,8 @@ export class Logger {
 
   /**
    * Log a warning message
-   * @param message
-   * @param context
+   * @param message - Human-readable log message to record
+   * @param context - Additional key-value metadata to attach to the log entry
    */
   warn(message: string, context?: Record<string, unknown>): void {
     this.log('WARN', message, context);
@@ -438,9 +438,9 @@ export class Logger {
 
   /**
    * Log an error message
-   * @param message
-   * @param error
-   * @param context
+   * @param message - Human-readable error description to record
+   * @param error - Error object whose name, message, and stack trace will be included
+   * @param context - Additional key-value metadata to attach to the log entry
    */
   error(message: string, error?: Error, context?: Record<string, unknown>): void {
     const errorContext = error !== undefined ? { error: this.formatError(error) } : {};
@@ -449,9 +449,9 @@ export class Logger {
 
   /**
    * Core logging method
-   * @param level
-   * @param message
-   * @param context
+   * @param level - Severity level for the log entry
+   * @param message - Human-readable log message to record
+   * @param context - Additional key-value metadata to attach to the log entry
    */
   private log(level: LogLevel, message: string, context?: Record<string, unknown>): void {
     if (this.state !== 'ready') {
@@ -490,9 +490,10 @@ export class Logger {
    * This method automatically integrates with LogContext for context propagation.
    * If LogContext has active context, it will be merged with instance-level context.
    * Instance-level context takes precedence over LogContext values.
-   * @param level
-   * @param message
-   * @param context
+   * @param level - Severity level for the log entry
+   * @param message - Human-readable log message to record
+   * @param context - Additional key-value metadata to attach to the log entry
+   * @returns Fully constructed log entry with timestamps, context, and tracing metadata
    */
   private createEntry(
     level: LogLevel,
@@ -559,7 +560,8 @@ export class Logger {
 
   /**
    * Format an error for logging
-   * @param error
+   * @param error - Error object to extract name, message, and stack trace from
+   * @returns Structured object containing masked error name, message, and stack trace
    */
   private formatError(error: Error): Record<string, unknown> {
     return {
@@ -571,7 +573,8 @@ export class Logger {
 
   /**
    * Mask sensitive data in a string
-   * @param text
+   * @param text - Raw text that may contain sensitive data such as API keys or tokens
+   * @returns Text with all matching sensitive patterns replaced by redaction markers
    */
   private maskSensitiveData(text: string): string {
     if (!this.enableMasking) {
@@ -588,7 +591,8 @@ export class Logger {
 
   /**
    * Mask sensitive data in an object recursively
-   * @param obj
+   * @param obj - Value to traverse and mask; handles strings, arrays, and nested objects
+   * @returns Deep copy of the input with all sensitive string values redacted
    */
   private maskObject(obj: unknown): unknown {
     if (!this.enableMasking) {
@@ -616,7 +620,8 @@ export class Logger {
 
   /**
    * Create a transport from configuration
-   * @param config
+   * @param config - Transport configuration specifying type and transport-specific options
+   * @returns Instantiated transport, or null if the type is unknown or disabled
    */
   private createTransport(config: TransportConfig): ILogTransport | null {
     if (config.enabled === false) {
@@ -641,7 +646,7 @@ export class Logger {
 
   /**
    * Set the correlation ID for request tracing
-   * @param correlationId
+   * @param correlationId - UUID used to correlate log entries across a single request
    */
   setCorrelationId(correlationId: string): void {
     this.correlationId = correlationId;
@@ -649,6 +654,7 @@ export class Logger {
 
   /**
    * Get the current correlation ID
+   * @returns UUID string used to correlate log entries across a single request
    */
   getCorrelationId(): string {
     return this.correlationId;
@@ -656,6 +662,7 @@ export class Logger {
 
   /**
    * Generate a new correlation ID
+   * @returns Newly generated UUID that replaces the previous correlation ID
    */
   newCorrelationId(): string {
     this.correlationId = randomUUID();
@@ -664,7 +671,7 @@ export class Logger {
 
   /**
    * Set the session ID
-   * @param sessionId
+   * @param sessionId - UUID identifying the current logger session
    */
   setSessionId(sessionId: string): void {
     this.sessionId = sessionId;
@@ -672,6 +679,7 @@ export class Logger {
 
   /**
    * Get the current session ID
+   * @returns UUID string identifying the current logger session
    */
   getSessionId(): string {
     return this.sessionId;
@@ -679,7 +687,7 @@ export class Logger {
 
   /**
    * Set the current agent context
-   * @param agent
+   * @param agent - Agent identifier to tag log entries with, or undefined to clear
    */
   setAgent(agent?: string): void {
     if (agent === undefined) {
@@ -691,6 +699,7 @@ export class Logger {
 
   /**
    * Get the current agent context
+   * @returns Current agent identifier, or undefined if not set
    */
   getAgent(): string | undefined {
     return this.currentAgent;
@@ -698,7 +707,7 @@ export class Logger {
 
   /**
    * Set the current pipeline stage
-   * @param stage
+   * @param stage - Pipeline stage name to tag log entries with, or undefined to clear
    */
   setStage(stage?: string): void {
     if (stage === undefined) {
@@ -710,6 +719,7 @@ export class Logger {
 
   /**
    * Get the current pipeline stage
+   * @returns Current pipeline stage name, or undefined if not set
    */
   getStage(): string | undefined {
     return this.currentStage;
@@ -717,7 +727,7 @@ export class Logger {
 
   /**
    * Set the current project ID
-   * @param projectId
+   * @param projectId - Project identifier to tag log entries with, or undefined to clear
    */
   setProjectId(projectId?: string): void {
     if (projectId === undefined) {
@@ -729,6 +739,7 @@ export class Logger {
 
   /**
    * Get the current project ID
+   * @returns Current project identifier, or undefined if not set
    */
   getProjectId(): string | undefined {
     return this.currentProjectId;
@@ -736,9 +747,9 @@ export class Logger {
 
   /**
    * Set distributed tracing context
-   * @param traceId
-   * @param spanId
-   * @param parentSpanId
+   * @param traceId - Distributed trace identifier shared across services
+   * @param spanId - Identifier for the current operation within the trace
+   * @param parentSpanId - Identifier of the parent span that initiated this operation
    */
   setTraceContext(traceId: string, spanId: string, parentSpanId?: string): void {
     this.traceId = traceId;
@@ -763,7 +774,7 @@ export class Logger {
 
   /**
    * Add a transport at runtime
-   * @param config
+   * @param config - Transport configuration specifying type and transport-specific options
    */
   async addTransport(config: TransportConfig): Promise<void> {
     const transport = this.createTransport(config);
@@ -780,7 +791,8 @@ export class Logger {
 
   /**
    * Remove a transport by name at runtime
-   * @param name
+   * @param name - Name of the transport to find and remove
+   * @returns True if the transport was found and removed, false otherwise
    */
   async removeTransport(name: string): Promise<boolean> {
     const index = this.transports.findIndex((t) => t.name === name);
@@ -800,6 +812,7 @@ export class Logger {
 
   /**
    * Get transport names
+   * @returns Array of registered transport name strings
    */
   getTransportNames(): string[] {
     return this.transports.map((t) => t.name);
@@ -807,6 +820,7 @@ export class Logger {
 
   /**
    * Get logger health information
+   * @returns Aggregate health status including state, transport health, and error counts
    */
   getHealth(): LoggerHealth {
     const transportHealth = new Map<string, TransportHealth>();
@@ -829,6 +843,7 @@ export class Logger {
 
   /**
    * Check if logger is ready
+   * @returns True if the logger is initialized and all transports are ready
    */
   isReady(): boolean {
     return this.state === 'ready';
@@ -836,11 +851,12 @@ export class Logger {
 
   /**
    * Create a child logger with additional context
-   * @param context
-   * @param context.agent
-   * @param context.stage
-   * @param context.projectId
-   * @param context.correlationId
+   * @param context - Context overrides for the child logger instance
+   * @param context.agent - Agent identifier to assign to the child logger
+   * @param context.stage - Pipeline stage to assign to the child logger
+   * @param context.projectId - Project identifier to assign to the child logger
+   * @param context.correlationId - Correlation ID override; inherits from parent if omitted
+   * @returns New Logger instance that shares transports but has its own context
    */
   child(context: {
     agent?: string;
@@ -878,7 +894,7 @@ export class Logger {
 
   /**
    * Reconfigure logger at runtime
-   * @param config
+   * @param config - Partial configuration to merge into the current logger settings
    */
   async reconfigure(config: Partial<LoggerConfig>): Promise<void> {
     // Update masking patterns if provided
@@ -900,6 +916,7 @@ export class Logger {
 
   /**
    * Get the log directory path
+   * @returns Absolute path to the directory where log files are stored
    */
   getLogDir(): string {
     return this.logDir;
@@ -907,7 +924,7 @@ export class Logger {
 
   /**
    * Set the log directory path
-   * @param logDir
+   * @param logDir - Absolute path to the directory for reading and writing log files
    */
   setLogDir(logDir: string): void {
     this.logDir = logDir;
@@ -915,9 +932,10 @@ export class Logger {
 
   /**
    * Query log entries with advanced filtering
-   * @param filter
-   * @param limit
-   * @param offset
+   * @param filter - Criteria to match log entries against (level, agent, time range, etc.)
+   * @param limit - Maximum number of entries to return per page
+   * @param offset - Number of matching entries to skip for pagination
+   * @returns Paginated result containing matched entries, total count, and hasMore flag
    */
   queryLogs(filter: LogQueryFilter, limit = 100, offset = 0): LogQueryResult {
     const allEntries = this.getAllLogEntries();
@@ -944,9 +962,10 @@ export class Logger {
    * - (level:error OR level:warn) AND agent:worker - Group with parentheses
    *
    * Supported fields: level, agent, stage, projectId, correlationId, message, time
-   * @param query
-   * @param limit
-   * @param offset
+   * @param query - Structured query string using the log query language syntax
+   * @param limit - Maximum number of entries to return per page
+   * @param offset - Number of matching entries to skip for pagination
+   * @returns Paginated search result with matched entries and parse metadata
    */
   searchWithQuery(query: string, limit = 100, offset = 0): StructuredLogQueryResult {
     const entries = this.getAllLogEntries();
@@ -957,7 +976,8 @@ export class Logger {
    * Parse a query string without executing it
    *
    * Useful for validating query syntax before execution
-   * @param query
+   * @param query - Structured query string to validate and parse
+   * @returns Parse result indicating success or failure with error details
    */
   parseQuery(query: string): LogQueryParseResult {
     return this.queryParser.parse(query);
@@ -965,6 +985,7 @@ export class Logger {
 
   /**
    * Get all log entries from all log files
+   * @returns All parsed log entries from .jsonl files sorted by timestamp descending
    */
   private getAllLogEntries(): LogEntry[] {
     const entries: LogEntry[] = [];
@@ -1010,8 +1031,9 @@ export class Logger {
 
   /**
    * Apply filter to log entries
-   * @param entries
-   * @param filter
+   * @param entries - Array of log entries to filter
+   * @param filter - Criteria to match entries against (level, agent, time range, etc.)
+   * @returns Subset of entries that match all specified filter criteria
    */
   private applyFilter(entries: LogEntry[], filter: LogQueryFilter): LogEntry[] {
     return entries.filter((entry) => {
@@ -1055,7 +1077,8 @@ export class Logger {
 
   /**
    * Get logs by correlation ID (for tracing a request)
-   * @param correlationId
+   * @param correlationId - UUID to filter log entries by for end-to-end request tracing
+   * @returns Log entries matching the given correlation ID, up to 1000 entries
    */
   getLogsByCorrelationId(correlationId: string): LogEntry[] {
     return this.queryLogs({ correlationId }, 1000).entries;
@@ -1063,8 +1086,9 @@ export class Logger {
 
   /**
    * Search logs by message content
-   * @param searchTerm
-   * @param limit
+   * @param searchTerm - Case-insensitive substring to match against log messages
+   * @param limit - Maximum number of matching entries to return
+   * @returns Log entries whose messages contain the search term
    */
   searchLogs(searchTerm: string, limit = 100): LogEntry[] {
     return this.queryLogs({ messageContains: searchTerm }, limit).entries;
@@ -1072,9 +1096,10 @@ export class Logger {
 
   /**
    * Get logs within a time range
-   * @param startTime
-   * @param endTime
-   * @param limit
+   * @param startTime - ISO 8601 timestamp for the beginning of the range (inclusive)
+   * @param endTime - ISO 8601 timestamp for the end of the range (inclusive)
+   * @param limit - Maximum number of matching entries to return
+   * @returns Log entries whose timestamps fall within the specified range
    */
   getLogsByTimeRange(startTime: string, endTime: string, limit = 100): LogEntry[] {
     return this.queryLogs({ startTime, endTime }, limit).entries;
@@ -1082,7 +1107,8 @@ export class Logger {
 
   /**
    * Get recent log entries
-   * @param limit
+   * @param limit - Maximum number of most recent entries to return
+   * @returns Most recent log entries sorted by timestamp descending
    */
   getRecentEntries(limit = 100): LogEntry[] {
     const entries = this.getAllLogEntries();
@@ -1091,8 +1117,9 @@ export class Logger {
 
   /**
    * Get entries filtered by level
-   * @param level
-   * @param limit
+   * @param level - Log severity level to filter by (DEBUG, INFO, WARN, ERROR)
+   * @param limit - Maximum number of matching entries to return
+   * @returns Log entries that match the specified severity level
    */
   getEntriesByLevel(level: LogLevel, limit = 100): LogEntry[] {
     return this.queryLogs({ level }, limit).entries;
@@ -1100,7 +1127,8 @@ export class Logger {
 
   /**
    * Get error entries
-   * @param limit
+   * @param limit - Maximum number of error entries to return
+   * @returns Log entries with ERROR severity level
    */
   getErrors(limit = 50): LogEntry[] {
     return this.getEntriesByLevel('ERROR', limit);
@@ -1115,8 +1143,9 @@ export class Logger {
    *
    * Supports file, directory, and in-memory stream sources.
    * Can deduplicate entries and sort by timestamp.
-   * @param sources
-   * @param options
+   * @param sources - Array of log sources (files, directories) to aggregate entries from
+   * @param options - Aggregation behavior: deduplication, sort order, output path, compression
+   * @returns Combined and optionally deduplicated log entries from all sources
    */
   aggregateLogs(
     sources: readonly LogAggregationSource[],
@@ -1150,7 +1179,8 @@ export class Logger {
 
   /**
    * Load log entries from a source
-   * @param source
+   * @param source - Log source descriptor specifying type (file/directory), path, and optional filter
+   * @returns Parsed log entries from the source, filtered if a filter is specified
    */
   private loadEntriesFromSource(source: LogAggregationSource): LogEntry[] {
     const entries: LogEntry[] = [];
@@ -1190,7 +1220,8 @@ export class Logger {
 
   /**
    * Parse log lines into entries
-   * @param content
+   * @param content - Raw JSONL file content with one JSON object per line
+   * @returns Successfully parsed log entries; malformed lines are silently skipped
    */
   private parseLogLines(content: string): LogEntry[] {
     const entries: LogEntry[] = [];
@@ -1212,7 +1243,8 @@ export class Logger {
 
   /**
    * Deduplicate entries by correlationId + timestamp + message
-   * @param entries
+   * @param entries - Array of log entries that may contain duplicates
+   * @returns Array with duplicate entries removed, preserving first occurrence order
    */
   private deduplicateEntries(entries: LogEntry[]): LogEntry[] {
     const seen = new Set<string>();
@@ -1231,9 +1263,9 @@ export class Logger {
 
   /**
    * Write aggregated output to file
-   * @param entries
-   * @param outputPath
-   * @param compress
+   * @param entries - Log entries to serialize as JSONL and write to disk
+   * @param outputPath - Destination file path for the aggregated output
+   * @param compress - Whether to gzip-compress the output file
    */
   private writeAggregatedOutput(entries: LogEntry[], outputPath: string, compress: boolean): void {
     const content = entries.map((e) => JSON.stringify(e)).join('\n') + '\n';
@@ -1255,7 +1287,8 @@ export class Logger {
 
   /**
    * Read a gzip compressed log file
-   * @param filePath
+   * @param filePath - Path to the .gz compressed log file to read
+   * @returns Decompressed file content as a UTF-8 string
    */
   private readCompressedFile(filePath: string): string {
     const compressed = fs.readFileSync(filePath);
@@ -1265,8 +1298,9 @@ export class Logger {
 
   /**
    * Get aggregated logs from all log files including compressed ones
-   * @param filter
-   * @param limit
+   * @param filter - Optional criteria to match entries against before returning
+   * @param limit - Maximum number of deduplicated entries to return
+   * @returns Deduplicated log entries from all files (including .gz), sorted descending
    */
   getAggregatedLogs(filter?: LogQueryFilter, limit = 1000): LogEntry[] {
     const mainSource: LogAggregationSource = {
@@ -1289,8 +1323,9 @@ export class Logger {
    *
    * Compresses the specified log file using gzip compression.
    * Optionally deletes the original file after compression.
-   * @param filePath
-   * @param options
+   * @param filePath - Path to the log file to compress
+   * @param options - Compression settings: algorithm, level, and whether to delete the original
+   * @returns Path to the compressed .gz file, or null if compression was skipped or failed
    */
   compressLogFile(filePath: string, options: LogCompressionOptions = {}): string | null {
     const algorithm = options.algorithm ?? 'gzip';
@@ -1327,8 +1362,9 @@ export class Logger {
    *
    * Compresses log files older than the specified age (in milliseconds).
    * Useful for archiving old logs to save disk space.
-   * @param olderThanMs
-   * @param options
+   * @param olderThanMs - Age threshold in milliseconds; files older than this are compressed
+   * @param options - Compression settings: algorithm, level, and whether to delete originals
+   * @returns Array of paths to the newly created compressed files
    */
   compressOldLogFiles(olderThanMs: number, options: LogCompressionOptions = {}): string[] {
     const compressedFiles: string[] = [];
@@ -1364,8 +1400,9 @@ export class Logger {
 
   /**
    * Decompress a gzip compressed log file
-   * @param compressedPath
-   * @param outputPath
+   * @param compressedPath - Path to the .gz file to decompress
+   * @param outputPath - Destination path for the decompressed file; defaults to removing .gz suffix
+   * @returns Path to the decompressed file, or null if the file does not exist or decompression failed
    */
   decompressLogFile(compressedPath: string, outputPath?: string): string | null {
     if (!fs.existsSync(compressedPath) || !compressedPath.endsWith('.gz')) {
@@ -1392,7 +1429,8 @@ export class Logger {
 
 /**
  * Check if a string is a valid log level
- * @param level
+ * @param level - String value to validate against known log level names
+ * @returns True if the string corresponds to a recognized LogLevel
  */
 function isValidLogLevel(level: string): level is LogLevel {
   return level in LOG_LEVEL_PRIORITY;
@@ -1400,8 +1438,9 @@ function isValidLogLevel(level: string): level is LogLevel {
 
 /**
  * Create transport configuration from environment variables
- * @param transportName
- * @param prefix
+ * @param transportName - Transport type name (console, file, elasticsearch, cloudwatch)
+ * @param prefix - Environment variable prefix used to locate transport-specific settings
+ * @returns Transport configuration built from environment variables, or null if required vars are missing
  */
 function createTransportConfigFromEnv(
   transportName: string,
@@ -1467,7 +1506,8 @@ let globalLogger: Logger | null = null;
 
 /**
  * Get or create the global Logger instance
- * @param config
+ * @param config - Optional configuration used only when creating a new Logger instance
+ * @returns The singleton Logger instance, creating one if it does not yet exist
  */
 export function getLogger(config?: LoggerConfig): Logger {
   if (globalLogger === null) {
@@ -1478,7 +1518,8 @@ export function getLogger(config?: LoggerConfig): Logger {
 
 /**
  * Get or create the global Logger instance from environment
- * @param envConfig
+ * @param envConfig - Environment configuration used only when creating a new Logger instance
+ * @returns The singleton Logger instance, creating one from environment variables if it does not yet exist
  */
 export function getLoggerFromEnv(envConfig?: EnvironmentConfig): Logger {
   if (globalLogger === null) {

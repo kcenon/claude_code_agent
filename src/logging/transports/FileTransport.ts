@@ -187,7 +187,8 @@ export class FileTransport extends BaseTransport {
 
   /**
    * Ensure directory exists
-   * @param dirPath
+   *
+   * @param dirPath - Absolute or relative path of the directory to create if missing
    */
   private async ensureDirectory(dirPath: string): Promise<void> {
     if (!fs.existsSync(dirPath)) {
@@ -240,6 +241,8 @@ export class FileTransport extends BaseTransport {
 
   /**
    * Get date string for file name
+   *
+   * @returns Date string formatted according to the datePattern (daily, hourly, or full timestamp)
    */
   private getDateString(): string {
     const now = new Date();
@@ -262,6 +265,8 @@ export class FileTransport extends BaseTransport {
 
   /**
    * Check if date-based rotation is needed
+   *
+   * @returns True if the current date string differs from the last file's date string
    */
   private needsDateRotation(): boolean {
     if (this.datePattern === undefined) {
@@ -274,6 +279,8 @@ export class FileTransport extends BaseTransport {
 
   /**
    * Check if rotation is needed
+   *
+   * @returns True if the current file exceeds maxFileSize or the date period has changed
    */
   private needsRotation(): boolean {
     // Check date-based rotation first
@@ -302,7 +309,8 @@ export class FileTransport extends BaseTransport {
 
   /**
    * Compress a log file
-   * @param filePath
+   *
+   * @param filePath - Path to the log file to gzip-compress and replace with a .gz archive
    */
   private async compressFile(filePath: string): Promise<void> {
     const gzPath = `${filePath}.gz`;
@@ -367,7 +375,9 @@ export class FileTransport extends BaseTransport {
 
   /**
    * Format entry as JSON line
-   * @param entry
+   *
+   * @param entry - Log entry to serialize into a single-line JSON (JSONL) string
+   * @returns JSON string containing all non-empty fields from the log entry
    */
   private formatEntry(entry: TransportLogEntry): string {
     const jsonEntry: Record<string, unknown> = {
@@ -425,7 +435,8 @@ export class FileTransport extends BaseTransport {
 
   /**
    * Write a line to the current log file
-   * @param line
+   *
+   * @param line - Formatted log line to append with a trailing newline
    */
   private async writeLine(line: string): Promise<void> {
     const lineWithNewline = `${line}\n`;
@@ -455,6 +466,8 @@ export class FileTransport extends BaseTransport {
 
   /**
    * Get the current log file path
+   *
+   * @returns Absolute path to the active log file, or null if not yet initialized
    */
   public getCurrentFilePath(): string | null {
     return this.currentFilePath;
@@ -462,6 +475,8 @@ export class FileTransport extends BaseTransport {
 
   /**
    * Get the log directory path
+   *
+   * @returns Configured directory path where log files are stored
    */
   public getLogDir(): string {
     return this.logDir;
@@ -469,6 +484,8 @@ export class FileTransport extends BaseTransport {
 
   /**
    * Get list of log files in the directory
+   *
+   * @returns Sorted array of absolute paths to .jsonl and .jsonl.gz files in the log directory
    */
   public async getLogFiles(): Promise<string[]> {
     try {

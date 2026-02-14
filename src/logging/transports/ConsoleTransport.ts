@@ -94,6 +94,8 @@ export class ConsoleTransport extends BaseTransport {
 
   /**
    * Check if stdout is a TTY (supports colors)
+   *
+   * @returns True if stdout is a TTY and supports ANSI color codes
    */
   private isTTY(): boolean {
     return process.stdout.isTTY;
@@ -112,6 +114,7 @@ export class ConsoleTransport extends BaseTransport {
    * Log entries to console
    *
    * @param entries - Log entries to output
+   * @returns Promise that resolves once all entries have been written to the console
    */
   protected doLog(entries: TransportLogEntry[]): Promise<void> {
     for (const entry of entries) {
@@ -141,7 +144,9 @@ export class ConsoleTransport extends BaseTransport {
 
   /**
    * Format a log entry for output
-   * @param entry
+   *
+   * @param entry - Log entry to format as either JSON or pretty-printed text
+   * @returns Formatted string based on the configured output format
    */
   private formatEntry(entry: TransportLogEntry): string {
     if (this.format === 'json') {
@@ -152,7 +157,9 @@ export class ConsoleTransport extends BaseTransport {
 
   /**
    * Format entry as JSON
-   * @param entry
+   *
+   * @param entry - Log entry to serialize into a JSON string
+   * @returns JSON string containing timestamp, level, message, and optional fields
    */
   private formatAsJson(entry: TransportLogEntry): string {
     const jsonEntry: Record<string, unknown> = {
@@ -210,7 +217,9 @@ export class ConsoleTransport extends BaseTransport {
 
   /**
    * Format entry as pretty-printed output
-   * @param entry
+   *
+   * @param entry - Log entry to format as human-readable colored text
+   * @returns Pretty-printed string with optional colors, timestamps, and error stacks
    */
   private formatAsPretty(entry: TransportLogEntry): string {
     const parts: string[] = [];
@@ -291,8 +300,9 @@ export class ConsoleTransport extends BaseTransport {
 
   /**
    * Write output to console based on log level
-   * @param level
-   * @param output
+   *
+   * @param level - Log level that determines which console method to use (error, warn, or log)
+   * @param output - Formatted log string to write to the console
    */
   private writeToConsole(level: LogLevel, output: string): void {
     switch (level) {

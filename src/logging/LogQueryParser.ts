@@ -91,7 +91,8 @@ export class LogQueryParser {
 
   /**
    * Parse a query string into a LogQueryExpression
-   * @param query
+   * @param query - Raw query string to parse (e.g., "level:error AND agent:worker")
+   * @returns Parse result containing the expression tree or error details
    */
   public parse(query: string): LogQueryParseResult {
     this.query = query.trim();
@@ -138,10 +139,11 @@ export class LogQueryParser {
 
   /**
    * Execute a parsed query against log entries
-   * @param expression
-   * @param entries
-   * @param limit
-   * @param offset
+   * @param expression - Parsed query expression tree to evaluate
+   * @param entries - Log entries to filter against the expression
+   * @param limit - Maximum number of entries to return (default 100)
+   * @param offset - Number of matching entries to skip for pagination (default 0)
+   * @returns Filtered entries with total count and pagination indicator
    */
   public execute(
     expression: LogQueryExpression,
@@ -159,10 +161,11 @@ export class LogQueryParser {
 
   /**
    * Parse and execute a query string in one step
-   * @param query
-   * @param entries
-   * @param limit
-   * @param offset
+   * @param query - Raw query string to parse and execute
+   * @param entries - Log entries to search through
+   * @param limit - Maximum number of entries to return (default 100)
+   * @param offset - Number of matching entries to skip for pagination (default 0)
+   * @returns Structured result with matched entries, timing, and pagination metadata
    */
   public search(
     query: string,
@@ -301,6 +304,7 @@ export class LogQueryParser {
 
   /**
    * Get current position for error reporting
+   * @returns Character position of the current token in the query string
    */
   private getCurrentPosition(): number {
     const currentToken = this.tokens[this.position];
@@ -309,6 +313,7 @@ export class LogQueryParser {
 
   /**
    * Peek at current token
+   * @returns Current token without advancing the position
    */
   private peek(): Token {
     return this.tokens[this.position] ?? { type: 'EOF', value: '', position: this.query.length };
@@ -316,6 +321,7 @@ export class LogQueryParser {
 
   /**
    * Consume current token and advance
+   * @returns Current token before advancing to the next position
    */
   private consume(): Token {
     const token = this.peek();
@@ -325,6 +331,7 @@ export class LogQueryParser {
 
   /**
    * Parse an expression (handles OR at lowest precedence)
+   * @returns Parsed expression tree representing the full query
    */
   private parseExpression(): LogQueryExpression {
     return this.parseOr();
@@ -332,6 +339,7 @@ export class LogQueryParser {
 
   /**
    * Parse OR expressions
+   * @returns Compound OR expression or a single AND/primary expression
    */
   private parseOr(): LogQueryExpression {
     let left = this.parseAnd();
@@ -352,6 +360,7 @@ export class LogQueryParser {
 
   /**
    * Parse AND expressions
+   * @returns Compound AND expression or a single NOT/primary expression
    */
   private parseAnd(): LogQueryExpression {
     let left = this.parseNot();
@@ -372,6 +381,7 @@ export class LogQueryParser {
 
   /**
    * Parse NOT expressions
+   * @returns Negated expression or a primary expression if no NOT operator
    */
   private parseNot(): LogQueryExpression {
     if (this.peek().type === 'NOT') {
@@ -389,6 +399,7 @@ export class LogQueryParser {
 
   /**
    * Parse primary expressions (conditions and parenthesized expressions)
+   * @returns Condition expression, parenthesized sub-expression, or bare value as message search
    */
   private parsePrimary(): LogQueryExpression {
     const token = this.peek();
@@ -427,6 +438,7 @@ export class LogQueryParser {
 
   /**
    * Parse a field:value condition
+   * @returns Condition expression with field, value, and optional range end
    */
   private parseCondition(): LogQueryExpression {
     const fieldToken = this.consume();
@@ -474,8 +486,9 @@ export class LogQueryParser {
 
   /**
    * Evaluate an expression against a log entry
-   * @param expression
-   * @param entry
+   * @param expression - Expression tree to evaluate (condition or compound)
+   * @param entry - Log entry to test against the expression
+   * @returns True if the entry matches the expression
    */
   private evaluateExpression(expression: LogQueryExpression, entry: LogEntry): boolean {
     if (expression.type === 'condition') {
@@ -505,8 +518,9 @@ export class LogQueryParser {
 
   /**
    * Evaluate a single condition against a log entry
-   * @param condition
-   * @param entry
+   * @param condition - Field-value condition to check (may include range or negation)
+   * @param entry - Log entry to test against the condition
+   * @returns True if the entry satisfies the condition
    */
   private evaluateCondition(condition: LogQueryCondition | undefined, entry: LogEntry): boolean {
     if (condition === undefined) return false;
@@ -552,9 +566,10 @@ export class LogQueryParser {
 
   /**
    * Evaluate a time condition (supports ranges)
-   * @param timestamp
-   * @param start
-   * @param end
+   * @param timestamp - ISO timestamp from the log entry to compare
+   * @param start - Start time boundary (ISO date or datetime string)
+   * @param end - Optional end time boundary for range queries
+   * @returns True if the timestamp falls within the specified time range or matches the date
    */
   private evaluateTimeCondition(timestamp: string, start: string, end?: string): boolean {
     const entryTime = new Date(timestamp).getTime();
@@ -582,8 +597,9 @@ export class LogQueryParser {
 
   /**
    * Parse a time value string to timestamp
-   * @param value
-   * @param isEndOfRange
+   * @param value - Date or datetime string to parse (ISO 8601 format)
+   * @param isEndOfRange - When true, date-only values resolve to end of day (23:59:59.999)
+   * @returns Unix timestamp in milliseconds, or NaN if the value cannot be parsed
    */
   private parseTimeValue(value: string, isEndOfRange = false): number {
     // Try parsing as ISO string first
@@ -608,6 +624,7 @@ export class LogQueryParser {
 
 /**
  * Create a new LogQueryParser instance
+ * @returns Fresh LogQueryParser ready to parse and execute queries
  */
 export function createLogQueryParser(): LogQueryParser {
   return new LogQueryParser();
