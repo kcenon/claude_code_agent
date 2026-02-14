@@ -124,7 +124,8 @@ export class ConsistencyChecker {
 
   /**
    * Analyze priority distribution across requirements
-   * @param info
+   * @param info - The collected information containing requirements to analyze
+   * @returns Priority distribution analysis with balance assessment
    */
   private analyzePriorityDistribution(info: CollectedInfo): PriorityDistribution {
     const functionalReqs = info.requirements?.functional ?? [];
@@ -175,7 +176,8 @@ export class ConsistencyChecker {
 
   /**
    * Check for duplicate requirements
-   * @param info
+   * @param info - The collected information containing requirements to check
+   * @returns Array of consistency issues for detected duplicates
    */
   private checkDuplicates(info: CollectedInfo): ConsistencyIssue[] {
     const issues: ConsistencyIssue[] = [];
@@ -217,7 +219,8 @@ export class ConsistencyChecker {
 
   /**
    * Check for conflicting requirements
-   * @param info
+   * @param info - The collected information containing requirements to check
+   * @returns Array of consistency issues for detected conflicts
    */
   private checkConflicts(info: CollectedInfo): ConsistencyIssue[] {
     const issues: ConsistencyIssue[] = [];
@@ -281,7 +284,8 @@ export class ConsistencyChecker {
 
   /**
    * Analyze dependencies in requirements
-   * @param info
+   * @param info - The collected information containing requirements with dependencies
+   * @returns Dependency analysis including circular chains and missing bidirectional refs
    */
   private analyzeDependencies(info: CollectedInfo): DependencyAnalysis {
     const functionalReqs = info.requirements?.functional ?? [];
@@ -352,8 +356,9 @@ export class ConsistencyChecker {
 
   /**
    * Calculate string similarity using Jaccard index
-   * @param str1
-   * @param str2
+   * @param str1 - The first string to compare
+   * @param str2 - The second string to compare
+   * @returns Similarity score between 0.0 and 1.0
    */
   private calculateSimilarity(str1: string, str2: string): number {
     const set1 = new Set(str1.toLowerCase().split(/\s+/));
@@ -368,8 +373,9 @@ export class ConsistencyChecker {
 
   /**
    * Check if text contains any of the specified terms
-   * @param text
-   * @param terms
+   * @param text - The text to search within
+   * @param terms - Array of terms to look for
+   * @returns True if any term is found in the text
    */
   private containsConflictingTerms(text: string, terms: string[]): boolean {
     const lowerText = text.toLowerCase();
@@ -378,8 +384,9 @@ export class ConsistencyChecker {
 
   /**
    * Check if two descriptions are contradictory
-   * @param desc1
-   * @param desc2
+   * @param desc1 - The first description to compare
+   * @param desc2 - The second description to compare
+   * @returns True if the descriptions contain contradictory language about the same subject
    */
   private areContradictory(desc1: string, desc2: string): boolean {
     const contradictionPairs: Array<[string, string]> = [
@@ -414,8 +421,9 @@ export class ConsistencyChecker {
 
   /**
    * Get common non-trivial words between two texts
-   * @param text1
-   * @param text2
+   * @param text1 - The first text to extract words from
+   * @param text2 - The second text to extract words from
+   * @returns Array of shared non-trivial words
    */
   private getCommonNonTrivialWords(text1: string, text2: string): string[] {
     const trivialWords = new Set([
@@ -459,11 +467,12 @@ export class ConsistencyChecker {
 
   /**
    * Create a consistency issue with auto-generated ID
-   * @param type
-   * @param severity
-   * @param description
-   * @param relatedIds
-   * @param suggestion
+   * @param type - The type of consistency issue
+   * @param severity - The severity level of the issue
+   * @param description - Human-readable description of the issue
+   * @param relatedIds - Array of requirement IDs related to this issue
+   * @param suggestion - Recommended action to resolve the issue
+   * @returns A new ConsistencyIssue with an auto-incremented ID
    */
   private createIssue(
     type: ConsistencyIssueType,

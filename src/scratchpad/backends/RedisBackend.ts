@@ -152,8 +152,9 @@ export class RedisBackend implements IScratchpadBackend {
 
   /**
    * Get the Redis key for a section/key combination
-   * @param section
-   * @param key
+   * @param section - Storage section name
+   * @param key - Entry key within the section
+   * @returns The fully qualified Redis key
    */
   private getRedisKey(section: string, key: string): string {
     return `${this.prefix}${section}:${key}`;
@@ -161,7 +162,8 @@ export class RedisBackend implements IScratchpadBackend {
 
   /**
    * Get the Redis key for a distributed lock
-   * @param lockName
+   * @param lockName - Name of the lock resource
+   * @returns The fully qualified Redis lock key
    */
   private getLockKey(lockName: string): string {
     return `${this.prefix}lock:${lockName}`;
@@ -169,7 +171,8 @@ export class RedisBackend implements IScratchpadBackend {
 
   /**
    * Parse section and key from a Redis key
-   * @param redisKey
+   * @param redisKey - The full Redis key to parse
+   * @returns Parsed section and key, or null if the key format is invalid
    */
   private parseRedisKey(redisKey: string): { section: string; key: string } | null {
     if (!redisKey.startsWith(this.prefix)) {
@@ -203,7 +206,7 @@ export class RedisBackend implements IScratchpadBackend {
   }
 
   /**
-   *
+   * Initialize the Redis connection and optionally set up fallback backend
    */
   async initialize(): Promise<void> {
     try {
@@ -248,6 +251,7 @@ export class RedisBackend implements IScratchpadBackend {
 
   /**
    * Get the active backend (Redis client or fallback)
+   * @returns The fallback backend if active, or null if using Redis directly
    */
   private getActiveBackend(): IScratchpadBackend | null {
     if (this.useFallback && this.fallbackBackend !== null) {
@@ -256,6 +260,10 @@ export class RedisBackend implements IScratchpadBackend {
     return null;
   }
 
+  /**
+   * Get the Redis client, throwing if unavailable
+   * @returns The active Redis client
+   */
   private getClient(): RedisClient {
     if (this.useFallback) {
       throw new Error('Redis client not available, using fallback backend.');
@@ -268,15 +276,17 @@ export class RedisBackend implements IScratchpadBackend {
 
   /**
    * Check if currently using fallback backend
+   * @returns True if the fallback backend is active
    */
   public isUsingFallback(): boolean {
     return this.useFallback;
   }
 
   /**
-   *
-   * @param section
-   * @param key
+   * Read a value from Redis by section and key
+   * @param section - Storage section name
+   * @param key - Entry key within the section
+   * @returns The deserialized value, or null if not found
    */
   async read<T>(section: string, key: string): Promise<T | null> {
     const fallback = this.getActiveBackend();
@@ -297,10 +307,11 @@ export class RedisBackend implements IScratchpadBackend {
   }
 
   /**
-   *
-   * @param section
-   * @param key
-   * @param value
+   * Write a value to Redis under the given section and key
+   * @param section - Storage section name
+   * @param key - Entry key within the section
+   * @param value - The value to serialize and store
+   * @returns A promise that resolves when the write is complete
    */
   // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters
   async write<T>(section: string, key: string, value: T): Promise<void> {
@@ -322,9 +333,10 @@ export class RedisBackend implements IScratchpadBackend {
   }
 
   /**
-   *
-   * @param section
-   * @param key
+   * Delete an entry from Redis by section and key
+   * @param section - Storage section name
+   * @param key - Entry key within the section
+   * @returns True if the entry was deleted, false if it did not exist
    */
   async delete(section: string, key: string): Promise<boolean> {
     const fallback = this.getActiveBackend();
@@ -341,8 +353,9 @@ export class RedisBackend implements IScratchpadBackend {
   }
 
   /**
-   *
-   * @param section
+   * List all keys within a section
+   * @param section - Storage section name
+   * @returns Array of key names in the section
    */
   async list(section: string): Promise<string[]> {
     const fallback = this.getActiveBackend();
@@ -364,9 +377,10 @@ export class RedisBackend implements IScratchpadBackend {
   }
 
   /**
-   *
-   * @param section
-   * @param key
+   * Check if an entry exists in Redis
+   * @param section - Storage section name
+   * @param key - Entry key within the section
+   * @returns True if the entry exists
    */
   async exists(section: string, key: string): Promise<boolean> {
     const fallback = this.getActiveBackend();
@@ -383,8 +397,9 @@ export class RedisBackend implements IScratchpadBackend {
   }
 
   /**
-   *
-   * @param operations
+   * Execute multiple operations atomically using a Redis pipeline
+   * @param operations - Array of batch operations to execute
+   * @returns A promise that resolves when all operations are complete
    */
   async batch(operations: BatchOperation[]): Promise<void> {
     const fallback = this.getActiveBackend();
@@ -422,7 +437,8 @@ export class RedisBackend implements IScratchpadBackend {
   }
 
   /**
-   *
+   * Check the health of the Redis backend
+   * @returns Health status including connectivity and latency
    */
   async healthCheck(): Promise<BackendHealth> {
     const fallback = this.getActiveBackend();
@@ -455,7 +471,7 @@ export class RedisBackend implements IScratchpadBackend {
   }
 
   /**
-   *
+   * Close the Redis connection and release resources
    */
   async close(): Promise<void> {
     if (this.client) {
@@ -605,7 +621,8 @@ export class RedisBackend implements IScratchpadBackend {
 
   /**
    * Sleep for a specified duration
-   * @param ms
+   * @param ms - Duration in milliseconds
+   * @returns A promise that resolves after the delay
    */
   private sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));

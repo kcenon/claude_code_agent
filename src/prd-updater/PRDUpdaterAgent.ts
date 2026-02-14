@@ -87,7 +87,7 @@ export class PRDUpdaterAgent implements IAgent {
   }
 
   /**
-   *
+   * Initialize the agent and load required dependencies
    */
   public async initialize(): Promise<void> {
     if (this.initialized) return;
@@ -96,7 +96,7 @@ export class PRDUpdaterAgent implements IAgent {
   }
 
   /**
-   *
+   * Dispose of the agent and release resources
    */
   public async dispose(): Promise<void> {
     await Promise.resolve();
@@ -106,7 +106,8 @@ export class PRDUpdaterAgent implements IAgent {
 
   /**
    * Start a new PRD update session
-   * @param projectId
+   * @param projectId - Project identifier for the update session
+   * @returns The created PRD updater session
    */
   public async startSession(projectId: string): Promise<PRDUpdaterSession> {
     await loadYaml();
@@ -126,7 +127,8 @@ export class PRDUpdaterAgent implements IAgent {
 
   /**
    * Load an existing PRD document for updating
-   * @param prdPath
+   * @param prdPath - Optional path to the PRD file; auto-detected if omitted
+   * @returns The parsed PRD document
    */
   public async loadPRD(prdPath?: string): Promise<ParsedPRD> {
     const session = this.ensureSession();
@@ -170,7 +172,8 @@ export class PRDUpdaterAgent implements IAgent {
 
   /**
    * Apply a change request to the loaded PRD
-   * @param changeRequest
+   * @param changeRequest - The change request describing the update operation
+   * @returns Operation result with updated paths and change summary
    */
   public async applyChange(changeRequest: ChangeRequest): Promise<PRDUpdateOperationResult> {
     const session = this.ensureSession();
@@ -330,6 +333,7 @@ export class PRDUpdaterAgent implements IAgent {
 
   /**
    * Get the current session
+   * @returns Current updater session or null if none active
    */
   public getSession(): PRDUpdaterSession | null {
     return this.session;
@@ -1162,7 +1166,8 @@ let globalPRDUpdaterAgent: PRDUpdaterAgent | null = null;
 
 /**
  * Get the global PRD Updater Agent instance
- * @param config
+ * @param config - Optional configuration for agent initialization
+ * @returns The global PRDUpdaterAgent singleton instance
  */
 export function getPRDUpdaterAgent(config?: PRDUpdaterConfig): PRDUpdaterAgent {
   if (globalPRDUpdaterAgent === null) {

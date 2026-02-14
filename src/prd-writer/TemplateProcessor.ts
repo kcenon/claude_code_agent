@@ -326,8 +326,9 @@ export class TemplateProcessor {
 
   /**
    * Build variable map from collected info and metadata
-   * @param info
-   * @param metadata
+   * @param info - The collected information to extract variables from
+   * @param metadata - PRD metadata containing document identifiers and dates
+   * @returns Map of variable names to their string values
    */
   private buildVariableMap(info: CollectedInfo, metadata: PRDMetadata): Map<string, string> {
     const vars = new Map<string, string>();
@@ -350,8 +351,9 @@ export class TemplateProcessor {
 
   /**
    * Generate functional requirements section
-   * @param content
-   * @param info
+   * @param content - The template content to process
+   * @param info - The collected information containing requirements
+   * @returns Template content with functional requirements section populated
    */
   private generateFunctionalRequirementsSection(content: string, info: CollectedInfo): string {
     const marker = '<!-- Repeat FR-XXX section for each functional requirement -->';
@@ -361,8 +363,9 @@ export class TemplateProcessor {
 
   /**
    * Generate non-functional requirements section
-   * @param content
-   * @param info
+   * @param content - The template content to process
+   * @param info - The collected information containing NFRs
+   * @returns Template content with non-functional requirements section populated
    */
   private generateNonFunctionalRequirementsSection(content: string, info: CollectedInfo): string {
     const nfrLines = this.generateNonFunctionalRequirements(info);
@@ -376,8 +379,9 @@ export class TemplateProcessor {
 
   /**
    * Generate constraints section content
-   * @param content
-   * @param info
+   * @param content - The template content to process
+   * @param info - The collected information containing constraints
+   * @returns Template content with constraints section populated
    */
   private generateConstraintsSection(content: string, info: CollectedInfo): string {
     const constraintLines = this.generateConstraints(info);
@@ -390,8 +394,9 @@ export class TemplateProcessor {
 
   /**
    * Generate assumptions section content
-   * @param content
-   * @param info
+   * @param content - The template content to process
+   * @param info - The collected information containing assumptions
+   * @returns Template content with assumptions section populated
    */
   private generateAssumptionsSection(content: string, info: CollectedInfo): string {
     const assumptionLines = this.generateAssumptions(info);
@@ -404,8 +409,9 @@ export class TemplateProcessor {
 
   /**
    * Generate dependencies section content
-   * @param content
-   * @param info
+   * @param content - The template content to process
+   * @param info - The collected information containing dependencies
+   * @returns Template content with dependencies section populated
    */
   private generateDependenciesSection(content: string, info: CollectedInfo): string {
     const extDepLines = this.generateExternalDependencies(info);
@@ -418,7 +424,8 @@ export class TemplateProcessor {
 
   /**
    * Generate functional requirements content
-   * @param info
+   * @param info - The collected information containing functional requirements
+   * @returns Array of markdown lines for functional requirements
    */
   private generateFunctionalRequirements(info: CollectedInfo): string[] {
     const lines: string[] = [];
@@ -471,7 +478,8 @@ export class TemplateProcessor {
 
   /**
    * Generate non-functional requirements content
-   * @param info
+   * @param info - The collected information containing non-functional requirements
+   * @returns Array of markdown lines for non-functional requirements
    */
   private generateNonFunctionalRequirements(info: CollectedInfo): string[] {
     const lines: string[] = [];
@@ -507,7 +515,8 @@ export class TemplateProcessor {
 
   /**
    * Generate constraints table rows
-   * @param info
+   * @param info - The collected information containing constraints
+   * @returns Array of markdown table rows for constraints
    */
   private generateConstraints(info: CollectedInfo): string[] {
     const lines: string[] = [];
@@ -529,7 +538,8 @@ export class TemplateProcessor {
 
   /**
    * Generate assumptions table rows
-   * @param info
+   * @param info - The collected information containing assumptions
+   * @returns Array of markdown table rows for assumptions
    */
   private generateAssumptions(info: CollectedInfo): string[] {
     const lines: string[] = [];
@@ -551,7 +561,8 @@ export class TemplateProcessor {
 
   /**
    * Generate external dependencies table rows
-   * @param info
+   * @param info - The collected information containing dependencies
+   * @returns Array of markdown table rows for external dependencies
    */
   private generateExternalDependencies(info: CollectedInfo): string[] {
     const lines: string[] = [];
@@ -577,7 +588,8 @@ export class TemplateProcessor {
 
   /**
    * Generate internal dependencies table rows
-   * @param info
+   * @param info - The collected information containing tool dependencies
+   * @returns Array of markdown table rows for internal dependencies
    */
   private generateInternalDependencies(info: CollectedInfo): string[] {
     const lines: string[] = [];
@@ -599,7 +611,8 @@ export class TemplateProcessor {
 
   /**
    * Extract value propositions from collected info
-   * @param info
+   * @param info - The collected information to extract propositions from
+   * @returns Array of markdown bullet points for value propositions
    */
   private extractValuePropositions(info: CollectedInfo): string[] {
     const lines: string[] = [];
@@ -623,7 +636,8 @@ export class TemplateProcessor {
 
   /**
    * Generate goals from requirements
-   * @param info
+   * @param info - The collected information containing requirements
+   * @returns Array of markdown table rows for goals
    */
   private generateGoalsFromRequirements(info: CollectedInfo): string[] {
     const lines: string[] = [];
@@ -649,7 +663,8 @@ export class TemplateProcessor {
 
   /**
    * Generate KPIs from NFRs
-   * @param info
+   * @param info - The collected information containing non-functional requirements
+   * @returns Array of YAML-formatted lines for KPI metrics
    */
   private generateKPIsFromNFRs(info: CollectedInfo): string[] {
     const lines: string[] = [];
@@ -693,7 +708,8 @@ export class TemplateProcessor {
 
   /**
    * Generate risks from assumptions
-   * @param info
+   * @param info - The collected information containing assumptions
+   * @returns Array of markdown table rows for risks
    */
   private generateRisksFromAssumptions(info: CollectedInfo): string[] {
     const lines: string[] = [];
@@ -720,7 +736,8 @@ export class TemplateProcessor {
 
   /**
    * Generate references from sources
-   * @param info
+   * @param info - The collected information containing source references
+   * @returns Array of markdown lines for references
    */
   private generateReferences(info: CollectedInfo): string[] {
     const lines: string[] = [];
@@ -745,7 +762,8 @@ export class TemplateProcessor {
 
   /**
    * Clean up remaining template placeholders
-   * @param content
+   * @param content - The template content to clean up
+   * @returns Content with unsubstituted placeholder lines removed
    */
   private cleanupPlaceholders(content: string): string {
     // Remove lines with only placeholders
@@ -761,7 +779,8 @@ export class TemplateProcessor {
 
   /**
    * Add generation footer
-   * @param content
+   * @param content - The template content to append footer to
+   * @returns Content with generation footer appended if not already present
    */
   private addGenerationFooter(content: string): string {
     if (!content.includes('Auto-generated by AD-SDLC')) {
@@ -772,7 +791,8 @@ export class TemplateProcessor {
 
   /**
    * Capitalize first letter
-   * @param str
+   * @param str - The string to capitalize
+   * @returns String with the first character in uppercase
    */
   private capitalizeFirst(str: string): string {
     return str.charAt(0).toUpperCase() + str.slice(1);
@@ -780,8 +800,9 @@ export class TemplateProcessor {
 
   /**
    * Truncate string to max length
-   * @param str
-   * @param maxLength
+   * @param str - The string to truncate
+   * @param maxLength - Maximum allowed length including ellipsis
+   * @returns Truncated string with ellipsis if it exceeded maxLength
    */
   private truncate(str: string, maxLength: number): string {
     if (str.length <= maxLength) return str;

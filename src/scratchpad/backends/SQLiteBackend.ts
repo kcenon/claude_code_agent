@@ -74,7 +74,7 @@ export class SQLiteBackend implements IScratchpadBackend {
   }
 
   /**
-   *
+   * Initialize the SQLite database, create tables, and prepare statements
    */
   async initialize(): Promise<void> {
     // Ensure directory exists
@@ -124,6 +124,10 @@ export class SQLiteBackend implements IScratchpadBackend {
     );
   }
 
+  /**
+   * Get the database instance, throwing if not initialized
+   * @returns The active database instance
+   */
   private getDb(): Database {
     if (!this.db) {
       throw new Error('SQLiteBackend not initialized. Call initialize() first.');
@@ -131,6 +135,10 @@ export class SQLiteBackend implements IScratchpadBackend {
     return this.db;
   }
 
+  /**
+   * Get cached prepared statements, throwing if not initialized
+   * @returns Object containing all prepared statements
+   */
   private getStatements(): {
     read: Statement;
     write: Statement;
@@ -160,9 +168,10 @@ export class SQLiteBackend implements IScratchpadBackend {
   }
 
   /**
-   *
-   * @param section
-   * @param key
+   * Read a value from SQLite by section and key
+   * @param section - Storage section name
+   * @param key - Entry key within the section
+   * @returns The deserialized value, or null if not found
    */
   read<T>(section: string, key: string): Promise<T | null> {
     try {
@@ -180,10 +189,11 @@ export class SQLiteBackend implements IScratchpadBackend {
   }
 
   /**
-   *
-   * @param section
-   * @param key
-   * @param value
+   * Write a value to SQLite under the given section and key
+   * @param section - Storage section name
+   * @param key - Entry key within the section
+   * @param value - The value to serialize and store
+   * @returns A promise that resolves when the write is complete
    */
   // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters
   write<T>(section: string, key: string, value: T): Promise<void> {
@@ -199,9 +209,10 @@ export class SQLiteBackend implements IScratchpadBackend {
   }
 
   /**
-   *
-   * @param section
-   * @param key
+   * Delete an entry from SQLite by section and key
+   * @param section - Storage section name
+   * @param key - Entry key within the section
+   * @returns True if a row was deleted, false if the entry did not exist
    */
   delete(section: string, key: string): Promise<boolean> {
     try {
@@ -215,8 +226,9 @@ export class SQLiteBackend implements IScratchpadBackend {
   }
 
   /**
-   *
-   * @param section
+   * List all keys within a section
+   * @param section - Storage section name
+   * @returns Array of key names in the section
    */
   list(section: string): Promise<string[]> {
     try {
@@ -230,9 +242,10 @@ export class SQLiteBackend implements IScratchpadBackend {
   }
 
   /**
-   *
-   * @param section
-   * @param key
+   * Check if an entry exists in SQLite
+   * @param section - Storage section name
+   * @param key - Entry key within the section
+   * @returns True if the entry exists
    */
   exists(section: string, key: string): Promise<boolean> {
     try {
@@ -246,8 +259,9 @@ export class SQLiteBackend implements IScratchpadBackend {
   }
 
   /**
-   *
-   * @param operations
+   * Execute multiple operations atomically within a transaction
+   * @param operations - Array of batch operations to execute
+   * @returns A promise that resolves when all operations are complete
    */
   batch(operations: BatchOperation[]): Promise<void> {
     try {
@@ -273,7 +287,8 @@ export class SQLiteBackend implements IScratchpadBackend {
   }
 
   /**
-   *
+   * Check the health of the SQLite backend
+   * @returns Health status including database responsiveness and latency
    */
   healthCheck(): Promise<BackendHealth> {
     try {
@@ -298,7 +313,8 @@ export class SQLiteBackend implements IScratchpadBackend {
   }
 
   /**
-   *
+   * Close the database connection and release prepared statements
+   * @returns A promise that resolves when the connection is closed
    */
   close(): Promise<void> {
     if (this.db) {

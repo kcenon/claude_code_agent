@@ -240,6 +240,8 @@ export class LRUCache<T> {
 
   /**
    * Get the current number of entries in the cache
+   *
+   * @returns Number of entries currently stored
    */
   get size(): number {
     return this.cache.size;
@@ -247,6 +249,8 @@ export class LRUCache<T> {
 
   /**
    * Get all keys in the cache (in LRU order, oldest first)
+   *
+   * @returns Iterator of cache keys ordered from least to most recently used
    */
   keys(): IterableIterator<string> {
     return this.cache.keys();
@@ -254,6 +258,8 @@ export class LRUCache<T> {
 
   /**
    * Get all values in the cache (in LRU order, oldest first)
+   *
+   * @returns Array of cached values ordered from least to most recently used
    */
   values(): T[] {
     const result: T[] = [];

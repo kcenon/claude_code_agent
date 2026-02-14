@@ -425,7 +425,8 @@ export class PRDWriterAgent implements IAgent {
 
   /**
    * Create PRD metadata
-   * @param session
+   * @param session - The current PRD generation session
+   * @returns PRD metadata for the generated document
    */
   private createMetadata(session: PRDGenerationSession): PRDMetadata {
     const now = new Date().toISOString();
@@ -442,9 +443,10 @@ export class PRDWriterAgent implements IAgent {
 
   /**
    * Calculate generation statistics
-   * @param session
-   * @param generatedPRD
-   * @param processingTimeMs
+   * @param session - The current PRD generation session
+   * @param generatedPRD - The generated PRD document
+   * @param processingTimeMs - Total processing time in milliseconds
+   * @returns Generation statistics summary
    */
   private calculateStats(
     session: PRDGenerationSession,
@@ -487,7 +489,8 @@ export class PRDWriterAgent implements IAgent {
 
   /**
    * Ensure there is an active session in the expected state
-   * @param expectedStates
+   * @param expectedStates - Allowed session states for the current operation
+   * @returns The current active session
    */
   private ensureSession(
     expectedStates: readonly ('pending' | 'analyzing' | 'generating' | 'completed')[]
@@ -523,7 +526,7 @@ export class PRDWriterAgent implements IAgent {
 
   /**
    * Ensure directory exists
-   * @param dirPath
+   * @param dirPath - Directory path to create if missing
    */
   private async ensureDir(dirPath: string): Promise<void> {
     await fs.promises.mkdir(dirPath, { recursive: true });

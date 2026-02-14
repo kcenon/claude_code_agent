@@ -409,6 +409,8 @@ export class CachedScratchpad extends Scratchpad {
 
   /**
    * Get combined cache and batcher metrics
+   *
+   * @returns Combined cache and batcher performance metrics
    */
   getMetrics(): CachedScratchpadMetrics {
     return {
@@ -427,6 +429,8 @@ export class CachedScratchpad extends Scratchpad {
 
   /**
    * Get cache metrics only
+   *
+   * @returns Current cache performance metrics
    */
   getCacheMetrics(): CacheMetrics {
     return this.cache.getMetrics();
@@ -434,6 +438,8 @@ export class CachedScratchpad extends Scratchpad {
 
   /**
    * Get batcher metrics only
+   *
+   * @returns Current batcher metrics, or null if batching is disabled
    */
   getBatcherMetrics(): WriteBatcherMetrics | null {
     return this.batcher?.getMetrics() ?? null;
@@ -467,7 +473,9 @@ export class CachedScratchpad extends Scratchpad {
 
   /**
    * Read file with cache support
-   * @param filePath
+   *
+   * @param filePath - Absolute path to the file to read
+   * @returns Cached content entry, or null if file does not exist
    */
   private async readWithCache(filePath: string): Promise<CachedContent | null> {
     // Check for pending write first
@@ -503,7 +511,9 @@ export class CachedScratchpad extends Scratchpad {
 
   /**
    * Load file from disk and cache it
-   * @param filePath
+   *
+   * @param filePath - Absolute path to the file to load
+   * @returns Cached content entry, or null if file does not exist
    */
   private async loadAndCache(filePath: string): Promise<CachedContent | null> {
     try {
@@ -530,8 +540,10 @@ export class CachedScratchpad extends Scratchpad {
 
   /**
    * Check if cached content is still valid
-   * @param filePath
-   * @param cachedMtime
+   *
+   * @param filePath - Absolute path to the file to check
+   * @param cachedMtime - Modification time of the cached entry
+   * @returns True if the file has not been modified since caching
    */
   private async isCacheValid(filePath: string, cachedMtime: number): Promise<boolean> {
     try {
@@ -544,9 +556,10 @@ export class CachedScratchpad extends Scratchpad {
 
   /**
    * Update cache with new content
-   * @param filePath
-   * @param content
-   * @param parsed
+   *
+   * @param filePath - Absolute path used as the cache key
+   * @param content - Raw serialized content string
+   * @param parsed - Parsed data value to cache alongside raw content
    */
   private updateCache(filePath: string, content: string, parsed: unknown): void {
     const entry: CachedContent = {
@@ -559,8 +572,10 @@ export class CachedScratchpad extends Scratchpad {
 
   /**
    * Parse content based on format
-   * @param content
-   * @param format
+   *
+   * @param content - Raw string content to parse
+   * @param format - Serialization format to use for parsing
+   * @returns Parsed data value
    */
   private parseContent(content: string, format: Exclude<SerializationFormat, 'auto'>): unknown {
     // Use parent's deserialize method via read
@@ -577,9 +592,11 @@ export class CachedScratchpad extends Scratchpad {
 
   /**
    * Serialize data based on format
-   * @param data
-   * @param filePath
-   * @param format
+   *
+   * @param data - Data to serialize
+   * @param filePath - File path used for format auto-detection
+   * @param format - Optional explicit serialization format
+   * @returns Serialized string content
    */
   private serializeData(data: unknown, filePath: string, format?: SerializationFormat): string {
     const resolvedFormat =

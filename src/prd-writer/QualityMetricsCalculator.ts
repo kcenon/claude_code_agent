@@ -356,9 +356,10 @@ export class QualityMetricsCalculator {
 
   /**
    * Calculate overall score as weighted average
-   * @param completeness
-   * @param consistency
-   * @param clarity
+   * @param completeness - The completeness score (0.0 - 1.0)
+   * @param consistency - The consistency score (0.0 - 1.0)
+   * @param clarity - The clarity score (0.0 - 1.0)
+   * @returns Weighted average overall score clamped to 0.0 - 1.0
    */
   private calculateOverall(completeness: number, consistency: number, clarity: number): number {
     const totalWeight =
@@ -374,10 +375,11 @@ export class QualityMetricsCalculator {
 
   /**
    * Calculate clarity score based on analysis
-   * @param issues
-   * @param avgSentenceLength
-   * @param passivePercentage
-   * @param ambiguousCount
+   * @param issues - Array of clarity issues found during analysis
+   * @param avgSentenceLength - Average number of words per sentence
+   * @param passivePercentage - Percentage of sentences using passive voice
+   * @param ambiguousCount - Total count of ambiguous terms found
+   * @returns Clarity score clamped to 0.0 - 1.0
    */
   private calculateClarityScore(
     issues: ClarityIssue[],
@@ -413,7 +415,8 @@ export class QualityMetricsCalculator {
 
   /**
    * Find ambiguous terms in text
-   * @param text
+   * @param text - The text to search for ambiguous terms
+   * @returns Array of ambiguous terms found in the text
    */
   private findAmbiguousTerms(text: string): string[] {
     const lowerText = text.toLowerCase();
@@ -431,7 +434,8 @@ export class QualityMetricsCalculator {
 
   /**
    * Extract sentences from text
-   * @param text
+   * @param text - The text to split into sentences
+   * @returns Array of individual sentences
    */
   private extractSentences(text: string): string[] {
     // Split by sentence-ending punctuation, keeping the delimiter
@@ -445,7 +449,8 @@ export class QualityMetricsCalculator {
 
   /**
    * Count words in a sentence
-   * @param sentence
+   * @param sentence - The sentence to count words in
+   * @returns Number of words in the sentence
    */
   private countWords(sentence: string): number {
     return sentence.split(/\s+/).filter((w) => w.length > 0).length;
@@ -453,7 +458,8 @@ export class QualityMetricsCalculator {
 
   /**
    * Check if sentence is in passive voice
-   * @param sentence
+   * @param sentence - The sentence to check for passive voice
+   * @returns True if passive voice patterns are detected
    */
   private isPassiveVoice(sentence: string): boolean {
     for (const pattern of PASSIVE_INDICATORS) {
@@ -468,7 +474,8 @@ export class QualityMetricsCalculator {
 
   /**
    * Check for vague references
-   * @param sentence
+   * @param sentence - The sentence to check for vague pronoun references
+   * @returns True if vague references like "it", "this", or "that" are found at sentence start
    */
   private hasVagueReference(sentence: string): boolean {
     // Check for "it", "this", "that" at the start of a sentence or after a period
@@ -489,11 +496,12 @@ export class QualityMetricsCalculator {
 
   /**
    * Create a clarity issue with auto-generated ID
-   * @param location
-   * @param type
-   * @param description
-   * @param text
-   * @param suggestion
+   * @param location - The requirement or section where the issue was found
+   * @param type - The type of clarity issue detected
+   * @param description - Human-readable description of the issue
+   * @param text - The offending text snippet
+   * @param suggestion - Recommended action to improve clarity
+   * @returns A new ClarityIssue with an auto-incremented ID
    */
   private createClarityIssue(
     location: string,

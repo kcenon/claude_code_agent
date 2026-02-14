@@ -95,7 +95,8 @@ export class GapAnalyzer {
 
   /**
    * Analyze project information for gaps
-   * @param info
+   * @param info - The collected project information
+   * @returns Array of gap items found in project info
    */
   private analyzeProjectInfo(info: CollectedInfo): GapItem[] {
     const gaps: GapItem[] = [];
@@ -131,7 +132,8 @@ export class GapAnalyzer {
 
   /**
    * Analyze functional requirements for gaps
-   * @param info
+   * @param info - The collected project information
+   * @returns Array of gap items found in functional requirements
    */
   private analyzeFunctionalRequirements(info: CollectedInfo): GapItem[] {
     const gaps: GapItem[] = [];
@@ -201,7 +203,8 @@ export class GapAnalyzer {
 
   /**
    * Analyze non-functional requirements for gaps
-   * @param info
+   * @param info - The collected project information
+   * @returns Array of gap items found in non-functional requirements
    */
   private analyzeNonFunctionalRequirements(info: CollectedInfo): GapItem[] {
     const gaps: GapItem[] = [];
@@ -246,7 +249,8 @@ export class GapAnalyzer {
 
   /**
    * Analyze constraints and assumptions for gaps
-   * @param info
+   * @param info - The collected project information
+   * @returns Array of gap items found in constraints and assumptions
    */
   private analyzeConstraintsAndAssumptions(info: CollectedInfo): GapItem[] {
     const gaps: GapItem[] = [];
@@ -290,7 +294,8 @@ export class GapAnalyzer {
 
   /**
    * Analyze dependencies for gaps
-   * @param info
+   * @param info - The collected project information
+   * @returns Array of gap items found in dependencies
    */
   private analyzeDependencies(info: CollectedInfo): GapItem[] {
     const gaps: GapItem[] = [];
@@ -317,8 +322,9 @@ export class GapAnalyzer {
 
   /**
    * Calculate completeness score based on collected info and gaps
-   * @param info
-   * @param gaps
+   * @param info - The collected project information
+   * @param gaps - Array of identified gap items
+   * @returns Completeness score between 0.0 and 1.0
    */
   private calculateCompletenessScore(info: CollectedInfo, gaps: GapItem[]): number {
     // Base score starts at 1.0
@@ -356,12 +362,13 @@ export class GapAnalyzer {
 
   /**
    * Create a gap item with auto-generated ID
-   * @param category
-   * @param severity
-   * @param section
-   * @param description
-   * @param suggestion
-   * @param relatedId
+   * @param category - Gap category classification
+   * @param severity - Severity level of the gap
+   * @param section - PRD section where the gap was found
+   * @param description - Human-readable description of the gap
+   * @param suggestion - Suggested remediation action
+   * @param relatedId - Optional ID of the related requirement or item
+   * @returns A new GapItem with auto-incremented ID
    */
   private createGap(
     category: GapCategory,

@@ -265,6 +265,7 @@ export class SecureFileHandler {
    * Check if a path is tracked for cleanup
    *
    * @param targetPath - Path to check
+   * @returns True if the path is being tracked
    */
   public isTracked(targetPath: string): boolean {
     return this.trackedPaths.has(targetPath);
@@ -272,6 +273,7 @@ export class SecureFileHandler {
 
   /**
    * Get count of tracked paths
+   * @returns The number of paths currently tracked for cleanup
    */
   public getTrackedCount(): number {
     return this.trackedPaths.size;
@@ -329,6 +331,7 @@ export class SecureFileHandler {
    * Check if a file exists and is accessible
    *
    * @param filePath - Path to check
+   * @returns True if the file exists and is accessible
    */
   public async exists(filePath: string): Promise<boolean> {
     try {

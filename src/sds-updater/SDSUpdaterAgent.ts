@@ -98,7 +98,7 @@ export class SDSUpdaterAgent implements IAgent {
   }
 
   /**
-   *
+   * Initialize the agent and load required dependencies
    */
   public async initialize(): Promise<void> {
     if (this.initialized) return;
@@ -107,7 +107,7 @@ export class SDSUpdaterAgent implements IAgent {
   }
 
   /**
-   *
+   * Dispose of the agent and release resources
    */
   public async dispose(): Promise<void> {
     await Promise.resolve();
@@ -117,7 +117,8 @@ export class SDSUpdaterAgent implements IAgent {
 
   /**
    * Start a new SDS update session
-   * @param projectId
+   * @param projectId - Project identifier for the update session
+   * @returns The created SDS updater session
    */
   public async startSession(projectId: string): Promise<SDSUpdaterSession> {
     await loadYaml();
@@ -137,7 +138,8 @@ export class SDSUpdaterAgent implements IAgent {
 
   /**
    * Load an existing SDS document for updating
-   * @param sdsPath
+   * @param sdsPath - Optional path to the SDS file; auto-detected if omitted
+   * @returns The parsed SDS document
    */
   public async loadSDS(sdsPath?: string): Promise<ParsedSDS> {
     const session = this.ensureSession();
@@ -180,7 +182,8 @@ export class SDSUpdaterAgent implements IAgent {
 
   /**
    * Apply a change request to the loaded SDS
-   * @param changeRequest
+   * @param changeRequest - The change request describing the update operation
+   * @returns Operation result with updated paths and change summary
    */
   public async applyChange(changeRequest: SDSChangeRequest): Promise<SDSUpdateOperationResult> {
     const session = this.ensureSession();
@@ -391,6 +394,7 @@ export class SDSUpdaterAgent implements IAgent {
 
   /**
    * Get the current session
+   * @returns Current updater session or null if none active
    */
   public getSession(): SDSUpdaterSession | null {
     return this.session;
@@ -1558,7 +1562,8 @@ let globalSDSUpdaterAgent: SDSUpdaterAgent | null = null;
 
 /**
  * Get the global SDS Updater Agent instance
- * @param config
+ * @param config - Optional configuration for agent initialization
+ * @returns The global SDSUpdaterAgent singleton instance
  */
 export function getSDSUpdaterAgent(config?: SDSUpdaterConfig): SDSUpdaterAgent {
   if (globalSDSUpdaterAgent === null) {

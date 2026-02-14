@@ -56,8 +56,9 @@ export class FileBackend implements IScratchpadBackend {
 
   /**
    * Get the file path for a section/key combination
-   * @param section
-   * @param key
+   * @param section - Storage section name
+   * @param key - Entry key within the section
+   * @returns The absolute file path for the entry
    */
   private getFilePath(section: string, key: string): string {
     return path.join(this.basePath, section, `${key}${this.extension}`);
@@ -65,7 +66,8 @@ export class FileBackend implements IScratchpadBackend {
 
   /**
    * Get the section directory path
-   * @param section
+   * @param section - Storage section name
+   * @returns The absolute directory path for the section
    */
   private getSectionPath(section: string): string {
     return path.join(this.basePath, section);
@@ -73,7 +75,8 @@ export class FileBackend implements IScratchpadBackend {
 
   /**
    * Serialize data to string
-   * @param data
+   * @param data - The data to serialize
+   * @returns The serialized string representation
    */
   private serialize(data: unknown): string {
     if (this.format === 'raw') {
@@ -91,7 +94,8 @@ export class FileBackend implements IScratchpadBackend {
 
   /**
    * Deserialize string to data
-   * @param content
+   * @param content - The serialized string to deserialize
+   * @returns The deserialized data
    */
   private deserialize(content: string): unknown {
     if (this.format === 'raw') {
@@ -105,7 +109,7 @@ export class FileBackend implements IScratchpadBackend {
 
   /**
    * Ensure a directory exists
-   * @param dirPath
+   * @param dirPath - The directory path to create if missing
    */
   private async ensureDir(dirPath: string): Promise<void> {
     await fs.promises.mkdir(dirPath, { recursive: true, mode: this.dirMode });
@@ -113,8 +117,8 @@ export class FileBackend implements IScratchpadBackend {
 
   /**
    * Write file atomically (write to temp, then rename)
-   * @param filePath
-   * @param content
+   * @param filePath - The target file path
+   * @param content - The content to write
    */
   private async atomicWrite(filePath: string, content: string): Promise<void> {
     const dir = path.dirname(filePath);
@@ -139,16 +143,17 @@ export class FileBackend implements IScratchpadBackend {
   }
 
   /**
-   *
+   * Initialize the file backend by ensuring the base directory exists
    */
   async initialize(): Promise<void> {
     await this.ensureDir(this.basePath);
   }
 
   /**
-   *
-   * @param section
-   * @param key
+   * Read a value from the filesystem by section and key
+   * @param section - Storage section name
+   * @param key - Entry key within the section
+   * @returns The deserialized value, or null if the file does not exist
    */
   async read<T>(section: string, key: string): Promise<T | null> {
     const filePath = this.getFilePath(section, key);
@@ -165,10 +170,10 @@ export class FileBackend implements IScratchpadBackend {
   }
 
   /**
-   *
-   * @param section
-   * @param key
-   * @param value
+   * Write a value to the filesystem under the given section and key
+   * @param section - Storage section name
+   * @param key - Entry key within the section
+   * @param value - The value to serialize and store
    */
   // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters
   async write<T>(section: string, key: string, value: T): Promise<void> {
@@ -178,9 +183,10 @@ export class FileBackend implements IScratchpadBackend {
   }
 
   /**
-   *
-   * @param section
-   * @param key
+   * Delete a file entry by section and key
+   * @param section - Storage section name
+   * @param key - Entry key within the section
+   * @returns True if the file was deleted, false if it did not exist
    */
   async delete(section: string, key: string): Promise<boolean> {
     const filePath = this.getFilePath(section, key);
@@ -197,8 +203,9 @@ export class FileBackend implements IScratchpadBackend {
   }
 
   /**
-   *
-   * @param section
+   * List all keys within a section directory
+   * @param section - Storage section name
+   * @returns Array of key names in the section
    */
   async list(section: string): Promise<string[]> {
     const sectionPath = this.getSectionPath(section);
@@ -217,9 +224,10 @@ export class FileBackend implements IScratchpadBackend {
   }
 
   /**
-   *
-   * @param section
-   * @param key
+   * Check if a file entry exists
+   * @param section - Storage section name
+   * @param key - Entry key within the section
+   * @returns True if the file exists
    */
   async exists(section: string, key: string): Promise<boolean> {
     const filePath = this.getFilePath(section, key);
@@ -233,8 +241,8 @@ export class FileBackend implements IScratchpadBackend {
   }
 
   /**
-   *
-   * @param operations
+   * Execute multiple operations sequentially
+   * @param operations - Array of batch operations to execute
    */
   async batch(operations: BatchOperation[]): Promise<void> {
     // File backend doesn't have true transactions, so we execute sequentially
@@ -250,7 +258,8 @@ export class FileBackend implements IScratchpadBackend {
   }
 
   /**
-   *
+   * Check the health of the file backend
+   * @returns Health status including filesystem accessibility and latency
    */
   async healthCheck(): Promise<BackendHealth> {
     try {
@@ -273,7 +282,7 @@ export class FileBackend implements IScratchpadBackend {
   }
 
   /**
-   *
+   * Close the file backend (no-op as there are no resources to release)
    */
   async close(): Promise<void> {
     // No resources to release for file backend

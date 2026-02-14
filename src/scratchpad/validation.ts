@@ -201,6 +201,8 @@ export class SchemaValidationError extends Error {
 
   /**
    * Format errors as a readable string
+   *
+   * @returns Formatted multi-line string of all validation errors
    */
   public formatErrors(): string {
     return this.errors.map((e) => `  - ${e.path}: ${e.message}`).join('\n');

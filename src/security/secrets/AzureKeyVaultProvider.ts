@@ -177,8 +177,10 @@ export class AzureKeyVaultProvider extends BaseSecretProvider {
 
   /**
    * Retrieve a secret from Azure Key Vault
-   * @param name
-   * @param version
+   *
+   * @param name - The secret name to retrieve
+   * @param version - Optional version identifier
+   * @returns The secret with metadata or null if not found
    */
   protected async doGetSecret(name: string, version?: string): Promise<Secret | null> {
     if (this.client === null) {
@@ -234,6 +236,8 @@ export class AzureKeyVaultProvider extends BaseSecretProvider {
 
   /**
    * Check if Azure Key Vault is accessible
+   *
+   * @returns True if the vault is reachable
    */
   protected async doHealthCheck(): Promise<boolean> {
     if (this.client === null) {
@@ -253,6 +257,8 @@ export class AzureKeyVaultProvider extends BaseSecretProvider {
 
   /**
    * Close the Azure Key Vault client
+   *
+   * @returns A resolved promise after cleanup
    */
   protected doClose(): Promise<void> {
     // SecretClient doesn't have a close method, just clear the reference

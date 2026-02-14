@@ -122,6 +122,7 @@ export class RateLimiter {
    * Check rate limit and throw if exceeded
    *
    * @param key - The rate limit key
+   * @returns The rate limit status if within limits
    * @throws RateLimitExceededError if limit exceeded
    */
   public checkOrThrow(key: string): RateLimitStatus {
@@ -180,6 +181,7 @@ export class RateLimiter {
 
   /**
    * Get the configuration
+   * @returns A copy of the current rate limit configuration
    */
   public getConfig(): RateLimitConfig {
     return { ...this.config };
@@ -187,6 +189,7 @@ export class RateLimiter {
 
   /**
    * Get the number of tracked keys
+   * @returns The count of currently tracked rate limit keys
    */
   public getTrackedCount(): number {
     return this.entries.size;
@@ -199,6 +202,7 @@ export class RateLimiter {
 export const RateLimiters = {
   /**
    * GitHub API rate limiter (5000 requests per hour for authenticated)
+   * @returns A RateLimiter configured for GitHub API limits
    */
   github: (): RateLimiter =>
     new RateLimiter({
@@ -208,6 +212,7 @@ export const RateLimiters = {
 
   /**
    * Claude API rate limiter (moderate limit)
+   * @returns A RateLimiter configured for Claude API limits
    */
   claude: (): RateLimiter =>
     new RateLimiter({
@@ -217,6 +222,7 @@ export const RateLimiters = {
 
   /**
    * Strict rate limiter for sensitive operations
+   * @returns A RateLimiter with low request limits
    */
   strict: (): RateLimiter =>
     new RateLimiter({
@@ -226,6 +232,7 @@ export const RateLimiters = {
 
   /**
    * Lenient rate limiter for less sensitive operations
+   * @returns A RateLimiter with high request limits
    */
   lenient: (): RateLimiter =>
     new RateLimiter({

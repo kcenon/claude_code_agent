@@ -104,6 +104,7 @@ export class BackendFactory {
 
   /**
    * Get the default backend type
+   * @returns The default backend type identifier
    */
   static getDefaultType(): BackendType {
     return 'file';
@@ -111,6 +112,7 @@ export class BackendFactory {
 
   /**
    * Get all supported backend types
+   * @returns Array of all supported backend type identifiers
    */
   static getSupportedTypes(): readonly BackendType[] {
     return ['file', 'sqlite', 'redis'] as const;
@@ -118,7 +120,8 @@ export class BackendFactory {
 
   /**
    * Check if a backend type is supported
-   * @param type
+   * @param type - The backend type string to check
+   * @returns True if the type is a supported backend
    */
   static isSupported(type: string): type is BackendType {
     return ['file', 'sqlite', 'redis'].includes(type);

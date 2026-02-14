@@ -259,6 +259,8 @@ export class ProviderSecretManager {
 
   /**
    * Get health status of all providers
+   *
+   * @returns An object containing overall health and per-provider status
    */
   public async getHealth(): Promise<{
     healthy: boolean;
@@ -309,6 +311,8 @@ export class ProviderSecretManager {
 
   /**
    * Get list of provider names
+   *
+   * @returns An array of registered provider names
    */
   public getProviderNames(): string[] {
     return this.providers.map((p) => p.name);
@@ -316,6 +320,8 @@ export class ProviderSecretManager {
 
   /**
    * Check if the manager has been initialized with at least one provider
+   *
+   * @returns True if at least one provider has been added
    */
   public isInitialized(): boolean {
     return this.initialized;
@@ -333,7 +339,7 @@ export class ProviderSecretManager {
 
   /**
    * Reset circuit breaker for a specific provider
-   * @param providerName
+   * @param providerName - The name of the provider to reset
    */
   public resetCircuitBreaker(providerName: string): void {
     const cb = this.circuitBreakers.get(providerName);
@@ -348,7 +354,9 @@ export class ProviderSecretManager {
 
   /**
    * Convert a secret name to environment variable format
-   * @param name
+   *
+   * @returns The environment variable name
+   * @param name - The secret name to convert
    */
   private toEnvName(name: string): string {
     return name.replace(/[/.:@-]/g, '_').toUpperCase();
@@ -356,7 +364,9 @@ export class ProviderSecretManager {
 
   /**
    * Check if a provider is available (circuit breaker not open)
-   * @param providerName
+   *
+   * @returns True if the provider circuit breaker allows requests
+   * @param providerName - The name of the provider to check
    */
   private isProviderAvailable(providerName: string): boolean {
     const cb = this.circuitBreakers.get(providerName);
@@ -365,7 +375,9 @@ export class ProviderSecretManager {
 
   /**
    * Check if circuit breaker allows requests
-   * @param cb
+   *
+   * @returns True if the circuit is closed or eligible for half-open retry
+   * @param cb - The circuit breaker instance to check
    */
   private isCircuitReady(cb: CircuitBreakerInstance): boolean {
     if (cb.state === 'closed') {
@@ -388,7 +400,7 @@ export class ProviderSecretManager {
 
   /**
    * Record a successful request for circuit breaker
-   * @param providerName
+   * @param providerName - The name of the provider that succeeded
    */
   private recordSuccess(providerName: string): void {
     const cb = this.circuitBreakers.get(providerName);
@@ -411,7 +423,7 @@ export class ProviderSecretManager {
 
   /**
    * Record a failed request for circuit breaker
-   * @param providerName
+   * @param providerName - The name of the provider that failed
    */
   private recordFailure(providerName: string): void {
     const cb = this.circuitBreakers.get(providerName);

@@ -255,8 +255,8 @@ export class ApprovalWorkflow {
 
   /**
    * Validate feedback based on decision
-   * @param decision
-   * @param feedback
+   * @param decision - The approval decision made by the reviewer
+   * @param feedback - Optional feedback text from the reviewer
    */
   private validateFeedback(decision: ApprovalDecision, feedback?: string): void {
     const hasFeedback = feedback !== undefined && feedback.trim().length > 0;
@@ -272,8 +272,8 @@ export class ApprovalWorkflow {
 
   /**
    * Handle approve decision
-   * @param projectId
-   * @param documentType
+   * @param projectId - Project identifier
+   * @param documentType - Type of document being approved
    */
   private async handleApprove(projectId: string, documentType: ApprovableDocument): Promise<void> {
     const stateConfig = DOCUMENT_STATE_MAP[documentType];
@@ -304,9 +304,9 @@ export class ApprovalWorkflow {
 
   /**
    * Handle request_changes decision
-   * @param projectId
-   * @param documentType
-   * @param feedback
+   * @param projectId - Project identifier
+   * @param documentType - Type of document requiring changes
+   * @param feedback - Feedback describing the requested changes
    */
   private async handleRequestChanges(
     projectId: string,
@@ -336,8 +336,8 @@ export class ApprovalWorkflow {
 
   /**
    * Handle reject decision
-   * @param projectId
-   * @param _documentType
+   * @param projectId - Project identifier
+   * @param _documentType - Type of document being rejected
    */
   private async handleReject(projectId: string, _documentType: ApprovableDocument): Promise<void> {
     // Transition to cancelled state
@@ -355,8 +355,8 @@ export class ApprovalWorkflow {
 
   /**
    * Copy approved document to public docs directory
-   * @param projectId
-   * @param documentType
+   * @param projectId - Project identifier
+   * @param documentType - Type of document to copy
    */
   private async copyToPublicDocs(
     projectId: string,
@@ -383,8 +383,9 @@ export class ApprovalWorkflow {
 
   /**
    * Get document metadata
-   * @param projectId
-   * @param documentType
+   * @param projectId - Project identifier
+   * @param documentType - Type of approvable document
+   * @returns PRD metadata for the specified document
    */
   private getDocumentMetadata(projectId: string, documentType: ApprovableDocument): PRDMetadata {
     const now = new Date().toISOString();
@@ -403,8 +404,9 @@ export class ApprovalWorkflow {
 
   /**
    * Get approval history file path
-   * @param projectId
-   * @param documentType
+   * @param projectId - Project identifier
+   * @param documentType - Type of approvable document
+   * @returns File path to the approval history JSON
    */
   private getHistoryPath(projectId: string, documentType: ApprovableDocument): string {
     const scratchpad = getScratchpad({ basePath: this.config.scratchpadBasePath });
@@ -416,9 +418,9 @@ export class ApprovalWorkflow {
 
   /**
    * Add entry to approval history
-   * @param projectId
-   * @param documentType
-   * @param entry
+   * @param projectId - Project identifier
+   * @param documentType - Type of approvable document
+   * @param entry - Approval history entry to add
    */
   private async addHistoryEntry(
     projectId: string,
@@ -438,9 +440,9 @@ export class ApprovalWorkflow {
 
   /**
    * Save approval history
-   * @param projectId
-   * @param documentType
-   * @param history
+   * @param projectId - Project identifier
+   * @param documentType - Type of approvable document
+   * @param history - Approval history data to persist
    */
   private async saveApprovalHistory(
     projectId: string,
