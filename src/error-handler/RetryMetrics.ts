@@ -214,6 +214,7 @@ export class RetryMetrics {
 
   /**
    * Get total number of records
+   * @returns The total number of recorded retry operations
    */
   public get recordCount(): number {
     return this.records.length;

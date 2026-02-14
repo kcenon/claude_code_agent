@@ -38,6 +38,7 @@ export class ConfigValidationError extends Error {
 
   /**
    * Format errors as a readable string
+   * @returns A formatted multi-line string describing all validation errors
    */
   public formatErrors(): string {
     if (this.errors.length === 0) {

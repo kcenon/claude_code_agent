@@ -59,8 +59,9 @@ const ERROR_CATEGORY_MAP: Record<string, ErrorCategory> = {
 export class ErrorHandler {
   /**
    * Handle an error with logging and optional output
-   * @param error
-   * @param options
+   * @param error - The error to handle
+   * @param options - Options controlling logging, output, and formatting
+   * @returns The normalized AppError instance
    */
   static handle(error: unknown, options: ErrorHandleOptions = {}): AppError {
     const appError = AppError.normalize(error);
@@ -88,7 +89,8 @@ export class ErrorHandler {
 
   /**
    * Normalize any error to AppError
-   * @param error
+   * @param error - The unknown error value to normalize
+   * @returns The normalized AppError instance
    */
   static normalize(error: unknown): AppError {
     return AppError.normalize(error);
@@ -96,7 +98,8 @@ export class ErrorHandler {
 
   /**
    * Categorize an error for retry decision
-   * @param error
+   * @param error - The error to categorize
+   * @returns The determined error category
    */
   static categorize(error: Error): ErrorCategory {
     if (error instanceof AppError) {
@@ -150,7 +153,8 @@ export class ErrorHandler {
 
   /**
    * Get suggested action based on error
-   * @param error
+   * @param error - The error to get a suggestion for
+   * @returns A human-readable suggested action string
    */
   static getSuggestedAction(error: Error): string {
     const appError = error instanceof AppError ? error : AppError.normalize(error);
@@ -170,8 +174,9 @@ export class ErrorHandler {
 
   /**
    * Create extended error information
-   * @param error
-   * @param additionalContext
+   * @param error - The source error to extract information from
+   * @param additionalContext - Extra context to merge into the error info
+   * @returns An ErrorInfo object with category, code, and suggested action
    */
   static createErrorInfo(error: Error, additionalContext: ErrorContext = {}): ErrorInfo {
     const appError = error instanceof AppError ? error : AppError.normalize(error);
@@ -194,7 +199,8 @@ export class ErrorHandler {
 
   /**
    * Check if error is retryable
-   * @param error
+   * @param error - The error to check for retryability
+   * @returns True if the error can be retried
    */
   static isRetryable(error: Error): boolean {
     if (error instanceof AppError) {
@@ -205,7 +211,8 @@ export class ErrorHandler {
 
   /**
    * Check if error requires escalation
-   * @param error
+   * @param error - The error to check for escalation requirement
+   * @returns True if the error requires immediate escalation
    */
   static requiresEscalation(error: Error): boolean {
     if (error instanceof AppError) {
@@ -216,8 +223,8 @@ export class ErrorHandler {
 
   /**
    * Log error to console with appropriate level
-   * @param error
-   * @param level
+   * @param error - The AppError to log
+   * @param level - The console log level to use
    */
   private static log(error: AppError, level: 'debug' | 'info' | 'warn' | 'error' = 'error'): void {
     const formatted = error.format('log');
@@ -240,7 +247,7 @@ export class ErrorHandler {
 
   /**
    * Report critical errors
-   * @param error
+   * @param error - The critical AppError to report
    */
   private static report(error: AppError): void {
     // Log critical error details
@@ -252,8 +259,9 @@ export class ErrorHandler {
 
   /**
    * Create a function that wraps errors with a specific code
-   * @param code
-   * @param defaultContext
+   * @param code - The error code to assign to wrapped errors
+   * @param defaultContext - Default context to attach to wrapped errors
+   * @returns A function that wraps unknown errors into AppError instances
    */
   static createWrapper(
     code: string,
@@ -264,10 +272,10 @@ export class ErrorHandler {
 
   /**
    * Assert condition and throw AppError if false
-   * @param condition
-   * @param code
-   * @param message
-   * @param context
+   * @param condition - The condition to assert as truthy
+   * @param code - The error code to use if assertion fails
+   * @param message - The error message if assertion fails
+   * @param context - Additional context for the assertion error
    */
   static assert(
     condition: boolean,
@@ -286,9 +294,10 @@ export class ErrorHandler {
 
   /**
    * Execute a function and wrap any thrown error
-   * @param fn
-   * @param code
-   * @param context
+   * @param fn - The async function to execute
+   * @param code - The error code to assign if the function throws
+   * @param context - Additional context for the wrapped error
+   * @returns The result of the executed function
    */
   static async wrapAsync<T>(
     fn: () => Promise<T>,
@@ -304,9 +313,10 @@ export class ErrorHandler {
 
   /**
    * Execute a function and wrap any thrown error (sync version)
-   * @param fn
-   * @param code
-   * @param context
+   * @param fn - The synchronous function to execute
+   * @param code - The error code to assign if the function throws
+   * @param context - Additional context for the wrapped error
+   * @returns The result of the executed function
    */
   static wrapSync<T>(fn: () => T, code: string, context: ErrorContext = {}): T {
     try {
