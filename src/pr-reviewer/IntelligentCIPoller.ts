@@ -87,9 +87,9 @@ export class IntelligentCIPoller {
   /**
    * Poll CI status until completion or failure
    *
-   * @param prNumber - PR number to poll
-   * @param statusChecker - Function to check CI status
-   * @returns Poll result with success/failure details
+   * @param prNumber - Target pull request number to monitor
+   * @param statusChecker - Async function that queries CI status for the given PR
+   * @returns Final poll result with success/failure status, reason, poll count, and elapsed time
    */
   public async pollUntilComplete(
     prNumber: number,
@@ -228,9 +228,9 @@ export class IntelligentCIPoller {
   /**
    * Classify a CI check failure
    *
-   * @param check - The failed check
-   * @param errorMessage - Optional error message
-   * @returns Classified failure details
+   * @param check - The GitHub status check that failed
+   * @param errorMessage - Error output from the check for failure classification
+   * @returns Classified failure with type (transient/persistent/terminal) and recoverability
    */
   public classifyFailure(check: GitHubStatusCheck, errorMessage?: string): CICheckFailure {
     const failureType = this.determineFailureType(check.name, errorMessage);
@@ -251,8 +251,9 @@ export class IntelligentCIPoller {
 
   /**
    * Determine the type of failure based on check name and error
-   * @param checkName
-   * @param errorMessage
+   * @param checkName - Name of the CI check (e.g., "test", "build", "lint")
+   * @param errorMessage - Optional error output used for pattern matching
+   * @returns Failure classification: transient, persistent, or terminal
    */
   public determineFailureType(checkName: string, errorMessage?: string): FailureType {
     const lowerName = checkName.toLowerCase();
@@ -327,6 +328,7 @@ export class IntelligentCIPoller {
 
   /**
    * Get the circuit breaker instance
+   * @returns The CICircuitBreaker used by this poller
    */
   public getCircuitBreaker(): CICircuitBreaker {
     return this.circuitBreaker;
@@ -334,6 +336,7 @@ export class IntelligentCIPoller {
 
   /**
    * Get configuration
+   * @returns Copy of the poller configuration with intervals, backoff, and limits
    */
   public getConfig(): IntelligentPollerConfig {
     return { ...this.config };
@@ -341,7 +344,8 @@ export class IntelligentCIPoller {
 
   /**
    * Register an event listener
-   * @param listener
+   * @param listener - Callback invoked on poll, backoff, failure classification, and circuit events
+   * @returns Unsubscribe function that removes the listener when called
    */
   public onEvent(listener: PollerEventListener): () => void {
     this.listeners.push(listener);
@@ -362,8 +366,9 @@ export class IntelligentCIPoller {
 
   /**
    * Calculate the next polling interval with exponential backoff and jitter
-   * @param currentInterval
-   * @param state
+   * @param currentInterval - Current polling interval in milliseconds
+   * @param state - CI status or error state used to adjust backoff aggressiveness
+   * @returns Next interval in milliseconds, capped at maxIntervalMs plus jitter
    */
   private calculateNextInterval(currentInterval: number, state: string): number {
     // Apply different backoff based on state
@@ -389,7 +394,8 @@ export class IntelligentCIPoller {
 
   /**
    * Delay for specified milliseconds
-   * @param ms
+   * @param ms - Duration to wait in milliseconds
+   * @returns Promise that resolves after the specified delay
    */
   private delay(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
@@ -397,7 +403,7 @@ export class IntelligentCIPoller {
 
   /**
    * Emit an event to all listeners
-   * @param event
+   * @param event - Poller event to broadcast to registered listeners
    */
   private emit(event: PollerEvent): void {
     for (const listener of this.listeners) {
@@ -413,8 +419,8 @@ export class IntelligentCIPoller {
 /**
  * Create a status checker from GitHub PR info
  *
- * @param getPRInfo - Function to get PR info from GitHub
- * @returns Status checker function
+ * @param getPRInfo - Async function that fetches PR status check rollup from GitHub
+ * @returns CIStatusChecker that determines overall CI state for a given PR
  */
 export function createStatusChecker(
   getPRInfo: (prNumber: number) => Promise<{

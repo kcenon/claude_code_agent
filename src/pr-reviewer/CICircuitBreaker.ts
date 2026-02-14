@@ -64,8 +64,8 @@ export class CICircuitBreaker {
   /**
    * Execute an operation through the circuit breaker
    *
-   * @param operation - The async operation to execute
-   * @returns The operation result
+   * @param operation - Async function to execute if the circuit allows it
+   * @returns Resolved value from the operation
    * @throws CircuitOpenError if circuit is open and not ready to recover
    */
   public async execute<T>(operation: () => Promise<T>): Promise<T> {
@@ -91,6 +91,7 @@ export class CICircuitBreaker {
   /**
    * Check if an operation can be attempted
    * Returns true if circuit is closed or ready to attempt recovery
+   * @returns True if the circuit is closed, half-open, or the reset timeout has elapsed
    */
   public canAttempt(): boolean {
     if (this.state === 'closed' || this.state === 'half-open') {
@@ -140,7 +141,7 @@ export class CICircuitBreaker {
 
   /**
    * Record a failed operation
-   * @param failureType - Optional classification of the failure
+   * @param failureType - Classification of the failure (transient, persistent, or terminal)
    */
   public recordFailure(failureType?: FailureType): void {
     const now = Date.now();
@@ -212,6 +213,7 @@ export class CICircuitBreaker {
 
   /**
    * Get current circuit breaker status
+   * @returns Snapshot of state, failure/success counts, and timestamps
    */
   public getStatus(): CircuitBreakerStatus {
     return {
@@ -225,6 +227,7 @@ export class CICircuitBreaker {
 
   /**
    * Get current state
+   * @returns Current circuit state: closed, open, or half-open
    */
   public getState(): CircuitState {
     return this.state;
@@ -232,6 +235,7 @@ export class CICircuitBreaker {
 
   /**
    * Get configuration
+   * @returns Copy of the circuit breaker configuration
    */
   public getConfig(): CircuitBreakerConfig {
     return { ...this.config };
@@ -239,6 +243,7 @@ export class CICircuitBreaker {
 
   /**
    * Check if circuit is open
+   * @returns True if the circuit is in the open state
    */
   public isOpen(): boolean {
     return this.state === 'open';
@@ -246,6 +251,7 @@ export class CICircuitBreaker {
 
   /**
    * Check if circuit is closed
+   * @returns True if the circuit is in the closed (normal) state
    */
   public isClosed(): boolean {
     return this.state === 'closed';
@@ -253,6 +259,7 @@ export class CICircuitBreaker {
 
   /**
    * Check if circuit is half-open
+   * @returns True if the circuit is in the half-open (recovery testing) state
    */
   public isHalfOpen(): boolean {
     return this.state === 'half-open';
@@ -261,6 +268,7 @@ export class CICircuitBreaker {
   /**
    * Get time until next reset attempt in ms
    * Returns 0 if circuit is not open or ready to attempt reset
+   * @returns Milliseconds remaining until a recovery attempt is allowed
    */
   public getTimeUntilReset(): number {
     if (this.state !== 'open') {
@@ -274,7 +282,8 @@ export class CICircuitBreaker {
 
   /**
    * Register an event listener
-   * @param listener
+   * @param listener - Callback invoked on state changes, failures, successes, and resets
+   * @returns Unsubscribe function that removes the listener when called
    */
   public onEvent(listener: CircuitBreakerEventListener): () => void {
     this.listeners.push(listener);
@@ -288,6 +297,7 @@ export class CICircuitBreaker {
 
   /**
    * Check if enough time has passed to attempt reset
+   * @returns True if the reset timeout has elapsed since the last failure
    */
   private shouldAttemptReset(): boolean {
     return Date.now() - this.lastFailureTime >= this.config.resetTimeoutMs;
@@ -295,7 +305,7 @@ export class CICircuitBreaker {
 
   /**
    * Transition to a new state
-   * @param newState
+   * @param newState - Target circuit state to transition to
    */
   private transitionTo(newState: CircuitState): void {
     if (this.state === newState) {
@@ -321,7 +331,7 @@ export class CICircuitBreaker {
 
   /**
    * Emit an event to all listeners
-   * @param event
+   * @param event - Circuit breaker event to broadcast to registered listeners
    */
   private emit(event: CircuitBreakerEvent): void {
     for (const listener of this.listeners) {

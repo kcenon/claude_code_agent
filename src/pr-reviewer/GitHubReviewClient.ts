@@ -76,8 +76,8 @@ export class GitHubReviewClient {
    * Uses the GitHub REST API to create a review with multiple file comments
    * attached to specific lines in the diff.
    *
-   * @param request - The review request with comments
-   * @returns Result of the review submission
+   * @param request - Multi-file review containing PR number, body, event type, and line-level comments
+   * @returns Aggregated result with review status, per-comment results, and success/failure counts
    */
   public async submitMultiFileReview(
     request: MultiFileReviewRequest
@@ -164,10 +164,10 @@ export class GitHubReviewClient {
   /**
    * Add a single line-level comment to a PR
    *
-   * @param prNumber - The PR number
-   * @param comment - The comment to add
-   * @param commitSha - The commit SHA to attach the comment to
-   * @returns Result of the comment submission
+   * @param prNumber - Target pull request number
+   * @param comment - Line-level comment with file path, line number, body, and optional suggestion
+   * @param commitSha - HEAD commit SHA to anchor the comment; fetched automatically if omitted
+   * @returns Comment result indicating success or failure with error details
    */
   public async addLineComment(
     prNumber: number,
@@ -221,8 +221,9 @@ export class GitHubReviewClient {
    *
    * Uses POST /repos/{owner}/{repo}/pulls/{pull_number}/reviews
    * with comments array for efficient batch submission.
-   * @param request
-   * @param commitSha
+   * @param request - Multi-file review request containing PR number, body, event, and comments
+   * @param commitSha - HEAD commit SHA to anchor all comments in the review
+   * @returns Object indicating whether the review was submitted and its ID if successful
    */
   private async createBatchReview(
     request: MultiFileReviewRequest,
@@ -276,9 +277,10 @@ export class GitHubReviewClient {
 
   /**
    * Submit a review without line comments
-   * @param prNumber
-   * @param body
-   * @param event
+   * @param prNumber - Target pull request number
+   * @param body - Review body text (summary or feedback)
+   * @param event - Review action: APPROVE, REQUEST_CHANGES, or COMMENT
+   * @returns Object indicating success and the review ID if created
    */
   private async submitReviewOnly(
     prNumber: number,
@@ -310,7 +312,8 @@ export class GitHubReviewClient {
 
   /**
    * Get the head commit SHA for a PR
-   * @param prNumber
+   * @param prNumber - Target pull request number
+   * @returns HEAD commit SHA string for the PR branch
    */
   private async getPRHeadCommit(prNumber: number): Promise<string> {
     const result = await this.executeCommand(
@@ -326,6 +329,7 @@ export class GitHubReviewClient {
 
   /**
    * Get repository owner and name
+   * @returns Parsed owner and repo name from the current git repository
    */
   private async getRepoInfo(): Promise<{ owner: string; repo: string }> {
     if (this.repoInfo !== null) {
@@ -354,11 +358,12 @@ export class GitHubReviewClient {
    *
    * Helper method to convert internal review comments to the format
    * expected by the GitHub API.
-   * @param file
-   * @param line
-   * @param severity
-   * @param comment
-   * @param suggestedFix
+   * @param file - Relative file path within the repository
+   * @param line - Line number in the file to attach the comment to
+   * @param severity - Severity level (critical, major, minor, suggestion)
+   * @param comment - Review comment text describing the issue
+   * @param suggestedFix - Optional code suggestion block to include
+   * @returns Formatted LineReviewComment ready for the GitHub API
    */
   public static convertToLineComment(
     file: string,
@@ -386,7 +391,8 @@ export class GitHubReviewClient {
 
   /**
    * Get emoji for severity level
-   * @param severity
+   * @param severity - Severity level string to map to an emoji
+   * @returns Unicode emoji character representing the severity
    */
   private static getSeverityEmoji(severity: string): string {
     switch (severity) {
@@ -405,7 +411,8 @@ export class GitHubReviewClient {
 
   /**
    * Execute a shell command using safe execution
-   * @param command
+   * @param command - Shell command string to execute via the command sanitizer
+   * @returns Command result with stdout, stderr, and exit code
    */
   private async executeCommand(command: string): Promise<CommandResult> {
     const sanitizer = getCommandSanitizer();
@@ -437,7 +444,8 @@ export class GitHubReviewClient {
 
   /**
    * Escape string for shell command
-   * @param str
+   * @param str - Raw string to escape for safe shell interpolation
+   * @returns Shell-safe escaped string
    */
   private escapeForShell(str: string): string {
     const sanitizer = getCommandSanitizer();
@@ -446,6 +454,7 @@ export class GitHubReviewClient {
 
   /**
    * Get configuration
+   * @returns Copy of the resolved client configuration with all defaults applied
    */
   public getConfig(): Required<GitHubReviewClientConfig> {
     return { ...this.config };
@@ -458,8 +467,9 @@ export class GitHubReviewClient {
 let instance: GitHubReviewClient | null = null;
 
 /**
- *
- * @param config
+ * Get or create a singleton GitHubReviewClient instance
+ * @param config - Optional configuration used only when creating the initial instance
+ * @returns Shared GitHubReviewClient singleton
  */
 export function getGitHubReviewClient(config?: GitHubReviewClientConfig): GitHubReviewClient {
   if (!instance) {

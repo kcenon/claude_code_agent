@@ -104,7 +104,9 @@ export class CIFixAgent implements IAgent {
   }
 
   /**
+   * Initialize the CI Fix Agent resources
    *
+   * @returns Resolves when initialization is complete
    */
   public async initialize(): Promise<void> {
     if (this.initialized) return;
@@ -113,7 +115,9 @@ export class CIFixAgent implements IAgent {
   }
 
   /**
+   * Release resources and reset initialization state
    *
+   * @returns Resolves when disposal is complete
    */
   public async dispose(): Promise<void> {
     await Promise.resolve();
@@ -240,7 +244,8 @@ export class CIFixAgent implements IAgent {
 
   /**
    * Read handoff document
-   * @param handoffPath
+   * @param handoffPath - Absolute path to the handoff YAML file
+   * @returns Parsed handoff data from the YAML document
    */
   private async readHandoff(handoffPath: string): Promise<CIFixHandoff> {
     if (!existsSync(handoffPath)) {
@@ -257,11 +262,12 @@ export class CIFixAgent implements IAgent {
 
   /**
    * Create initial handoff for a PR
-   * @param prNumber
-   * @param options
-   * @param options.branch
-   * @param options.originalIssue
-   * @param options.implementationSummary
+   * @param prNumber - GitHub pull request number to create a handoff for
+   * @param options - Configuration overrides for the handoff
+   * @param options.branch - Branch name override (defaults to PR head ref)
+   * @param options.originalIssue - Reference to the originating issue
+   * @param options.implementationSummary - Description of changes in the PR
+   * @returns Newly created handoff document populated with PR metadata
    */
   private async createInitialHandoff(
     prNumber: number,
@@ -299,7 +305,8 @@ export class CIFixAgent implements IAgent {
 
   /**
    * Persist handoff document
-   * @param handoff
+   * @param handoff - Handoff data to serialize and save as YAML
+   * @returns Absolute file path where the handoff was written
    */
   private async persistHandoff(handoff: CIFixHandoff): Promise<string> {
     const handoffDir = join(this.config.projectRoot, this.config.resultsPath);
@@ -317,7 +324,8 @@ export class CIFixAgent implements IAgent {
 
   /**
    * Fetch and analyze CI logs
-   * @param handoff
+   * @param handoff - Handoff containing failed checks and PR metadata
+   * @returns Analysis result with identified failure causes and categories
    */
   private async fetchAndAnalyzeLogs(handoff: CIFixHandoff): Promise<CIAnalysisResult> {
     let allLogs = '';
@@ -349,7 +357,8 @@ export class CIFixAgent implements IAgent {
 
   /**
    * Fetch CI logs for a run
-   * @param runId
+   * @param runId - GitHub Actions workflow run identifier
+   * @returns Raw log output from the failed CI run
    */
   private async fetchCILogs(runId: number): Promise<string> {
     try {
@@ -362,7 +371,8 @@ export class CIFixAgent implements IAgent {
 
   /**
    * Fetch workflow logs for a PR
-   * @param prNumber
+   * @param prNumber - GitHub pull request number to fetch check results for
+   * @returns JSON string of check names, statuses, and conclusions
    */
   private async fetchWorkflowLogs(prNumber: number): Promise<string> {
     const result = await this.executeCommand(
@@ -373,8 +383,9 @@ export class CIFixAgent implements IAgent {
 
   /**
    * Apply fixes based on analysis
-   * @param analysis
-   * @param _handoff
+   * @param analysis - CI log analysis containing identified failure causes
+   * @param _handoff - Handoff context (reserved for future per-file strategies)
+   * @returns List of fix attempts with success/failure status for each
    */
   private async applyFixes(
     analysis: CIAnalysisResult,
@@ -393,8 +404,9 @@ export class CIFixAgent implements IAgent {
 
   /**
    * Commit and push fixes
-   * @param handoff
-   * @param fixes
+   * @param handoff - Handoff with branch name and PR metadata for the commit
+   * @param fixes - Successfully applied fixes to include in the commit message
+   * @returns Object containing the commit hash and generated commit message
    */
   private async commitAndPush(
     handoff: CIFixHandoff,
@@ -454,8 +466,9 @@ Fixes applied by CI Fix Agent for PR #${String(handoff.prNumber)}`;
 
   /**
    * Determine fix outcome
-   * @param verification
-   * @param analysis
+   * @param verification - Local verification results after applying fixes
+   * @param analysis - Original CI analysis to compare failure counts against
+   * @returns Outcome classification: 'success', 'partial', or 'failed'
    */
   private determineOutcome(
     verification: VerificationResult,
@@ -489,10 +502,11 @@ Fixes applied by CI Fix Agent for PR #${String(handoff.prNumber)}`;
 
   /**
    * Determine next action
-   * @param handoff
-   * @param outcome
-   * @param _analysis
-   * @param verification
+   * @param handoff - Current handoff with attempt history and thresholds
+   * @param outcome - Result of the current fix attempt
+   * @param _analysis - CI analysis (reserved for future fix-strategy routing)
+   * @param verification - Verification results used to assess progress
+   * @returns Next action: 'none' if resolved, 'delegate' for retry, or 'escalate' for human review
    */
   private determineNextAction(
     handoff: CIFixHandoff,
@@ -539,8 +553,9 @@ Fixes applied by CI Fix Agent for PR #${String(handoff.prNumber)}`;
 
   /**
    * Check if progress was made compared to previous attempts
-   * @param previousAttempts
-   * @param currentVerification
+   * @param previousAttempts - History of prior fix attempts to compare against
+   * @param currentVerification - Latest verification results after applying fixes
+   * @returns True if more checks pass now than in the last attempt
    */
   private hasProgress(
     previousAttempts: readonly CIFixAttempt[],
@@ -571,8 +586,8 @@ Fixes applied by CI Fix Agent for PR #${String(handoff.prNumber)}`;
 
   /**
    * Create delegation handoff for next CI Fix Agent
-   * @param originalHandoff
-   * @param result
+   * @param originalHandoff - Current handoff to use as the base for delegation
+   * @param result - Fix result containing applied fixes and remaining issues
    */
   private async createDelegationHandoff(
     originalHandoff: CIFixHandoff,
@@ -602,8 +617,8 @@ Fixes applied by CI Fix Agent for PR #${String(handoff.prNumber)}`;
 
   /**
    * Escalate to human review
-   * @param handoff
-   * @param result
+   * @param handoff - Handoff with PR number to label and comment on
+   * @param result - Fix result summarizing unresolved issues for the comment
    */
   private async escalate(handoff: CIFixHandoff, result: CIFixResult): Promise<void> {
     // Add label to PR
@@ -620,8 +635,9 @@ Fixes applied by CI Fix Agent for PR #${String(handoff.prNumber)}`;
 
   /**
    * Generate escalation comment for PR
-   * @param handoff
-   * @param result
+   * @param handoff - Handoff with attempt history for the escalation summary
+   * @param result - Fix result with unresolved causes and applied fixes
+   * @returns Markdown-formatted escalation comment body for the PR
    */
   private generateEscalationComment(handoff: CIFixHandoff, result: CIFixResult): string {
     const unresolvedIssues = result.analysis.identifiedCauses
@@ -652,7 +668,7 @@ _This escalation was generated automatically by the CI Fix Agent._`;
 
   /**
    * Persist fix result
-   * @param result
+   * @param result - CI fix result to serialize and write as YAML
    */
   private async persistResult(result: CIFixResult): Promise<void> {
     const resultsDir = join(this.config.projectRoot, this.config.resultsPath);
@@ -679,7 +695,8 @@ _This escalation was generated automatically by the CI Fix Agent._`;
 
   /**
    * Get PR info from GitHub
-   * @param prNumber
+   * @param prNumber - GitHub pull request number to query
+   * @returns Object with the PR's head branch name and current state
    */
   private async getPRInfo(prNumber: number): Promise<{ branch: string; state: string }> {
     const result = await this.executeCommand(
@@ -694,7 +711,8 @@ _This escalation was generated automatically by the CI Fix Agent._`;
 
   /**
    * Get failed checks for a PR
-   * @param prNumber
+   * @param prNumber - GitHub pull request number to retrieve checks for
+   * @returns Array of CI checks that concluded with failure or error
    */
   private async getFailedChecks(prNumber: number): Promise<CICheck[]> {
     const result = await this.executeCommand(
@@ -724,7 +742,8 @@ _This escalation was generated automatically by the CI Fix Agent._`;
 
   /**
    * Get changed files for a PR
-   * @param prNumber
+   * @param prNumber - GitHub pull request number to list files for
+   * @returns Array of file paths modified in the pull request
    */
   private async getChangedFiles(prNumber: number): Promise<string[]> {
     const result = await this.executeCommand(
@@ -735,6 +754,7 @@ _This escalation was generated automatically by the CI Fix Agent._`;
 
   /**
    * Get repository name
+   * @returns Repository identifier in 'owner/name' format
    */
   private async getRepoName(): Promise<string> {
     const result = await this.executeCommand(
@@ -750,7 +770,8 @@ _This escalation was generated automatically by the CI Fix Agent._`;
   /**
    * Execute a shell command using safe execution
    * Uses injected ICommandExecutor for testability
-   * @param command
+   * @param command - Shell command string to execute in the project root
+   * @returns Execution result with stdout, stderr, and exit code
    */
   private async executeCommand(command: string): Promise<CommandResult> {
     return this.commandExecutor.execute(command, {
@@ -764,7 +785,8 @@ _This escalation was generated automatically by the CI Fix Agent._`;
   /**
    * Escape content for use within double quotes in command strings
    * Uses the centralized sanitizer method
-   * @param str
+   * @param str - Raw string to escape for safe shell interpolation
+   * @returns Escaped string safe for use inside double-quoted shell arguments
    */
   private escapeForParser(str: string): string {
     const sanitizer = getCommandSanitizer();
@@ -773,6 +795,7 @@ _This escalation was generated automatically by the CI Fix Agent._`;
 
   /**
    * Get configuration
+   * @returns Shallow copy of the fully-resolved agent configuration
    */
   public getConfig(): Required<CIFixerAgentConfig> {
     return { ...this.config };
@@ -781,7 +804,8 @@ _This escalation was generated automatically by the CI Fix Agent._`;
 
 /**
  * Get singleton instance of CIFixAgent
- * @param config
+ * @param config - Optional configuration used only when creating the first instance
+ * @returns Existing or newly created CIFixAgent singleton
  */
 export function getCIFixAgent(config?: CIFixerAgentConfig): CIFixAgent {
   if (instance === null) {

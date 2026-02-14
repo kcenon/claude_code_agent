@@ -312,8 +312,9 @@ export class CILogAnalyzer {
 
   /**
    * Calculate confidence score for a match
-   * @param pattern
-   * @param _matchedText
+   * @param pattern - Log pattern used for the match, evaluated for specificity
+   * @param _matchedText - Matched text (reserved for future heuristic weighting)
+   * @returns Confidence score between 0.0 and 1.0 based on pattern specificity
    */
   private calculateConfidence(pattern: CILogPattern, _matchedText: string): number {
     // Base confidence from pattern specificity
@@ -334,9 +335,10 @@ export class CILogAnalyzer {
 
   /**
    * Find all matches for a pattern in the logs
-   * @param logs
-   * @param pattern
-   * @param matchedRanges
+   * @param logs - Raw CI log text to search through
+   * @param pattern - Log pattern with regex, category, and extraction functions
+   * @param matchedRanges - Accumulator of already-matched byte ranges to prevent overlapping matches
+   * @returns Array of CI failures extracted from non-overlapping pattern matches
    */
   private findMatches(
     logs: string,
@@ -378,10 +380,11 @@ export class CILogAnalyzer {
 
   /**
    * Check if a range overlaps with existing ranges
-   * @param range
-   * @param range.start
-   * @param range.end
-   * @param existingRanges
+   * @param range - Candidate range to test for overlap
+   * @param range.start - Start offset of the candidate range
+   * @param range.end - End offset of the candidate range
+   * @param existingRanges - Previously matched ranges to check against
+   * @returns True if the candidate range overlaps with any existing range
    */
   private isRangeOverlapping(
     range: { start: number; end: number },
@@ -394,8 +397,9 @@ export class CILogAnalyzer {
 
   /**
    * Find error lines that weren't matched by any pattern
-   * @param logs
-   * @param matchedRanges
+   * @param logs - Raw CI log text to scan for unmatched error indicators
+   * @param matchedRanges - Ranges already claimed by known patterns, to be excluded
+   * @returns Up to 20 unmatched log lines containing error/fail/exception/critical keywords
    */
   private findUnidentifiedCauses(
     logs: string,
@@ -437,7 +441,8 @@ export class CILogAnalyzer {
 
   /**
    * Group failures by category
-   * @param failures
+   * @param failures - Flat list of CI failures to organize
+   * @returns Map from failure category to its associated failures
    */
   private groupByCategory(
     failures: readonly CIFailure[]
@@ -454,7 +459,8 @@ export class CILogAnalyzer {
 
   /**
    * Truncate logs if too large
-   * @param logs
+   * @param logs - Raw log text that may exceed the configured maximum size
+   * @returns Original logs if within limit, or head/tail excerpts with a truncation marker
    */
   private truncateLogs(logs: string): string {
     if (logs.length <= this.maxLogSize) {
@@ -471,8 +477,9 @@ export class CILogAnalyzer {
 
   /**
    * Extract test details for a specific test file
-   * @param output
-   * @param testFile
+   * @param output - Full test runner output to search for contextual lines
+   * @param testFile - Test file name to locate within the output
+   * @returns Surrounding log lines providing context for the test failure
    */
   private extractTestDetails(output: string, testFile: string): string {
     const lines = output.split('\n');
@@ -496,10 +503,11 @@ export class CILogAnalyzer {
 let analyzerInstance: CILogAnalyzer | null = null;
 
 /**
- *
- * @param options
- * @param options.customPatterns
- * @param options.maxLogSize
+ * Get singleton instance of CILogAnalyzer
+ * @param options - Optional configuration for custom patterns and log size limits
+ * @param options.customPatterns - Additional log patterns to append to the built-in set
+ * @param options.maxLogSize - Maximum log size in bytes before truncation (default: 100KB)
+ * @returns Shared CILogAnalyzer instance, created on first call with the given options
  */
 export function getCILogAnalyzer(options?: {
   customPatterns?: readonly CILogPattern[];

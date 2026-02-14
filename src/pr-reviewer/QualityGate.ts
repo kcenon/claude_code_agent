@@ -51,9 +51,10 @@ export class QualityGate {
 
   /**
    * Evaluate quality metrics against quality gates
-   * @param metrics
-   * @param checks
-   * @param comments
+   * @param metrics - Collected quality metrics (coverage, complexity, security issues, etc.)
+   * @param checks - CI check results (tests, build, lint pass/fail status)
+   * @param comments - Review comments with severity classifications
+   * @returns Evaluation result with pass/fail status, gate outcomes, failures, and warnings
    */
   public evaluate(
     metrics: QualityMetrics,
@@ -86,11 +87,11 @@ export class QualityGate {
 
   /**
    * Evaluate required quality gates
-   * @param metrics
-   * @param checks
-   * @param comments
-   * @param gates
-   * @param failures
+   * @param metrics - Quality metrics to evaluate against required thresholds
+   * @param checks - CI check results for tests, build, and lint status
+   * @param comments - Review comments to check for critical severity issues
+   * @param gates - Map to populate with gate names and their pass/fail results
+   * @param failures - Array to populate with human-readable failure messages
    */
   private evaluateRequiredGates(
     metrics: QualityMetrics,
@@ -161,11 +162,11 @@ export class QualityGate {
 
   /**
    * Evaluate recommended quality gates
-   * @param metrics
-   * @param _checks
-   * @param comments
-   * @param gates
-   * @param warnings
+   * @param metrics - Quality metrics to evaluate against recommended thresholds
+   * @param _checks - CI check results (unused, reserved for future recommended checks)
+   * @param comments - Review comments to check for major severity issues
+   * @param gates - Map to populate with gate names and their pass/fail results
+   * @param warnings - Array to populate with human-readable warning messages
    */
   private evaluateRecommendedGates(
     metrics: QualityMetrics,
@@ -220,8 +221,9 @@ export class QualityGate {
 
   /**
    * Count comments by severity
-   * @param comments
-   * @param severity
+   * @param comments - Review comments to filter and count
+   * @param severity - Severity level to match (e.g., critical, major, minor)
+   * @returns Number of unresolved comments matching the given severity
    */
   private countBySeverity(comments: readonly ReviewComment[], severity: CommentSeverity): number {
     return comments.filter((c) => c.severity === severity && !c.resolved).length;
@@ -229,7 +231,8 @@ export class QualityGate {
 
   /**
    * Get human-readable summary of gate evaluation
-   * @param result
+   * @param result - Quality gate evaluation result to summarize
+   * @returns Formatted multi-line string with pass/fail status, failures, and warnings
    */
   public getSummary(result: QualityGateResult): string {
     const lines: string[] = [];
@@ -258,6 +261,7 @@ export class QualityGate {
 
   /**
    * Get quality gate configuration
+   * @returns Current quality gate configuration with required and recommended thresholds
    */
   public getConfig(): QualityGateConfig {
     return this.config;

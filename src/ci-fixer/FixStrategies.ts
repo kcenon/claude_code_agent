@@ -178,7 +178,8 @@ export class FixStrategies {
   /**
    * Attempt to fix a single type error
    * Uses SecureFileOps for path traversal prevention
-   * @param failure
+   * @param failure - Type error failure with file path and error message
+   * @returns Fix result indicating whether the type error was resolved
    */
   private async attemptTypeErrorFix(failure: CIFailure): Promise<AppliedFix> {
     if (failure.file === undefined) {
@@ -226,9 +227,10 @@ export class FixStrategies {
 
   /**
    * Try different type error fix strategies
-   * @param lines
-   * @param lineNumber
-   * @param errorMessage
+   * @param lines - Source file content split into individual lines
+   * @param lineNumber - One-based line number where the error occurs
+   * @param errorMessage - TypeScript compiler error message to match against strategies
+   * @returns Modified file content as a single string, or null if no strategy applies
    */
   private attemptTypeErrorFixStrategies(
     lines: string[],
@@ -265,8 +267,9 @@ export class FixStrategies {
 
   /**
    * Add non-null assertion to fix 'possibly undefined' errors
-   * @param lines
-   * @param lineNumber
+   * @param lines - Source file content split into individual lines
+   * @param lineNumber - One-based line number to apply the non-null assertion to
+   * @returns Modified file content, or null if the line is out of bounds
    */
   private addNonNullAssertion(lines: string[], lineNumber: number): string | null {
     const lineIndex = lineNumber - 1;
@@ -281,8 +284,9 @@ export class FixStrategies {
 
   /**
    * Add explicit 'any' type annotation
-   * @param lines
-   * @param lineNumber
+   * @param lines - Source file content split into individual lines
+   * @param lineNumber - One-based line number where the implicit 'any' error occurs
+   * @returns Modified file content, or null if the line is out of bounds
    */
   private addExplicitAny(lines: string[], lineNumber: number): string | null {
     const lineIndex = lineNumber - 1;
@@ -331,7 +335,8 @@ export class FixStrategies {
 
   /**
    * Attempt to fix a single test failure
-   * @param failure
+   * @param failure - Test failure with message and optional snapshot details
+   * @returns Fix result, successful only for snapshot-related failures
    */
   private async attemptTestFix(failure: CIFailure): Promise<AppliedFix> {
     if (this.dryRun) {
@@ -359,6 +364,7 @@ export class FixStrategies {
 
   /**
    * Update test snapshots
+   * @returns Fix result indicating whether snapshot regeneration succeeded
    */
   private async updateSnapshots(): Promise<AppliedFix> {
     try {
@@ -420,6 +426,7 @@ export class FixStrategies {
 
   /**
    * Perform clean install
+   * @returns Fix result indicating whether npm ci completed successfully
    */
   private async cleanInstall(): Promise<AppliedFix> {
     if (this.dryRun) {
@@ -451,7 +458,8 @@ export class FixStrategies {
 
   /**
    * Attempt to fix a single build failure
-   * @param failure
+   * @param failure - Build failure with error message describing the issue
+   * @returns Fix result for module-resolution errors, or a manual-intervention notice
    */
   private attemptBuildFix(failure: CIFailure): AppliedFix {
     // Check for module not found errors
@@ -473,7 +481,8 @@ export class FixStrategies {
 
   /**
    * Attempt to install missing module
-   * @param failure
+   * @param failure - Build failure whose message contains the missing module name
+   * @returns Fix result noting the missing module (auto-install is disabled for safety)
    */
   private attemptModuleInstall(failure: CIFailure): AppliedFix {
     // Extract module name from error message
@@ -667,10 +676,11 @@ export class FixStrategies {
   /**
    * Execute a shell command using safe execution
    * Uses injected ICommandExecutor for testability
-   * @param command
-   * @param options
-   * @param options.timeout
-   * @param options.ignoreExitCode
+   * @param command - Shell command string to execute in the project root
+   * @param options - Execution configuration overrides
+   * @param options.timeout - Maximum execution time in milliseconds
+   * @param options.ignoreExitCode - When true, non-zero exit codes do not throw
+   * @returns Execution result with stdout, stderr, and exit code
    */
   private async executeCommand(
     command: string,
@@ -690,7 +700,8 @@ export class FixStrategies {
   /**
    * Check if a command/script exists
    * Uses SecureFileOps for path traversal prevention
-   * @param npmScript
+   * @param npmScript - npm run command to check (e.g. 'npm run format')
+   * @returns True if the corresponding script is defined in package.json
    */
   private async commandExists(npmScript: string): Promise<boolean> {
     try {
@@ -707,9 +718,10 @@ export class FixStrategies {
 
   /**
    * Create a dry-run result
-   * @param type
-   * @param file
-   * @param description
+   * @param type - CI failure category for the simulated fix
+   * @param file - File path or scope identifier affected by the fix
+   * @param description - Human-readable description of what would be done
+   * @returns AppliedFix marked as successful with a '[DRY RUN]' prefix
    */
   private createDryRunResult(
     type: CIFailureCategory,

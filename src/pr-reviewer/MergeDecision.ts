@@ -81,7 +81,8 @@ export class MergeDecision {
 
   /**
    * Check for merge conflicts on a PR
-   * @param prNumber
+   * @param prNumber - Pull request number to check for conflicts
+   * @returns Merge conflict details including conflicting files and mergeable state
    */
   public async checkMergeConflicts(prNumber: number): Promise<MergeConflictInfo> {
     try {
@@ -141,7 +142,8 @@ export class MergeDecision {
 
   /**
    * Check for unresolved blocking reviews
-   * @param prNumber
+   * @param prNumber - Pull request number to check for blocking reviews
+   * @returns List of reviews with CHANGES_REQUESTED status from latest review per reviewer
    */
   public async checkBlockingReviews(prNumber: number): Promise<readonly BlockingReview[]> {
     try {
@@ -191,10 +193,11 @@ export class MergeDecision {
 
   /**
    * Generate detailed gate failure report
-   * @param prNumber
-   * @param qualityGateResult
-   * @param metrics
-   * @param checks
+   * @param prNumber - Pull request number for the report header
+   * @param qualityGateResult - Aggregated pass/fail result with failure messages and warnings
+   * @param metrics - Measured quality metrics including coverage, complexity, and security issues
+   * @param checks - CI check statuses for tests, build, and lint
+   * @returns Detailed report with gate statuses, required actions, and markdown summary
    */
   public generateDetailedReport(
     prNumber: number,
@@ -344,10 +347,11 @@ export class MergeDecision {
 
   /**
    * Check overall merge readiness
-   * @param prNumber
-   * @param qualityGateResult
-   * @param metrics
-   * @param checks
+   * @param prNumber - Pull request number to evaluate
+   * @param qualityGateResult - Aggregated quality gate pass/fail result
+   * @param metrics - Measured quality metrics for gate evaluation
+   * @param checks - CI check statuses including test, build, and lint results
+   * @returns Merge readiness assessment with blocking reasons and detailed report
    */
   public async checkMergeReadiness(
     prNumber: number,
@@ -410,9 +414,10 @@ export class MergeDecision {
 
   /**
    * Generate squash merge commit message
-   * @param pullRequest
-   * @param issueNumber
-   * @param summary
+   * @param pullRequest - PR metadata used to construct the commit title
+   * @param issueNumber - Optional GitHub issue number to add a "Closes #N" reference
+   * @param summary - Optional summary text to include in the commit body
+   * @returns Formatted squash merge message with title, body, and linked issue numbers
    */
   public generateSquashMessage(
     pullRequest: PullRequest,
@@ -443,8 +448,9 @@ export class MergeDecision {
 
   /**
    * Execute merge with proper commit message
-   * @param prNumber
-   * @param message
+   * @param prNumber - Pull request number to merge
+   * @param message - Squash merge message containing title and body
+   * @returns Result with success flag, optional merge commit SHA, and error message on failure
    */
   public async executeMerge(
     prNumber: number,
@@ -502,12 +508,13 @@ export class MergeDecision {
 
   /**
    * Build a gate result object
-   * @param gate
-   * @param passed
-   * @param threshold
-   * @param actual
-   * @param unit
-   * @param blocking
+   * @param gate - Quality gate name (e.g., "Tests Pass", "Code Coverage")
+   * @param passed - Whether the gate condition was satisfied
+   * @param threshold - Required threshold value for the gate
+   * @param actual - Measured value to compare against the threshold
+   * @param unit - Measurement unit (e.g., "percentage", "count", "status")
+   * @param blocking - Whether failure of this gate blocks the merge
+   * @returns Formatted gate result with status message
    */
   private buildGateResult(
     gate: string,
@@ -531,7 +538,8 @@ export class MergeDecision {
 
   /**
    * Generate action message for failed gate
-   * @param gate
+   * @param gate - Failed gate result to generate an actionable message for
+   * @returns Human-readable action describing what must be fixed before merge
    */
   private generateActionForGate(gate: GateResult): string {
     switch (gate.gate) {
@@ -554,7 +562,8 @@ export class MergeDecision {
 
   /**
    * Generate recommendation for warning gate
-   * @param gate
+   * @param gate - Non-blocking gate result to generate a recommendation for
+   * @returns Advisory message suggesting improvements for the non-blocking gate
    */
   private generateRecommendationForGate(gate: GateResult): string {
     switch (gate.gate) {
@@ -571,10 +580,11 @@ export class MergeDecision {
 
   /**
    * Generate markdown-formatted report
-   * @param prNumber
-   * @param gates
-   * @param requiredActions
-   * @param recommendations
+   * @param prNumber - Pull request number for the report heading
+   * @param gates - All evaluated gate results to display in the status table
+   * @param requiredActions - Blocking actions that must be resolved before merge
+   * @param recommendations - Non-blocking suggestions for quality improvement
+   * @returns Markdown string with gate status table, actions, and recommendations
    */
   private generateMarkdownReport(
     prNumber: number,
@@ -632,7 +642,8 @@ export class MergeDecision {
 
   /**
    * Map GitHub mergeable state to our enum
-   * @param state
+   * @param state - GitHub API mergeStateStatus value (e.g., "CLEAN", "DIRTY", "BLOCKED")
+   * @returns Normalized lowercase merge state or "unknown" for unrecognized values
    */
   private mapMergeableState(state?: string): 'clean' | 'dirty' | 'blocked' | 'behind' | 'unknown' {
     switch (state?.toUpperCase()) {
@@ -653,7 +664,8 @@ export class MergeDecision {
   /**
    * Escape content for use within double quotes in command strings
    * Uses the centralized sanitizer method
-   * @param str
+   * @param str - Raw string to escape for safe inclusion in shell commands
+   * @returns Escaped string safe for use within double-quoted command arguments
    */
   private escapeForParser(str: string): string {
     const sanitizer = getCommandSanitizer();
@@ -663,7 +675,8 @@ export class MergeDecision {
   /**
    * Execute a shell command using safe execution
    * Uses execFile to bypass shell and prevent command injection
-   * @param command
+   * @param command - Shell command string to parse and execute safely
+   * @returns Command result with stdout, stderr, and exit code
    */
   private async executeCommand(command: string): Promise<CommandResult> {
     const sanitizer = getCommandSanitizer();
