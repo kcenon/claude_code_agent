@@ -124,8 +124,8 @@ export class DependencyGraphBuilder {
 
   /**
    * DFS helper for cycle detection
-   * @param node
-   * @param path
+   * @param node - The current node being visited in the DFS traversal
+   * @param path - The current path of node IDs from the DFS root to this node
    */
   private dfsDetectCycle(node: InternalNode, path: string[]): void {
     node.visited = true;
@@ -184,6 +184,7 @@ export class DependencyGraphBuilder {
 
   /**
    * Build the output dependency graph structure
+   * @returns Complete dependency graph with nodes, edges, and execution order
    */
   private buildOutput(): DependencyGraphType {
     const nodes: DependencyNode[] = [];
@@ -219,7 +220,8 @@ export class DependencyGraphBuilder {
 
   /**
    * Calculate priority based on number of dependents
-   * @param node
+   * @param node - The internal node to calculate priority for
+   * @returns Priority score based on the number of dependents
    */
   private calculatePriority(node: InternalNode): number {
     // Higher priority for nodes with more dependents
@@ -273,6 +275,7 @@ export class DependencyGraphBuilder {
 
   /**
    * Build groups of issues that can be executed in parallel
+   * @returns Array of parallel groups organized by depth level
    */
   private buildParallelGroups(): readonly ParallelGroup[] {
     const groups: ParallelGroup[] = [];
@@ -297,7 +300,8 @@ export class DependencyGraphBuilder {
 
   /**
    * Get direct dependencies for an issue
-   * @param issueId
+   * @param issueId - The issue ID to get dependencies for
+   * @returns Array of issue IDs that this issue depends on
    */
   public getDependencies(issueId: string): readonly string[] {
     const node = this.nodes.get(issueId);
@@ -306,7 +310,8 @@ export class DependencyGraphBuilder {
 
   /**
    * Get direct dependents for an issue
-   * @param issueId
+   * @param issueId - The issue ID to get dependents for
+   * @returns Array of issue IDs that depend on this issue
    */
   public getDependents(issueId: string): readonly string[] {
     const node = this.nodes.get(issueId);
@@ -315,8 +320,9 @@ export class DependencyGraphBuilder {
 
   /**
    * Check if issue A depends on issue B (directly or transitively)
-   * @param issueA
-   * @param issueB
+   * @param issueA - The dependent issue ID
+   * @param issueB - The dependency issue ID to check for
+   * @returns True if issueA depends on issueB, false otherwise
    */
   public dependsOn(issueA: string, issueB: string): boolean {
     const visited = new Set<string>();
@@ -347,7 +353,8 @@ export class DependencyGraphBuilder {
 
   /**
    * Get all transitive dependencies for an issue
-   * @param issueId
+   * @param issueId - The issue ID to get transitive dependencies for
+   * @returns Sorted array of all issue IDs that this issue transitively depends on
    */
   public getTransitiveDependencies(issueId: string): readonly string[] {
     const result = new Set<string>();
@@ -373,6 +380,7 @@ export class DependencyGraphBuilder {
 
   /**
    * Get statistics about the graph
+   * @returns Graph statistics including node count, edge count, and depth metrics
    */
   public getStatistics(): {
     totalNodes: number;

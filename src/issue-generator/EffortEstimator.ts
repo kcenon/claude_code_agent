@@ -144,7 +144,8 @@ export class EffortEstimator {
 
   /**
    * Calculate estimation factors for a component
-   * @param component
+   * @param component - The SDS component to analyze
+   * @returns Estimation factors including complexity, interface count, dependency count, and method count
    */
   private calculateFactors(component: SDSComponent): EstimationFactors {
     const complexity = this.analyzeComplexity(component);
@@ -162,7 +163,8 @@ export class EffortEstimator {
 
   /**
    * Analyze component complexity based on various factors
-   * @param component
+   * @param component - The SDS component to analyze
+   * @returns Complexity score from minComplexity to maxComplexity
    */
   private analyzeComplexity(component: SDSComponent): number {
     let score = this.minComplexity;
@@ -208,7 +210,8 @@ export class EffortEstimator {
 
   /**
    * Count total methods across all interfaces
-   * @param component
+   * @param component - The SDS component to count methods from
+   * @returns Total number of methods across all component interfaces
    */
   private countMethods(component: SDSComponent): number {
     return component.interfaces.reduce((sum, iface) => sum + iface.methods.length, 0);
@@ -216,7 +219,8 @@ export class EffortEstimator {
 
   /**
    * Calculate weighted score from factors
-   * @param factors
+   * @param factors - The estimation factors to combine
+   * @returns Weighted effort score on a 0-10 scale
    */
   private calculateScore(factors: EstimationFactors): number {
     // Normalize each factor to 0-10 scale
@@ -237,7 +241,8 @@ export class EffortEstimator {
 
   /**
    * Convert score to effort size
-   * @param score
+   * @param score - The effort score to convert
+   * @returns Effort size category (XS, S, M, L, or XL)
    */
   private scoreToSize(score: number): EffortSize {
     if (score < this.thresholds.xs) return 'XS';
@@ -249,7 +254,8 @@ export class EffortEstimator {
 
   /**
    * Get effort size description
-   * @param size
+   * @param size - The effort size category
+   * @returns Human-readable description of the effort size and time estimate
    */
   public static getSizeDescription(size: EffortSize): string {
     const descriptions: Record<EffortSize, string> = {
@@ -264,8 +270,9 @@ export class EffortEstimator {
 
   /**
    * Check if a component should be decomposed based on size
-   * @param component
-   * @param maxSize
+   * @param component - The SDS component to check for decomposition
+   * @param maxSize - Maximum acceptable effort size (default: 'L')
+   * @returns True if the component exceeds the maximum size threshold
    */
   public shouldDecompose(component: SDSComponent, maxSize: EffortSize = 'L'): boolean {
     const estimation = this.estimate(component);

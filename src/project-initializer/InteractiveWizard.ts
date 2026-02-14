@@ -41,6 +41,7 @@ export class InteractiveWizard {
 
   /**
    * Run the interactive wizard to gather project configuration
+   * @returns Project initialization options gathered from user input
    */
   async run(): Promise<InitOptions> {
     const answers = await inquirer.prompt<WizardAnswers>([
@@ -125,7 +126,8 @@ export class InteractiveWizard {
 
   /**
    * Prompt for confirmation before proceeding
-   * @param message
+   * @param message - The confirmation message to display to the user
+   * @returns True if the user confirms, false otherwise
    */
   async confirm(message: string): Promise<boolean> {
     const answer = await inquirer.prompt<ConfirmAnswer>([
@@ -141,7 +143,8 @@ export class InteractiveWizard {
 
   /**
    * Display a summary of the configuration and ask for confirmation
-   * @param options
+   * @param options - The initialization options to display for confirmation
+   * @returns True if the user confirms the configuration, false otherwise
    */
   async confirmConfiguration(options: InitOptions): Promise<boolean> {
     const summaryData: Record<string, string> = {
@@ -165,6 +168,7 @@ export class InteractiveWizard {
 
 /**
  * Create and return an InteractiveWizard instance
+ * @returns New instance of InteractiveWizard
  */
 export function createInteractiveWizard(): InteractiveWizard {
   return new InteractiveWizard();

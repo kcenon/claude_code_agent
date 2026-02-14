@@ -35,8 +35,9 @@ export function compareVersions(a: TemplateVersion, b: TemplateVersion): -1 | 0 
 
 /**
  * Check if two versions are equal
- * @param a
- * @param b
+ * @param a - First version to compare
+ * @param b - Second version to compare
+ * @returns True if versions are equal, false otherwise
  */
 export function versionsEqual(a: TemplateVersion, b: TemplateVersion): boolean {
   return compareVersions(a, b) === 0;
@@ -44,7 +45,8 @@ export function versionsEqual(a: TemplateVersion, b: TemplateVersion): boolean {
 
 /**
  * Format a version as a string (e.g., "1.0.0")
- * @param version
+ * @param version - The version to format
+ * @returns Formatted version string
  */
 export function formatVersion(version: TemplateVersion): string {
   return `${String(version.major)}.${String(version.minor)}.${String(version.patch)}`;
@@ -77,8 +79,9 @@ export function parseVersion(versionString: string): TemplateVersion | null {
  * Versions are compatible if:
  * - Major versions match (breaking changes require migration)
  * - Source minor version <= target minor version
- * @param source
- * @param target
+ * @param source - The source version to check
+ * @param target - The target version to check against
+ * @returns True if versions are compatible, false otherwise
  */
 export function isVersionCompatible(source: TemplateVersion, target: TemplateVersion): boolean {
   // Major version must match for compatibility
@@ -96,7 +99,7 @@ const migrationRegistry: TemplateMigrationStep[] = [];
 
 /**
  * Register a migration step
- * @param step
+ * @param step - The migration step to register
  */
 export function registerMigration(step: TemplateMigrationStep): void {
   migrationRegistry.push(step);
@@ -111,6 +114,7 @@ export function clearMigrations(): void {
 
 /**
  * Get all registered migrations
+ * @returns Read-only array of all registered migration steps
  */
 export function getMigrations(): readonly TemplateMigrationStep[] {
   return [...migrationRegistry];
@@ -332,7 +336,8 @@ export function migrateTemplate(config: TemplateConfig): TemplateMigrationResult
 
 /**
  * Check if a template configuration needs migration
- * @param config
+ * @param config - The template configuration to check
+ * @returns True if the configuration needs migration, false otherwise
  */
 export function needsMigration(config: TemplateConfig): boolean {
   return compareVersions(config.version, CURRENT_TEMPLATE_VERSION) < 0;
@@ -340,6 +345,7 @@ export function needsMigration(config: TemplateConfig): boolean {
 
 /**
  * Get the current template version
+ * @returns The current template version
  */
 export function getCurrentVersion(): TemplateVersion {
   return CURRENT_TEMPLATE_VERSION;

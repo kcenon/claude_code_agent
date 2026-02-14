@@ -60,7 +60,7 @@ export class GitHubRepoSetupAgent implements IAgent {
   }
 
   /**
-   *
+   * Initialize the agent and prepare for repository setup operations
    */
   public async initialize(): Promise<void> {
     if (this.initialized) return;
@@ -69,7 +69,7 @@ export class GitHubRepoSetupAgent implements IAgent {
   }
 
   /**
-   *
+   * Cleanup resources and reset agent state
    */
   public async dispose(): Promise<void> {
     await Promise.resolve();
@@ -79,8 +79,9 @@ export class GitHubRepoSetupAgent implements IAgent {
 
   /**
    * Start a new setup session
-   * @param projectName
-   * @param rootPath
+   * @param projectName - The name of the project being set up
+   * @param rootPath - The root directory path where the project will be created
+   * @returns The newly created setup session
    */
   public startSession(projectName: string, rootPath: string): RepoSetupSession {
     const now = new Date().toISOString();
@@ -101,6 +102,7 @@ export class GitHubRepoSetupAgent implements IAgent {
 
   /**
    * Get current session
+   * @returns The current setup session or null if no session is active
    */
   public getSession(): RepoSetupSession | null {
     return this.session;
@@ -111,9 +113,10 @@ export class GitHubRepoSetupAgent implements IAgent {
    *
    * Implements the IGitHubRepoSetupAgent.createRepository interface
    * from SDS-001 Section 3.27.
-   * @param projectName
-   * @param description
-   * @param options
+   * @param projectName - The name of the repository to create
+   * @param description - A brief description of the repository
+   * @param options - Configuration options for repository setup
+   * @returns The result of the repository setup operation including URL and metadata
    */
   public async createRepository(
     projectName: string,
@@ -200,9 +203,10 @@ export class GitHubRepoSetupAgent implements IAgent {
 
   /**
    * Create a GitHub repository using gh CLI
-   * @param projectName
-   * @param description
-   * @param options
+   * @param projectName - The name of the repository to create
+   * @param description - A brief description of the repository
+   * @param options - Configuration options including visibility and license
+   * @returns The full repository name in "owner/repo" format
    */
   private createGhRepo(
     projectName: string,
@@ -252,8 +256,8 @@ export class GitHubRepoSetupAgent implements IAgent {
 
   /**
    * Clone the newly created repository
-   * @param repoFullName
-   * @param targetDir
+   * @param repoFullName - The full repository name in "owner/repo" format
+   * @param targetDir - The local directory path where the repository will be cloned
    */
   private cloneRepo(repoFullName: string, targetDir: string): void {
     const result = this.runGhCommandWithArgs(process.cwd(), [
@@ -270,6 +274,7 @@ export class GitHubRepoSetupAgent implements IAgent {
 
   /**
    * Get the authenticated GitHub user
+   * @returns The GitHub username of the currently authenticated user
    */
   private getGhUser(): string {
     const result = this.runGhCommandWithArgs(process.cwd(), ['api', 'user', '--jq', '.login']);
@@ -287,9 +292,9 @@ export class GitHubRepoSetupAgent implements IAgent {
 
   /**
    * Generate README.md from project metadata
-   * @param repoDir
-   * @param projectName
-   * @param description
+   * @param repoDir - The repository directory path
+   * @param projectName - The name of the project for the README header
+   * @param description - The project description to include in the README
    */
   private generateReadme(repoDir: string, projectName: string, description: string): void {
     const readmePath = path.join(repoDir, 'README.md');
@@ -319,8 +324,8 @@ export class GitHubRepoSetupAgent implements IAgent {
 
   /**
    * Generate .gitignore based on language
-   * @param repoDir
-   * @param language
+   * @param repoDir - The repository directory path
+   * @param language - The programming language for language-specific ignore patterns
    */
   private generateGitignore(repoDir: string, language: string): void {
     const gitignorePath = path.join(repoDir, '.gitignore');
@@ -345,7 +350,8 @@ export class GitHubRepoSetupAgent implements IAgent {
 
   /**
    * Get .gitignore entries for a language
-   * @param language
+   * @param language - The programming language to generate ignore patterns for
+   * @returns Array of .gitignore patterns including base and language-specific entries
    */
   private getGitignoreEntries(language: string): string[] {
     const base = [
@@ -399,7 +405,8 @@ export class GitHubRepoSetupAgent implements IAgent {
 
   /**
    * Perform initial commit and push
-   * @param repoDir
+   * @param repoDir - The repository directory path
+   * @returns The SHA of the initial commit
    */
   private initialCommitAndPush(repoDir: string): string {
     // Stage all files
@@ -440,7 +447,8 @@ export class GitHubRepoSetupAgent implements IAgent {
 
   /**
    * Get the default branch name from the repository
-   * @param repoDir
+   * @param repoDir - The repository directory path
+   * @returns The name of the default branch (e.g., "main", "master")
    */
   private getDefaultBranch(repoDir: string): string {
     const result = this.runGitCommand(repoDir, 'rev-parse --abbrev-ref HEAD');
@@ -456,8 +464,9 @@ export class GitHubRepoSetupAgent implements IAgent {
 
   /**
    * Run a git command using CommandSanitizer
-   * @param cwd
-   * @param command
+   * @param cwd - The working directory to execute the command in
+   * @param command - The git command string to execute (without "git" prefix)
+   * @returns Object containing execution success status, stdout output, and optional error message
    */
   private runGitCommand(
     cwd: string,
@@ -481,8 +490,9 @@ export class GitHubRepoSetupAgent implements IAgent {
 
   /**
    * Run a gh command using a string
-   * @param cwd
-   * @param command
+   * @param cwd - The working directory to execute the command in
+   * @param command - The gh command string to execute (without "gh" prefix)
+   * @returns Object containing execution success status, stdout output, and optional error message
    */
   private runGhCommand(
     cwd: string,
@@ -506,8 +516,9 @@ export class GitHubRepoSetupAgent implements IAgent {
 
   /**
    * Run a gh command with pre-parsed arguments
-   * @param cwd
-   * @param args
+   * @param cwd - The working directory to execute the command in
+   * @param args - Array of command arguments to pass to gh CLI
+   * @returns Object containing execution success status, stdout output, and optional error message
    */
   private runGhCommandWithArgs(
     cwd: string,
@@ -533,9 +544,9 @@ export class GitHubRepoSetupAgent implements IAgent {
 
   /**
    * Save setup result to scratchpad
-   * @param rootPath
-   * @param projectName
-   * @param result
+   * @param rootPath - The root directory path containing the scratchpad
+   * @param projectName - The name of the project for organizing scratchpad files
+   * @param result - The repository setup result to persist
    */
   private saveResult(rootPath: string, projectName: string, result: RepoSetupResult): void {
     const scratchpadPath = path.join(rootPath, this.config.scratchpadBasePath, 'repo', projectName);
@@ -572,7 +583,8 @@ let instance: GitHubRepoSetupAgent | null = null;
 
 /**
  * Get the singleton GitHub Repo Setup Agent instance
- * @param config
+ * @param config - Optional configuration for the agent
+ * @returns The singleton GitHubRepoSetupAgent instance
  */
 export function getGitHubRepoSetupAgent(config?: RepoSetupConfig): GitHubRepoSetupAgent {
   if (instance === null) {

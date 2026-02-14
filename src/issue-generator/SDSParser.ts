@@ -96,7 +96,8 @@ export class SDSParser {
 
   /**
    * Parse document metadata from the header table
-   * @param lines
+   * @param lines - The markdown content split into lines
+   * @returns Parsed metadata including document ID, source references, version, and dates
    */
   private parseMetadata(lines: readonly string[]): SDSMetadata {
     const metadata: Record<string, string> = {};
@@ -128,6 +129,7 @@ export class SDSParser {
 
   /**
    * Mutable parsing state for a component
+   * @returns Empty parsing state object with default values
    */
   private createEmptyParsingState(): {
     id: string;
@@ -145,7 +147,8 @@ export class SDSParser {
 
   /**
    * Parse components from the Component Design section
-   * @param lines
+   * @param lines - The markdown content split into lines
+   * @returns Array of parsed SDS components with interfaces and dependencies
    */
   private parseComponents(lines: readonly string[]): readonly SDSComponent[] {
     const components: SDSComponent[] = [];
@@ -298,15 +301,16 @@ export class SDSParser {
 
   /**
    * Finalize a component with all its collected data
-   * @param state
-   * @param state.id
-   * @param state.name
-   * @param state.sourceFeature
-   * @param state.priority
-   * @param descriptionLines
-   * @param implNotesLines
-   * @param dependencies
-   * @param interfaceBuffer
+   * @param state - The current parsing state containing component ID, name, source feature, and priority
+   * @param state.id - Component ID (e.g., CMP-001)
+   * @param state.name - Component name
+   * @param state.sourceFeature - Source SRS feature reference
+   * @param state.priority - Component priority (P0-P3)
+   * @param descriptionLines - Collected description text lines
+   * @param implNotesLines - Collected implementation notes lines
+   * @param dependencies - Component dependency IDs
+   * @param interfaceBuffer - Collected interface code lines
+   * @returns Complete SDS component with all properties
    */
   private finalizeComponent(
     state: { id: string; name: string; sourceFeature: string | null; priority: Priority },
@@ -332,7 +336,8 @@ export class SDSParser {
 
   /**
    * Parse interface definitions from TypeScript code
-   * @param lines
+   * @param lines - TypeScript code lines containing interface definitions
+   * @returns Array of parsed interfaces with methods
    */
   private parseInterfaces(lines: readonly string[]): readonly SDSInterface[] {
     const interfaces: SDSInterface[] = [];
@@ -359,7 +364,8 @@ export class SDSParser {
 
   /**
    * Parse method signatures from interface code
-   * @param lines
+   * @param lines - TypeScript code lines containing method signatures
+   * @returns Array of parsed methods with names, signatures, and return types
    */
   private parseMethods(lines: readonly string[]): readonly SDSMethod[] {
     const methods: SDSMethod[] = [];
@@ -385,7 +391,8 @@ export class SDSParser {
 
   /**
    * Extract component IDs from dependency list
-   * @param dependencies
+   * @param dependencies - Raw dependency strings that may contain component IDs
+   * @returns Array of extracted component IDs in CMP-XXX format
    */
   private extractComponentDependencies(dependencies: readonly string[]): readonly string[] {
     return dependencies
@@ -398,7 +405,8 @@ export class SDSParser {
 
   /**
    * Parse priority value
-   * @param value
+   * @param value - Priority string (e.g., "P0", "P1", or "P0 / P1 / P2 / P3")
+   * @returns Parsed priority value (P0, P1, P2, or P3)
    */
   private parsePriority(value: string): Priority {
     const normalized = value.trim().toUpperCase();
@@ -415,7 +423,8 @@ export class SDSParser {
 
   /**
    * Parse technology stack from Section 2.3
-   * @param lines
+   * @param lines - The markdown content split into lines
+   * @returns Array of technology stack entries with layer, technology, version, and rationale
    */
   private parseTechnologyStack(lines: readonly string[]): readonly TechnologyEntry[] {
     const stack: TechnologyEntry[] = [];
@@ -472,7 +481,8 @@ export class SDSParser {
 
   /**
    * Parse traceability matrix from Section 9
-   * @param lines
+   * @param lines - The markdown content split into lines
+   * @returns Array of traceability entries linking components to SRS features and PRD requirements
    */
   private parseTraceabilityMatrix(lines: readonly string[]): readonly TraceabilityEntry[] {
     const matrix: TraceabilityEntry[] = [];
@@ -529,7 +539,8 @@ export class SDSParser {
 
   /**
    * Parse use case references from a cell value
-   * @param value
+   * @param value - Comma-separated or space-separated use case IDs
+   * @returns Array of use case IDs in UC-XXX format
    */
   private parseUseCases(value: string): readonly string[] {
     const matches = value.match(/UC-\d{3}/g);
@@ -538,7 +549,8 @@ export class SDSParser {
 
   /**
    * Validate parsed SDS structure
-   * @param sds
+   * @param sds - The parsed SDS document to validate
+   * @returns Array of validation error messages (empty if valid)
    * @throws SDSParseError if validation fails in strict mode
    */
   public validate(sds: ParsedSDS): readonly string[] {

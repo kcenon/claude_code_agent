@@ -48,6 +48,7 @@ export class PrerequisiteValidator {
 
   /**
    * Run all prerequisite checks
+   * @returns Validation result containing check statuses and overall validity
    */
   async validate(): Promise<PrerequisiteValidationResult> {
     const results: PrerequisiteResult[] = [];
@@ -91,6 +92,7 @@ export class PrerequisiteValidator {
 
   /**
    * Check if Node.js version is 18 or higher
+   * @returns True if Node.js version is 18 or higher, false otherwise
    */
   private checkNodeVersion(): Promise<boolean> {
     const version = process.version;
@@ -100,6 +102,7 @@ export class PrerequisiteValidator {
 
   /**
    * Check if Claude API key is set
+   * @returns True if CLAUDE_API_KEY or ANTHROPIC_API_KEY is set, false otherwise
    */
   private checkClaudeApiKey(): Promise<boolean> {
     const claudeKey = process.env['CLAUDE_API_KEY'];
@@ -112,6 +115,7 @@ export class PrerequisiteValidator {
 
   /**
    * Check if GitHub CLI is installed and authenticated
+   * @returns True if GitHub CLI is installed and user is logged in, false otherwise
    */
   private async checkGitHubCli(): Promise<boolean> {
     const sanitizer = getCommandSanitizer();
@@ -125,6 +129,7 @@ export class PrerequisiteValidator {
 
   /**
    * Check if Git is installed
+   * @returns True if Git is installed and executable, false otherwise
    */
   private async checkGit(): Promise<boolean> {
     const sanitizer = getCommandSanitizer();
@@ -138,7 +143,7 @@ export class PrerequisiteValidator {
 
   /**
    * Add a custom prerequisite check
-   * @param check
+   * @param check - The prerequisite check to add to the validation list
    */
   addCheck(check: PrerequisiteCheck): void {
     this.checks.push(check);
@@ -146,6 +151,7 @@ export class PrerequisiteValidator {
 
   /**
    * Get all registered checks
+   * @returns Read-only array of all registered prerequisite checks
    */
   getChecks(): readonly PrerequisiteCheck[] {
     return this.checks;
@@ -157,6 +163,7 @@ let validatorInstance: PrerequisiteValidator | null = null;
 
 /**
  * Get the singleton PrerequisiteValidator instance
+ * @returns The singleton PrerequisiteValidator instance
  */
 export function getPrerequisiteValidator(): PrerequisiteValidator {
   if (!validatorInstance) {
