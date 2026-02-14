@@ -91,7 +91,7 @@ export class WorkerHealthMonitor {
 
   /**
    * Initialize health tracking for a worker
-   * @param workerId
+   * @param workerId - Unique identifier of the worker to register
    */
   public registerWorker(workerId: string): void {
     if (!this.workerStates.has(workerId)) {
@@ -108,7 +108,7 @@ export class WorkerHealthMonitor {
 
   /**
    * Remove health tracking for a worker
-   * @param workerId
+   * @param workerId - Unique identifier of the worker to unregister
    */
   public unregisterWorker(workerId: string): void {
     this.workerStates.delete(workerId);
@@ -159,6 +159,7 @@ export class WorkerHealthMonitor {
 
   /**
    * Check if the monitor is currently running
+   * @returns True if health check loop is active
    */
   public isActive(): boolean {
     return this.isRunning;
@@ -166,7 +167,7 @@ export class WorkerHealthMonitor {
 
   /**
    * Record a heartbeat from a worker
-   * @param heartbeat
+   * @param heartbeat - Heartbeat payload containing worker ID, timestamp, and metrics
    */
   public recordHeartbeat(heartbeat: WorkerHeartbeat): void {
     const state = this.workerStates.get(heartbeat.workerId);
@@ -199,7 +200,7 @@ export class WorkerHealthMonitor {
 
   /**
    * Perform periodic health check on all workers
-   * @param getActiveWorkers
+   * @param getActiveWorkers - Callback that returns the current list of active workers
    */
   private async performHealthCheck(getActiveWorkers: () => readonly WorkerInfo[]): Promise<void> {
     const now = Date.now();
@@ -220,8 +221,8 @@ export class WorkerHealthMonitor {
 
   /**
    * Check health of a single worker
-   * @param state
-   * @param now
+   * @param state - Mutable health state for the worker being checked
+   * @param now - Current timestamp in milliseconds for heartbeat comparison
    */
   private async checkWorkerHealth(state: MutableWorkerHealthState, now: number): Promise<void> {
     // Skip workers that are already being restarted
@@ -268,7 +269,7 @@ export class WorkerHealthMonitor {
 
   /**
    * Handle a zombie worker
-   * @param state
+   * @param state - Health state of the worker identified as a zombie
    */
   private async handleZombieWorker(state: MutableWorkerHealthState): Promise<void> {
     const currentTask = state.lastHeartbeat?.currentTask ?? null;
@@ -312,7 +313,7 @@ export class WorkerHealthMonitor {
 
   /**
    * Attempt to restart a zombie worker
-   * @param state
+   * @param state - Health state of the zombie worker to restart
    */
   private async attemptWorkerRestart(state: MutableWorkerHealthState): Promise<void> {
     const now = Date.now();
@@ -371,7 +372,8 @@ export class WorkerHealthMonitor {
 
   /**
    * Get the current health status of a worker
-   * @param workerId
+   * @param workerId - Unique identifier of the worker to query
+   * @returns Worker health info, or null if the worker is not tracked
    */
   public getWorkerHealth(workerId: string): WorkerHealthInfo | null {
     const state = this.workerStates.get(workerId);
@@ -392,6 +394,7 @@ export class WorkerHealthMonitor {
 
   /**
    * Get the overall health monitor status
+   * @returns Aggregate status with worker counts by health category
    */
   public getStatus(): HealthMonitorStatus {
     const workers: WorkerHealthInfo[] = [];
@@ -435,6 +438,7 @@ export class WorkerHealthMonitor {
 
   /**
    * Get all zombie workers
+   * @returns Array of health info for workers in zombie state
    */
   public getZombieWorkers(): readonly WorkerHealthInfo[] {
     const zombies: WorkerHealthInfo[] = [];
@@ -453,7 +457,7 @@ export class WorkerHealthMonitor {
 
   /**
    * Set zombie detection handler
-   * @param handler
+   * @param handler - Async callback invoked when a worker is identified as a zombie
    */
   public onZombie(handler: ZombieWorkerHandler): void {
     this.onZombieDetected = handler;
@@ -461,7 +465,7 @@ export class WorkerHealthMonitor {
 
   /**
    * Set worker restart handler
-   * @param handler
+   * @param handler - Async callback invoked to perform the actual worker restart
    */
   public onRestart(handler: WorkerRestartHandler): void {
     this.onWorkerRestart = handler;
@@ -469,7 +473,7 @@ export class WorkerHealthMonitor {
 
   /**
    * Set task reassignment handler
-   * @param handler
+   * @param handler - Async callback invoked to reassign a task from a failed worker
    */
   public onReassign(handler: TaskReassignmentHandler): void {
     this.onTaskReassign = handler;
@@ -477,7 +481,7 @@ export class WorkerHealthMonitor {
 
   /**
    * Register an event listener
-   * @param callback
+   * @param callback - Function called for every health event emitted by the monitor
    */
   public onEvent(callback: HealthEventCallback): void {
     this.eventListeners.push(callback);
@@ -485,9 +489,9 @@ export class WorkerHealthMonitor {
 
   /**
    * Emit an event to all listeners
-   * @param type
-   * @param workerId
-   * @param data
+   * @param type - Category of health event being emitted
+   * @param workerId - Worker that triggered the event
+   * @param data - Additional event-specific payload
    */
   private async emitEvent(
     type: HealthEventType,
@@ -512,7 +516,7 @@ export class WorkerHealthMonitor {
 
   /**
    * Reset a worker's health state
-   * @param workerId
+   * @param workerId - Unique identifier of the worker to reset
    */
   public resetWorkerHealth(workerId: string): void {
     const state = this.workerStates.get(workerId);
@@ -538,6 +542,7 @@ export class WorkerHealthMonitor {
 
   /**
    * Get the configuration
+   * @returns Copy of the resolved health check configuration with all defaults applied
    */
   public getConfig(): Required<HealthCheckConfig> {
     return { ...this.config };

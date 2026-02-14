@@ -213,6 +213,7 @@ export class ProgressMonitor {
 
   /**
    * Check if the monitor is currently running
+   * @returns True if the monitor is actively polling for progress updates
    */
   public isActive(): boolean {
     return this.isRunning;
@@ -220,7 +221,7 @@ export class ProgressMonitor {
 
   /**
    * Set the total number of issues to track
-   * @param count
+   * @param count - Total number of issues expected in the current session
    */
   public setTotalIssues(count: number): void {
     this.totalIssues = count;
@@ -228,9 +229,9 @@ export class ProgressMonitor {
 
   /**
    * Record a task completion
-   * @param issueId
-   * @param startedAt
-   * @param success
+   * @param issueId - Identifier of the completed issue
+   * @param startedAt - Timestamp when the task began execution
+   * @param success - Whether the task completed successfully or failed
    */
   public recordCompletion(issueId: string, startedAt: Date, success: boolean): void {
     const now = new Date();
@@ -263,8 +264,8 @@ export class ProgressMonitor {
 
   /**
    * Record a task start
-   * @param issueId
-   * @param workerId
+   * @param issueId - Identifier of the issue being started
+   * @param workerId - Identifier of the worker assigned to the task
    */
   public recordStart(issueId: string, workerId: string): void {
     this.addActivity({
@@ -278,8 +279,8 @@ export class ProgressMonitor {
 
   /**
    * Record a task being blocked
-   * @param issueId
-   * @param reason
+   * @param issueId - Identifier of the blocked issue
+   * @param reason - Human-readable explanation of why the task is blocked
    */
   public recordBlocked(issueId: string, reason: string): void {
     this.addActivity({
@@ -292,7 +293,7 @@ export class ProgressMonitor {
 
   /**
    * Add an activity to the recent activities log
-   * @param activity
+   * @param activity - Activity record to prepend to the log, trimmed to max size
    */
   private addActivity(activity: MutableRecentActivity): void {
     this.recentActivities.unshift(activity);
@@ -305,7 +306,7 @@ export class ProgressMonitor {
 
   /**
    * Register an event listener
-   * @param callback
+   * @param callback - Function invoked when a progress event is emitted
    */
   public onEvent(callback: ProgressEventCallback): void {
     this.eventListeners.push(callback);
@@ -313,8 +314,8 @@ export class ProgressMonitor {
 
   /**
    * Emit an event to all listeners
-   * @param type
-   * @param data
+   * @param type - Category of the progress event being emitted
+   * @param data - Key-value payload attached to the event
    */
   private async emitEvent(type: ProgressEventType, data: Record<string, unknown>): Promise<void> {
     if (!this.config.enableNotifications) {
@@ -338,8 +339,9 @@ export class ProgressMonitor {
 
   /**
    * Check progress and detect bottlenecks
-   * @param getWorkerPoolStatus
-   * @param getWorkQueue
+   * @param getWorkerPoolStatus - Callback that returns the current worker pool status snapshot
+   * @param getWorkQueue - Callback that returns the current read-only work queue entries
+   * @returns Generated progress report containing metrics, bottlenecks, and worker state
    */
   private async checkProgress(
     getWorkerPoolStatus: () => WorkerPoolStatus,
@@ -377,7 +379,7 @@ export class ProgressMonitor {
 
   /**
    * Detect worker state changes and record activities
-   * @param workerStatus
+   * @param workerStatus - Current snapshot of all workers in the pool
    */
   private detectWorkerStateChanges(workerStatus: WorkerPoolStatus): void {
     for (const worker of workerStatus.workers) {
@@ -401,8 +403,9 @@ export class ProgressMonitor {
 
   /**
    * Detect bottlenecks in the system
-   * @param workerStatus
-   * @param workQueue
+   * @param workerStatus - Current snapshot of all workers in the pool
+   * @param workQueue - Read-only list of pending work queue entries
+   * @returns List of detected bottlenecks including stuck workers, blocked chains, and resource contention
    */
   public detectBottlenecks(
     workerStatus: WorkerPoolStatus,
@@ -556,8 +559,9 @@ export class ProgressMonitor {
 
   /**
    * Get suggested action for stuck worker based on duration
-   * @param duration
-   * @param threshold
+   * @param duration - How long the worker has been running in milliseconds
+   * @param threshold - Task-type-specific threshold levels for warning, stuck, and critical states
+   * @returns Human-readable recovery action recommendation based on the current escalation level
    */
   private getSuggestedActionForStuckWorker(
     duration: number,
@@ -574,11 +578,12 @@ export class ProgressMonitor {
 
   /**
    * Create a bottleneck object
-   * @param type
-   * @param description
-   * @param affectedIssues
-   * @param suggestedAction
-   * @param severity
+   * @param type - Classification of the bottleneck (e.g., stuck_worker, blocked_chain, resource_contention)
+   * @param description - Human-readable explanation of the bottleneck condition
+   * @param affectedIssues - List of issue identifiers impacted by this bottleneck
+   * @param suggestedAction - Recommended remediation step for resolving the bottleneck
+   * @param severity - Severity level from 1 (low) to 5 (critical)
+   * @returns Fully constructed bottleneck record with a detectedAt timestamp
    */
   private createBottleneck(
     type: BottleneckType,
@@ -599,8 +604,9 @@ export class ProgressMonitor {
 
   /**
    * Calculate progress metrics
-   * @param workerStatus
-   * @param workQueue
+   * @param workerStatus - Current snapshot of all workers in the pool
+   * @param workQueue - Read-only list of pending work queue entries
+   * @returns Aggregated progress metrics including completion percentage and ETA
    */
   public calculateMetrics(
     workerStatus: WorkerPoolStatus,
@@ -646,6 +652,7 @@ export class ProgressMonitor {
 
   /**
    * Calculate average completion time from history
+   * @returns Mean duration in milliseconds across all completed tasks, or 0 if none recorded
    */
   private calculateAverageCompletionTime(): number {
     if (this.completionHistory.length === 0) {
@@ -661,7 +668,7 @@ export class ProgressMonitor {
 
   /**
    * Check for milestones and emit events
-   * @param metrics
+   * @param metrics - Current progress metrics used to evaluate milestone thresholds
    */
   private async checkMilestones(metrics: ProgressMetrics): Promise<void> {
     const milestones = [25, 50, 75, 100];
@@ -692,7 +699,7 @@ export class ProgressMonitor {
   /**
    * Set a health status provider function
    * This allows integration with WorkerHealthMonitor
-   * @param provider
+   * @param provider - Callback that returns the current health monitor status
    */
   public setHealthStatusProvider(provider: GetHealthStatusFn): void {
     this.getHealthStatus = provider;
@@ -700,9 +707,10 @@ export class ProgressMonitor {
 
   /**
    * Generate a progress report
-   * @param metrics
-   * @param workerStatus
-   * @param bottlenecks
+   * @param metrics - Aggregated progress metrics for the current session
+   * @param workerStatus - Current snapshot of all workers in the pool
+   * @param bottlenecks - List of currently detected bottlenecks to include in the report
+   * @returns Complete progress report with metrics, worker details, bottlenecks, and recent activity
    */
   public generateReport(
     metrics: ProgressMetrics,
@@ -731,7 +739,8 @@ export class ProgressMonitor {
 
   /**
    * Generate markdown report content
-   * @param report
+   * @param report - Progress report to render as Markdown
+   * @returns Formatted Markdown string containing summary, workers, bottlenecks, and activity sections
    */
   public generateMarkdownReport(report: ProgressReport): string {
     const lines: string[] = [];
@@ -840,7 +849,8 @@ export class ProgressMonitor {
 
   /**
    * Format worker duration for display
-   * @param worker
+   * @param worker - Worker whose elapsed task duration should be formatted
+   * @returns Human-readable duration string (e.g., "5m 30s" or "2h 15m"), or "-" if not started
    */
   private formatDuration(worker: WorkerInfo): string {
     if (worker.startedAt === null) {
@@ -860,7 +870,7 @@ export class ProgressMonitor {
 
   /**
    * Save report to disk
-   * @param report
+   * @param report - Progress report to persist as both JSON and Markdown files
    */
   public async saveReport(report: ProgressReport): Promise<void> {
     const reportDir = this.config.reportPath;
@@ -885,6 +895,7 @@ export class ProgressMonitor {
 
   /**
    * Load the last saved report
+   * @returns The previously persisted progress report, or null if no report file exists
    */
   public async loadReport(): Promise<ProgressReport | null> {
     const jsonPath = join(this.config.reportPath, 'progress_report.json');
@@ -904,6 +915,7 @@ export class ProgressMonitor {
 
   /**
    * Get the current list of detected bottlenecks
+   * @returns Read-only array of all currently active bottlenecks
    */
   public getBottlenecks(): readonly Bottleneck[] {
     return Array.from(this.detectedBottlenecks.values());
@@ -911,6 +923,7 @@ export class ProgressMonitor {
 
   /**
    * Get recent activities
+   * @returns Read-only array of recent activity records, most recent first
    */
   public getRecentActivities(): readonly RecentActivity[] {
     return this.recentActivities.map((a) => ({ ...a }));
@@ -918,7 +931,8 @@ export class ProgressMonitor {
 
   /**
    * Clear a resolved bottleneck
-   * @param bottleneckId
+   * @param bottleneckId - Unique identifier of the bottleneck to remove from tracking
+   * @returns True if the bottleneck existed and was removed, false otherwise
    */
   public clearBottleneck(bottleneckId: string): boolean {
     return this.detectedBottlenecks.delete(bottleneckId);
@@ -944,6 +958,7 @@ export class ProgressMonitor {
 
   /**
    * Get the current completed count
+   * @returns Number of successfully completed tasks in the current session
    */
   public getCompletedCount(): number {
     return this.completedCount;
@@ -951,6 +966,7 @@ export class ProgressMonitor {
 
   /**
    * Get the current failed count
+   * @returns Number of failed tasks in the current session
    */
   public getFailedCount(): number {
     return this.failedCount;
@@ -958,6 +974,7 @@ export class ProgressMonitor {
 
   /**
    * Get the stuck worker handler instance
+   * @returns The underlying StuckWorkerHandler used for recovery orchestration
    */
   public getStuckWorkerHandler(): StuckWorkerHandler {
     return this.stuckWorkerHandler;
@@ -965,6 +982,7 @@ export class ProgressMonitor {
 
   /**
    * Get stuck worker configuration
+   * @returns Fully resolved stuck worker thresholds and recovery settings
    */
   public getStuckWorkerConfig(): Required<Omit<StuckWorkerConfig, 'taskThresholds'>> & {
     taskThresholds: Record<string, import('./types.js').TaskTypeThreshold>;
@@ -974,7 +992,7 @@ export class ProgressMonitor {
 
   /**
    * Set task reassignment handler for stuck worker recovery
-   * @param handler
+   * @param handler - Callback invoked to reassign a task from a stuck worker to another
    */
   public setTaskReassignHandler(handler: TaskReassignHandler): void {
     this.stuckWorkerHandler.setTaskReassignHandler(handler);
@@ -982,7 +1000,7 @@ export class ProgressMonitor {
 
   /**
    * Set worker restart handler for stuck worker recovery
-   * @param handler
+   * @param handler - Callback invoked to restart a worker that is stuck or in error state
    */
   public setWorkerRestartHandler(handler: WorkerRestartHandler): void {
     this.stuckWorkerHandler.setWorkerRestartHandler(handler);
@@ -990,7 +1008,7 @@ export class ProgressMonitor {
 
   /**
    * Set deadline extension handler for stuck worker recovery
-   * @param handler
+   * @param handler - Callback invoked to extend a task deadline before escalating further
    */
   public setDeadlineExtendHandler(handler: DeadlineExtendHandler): void {
     this.stuckWorkerHandler.setDeadlineExtendHandler(handler);
@@ -998,7 +1016,7 @@ export class ProgressMonitor {
 
   /**
    * Set critical escalation handler
-   * @param handler
+   * @param handler - Callback invoked when a stuck worker reaches the critical threshold
    */
   public setCriticalEscalationHandler(handler: CriticalEscalationHandler): void {
     this.stuckWorkerHandler.setCriticalEscalationHandler(handler);
@@ -1006,7 +1024,7 @@ export class ProgressMonitor {
 
   /**
    * Set pipeline pause handler for critical escalations
-   * @param handler
+   * @param handler - Callback invoked to pause the pipeline when a critical escalation occurs
    */
   public setPipelinePauseHandler(handler: PipelinePauseHandler): void {
     this.stuckWorkerHandler.setPipelinePauseHandler(handler);
@@ -1014,6 +1032,7 @@ export class ProgressMonitor {
 
   /**
    * Get stuck worker escalation history
+   * @returns Read-only array of all escalation events recorded during this session
    */
   public getEscalationHistory(): readonly StuckWorkerEscalation[] {
     return this.stuckWorkerHandler.getEscalationHistory();
@@ -1021,6 +1040,7 @@ export class ProgressMonitor {
 
   /**
    * Get stuck worker recovery history
+   * @returns Read-only array of all recovery attempts made for stuck workers
    */
   public getRecoveryHistory(): readonly import('./types.js').StuckWorkerRecoveryAttempt[] {
     return this.stuckWorkerHandler.getRecoveryHistory();

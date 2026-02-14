@@ -75,7 +75,7 @@ export class BoundedWorkQueue {
 
   /**
    * Set event callback for queue notifications
-   * @param callback
+   * @param callback - Handler invoked on queue lifecycle events (enqueue, reject, backpressure, etc.)
    */
   public onEvent(callback: QueueEventCallback): void {
     this.eventCallback = callback;
@@ -192,7 +192,8 @@ export class BoundedWorkQueue {
 
   /**
    * Get a queue entry without removing it
-   * @param issueId
+   * @param issueId - Unique identifier of the task to look up
+   * @returns A shallow copy of the queue entry, or undefined if not found
    */
   public get(issueId: string): WorkQueueEntry | undefined {
     const entry = this.queue.get(issueId);
@@ -204,7 +205,8 @@ export class BoundedWorkQueue {
 
   /**
    * Check if a task is in the queue
-   * @param issueId
+   * @param issueId - Unique identifier of the task to check
+   * @returns true if the task exists in the queue
    */
   public has(issueId: string): boolean {
     return this.queue.has(issueId);
@@ -212,6 +214,7 @@ export class BoundedWorkQueue {
 
   /**
    * Get current queue size
+   * @returns The number of tasks currently in the queue
    */
   public get size(): number {
     return this.queue.size;
@@ -219,6 +222,7 @@ export class BoundedWorkQueue {
 
   /**
    * Get all queue entries sorted by priority
+   * @returns Immutable array of queue entries ordered by descending priority score
    */
   public getAll(): readonly WorkQueueEntry[] {
     return Array.from(this.queue.values())
@@ -228,6 +232,7 @@ export class BoundedWorkQueue {
 
   /**
    * Get queue status snapshot
+   * @returns Current queue state including size, utilization, backpressure, and memory usage
    */
   public getStatus(): QueueStatus {
     return {
@@ -243,6 +248,7 @@ export class BoundedWorkQueue {
 
   /**
    * Get dead letter queue entries
+   * @returns Immutable array of all tasks that were rejected or dropped from the main queue
    */
   public getDeadLetterQueue(): readonly DeadLetterEntry[] {
     return Array.from(this.deadLetter.values());
@@ -250,6 +256,7 @@ export class BoundedWorkQueue {
 
   /**
    * Get dead letter queue size
+   * @returns The number of tasks currently in the dead letter queue
    */
   public get deadLetterSize(): number {
     return this.deadLetter.size;
@@ -278,7 +285,8 @@ export class BoundedWorkQueue {
 
   /**
    * Clear a task from the dead letter queue
-   * @param issueId
+   * @param issueId - Unique identifier of the task to remove from the dead letter queue
+   * @returns true if the task was found and removed, false otherwise
    */
   public clearFromDeadLetter(issueId: string): boolean {
     return this.deadLetter.delete(issueId);
@@ -302,6 +310,7 @@ export class BoundedWorkQueue {
 
   /**
    * Estimate memory usage in bytes
+   * @returns Approximate memory consumption of the queue and dead letter entries in bytes
    */
   public getMemoryUsage(): number {
     let size = 0;
@@ -332,9 +341,10 @@ export class BoundedWorkQueue {
 
   /**
    * Handle full queue based on rejection policy
-   * @param issueId
-   * @param priorityScore
-   * @param reason
+   * @param issueId - Unique identifier of the incoming task
+   * @param priorityScore - Priority score of the incoming task
+   * @param reason - Why the queue cannot accept the task (e.g., queue_full, memory_limit)
+   * @returns Enqueue result after applying the configured rejection policy
    */
   private async handleFull(
     issueId: string,
@@ -356,8 +366,9 @@ export class BoundedWorkQueue {
 
   /**
    * Drop oldest entry to make room for new task
-   * @param issueId
-   * @param priorityScore
+   * @param issueId - Unique identifier of the new task to enqueue
+   * @param priorityScore - Priority score of the new task
+   * @returns Enqueue result after evicting the oldest entry
    */
   private async handleDropOldest(issueId: string, priorityScore: number): Promise<EnqueueResult> {
     const oldest = this.getOldestEntry();
@@ -374,8 +385,9 @@ export class BoundedWorkQueue {
 
   /**
    * Drop lowest priority entry if new task has higher priority
-   * @param issueId
-   * @param priorityScore
+   * @param issueId - Unique identifier of the new task to enqueue
+   * @param priorityScore - Priority score of the new task, compared against existing entries
+   * @returns Enqueue result; fails if the new task has lower priority than all queued tasks
    */
   private async handleDropLowestPriority(
     issueId: string,
@@ -404,6 +416,7 @@ export class BoundedWorkQueue {
 
   /**
    * Get the oldest entry in the queue
+   * @returns The entry with the earliest queuedAt timestamp, or undefined if empty
    */
   private getOldestEntry(): MutableWorkQueueEntry | undefined {
     let oldest: MutableWorkQueueEntry | undefined;
@@ -419,6 +432,7 @@ export class BoundedWorkQueue {
 
   /**
    * Get the lowest priority entry in the queue
+   * @returns The entry with the smallest priority score, or undefined if empty
    */
   private getLowestPriorityEntry(): MutableWorkQueueEntry | undefined {
     let lowest: MutableWorkQueueEntry | undefined;
@@ -434,8 +448,8 @@ export class BoundedWorkQueue {
 
   /**
    * Move an entry to the dead letter queue
-   * @param entry
-   * @param reason
+   * @param entry - The queue entry being evicted from the main queue
+   * @param reason - Human-readable explanation for why the entry was moved (e.g., dropped_for_newer)
    */
   private async moveToDeadLetter(entry: MutableWorkQueueEntry, reason: string): Promise<void> {
     if (!this.config.enableDeadLetter) {
@@ -462,6 +476,7 @@ export class BoundedWorkQueue {
 
   /**
    * Get the oldest dead letter entry
+   * @returns The dead letter entry with the earliest movedAt timestamp, or undefined if empty
    */
   private getOldestDeadLetterEntry(): DeadLetterEntry | undefined {
     let oldest: DeadLetterEntry | undefined;
@@ -477,6 +492,7 @@ export class BoundedWorkQueue {
 
   /**
    * Check if backpressure should be applied
+   * @returns true if the queue utilization ratio exceeds the backpressure threshold
    */
   private shouldApplyBackpressure(): boolean {
     const ratio = this.queue.size / this.config.maxSize;
@@ -527,9 +543,9 @@ export class BoundedWorkQueue {
 
   /**
    * Emit a queue event
-   * @param type
-   * @param taskId
-   * @param data
+   * @param type - Category of the queue event (e.g., task_enqueued, backpressure_activated)
+   * @param taskId - Associated task identifier, or undefined for queue-wide events
+   * @param data - Additional event payload with context-specific details
    */
   private async emitEvent(
     type: QueueEvent['type'],
@@ -556,7 +572,8 @@ export class BoundedWorkQueue {
 
   /**
    * Sleep for specified milliseconds
-   * @param ms
+   * @param ms - Duration to wait in milliseconds
+   * @returns Promise that resolves after the specified delay
    */
   private sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
