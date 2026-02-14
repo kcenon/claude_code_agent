@@ -37,7 +37,9 @@ import { initializeProject, isProjectInitialized } from './utils/index.js';
 import { resolve } from 'node:path';
 import { getCompletionGenerator, SUPPORTED_SHELLS, type ShellType } from './completion/index.js';
 import { getTelemetry, PRIVACY_POLICY, PRIVACY_POLICY_VERSION } from './telemetry/index.js';
+import { getCLIOutput } from './cli/CLIOutput.js';
 
+const output = getCLIOutput();
 const program = new Command();
 
 program
@@ -61,7 +63,7 @@ program
   .option('--skip-validation', 'Skip prerequisite validation')
   .action(async (projectName: string | undefined, cmdOptions: Record<string, unknown>) => {
     try {
-      console.log(chalk.blue('\n🚀 AD-SDLC Project Initialization\n'));
+      output.info(chalk.blue('\n🚀 AD-SDLC Project Initialization\n'));
 
       let options: InitOptions;
 
@@ -107,7 +109,7 @@ program
         // Confirm configuration
         const confirmed = await wizard.confirmConfiguration(options);
         if (!confirmed) {
-          console.log(chalk.yellow('\n⚠️  Initialization cancelled.\n'));
+          output.info(chalk.yellow('\n⚠️  Initialization cancelled.\n'));
           process.exit(0);
         }
       }
@@ -115,24 +117,24 @@ program
       // Validate prerequisites
       const shouldValidate = cmdOptions['skipValidation'] !== true;
       if (shouldValidate) {
-        console.log(chalk.blue('\n🔍 Validating prerequisites...\n'));
+        output.info(chalk.blue('\n🔍 Validating prerequisites...\n'));
         const validator = getPrerequisiteValidator();
         const validation = await validator.validate();
 
         for (const check of validation.checks) {
           if (check.passed) {
-            console.log(chalk.green(`  ✓ ${check.name}`));
+            output.info(chalk.green(`  ✓ ${check.name}`));
           } else if (check.required) {
-            console.log(chalk.red(`  ✗ ${check.name}`));
-            console.log(chalk.yellow(`    Fix: ${check.fix ?? 'Unknown'}`));
+            output.info(chalk.red(`  ✗ ${check.name}`));
+            output.info(chalk.yellow(`    Fix: ${check.fix ?? 'Unknown'}`));
           } else {
-            console.log(chalk.yellow(`  ⚠ ${check.name} (optional)`));
-            console.log(chalk.dim(`    ${check.fix ?? ''}`));
+            output.info(chalk.yellow(`  ⚠ ${check.name} (optional)`));
+            output.info(chalk.dim(`    ${check.fix ?? ''}`));
           }
         }
 
         if (!validation.valid) {
-          console.log(
+          output.info(
             chalk.red(
               '\n❌ Prerequisite validation failed. Please fix the required issues above.\n'
             )
@@ -141,46 +143,45 @@ program
         }
 
         if (validation.warnings > 0) {
-          console.log(
+          output.info(
             chalk.yellow(
               `\n⚠️  ${String(validation.warnings)} optional check(s) failed. Continuing anyway...\n`
             )
           );
         } else {
-          console.log(chalk.green('\n✓ All prerequisites validated.\n'));
+          output.info(chalk.green('\n✓ All prerequisites validated.\n'));
         }
       }
 
       // Initialize project
-      console.log(chalk.blue('📁 Creating project structure...\n'));
+      output.info(chalk.blue('📁 Creating project structure...\n'));
       const initializer = createProjectInitializer(options);
       const result = await initializer.initialize();
 
       if (result.success) {
-        console.log(chalk.green('\n✅ Project initialized successfully!\n'));
-        console.log(chalk.dim('Created files:'));
+        output.info(chalk.green('\n✅ Project initialized successfully!\n'));
+        output.info(chalk.dim('Created files:'));
         for (const file of result.createdFiles.slice(0, 10)) {
-          console.log(chalk.dim(`  - ${file}`));
+          output.info(chalk.dim(`  - ${file}`));
         }
         if (result.createdFiles.length > 10) {
-          console.log(chalk.dim(`  ... and ${String(result.createdFiles.length - 10)} more files`));
+          output.info(chalk.dim(`  ... and ${String(result.createdFiles.length - 10)} more files`));
         }
 
-        console.log(chalk.blue('\n📖 Next steps:\n'));
-        console.log(`  1. ${chalk.cyan(`cd ${options.projectName}`)}`);
-        console.log(
+        output.info(chalk.blue('\n📖 Next steps:\n'));
+        output.info(`  1. ${chalk.cyan(`cd ${options.projectName}`)}`);
+        output.info(
           `  2. Set up your Claude API key: ${chalk.cyan('export CLAUDE_API_KEY="your-key"')}`
         );
-        console.log(`  3. Run AD-SDLC: ${chalk.cyan('npx ad-sdlc run "Your requirements"')}`);
-        console.log('');
+        output.info(`  3. Run AD-SDLC: ${chalk.cyan('npx ad-sdlc run "Your requirements"')}`);
+        output.blank();
       } else {
-        console.log(chalk.red(`\n❌ Initialization failed: ${result.error ?? 'Unknown error'}\n`));
+        output.info(chalk.red(`\n❌ Initialization failed: ${result.error ?? 'Unknown error'}\n`));
         process.exit(1);
       }
     } catch (error) {
-      console.error(
-        chalk.red('\n❌ Error:'),
-        error instanceof Error ? error.message : String(error)
+      output.error(
+        `${chalk.red('\n❌ Error:')} ${error instanceof Error ? error.message : String(error)}`
       );
       process.exit(1);
     }
@@ -192,13 +193,13 @@ program
  */
 function formatFileResult(result: FileValidationResult): void {
   const statusIcon = result.valid ? chalk.green('✓') : chalk.red('✗');
-  console.log(`${statusIcon} ${result.filePath}`);
+  output.info(`${statusIcon} ${result.filePath}`);
 
   if (!result.valid && result.errors.length > 0) {
     for (const error of result.errors) {
-      console.log(chalk.red(`    ❌ ${error.path}: ${error.message}`));
+      output.info(chalk.red(`    ❌ ${error.path}: ${error.message}`));
       if (error.suggestion !== undefined && error.suggestion !== '') {
-        console.log(chalk.yellow(`       Suggestion: ${error.suggestion}`));
+        output.info(chalk.yellow(`       Suggestion: ${error.suggestion}`));
       }
     }
   }
@@ -209,7 +210,7 @@ function formatFileResult(result: FileValidationResult): void {
  * @param report - The validation report to serialize as JSON
  */
 function formatReportAsJson(report: ValidationReport): void {
-  console.log(JSON.stringify(report, null, 2));
+  output.info(JSON.stringify(report, null, 2));
 }
 
 /**
@@ -228,8 +229,8 @@ program
     const isJson = format === 'json';
 
     if (!isJson) {
-      console.log(chalk.blue('\n🔍 Validating configuration...\n'));
-      console.log(chalk.dim(`Schema version: ${CONFIG_SCHEMA_VERSION}\n`));
+      output.info(chalk.blue('\n🔍 Validating configuration...\n'));
+      output.info(chalk.dim(`Schema version: ${CONFIG_SCHEMA_VERSION}\n`));
     }
 
     try {
@@ -237,7 +238,7 @@ program
       const exists = configFilesExist();
       if (!exists.workflow && !exists.agents) {
         if (isJson) {
-          console.log(
+          output.info(
             JSON.stringify({
               valid: false,
               error: 'No configuration files found. Run "ad-sdlc init" first.',
@@ -247,8 +248,8 @@ program
             })
           );
         } else {
-          console.log(chalk.yellow('⚠️  No configuration files found.'));
-          console.log(chalk.dim('Run "ad-sdlc init" to create a new project.\n'));
+          output.info(chalk.yellow('⚠️  No configuration files found.'));
+          output.info(chalk.dim('Run "ad-sdlc init" to create a new project.\n'));
         }
         process.exit(1);
       }
@@ -258,7 +259,7 @@ program
         const result = await validateConfigFile(filePath);
 
         if (isJson) {
-          console.log(
+          output.info(
             JSON.stringify(
               {
                 valid: result.valid,
@@ -272,7 +273,7 @@ program
           );
         } else {
           formatFileResult(result);
-          console.log('');
+          output.blank();
         }
 
         if (!result.valid) {
@@ -288,11 +289,11 @@ program
             formatFileResult(result);
           }
 
-          console.log('');
+          output.blank();
           if (report.valid) {
-            console.log(chalk.green('✅ All configuration files are valid.\n'));
+            output.info(chalk.green('✅ All configuration files are valid.\n'));
           } else {
-            console.log(
+            output.info(
               chalk.red(
                 `❌ Found ${String(report.totalErrors)} error(s). Fix these issues and try again.\n`
               )
@@ -308,14 +309,14 @@ program
       // Watch mode
       if (watchMode) {
         if (!isJson) {
-          console.log(chalk.blue('👀 Watching for changes... (Press Ctrl+C to stop)\n'));
+          output.info(chalk.blue('👀 Watching for changes... (Press Ctrl+C to stop)\n'));
         }
 
         const cleanup = watchConfigWithLogging(
           undefined,
           (changedPath) => {
             if (isJson) {
-              console.log(
+              output.info(
                 JSON.stringify({
                   event: 'valid',
                   filePath: changedPath,
@@ -323,12 +324,12 @@ program
                 })
               );
             } else {
-              console.log(chalk.green(`✓ ${changedPath} - Valid`));
+              output.info(chalk.green(`✓ ${changedPath} - Valid`));
             }
           },
           (changedPath, errors) => {
             if (isJson) {
-              console.log(
+              output.info(
                 JSON.stringify({
                   event: 'invalid',
                   filePath: changedPath,
@@ -337,9 +338,9 @@ program
                 })
               );
             } else {
-              console.log(chalk.red(`✗ ${changedPath} - Invalid`));
+              output.info(chalk.red(`✗ ${changedPath} - Invalid`));
               for (const error of errors) {
-                console.log(chalk.red(`    ❌ ${error.path}: ${error.message}`));
+                output.info(chalk.red(`    ❌ ${error.path}: ${error.message}`));
               }
             }
           }
@@ -349,7 +350,7 @@ program
         process.on('SIGINT', () => {
           cleanup();
           if (!isJson) {
-            console.log(chalk.dim('\n\nStopped watching.\n'));
+            output.info(chalk.dim('\n\nStopped watching.\n'));
           }
           process.exit(0);
         });
@@ -359,7 +360,7 @@ program
       }
     } catch (error) {
       if (isJson) {
-        console.log(
+        output.info(
           JSON.stringify({
             valid: false,
             error: error instanceof Error ? error.message : String(error),
@@ -369,9 +370,8 @@ program
           })
         );
       } else {
-        console.error(
-          chalk.red('\n❌ Error:'),
-          error instanceof Error ? error.message : String(error)
+        output.error(
+          `${chalk.red('\n❌ Error:')} ${error instanceof Error ? error.message : String(error)}`
         );
       }
       process.exit(1);
@@ -395,8 +395,8 @@ program
     // Validate format
     const validFormats = ['text', 'json'];
     if (!validFormats.includes(formatInput)) {
-      console.error(chalk.red(`\n❌ Invalid format: ${formatInput}`));
-      console.log(chalk.dim(`Valid formats: ${validFormats.join(', ')}\n`));
+      output.error(chalk.red(`\n❌ Invalid format: ${formatInput}`));
+      output.info(chalk.dim(`Valid formats: ${validFormats.join(', ')}\n`));
       process.exit(1);
     }
     const format = formatInput as OutputFormat;
@@ -455,8 +455,8 @@ program
       // Validate scope
       const validScopes = ['full', 'documents_only', 'code_only', 'comparison'];
       if (!validScopes.includes(scopeInput)) {
-        console.error(chalk.red(`\n❌ Invalid scope: ${scopeInput}`));
-        console.log(chalk.dim(`Valid scopes: ${validScopes.join(', ')}\n`));
+        output.error(chalk.red(`\n❌ Invalid scope: ${scopeInput}`));
+        output.info(chalk.dim(`Valid scopes: ${validScopes.join(', ')}\n`));
         process.exit(1);
       }
       const scope = scopeInput as AnalysisScope;
@@ -470,35 +470,34 @@ program
 
       // Handle status check
       if (statusId !== undefined) {
-        console.log(chalk.blue(`\n📊 Analysis Status: ${statusId}\n`));
+        output.info(chalk.blue(`\n📊 Analysis Status: ${statusId}\n`));
         try {
           const state = await agent.getStatus(statusId, projectPath);
-          console.log(chalk.white('Analysis ID:'), state.analysisId);
-          console.log(chalk.white('Project ID:'), state.projectId);
-          console.log(chalk.white('Status:'), formatStatus(state.overallStatus));
-          console.log(chalk.white('Scope:'), state.scope);
-          console.log(chalk.white('Started:'), state.startedAt);
-          console.log(chalk.white('Updated:'), state.updatedAt);
+          output.info(`${chalk.white('Analysis ID:')} ${state.analysisId}`);
+          output.info(`${chalk.white('Project ID:')} ${state.projectId}`);
+          output.info(`${chalk.white('Status:')} ${formatStatus(state.overallStatus)}`);
+          output.info(`${chalk.white('Scope:')} ${state.scope}`);
+          output.info(`${chalk.white('Started:')} ${state.startedAt}`);
+          output.info(`${chalk.white('Updated:')} ${state.updatedAt}`);
 
-          console.log(chalk.blue('\nStages:'));
+          output.info(chalk.blue('\nStages:'));
           for (const stage of state.stages) {
             const statusIcon = getStatusIcon(stage.status);
-            console.log(`  ${statusIcon} ${stage.name}: ${stage.status}`);
+            output.info(`  ${statusIcon} ${stage.name}: ${stage.status}`);
             if (stage.error !== null) {
-              console.log(chalk.red(`      Error: ${stage.error}`));
+              output.info(chalk.red(`      Error: ${stage.error}`));
             }
           }
 
-          console.log(chalk.blue('\nStatistics:'));
-          console.log(`  Total stages: ${String(state.statistics.totalStages)}`);
-          console.log(`  Completed: ${String(state.statistics.completedStages)}`);
-          console.log(`  Failed: ${String(state.statistics.failedStages)}`);
-          console.log(`  Duration: ${String(state.statistics.totalDurationMs)}ms`);
-          console.log('');
+          output.info(chalk.blue('\nStatistics:'));
+          output.info(`  Total stages: ${String(state.statistics.totalStages)}`);
+          output.info(`  Completed: ${String(state.statistics.completedStages)}`);
+          output.info(`  Failed: ${String(state.statistics.failedStages)}`);
+          output.info(`  Duration: ${String(state.statistics.totalDurationMs)}ms`);
+          output.blank();
         } catch (error) {
-          console.error(
-            chalk.red('\n❌ Error:'),
-            error instanceof Error ? error.message : String(error)
+          output.error(
+            `${chalk.red('\n❌ Error:')} ${error instanceof Error ? error.message : String(error)}`
           );
           process.exit(1);
         }
@@ -507,25 +506,24 @@ program
 
       // Handle resume
       if (resumeId !== undefined) {
-        console.log(chalk.blue(`\n🔄 Resuming Analysis: ${resumeId}\n`));
+        output.info(chalk.blue(`\n🔄 Resuming Analysis: ${resumeId}\n`));
         try {
           await agent.resume(resumeId, projectPath, true);
-          console.log(chalk.green('✓ Session restored\n'));
+          output.info(chalk.green('✓ Session restored\n'));
         } catch (error) {
-          console.error(
-            chalk.red('\n❌ Error:'),
-            error instanceof Error ? error.message : String(error)
+          output.error(
+            `${chalk.red('\n❌ Error:')} ${error instanceof Error ? error.message : String(error)}`
           );
           process.exit(1);
         }
       } else {
         // Start new analysis
-        console.log(chalk.blue('\n🔍 AD-SDLC Analysis Pipeline\n'));
-        console.log(chalk.dim(`Project: ${projectPath}`));
-        console.log(chalk.dim(`Scope: ${scope}`));
-        console.log(chalk.dim(`Generate Issues: ${generateIssues ? 'Yes' : 'No'}`));
-        console.log(chalk.dim(`Parallel Execution: ${parallel ? 'Yes' : 'No'}`));
-        console.log('');
+        output.info(chalk.blue('\n🔍 AD-SDLC Analysis Pipeline\n'));
+        output.info(chalk.dim(`Project: ${projectPath}`));
+        output.info(chalk.dim(`Scope: ${scope}`));
+        output.info(chalk.dim(`Generate Issues: ${generateIssues ? 'Yes' : 'No'}`));
+        output.info(chalk.dim(`Parallel Execution: ${parallel ? 'Yes' : 'No'}`));
+        output.blank();
 
         try {
           const analysisInput = {
@@ -535,69 +533,65 @@ program
             ...(projectId !== undefined && { projectId }),
           };
           const session = await agent.startAnalysis(analysisInput);
-          console.log(chalk.green(`✓ Analysis session started: ${session.analysisId}\n`));
+          output.info(chalk.green(`✓ Analysis session started: ${session.analysisId}\n`));
         } catch (error) {
-          console.error(
-            chalk.red('\n❌ Error:'),
-            error instanceof Error ? error.message : String(error)
+          output.error(
+            `${chalk.red('\n❌ Error:')} ${error instanceof Error ? error.message : String(error)}`
           );
           process.exit(1);
         }
       }
 
       // Execute the analysis
-      console.log(chalk.blue('🚀 Executing analysis pipeline...\n'));
+      output.info(chalk.blue('🚀 Executing analysis pipeline...\n'));
 
       try {
         const result = await agent.execute();
 
         // Display results
-        console.log(chalk.green('\n✅ Analysis Complete\n'));
-        console.log(chalk.white('Analysis ID:'), result.analysisId);
-        console.log(chalk.white('Project ID:'), result.projectId);
-        console.log(chalk.white('Status:'), formatResultStatus(result.report.overallStatus));
+        output.info(chalk.green('\n✅ Analysis Complete\n'));
+        output.info(`${chalk.white('Analysis ID:')} ${result.analysisId}`);
+        output.info(`${chalk.white('Project ID:')} ${result.projectId}`);
+        output.info(`${chalk.white('Status:')} ${formatResultStatus(result.report.overallStatus)}`);
 
-        console.log(chalk.blue('\nResults:'));
+        output.info(chalk.blue('\nResults:'));
         if (result.report.documentAnalysis.available) {
-          console.log(
-            chalk.green('  ✓ Document Analysis:'),
-            result.report.documentAnalysis.summary
+          output.info(
+            `${chalk.green('  ✓ Document Analysis:')} ${result.report.documentAnalysis.summary ?? 'N/A'}`
           );
         }
         if (result.report.codeAnalysis.available) {
-          console.log(chalk.green('  ✓ Code Analysis:'), result.report.codeAnalysis.summary);
+          output.info(`${chalk.green('  ✓ Code Analysis:')} ${result.report.codeAnalysis.summary ?? 'N/A'}`);
         }
         if (result.report.comparison.available) {
-          console.log(
-            chalk.green('  ✓ Comparison:'),
-            `${String(result.report.comparison.totalGaps)} gaps found (${String(result.report.comparison.criticalGaps)} critical)`
+          output.info(
+            `${chalk.green('  ✓ Comparison:')} ${String(result.report.comparison.totalGaps)} gaps found (${String(result.report.comparison.criticalGaps)} critical)`
           );
         }
         if (result.report.issues.generated) {
-          console.log(
-            chalk.green('  ✓ Issues Generated:'),
-            `${String(result.report.issues.totalIssues)} issues`
+          output.info(
+            `${chalk.green('  ✓ Issues Generated:')} ${String(result.report.issues.totalIssues)} issues`
           );
         }
 
-        console.log(chalk.blue('\nOutput Files:'));
-        console.log(`  Pipeline State: ${result.outputPaths.pipelineState}`);
-        console.log(`  Analysis Report: ${result.outputPaths.analysisReport}`);
+        output.info(chalk.blue('\nOutput Files:'));
+        output.info(`  Pipeline State: ${result.outputPaths.pipelineState}`);
+        output.info(`  Analysis Report: ${result.outputPaths.analysisReport}`);
         if (result.outputPaths.documentInventory !== undefined) {
-          console.log(`  Document Inventory: ${result.outputPaths.documentInventory}`);
+          output.info(`  Document Inventory: ${result.outputPaths.documentInventory}`);
         }
         if (result.outputPaths.codeInventory !== undefined) {
-          console.log(`  Code Inventory: ${result.outputPaths.codeInventory}`);
+          output.info(`  Code Inventory: ${result.outputPaths.codeInventory}`);
         }
         if (result.outputPaths.comparisonResult !== undefined) {
-          console.log(`  Comparison Result: ${result.outputPaths.comparisonResult}`);
+          output.info(`  Comparison Result: ${result.outputPaths.comparisonResult}`);
         }
         if (result.outputPaths.generatedIssues !== undefined) {
-          console.log(`  Generated Issues: ${result.outputPaths.generatedIssues}`);
+          output.info(`  Generated Issues: ${result.outputPaths.generatedIssues}`);
         }
 
         if (result.report.recommendations.length > 0) {
-          console.log(chalk.blue('\nRecommendations:'));
+          output.info(chalk.blue('\nRecommendations:'));
           for (const rec of result.report.recommendations) {
             const icon =
               rec.priority === 1
@@ -605,19 +599,19 @@ program
                 : rec.priority === 2
                   ? chalk.yellow('⚠')
                   : chalk.dim('ℹ');
-            console.log(`  ${icon} ${rec.message}`);
-            console.log(chalk.dim(`     Action: ${rec.action}`));
+            output.info(`  ${icon} ${rec.message}`);
+            output.info(chalk.dim(`     Action: ${rec.action}`));
           }
         }
 
         if (result.warnings.length > 0) {
-          console.log(chalk.yellow('\nWarnings:'));
+          output.info(chalk.yellow('\nWarnings:'));
           for (const warning of result.warnings) {
-            console.log(chalk.yellow(`  ⚠ ${warning}`));
+            output.info(chalk.yellow(`  ⚠ ${warning}`));
           }
         }
 
-        console.log(chalk.dim(`\nTotal duration: ${String(result.report.totalDurationMs)}ms\n`));
+        output.info(chalk.dim(`\nTotal duration: ${String(result.report.totalDurationMs)}ms\n`));
 
         // Reset agent after completion
         resetAnalysisOrchestratorAgent();
@@ -626,17 +620,15 @@ program
           process.exit(1);
         }
       } catch (error) {
-        console.error(
-          chalk.red('\n❌ Analysis failed:'),
-          error instanceof Error ? error.message : String(error)
+        output.error(
+          `${chalk.red('\n❌ Analysis failed:')} ${error instanceof Error ? error.message : String(error)}`
         );
         resetAnalysisOrchestratorAgent();
         process.exit(1);
       }
     } catch (error) {
-      console.error(
-        chalk.red('\n❌ Error:'),
-        error instanceof Error ? error.message : String(error)
+      output.error(
+        `${chalk.red('\n❌ Error:')} ${error instanceof Error ? error.message : String(error)}`
       );
       process.exit(1);
     }
@@ -701,19 +693,19 @@ program
 
     // Validate shell type
     if (shellInput === null || shellInput.length === 0) {
-      console.error(chalk.red('\n❌ Error: Shell type is required'));
-      console.log(chalk.dim(`\nSupported shells: ${SUPPORTED_SHELLS.join(', ')}`));
-      console.log(chalk.dim('\nUsage: ad-sdlc completion --shell <shell>\n'));
-      console.log(chalk.blue('Examples:'));
-      console.log(chalk.dim('  ad-sdlc completion --shell bash'));
-      console.log(chalk.dim('  ad-sdlc completion --shell zsh'));
-      console.log(chalk.dim('  ad-sdlc completion --shell fish\n'));
+      output.error(chalk.red('\n❌ Error: Shell type is required'));
+      output.info(chalk.dim(`\nSupported shells: ${SUPPORTED_SHELLS.join(', ')}`));
+      output.info(chalk.dim('\nUsage: ad-sdlc completion --shell <shell>\n'));
+      output.info(chalk.blue('Examples:'));
+      output.info(chalk.dim('  ad-sdlc completion --shell bash'));
+      output.info(chalk.dim('  ad-sdlc completion --shell zsh'));
+      output.info(chalk.dim('  ad-sdlc completion --shell fish\n'));
       process.exit(1);
     }
 
     if (!SUPPORTED_SHELLS.includes(shellInput as ShellType)) {
-      console.error(chalk.red(`\n❌ Error: Unsupported shell: ${shellInput}`));
-      console.log(chalk.dim(`\nSupported shells: ${SUPPORTED_SHELLS.join(', ')}\n`));
+      output.error(chalk.red(`\n❌ Error: Unsupported shell: ${shellInput}`));
+      output.info(chalk.dim(`\nSupported shells: ${SUPPORTED_SHELLS.join(', ')}\n`));
       process.exit(1);
     }
 
@@ -722,17 +714,17 @@ program
     const result = generator.generate(shell);
 
     if (!result.success) {
-      console.error(
+      output.error(
         chalk.red(`\n❌ Error generating completion: ${result.error ?? 'Unknown error'}\n`)
       );
       process.exit(1);
     }
 
     // Output the completion script
-    console.log(result.script);
+    output.info(result.script);
 
     // Show installation instructions on stderr so they don't interfere with script output
-    console.error(chalk.dim('\n' + result.instructions + '\n'));
+    output.error(chalk.dim('\n' + result.instructions + '\n'));
   });
 
 /**
@@ -751,22 +743,22 @@ telemetryCommand
     const enabled = telemetry.isEnabled();
     const stats = telemetry.getStats();
 
-    console.log(chalk.blue('\n📊 Telemetry Status\n'));
-    console.log(`  Consent: ${formatConsentStatus(consent)}`);
-    console.log(`  Enabled: ${enabled ? chalk.green('Yes') : chalk.dim('No')}`);
-    console.log(`  Policy Version: ${PRIVACY_POLICY_VERSION}`);
+    output.info(chalk.blue('\n📊 Telemetry Status\n'));
+    output.info(`  Consent: ${formatConsentStatus(consent)}`);
+    output.info(`  Enabled: ${enabled ? chalk.green('Yes') : chalk.dim('No')}`);
+    output.info(`  Policy Version: ${PRIVACY_POLICY_VERSION}`);
 
     if (consent === 'granted') {
-      console.log('');
-      console.log(chalk.dim('Session Statistics:'));
-      console.log(chalk.dim(`  Events Recorded: ${String(stats.eventsRecorded)}`));
-      console.log(chalk.dim(`  Events Pending: ${String(stats.eventsPending)}`));
-      console.log(
+      output.blank();
+      output.info(chalk.dim('Session Statistics:'));
+      output.info(chalk.dim(`  Events Recorded: ${String(stats.eventsRecorded)}`));
+      output.info(chalk.dim(`  Events Pending: ${String(stats.eventsPending)}`));
+      output.info(
         chalk.dim(`  Session Duration: ${String(Math.round(stats.sessionDurationMs / 1000))}s`)
       );
     }
 
-    console.log('');
+    output.blank();
   });
 
 telemetryCommand
@@ -780,34 +772,34 @@ telemetryCommand
 
     // Show privacy policy if not auto-accepting
     if (!autoAccept && currentConsent !== 'granted') {
-      console.log(chalk.blue('\n📋 Privacy Policy\n'));
-      console.log(chalk.white(`Version: ${PRIVACY_POLICY.version}`));
-      console.log(chalk.dim(`Last Updated: ${PRIVACY_POLICY.lastUpdated}`));
-      console.log(chalk.dim(`Retention Period: ${PRIVACY_POLICY.retentionPeriod}`));
-      console.log('');
+      output.info(chalk.blue('\n📋 Privacy Policy\n'));
+      output.info(chalk.white(`Version: ${PRIVACY_POLICY.version}`));
+      output.info(chalk.dim(`Last Updated: ${PRIVACY_POLICY.lastUpdated}`));
+      output.info(chalk.dim(`Retention Period: ${PRIVACY_POLICY.retentionPeriod}`));
+      output.blank();
 
-      console.log(chalk.green('Data we collect (anonymous):'));
+      output.info(chalk.green('Data we collect (anonymous):'));
       for (const item of PRIVACY_POLICY.dataCollected) {
-        console.log(chalk.green(`  ✓ ${item}`));
+        output.info(chalk.green(`  ✓ ${item}`));
       }
-      console.log('');
+      output.blank();
 
-      console.log(chalk.red('Data we DO NOT collect:'));
+      output.info(chalk.red('Data we DO NOT collect:'));
       for (const item of PRIVACY_POLICY.dataNotCollected) {
-        console.log(chalk.red(`  ✗ ${item}`));
+        output.info(chalk.red(`  ✗ ${item}`));
       }
-      console.log('');
+      output.blank();
 
-      console.log(chalk.yellow('To enable telemetry, run:'));
-      console.log(chalk.cyan('  ad-sdlc telemetry enable --yes\n'));
+      output.info(chalk.yellow('To enable telemetry, run:'));
+      output.info(chalk.cyan('  ad-sdlc telemetry enable --yes\n'));
       return;
     }
 
     // Grant consent and enable
     telemetry.setConsent(true);
-    console.log(chalk.green('\n✅ Telemetry enabled.\n'));
-    console.log(chalk.dim('Thank you for helping improve AD-SDLC!'));
-    console.log(chalk.dim('You can disable telemetry anytime with: ad-sdlc telemetry disable\n'));
+    output.info(chalk.green('\n✅ Telemetry enabled.\n'));
+    output.info(chalk.dim('Thank you for helping improve AD-SDLC!'));
+    output.info(chalk.dim('You can disable telemetry anytime with: ad-sdlc telemetry disable\n'));
   });
 
 telemetryCommand
@@ -816,39 +808,39 @@ telemetryCommand
   .action(() => {
     const telemetry = getTelemetry();
     telemetry.revokeConsent();
-    console.log(chalk.yellow('\n⚠️  Telemetry disabled.\n'));
-    console.log(chalk.dim('Your consent has been revoked and all buffered data has been cleared.'));
-    console.log(chalk.dim('You can re-enable telemetry anytime with: ad-sdlc telemetry enable\n'));
+    output.info(chalk.yellow('\n⚠️  Telemetry disabled.\n'));
+    output.info(chalk.dim('Your consent has been revoked and all buffered data has been cleared.'));
+    output.info(chalk.dim('You can re-enable telemetry anytime with: ad-sdlc telemetry enable\n'));
   });
 
 telemetryCommand
   .command('policy')
   .description('Display the privacy policy')
   .action(() => {
-    console.log(chalk.blue('\n📋 AD-SDLC Telemetry Privacy Policy\n'));
-    console.log(chalk.white(`Version: ${PRIVACY_POLICY.version}`));
-    console.log(chalk.white(`Last Updated: ${PRIVACY_POLICY.lastUpdated}`));
-    console.log(chalk.white(`Retention Period: ${PRIVACY_POLICY.retentionPeriod}`));
-    console.log('');
+    output.info(chalk.blue('\n📋 AD-SDLC Telemetry Privacy Policy\n'));
+    output.info(chalk.white(`Version: ${PRIVACY_POLICY.version}`));
+    output.info(chalk.white(`Last Updated: ${PRIVACY_POLICY.lastUpdated}`));
+    output.info(chalk.white(`Retention Period: ${PRIVACY_POLICY.retentionPeriod}`));
+    output.blank();
 
-    console.log(chalk.green('Data We Collect (Anonymous Only):'));
+    output.info(chalk.green('Data We Collect (Anonymous Only):'));
     for (const item of PRIVACY_POLICY.dataCollected) {
-      console.log(chalk.dim(`  • ${item}`));
+      output.info(chalk.dim(`  • ${item}`));
     }
-    console.log('');
+    output.blank();
 
-    console.log(chalk.red('Data We DO NOT Collect:'));
+    output.info(chalk.red('Data We DO NOT Collect:'));
     for (const item of PRIVACY_POLICY.dataNotCollected) {
-      console.log(chalk.dim(`  • ${item}`));
+      output.info(chalk.dim(`  • ${item}`));
     }
-    console.log('');
+    output.blank();
 
-    console.log(chalk.blue('Key Points:'));
-    console.log(chalk.dim('  • Telemetry is strictly opt-in'));
-    console.log(chalk.dim('  • No personal data is ever collected'));
-    console.log(chalk.dim('  • You can disable telemetry at any time'));
-    console.log(chalk.dim('  • Data is automatically deleted after 90 days'));
-    console.log('');
+    output.info(chalk.blue('Key Points:'));
+    output.info(chalk.dim('  • Telemetry is strictly opt-in'));
+    output.info(chalk.dim('  • No personal data is ever collected'));
+    output.info(chalk.dim('  • You can disable telemetry at any time'));
+    output.info(chalk.dim('  • Data is automatically deleted after 90 days'));
+    output.blank();
   });
 
 /**
