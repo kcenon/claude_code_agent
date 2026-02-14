@@ -140,7 +140,8 @@ export class APISpecifier {
 
   /**
    * Generate a single API endpoint from a use case
-   * @param input
+   * @param input - API design input containing component, use case, and NFRs
+   * @returns Generated API endpoint or null if the use case cannot be converted
    */
   public specifyEndpoint(input: APIDesignInput): APIEndpoint | null {
     const { component, useCase, nfrs } = input;
@@ -185,8 +186,9 @@ export class APISpecifier {
 
   /**
    * Analyze use case to determine HTTP method and path
-   * @param useCase
-   * @param component
+   * @param useCase - Parsed use case to analyze
+   * @param component - Associated SDS component for resource naming
+   * @returns HTTP method, path template, and resource name
    */
   private analyzeUseCase(
     useCase: ParsedUseCase,
@@ -261,7 +263,8 @@ export class APISpecifier {
 
   /**
    * Extract resource name from component name
-   * @param componentName
+   * @param componentName - Full component name including suffix
+   * @returns Resource name with common suffixes removed
    */
   private extractResourceName(componentName: string): string {
     return componentName
@@ -274,7 +277,8 @@ export class APISpecifier {
 
   /**
    * Convert string to kebab-case
-   * @param str
+   * @param str - Input string in camelCase or PascalCase
+   * @returns Kebab-case formatted string
    */
   private toKebabCase(str: string): string {
     return str
@@ -285,8 +289,9 @@ export class APISpecifier {
 
   /**
    * Generate request and response schemas
-   * @param useCase
-   * @param resourceName
+   * @param useCase - Parsed use case for property extraction
+   * @param resourceName - Resource name for schema naming
+   * @returns Request and response data schemas
    */
   private generateSchemas(
     useCase: ParsedUseCase,
@@ -316,7 +321,8 @@ export class APISpecifier {
 
   /**
    * Extract properties from use case scenario
-   * @param useCase
+   * @param useCase - Parsed use case with scenario text to analyze
+   * @returns Array of data properties matched from scenario patterns
    */
   private extractPropertiesFromScenario(useCase: ParsedUseCase): DataProperty[] {
     const properties: DataProperty[] = [];
@@ -409,7 +415,8 @@ export class APISpecifier {
 
   /**
    * Extract path parameters from path template
-   * @param path
+   * @param path - URL path template with curly-brace placeholders
+   * @returns Array of API parameters extracted from path segments
    */
   private extractPathParameters(path: string): APIParameter[] {
     const parameters: APIParameter[] = [];
@@ -433,7 +440,8 @@ export class APISpecifier {
 
   /**
    * Convert camelCase to readable string
-   * @param str
+   * @param str - camelCase input string
+   * @returns Human-readable lowercase string with spaces
    */
   private toReadable(str: string): string {
     return str
@@ -444,8 +452,9 @@ export class APISpecifier {
 
   /**
    * Extract query parameters from use case
-   * @param useCase
-   * @param method
+   * @param useCase - Parsed use case for parameter extraction
+   * @param method - HTTP method to determine if query params apply
+   * @returns Array of query parameters for GET list/search operations
    */
   private extractQueryParameters(useCase: ParsedUseCase, method: HttpMethod): APIParameter[] {
     if (method !== 'GET') {
@@ -488,8 +497,9 @@ export class APISpecifier {
 
   /**
    * Determine security level from use case and NFRs
-   * @param useCase
-   * @param nfrs
+   * @param useCase - Parsed use case to analyze for security indicators
+   * @param nfrs - Non-functional requirements with security constraints
+   * @returns Resolved security level for the endpoint
    */
   private determineSecurityLevel(
     useCase: ParsedUseCase,
@@ -547,8 +557,9 @@ export class APISpecifier {
 
   /**
    * Generate error responses for an endpoint
-   * @param useCase
-   * @param method
+   * @param useCase - Parsed use case with alternative scenarios for error detection
+   * @param method - HTTP method for method-specific error responses
+   * @returns Deduplicated array of error responses
    */
   private generateErrorResponses(useCase: ParsedUseCase, method: HttpMethod): ErrorResponse[] {
     const errors: ErrorResponse[] = [];
@@ -624,7 +635,8 @@ export class APISpecifier {
 
   /**
    * Generate description for endpoint
-   * @param useCase
+   * @param useCase - Parsed use case to derive the endpoint description from
+   * @returns Formatted endpoint description with requirements and steps
    */
   private generateDescription(useCase: ParsedUseCase): string {
     const parts: string[] = [];

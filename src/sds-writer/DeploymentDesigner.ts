@@ -136,8 +136,9 @@ export class DeploymentDesigner {
 
   /**
    * Determine deployment pattern based on components and NFRs
-   * @param components
-   * @param nfrs
+   * @param components - SDS components to evaluate for pattern selection
+   * @param nfrs - Non-functional requirements influencing deployment pattern
+   * @returns Selected deployment pattern
    */
   private determinePattern(
     components: readonly SDSComponent[],
@@ -180,7 +181,8 @@ export class DeploymentDesigner {
 
   /**
    * Generate environment specifications
-   * @param nfrs
+   * @param nfrs - Non-functional requirements for environment configuration
+   * @returns Array of environment specifications (dev, staging, production)
    */
   private generateEnvironments(nfrs: readonly ParsedNFR[]): EnvironmentSpec[] {
     const environments: EnvironmentSpec[] = [];
@@ -215,7 +217,8 @@ export class DeploymentDesigner {
 
   /**
    * Derive production infrastructure details from NFRs
-   * @param nfrText
+   * @param nfrText - Concatenated lowercase NFR descriptions
+   * @returns Infrastructure description string with detected features
    */
   private deriveProductionInfrastructure(nfrText: string): string {
     const features: string[] = [];
@@ -249,7 +252,8 @@ export class DeploymentDesigner {
 
   /**
    * Generate scaling strategy from NFRs
-   * @param nfrs
+   * @param nfrs - Non-functional requirements for scaling configuration
+   * @returns Scaling specification with type, metrics, and instance limits
    */
   private generateScalingStrategy(nfrs: readonly ParsedNFR[]): ScalingSpec {
     const nfrText = nfrs.map((n) => n.description.toLowerCase()).join(' ');
@@ -296,7 +300,8 @@ export class DeploymentDesigner {
 
   /**
    * Extract instance limits from NFR text
-   * @param nfrText
+   * @param nfrText - Concatenated lowercase NFR descriptions
+   * @returns Minimum and maximum instance counts
    */
   private extractInstanceLimits(nfrText: string): {
     minInstances: number;
@@ -323,8 +328,9 @@ export class DeploymentDesigner {
 
   /**
    * Generate configuration specifications from components and NFRs
-   * @param components
-   * @param nfrs
+   * @param components - SDS components for component-specific configs
+   * @param nfrs - Non-functional requirements for NFR-driven configs
+   * @returns Deduplicated array of configuration specifications
    */
   private generateConfigurations(
     components: readonly SDSComponent[],
@@ -388,7 +394,8 @@ export class DeploymentDesigner {
 
   /**
    * Extract configurations from NFRs
-   * @param nfrs
+   * @param nfrs - Non-functional requirements to derive config entries from
+   * @returns Configuration specifications for security, performance, and data NFRs
    */
   private extractNFRConfigurations(nfrs: readonly ParsedNFR[]): ConfigurationSpec[] {
     const configs: ConfigurationSpec[] = [];
@@ -462,7 +469,8 @@ export class DeploymentDesigner {
 
   /**
    * Extract configurations from components
-   * @param components
+   * @param components - SDS components to derive config entries from
+   * @returns Configuration specifications for component-specific integrations
    */
   private extractComponentConfigurations(components: readonly SDSComponent[]): ConfigurationSpec[] {
     const configs: ConfigurationSpec[] = [];
@@ -535,9 +543,10 @@ export class DeploymentDesigner {
 
   /**
    * Generate infrastructure diagram in mermaid format
-   * @param pattern
-   * @param components
-   * @param configurations
+   * @param pattern - Deployment pattern determining diagram layout
+   * @param components - SDS components to include as services
+   * @param configurations - Configuration specs for external service detection
+   * @returns Mermaid flowchart diagram as a string
    */
   private generateInfrastructureDiagram(
     pattern: DeploymentSpec['pattern'],
@@ -611,7 +620,8 @@ export class DeploymentDesigner {
 
   /**
    * Group components into logical services
-   * @param components
+   * @param components - SDS components to categorize into service groups
+   * @returns Array of service group names (max 5 for diagram clarity)
    */
   private groupComponentsIntoServices(components: readonly SDSComponent[]): string[] {
     const services = new Set<string>();
@@ -637,7 +647,8 @@ export class DeploymentDesigner {
 
   /**
    * Detect external services from configurations
-   * @param configurations
+   * @param configurations - Configuration specs to scan for external service indicators
+   * @returns Array of detected external services with id and display name
    */
   private detectExternalServices(
     configurations: readonly ConfigurationSpec[]
@@ -669,9 +680,9 @@ export class DeploymentDesigner {
 
   /**
    * Validate design and collect warnings
-   * @param components
-   * @param nfrs
-   * @param warnings
+   * @param components - SDS components for validation checks
+   * @param nfrs - Non-functional requirements to verify coverage
+   * @param warnings - Mutable array to append validation warnings to
    */
   private validateDesign(
     components: readonly SDSComponent[],
@@ -705,7 +716,8 @@ export class DeploymentDesigner {
 
   /**
    * Generate deployment specification as markdown
-   * @param result
+   * @param result - Deployment design result to render
+   * @returns Formatted markdown string of the deployment specification
    */
   public toMarkdown(result: DeploymentDesignResult): string {
     const lines: string[] = [];

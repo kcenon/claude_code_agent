@@ -114,7 +114,8 @@ export class SRSParser {
 
   /**
    * Parse document metadata from the header table
-   * @param lines
+   * @param lines - Document lines to scan for metadata
+   * @returns Extracted document metadata
    */
   private parseMetadata(lines: readonly string[]): SRSDocumentMetadata {
     const metadata: Record<string, string> = {};
@@ -146,7 +147,8 @@ export class SRSParser {
 
   /**
    * Extract project ID from document ID
-   * @param documentId
+   * @param documentId - SRS document identifier (e.g., "SRS-001")
+   * @returns Extracted project ID portion
    */
   private extractProjectId(documentId: string): string {
     // SRS-001 -> 001, SRS-agent-driven-sdlc -> agent-driven-sdlc
@@ -156,7 +158,8 @@ export class SRSParser {
 
   /**
    * Parse product information
-   * @param lines
+   * @param lines - Document lines to scan for product info
+   * @returns Object containing product name and description
    */
   private parseProductInfo(lines: readonly string[]): {
     productName: string;
@@ -218,7 +221,8 @@ export class SRSParser {
 
   /**
    * Parse features from the Features section
-   * @param lines
+   * @param lines - Document lines to scan for feature definitions
+   * @returns Array of parsed SRS features
    */
   private parseFeatures(lines: readonly string[]): readonly ParsedSRSFeature[] {
     const features: ParsedSRSFeature[] = [];
@@ -332,9 +336,10 @@ export class SRSParser {
 
   /**
    * Finalize a feature with all collected data
-   * @param feature
-   * @param descriptionLines
-   * @param acceptanceCriteria
+   * @param feature - Partially parsed feature object
+   * @param descriptionLines - Collected description text lines
+   * @param acceptanceCriteria - Collected acceptance criteria items
+   * @returns Complete parsed SRS feature
    */
   private finalizeFeature(
     feature: Partial<ParsedSRSFeature>,
@@ -354,7 +359,8 @@ export class SRSParser {
 
   /**
    * Parse use cases from the Use Cases section
-   * @param lines
+   * @param lines - Document lines to scan for use case definitions
+   * @returns Array of parsed use cases
    */
   private parseUseCases(lines: readonly string[]): readonly ParsedUseCase[] {
     const useCases: ParsedUseCase[] = [];
@@ -552,11 +558,12 @@ export class SRSParser {
 
   /**
    * Finalize a use case with all collected data
-   * @param useCase
-   * @param preconditions
-   * @param mainScenario
-   * @param postconditions
-   * @param alternativeScenarios
+   * @param useCase - Partially parsed use case object
+   * @param preconditions - Collected precondition items
+   * @param mainScenario - Collected main scenario steps
+   * @param postconditions - Collected postcondition items
+   * @param alternativeScenarios - Collected alternative scenario flows
+   * @returns Complete parsed use case
    */
   private finalizeUseCase(
     useCase: Partial<ParsedUseCase>,
@@ -579,7 +586,8 @@ export class SRSParser {
 
   /**
    * Parse NFRs from the Non-Functional Requirements section
-   * @param lines
+   * @param lines - Document lines to scan for NFR definitions
+   * @returns Array of parsed non-functional requirements
    */
   private parseNFRs(lines: readonly string[]): readonly ParsedNFR[] {
     const nfrs: ParsedNFR[] = [];
@@ -656,7 +664,8 @@ export class SRSParser {
 
   /**
    * Extract NFR category from name
-   * @param name
+   * @param name - NFR name to categorize
+   * @returns Category string (e.g., "Performance", "Security", "General")
    */
   private extractNFRCategory(name: string): string {
     const lowerName = name.toLowerCase();
@@ -672,8 +681,9 @@ export class SRSParser {
 
   /**
    * Finalize an NFR with collected data
-   * @param nfr
-   * @param descriptionLines
+   * @param nfr - Partially parsed NFR object
+   * @param descriptionLines - Collected description text lines
+   * @returns Complete parsed NFR
    */
   private finalizeNFR(nfr: MutableParsedNFR, descriptionLines: string[]): ParsedNFR {
     const base = {
@@ -692,7 +702,8 @@ export class SRSParser {
 
   /**
    * Parse constraints from the Constraints section
-   * @param lines
+   * @param lines - Document lines to scan for constraint definitions
+   * @returns Array of parsed constraints
    */
   private parseConstraints(lines: readonly string[]): readonly ParsedConstraint[] {
     const constraints: ParsedConstraint[] = [];
@@ -764,7 +775,8 @@ export class SRSParser {
 
   /**
    * Extract constraint type from name
-   * @param name
+   * @param name - Constraint name to classify
+   * @returns Constraint type string (e.g., "Technical", "Business", "General")
    */
   private extractConstraintType(name: string): string {
     const lowerName = name.toLowerCase();
@@ -778,8 +790,9 @@ export class SRSParser {
 
   /**
    * Finalize a constraint with collected data
-   * @param constraint
-   * @param descriptionLines
+   * @param constraint - Partially parsed constraint object
+   * @param descriptionLines - Collected description text lines
+   * @returns Complete parsed constraint
    */
   private finalizeConstraint(
     constraint: Partial<ParsedConstraint>,
@@ -794,7 +807,8 @@ export class SRSParser {
 
   /**
    * Parse assumptions from the Assumptions section
-   * @param lines
+   * @param lines - Document lines to scan for assumption items
+   * @returns Array of assumption strings
    */
   private parseAssumptions(lines: readonly string[]): readonly string[] {
     const assumptions: string[] = [];
@@ -826,7 +840,8 @@ export class SRSParser {
 
   /**
    * Parse priority value
-   * @param value
+   * @param value - Raw priority string to normalize (e.g., "P0", "p2")
+   * @returns Normalized priority value (P0-P3), defaults to P1
    */
   private parsePriority(value: string): Priority {
     const normalized = value.trim().toUpperCase();
@@ -843,7 +858,8 @@ export class SRSParser {
 
   /**
    * Validate parsed SRS structure
-   * @param srs
+   * @param srs - Parsed SRS to validate
+   * @returns Array of validation error messages (empty if valid)
    * @throws SRSParseError if validation fails in strict mode
    */
   public validate(srs: ParsedSRS): readonly string[] {

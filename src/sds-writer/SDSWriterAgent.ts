@@ -152,6 +152,7 @@ export class SDSWriterAgent implements IAgent {
 
   /**
    * Get the current session
+   * @returns Current SDS generation session or null if no session is active
    */
   public getSession(): SDSGenerationSession | null {
     return this.session;
@@ -387,7 +388,7 @@ export class SDSWriterAgent implements IAgent {
 
   /**
    * Update session with partial data
-   * @param updates
+   * @param updates - Partial session fields to merge into the current session
    */
   private updateSession(updates: Partial<SDSGenerationSession>): void {
     if (!this.session) return;
@@ -401,7 +402,8 @@ export class SDSWriterAgent implements IAgent {
 
   /**
    * Generate security specification from NFRs
-   * @param nfrs
+   * @param nfrs - Non-functional requirements to derive security settings from
+   * @returns Security specification with authentication, authorization, and data protection
    */
   private generateSecuritySpec(
     nfrs: readonly { id: string; category: string; description: string; metric?: string }[]
@@ -440,7 +442,8 @@ export class SDSWriterAgent implements IAgent {
 
   /**
    * Generate deployment specification from NFRs
-   * @param nfrs
+   * @param nfrs - Non-functional requirements to derive deployment settings from
+   * @returns Deployment specification with pattern, environments, and optional scaling
    */
   private generateDeploymentSpec(
     nfrs: readonly { id: string; category: string; description: string; metric?: string }[]
@@ -481,14 +484,15 @@ export class SDSWriterAgent implements IAgent {
 
   /**
    * Generate complete SDS document
-   * @param projectId
-   * @param srs
-   * @param components
-   * @param apis
-   * @param dataModels
-   * @param traceabilityMatrix
-   * @param security
-   * @param deployment
+   * @param projectId - Project identifier for document naming
+   * @param srs - Parsed SRS document with source metadata
+   * @param components - Designed SDS components
+   * @param apis - Generated API endpoint specifications
+   * @param dataModels - Designed data models
+   * @param traceabilityMatrix - Feature-to-component traceability matrix
+   * @param security - Optional security specification
+   * @param deployment - Optional deployment specification
+   * @returns Complete generated SDS document with metadata and content
    */
   private generateSDSDocument(
     projectId: string,
@@ -539,14 +543,15 @@ export class SDSWriterAgent implements IAgent {
 
   /**
    * Generate markdown content for SDS
-   * @param metadata
-   * @param srs
-   * @param components
-   * @param apis
-   * @param dataModels
-   * @param traceabilityMatrix
-   * @param security
-   * @param deployment
+   * @param metadata - SDS document metadata for header section
+   * @param srs - Parsed SRS for product name and description
+   * @param components - SDS components for the component design section
+   * @param apis - API endpoints for the interface design section
+   * @param dataModels - Data models for the data design section
+   * @param traceabilityMatrix - Traceability matrix for coverage section
+   * @param security - Optional security spec for the security design section
+   * @param deployment - Optional deployment spec for the deployment section
+   * @returns Formatted markdown string of the full SDS document
    */
   private generateMarkdownContent(
     metadata: SDSMetadata,
@@ -845,8 +850,9 @@ export class SDSWriterAgent implements IAgent {
 
   /**
    * Write output files
-   * @param projectId
-   * @param sds
+   * @param projectId - Project identifier for directory and file naming
+   * @param sds - Generated SDS document to write
+   * @returns Paths to the written scratchpad and public files
    */
   private async writeOutputFiles(
     projectId: string,

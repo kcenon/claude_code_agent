@@ -449,7 +449,8 @@ export class SRSWriterAgent implements IAgent {
 
   /**
    * Create SRS metadata
-   * @param session
+   * @param session - Active generation session containing parsed PRD data
+   * @returns SRS metadata derived from the session and PRD
    */
   private createMetadata(session: SRSGenerationSession): SRSMetadata {
     return {
@@ -463,7 +464,8 @@ export class SRSWriterAgent implements IAgent {
 
   /**
    * Convert parsed NFRs to proper format
-   * @param parsedPRD
+   * @param parsedPRD - Parsed PRD containing raw non-functional requirements
+   * @returns Array of normalized NonFunctionalRequirement objects
    */
   private convertNFRs(parsedPRD: ParsedPRD): NonFunctionalRequirement[] {
     return parsedPRD.nonFunctionalRequirements.map((nfr) => ({
@@ -477,7 +479,8 @@ export class SRSWriterAgent implements IAgent {
 
   /**
    * Normalize NFR category
-   * @param category
+   * @param category - Raw category string to classify
+   * @returns Standardized NFR category value
    */
   private normalizeNFRCategory(
     category: string
@@ -502,7 +505,8 @@ export class SRSWriterAgent implements IAgent {
 
   /**
    * Convert parsed constraints to proper format
-   * @param parsedPRD
+   * @param parsedPRD - Parsed PRD containing raw constraints
+   * @returns Array of normalized Constraint objects with architecture impact
    */
   private convertConstraints(parsedPRD: ParsedPRD): Constraint[] {
     return parsedPRD.constraints.map((con) => ({
@@ -515,7 +519,8 @@ export class SRSWriterAgent implements IAgent {
 
   /**
    * Normalize constraint type
-   * @param type
+   * @param type - Raw constraint type string
+   * @returns Standardized constraint type value
    */
   private normalizeConstraintType(
     type: string
@@ -531,7 +536,8 @@ export class SRSWriterAgent implements IAgent {
 
   /**
    * Infer architecture impact from constraint description
-   * @param description
+   * @param description - Constraint description to analyze for impact keywords
+   * @returns Human-readable architecture impact statement
    */
   private inferArchitectureImpact(description: string): string {
     const lower = description.toLowerCase();
@@ -552,12 +558,13 @@ export class SRSWriterAgent implements IAgent {
 
   /**
    * Generate SRS markdown content
-   * @param parsedPRD
-   * @param metadata
-   * @param decompositionResult
-   * @param traceabilityMatrix
-   * @param nfrs
-   * @param constraints
+   * @param parsedPRD - Parsed PRD providing source requirements and assumptions
+   * @param metadata - SRS document metadata for the header section
+   * @param decompositionResult - Feature decomposition with use cases
+   * @param traceabilityMatrix - Requirement-to-feature traceability data
+   * @param nfrs - Normalized non-functional requirements
+   * @param constraints - Normalized constraints with architecture impact
+   * @returns Complete SRS document as a markdown string
    */
   private generateContent(
     parsedPRD: ParsedPRD,
@@ -719,7 +726,8 @@ export class SRSWriterAgent implements IAgent {
 
   /**
    * Get category number for section numbering
-   * @param category
+   * @param category - NFR category name
+   * @returns Ordinal number for the category in the SRS section hierarchy
    */
   private getCategoryNumber(category: string): number {
     const order = [
@@ -737,7 +745,8 @@ export class SRSWriterAgent implements IAgent {
 
   /**
    * Capitalize first letter
-   * @param str
+   * @param str - Input string to capitalize
+   * @returns String with the first character uppercased
    */
   private capitalize(str: string): string {
     return str.charAt(0).toUpperCase() + str.slice(1);
@@ -745,9 +754,10 @@ export class SRSWriterAgent implements IAgent {
 
   /**
    * Calculate generation statistics
-   * @param session
-   * @param generatedSRS
-   * @param processingTimeMs
+   * @param session - Completed generation session with parsed PRD
+   * @param generatedSRS - Generated SRS containing features and NFRs
+   * @param processingTimeMs - Total processing time in milliseconds
+   * @returns Aggregated statistics for the generation run
    */
   private calculateStats(
     session: SRSGenerationSession,
@@ -769,7 +779,8 @@ export class SRSWriterAgent implements IAgent {
 
   /**
    * Ensure there is an active session in the expected state
-   * @param expectedStates
+   * @param expectedStates - Allowed session states for the current operation
+   * @returns The validated active session
    */
   private ensureSession(
     expectedStates: readonly ('pending' | 'parsing' | 'decomposing' | 'generating' | 'completed')[]
@@ -804,7 +815,7 @@ export class SRSWriterAgent implements IAgent {
 
   /**
    * Ensure directory exists
-   * @param dirPath
+   * @param dirPath - Absolute or relative directory path to create recursively
    */
   private async ensureDir(dirPath: string): Promise<void> {
     await fs.promises.mkdir(dirPath, { recursive: true });
