@@ -609,9 +609,10 @@ const PATTERN_TEMPLATES: Record<ArchitecturePattern, DirectoryTemplate> = {
 export class DirectoryStructureGenerator {
   /**
    * Generate directory structure
-   * @param srs
-   * @param analysis
-   * @param stack
+   * @param srs - Parsed SRS document containing features
+   * @param analysis - Architecture analysis with primary pattern
+   * @param stack - Selected technology stack for customization
+   * @returns Complete directory structure with pattern-specific and feature-specific directories
    */
   public generate(
     srs: ParsedSRS,
@@ -632,7 +633,8 @@ export class DirectoryStructureGenerator {
 
   /**
    * Get template for pattern
-   * @param pattern
+   * @param pattern - Architecture pattern to retrieve template for
+   * @returns Directory template specific to the architecture pattern
    */
   private getTemplate(pattern: ArchitecturePattern): DirectoryTemplate {
     return PATTERN_TEMPLATES[pattern];
@@ -640,9 +642,10 @@ export class DirectoryStructureGenerator {
 
   /**
    * Customize structure based on technology stack
-   * @param template
-   * @param _srs
-   * @param stack
+   * @param template - Base directory template for the pattern
+   * @param _srs - Parsed SRS document (unused but kept for interface consistency)
+   * @param stack - Technology stack used to add runtime and testing config files
+   * @returns Directory structure with technology-specific configuration files added
    */
   private customizeStructure(
     template: DirectoryTemplate,
@@ -745,8 +748,9 @@ export class DirectoryStructureGenerator {
 
   /**
    * Add feature-specific directories
-   * @param structure
-   * @param srs
+   * @param structure - Base directory structure
+   * @param srs - Parsed SRS document containing features to add
+   * @returns Directory structure with features directory added to src
    */
   private addFeatureDirectories(structure: DirectoryStructure, srs: ParsedSRS): DirectoryStructure {
     // Find the src directory
@@ -796,7 +800,8 @@ export class DirectoryStructureGenerator {
 
   /**
    * Convert feature name to directory name
-   * @param name
+   * @param name - Feature name to convert
+   * @returns Lowercase kebab-case directory name (max 30 chars)
    */
   private toDirectoryName(name: string): string {
     return name
@@ -808,7 +813,8 @@ export class DirectoryStructureGenerator {
 
   /**
    * Generate ASCII tree representation
-   * @param structure
+   * @param structure - Directory structure to convert
+   * @returns ASCII tree visualization of the directory structure
    */
   public static toAsciiTree(structure: DirectoryStructure): string {
     const lines: string[] = [`${structure.root}/`];
@@ -818,9 +824,9 @@ export class DirectoryStructureGenerator {
 
   /**
    * Recursively build ASCII tree
-   * @param entries
-   * @param prefix
-   * @param lines
+   * @param entries - Directory entries to render
+   * @param prefix - Current indentation prefix for tree structure
+   * @param lines - Output array to accumulate tree lines
    */
   private static buildTree(
     entries: readonly DirectoryEntry[],

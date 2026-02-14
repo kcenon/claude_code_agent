@@ -102,7 +102,8 @@ export class ArchitectureAnalyzer {
 
   /**
    * Analyze SRS and recommend architecture patterns
-   * @param srs
+   * @param srs - Parsed SRS document containing features, NFRs, and constraints
+   * @returns Architecture analysis with pattern recommendations and concerns
    */
   public analyze(srs: ParsedSRS): ArchitectureAnalysis {
     try {
@@ -133,7 +134,8 @@ export class ArchitectureAnalyzer {
 
   /**
    * Score each pattern based on SRS content
-   * @param srs
+   * @param srs - Parsed SRS document to analyze for pattern matching
+   * @returns Array of patterns with scores, reasons, and drawbacks
    */
   private scorePatterns(srs: ParsedSRS): PatternScore[] {
     const scores: PatternScore[] = [];
@@ -154,9 +156,10 @@ export class ArchitectureAnalyzer {
 
   /**
    * Calculate score for a specific pattern
-   * @param srs
-   * @param indicators
-   * @param allText
+   * @param srs - Parsed SRS document with features and requirements
+   * @param indicators - Pattern matching indicators (keywords, NFRs, use case patterns)
+   * @param allText - Concatenated text from all SRS sections for keyword matching
+   * @returns Score total and list of reasons for the score
    */
   private calculatePatternScore(
     srs: ParsedSRS,
@@ -210,8 +213,9 @@ export class ArchitectureAnalyzer {
 
   /**
    * Check if constraint supports a pattern
-   * @param description
-   * @param indicators
+   * @param description - Constraint description text to analyze
+   * @param indicators - Pattern indicators containing keywords to match against
+   * @returns True if constraint contains any pattern keywords
    */
   private constraintSupportsPattern(description: string, indicators: PatternIndicators): boolean {
     const lowerDesc = description.toLowerCase();
@@ -220,7 +224,8 @@ export class ArchitectureAnalyzer {
 
   /**
    * Extract all text from SRS for analysis
-   * @param srs
+   * @param srs - Parsed SRS document to extract text from
+   * @returns Concatenated text from features, use cases, NFRs, constraints, and assumptions
    */
   private extractAllText(srs: ParsedSRS): string {
     const parts: string[] = [];
@@ -250,7 +255,8 @@ export class ArchitectureAnalyzer {
 
   /**
    * Sort patterns by score descending
-   * @param scores
+   * @param scores - Array of pattern scores to sort
+   * @returns New array sorted by score in descending order
    */
   private sortPatternsByScore(scores: PatternScore[]): PatternScore[] {
     return [...scores].sort((a, b) => b.score - a.score);
@@ -258,7 +264,8 @@ export class ArchitectureAnalyzer {
 
   /**
    * Build pattern recommendations
-   * @param sortedPatterns
+   * @param sortedPatterns - Patterns sorted by score in descending order
+   * @returns Top 4 pattern recommendations with normalized scores (0-100)
    */
   private buildRecommendations(sortedPatterns: PatternScore[]): PatternRecommendation[] {
     const maxScore = sortedPatterns[0]?.score ?? 100;
@@ -273,7 +280,8 @@ export class ArchitectureAnalyzer {
 
   /**
    * Get known drawbacks for a pattern
-   * @param pattern
+   * @param pattern - Architecture pattern to get drawbacks for
+   * @returns List of known limitations and challenges for the pattern
    */
   private getPatternDrawbacks(pattern: ArchitecturePattern): string[] {
     const drawbacks: Record<ArchitecturePattern, string[]> = {
@@ -324,8 +332,9 @@ export class ArchitectureAnalyzer {
 
   /**
    * Select supporting patterns that complement the primary pattern
-   * @param sortedPatterns
-   * @param primaryPattern
+   * @param sortedPatterns - All patterns sorted by score
+   * @param primaryPattern - The selected primary architecture pattern
+   * @returns Up to 2 compatible supporting patterns with significant scores
    */
   private selectSupportingPatterns(
     sortedPatterns: PatternScore[],
@@ -352,7 +361,8 @@ export class ArchitectureAnalyzer {
 
   /**
    * Get patterns that are compatible with the given pattern
-   * @param pattern
+   * @param pattern - Architecture pattern to find compatible patterns for
+   * @returns List of patterns that can work well alongside the given pattern
    */
   private getCompatiblePatterns(pattern: ArchitecturePattern): ArchitecturePattern[] {
     const compatibility: Record<ArchitecturePattern, ArchitecturePattern[]> = {
@@ -371,9 +381,10 @@ export class ArchitectureAnalyzer {
 
   /**
    * Build rationale for pattern selection
-   * @param pattern
-   * @param srs
-   * @param sortedPatterns
+   * @param pattern - Selected primary pattern
+   * @param srs - Parsed SRS document analyzed
+   * @param sortedPatterns - All patterns sorted by score for comparison
+   * @returns Human-readable explanation of why this pattern was selected
    */
   private buildRationale(
     pattern: ArchitecturePattern,
@@ -405,7 +416,8 @@ export class ArchitectureAnalyzer {
 
   /**
    * Identify architectural concerns from SRS
-   * @param srs
+   * @param srs - Parsed SRS document to analyze for concerns
+   * @returns List of architectural concerns with mitigation strategies
    */
   private identifyConcerns(srs: ParsedSRS): ArchitecturalConcern[] {
     const concerns: ArchitecturalConcern[] = [];
@@ -454,8 +466,9 @@ export class ArchitectureAnalyzer {
 
   /**
    * Suggest mitigation strategy for an NFR category
-   * @param category
-   * @param _description
+   * @param category - NFR category to suggest mitigation for
+   * @param _description - NFR description (currently unused, reserved for future enhancement)
+   * @returns Recommended mitigation strategy for the NFR category
    */
   private suggestMitigation(category: NFRCategory, _description: string): string {
     const mitigations: Record<NFRCategory, string> = {

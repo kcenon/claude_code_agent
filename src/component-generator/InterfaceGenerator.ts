@@ -100,7 +100,8 @@ export class InterfaceGenerator {
 
   /**
    * Generate interfaces from use cases
-   * @param useCases
+   * @param useCases - Array of SRS use cases to generate interfaces from
+   * @returns Array of generated interface specifications
    */
   public generateInterfaces(useCases: readonly SRSUseCase[]): InterfaceSpec[] {
     const interfaces: InterfaceSpec[] = [];
@@ -120,7 +121,8 @@ export class InterfaceGenerator {
 
   /**
    * Generate interfaces from a single use case
-   * @param useCase
+   * @param useCase - SRS use case to generate interfaces from
+   * @returns Array of interface specifications for this use case
    */
   private generateFromUseCase(useCase: SRSUseCase): InterfaceSpec[] {
     const interfaces: InterfaceSpec[] = [];
@@ -143,7 +145,8 @@ export class InterfaceGenerator {
 
   /**
    * Determine interface type from use case
-   * @param useCase
+   * @param useCase - SRS use case to analyze for interface type
+   * @returns Determined interface type (API, Event, File, Message, or Callback)
    */
   private determineInterfaceType(useCase: SRSUseCase): InterfaceType {
     const text = `${useCase.name} ${useCase.description}`.toLowerCase();
@@ -166,7 +169,8 @@ export class InterfaceGenerator {
 
   /**
    * Generate API endpoint from use case
-   * @param useCase
+   * @param useCase - SRS use case to generate API endpoint from
+   * @returns Complete API endpoint specification
    */
   private generateAPIEndpoint(useCase: SRSUseCase): APIEndpoint {
     const { method, action } = this.determineHttpMethod(useCase);
@@ -188,7 +192,8 @@ export class InterfaceGenerator {
 
   /**
    * Determine HTTP method from use case
-   * @param useCase
+   * @param useCase - SRS use case to analyze for HTTP method
+   * @returns Object containing the HTTP method and corresponding CRUD action
    */
   private determineHttpMethod(useCase: SRSUseCase): { method: HttpMethod; action: string } {
     const text = `${useCase.name} ${useCase.description}`.toLowerCase();
@@ -205,7 +210,8 @@ export class InterfaceGenerator {
 
   /**
    * Determine resource name from use case
-   * @param useCase
+   * @param useCase - SRS use case to extract resource name from
+   * @returns Plural resource name for the API endpoint
    */
   private determineResource(useCase: SRSUseCase): string {
     const text = `${useCase.name} ${useCase.description}`.toLowerCase();
@@ -228,9 +234,10 @@ export class InterfaceGenerator {
 
   /**
    * Build endpoint path
-   * @param resource
-   * @param action
-   * @param method
+   * @param resource - Resource name to include in the path
+   * @param action - CRUD action being performed
+   * @param method - HTTP method for the endpoint
+   * @returns Complete API endpoint path
    */
   private buildEndpoint(resource: string, action: string, method: HttpMethod): string {
     const base = `/api/v1/${resource}`;
@@ -251,8 +258,9 @@ export class InterfaceGenerator {
 
   /**
    * Generate request specification
-   * @param useCase
-   * @param method
+   * @param useCase - SRS use case to generate request spec from
+   * @param method - HTTP method to determine request structure
+   * @returns Complete request specification with headers, params, and body
    */
   private generateRequestSpec(useCase: SRSUseCase, method: HttpMethod): RequestSpec {
     const headers: HeaderSpec[] = [];
@@ -319,7 +327,8 @@ export class InterfaceGenerator {
 
   /**
    * Generate request body schema from use case
-   * @param useCase
+   * @param useCase - SRS use case to extract request body fields from
+   * @returns Body schema with content type and field specifications
    */
   private generateRequestBody(useCase: SRSUseCase): BodySchema {
     const fields = this.extractFieldsFromUseCase(useCase);
@@ -332,7 +341,8 @@ export class InterfaceGenerator {
 
   /**
    * Extract fields from use case main flow
-   * @param useCase
+   * @param useCase - SRS use case containing main flow steps to analyze
+   * @returns Array of field specifications extracted from the use case
    */
   private extractFieldsFromUseCase(useCase: SRSUseCase): FieldSpec[] {
     const fields: FieldSpec[] = [];
@@ -364,7 +374,8 @@ export class InterfaceGenerator {
 
   /**
    * Extract field information from a step description
-   * @param step
+   * @param step - Use case step description to parse for field patterns
+   * @returns Array of field specifications found in the step
    */
   private extractFieldsFromStep(step: string): FieldSpec[] {
     const fields: FieldSpec[] = [];
@@ -413,8 +424,9 @@ export class InterfaceGenerator {
 
   /**
    * Generate response specification
-   * @param useCase
-   * @param method
+   * @param useCase - SRS use case to generate response from
+   * @param method - HTTP method to determine response structure
+   * @returns Complete response specification with success and error responses
    */
   private generateResponseSpec(useCase: SRSUseCase, method: HttpMethod): ResponseSpec {
     const successStatus = this.getSuccessStatus(method);
@@ -438,7 +450,8 @@ export class InterfaceGenerator {
 
   /**
    * Get success status code based on method
-   * @param method
+   * @param method - HTTP method to determine appropriate status code
+   * @returns HTTP status code for successful response
    */
   private getSuccessStatus(method: HttpMethod): number {
     switch (method) {
@@ -453,7 +466,8 @@ export class InterfaceGenerator {
 
   /**
    * Get success description based on method
-   * @param method
+   * @param method - HTTP method to generate description for
+   * @returns Human-readable success message for the HTTP method
    */
   private getSuccessDescription(method: HttpMethod): string {
     switch (method) {
@@ -471,8 +485,9 @@ export class InterfaceGenerator {
 
   /**
    * Generate success response body
-   * @param useCase
-   * @param method
+   * @param useCase - SRS use case to extract response fields from
+   * @param method - HTTP method to determine if body is needed
+   * @returns Body schema for success response, or undefined for DELETE
    */
   private generateSuccessBody(useCase: SRSUseCase, method: HttpMethod): BodySchema | undefined {
     if (method === 'DELETE') {
@@ -519,7 +534,8 @@ export class InterfaceGenerator {
 
   /**
    * Generate common error responses
-   * @param method
+   * @param method - HTTP method to determine applicable error responses
+   * @returns Array of error response specifications
    */
   private generateErrorResponses(method: HttpMethod): ErrorResponse[] {
     const errors: ErrorResponse[] = [DEFAULT_ERROR_RESPONSES[400], DEFAULT_ERROR_RESPONSES[401]];
@@ -539,7 +555,8 @@ export class InterfaceGenerator {
 
   /**
    * Check if use case requires authentication
-   * @param useCase
+   * @param useCase - SRS use case to analyze for authentication requirements
+   * @returns True if authentication is required, false for public endpoints
    */
   private requiresAuthentication(useCase: SRSUseCase): boolean {
     const text =
@@ -561,7 +578,8 @@ export class InterfaceGenerator {
 
   /**
    * Generate unique interface ID
-   * @param type
+   * @param type - Interface type to generate ID for
+   * @returns Unique interface ID with type prefix and sequence number
    */
   private generateInterfaceId(type: InterfaceType): string {
     const prefix = INTERFACE_TYPE_PREFIXES[type] ?? 'INT';

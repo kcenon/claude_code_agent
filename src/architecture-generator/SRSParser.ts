@@ -98,7 +98,8 @@ export class SRSParser {
 
   /**
    * Parse an SRS file from the given path
-   * @param filePath
+   * @param filePath - Path to the SRS markdown file to parse
+   * @returns Parsed SRS data structure containing metadata, features, NFRs, constraints, and assumptions
    */
   public parseFile(filePath: string): ParsedSRS {
     if (!fs.existsSync(filePath)) {
@@ -111,7 +112,8 @@ export class SRSParser {
 
   /**
    * Parse SRS content string
-   * @param content
+   * @param content - Raw SRS markdown content to parse
+   * @returns Parsed SRS data structure containing metadata, features, NFRs, constraints, and assumptions
    */
   public parse(content: string): ParsedSRS {
     const errors: string[] = [];
@@ -137,8 +139,9 @@ export class SRSParser {
 
   /**
    * Parse document metadata from the header table
-   * @param content
-   * @param errors
+   * @param content - SRS document content to extract metadata from
+   * @param errors - Array to collect parsing errors
+   * @returns Extracted metadata including document ID, source PRD, version, status, and product name
    */
   private parseMetadata(content: string, errors: string[]): SRSMetadata {
     const metadataSection = this.extractSection(content, '# SRS:', '## ') ?? '';
@@ -172,7 +175,8 @@ export class SRSParser {
 
   /**
    * Extract document ID from content
-   * @param content
+   * @param content - SRS document content to search for document ID
+   * @returns Document ID in format SRS-XXX, or undefined if not found
    */
   private extractDocumentId(content: string): string | undefined {
     const match = content.match(/SRS-(\w+)/);
@@ -181,7 +185,8 @@ export class SRSParser {
 
   /**
    * Extract product name from title
-   * @param content
+   * @param content - SRS document content to search for product name in title
+   * @returns Product name extracted from the main heading, or undefined if not found
    */
   private extractProductName(content: string): string | undefined {
     const match = content.match(/^#\s+SRS:\s*(.+)$/m);
@@ -190,8 +195,9 @@ export class SRSParser {
 
   /**
    * Parse system features from the document
-   * @param content
-   * @param errors
+   * @param content - SRS document content containing system features section
+   * @param errors - Array to collect parsing errors
+   * @returns Array of parsed system features with their details and use cases
    */
   private parseFeatures(content: string, errors: string[]): SRSFeature[] {
     const features: SRSFeature[] = [];
@@ -218,8 +224,9 @@ export class SRSParser {
 
   /**
    * Parse a single feature block
-   * @param block
-   * @param errors
+   * @param block - Markdown block containing a single feature definition
+   * @param errors - Array to collect parsing errors
+   * @returns Parsed feature object with ID, name, description, priority, use cases, and NFR references, or null if parsing fails
    */
   private parseFeatureBlock(block: string, errors: string[]): SRSFeature | null {
     const headerMatch = block.match(FEATURE_HEADER_REGEX);
@@ -246,8 +253,9 @@ export class SRSParser {
 
   /**
    * Parse use cases from a feature block
-   * @param featureBlock
-   * @param errors
+   * @param featureBlock - Feature block content containing use case definitions
+   * @param errors - Array to collect parsing errors
+   * @returns Array of parsed use cases associated with the feature
    */
   private parseUseCases(featureBlock: string, errors: string[]): SRSUseCase[] {
     const useCases: SRSUseCase[] = [];
@@ -265,8 +273,9 @@ export class SRSParser {
 
   /**
    * Parse a single use case block
-   * @param block
-   * @param _errors
+   * @param block - Markdown block containing a single use case definition
+   * @param _errors - Array to collect parsing errors (unused but kept for signature consistency)
+   * @returns Parsed use case object with ID, name, actor, flows, and conditions, or null if parsing fails
    */
   private parseUseCaseBlock(block: string, _errors: string[]): SRSUseCase | null {
     const headerMatch = block.match(USE_CASE_HEADER_REGEX);
@@ -297,8 +306,9 @@ export class SRSParser {
 
   /**
    * Parse non-functional requirements
-   * @param content
-   * @param errors
+   * @param content - SRS document content containing NFR section
+   * @param errors - Array to collect parsing errors
+   * @returns Array of parsed non-functional requirements with categories and targets
    */
   private parseNFRs(content: string, errors: string[]): NonFunctionalRequirement[] {
     const nfrs: NonFunctionalRequirement[] = [];
@@ -322,8 +332,9 @@ export class SRSParser {
 
   /**
    * Parse a single NFR block
-   * @param block
-   * @param _errors
+   * @param block - Markdown block containing a single NFR definition
+   * @param _errors - Array to collect parsing errors (unused but kept for signature consistency)
+   * @returns Parsed NFR object with ID, category, description, target, and priority, or null if parsing fails
    */
   private parseNFRBlock(block: string, _errors: string[]): NonFunctionalRequirement | null {
     const headerMatch = block.match(NFR_HEADER_REGEX);
@@ -349,8 +360,9 @@ export class SRSParser {
 
   /**
    * Infer NFR category from name and description
-   * @param name
-   * @param description
+   * @param name - NFR name to analyze for category keywords
+   * @param description - NFR description to analyze for category keywords
+   * @returns Inferred NFR category based on keyword matching, defaults to 'maintainability'
    */
   private inferNFRCategory(name: string, description: string): NFRCategory {
     const text = `${name} ${description}`.toLowerCase();
@@ -366,8 +378,9 @@ export class SRSParser {
 
   /**
    * Parse constraints
-   * @param content
-   * @param errors
+   * @param content - SRS document content containing constraints section
+   * @param errors - Array to collect parsing errors
+   * @returns Array of parsed constraints with types and architecture impacts
    */
   private parseConstraints(content: string, errors: string[]): Constraint[] {
     const constraints: Constraint[] = [];
@@ -391,8 +404,9 @@ export class SRSParser {
 
   /**
    * Parse a single constraint block
-   * @param block
-   * @param _errors
+   * @param block - Markdown block containing a single constraint definition
+   * @param _errors - Array to collect parsing errors (unused but kept for signature consistency)
+   * @returns Parsed constraint object with ID, type, description, and architecture impact, or null if parsing fails
    */
   private parseConstraintBlock(block: string, _errors: string[]): Constraint | null {
     const headerMatch = block.match(CONSTRAINT_HEADER_REGEX);
@@ -417,8 +431,9 @@ export class SRSParser {
 
   /**
    * Infer constraint type from name and description
-   * @param name
-   * @param description
+   * @param name - Constraint name to analyze for type keywords
+   * @param description - Constraint description to analyze for type keywords
+   * @returns Inferred constraint type based on keyword matching, defaults to 'technical'
    */
   private inferConstraintType(name: string, description: string): ConstraintType {
     const text = `${name} ${description}`.toLowerCase();
@@ -434,7 +449,8 @@ export class SRSParser {
 
   /**
    * Parse assumptions section
-   * @param content
+   * @param content - SRS document content containing assumptions section
+   * @returns Array of assumption statements extracted from bullet list
    */
   private parseAssumptions(content: string): string[] {
     const assumptionSection = this.extractSection(content, '## Assumptions', '## ');
@@ -452,9 +468,10 @@ export class SRSParser {
 
   /**
    * Extract a section between two headers
-   * @param content
-   * @param startHeader
-   * @param endPattern
+   * @param content - Document content to search within
+   * @param startHeader - Header text that marks the beginning of the section
+   * @param endPattern - Pattern that marks the end of the section (typically next header)
+   * @returns Extracted section content, or undefined if start header not found
    */
   private extractSection(
     content: string,
@@ -475,8 +492,9 @@ export class SRSParser {
 
   /**
    * Split content by header pattern
-   * @param content
-   * @param headerPattern
+   * @param content - Content to split into blocks
+   * @param headerPattern - Regular expression pattern that matches headers
+   * @returns Array of content blocks, each starting with a matching header
    */
   private splitByHeaders(content: string, headerPattern: RegExp): string[] {
     const blocks: string[] = [];
@@ -501,7 +519,8 @@ export class SRSParser {
 
   /**
    * Extract description (first paragraph after header)
-   * @param block
+   * @param block - Content block to extract description from
+   * @returns Extracted description text from the first paragraph after the header
    */
   private extractDescription(block: string): string {
     const lines = block.split('\n');
@@ -538,7 +557,8 @@ export class SRSParser {
 
   /**
    * Extract priority from block
-   * @param block
+   * @param block - Content block to search for priority marker
+   * @returns Priority level (P0-P3), defaults to P2 if not found
    */
   private extractPriority(block: string): 'P0' | 'P1' | 'P2' | 'P3' {
     const match = block.match(PRIORITY_REGEX);
@@ -550,8 +570,9 @@ export class SRSParser {
 
   /**
    * Extract a specific field value
-   * @param block
-   * @param fieldName
+   * @param block - Content block to search within
+   * @param fieldName - Name of the field to extract (case-insensitive)
+   * @returns Field value if found, undefined otherwise
    */
   private extractField(block: string, fieldName: string): string | undefined {
     const regex = new RegExp(`\\*\\*${fieldName}\\*\\*[:\\s]+(.+)`, 'i');
@@ -561,8 +582,9 @@ export class SRSParser {
 
   /**
    * Extract a list under a specific header
-   * @param block
-   * @param headerName
+   * @param block - Content block to search within
+   * @param headerName - Name of the header under which the list appears
+   * @returns Array of list items extracted from bullet/numbered list
    */
   private extractList(block: string, headerName: string): string[] {
     const regex = new RegExp(`\\*\\*${headerName}\\*\\*[:\\s]*([\\s\\S]*?)(?=\\*\\*|$)`, 'i');
@@ -577,7 +599,8 @@ export class SRSParser {
 
   /**
    * Extract bullet list items
-   * @param content
+   * @param content - Content containing bullet or numbered list
+   * @returns Array of list item texts with bullet markers removed
    */
   private extractBulletList(content: string): string[] {
     const items: string[] = [];
@@ -598,7 +621,8 @@ export class SRSParser {
 
   /**
    * Extract NFR references from feature block
-   * @param block
+   * @param block - Feature block content to search for NFR-XXX references
+   * @returns Array of unique NFR IDs found in the block
    */
   private extractNFRReferences(block: string): string[] {
     const references: string[] = [];

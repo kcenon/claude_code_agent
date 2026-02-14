@@ -110,7 +110,8 @@ export class ComponentGenerator implements IAgent {
   }
 
   /**
-   *
+   * Initialize the component generator agent
+   * @returns Promise that resolves when initialization is complete
    */
   public async initialize(): Promise<void> {
     if (this.initialized) return;
@@ -119,7 +120,8 @@ export class ComponentGenerator implements IAgent {
   }
 
   /**
-   *
+   * Clean up and dispose of the component generator resources
+   * @returns Promise that resolves when disposal is complete
    */
   public async dispose(): Promise<void> {
     await Promise.resolve();
@@ -130,8 +132,9 @@ export class ComponentGenerator implements IAgent {
 
   /**
    * Generate complete component design from parsed SRS
-   * @param srs
-   * @param options
+   * @param srs - Parsed SRS document containing features and requirements
+   * @param options - Optional configuration for component generation
+   * @returns Complete component design with components, APIs, traceability, and dependencies
    */
   public generate(srs: ParsedSRS, options?: ComponentGeneratorOptions): ComponentDesign {
     const mergedOptions = { ...this.config.defaultOptions, ...options };
@@ -197,8 +200,9 @@ export class ComponentGenerator implements IAgent {
 
   /**
    * Generate components from SRS features
-   * @param srs
-   * @param options
+   * @param srs - Parsed SRS document with features to convert
+   * @param options - Generation configuration options
+   * @returns Array of generated component definitions
    */
   private generateComponents(
     srs: ParsedSRS,
@@ -225,9 +229,10 @@ export class ComponentGenerator implements IAgent {
 
   /**
    * Generate a component from a feature
-   * @param feature
-   * @param srs
-   * @param options
+   * @param feature - SRS feature to convert into a component
+   * @param srs - Full parsed SRS for dependency analysis
+   * @param options - Generation configuration options
+   * @returns Component definition with interfaces and dependencies
    */
   private generateComponentFromFeature(
     feature: SRSFeature,
@@ -257,7 +262,8 @@ export class ComponentGenerator implements IAgent {
 
   /**
    * Derive component name from feature
-   * @param feature
+   * @param feature - SRS feature to derive name from
+   * @returns PascalCase component name with appropriate suffix (Service, Controller, Manager, or Component)
    */
   private deriveComponentName(feature: SRSFeature): string {
     // Convert feature name to PascalCase component name
@@ -282,7 +288,8 @@ export class ComponentGenerator implements IAgent {
 
   /**
    * Check if feature suggests a service component
-   * @param feature
+   * @param feature - SRS feature to analyze
+   * @returns True if feature indicates service-oriented functionality
    */
   private isServiceComponent(feature: SRSFeature): boolean {
     const text = `${feature.name} ${feature.description}`.toLowerCase();
@@ -296,7 +303,8 @@ export class ComponentGenerator implements IAgent {
 
   /**
    * Check if feature suggests a controller component
-   * @param feature
+   * @param feature - SRS feature to analyze
+   * @returns True if feature indicates orchestration or coordination responsibilities
    */
   private isControllerComponent(feature: SRSFeature): boolean {
     const text = `${feature.name} ${feature.description}`.toLowerCase();
@@ -310,7 +318,8 @@ export class ComponentGenerator implements IAgent {
 
   /**
    * Check if feature suggests a manager component
-   * @param feature
+   * @param feature - SRS feature to analyze
+   * @returns True if feature indicates resource management responsibilities
    */
   private isManagerComponent(feature: SRSFeature): boolean {
     const text = `${feature.name} ${feature.description}`.toLowerCase();
@@ -319,8 +328,9 @@ export class ComponentGenerator implements IAgent {
 
   /**
    * Determine component layer from feature
-   * @param feature
-   * @param defaultLayer
+   * @param feature - SRS feature to analyze for layer classification
+   * @param defaultLayer - Fallback layer if no specific indicators found
+   * @returns Determined layer (presentation, application, domain, infrastructure, or integration)
    */
   private determineLayer(feature: SRSFeature, defaultLayer: ComponentLayer): ComponentLayer {
     const text = `${feature.name} ${feature.description}`.toLowerCase();
@@ -361,8 +371,9 @@ export class ComponentGenerator implements IAgent {
 
   /**
    * Extract dependencies from feature
-   * @param feature
-   * @param srs
+   * @param feature - SRS feature to extract dependencies from
+   * @param srs - Full parsed SRS to find references to other features
+   * @returns Array of feature IDs that this feature depends on
    */
   private extractDependencies(feature: SRSFeature, srs: ParsedSRS): string[] {
     const dependencies: string[] = [];
@@ -383,8 +394,9 @@ export class ComponentGenerator implements IAgent {
 
   /**
    * Check if feature references another feature's use cases
-   * @param feature
-   * @param otherFeature
+   * @param feature - Feature to check for references
+   * @param otherFeature - Feature whose use cases might be referenced
+   * @returns True if feature's use cases mention otherFeature's use cases
    */
   private hasUseCaseReference(feature: SRSFeature, otherFeature: SRSFeature): boolean {
     const featureText = feature.useCases
@@ -403,8 +415,9 @@ export class ComponentGenerator implements IAgent {
 
   /**
    * Generate implementation notes
-   * @param feature
-   * @param layer
+   * @param feature - SRS feature to generate notes for
+   * @param layer - Component layer for layer-specific guidance
+   * @returns Implementation guidance including layer description, priority, and NFR notes
    */
   private generateImplementationNotes(feature: SRSFeature, layer: ComponentLayer): string {
     const notes: string[] = [];
@@ -430,8 +443,9 @@ export class ComponentGenerator implements IAgent {
 
   /**
    * Generate traceability matrix
-   * @param features
-   * @param components
+   * @param features - SRS features to trace
+   * @param components - Generated components to map to features
+   * @returns Traceability entries linking features to components and interfaces
    */
   private generateTraceabilityMatrix(
     features: readonly SRSFeature[],
@@ -466,8 +480,9 @@ export class ComponentGenerator implements IAgent {
 
   /**
    * Analyze component dependencies
-   * @param components
-   * @param _srs
+   * @param components - Generated components to analyze
+   * @param _srs - Parsed SRS (currently unused, reserved for future enhancement)
+   * @returns Array of component dependencies with source, target, type, and description
    */
   private analyzeDependencies(
     components: readonly ComponentDefinition[],
@@ -502,7 +517,7 @@ export class ComponentGenerator implements IAgent {
 
   /**
    * Validate SRS input
-   * @param srs
+   * @param srs - Parsed SRS to validate for required fields
    */
   private validateSRS(srs: ParsedSRS): void {
     const errors: string[] = [];
@@ -522,9 +537,10 @@ export class ComponentGenerator implements IAgent {
 
   /**
    * Generate component design and save to files
-   * @param srs
-   * @param projectId
-   * @param options
+   * @param srs - Parsed SRS document to generate from
+   * @param projectId - Project identifier for output file naming
+   * @param options - Optional generation configuration
+   * @returns Object containing the generated design and output file path
    */
   public generateAndSave(
     srs: ParsedSRS,
@@ -539,8 +555,9 @@ export class ComponentGenerator implements IAgent {
 
   /**
    * Save component design to markdown file
-   * @param design
-   * @param projectId
+   * @param design - Component design to save
+   * @param projectId - Project identifier for output file naming
+   * @returns Absolute path to the saved markdown file
    */
   public saveDesign(design: ComponentDesign, projectId: string): string {
     const markdown = this.designToMarkdown(design);
@@ -562,7 +579,8 @@ export class ComponentGenerator implements IAgent {
 
   /**
    * Convert component design to markdown format
-   * @param design
+   * @param design - Component design to convert
+   * @returns Formatted markdown document with components, APIs, traceability, and dependencies
    */
   public designToMarkdown(design: ComponentDesign): string {
     const lines: string[] = [];
@@ -692,7 +710,8 @@ export class ComponentGenerator implements IAgent {
 
   /**
    * Generate TypeScript interface definitions
-   * @param design
+   * @param design - Component design containing API specifications
+   * @returns TypeScript interface code for all API endpoints
    */
   public generateTypeScriptInterfaces(design: ComponentDesign): string {
     return this.apiSpecGenerator.generateTypeScriptInterfaces(design.apiSpecification);
@@ -700,7 +719,7 @@ export class ComponentGenerator implements IAgent {
 
   /**
    * Log message if verbose mode is enabled
-   * @param message
+   * @param message - Debug message to log
    */
   private log(message: string): void {
     this.logger.debug(message);
@@ -713,7 +732,8 @@ export class ComponentGenerator implements IAgent {
 
 /**
  * Get singleton instance of ComponentGenerator
- * @param config
+ * @param config - Optional configuration for the singleton instance
+ * @returns Singleton ComponentGenerator instance
  */
 export function getComponentGenerator(config?: ComponentGeneratorConfig): ComponentGenerator {
   if (!instance) {

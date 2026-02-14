@@ -274,8 +274,9 @@ export class TechnologyStackGenerator {
 
   /**
    * Generate technology stack based on analysis
-   * @param srs
-   * @param analysis
+   * @param srs - Parsed SRS document containing NFRs and requirements
+   * @param analysis - Architecture analysis results with pattern and concern information
+   * @returns Complete technology stack with selected technologies for all layers
    */
   public generate(srs: ParsedSRS, analysis: ArchitectureAnalysis): TechnologyStack {
     try {
@@ -308,7 +309,8 @@ export class TechnologyStackGenerator {
 
   /**
    * Extract NFR priorities from SRS
-   * @param srs
+   * @param srs - Parsed SRS document containing non-functional requirements
+   * @returns Map of NFR categories to their highest priority scores (0-100)
    */
   private extractNFRPriorities(srs: ParsedSRS): Map<NFRCategory, number> {
     const priorities = new Map<NFRCategory, number>();
@@ -324,7 +326,8 @@ export class TechnologyStackGenerator {
 
   /**
    * Get numeric score for priority
-   * @param priority
+   * @param priority - Priority level (P0 highest, P3 lowest)
+   * @returns Numeric score from 0-100 based on priority level
    */
   private getPriorityScore(priority: 'P0' | 'P1' | 'P2' | 'P3'): number {
     const scores: Record<string, number> = {
@@ -338,10 +341,11 @@ export class TechnologyStackGenerator {
 
   /**
    * Select best technology for a layer
-   * @param layer
-   * @param options
-   * @param analysis
-   * @param nfrPriorities
+   * @param layer - Technology layer to select for (runtime, framework, database, etc.)
+   * @param options - Available technology options for this layer
+   * @param analysis - Architecture analysis with pattern and concerns
+   * @param nfrPriorities - Map of NFR categories to priority scores
+   * @returns Selected technology for the layer with rationale and alternatives
    */
   private selectTechnology(
     layer: TechnologyLayer,
@@ -379,9 +383,10 @@ export class TechnologyStackGenerator {
 
   /**
    * Score a technology option
-   * @param option
-   * @param analysis
-   * @param nfrPriorities
+   * @param option - Technology option to score
+   * @param analysis - Architecture analysis with pattern and concerns
+   * @param nfrPriorities - Map of NFR categories to priority scores
+   * @returns Numeric score based on pattern compatibility, NFR alignment, and concern mitigation
    */
   private scoreTechnology(
     option: TechnologyOption,
@@ -418,8 +423,9 @@ export class TechnologyStackGenerator {
 
   /**
    * Get reason why alternative wasn't selected
-   * @param alternative
-   * @param selected
+   * @param alternative - Technology option that wasn't selected
+   * @param selected - Technology option that was selected
+   * @returns Explanation of why alternative wasn't chosen over selected option
    */
   private getAlternativeReason(alternative: TechnologyOption, selected: TechnologyOption): string {
     const missingStrengths = alternative.strengths.filter((s) => !selected.strengths.includes(s));
@@ -433,8 +439,9 @@ export class TechnologyStackGenerator {
 
   /**
    * Build overall stack rationale
-   * @param layers
-   * @param analysis
+   * @param layers - Selected technologies for all layers
+   * @param analysis - Architecture analysis with pattern information
+   * @returns Summary explanation of why this technology stack was chosen
    */
   private buildStackRationale(
     layers: TechnologyLayerEntry[],
@@ -457,7 +464,8 @@ export class TechnologyStackGenerator {
 
   /**
    * Check compatibility between selected technologies
-   * @param layers
+   * @param layers - Selected technologies for all layers
+   * @returns Array of compatibility warnings and recommendations for the technology stack
    */
   private checkCompatibility(layers: TechnologyLayerEntry[]): string[] {
     const notes: string[] = [];
