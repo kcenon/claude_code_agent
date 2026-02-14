@@ -110,7 +110,8 @@ export class StuckWorkerHandler {
 
   /**
    * Get threshold for a specific task type
-   * @param taskType
+   * @param taskType - Task type identifier, or null to use default thresholds
+   * @returns Warning, stuck, and critical thresholds for the given task type
    */
   public getThresholdForTask(taskType: string | null): TaskTypeThreshold {
     if (taskType !== null && this.config.taskThresholds[taskType] !== undefined) {
@@ -126,10 +127,10 @@ export class StuckWorkerHandler {
 
   /**
    * Track a worker that started working
-   * @param workerId
-   * @param issueId
-   * @param startedAt
-   * @param taskType
+   * @param workerId - Unique identifier of the worker to monitor
+   * @param issueId - Issue being processed, or null if not associated with an issue
+   * @param startedAt - Epoch timestamp (ms) when the worker started the task
+   * @param taskType - Category of the task for threshold lookup, or null for defaults
    */
   public trackWorker(
     workerId: string,
@@ -150,7 +151,7 @@ export class StuckWorkerHandler {
 
   /**
    * Stop tracking a worker (task completed or worker released)
-   * @param workerId
+   * @param workerId - Worker to remove from stuck-detection monitoring
    */
   public untrackWorker(workerId: string): void {
     this.trackedWorkers.delete(workerId);
@@ -158,7 +159,8 @@ export class StuckWorkerHandler {
 
   /**
    * Check all tracked workers and handle stuck conditions
-   * @param workers
+   * @param workers - Current worker pool state to evaluate for stuck conditions
+   * @returns List of new escalations triggered during this check cycle
    */
   public async checkWorkers(workers: readonly WorkerInfo[]): Promise<StuckWorkerEscalation[]> {
     const now = Date.now();
@@ -190,8 +192,9 @@ export class StuckWorkerHandler {
 
   /**
    * Handle worker duration and determine escalation level
-   * @param state
-   * @param duration
+   * @param state - Tracked state for the worker being evaluated
+   * @param duration - Elapsed time in milliseconds since the worker started
+   * @returns New escalation if a threshold was crossed, or null if no change
    */
   private async handleWorkerDuration(
     state: TrackedWorkerState,
@@ -217,8 +220,9 @@ export class StuckWorkerHandler {
 
   /**
    * Determine escalation level based on duration
-   * @param duration
-   * @param threshold
+   * @param duration - Elapsed time in milliseconds since the worker started
+   * @param threshold - Warning, stuck, and critical time thresholds for comparison
+   * @returns Matched escalation level, or null if duration is below all thresholds
    */
   private determineEscalationLevel(
     duration: number,
@@ -238,9 +242,10 @@ export class StuckWorkerHandler {
 
   /**
    * Handle escalation based on level
-   * @param state
-   * @param level
-   * @param duration
+   * @param state - Tracked state for the stuck worker
+   * @param level - Escalation severity (warning, stuck, or critical)
+   * @param duration - Elapsed time in milliseconds triggering the escalation
+   * @returns Created escalation record with suggested action
    */
   private async handleEscalation(
     state: TrackedWorkerState,
@@ -270,8 +275,9 @@ export class StuckWorkerHandler {
 
   /**
    * Get suggested action based on escalation level and attempts
-   * @param level
-   * @param attempts
+   * @param level - Current escalation severity level
+   * @param attempts - Number of recovery attempts already made
+   * @returns Human-readable suggestion for resolving the stuck condition
    */
   private getSuggestedAction(level: StuckWorkerEscalationLevel, attempts: number): string {
     switch (level) {
@@ -292,9 +298,9 @@ export class StuckWorkerHandler {
 
   /**
    * Attempt recovery based on escalation level
-   * @param state
-   * @param level
-   * @param duration
+   * @param state - Tracked state for the worker to recover
+   * @param level - Current escalation severity determining the recovery strategy
+   * @param duration - Elapsed time in milliseconds used for critical escalation reporting
    */
   private async attemptRecovery(
     state: TrackedWorkerState,
@@ -376,8 +382,9 @@ export class StuckWorkerHandler {
 
   /**
    * Determine which recovery action to take
-   * @param state
-   * @param level
+   * @param state - Tracked state including prior recovery attempt count
+   * @param level - Escalation severity guiding the progressive recovery strategy
+   * @returns Recovery action to execute (send_warning, extend_deadline, reassign, restart, or escalate)
    */
   private determineRecoveryAction(
     state: TrackedWorkerState,
@@ -408,8 +415,8 @@ export class StuckWorkerHandler {
 
   /**
    * Execute the recovery action
-   * @param state
-   * @param action
+   * @param state - Tracked worker state used to identify the worker and task
+   * @param action - Specific recovery action to perform (e.g., extend_deadline, reassign_task)
    */
   private async executeRecoveryAction(
     state: TrackedWorkerState,
@@ -476,8 +483,8 @@ export class StuckWorkerHandler {
 
   /**
    * Handle critical escalation
-   * @param state
-   * @param duration
+   * @param state - Tracked worker state for the critically stuck worker
+   * @param duration - Elapsed time in milliseconds since the worker started
    */
   private async handleCriticalEscalation(
     state: TrackedWorkerState,
@@ -511,9 +518,9 @@ export class StuckWorkerHandler {
 
   /**
    * Emit escalation event based on level
-   * @param level
-   * @param state
-   * @param duration
+   * @param level - Escalation severity determining the event type to emit
+   * @param state - Tracked worker state included in the event payload
+   * @param duration - Elapsed time in milliseconds included in the event payload
    */
   private async emitEscalationEvent(
     level: StuckWorkerEscalationLevel,
@@ -538,8 +545,8 @@ export class StuckWorkerHandler {
 
   /**
    * Emit an event to all listeners
-   * @param type
-   * @param data
+   * @param type - Event type identifier (e.g., worker_stuck, recovery_succeeded)
+   * @param data - Arbitrary key-value payload describing the event
    */
   private async emitEvent(type: ProgressEventType, data: Record<string, unknown>): Promise<void> {
     const event: ProgressEvent = {
@@ -559,7 +566,7 @@ export class StuckWorkerHandler {
 
   /**
    * Register event listener
-   * @param callback
+   * @param callback - Handler invoked for all progress events (escalations, recoveries, etc.)
    */
   public onEvent(callback: ProgressEventCallback): void {
     this.eventListeners.push(callback);
@@ -567,7 +574,7 @@ export class StuckWorkerHandler {
 
   /**
    * Set task reassignment handler
-   * @param handler
+   * @param handler - Async callback that moves a task from a stuck worker to a healthy one
    */
   public setTaskReassignHandler(handler: TaskReassignHandler): void {
     this.onTaskReassign = handler;
@@ -575,7 +582,7 @@ export class StuckWorkerHandler {
 
   /**
    * Set worker restart handler
-   * @param handler
+   * @param handler - Async callback that restarts a stuck worker process
    */
   public setWorkerRestartHandler(handler: WorkerRestartHandler): void {
     this.onWorkerRestart = handler;
@@ -583,7 +590,7 @@ export class StuckWorkerHandler {
 
   /**
    * Set deadline extension handler
-   * @param handler
+   * @param handler - Async callback that grants additional time before a worker is considered stuck
    */
   public setDeadlineExtendHandler(handler: DeadlineExtendHandler): void {
     this.onDeadlineExtend = handler;
@@ -591,7 +598,7 @@ export class StuckWorkerHandler {
 
   /**
    * Set critical escalation handler
-   * @param handler
+   * @param handler - Async callback invoked when all automatic recovery attempts are exhausted
    */
   public setCriticalEscalationHandler(handler: CriticalEscalationHandler): void {
     this.onCriticalEscalation = handler;
@@ -599,7 +606,7 @@ export class StuckWorkerHandler {
 
   /**
    * Set pipeline pause handler
-   * @param handler
+   * @param handler - Async callback that halts the pipeline when a critical stuck condition occurs
    */
   public setPipelinePauseHandler(handler: PipelinePauseHandler): void {
     this.onPipelinePause = handler;
@@ -607,6 +614,7 @@ export class StuckWorkerHandler {
 
   /**
    * Get recovery history
+   * @returns Chronological list of all recovery attempts with outcomes
    */
   public getRecoveryHistory(): readonly StuckWorkerRecoveryAttempt[] {
     return [...this.recoveryHistory];
@@ -614,6 +622,7 @@ export class StuckWorkerHandler {
 
   /**
    * Get escalation history
+   * @returns Chronological list of all escalation events across all workers
    */
   public getEscalationHistory(): readonly StuckWorkerEscalation[] {
     return [...this.escalationHistory];
@@ -621,6 +630,7 @@ export class StuckWorkerHandler {
 
   /**
    * Get current tracked workers
+   * @returns Snapshot of all workers currently being monitored for stuck conditions
    */
   public getTrackedWorkers(): readonly TrackedWorkerState[] {
     return Array.from(this.trackedWorkers.values());
@@ -628,6 +638,7 @@ export class StuckWorkerHandler {
 
   /**
    * Get configuration
+   * @returns Resolved configuration with all defaults applied
    */
   public getConfig(): Required<Omit<StuckWorkerConfig, 'taskThresholds'>> & {
     taskThresholds: Record<string, TaskTypeThreshold>;

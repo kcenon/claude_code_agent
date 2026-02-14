@@ -118,6 +118,7 @@ export class WorkerPoolMetrics {
 
   /**
    * Check if metrics collection is enabled
+   * @returns true if metrics collection is active per configuration
    */
   public isEnabled(): boolean {
     return this.config.enabled;
@@ -125,7 +126,7 @@ export class WorkerPoolMetrics {
 
   /**
    * Set event callback for metrics events
-   * @param callback
+   * @param callback - Handler invoked when metrics events occur (task start/complete, pool changes)
    */
   public onEvent(callback: MetricsEventCallback): void {
     this.eventCallback = callback;
@@ -133,8 +134,8 @@ export class WorkerPoolMetrics {
 
   /**
    * Emit a metrics event
-   * @param type
-   * @param data
+   * @param type - Category of the metrics event (e.g., task_started, worker_utilized)
+   * @param data - Event payload with context-specific metrics details
    */
   private emitEvent(type: MetricsEventType, data: Record<string, unknown>): void {
     if (this.eventCallback !== undefined) {
@@ -153,10 +154,10 @@ export class WorkerPoolMetrics {
 
   /**
    * Update pool state from WorkerPoolManager
-   * @param totalWorkers
-   * @param activeWorkers
-   * @param idleWorkers
-   * @param errorWorkers
+   * @param totalWorkers - Total number of workers registered in the pool
+   * @param activeWorkers - Number of workers currently processing tasks
+   * @param idleWorkers - Number of workers available for new tasks
+   * @param errorWorkers - Number of workers in an error or unhealthy state
    */
   public updatePoolState(
     totalWorkers: number,
@@ -183,10 +184,10 @@ export class WorkerPoolMetrics {
 
   /**
    * Update queue state
-   * @param depth
-   * @param maxCapacity
-   * @param deadLetterCount
-   * @param backpressureActive
+   * @param depth - Current number of tasks waiting in the queue
+   * @param maxCapacity - Maximum number of tasks the queue can hold
+   * @param deadLetterCount - Number of tasks in the dead letter queue
+   * @param backpressureActive - Whether the queue is currently applying backpressure
    */
   public updateQueueState(
     depth: number,
@@ -221,9 +222,9 @@ export class WorkerPoolMetrics {
 
   /**
    * Record task start
-   * @param orderId
-   * @param issueId
-   * @param workerId
+   * @param orderId - Unique work order identifier for tracking this task execution
+   * @param issueId - Issue identifier associated with the task
+   * @param workerId - Identifier of the worker that was assigned this task
    */
   public recordTaskStart(orderId: string, issueId: string, workerId: string): void {
     if (!this.config.enabled) return;
@@ -243,8 +244,8 @@ export class WorkerPoolMetrics {
 
   /**
    * Record task completion
-   * @param orderId
-   * @param success
+   * @param orderId - Work order identifier of the completed task
+   * @param success - Whether the task completed successfully or failed
    */
   public recordTaskCompletion(orderId: string, success: boolean): void {
     if (!this.config.enabled) return;
@@ -302,6 +303,7 @@ export class WorkerPoolMetrics {
 
   /**
    * Get pool utilization metrics
+   * @returns Current worker pool state with utilization ratio and worker counts
    */
   public getPoolUtilization(): PoolUtilizationMetrics {
     const { totalWorkers, activeWorkers, idleWorkers, errorWorkers } = this.currentPoolState;
@@ -319,6 +321,7 @@ export class WorkerPoolMetrics {
 
   /**
    * Get queue depth metrics
+   * @returns Current queue depth, capacity, dead letter count, and backpressure state
    */
   public getQueueDepth(): QueueDepthMetrics {
     const { depth, maxCapacity, deadLetterCount, backpressureActive } = this.currentQueueState;
@@ -336,6 +339,7 @@ export class WorkerPoolMetrics {
 
   /**
    * Get task completion statistics
+   * @returns Aggregated stats including success rate, average/min/max/percentile durations
    */
   public getCompletionStats(): TaskCompletionStats {
     const records = this.completionRecords;
@@ -389,8 +393,9 @@ export class WorkerPoolMetrics {
 
   /**
    * Calculate percentile from sorted array
-   * @param sortedArray
-   * @param p
+   * @param sortedArray - Pre-sorted array of numeric values in ascending order
+   * @param p - Percentile to compute (0-100, e.g., 50 for median, 95 for p95)
+   * @returns Interpolated value at the specified percentile
    */
   private percentile(sortedArray: number[], p: number): number {
     if (sortedArray.length === 0) return 0;
@@ -409,7 +414,8 @@ export class WorkerPoolMetrics {
 
   /**
    * Get recent completion records
-   * @param limit
+   * @param limit - Maximum number of records to return; omit for all records
+   * @returns Immutable array of the most recent task completion records
    */
   public getRecentCompletions(limit?: number): readonly TaskCompletionRecord[] {
     const records = this.completionRecords.map((r) => ({ ...r }));
@@ -421,6 +427,7 @@ export class WorkerPoolMetrics {
 
   /**
    * Get per-worker completion counts
+   * @returns Map of worker IDs to the total number of tasks each has completed
    */
   public getWorkerCompletions(): ReadonlyMap<string, number> {
     return new Map(this.workerCompletionCounts);
@@ -428,6 +435,7 @@ export class WorkerPoolMetrics {
 
   /**
    * Get complete metrics snapshot
+   * @returns Full point-in-time snapshot of all pool, queue, and completion metrics
    */
   public getSnapshot(): WorkerPoolMetricsSnapshot {
     return {
@@ -446,6 +454,7 @@ export class WorkerPoolMetrics {
 
   /**
    * Generate Prometheus-compatible metrics
+   * @returns Array of gauge and counter metrics for pool utilization, queue depth, and task stats
    */
   public toPrometheusMetrics(): readonly PrometheusMetric[] {
     const prefix = this.config.metricsPrefix;
@@ -604,6 +613,7 @@ export class WorkerPoolMetrics {
 
   /**
    * Generate Prometheus histogram for task duration
+   * @returns Histogram with configured buckets, sum, and count for task duration distribution
    */
   public toPrometheusHistogram(): PrometheusHistogram {
     const prefix = this.config.metricsPrefix;
@@ -637,6 +647,7 @@ export class WorkerPoolMetrics {
 
   /**
    * Export metrics in Prometheus text format
+   * @returns Prometheus exposition format string with HELP, TYPE, and metric lines
    */
   public exportPrometheus(): string {
     const metrics = this.toPrometheusMetrics();
@@ -675,7 +686,8 @@ export class WorkerPoolMetrics {
 
   /**
    * Export metrics in specified format
-   * @param format
+   * @param format - Output format: 'prometheus', 'openmetrics', or 'json'
+   * @returns Serialized metrics string in the requested format
    */
   public export(format: MetricsExportFormat): string {
     switch (format) {
@@ -707,6 +719,7 @@ export class WorkerPoolMetrics {
 
   /**
    * Get the number of active (in-progress) tasks
+   * @returns Count of tasks that have started but not yet completed
    */
   public getActiveTaskCount(): number {
     return this.activeTasks.size;
@@ -714,6 +727,7 @@ export class WorkerPoolMetrics {
 
   /**
    * Get active tasks
+   * @returns Immutable array of all currently in-progress task records
    */
   public getActiveTasks(): readonly ActiveTask[] {
     return Array.from(this.activeTasks.values());

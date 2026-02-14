@@ -112,7 +112,10 @@ interface InternalWorkerPoolConfig {
 }
 
 /**
+ * Worker Pool Manager
  *
+ * Manages a pool of workers for concurrent task execution.
+ * Provides work order creation, assignment, and lifecycle management.
  */
 export class WorkerPoolManager {
   private readonly config: InternalWorkerPoolConfig;
@@ -225,6 +228,7 @@ export class WorkerPoolManager {
 
   /**
    * Get the pool status
+   * @returns Current snapshot of worker pool status including counts and active orders
    */
   public getStatus(): WorkerPoolStatus {
     const workerList = Array.from(this.workers.values());
@@ -254,7 +258,8 @@ export class WorkerPoolManager {
 
   /**
    * Convert mutable worker to readonly WorkerInfo
-   * @param worker
+   * @param worker - Internal mutable worker state to convert
+   * @returns Readonly worker info suitable for external consumption
    */
   private toWorkerInfo(worker: MutableWorkerInfo): WorkerInfo {
     const base = {
@@ -274,7 +279,8 @@ export class WorkerPoolManager {
 
   /**
    * Find a work order by issue ID
-   * @param issueId
+   * @param issueId - Issue identifier to search for across all work orders
+   * @returns Matching work order, or undefined if no order references this issue
    */
   private findOrderByIssueId(issueId: string): WorkOrder | undefined {
     for (const order of this.workOrders.values()) {
@@ -287,7 +293,7 @@ export class WorkerPoolManager {
 
   /**
    * Get an available worker slot
-   * @returns Worker ID if available, null otherwise
+   * @returns ID of the first idle worker, or null if all workers are busy
    */
   public getAvailableSlot(): string | null {
     for (const worker of this.workers.values()) {
@@ -300,7 +306,8 @@ export class WorkerPoolManager {
 
   /**
    * Get worker info by ID
-   * @param workerId
+   * @param workerId - Unique identifier of the worker to retrieve
+   * @returns Readonly worker info for the specified worker
    * @throws WorkerNotFoundError if worker doesn't exist
    */
   public getWorker(workerId: string): WorkerInfo {
@@ -313,7 +320,8 @@ export class WorkerPoolManager {
 
   /**
    * Get worker status by ID
-   * @param workerId
+   * @param workerId - Unique identifier of the worker to check
+   * @returns Current status of the worker (idle, working, or error)
    * @throws WorkerNotFoundError if worker doesn't exist
    */
   public getWorkerStatus(workerId: string): WorkerStatus {
@@ -326,8 +334,9 @@ export class WorkerPoolManager {
 
   /**
    * Create a work order for an issue
-   * @param issue
-   * @param context
+   * @param issue - Issue node or analyzed issue to create a work order for
+   * @param context - Optional contextual info such as related files and dependency status
+   * @returns Newly created and persisted work order
    */
   public async createWorkOrder(
     issue: IssueNode | AnalyzedIssue,
@@ -393,7 +402,8 @@ export class WorkerPoolManager {
 
   /**
    * Get priority numeric value from priority string
-   * @param priority
+   * @param priority - Priority label (P0-P3) to convert
+   * @returns Numeric score (100 for P0, 75 for P1, 50 for P2, 25 for P3, 0 otherwise)
    */
   private getPriorityValue(priority: string): number {
     switch (priority) {
@@ -412,7 +422,7 @@ export class WorkerPoolManager {
 
   /**
    * Persist a work order to disk
-   * @param workOrder
+   * @param workOrder - Work order to serialize and write to the work_orders directory
    */
   private async persistWorkOrder(workOrder: WorkOrder): Promise<void> {
     const projectPath = this.config.workOrdersPath;
@@ -428,8 +438,8 @@ export class WorkerPoolManager {
 
   /**
    * Assign work to a worker
-   * @param workerId
-   * @param workOrder
+   * @param workerId - Target worker to assign the task to
+   * @param workOrder - Work order containing the task details
    * @throws WorkerNotFoundError if worker doesn't exist
    * @throws WorkerNotAvailableError if worker is not idle
    * @throws WorkerAssignmentError if assignment fails
@@ -478,7 +488,8 @@ export class WorkerPoolManager {
 
   /**
    * Get a work order by ID
-   * @param orderId
+   * @param orderId - Unique work order identifier (e.g., WO-001)
+   * @returns The work order matching the given ID
    * @throws WorkOrderNotFoundError if order doesn't exist
    */
   public getWorkOrder(orderId: string): WorkOrder {
@@ -491,8 +502,8 @@ export class WorkerPoolManager {
 
   /**
    * Mark a worker as completed
-   * @param workerId
-   * @param result
+   * @param workerId - Worker that finished the task
+   * @param result - Outcome of the work order (success/failure with details)
    */
   public async completeWork(workerId: string, result: WorkOrderResult): Promise<void> {
     const worker = this.workers.get(workerId);
@@ -530,9 +541,9 @@ export class WorkerPoolManager {
 
   /**
    * Mark a worker as failed
-   * @param workerId
-   * @param orderId
-   * @param error
+   * @param workerId - Worker that encountered the failure
+   * @param orderId - Work order that failed
+   * @param error - Error that caused the task failure
    */
   public async failWork(workerId: string, orderId: string, error: Error): Promise<void> {
     const worker = this.workers.get(workerId);
@@ -561,7 +572,7 @@ export class WorkerPoolManager {
 
   /**
    * Release a worker back to idle state
-   * @param workerId
+   * @param workerId - Worker to release from its current assignment
    */
   public releaseWorker(workerId: string): void {
     const worker = this.workers.get(workerId);
@@ -577,7 +588,7 @@ export class WorkerPoolManager {
 
   /**
    * Reset a worker from error state
-   * @param workerId
+   * @param workerId - Worker to reset back to idle, clearing error state
    */
   public resetWorker(workerId: string): void {
     const worker = this.workers.get(workerId);
@@ -596,8 +607,8 @@ export class WorkerPoolManager {
    *
    * If bounded queue is enabled, this will apply size limits and backpressure.
    * Use enqueueBounded() for explicit result handling with bounded queue.
-   * @param issueId
-   * @param priorityScore
+   * @param issueId - Issue identifier to add to the queue
+   * @param priorityScore - Numeric priority for queue ordering (higher is more urgent)
    */
   public enqueue(issueId: string, priorityScore: number): void {
     if (this.boundedQueue !== null) {
@@ -619,8 +630,9 @@ export class WorkerPoolManager {
    * Only available when bounded queue is enabled.
    * Returns detailed result including success/failure reason and backpressure info.
    *
-   * @param issueId
-   * @param priorityScore
+   * @param issueId - Issue identifier to add to the bounded queue
+   * @param priorityScore - Numeric priority for queue ordering (higher is more urgent)
+   * @returns Detailed enqueue result including success/failure reason and backpressure info
    * @throws Error if bounded queue is not enabled
    */
   public async enqueueBounded(issueId: string, priorityScore: number): Promise<EnqueueResult> {
@@ -672,6 +684,7 @@ export class WorkerPoolManager {
    * Get the next issue from the work queue (async version)
    *
    * Recommended when using bounded queue for proper event handling.
+   * @returns Highest priority issue ID, or null if queue is empty
    */
   public async dequeueBounded(): Promise<string | null> {
     if (this.boundedQueue !== null) {
@@ -682,6 +695,7 @@ export class WorkerPoolManager {
 
   /**
    * Get the work queue entries
+   * @returns All queued entries sorted by descending priority score
    */
   public getQueue(): readonly WorkQueueEntry[] {
     if (this.boundedQueue !== null) {
@@ -692,6 +706,7 @@ export class WorkerPoolManager {
 
   /**
    * Get the queue size
+   * @returns Number of items currently waiting in the work queue
    */
   public getQueueSize(): number {
     if (this.boundedQueue !== null) {
@@ -702,7 +717,8 @@ export class WorkerPoolManager {
 
   /**
    * Check if an issue is in the queue
-   * @param issueId
+   * @param issueId - Issue identifier to look up in the work queue
+   * @returns True if the issue is currently queued and awaiting assignment
    */
   public isQueued(issueId: string): boolean {
     if (this.boundedQueue !== null) {
@@ -716,6 +732,7 @@ export class WorkerPoolManager {
    *
    * Only available when bounded queue is enabled.
    * Returns detailed status including utilization, backpressure state, memory usage.
+   * @returns Queue status with utilization and backpressure info, or null if bounded queue is disabled
    */
   public getQueueStatus(): QueueStatus | null {
     if (this.boundedQueue === null) {
@@ -728,7 +745,7 @@ export class WorkerPoolManager {
    * Set event callback for queue notifications
    *
    * Only effective when bounded queue is enabled.
-   * @param callback
+   * @param callback - Handler invoked on queue events (enqueue, dequeue, backpressure, etc.)
    */
   public onQueueEvent(callback: QueueEventCallback): void {
     if (this.boundedQueue !== null) {
@@ -738,6 +755,7 @@ export class WorkerPoolManager {
 
   /**
    * Check if bounded queue is enabled
+   * @returns True if the pool was configured with a bounded queue
    */
   public isBoundedQueueEnabled(): boolean {
     return this.boundedQueue !== null;
@@ -747,6 +765,7 @@ export class WorkerPoolManager {
    * Get dead letter queue entries
    *
    * Only available when bounded queue is enabled.
+   * @returns List of tasks that failed permanently, or empty array if bounded queue is disabled
    */
   public getDeadLetterQueue(): readonly DeadLetterEntry[] {
     if (this.boundedQueue === null) {
@@ -759,7 +778,8 @@ export class WorkerPoolManager {
    * Retry a task from the dead letter queue
    *
    * Only available when bounded queue is enabled.
-   * @param issueId
+   * @param issueId - Issue to move from dead letter queue back to the main queue
+   * @returns True if the issue was found and re-queued, false if not found or queue disabled
    */
   public async retryFromDeadLetter(issueId: string): Promise<boolean> {
     if (this.boundedQueue === null) {
@@ -770,7 +790,8 @@ export class WorkerPoolManager {
 
   /**
    * Check if an issue is being worked on
-   * @param issueId
+   * @param issueId - Issue identifier to check across all workers
+   * @returns True if any worker is currently processing this issue
    */
   public isInProgress(issueId: string): boolean {
     for (const worker of this.workers.values()) {
@@ -783,7 +804,7 @@ export class WorkerPoolManager {
 
   /**
    * Set completion callback
-   * @param callback
+   * @param callback - Handler invoked when any worker finishes a task successfully or with failure
    */
   public onCompletion(callback: WorkerCompletionCallback): void {
     this.onCompletionCallback = callback;
@@ -791,7 +812,7 @@ export class WorkerPoolManager {
 
   /**
    * Set failure callback
-   * @param callback
+   * @param callback - Handler invoked when a worker encounters an unrecoverable error
    */
   public onFailure(callback: WorkerFailureCallback): void {
     this.onFailureCallback = callback;
@@ -799,6 +820,7 @@ export class WorkerPoolManager {
 
   /**
    * Get completed order IDs
+   * @returns List of work order IDs that completed successfully
    */
   public getCompletedOrders(): readonly string[] {
     return Array.from(this.completedOrders);
@@ -806,6 +828,7 @@ export class WorkerPoolManager {
 
   /**
    * Get failed order IDs
+   * @returns List of work order IDs that failed
    */
   public getFailedOrders(): readonly string[] {
     return Array.from(this.failedOrders);
@@ -813,7 +836,7 @@ export class WorkerPoolManager {
 
   /**
    * Save controller state to disk
-   * @param projectId
+   * @param projectId - Project identifier used to tag the persisted state
    */
   public async saveState(projectId: string): Promise<void> {
     const state: ControllerState = {
@@ -840,7 +863,8 @@ export class WorkerPoolManager {
 
   /**
    * Load controller state from disk
-   * @param projectId
+   * @param projectId - Project identifier to match against the stored state
+   * @returns Restored controller state, or null if no matching state file exists
    */
   public async loadState(projectId: string): Promise<ControllerState | null> {
     const statePath = join(this.config.workOrdersPath, 'controller_state.json');
@@ -869,7 +893,7 @@ export class WorkerPoolManager {
 
   /**
    * Restore internal state from loaded state
-   * @param state
+   * @param state - Previously persisted controller state to restore from
    */
   private restoreFromState(state: ControllerState): void {
     // Restore workers
@@ -1023,6 +1047,7 @@ export class WorkerPoolManager {
 
   /**
    * Get all active workers (for health monitoring)
+   * @returns All workers in the pool as readonly info objects
    */
   public getActiveWorkers(): readonly WorkerInfo[] {
     return Array.from(this.workers.values()).map((w) => this.toWorkerInfo(w));
@@ -1034,6 +1059,7 @@ export class WorkerPoolManager {
 
   /**
    * Check if distributed locking is enabled
+   * @returns True if distributed locking was configured and a scratchpad instance exists
    */
   public isDistributedLockEnabled(): boolean {
     return this.scratchpad !== null && this.config.distributedLock.enabled;
@@ -1041,6 +1067,7 @@ export class WorkerPoolManager {
 
   /**
    * Get the lock holder ID for this process instance
+   * @returns Unique identifier used to claim distributed locks from this process
    */
   public getLockHolderId(): string {
     return this.lockHolderId;
@@ -1048,6 +1075,7 @@ export class WorkerPoolManager {
 
   /**
    * Get lock options for distributed operations
+   * @returns Lock options configured with holder ID, retry attempts, and delay
    */
   private getLockOptions(): LockOptions {
     return {
@@ -1307,6 +1335,7 @@ export class WorkerPoolManager {
 
   /**
    * Check if metrics collection is enabled
+   * @returns True if a metrics collector is configured and active
    */
   public isMetricsEnabled(): boolean {
     return this.metrics !== null && this.metrics.isEnabled();

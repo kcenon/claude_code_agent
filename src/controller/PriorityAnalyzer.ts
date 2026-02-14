@@ -102,8 +102,9 @@ export class PriorityAnalyzer {
 
   /**
    * Validate the structure of a parsed dependency graph
-   * @param data
-   * @param _filePath
+   * @param data - Raw parsed JSON data to validate
+   * @param _filePath - Source file path (reserved for future error context)
+   * @returns Validated dependency graph with typed nodes and edges
    */
   private validateGraph(data: unknown, _filePath: string): RawDependencyGraph {
     const errors: string[] = [];
@@ -189,8 +190,9 @@ export class PriorityAnalyzer {
 
   /**
    * Validate a single node object
-   * @param node
-   * @param index
+   * @param node - Node object to validate for required fields and types
+   * @param index - Position in the nodes array for error reporting
+   * @returns Array of validation error messages (empty if valid)
    */
   private validateNode(node: Record<string, unknown>, index: number): string[] {
     const errors: string[] = [];
@@ -223,9 +225,10 @@ export class PriorityAnalyzer {
 
   /**
    * Validate a single edge object
-   * @param edge
-   * @param index
-   * @param nodeIds
+   * @param edge - Edge object to validate for required fields and references
+   * @param index - Position in the edges array for error reporting
+   * @param nodeIds - Set of valid node IDs for reference checking
+   * @returns Array of validation error messages (empty if valid)
    */
   private validateEdge(
     edge: Record<string, unknown>,
@@ -256,7 +259,8 @@ export class PriorityAnalyzer {
 
   /**
    * Create an IssueNode from validated data
-   * @param data
+   * @param data - Validated raw object containing node properties
+   * @returns Typed IssueNode with required and optional fields
    */
   private createIssueNode(data: Record<string, unknown>): IssueNode {
     const base = {
@@ -341,7 +345,7 @@ export class PriorityAnalyzer {
 
   /**
    * Build internal graph representation
-   * @param graph
+   * @param graph - Raw dependency graph with validated nodes and edges
    */
   private buildInternalGraph(graph: RawDependencyGraph): void {
     // Create nodes
@@ -398,8 +402,8 @@ export class PriorityAnalyzer {
   /**
    * DFS helper for cycle detection
    * Records cycles instead of throwing exceptions
-   * @param node
-   * @param path
+   * @param node - Current node being visited in the DFS traversal
+   * @param path - Stack of node IDs forming the current DFS path
    */
   private dfsDetectCycle(node: InternalNode, path: string[]): void {
     node.visited = true;
@@ -575,6 +579,7 @@ export class PriorityAnalyzer {
 
   /**
    * Get a basic topological order (without priority)
+   * @returns Node IDs sorted in topological order using Kahn's algorithm
    */
   private getTopologicalOrder(): readonly string[] {
     const inDegree = new Map<string, number>();
@@ -620,7 +625,8 @@ export class PriorityAnalyzer {
 
   /**
    * Compute priority score for a single node
-   * @param node
+   * @param node - Internal node to score based on priority, dependents, and critical path
+   * @returns Numeric priority score (higher means more urgent)
    */
   private computePriorityScore(node: InternalNode): number {
     let score = 0;
@@ -647,6 +653,7 @@ export class PriorityAnalyzer {
   /**
    * Perform topological sort with priority ordering
    * Nodes with same depth are ordered by priority score
+   * @returns Node IDs in priority-weighted topological order
    */
   private topologicalSortWithPriority(): readonly string[] {
     const inDegree = new Map<string, number>();
@@ -691,6 +698,7 @@ export class PriorityAnalyzer {
 
   /**
    * Build groups of issues that can be executed in parallel
+   * @returns Parallel groups organized by dependency depth level
    */
   private buildParallelGroups(): readonly ParallelGroup[] {
     const groups: ParallelGroup[] = [];
@@ -717,6 +725,7 @@ export class PriorityAnalyzer {
 
   /**
    * Build the critical path result object
+   * @returns Critical path with total duration and bottleneck identification
    */
   private buildCriticalPath(): CriticalPath {
     const path = Array.from(this.criticalPathIds);
@@ -746,6 +755,7 @@ export class PriorityAnalyzer {
 
   /**
    * Build the prioritized work queue
+   * @returns Queue with all issues sorted by priority, ready, and blocked subsets
    */
   private buildPrioritizedQueue(): PrioritizedQueue {
     const allNodes = Array.from(this.nodes.values());
@@ -901,7 +911,8 @@ export class PriorityAnalyzer {
 
   /**
    * Build the analyzed issue result for a node
-   * @param node
+   * @param node - Internal node to convert into a public AnalyzedIssue
+   * @returns Analyzed issue with computed scores, dependencies, and critical path info
    */
   private buildAnalyzedIssue(node: InternalNode): AnalyzedIssue {
     return {
@@ -918,7 +929,8 @@ export class PriorityAnalyzer {
 
   /**
    * Internal method to get transitive dependencies (no error throwing)
-   * @param issueId
+   * @param issueId - Issue ID to resolve all direct and indirect dependencies for
+   * @returns Sorted array of all transitively depended-upon issue IDs
    */
   private getTransitiveDependenciesInternal(issueId: string): readonly string[] {
     const result = new Set<string>();
@@ -944,6 +956,7 @@ export class PriorityAnalyzer {
 
   /**
    * Compute statistics about the graph
+   * @returns Aggregate statistics including counts by priority, status, and depth
    */
   private computeStatistics(): GraphStatistics {
     const nodes = Array.from(this.nodes.values());
