@@ -22,8 +22,9 @@ import { getLogger } from '../logging/index.js';
 
 /**
  * Create a debounced function for file path handling
- * @param fn
- * @param delay
+ * @param fn - The async function to debounce, receiving a file path argument
+ * @param delay - Debounce delay in milliseconds
+ * @returns A debounced version of the function that resets its timer on each call
  */
 function debounceFilePath(
   fn: (filePath: string) => Promise<void>,
@@ -174,6 +175,7 @@ export class ConfigWatcher {
 
   /**
    * Check if currently watching
+   * @returns True if the watcher is actively monitoring configuration files
    */
   isActive(): boolean {
     return this.isWatching;

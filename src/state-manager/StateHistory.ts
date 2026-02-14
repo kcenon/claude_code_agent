@@ -106,8 +106,9 @@ export class StateHistoryManager implements IStateHistory {
 
   /**
    * Get history file path
-   * @param section
-   * @param projectId
+   * @param section - The scratchpad section to retrieve history for
+   * @param projectId - The unique identifier for the project
+   * @returns The absolute file path to the history JSON file
    */
   private getHistoryPath(section: ScratchpadSection, projectId: string): string {
     return path.join(this.scratchpad.getProjectPath(section, projectId), STATE_HISTORY_FILE);
@@ -115,7 +116,8 @@ export class StateHistoryManager implements IStateHistory {
 
   /**
    * Get checkpoints file path
-   * @param projectId
+   * @param projectId - The unique identifier for the project
+   * @returns The absolute file path to the checkpoints JSON file
    */
   private getCheckpointsPath(projectId: string): string {
     return path.join(this.scratchpad.getProjectPath('progress', projectId), CHECKPOINTS_FILE);
@@ -123,7 +125,8 @@ export class StateHistoryManager implements IStateHistory {
 
   /**
    * Get recovery audit file path
-   * @param projectId
+   * @param projectId - The unique identifier for the project
+   * @returns The absolute file path to the recovery audit JSON file
    */
   private getAuditPath(projectId: string): string {
     return path.join(this.scratchpad.getProjectPath('progress', projectId), RECOVERY_AUDIT_FILE);
@@ -166,10 +169,9 @@ export class StateHistoryManager implements IStateHistory {
    */
   /* eslint-disable @typescript-eslint/no-unnecessary-type-parameters */
   /**
-   *
-   * @param projectId
-   * @param section
-   * @param initialValue
+   * @param projectId - The unique identifier for the project
+   * @param section - The scratchpad section to initialize history for
+   * @param initialValue - The initial value to store as the first history entry
    */
   async initializeHistory<T>(
     projectId: string,

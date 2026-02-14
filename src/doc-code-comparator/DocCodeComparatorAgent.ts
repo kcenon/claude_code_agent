@@ -222,7 +222,8 @@ export class DocCodeComparatorAgent implements IAgent {
 
   /**
    * Start a new comparison session
-   * @param projectId
+   * @param projectId - The unique identifier for the project to compare
+   * @returns The newly created comparison session
    */
   public async startSession(projectId: string): Promise<ComparisonSession> {
     await loadYaml();
@@ -246,8 +247,9 @@ export class DocCodeComparatorAgent implements IAgent {
 
   /**
    * Run the comparison process
-   * @param documentInventoryPath
-   * @param codeInventoryPath
+   * @param documentInventoryPath - Path to the document inventory YAML file
+   * @param codeInventoryPath - Path to the code inventory YAML file
+   * @returns The comparison result containing mappings, gaps, and statistics
    */
   public async compare(
     documentInventoryPath?: string,
@@ -374,6 +376,7 @@ export class DocCodeComparatorAgent implements IAgent {
 
   /**
    * Get the current session
+   * @returns The active comparison session, or null if no session exists
    */
   public getSession(): ComparisonSession | null {
     return this.session;
@@ -1144,7 +1147,8 @@ let globalDocCodeComparatorAgent: DocCodeComparatorAgent | null = null;
 
 /**
  * Get the global Doc-Code Comparator Agent instance
- * @param config
+ * @param config - Optional configuration to use when creating a new instance
+ * @returns The singleton DocCodeComparatorAgent instance
  */
 export function getDocCodeComparatorAgent(
   config?: DocCodeComparatorConfig

@@ -85,7 +85,8 @@ export class RegressionTesterAgent implements IAgent {
   }
 
   /**
-   *
+   * Initialize the agent and prepare internal state.
+   * @returns A promise that resolves when initialization is complete.
    */
   public async initialize(): Promise<void> {
     if (this.initialized) return;
@@ -94,7 +95,8 @@ export class RegressionTesterAgent implements IAgent {
   }
 
   /**
-   *
+   * Dispose of the agent, clearing the current session and resetting state.
+   * @returns A promise that resolves when disposal is complete.
    */
   public async dispose(): Promise<void> {
     await Promise.resolve();
@@ -104,6 +106,7 @@ export class RegressionTesterAgent implements IAgent {
 
   /**
    * Get current configuration
+   * @returns A copy of the current regression tester configuration.
    */
   public getConfig(): Required<RegressionTesterConfig> {
     return { ...this.config };
@@ -111,6 +114,7 @@ export class RegressionTesterAgent implements IAgent {
 
   /**
    * Get current session
+   * @returns A copy of the current session, or null if no session is active.
    */
   public getCurrentSession(): RegressionTesterSession | null {
     return this.currentSession ? { ...this.currentSession } : null;
@@ -118,9 +122,10 @@ export class RegressionTesterAgent implements IAgent {
 
   /**
    * Start a new regression testing session
-   * @param projectId
-   * @param projectPath
-   * @param changedFiles
+   * @param projectId - The unique identifier for the project under test.
+   * @param projectPath - The absolute filesystem path to the project root directory.
+   * @param changedFiles - The list of files that were modified, added, or deleted.
+   * @returns The newly created regression tester session.
    */
   public async startSession(
     projectId: string,
@@ -164,6 +169,7 @@ export class RegressionTesterAgent implements IAgent {
 
   /**
    * Run complete regression analysis
+   * @returns The full regression analysis result including report, stats, and warnings.
    */
   public async analyze(): Promise<RegressionAnalysisResult> {
     if (this.currentSession === null) {
@@ -314,7 +320,8 @@ export class RegressionTesterAgent implements IAgent {
 
   /**
    * Discover test files in the project
-   * @param projectPath
+   * @param projectPath - The absolute filesystem path to the project root directory.
+   * @returns The list of discovered test files with their metadata.
    */
   private async discoverTestFiles(projectPath: string): Promise<TestFile[]> {
     const testFiles: TestFile[] = [];
@@ -346,7 +353,8 @@ export class RegressionTesterAgent implements IAgent {
 
   /**
    * Detect test framework used in project
-   * @param projectPath
+   * @param projectPath - The absolute filesystem path to the project root directory.
+   * @returns The detected test framework name (e.g., 'vitest', 'jest', 'pytest').
    */
   private async detectTestFramework(projectPath: string): Promise<TestFramework> {
     // Check package.json for Node.js projects
@@ -424,8 +432,9 @@ export class RegressionTesterAgent implements IAgent {
 
   /**
    * Load dependency graph from Codebase Analyzer output
-   * @param projectPath
-   * @param projectId
+   * @param projectPath - The absolute filesystem path to the project root directory.
+   * @param projectId - The unique identifier used to locate the project's analysis output.
+   * @returns The parsed dependency graph for the project.
    */
   private async loadDependencyGraph(
     projectPath: string,
@@ -449,9 +458,10 @@ export class RegressionTesterAgent implements IAgent {
 
   /**
    * Build test-to-code mappings
-   * @param projectPath
-   * @param testFiles
-   * @param dependencyGraph
+   * @param projectPath - The absolute filesystem path to the project root directory.
+   * @param testFiles - The discovered test files to map against source files.
+   * @param dependencyGraph - The dependency graph for import-based mapping, or null if unavailable.
+   * @returns The list of source-to-test file mappings with confidence scores.
    */
   private async buildTestMappings(
     projectPath: string,
@@ -502,9 +512,10 @@ export class RegressionTesterAgent implements IAgent {
 
   /**
    * Identify tests affected by changed files
-   * @param changedFiles
-   * @param testMappings
-   * @param dependencyGraph
+   * @param changedFiles - The list of files that were modified, added, or deleted.
+   * @param testMappings - The source-to-test file mappings used for direct matching.
+   * @param dependencyGraph - The dependency graph for transitive dependency analysis, or null if unavailable.
+   * @returns The list of affected tests sorted by priority.
    */
   private identifyAffectedTests(
     changedFiles: readonly ChangedFile[],
@@ -573,8 +584,9 @@ export class RegressionTesterAgent implements IAgent {
 
   /**
    * Execute affected tests (synchronous mock implementation)
-   * @param affectedTests
-   * @param testFiles
+   * @param affectedTests - The tests identified as affected by the changes.
+   * @param testFiles - The full list of discovered test files used to verify test existence.
+   * @returns The test execution summary including pass/fail/skip counts and individual results.
    */
   private executeTests(
     affectedTests: readonly AffectedTest[],
@@ -630,6 +642,7 @@ export class RegressionTesterAgent implements IAgent {
 
   /**
    * Analyze coverage impact (synchronous mock implementation)
+   * @returns The coverage impact with before/after metrics and delta.
    */
   private analyzeCoverage(): CoverageImpact {
     // Default empty coverage (actual implementation would parse coverage reports)
@@ -650,7 +663,8 @@ export class RegressionTesterAgent implements IAgent {
 
   /**
    * Detect compatibility issues
-   * @param testExecution
+   * @param testExecution - The test execution summary to analyze for failures and errors.
+   * @returns The list of detected compatibility issues with severity and suggested actions.
    */
   private detectCompatibilityIssues(testExecution: TestExecutionSummary): CompatibilityIssue[] {
     const issues: CompatibilityIssue[] = [];
@@ -677,9 +691,10 @@ export class RegressionTesterAgent implements IAgent {
 
   /**
    * Generate recommendations
-   * @param testExecution
-   * @param compatibilityIssues
-   * @param coverageImpact
+   * @param testExecution - The test execution summary with pass/fail results.
+   * @param compatibilityIssues - The detected compatibility issues to factor into recommendations.
+   * @param coverageImpact - The coverage impact data, or null if coverage was not collected.
+   * @returns The list of prioritized recommendations for addressing regression issues.
    */
   private generateRecommendations(
     testExecution: TestExecutionSummary,
@@ -727,15 +742,16 @@ export class RegressionTesterAgent implements IAgent {
 
   /**
    * Create regression report
-   * @param projectId
-   * @param changedFiles
-   * @param testFiles
-   * @param testMappings
-   * @param affectedTests
-   * @param testExecution
-   * @param coverageImpact
-   * @param compatibilityIssues
-   * @param recommendations
+   * @param projectId - The unique identifier for the project under test.
+   * @param changedFiles - The list of files that were modified, added, or deleted.
+   * @param testFiles - The discovered test files with their metadata.
+   * @param testMappings - The source-to-test file mappings.
+   * @param affectedTests - The tests identified as affected by the changes.
+   * @param testExecution - The test execution summary with results.
+   * @param coverageImpact - The coverage impact data, or null if not collected.
+   * @param compatibilityIssues - The detected compatibility issues.
+   * @param recommendations - The generated recommendations for the team.
+   * @returns The complete regression report with summary, analysis, and recommendations.
    */
   private createReport(
     projectId: string,
@@ -805,9 +821,10 @@ export class RegressionTesterAgent implements IAgent {
 
   /**
    * Save report to scratchpad
-   * @param projectPath
-   * @param projectId
-   * @param report
+   * @param projectPath - The absolute filesystem path to the project root directory.
+   * @param projectId - The unique identifier used to build the output directory path.
+   * @param report - The regression report to serialize and write as YAML.
+   * @returns The absolute path to the saved report file.
    */
   private async saveReport(
     projectPath: string,
@@ -1126,7 +1143,8 @@ export class RegressionTesterAgent implements IAgent {
 
 /**
  * Get singleton instance
- * @param config
+ * @param config - Optional configuration to use when creating the instance for the first time.
+ * @returns The singleton RegressionTesterAgent instance.
  */
 export function getRegressionTesterAgent(config?: RegressionTesterConfig): RegressionTesterAgent {
   if (instance === null) {

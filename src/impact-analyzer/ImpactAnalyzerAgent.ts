@@ -119,8 +119,9 @@ export class ImpactAnalyzerAgent implements IAgent {
 
   /**
    * Start a new analysis session
-   * @param projectId
-   * @param changeRequest
+   * @param projectId - The unique identifier for the project to analyze
+   * @param changeRequest - The change request describing the proposed modifications
+   * @returns The newly created impact analysis session
    */
   public async startSession(
     projectId: string,
@@ -151,8 +152,9 @@ export class ImpactAnalyzerAgent implements IAgent {
 
   /**
    * Check available inputs for analysis
-   * @param projectId
-   * @param rootPath
+   * @param projectId - The unique identifier for the project to check
+   * @param rootPath - The root filesystem path where scratchpad data is stored
+   * @returns The availability status and paths of analysis input files
    */
   public async checkAvailableInputs(projectId: string, rootPath: string): Promise<AvailableInputs> {
     const basePath = path.join(rootPath, this.config.scratchpadBasePath);
@@ -186,7 +188,8 @@ export class ImpactAnalyzerAgent implements IAgent {
 
   /**
    * Analyze the change request and generate impact report
-   * @param rootPath
+   * @param rootPath - The root filesystem path used for loading inputs and writing output
+   * @returns The impact analysis result including report path and analysis data
    */
   public async analyze(rootPath: string): Promise<ImpactAnalysisResult> {
     const session = this.ensureSession();
@@ -364,6 +367,7 @@ export class ImpactAnalyzerAgent implements IAgent {
 
   /**
    * Get current session
+   * @returns The active impact analysis session, or null if no session exists
    */
   public getSession(): ImpactAnalysisSession | null {
     return this.session;
@@ -371,7 +375,8 @@ export class ImpactAnalyzerAgent implements IAgent {
 
   /**
    * Parse change request from text
-   * @param input
+   * @param input - The raw text or YAML string to parse into a change request
+   * @returns The parsed change request object
    */
   public parseChangeRequest(input: string): ChangeRequest {
     if (!input || input.trim().length === 0) {
@@ -1406,7 +1411,8 @@ let agentInstance: ImpactAnalyzerAgent | null = null;
 
 /**
  * Get singleton instance of ImpactAnalyzerAgent
- * @param config
+ * @param config - Optional configuration to use when creating the agent instance
+ * @returns The singleton ImpactAnalyzerAgent instance
  */
 export function getImpactAnalyzerAgent(config?: ImpactAnalyzerConfig): ImpactAnalyzerAgent {
   if (agentInstance === null) {

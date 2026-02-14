@@ -101,7 +101,8 @@ export class DocumentReaderAgent implements IAgent {
 
   /**
    * Start a new document reading session
-   * @param projectId
+   * @param projectId - The unique identifier for the project to read documents from
+   * @returns The newly created document reading session
    */
   public async startSession(projectId: string): Promise<DocumentReadingSession> {
     await loadYaml();
@@ -123,6 +124,7 @@ export class DocumentReaderAgent implements IAgent {
 
   /**
    * Read and process all documents in the project
+   * @returns The reading result containing current state, statistics, and warnings
    */
   public async readDocuments(): Promise<DocumentReadingResult> {
     const session = this.ensureSession();
@@ -262,6 +264,7 @@ export class DocumentReaderAgent implements IAgent {
 
   /**
    * Get the current session
+   * @returns The active document reading session, or null if no session exists
    */
   public getSession(): DocumentReadingSession | null {
     return this.session;
@@ -976,7 +979,8 @@ let globalDocumentReaderAgent: DocumentReaderAgent | null = null;
 
 /**
  * Get the global Document Reader Agent instance
- * @param config
+ * @param config - Optional configuration to use when creating a new instance
+ * @returns The singleton DocumentReaderAgent instance
  */
 export function getDocumentReaderAgent(config?: DocumentReaderConfig): DocumentReaderAgent {
   if (globalDocumentReaderAgent === null) {

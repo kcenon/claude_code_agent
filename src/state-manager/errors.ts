@@ -132,6 +132,7 @@ export class StateValidationError extends StateManagerError {
 
   /**
    * Format errors for display
+   * @returns A formatted string with each validation error on a separate line
    */
   formatErrors(): string {
     return this.errors.map((e) => `  - [${e.code}] ${e.path}: ${e.message}`).join('\n');

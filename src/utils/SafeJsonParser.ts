@@ -107,6 +107,7 @@ export class JsonValidationError extends Error {
 
   /**
    * Format errors as a readable string
+   * @returns Human-readable string of all field validation errors
    */
   public formatErrors(): string {
     if (this.fieldErrors.length === 0) {
@@ -154,7 +155,8 @@ export class JsonSyntaxError extends Error {
 
 /**
  * Get schema name from Zod schema
- * @param schema
+ * @param schema - The Zod schema to extract a name from
+ * @returns The schema description if available, otherwise 'unknown'
  */
 function getSchemaName(schema: z.ZodType): string {
   // Try to get description first
