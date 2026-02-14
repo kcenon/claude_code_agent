@@ -78,9 +78,10 @@ export class TestGenerator {
 
   /**
    * Generate tests for a source file
-   * @param sourceFile
-   * @param sourceContent
-   * @param patterns
+   * @param sourceFile - Path to the source file to generate tests for
+   * @param sourceContent - Source code content to analyze
+   * @param patterns - Detected code patterns for consistent test generation
+   * @returns Complete test suite with test cases for classes and functions
    */
   public generateTests(
     sourceFile: string,
@@ -125,8 +126,9 @@ export class TestGenerator {
 
   /**
    * Generate tests for multiple files
-   * @param files
-   * @param patterns
+   * @param files - Array of file contexts with path and content
+   * @param patterns - Detected code patterns for consistent test generation
+   * @returns Aggregated test generation result with total coverage and warnings
    */
   public generateTestsForFiles(
     files: readonly FileContext[],
@@ -188,7 +190,8 @@ export class TestGenerator {
    * Analyze source code to extract testable elements
    *
    * Delegates to CodeAnalyzer module.
-   * @param content
+   * @param content - Source code content to analyze
+   * @returns Analysis result containing classes, functions, and dependencies
    */
   public analyzeCode(content: string): CodeAnalysis {
     return this.codeAnalyzer.analyzeCode(content);
@@ -198,8 +201,9 @@ export class TestGenerator {
    * Generate test file content
    *
    * Delegates to FrameworkAdapters module.
-   * @param suite
-   * @param patterns
+   * @param suite - Test suite containing test cases to format
+   * @param patterns - Code patterns for consistent formatting
+   * @returns Formatted test file content ready to write
    */
   public generateTestFileContent(suite: TestSuite, patterns: CodePatterns): string {
     const adapter = this.adapterFactory.getAdapter(suite.framework);
@@ -208,6 +212,7 @@ export class TestGenerator {
 
   /**
    * Get the configuration
+   * @returns Copy of the current test generator configuration
    */
   public getConfig(): Required<TestGeneratorConfig> {
     return { ...this.config };
@@ -215,6 +220,7 @@ export class TestGenerator {
 
   /**
    * Get the code analyzer instance
+   * @returns Code analyzer instance used for parsing source code
    */
   public getCodeAnalyzer(): CodeAnalyzer {
     return this.codeAnalyzer;
@@ -222,6 +228,7 @@ export class TestGenerator {
 
   /**
    * Get the assertion builder instance
+   * @returns Assertion builder instance used for test formatting
    */
   public getAssertionBuilder(): AssertionBuilder {
     return this.assertionBuilder;
@@ -229,6 +236,7 @@ export class TestGenerator {
 
   /**
    * Get the fixture manager instance
+   * @returns Fixture manager instance used for mock generation
    */
   public getFixtureManager(): FixtureManager {
     return this.fixtureManager;
@@ -236,6 +244,7 @@ export class TestGenerator {
 
   /**
    * Get the strategy factory instance
+   * @returns Strategy factory instance used for test suite generation
    */
   public getStrategyFactory(): TestStrategyFactory {
     return this.strategyFactory;
@@ -243,6 +252,7 @@ export class TestGenerator {
 
   /**
    * Get the adapter factory instance
+   * @returns Adapter factory instance used for framework-specific formatting
    */
   public getAdapterFactory(): FrameworkAdapterFactory {
     return this.adapterFactory;

@@ -73,8 +73,9 @@ abstract class BaseFrameworkAdapter implements IFrameworkAdapter {
 
   /**
    * Format a complete test suite into file content
-   * @param suite
-   * @param patterns
+   * @param suite - The test suite containing all test blocks and cases
+   * @param patterns - Code style patterns for formatting (indentation, quotes, semicolons)
+   * @returns Complete test file content with imports and formatted test blocks
    */
   public formatTestSuite(suite: TestSuite, patterns: CodePatterns): string {
     const lines: string[] = [];
@@ -97,11 +98,12 @@ abstract class BaseFrameworkAdapter implements IFrameworkAdapter {
 
   /**
    * Format a test suite block (describe block)
-   * @param suite
-   * @param indent
-   * @param quote
-   * @param semi
-   * @param depth
+   * @param suite - The suite block containing test cases and nested suites
+   * @param indent - Indentation string (tabs or spaces)
+   * @param quote - Quote character to use (single or double)
+   * @param semi - Semicolon string (';' or empty)
+   * @param depth - Current nesting depth for indentation calculation
+   * @returns Formatted describe block with setup, nested suites, test cases, and teardown
    */
   public formatSuiteBlock(
     suite: TestSuiteBlock,
@@ -151,11 +153,12 @@ abstract class BaseFrameworkAdapter implements IFrameworkAdapter {
 
   /**
    * Format a single test case
-   * @param testCase
-   * @param indent
-   * @param quote
-   * @param semi
-   * @param depth
+   * @param testCase - The test case with arrange/act/assert steps
+   * @param indent - Indentation string (tabs or spaces)
+   * @param quote - Quote character to use (single or double)
+   * @param semi - Semicolon string (';' or empty)
+   * @param depth - Current nesting depth for indentation calculation
+   * @returns Formatted test case with it() block and AAA pattern comments
    */
   public formatTestCase(
     testCase: TestCase,
@@ -188,8 +191,9 @@ abstract class BaseFrameworkAdapter implements IFrameworkAdapter {
 
   /**
    * Get relative path between directories
-   * @param from
-   * @param to
+   * @param from - Source directory path
+   * @param to - Target file or directory path
+   * @returns Relative path from source to target without extension
    */
   protected getRelativePath(from: string, to: string): string {
     // Simplified relative path calculation
@@ -217,7 +221,8 @@ abstract class BaseFrameworkAdapter implements IFrameworkAdapter {
 
   /**
    * Get test file path for a source file
-   * @param sourceFile
+   * @param sourceFile - The source file path to generate test path for
+   * @returns Test file path following the configured pattern (e.g., src/foo.ts → tests/foo.test.ts)
    */
   public getTestFilePath(sourceFile: string): string {
     const dir = dirname(sourceFile);
@@ -240,9 +245,10 @@ export class VitestAdapter extends BaseFrameworkAdapter {
 
   /**
    * Generate Vitest-specific imports
-   * @param suite
-   * @param quote
-   * @param semi
+   * @param suite - The test suite containing source and test file paths
+   * @param quote - Quote character to use (single or double)
+   * @param semi - Semicolon string (';' or empty)
+   * @returns Import statements for Vitest framework and source code exports
    */
   public generateImports(suite: TestSuite, quote: string, semi: string): string {
     const lines: string[] = [];
@@ -271,9 +277,10 @@ export class JestAdapter extends BaseFrameworkAdapter {
 
   /**
    * Generate Jest-specific imports
-   * @param suite
-   * @param quote
-   * @param semi
+   * @param suite - The test suite containing source and test file paths
+   * @param quote - Quote character to use (single or double)
+   * @param semi - Semicolon string (';' or empty)
+   * @returns Import statements for Jest framework and source code exports
    */
   public generateImports(suite: TestSuite, quote: string, semi: string): string {
     const lines: string[] = [];
@@ -302,9 +309,10 @@ export class MochaAdapter extends BaseFrameworkAdapter {
 
   /**
    * Generate Mocha-specific imports
-   * @param suite
-   * @param quote
-   * @param semi
+   * @param suite - The test suite containing source and test file paths
+   * @param quote - Quote character to use (single or double)
+   * @param semi - Semicolon string (';' or empty)
+   * @returns Import statements for Mocha/Chai/Sinon frameworks and source code exports
    */
   public generateImports(suite: TestSuite, quote: string, semi: string): string {
     const lines: string[] = [];
@@ -326,11 +334,12 @@ export class MochaAdapter extends BaseFrameworkAdapter {
 
   /**
    * Override test case formatting for Mocha style
-   * @param testCase
-   * @param indent
-   * @param quote
-   * @param semi
-   * @param depth
+   * @param testCase - The test case with arrange/act/assert steps
+   * @param indent - Indentation string (tabs or spaces)
+   * @param quote - Quote character to use (single or double)
+   * @param semi - Semicolon string (';' or empty)
+   * @param depth - Current nesting depth for indentation calculation
+   * @returns Formatted Mocha test case using function() syntax for async tests
    */
   public formatTestCase(
     testCase: TestCase,
@@ -375,7 +384,8 @@ export class FrameworkAdapterFactory {
 
   /**
    * Get adapter for a framework
-   * @param framework
+   * @param framework - The test framework name (jest, vitest, or mocha)
+   * @returns The framework adapter instance, defaults to Vitest if not found
    */
   public getAdapter(framework: 'jest' | 'vitest' | 'mocha'): IFrameworkAdapter {
     const adapter = this.adapters.get(framework);
@@ -392,7 +402,7 @@ export class FrameworkAdapterFactory {
 
   /**
    * Register a custom adapter
-   * @param adapter
+   * @param adapter - The framework adapter to register, replacing any existing adapter for that framework
    */
   public registerAdapter(adapter: IFrameworkAdapter): void {
     this.adapters.set(adapter.framework, adapter);
@@ -400,6 +410,7 @@ export class FrameworkAdapterFactory {
 
   /**
    * Get all registered adapters
+   * @returns Array of all registered framework adapters (jest, vitest, mocha)
    */
   public getAdapters(): readonly IFrameworkAdapter[] {
     return Array.from(this.adapters.values());

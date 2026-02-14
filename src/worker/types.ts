@@ -40,6 +40,8 @@ export interface WorkerAgentConfig {
  * Priority:
  * 1. Initialized project root from ProjectContext
  * 2. Current working directory (fallback)
+ *
+ * @returns Resolved project root directory path
  */
 function resolveProjectRoot(): string {
   return tryGetProjectRoot() ?? process.cwd();
@@ -65,7 +67,7 @@ const STATIC_WORKER_DEFAULTS = {
  * Uses ProjectContext.tryGetProjectRoot() for consistent behavior in monorepos.
  * Falls back to process.cwd() if ProjectContext is not initialized.
  *
- * @returns Complete worker agent configuration with resolved projectRoot
+ * @returns Complete worker agent configuration with resolved projectRoot and default settings
  */
 export function getDefaultWorkerAgentConfig(): Required<WorkerAgentConfig> {
   return {
@@ -882,7 +884,7 @@ const STATIC_VERIFICATION_DEFAULTS = {
  * Uses ProjectContext.tryGetProjectRoot() for consistent behavior in monorepos.
  * Falls back to process.cwd() if ProjectContext is not initialized.
  *
- * @returns Complete self-verification configuration with resolved projectRoot
+ * @returns Complete self-verification configuration with resolved projectRoot and default settings
  */
 export function getDefaultSelfVerificationConfig(): Required<SelfVerificationConfig> {
   return {

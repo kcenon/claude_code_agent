@@ -122,7 +122,8 @@ export class FixtureManager implements IFixtureManager {
 
   /**
    * Create a fixture from a schema
-   * @param schema
+   * @param schema - Fixture schema defining the structure and properties
+   * @returns Generated fixture with name, value expression, and type annotation
    */
   public createFixture(schema: FixtureSchema): Fixture {
     let value: string;
@@ -145,7 +146,8 @@ export class FixtureManager implements IFixtureManager {
 
   /**
    * Create a mock from a dependency
-   * @param dependency
+   * @param dependency - Dependency information including module and imported symbols
+   * @returns Mock configuration with name, type, module, and implementation
    */
   public createMock(dependency: DependencyInfo): Mock {
     const name = dependency.imports[0] ?? 'unknownMock';
@@ -160,7 +162,8 @@ export class FixtureManager implements IFixtureManager {
 
   /**
    * Generate test data from specification
-   * @param spec
+   * @param spec - Test data specification with type and optional constraints
+   * @returns Generated test data with variable name and value expression
    */
   public generateTestData(spec: DataSpec): TestData {
     const name = `test${spec.type.charAt(0).toUpperCase()}${spec.type.slice(1)}`;
@@ -174,9 +177,10 @@ export class FixtureManager implements IFixtureManager {
 
   /**
    * Generate mocks for a method
-   * @param _method
-   * @param dependencies
-   * @param config
+   * @param _method - Method information (unused, reserved for future use)
+   * @param dependencies - Array of dependency information to generate mocks for
+   * @param config - Test generator configuration including mock strategy
+   * @returns Array of mock dependencies for external modules
    */
   public generateMocksForMethod(
     _method: MethodInfo,
@@ -208,9 +212,10 @@ export class FixtureManager implements IFixtureManager {
 
   /**
    * Generate mocks for a function
-   * @param func
-   * @param dependencies
-   * @param config
+   * @param func - Function information to generate mocks for
+   * @param dependencies - Array of dependency information to generate mocks for
+   * @param config - Test generator configuration including mock strategy
+   * @returns Array of mock dependencies for external modules
    */
   public generateMocksForFunction(
     func: FunctionInfo,
@@ -226,8 +231,9 @@ export class FixtureManager implements IFixtureManager {
 
   /**
    * Generate class setup code
-   * @param classInfo
-   * @param dependencies
+   * @param classInfo - Class information to generate setup for
+   * @param dependencies - Array of dependency information to mock in setup
+   * @returns Test setup code including instance declaration and beforeEach block
    */
   public generateClassSetup(classInfo: ClassInfo, dependencies: readonly DependencyInfo[]): string {
     const lines: string[] = [];
@@ -263,7 +269,8 @@ export class FixtureManager implements IFixtureManager {
 
   /**
    * Generate beforeEach setup code
-   * @param classInfo
+   * @param classInfo - Class information to generate instance creation for
+   * @returns BeforeEach block code that instantiates the class
    */
   public generateBeforeEach(classInfo: ClassInfo): string {
     const lines: string[] = [];
@@ -275,6 +282,7 @@ export class FixtureManager implements IFixtureManager {
 
   /**
    * Generate afterEach teardown code
+   * @returns AfterEach block code that clears all mocks
    */
   public generateAfterEach(): string {
     const lines: string[] = [];
@@ -286,7 +294,8 @@ export class FixtureManager implements IFixtureManager {
 
   /**
    * Get default value for a type
-   * @param type
+   * @param type - TypeScript type string to generate default value for
+   * @returns String representation of a default value for the given type
    */
   private getDefaultValue(type: string): string {
     const lowerType = type.toLowerCase();
@@ -308,7 +317,8 @@ export class FixtureManager implements IFixtureManager {
 
   /**
    * Generate mock implementation for a dependency
-   * @param dependency
+   * @param dependency - Dependency information to generate mock implementation for
+   * @returns Object literal string with vi.fn() mocks for each imported symbol
    */
   private generateMockImplementation(dependency: DependencyInfo): string {
     const imports = dependency.imports;
@@ -324,6 +334,7 @@ export class FixtureManager implements IFixtureManager {
 
   /**
    * Get configuration
+   * @returns Copy of the current test generator configuration
    */
   public getConfig(): Required<TestGeneratorConfig> {
     return { ...this.config };

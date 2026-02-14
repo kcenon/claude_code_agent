@@ -27,7 +27,8 @@ import type {
 export class CodeAnalyzer {
   /**
    * Analyze source code to extract testable elements
-   * @param content
+   * @param content - Source code to analyze for classes, functions, dependencies, and exports
+   * @returns Comprehensive code analysis including all testable elements
    */
   public analyzeCode(content: string): CodeAnalysis {
     const classes = this.extractClasses(content);
@@ -45,7 +46,8 @@ export class CodeAnalyzer {
 
   /**
    * Extract class information from source code
-   * @param content
+   * @param content - Source code containing class declarations to parse
+   * @returns Array of class information including constructors, methods, and properties
    */
   public extractClasses(content: string): readonly ClassInfo[] {
     const classes: ClassInfo[] = [];
@@ -85,7 +87,8 @@ export class CodeAnalyzer {
 
   /**
    * Extract function information from source code
-   * @param content
+   * @param content - Source code containing function declarations and arrow functions to parse
+   * @returns Array of function information including parameters, return types, and complexity
    */
   public extractFunctions(content: string): readonly FunctionInfo[] {
     const functions: FunctionInfo[] = [];
@@ -165,7 +168,8 @@ export class CodeAnalyzer {
 
   /**
    * Extract dependencies from import statements
-   * @param content
+   * @param content - Source code containing import declarations to parse
+   * @returns Array of dependency information including module names and imported symbols
    */
   public extractDependencies(content: string): readonly DependencyInfo[] {
     const dependencies: DependencyInfo[] = [];
@@ -209,7 +213,8 @@ export class CodeAnalyzer {
 
   /**
    * Extract export statements
-   * @param content
+   * @param content - Source code containing export declarations to parse
+   * @returns Array of export information including names, types, and default status
    */
   public extractExports(content: string): readonly ExportInfo[] {
     const exports: ExportInfo[] = [];
@@ -286,7 +291,8 @@ export class CodeAnalyzer {
 
   /**
    * Extract constructor parameters from class content
-   * @param classContent
+   * @param classContent - Class body text containing constructor declaration
+   * @returns Array of parameter information from the constructor signature
    */
   public extractConstructorParams(classContent: string): readonly ParameterInfo[] {
     const constructorMatch = classContent.match(/constructor\s*\(([^)]*)\)/);
@@ -299,7 +305,8 @@ export class CodeAnalyzer {
 
   /**
    * Extract methods from class content
-   * @param classContent
+   * @param classContent - Class body text containing method declarations
+   * @returns Array of method information including visibility, parameters, and return types
    */
   public extractMethods(classContent: string): readonly MethodInfo[] {
     const methods: MethodInfo[] = [];
@@ -343,7 +350,8 @@ export class CodeAnalyzer {
 
   /**
    * Extract properties from class content
-   * @param classContent
+   * @param classContent - Class body text containing property declarations
+   * @returns Array of property information including names, types, and readonly status
    */
   public extractProperties(classContent: string): readonly PropertyInfo[] {
     const properties: PropertyInfo[] = [];
@@ -371,7 +379,8 @@ export class CodeAnalyzer {
 
   /**
    * Parse parameter string into ParameterInfo array
-   * @param paramString
+   * @param paramString - Raw parameter list from function/method signature
+   * @returns Array of parsed parameter information with names, types, and defaults
    */
   public parseParameters(paramString: string): readonly ParameterInfo[] {
     if (paramString.trim() === '') return [];
@@ -428,7 +437,8 @@ export class CodeAnalyzer {
 
   /**
    * Split parameters handling nested generics
-   * @param paramString
+   * @param paramString - Parameter list string that may contain nested generics and brackets
+   * @returns Array of individual parameter strings correctly split on commas
    */
   public splitParameters(paramString: string): readonly string[] {
     const result: string[] = [];
@@ -459,8 +469,9 @@ export class CodeAnalyzer {
 
   /**
    * Extract block content starting from a line
-   * @param lines
-   * @param startLine
+   * @param lines - Array of source code lines
+   * @param startLine - Zero-based line index where the code block begins
+   * @returns Complete block content from opening brace to matching closing brace
    */
   public extractBlockContent(lines: readonly string[], startLine: number): string {
     let braceCount = 0;
@@ -492,7 +503,8 @@ export class CodeAnalyzer {
 
   /**
    * Estimate cyclomatic complexity of code block
-   * @param content
+   * @param content - Code block to analyze for decision points and branches
+   * @returns Estimated cyclomatic complexity score based on control flow statements
    */
   public estimateComplexity(content: string): number {
     let complexity = 1;
