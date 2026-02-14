@@ -196,8 +196,9 @@ export class IssueGenerator {
 
   /**
    * Resolve component dependencies to issue IDs
-   * @param issues
-   * @param componentToIssue
+   * @param issues - Array of generated issues with component IDs as dependencies
+   * @param componentToIssue - Map from component IDs to issue IDs
+   * @returns Array of issues with resolved issue ID dependencies
    */
   private resolveDependencies(
     issues: readonly GeneratedIssue[],
@@ -225,8 +226,9 @@ export class IssueGenerator {
 
   /**
    * Build generation summary
-   * @param issues
-   * @param sds
+   * @param issues - Array of generated issues
+   * @param sds - Parsed SDS document
+   * @returns Summary statistics including counts by priority, type, size, and total hours
    */
   private buildSummary(issues: readonly GeneratedIssue[], sds: ParsedSDS): GenerationSummary {
     const byPriority: Record<Priority, number> = {
@@ -286,8 +288,8 @@ export class IssueGenerator {
 
   /**
    * Save results to output files
-   * @param result
-   * @param projectId
+   * @param result - The issue generation result to save
+   * @param projectId - Project identifier for the output directory name
    */
   private async saveResults(result: IssueGenerationResult, projectId: string): Promise<void> {
     const outputDir = path.join(this.config.outputPath, projectId);
@@ -344,7 +346,8 @@ export class IssueGenerator {
 
   /**
    * Get graph statistics
-   * @param result
+   * @param result - The issue generation result containing the dependency graph
+   * @returns Statistics including total nodes, edges, depth, and root/leaf node counts
    */
   public getGraphStatistics(result: IssueGenerationResult): {
     totalNodes: number;
@@ -367,7 +370,8 @@ export class IssueGenerator {
 /**
  * Get the global IssueGenerator instance
  * Creates a new instance with default config if none exists
- * @param config
+ * @param config - Optional configuration for the IssueGenerator
+ * @returns The global IssueGenerator singleton instance
  */
 export function getIssueGenerator(config?: IssueGeneratorConfig): IssueGenerator {
   if (!globalInstance) {

@@ -206,7 +206,7 @@ export class InformationExtractor {
   }
 
   /**
-   * Reset ID counters
+   * Reset ID counters to zero before extraction
    */
   private resetCounters(): void {
     this.requirementCounter = 0;
@@ -218,6 +218,7 @@ export class InformationExtractor {
 
   /**
    * Generate next requirement ID
+   * @returns Sequentially numbered functional requirement ID (FR-001, FR-002, etc.)
    */
   private nextRequirementId(): string {
     this.requirementCounter++;
@@ -226,6 +227,7 @@ export class InformationExtractor {
 
   /**
    * Generate next NFR ID
+   * @returns Sequentially numbered non-functional requirement ID (NFR-001, NFR-002, etc.)
    */
   private nextNfrId(): string {
     this.nfrCounter++;
@@ -234,6 +236,7 @@ export class InformationExtractor {
 
   /**
    * Generate next constraint ID
+   * @returns Sequentially numbered constraint ID (CON-001, CON-002, etc.)
    */
   private nextConstraintId(): string {
     this.constraintCounter++;
@@ -242,6 +245,7 @@ export class InformationExtractor {
 
   /**
    * Generate next assumption ID
+   * @returns Sequentially numbered assumption ID (ASM-001, ASM-002, etc.)
    */
   private nextAssumptionId(): string {
     this.assumptionCounter++;
@@ -250,6 +254,7 @@ export class InformationExtractor {
 
   /**
    * Generate next question ID
+   * @returns Sequentially numbered clarification question ID (Q-001, Q-002, etc.)
    */
   private nextQuestionId(): string {
     this.questionCounter++;
@@ -258,7 +263,8 @@ export class InformationExtractor {
 
   /**
    * Extract project name and description from content
-   * @param content
+   * @param content - The text content to analyze for project information
+   * @returns Object containing optional project name and description
    */
   private extractProjectInfo(content: string): {
     name?: string | undefined;
@@ -301,8 +307,9 @@ export class InformationExtractor {
 
   /**
    * Extract requirements from content
-   * @param content
-   * @param source
+   * @param content - The text content to analyze for requirements
+   * @param source - The source reference for traceability
+   * @returns Object containing functional and non-functional requirements arrays
    */
   private extractRequirements(
     content: string,
@@ -422,8 +429,9 @@ export class InformationExtractor {
 
   /**
    * Extract constraints from content
-   * @param content
-   * @param source
+   * @param content - The text content to analyze for constraints
+   * @param source - The source reference for traceability
+   * @returns Array of extracted constraints with type classification
    */
   private extractConstraints(content: string, source: string): ExtractedConstraint[] {
     const constraints: ExtractedConstraint[] = [];
@@ -453,8 +461,9 @@ export class InformationExtractor {
 
   /**
    * Extract assumptions from content
-   * @param content
-   * @param source
+   * @param content - The text content to analyze for assumptions
+   * @param source - The source reference for traceability
+   * @returns Array of extracted assumptions identified in the content
    */
   private extractAssumptions(content: string, source: string): ExtractedAssumption[] {
     const assumptions: ExtractedAssumption[] = [];
@@ -496,8 +505,9 @@ export class InformationExtractor {
 
   /**
    * Extract dependencies from content
-   * @param content
-   * @param source
+   * @param content - The text content to analyze for dependencies
+   * @param source - The source reference for traceability
+   * @returns Array of extracted dependencies with type and requirement status
    */
   private extractDependencies(content: string, source: string): ExtractedDependency[] {
     const dependencies: ExtractedDependency[] = [];
@@ -527,14 +537,15 @@ export class InformationExtractor {
 
   /**
    * Generate clarification questions based on extracted information
-   * @param info
-   * @param info.projectName
-   * @param info.projectDescription
-   * @param info.functionalRequirements
-   * @param info.nonFunctionalRequirements
-   * @param info.constraints
-   * @param info.assumptions
-   * @param info.dependencies
+   * @param info - Extracted information object
+   * @param info.projectName - Extracted project name
+   * @param info.projectDescription - Extracted project description
+   * @param info.functionalRequirements - Array of functional requirements
+   * @param info.nonFunctionalRequirements - Array of non-functional requirements
+   * @param info.constraints - Array of constraints
+   * @param info.assumptions - Array of assumptions
+   * @param info.dependencies - Array of dependencies
+   * @returns Array of clarification questions prioritized by importance
    */
   private generateClarificationQuestions(info: {
     projectName?: string | undefined;
@@ -616,7 +627,8 @@ export class InformationExtractor {
 
   /**
    * Split content into segments (sentences, bullet points, etc.)
-   * @param content
+   * @param content - The text content to split into analyzable segments
+   * @returns Array of text segments extracted from bullets, numbered lists, and sentences
    */
   private splitIntoSegments(content: string): string[] {
     const segments: string[] = [];
@@ -654,7 +666,8 @@ export class InformationExtractor {
 
   /**
    * Check if a segment looks like a requirement
-   * @param text
+   * @param text - The normalized text segment to evaluate
+   * @returns True if the text contains requirement indicators, false otherwise
    */
   private isRequirementLike(text: string): boolean {
     const indicators = [
@@ -680,7 +693,8 @@ export class InformationExtractor {
 
   /**
    * Detect NFR category from text
-   * @param text
+   * @param text - The normalized text to analyze for NFR category keywords
+   * @returns The detected NFR category or undefined if no category matches
    */
   private detectNfrCategory(
     text: string
@@ -708,7 +722,8 @@ export class InformationExtractor {
 
   /**
    * Detect priority from text
-   * @param text
+   * @param text - The normalized text to analyze for priority keywords
+   * @returns The detected priority level (P0-P3) or default priority
    */
   private detectPriority(text: string): Priority {
     for (const [priority, keywords] of Object.entries(PRIORITY_KEYWORDS)) {
@@ -721,7 +736,8 @@ export class InformationExtractor {
 
   /**
    * Detect constraint type from text
-   * @param text
+   * @param text - The normalized text to analyze for constraint type keywords
+   * @returns The detected constraint type or undefined if no type matches
    */
   private detectConstraintType(
     text: string
@@ -736,7 +752,8 @@ export class InformationExtractor {
 
   /**
    * Detect dependency type from text
-   * @param text
+   * @param text - The normalized text to analyze for dependency type keywords
+   * @returns The detected dependency type or undefined if no type matches
    */
   private detectDependencyType(text: string): 'api' | 'library' | 'service' | 'tool' | undefined {
     for (const [type, keywords] of Object.entries(DEPENDENCY_KEYWORDS)) {
@@ -749,7 +766,8 @@ export class InformationExtractor {
 
   /**
    * Extract a title from a segment
-   * @param segment
+   * @param segment - The text segment to extract a title from
+   * @returns The extracted title, truncated to 60 characters if necessary
    */
   private extractTitle(segment: string): string {
     // Take first part up to first punctuation or 60 chars
@@ -762,8 +780,9 @@ export class InformationExtractor {
 
   /**
    * Extract dependency name from segment
-   * @param segment
-   * @param type
+   * @param segment - The text segment containing dependency information
+   * @param type - The dependency type to guide extraction pattern matching
+   * @returns The extracted dependency name or undefined if not found
    */
   private extractDependencyName(segment: string, type: string): string | undefined {
     // Look for quoted names
@@ -793,8 +812,9 @@ export class InformationExtractor {
 
   /**
    * Calculate confidence score for an extraction
-   * @param segment
-   * @param isRelevant
+   * @param segment - The text segment being evaluated
+   * @param isRelevant - Whether the segment is relevant to the extraction type
+   * @returns Confidence score between 0 and 1 based on segment characteristics
    */
   private calculateConfidence(segment: string, isRelevant: boolean): number {
     if (!isRelevant) return 0;

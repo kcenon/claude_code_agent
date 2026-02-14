@@ -79,7 +79,8 @@ export class RepoDetector implements IAgent {
   }
 
   /**
-   *
+   * Initialize the repository detector agent
+   * @returns Promise that resolves when initialization is complete
    */
   public async initialize(): Promise<void> {
     if (this.initialized) return;
@@ -88,7 +89,8 @@ export class RepoDetector implements IAgent {
   }
 
   /**
-   *
+   * Dispose of the repository detector agent and cleanup resources
+   * @returns Promise that resolves when disposal is complete
    */
   public async dispose(): Promise<void> {
     await Promise.resolve();
@@ -98,8 +100,9 @@ export class RepoDetector implements IAgent {
 
   /**
    * Start a new detection session
-   * @param projectId
-   * @param rootPath
+   * @param projectId - The unique identifier for the project
+   * @param rootPath - The absolute path to the project root directory
+   * @returns The newly created detection session
    */
   public startSession(projectId: string, rootPath: string): RepoDetectionSession {
     const now = new Date().toISOString();
@@ -120,6 +123,7 @@ export class RepoDetector implements IAgent {
 
   /**
    * Get current session
+   * @returns The current detection session or null if no session is active
    */
   public getSession(): RepoDetectionSession | null {
     return this.session;
@@ -127,6 +131,7 @@ export class RepoDetector implements IAgent {
 
   /**
    * Detect repository mode for the current session
+   * @returns Promise resolving to the detection result with repository mode and status
    */
   public detect(): Promise<RepoDetectionResult> {
     try {
@@ -213,7 +218,8 @@ export class RepoDetector implements IAgent {
 
   /**
    * Check Git initialization status
-   * @param rootPath
+   * @param rootPath - The absolute path to the project root directory
+   * @returns Git status information including initialization state, commits, and branch
    */
   private checkGitStatus(rootPath: string): GitStatus {
     const gitDir = path.join(rootPath, '.git');
@@ -270,8 +276,9 @@ export class RepoDetector implements IAgent {
 
   /**
    * Check remote repository configuration
-   * @param rootPath
-   * @param gitInitialized
+   * @param rootPath - The absolute path to the project root directory
+   * @param gitInitialized - Whether Git is initialized in the project
+   * @returns Remote status information including origin URL and remote type
    */
   private checkRemoteStatus(rootPath: string, gitInitialized: boolean): RemoteStatus {
     if (!gitInitialized) {
@@ -304,7 +311,8 @@ export class RepoDetector implements IAgent {
 
   /**
    * Detect remote type from URL
-   * @param url
+   * @param url - The remote repository URL
+   * @returns The detected remote type (github, gitlab, bitbucket, or other)
    */
   private detectRemoteType(url: string): RemoteType {
     const lowerUrl = url.toLowerCase();
@@ -324,8 +332,9 @@ export class RepoDetector implements IAgent {
 
   /**
    * Check GitHub repository status
-   * @param rootPath
-   * @param remoteStatus
+   * @param rootPath - The absolute path to the project root directory
+   * @param remoteStatus - The remote repository status information
+   * @returns GitHub status information including existence, accessibility, and repository details
    */
   private checkGitHubStatus(rootPath: string, remoteStatus: RemoteStatus): GitHubStatus {
     // If not GitHub, return empty status
@@ -402,7 +411,8 @@ export class RepoDetector implements IAgent {
 
   /**
    * Parse GitHub URL to extract owner and name
-   * @param url
+   * @param url - The GitHub repository URL (HTTPS or SSH format)
+   * @returns Object containing owner and repository name, or null if parsing fails
    */
   private parseGitHubUrl(url: string): { owner: string; name: string } | null {
     // Handle HTTPS URLs
@@ -440,9 +450,10 @@ export class RepoDetector implements IAgent {
 
   /**
    * Determine repository mode and recommendation
-   * @param gitStatus
-   * @param remoteStatus
-   * @param githubStatus
+   * @param gitStatus - The Git initialization and commit status
+   * @param remoteStatus - The remote repository configuration status
+   * @param githubStatus - The GitHub repository existence and accessibility status
+   * @returns Object containing repository mode, confidence level, and setup recommendation
    */
   private determineMode(
     gitStatus: GitStatus,
@@ -526,8 +537,9 @@ export class RepoDetector implements IAgent {
   /**
    * Run a Git command with timeout using safe execution
    * Uses execFileSync to bypass shell and prevent command injection
-   * @param rootPath
-   * @param command
+   * @param rootPath - The absolute path to the project root directory
+   * @param command - The git command arguments (without 'git' prefix)
+   * @returns Object containing execution success status, stdout output, and optional stderr error
    */
   private runGitCommand(
     rootPath: string,
@@ -554,8 +566,9 @@ export class RepoDetector implements IAgent {
   /**
    * Run a gh CLI command with timeout using safe execution
    * Uses execFileSync to bypass shell and prevent command injection
-   * @param rootPath
-   * @param command
+   * @param rootPath - The absolute path to the project root directory
+   * @param command - The gh CLI command arguments (without 'gh' prefix)
+   * @returns Object containing execution success status, stdout output, and optional stderr error
    */
   private runGhCommand(
     rootPath: string,
@@ -581,9 +594,9 @@ export class RepoDetector implements IAgent {
 
   /**
    * Save detection result to scratchpad
-   * @param rootPath
-   * @param projectId
-   * @param result
+   * @param rootPath - The absolute path to the project root directory
+   * @param projectId - The unique identifier for the project
+   * @param result - The detection result to save
    */
   private saveResult(rootPath: string, projectId: string, result: RepoDetectionResult): void {
     const scratchpadPath = path.join(rootPath, this.config.scratchpadBasePath, 'repo', projectId);
@@ -637,6 +650,8 @@ export class RepoDetector implements IAgent {
 
   /**
    * Ensure session exists
+   * @returns The current active detection session
+   * @throws NoActiveSessionError if no session is active
    */
   private ensureSession(): RepoDetectionSession {
     if (!this.session) {
@@ -651,7 +666,8 @@ let instance: RepoDetector | null = null;
 
 /**
  * Get the singleton Repository Detector instance
- * @param config
+ * @param config - Optional configuration for the repository detector
+ * @returns The singleton RepoDetector instance
  */
 export function getRepoDetector(config?: RepoDetectorConfig): RepoDetector {
   if (instance === null) {

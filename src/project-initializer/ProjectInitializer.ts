@@ -33,7 +33,8 @@ import { QUALITY_GATE_CONFIGS, TEMPLATE_CONFIGS } from './types.js';
  * 1. Explicitly provided targetDir
  * 2. Initialized project root from ProjectContext
  * 3. Current working directory (fallback)
- * @param targetDir
+ * @param targetDir - Optional target directory path to use
+ * @returns Resolved target directory path
  */
 function resolveTargetDir(targetDir?: string): string {
   if (targetDir !== undefined && targetDir !== '') {
@@ -57,6 +58,7 @@ export class ProjectInitializer {
 
   /**
    * Initialize a new AD-SDLC project
+   * @returns Initialization result containing success status and created files
    */
   async initialize(): Promise<InitResult> {
     const createdFiles: string[] = [];
@@ -157,7 +159,8 @@ export class ProjectInitializer {
 
   /**
    * Get the directory structure to create
-   * @param projectPath
+   * @param projectPath - The root path of the project
+   * @returns Array of directory paths to create
    */
   private getDirectoryStructure(projectPath: string): string[] {
     return [
@@ -189,7 +192,8 @@ export class ProjectInitializer {
 
   /**
    * Create a directory if it doesn't exist
-   * @param dirPath
+   * @param dirPath - The directory path to create
+   * @returns Promise that resolves when directory is created
    */
   private createDirectory(dirPath: string): Promise<void> {
     try {
@@ -204,7 +208,8 @@ export class ProjectInitializer {
 
   /**
    * Generate configuration files
-   * @param projectPath
+   * @param projectPath - The root path of the project
+   * @returns Array of created configuration file paths
    */
   private async generateConfigFiles(projectPath: string): Promise<string[]> {
     const createdFiles: string[] = [];
@@ -228,8 +233,9 @@ export class ProjectInitializer {
 
   /**
    * Generate workflow configuration
-   * @param templateConfig
-   * @param qualityGates
+   * @param templateConfig - The template configuration to use
+   * @param qualityGates - The quality gate configuration to apply
+   * @returns Generated workflow configuration object
    */
   private generateWorkflowConfig(
     templateConfig: TemplateConfig,
@@ -259,6 +265,7 @@ export class ProjectInitializer {
 
   /**
    * Generate agents configuration
+   * @returns Agent configuration object with definitions
    */
   private generateAgentsConfig(): Record<string, unknown> {
     return {
@@ -310,7 +317,8 @@ export class ProjectInitializer {
 
   /**
    * Generate template files
-   * @param projectPath
+   * @param projectPath - The root path of the project
+   * @returns Array of created template file paths
    */
   private async generateTemplateFiles(projectPath: string): Promise<string[]> {
     const createdFiles: string[] = [];
@@ -345,7 +353,8 @@ export class ProjectInitializer {
 
   /**
    * Generate agent definition files
-   * @param projectPath
+   * @param projectPath - The root path of the project
+   * @returns Array of created agent definition file paths
    */
   private async generateAgentDefinitions(projectPath: string): Promise<string[]> {
     const createdFiles: string[] = [];
@@ -373,8 +382,9 @@ export class ProjectInitializer {
 
   /**
    * Write content to a file
-   * @param filePath
-   * @param content
+   * @param filePath - The path where the file should be written
+   * @param content - The content to write to the file
+   * @returns Promise that resolves when file is written
    */
   private writeFile(filePath: string, content: string): Promise<void> {
     try {
@@ -387,7 +397,8 @@ export class ProjectInitializer {
 
   /**
    * Update .gitignore with AD-SDLC entries
-   * @param projectPath
+   * @param projectPath - The root path of the project
+   * @returns True if .gitignore was updated, false if already contained entries
    */
   private async updateGitignore(projectPath: string): Promise<boolean> {
     const gitignorePath = path.join(projectPath, '.gitignore');
@@ -408,7 +419,8 @@ export class ProjectInitializer {
 
   /**
    * Create a basic README file
-   * @param projectPath
+   * @param projectPath - The root path of the project
+   * @returns Promise that resolves when README is created
    */
   private async createReadme(projectPath: string): Promise<void> {
     const content = `# ${this.options.projectName}
@@ -848,7 +860,8 @@ You are the PR Reviewer agent responsible for reviewing pull requests.
 
   /**
    * Get template configuration
-   * @param template
+   * @param template - The template type to retrieve configuration for
+   * @returns Template configuration object
    */
   getTemplateConfig(template: TemplateType): TemplateConfig {
     return TEMPLATE_CONFIGS[template];
@@ -860,7 +873,8 @@ let initializerInstance: ProjectInitializer | null = null;
 
 /**
  * Create a new ProjectInitializer with given options
- * @param options
+ * @param options - The initialization options for the project
+ * @returns New instance of ProjectInitializer
  */
 export function createProjectInitializer(options: InitOptions): ProjectInitializer {
   initializerInstance = new ProjectInitializer(options);

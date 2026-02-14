@@ -482,7 +482,8 @@ export class CollectorAgent implements IAgent {
 
   /**
    * Get an answered value by searching question text
-   * @param searchText
+   * @param searchText - The text to search for in clarification questions
+   * @returns The answer if found, undefined otherwise
    */
   private getAnsweredValue(searchText: string): string | undefined {
     const answer = this.session?.answeredQuestions.find((a) => {
@@ -500,6 +501,7 @@ export class CollectorAgent implements IAgent {
    * @param session - The current session
    * @param name - Project name
    * @param description - Project description
+   * @returns CollectedInfo object formatted for YAML output
    */
   private buildCollectedInfo(
     session: CollectionSession,
@@ -591,7 +593,7 @@ export class CollectorAgent implements IAgent {
   /**
    * Ensure there is an active session in the expected state
    *
-   * @param expectedState
+   * @param expectedState - The expected state the session must be in to proceed
    * @returns The current session
    */
   private ensureSession(expectedState: 'collecting' | 'clarifying'): CollectionSession {

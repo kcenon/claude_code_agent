@@ -75,9 +75,10 @@ export class IssueTransformer {
 
   /**
    * Transform a single component to an issue
-   * @param component
-   * @param traceabilityMatrix
-   * @param estimation
+   * @param component - The SDS component to transform
+   * @param traceabilityMatrix - Traceability entries linking components to SRS and PRD
+   * @param estimation - Optional pre-calculated effort estimation
+   * @returns Generated GitHub issue
    */
   public transformComponent(
     component: SDSComponent,
@@ -115,8 +116,9 @@ export class IssueTransformer {
 
   /**
    * Decompose a large component into multiple issues
-   * @param component
-   * @param traceabilityMatrix
+   * @param component - The large component to decompose into sub-tasks
+   * @param traceabilityMatrix - Traceability entries for source references
+   * @returns Array of issues including parent epic and sub-tasks
    */
   private decomposeComponent(
     component: SDSComponent,
@@ -213,6 +215,7 @@ export class IssueTransformer {
 
   /**
    * Generate a unique issue ID
+   * @returns A unique issue ID in the format ISS-XXX
    */
   private generateIssueId(): string {
     this.issueCounter++;
@@ -221,7 +224,8 @@ export class IssueTransformer {
 
   /**
    * Generate issue title from component
-   * @param component
+   * @param component - The SDS component to generate a title for
+   * @returns A descriptive issue title
    */
   private generateTitle(component: SDSComponent): string {
     if (component.name) {
@@ -232,8 +236,9 @@ export class IssueTransformer {
 
   /**
    * Build traceability links
-   * @param component
-   * @param matrix
+   * @param component - The SDS component to build traceability for
+   * @param matrix - Traceability matrix entries from the SDS document
+   * @returns Traceability object with links to SDS, SRS, and PRD
    */
   private buildTraceability(
     component: SDSComponent,
@@ -260,8 +265,9 @@ export class IssueTransformer {
 
   /**
    * Build issue labels
-   * @param component
-   * @param estimation
+   * @param component - The SDS component to generate labels for
+   * @param estimation - Effort estimation containing the size category
+   * @returns Issue labels with type, priority, component, size, and phase
    */
   private buildLabels(component: SDSComponent, estimation: IssueEstimation): IssueLabels {
     return {
@@ -276,7 +282,8 @@ export class IssueTransformer {
 
   /**
    * Build technical guidance
-   * @param component
+   * @param component - The SDS component to extract technical details from
+   * @returns Technical guidance including suggested approach and implementation notes
    */
   private buildTechnical(component: SDSComponent): IssueTechnical {
     const suggestedApproach: string[] = [];
@@ -305,7 +312,8 @@ export class IssueTransformer {
 
   /**
    * Build dependency relationships
-   * @param component
+   * @param component - The SDS component with dependency information
+   * @returns Dependency structure with blockedBy and blocks relationships
    */
   private buildDependencies(component: SDSComponent): IssueDependencies {
     // Note: Actual issue IDs will be resolved later by IssueGenerator
@@ -317,10 +325,11 @@ export class IssueTransformer {
 
   /**
    * Generate the issue body in markdown
-   * @param component
-   * @param traceability
-   * @param technical
-   * @param estimation
+   * @param component - The SDS component to generate the body for
+   * @param traceability - Traceability links to source documents
+   * @param technical - Technical guidance and implementation notes
+   * @param estimation - Effort estimation with size and hours
+   * @returns Formatted markdown issue body
    */
   private generateBody(
     component: SDSComponent,
@@ -419,7 +428,8 @@ export class IssueTransformer {
 
   /**
    * Generate acceptance criteria from component
-   * @param component
+   * @param component - The SDS component to generate criteria for
+   * @returns Formatted markdown checklist of acceptance criteria
    */
   private generateAcceptanceCriteria(component: SDSComponent): string {
     const criteria: string[] = [];
@@ -444,9 +454,10 @@ export class IssueTransformer {
 
   /**
    * Generate body for epic (parent) issue
-   * @param component
-   * @param subTasks
-   * @param traceability
+   * @param component - The SDS component representing the epic
+   * @param subTasks - Array of sub-task descriptions
+   * @param traceability - Traceability links to source documents
+   * @returns Formatted markdown for the epic issue body
    */
   private generateEpicBody(
     component: SDSComponent,
@@ -483,10 +494,11 @@ export class IssueTransformer {
 
   /**
    * Generate body for sub-task issue
-   * @param component
-   * @param task
-   * @param parentId
-   * @param traceability
+   * @param component - The parent SDS component
+   * @param task - The specific sub-task description
+   * @param parentId - The parent epic issue ID
+   * @param traceability - Traceability links to source documents
+   * @returns Formatted markdown for the sub-task issue body
    */
   private generateSubTaskBody(
     component: SDSComponent,
