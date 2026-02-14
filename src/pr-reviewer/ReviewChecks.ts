@@ -123,7 +123,8 @@ export class ReviewChecks {
 
   /**
    * Run all review checks on changed files
-   * @param changes
+   * @param changes - List of file changes to analyze for security, quality, and best practices
+   * @returns Aggregated review comments, checklist results, and quality metrics
    */
   public async runAllChecks(changes: readonly FileChange[]): Promise<{
     comments: ReviewComment[];
@@ -338,8 +339,9 @@ export class ReviewChecks {
 
   /**
    * Split file changes into batches
-   * @param changes
-   * @param batchSize
+   * @param changes - Full list of file changes to partition
+   * @param batchSize - Maximum number of file changes per batch
+   * @returns Array of file change batches for sequential processing
    */
   private splitIntoBatches(
     changes: readonly FileChange[],
@@ -354,7 +356,8 @@ export class ReviewChecks {
 
   /**
    * Merge duplicate check items, keeping the worst result for each check name
-   * @param items
+   * @param items - Check items potentially containing duplicates across batches
+   * @returns Deduplicated items with failing results preserved over passing ones
    */
   private mergeCheckItems(items: readonly SecurityCheckItem[]): SecurityCheckItem[] {
     const itemMap = new Map<string, SecurityCheckItem>();
@@ -385,7 +388,8 @@ export class ReviewChecks {
 
   /**
    * Run security-focused checks
-   * @param changes
+   * @param changes - File changes to scan for secrets, SQL injection, XSS, and input validation
+   * @returns Security review comments and pass/fail check items
    */
   private async runSecurityChecks(
     changes: readonly FileChange[]
@@ -418,7 +422,8 @@ export class ReviewChecks {
 
   /**
    * Check for hardcoded secrets
-   * @param changes
+   * @param changes - File changes to scan for API keys, passwords, tokens, and private keys
+   * @returns Check item indicating presence of secrets and corresponding review comments
    */
   private async checkForSecrets(
     changes: readonly FileChange[]
@@ -479,7 +484,8 @@ export class ReviewChecks {
 
   /**
    * Check for SQL injection vulnerabilities
-   * @param changes
+   * @param changes - File changes to scan for unsafe query string interpolation
+   * @returns Check item and review comments flagging potential SQL injection vectors
    */
   private async checkForSQLInjection(
     changes: readonly FileChange[]
@@ -539,7 +545,8 @@ export class ReviewChecks {
 
   /**
    * Check for XSS vulnerabilities
-   * @param changes
+   * @param changes - File changes to scan for innerHTML, eval, and other unsafe DOM patterns
+   * @returns Check item and review comments flagging potential XSS vulnerabilities
    */
   private async checkForXSS(
     changes: readonly FileChange[]
@@ -600,7 +607,8 @@ export class ReviewChecks {
 
   /**
    * Check for input validation
-   * @param changes
+   * @param changes - File changes to verify request data is validated before use
+   * @returns Check item and review comments for missing input validation
    */
   private async checkInputValidation(
     changes: readonly FileChange[]
@@ -662,7 +670,8 @@ export class ReviewChecks {
 
   /**
    * Run quality-focused checks
-   * @param changes
+   * @param changes - File changes to analyze for SOLID violations, duplication, and error handling
+   * @returns Quality review comments and pass/fail check items
    */
   private async runQualityChecks(
     changes: readonly FileChange[]
@@ -690,7 +699,8 @@ export class ReviewChecks {
 
   /**
    * Check for SOLID principles
-   * @param changes
+   * @param changes - File changes to inspect for large classes and excessive parameters
+   * @returns Check item and review comments for SOLID principle violations
    */
   private async checkSOLIDPrinciples(
     changes: readonly FileChange[]
@@ -751,7 +761,8 @@ export class ReviewChecks {
 
   /**
    * Check for code duplication
-   * @param _changes
+   * @param _changes - File changes (reserved for future duplication analysis)
+   * @returns Check item defaulting to passed (simplified implementation)
    */
   private checkCodeDuplication(_changes: readonly FileChange[]): {
     item: SecurityCheckItem;
@@ -770,7 +781,8 @@ export class ReviewChecks {
 
   /**
    * Check for error handling
-   * @param changes
+   * @param changes - File changes to scan for empty catch blocks and unguarded async code
+   * @returns Check item and review comments for missing or incomplete error handling
    */
   private async checkErrorHandling(
     changes: readonly FileChange[]
@@ -829,6 +841,7 @@ export class ReviewChecks {
 
   /**
    * Get default testing checks (when testing checks are disabled)
+   * @returns Default passing check items with 80% assumed coverage
    */
   private getDefaultTestingChecks(): { items: SecurityCheckItem[]; coverage: number } {
     return {
@@ -846,6 +859,7 @@ export class ReviewChecks {
 
   /**
    * Run testing-focused checks
+   * @returns Test pass/fail check items and parsed code coverage percentage
    */
   private async runTestingChecks(): Promise<{ items: SecurityCheckItem[]; coverage: number }> {
     const items: SecurityCheckItem[] = [];
@@ -889,7 +903,8 @@ export class ReviewChecks {
 
   /**
    * Run performance-focused checks
-   * @param changes
+   * @param changes - File changes to scan for N+1 query patterns and data structure issues
+   * @returns Performance review comments and pass/fail check items
    */
   private async runPerformanceChecks(
     changes: readonly FileChange[]
@@ -951,7 +966,8 @@ export class ReviewChecks {
 
   /**
    * Run documentation-focused checks
-   * @param changes
+   * @param changes - File changes to verify JSDoc presence on exported symbols
+   * @returns Documentation review comments and pass/fail check items
    */
   private async runDocumentationChecks(
     changes: readonly FileChange[]
@@ -1012,10 +1028,11 @@ export class ReviewChecks {
 
   /**
    * Calculate quality metrics
-   * @param changes
-   * @param testingResults
-   * @param testingResults.items
-   * @param testingResults.coverage
+   * @param changes - File changes used to estimate cyclomatic complexity
+   * @param testingResults - Test run output providing coverage data
+   * @param testingResults.items - Individual test check items
+   * @param testingResults.coverage - Overall code coverage percentage
+   * @returns Aggregated quality metrics including coverage, complexity, and security counts
    */
   private async calculateMetrics(
     changes: readonly FileChange[],
@@ -1068,7 +1085,8 @@ export class ReviewChecks {
 
   /**
    * Run static analysis checks (TypeScript type checking)
-   * @param changes
+   * @param changes - File changes to type-check and analyze for complexity
+   * @returns TypeScript error comments and check items including complexity analysis
    */
   private async runStaticAnalysisChecks(
     changes: readonly FileChange[]
@@ -1151,7 +1169,8 @@ export class ReviewChecks {
 
   /**
    * Run cyclomatic complexity analysis on functions
-   * @param changes
+   * @param changes - File changes to analyze for per-function complexity scores
+   * @returns Complexity check items and review comments for functions exceeding the threshold
    */
   private async runComplexityAnalysis(
     changes: readonly FileChange[]
@@ -1207,7 +1226,8 @@ export class ReviewChecks {
 
   /**
    * Calculate cyclomatic complexity for each function in the file
-   * @param content
+   * @param content - Full file content to parse for function declarations and bodies
+   * @returns Array of function names with their complexity scores and line numbers
    */
   private calculateFunctionComplexities(
     content: string
@@ -1280,7 +1300,8 @@ export class ReviewChecks {
 
   /**
    * Calculate cyclomatic complexity for a code block
-   * @param code
+   * @param code - Source code block (function body) to count decision points in
+   * @returns Cyclomatic complexity score (1 + number of decision points)
    */
   private calculateComplexity(code: string): number {
     let complexity = 1; // Base complexity
@@ -1312,6 +1333,7 @@ export class ReviewChecks {
 
   /**
    * Run dependency vulnerability check using npm audit
+   * @returns Vulnerability review comments and check items with severity counts
    */
   private async runDependencyVulnerabilityCheck(): Promise<{
     comments: ReviewComment[];
@@ -1384,7 +1406,8 @@ export class ReviewChecks {
 
   /**
    * Run anti-pattern detection checks
-   * @param changes
+   * @param changes - File changes to scan for magic numbers, path traversal, duplication, and god classes
+   * @returns Anti-pattern review comments and pass/fail check items
    */
   private async runAntiPatternChecks(
     changes: readonly FileChange[]
@@ -1417,7 +1440,8 @@ export class ReviewChecks {
 
   /**
    * Check for magic numbers in code
-   * @param changes
+   * @param changes - File changes to scan for unexplained numeric literals outside allowed set
+   * @returns Check item and review comments suggesting named constants
    */
   private async checkMagicNumbers(
     changes: readonly FileChange[]
@@ -1491,7 +1515,8 @@ export class ReviewChecks {
 
   /**
    * Check for path traversal vulnerabilities
-   * @param changes
+   * @param changes - File changes to scan for unsanitized user input in file path operations
+   * @returns Check item and review comments flagging path traversal risks
    */
   private async checkPathTraversal(
     changes: readonly FileChange[]
@@ -1556,7 +1581,8 @@ export class ReviewChecks {
 
   /**
    * Check for duplicate code patterns
-   * @param changes
+   * @param changes - File changes to compare for repeated code blocks across files
+   * @returns Check item and review comments identifying duplicated code locations
    */
   private async checkDuplicateCode(
     changes: readonly FileChange[]
@@ -1632,7 +1658,8 @@ export class ReviewChecks {
 
   /**
    * Check for god class anti-pattern
-   * @param changes
+   * @param changes - File changes to inspect for classes exceeding method or line thresholds
+   * @returns Check item and review comments for oversized classes
    */
   private async checkGodClass(
     changes: readonly FileChange[]
@@ -1695,7 +1722,8 @@ export class ReviewChecks {
   /**
    * Execute a shell command using safe execution
    * Uses execFile to bypass shell and prevent command injection
-   * @param command
+   * @param command - Shell command string to execute safely via the command sanitizer
+   * @returns Execution result with stdout, stderr, and exit code
    */
   private async executeCommand(command: string): Promise<CommandResult> {
     const sanitizer = getCommandSanitizer();
