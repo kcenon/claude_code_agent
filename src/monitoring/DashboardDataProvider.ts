@@ -77,7 +77,8 @@ export class DashboardDataProvider {
 
   /**
    * Get a specific panel's data
-   * @param panelId
+   * @param panelId - The unique identifier of the panel to retrieve
+   * @returns The dashboard panel data, or null if not found
    */
   public getPanel(panelId: string): DashboardPanel | null {
     return this.cachedData.get(panelId) ?? null;
@@ -85,6 +86,7 @@ export class DashboardDataProvider {
 
   /**
    * Get all panels
+   * @returns Array of all cached dashboard panels
    */
   public getAllPanels(): DashboardPanel[] {
     return Array.from(this.cachedData.values());
@@ -263,6 +265,7 @@ export class DashboardDataProvider {
 
   /**
    * Get pipeline progress data
+   * @returns Current pipeline progress information, or null if not available
    */
   public getPipelineProgress(): PipelineProgress | null {
     const panel = this.getPanel('pipeline_progress');
@@ -271,6 +274,7 @@ export class DashboardDataProvider {
 
   /**
    * Get agent performance data
+   * @returns Array of metrics for all agents including invocations, success rate, and duration statistics
    */
   public getAgentPerformance(): AgentMetrics[] {
     const metricsCollector = getMetricsCollector();
@@ -279,6 +283,7 @@ export class DashboardDataProvider {
 
   /**
    * Get token usage data
+   * @returns Token usage metrics including input/output tokens and estimated cost
    */
   public getTokenUsage(): TokenUsageMetrics {
     const metricsCollector = getMetricsCollector();
@@ -287,7 +292,8 @@ export class DashboardDataProvider {
 
   /**
    * Get recent errors
-   * @param limit
+   * @param limit - Maximum number of error entries to return (defaults to 50)
+   * @returns Array of recent error log entries
    */
   public getRecentErrors(limit = 50): LogEntry[] {
     const logger = getLogger();
@@ -296,6 +302,7 @@ export class DashboardDataProvider {
 
   /**
    * Get active alerts
+   * @returns Array of currently active alert events
    */
   public getActiveAlerts(): AlertEvent[] {
     const alertManager = getAlertManager();
@@ -304,6 +311,7 @@ export class DashboardDataProvider {
 
   /**
    * Get system health score
+   * @returns Health score from 0-100, where 100 is fully healthy
    */
   public getHealthScore(): number {
     const panel = this.getPanel('system_health');
@@ -320,6 +328,7 @@ export class DashboardDataProvider {
 
   /**
    * Get last refresh time
+   * @returns The timestamp of the most recent dashboard data refresh
    */
   public getLastRefreshTime(): Date {
     return this.lastRefresh;
@@ -327,6 +336,7 @@ export class DashboardDataProvider {
 
   /**
    * Export dashboard data as JSON
+   * @returns JSON string containing all dashboard panel data
    */
   public exportAsJson(): string {
     this.refresh();
@@ -339,6 +349,7 @@ export class DashboardDataProvider {
 
   /**
    * Get dashboard summary
+   * @returns Summary object containing health score, pipeline progress, active alerts, and token usage
    */
   public getSummary(): {
     healthScore: number;
@@ -374,7 +385,8 @@ let globalDashboardDataProvider: DashboardDataProvider | null = null;
 
 /**
  * Get or create the global DashboardDataProvider instance
- * @param options
+ * @param options - Optional configuration for refresh interval
+ * @returns The global DashboardDataProvider singleton instance
  */
 export function getDashboardDataProvider(
   options?: DashboardDataProviderOptions

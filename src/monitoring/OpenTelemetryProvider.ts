@@ -141,7 +141,7 @@ export class OpenTelemetryProvider {
   /**
    * Load configuration from YAML file
    *
-   * @param configPath - Optional path to configuration file
+   * @param configPath - Optional path to configuration file (defaults to observability.yaml in config directory)
    */
   private async loadConfig(configPath?: string): Promise<void> {
     const path =
@@ -189,6 +189,7 @@ export class OpenTelemetryProvider {
 
   /**
    * Create OpenTelemetry resource with service attributes
+   * @returns OpenTelemetry resource with service name, version, and custom attributes
    */
   private createResource(): Resource {
     const attributes: Record<string, string> = {
@@ -215,6 +216,7 @@ export class OpenTelemetryProvider {
 
   /**
    * Create span processors for configured exporters
+   * @returns Array of span processors for each enabled exporter
    */
   private createSpanProcessors(): SpanProcessor[] {
     const processors: SpanProcessor[] = [];
@@ -241,7 +243,8 @@ export class OpenTelemetryProvider {
 
   /**
    * Create a span exporter based on configuration
-   * @param config
+   * @param config - Exporter configuration specifying type, endpoint, and connection options
+   * @returns Configured span exporter instance, or null if configuration is invalid
    */
   private createExporter(config: OpenTelemetryExporterConfig): SpanExporter | null {
     switch (config.type) {
@@ -317,6 +320,7 @@ export class OpenTelemetryProvider {
 
   /**
    * Check if the provider is initialized and enabled
+   * @returns True if OpenTelemetry is initialized and enabled, false otherwise
    */
   public isEnabled(): boolean {
     return this.initialized && this.config.enabled;
@@ -324,6 +328,7 @@ export class OpenTelemetryProvider {
 
   /**
    * Get the current configuration
+   * @returns The current OpenTelemetry configuration (read-only)
    */
   public getConfig(): Readonly<OpenTelemetryConfig> {
     return this.config;

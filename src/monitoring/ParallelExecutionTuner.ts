@@ -152,6 +152,7 @@ export class ParallelExecutionTuner {
 
   /**
    * Get current system resources
+   * @returns Current system resource information including CPU, memory, and load metrics
    */
   public getSystemResources(): SystemResources {
     const cpuCores = os.cpus().length;
@@ -172,6 +173,7 @@ export class ParallelExecutionTuner {
 
   /**
    * Calculate optimal worker count based on current resources
+   * @returns Recommendation for worker pool sizing with reasoning and confidence level
    */
   public calculateOptimalWorkerCount(): WorkerPoolRecommendation {
     const resources = this.getSystemResources();
@@ -230,10 +232,11 @@ export class ParallelExecutionTuner {
 
   /**
    * Build reasoning string for recommendation
-   * @param resources
-   * @param cpuBased
-   * @param memoryBased
-   * @param loadAdjustment
+   * @param resources - Current system resource metrics
+   * @param cpuBased - Worker count calculated based on CPU availability
+   * @param memoryBased - Worker count calculated based on memory availability
+   * @param loadAdjustment - Adjustment factor based on current system load (0.0-1.0)
+   * @returns Human-readable explanation of the recommendation logic
    */
   private buildReasoningString(
     resources: SystemResources,
@@ -262,7 +265,8 @@ export class ParallelExecutionTuner {
 
   /**
    * Calculate optimal batch configuration
-   * @param itemCount
+   * @param itemCount - Total number of items to process in batches
+   * @returns Batch configuration with optimal size, concurrency, and delay settings
    */
   public calculateBatchConfig(itemCount: number): BatchConfig {
     const recommendation = this.calculateOptimalWorkerCount();
@@ -291,6 +295,7 @@ export class ParallelExecutionTuner {
 
   /**
    * Detect resource contention
+   * @returns Contention event if detected, or null if resources are within acceptable thresholds
    */
   public detectContention(): ContentionEvent | null {
     const resources = this.getSystemResources();
@@ -335,11 +340,11 @@ export class ParallelExecutionTuner {
 
   /**
    * Record a tuning history entry
-   * @param workerCount
-   * @param batchSize
-   * @param itemsProcessed
-   * @param totalTimeMs
-   * @param errorCount
+   * @param workerCount - Number of workers used for this execution
+   * @param batchSize - Batch size used for this execution
+   * @param itemsProcessed - Total number of items successfully processed
+   * @param totalTimeMs - Total execution time in milliseconds
+   * @param errorCount - Number of errors encountered during execution
    */
   public recordTuningResult(
     workerCount: number,
@@ -373,6 +378,7 @@ export class ParallelExecutionTuner {
 
   /**
    * Get tuning recommendations based on history
+   * @returns Recommended worker count and batch size based on historical performance data
    */
   public getTuningRecommendations(): {
     readonly workerCount: number;
@@ -429,6 +435,7 @@ export class ParallelExecutionTuner {
 
   /**
    * Apply auto-scaling based on current conditions
+   * @returns Auto-scaling decision with action taken and reasoning
    */
   public autoScale(): {
     readonly previousWorkers: number;
@@ -498,6 +505,7 @@ export class ParallelExecutionTuner {
 
   /**
    * Get current worker count
+   * @returns Currently configured number of workers
    */
   public getCurrentWorkerCount(): number {
     return this.currentWorkerCount;
@@ -505,7 +513,7 @@ export class ParallelExecutionTuner {
 
   /**
    * Set current worker count
-   * @param count
+   * @param count - Desired number of workers (will be clamped to valid range)
    */
   public setCurrentWorkerCount(count: number): void {
     this.currentWorkerCount = Math.max(1, Math.min(count, this.config.maxWorkerCount));
@@ -513,6 +521,7 @@ export class ParallelExecutionTuner {
 
   /**
    * Get current batch size
+   * @returns Currently configured batch size
    */
   public getCurrentBatchSize(): number {
     return this.currentBatchSize;
@@ -520,7 +529,7 @@ export class ParallelExecutionTuner {
 
   /**
    * Set current batch size
-   * @param size
+   * @param size - Desired batch size (minimum 1)
    */
   public setCurrentBatchSize(size: number): void {
     this.currentBatchSize = Math.max(1, size);
@@ -528,6 +537,7 @@ export class ParallelExecutionTuner {
 
   /**
    * Get tuning history
+   * @returns Array of all recorded tuning history entries
    */
   public getTuningHistory(): readonly TuningHistoryEntry[] {
     return [...this.tuningHistory];
@@ -535,6 +545,7 @@ export class ParallelExecutionTuner {
 
   /**
    * Get contention events
+   * @returns Array of all recorded contention events
    */
   public getContentionEvents(): readonly ContentionEvent[] {
     return [...this.contentionEvents];
@@ -542,7 +553,8 @@ export class ParallelExecutionTuner {
 
   /**
    * Get recent contention events
-   * @param durationMs
+   * @param durationMs - Time window in milliseconds to look back (default: 60000ms = 1 minute)
+   * @returns Array of contention events that occurred within the specified time window
    */
   public getRecentContentionEvents(durationMs: number = 60000): readonly ContentionEvent[] {
     const cutoff = Date.now() - durationMs;
@@ -551,7 +563,7 @@ export class ParallelExecutionTuner {
 
   /**
    * Start resource monitoring
-   * @param callback
+   * @param callback - Optional callback function invoked when contention events are detected
    */
   public startMonitoring(callback?: (event: ContentionEvent) => void): void {
     if (this.monitoringTimer !== null) return;
@@ -594,6 +606,7 @@ export class ParallelExecutionTuner {
 
   /**
    * Get performance summary
+   * @returns Aggregated performance metrics including throughput, latency, error rate, and contention counts
    */
   public getPerformanceSummary(): {
     readonly avgThroughput: number;
@@ -631,7 +644,8 @@ let globalParallelExecutionTuner: ParallelExecutionTuner | null = null;
 
 /**
  * Get or create the global ParallelExecutionTuner instance
- * @param config
+ * @param config - Optional configuration to use when creating the instance (only applied on first creation)
+ * @returns The global ParallelExecutionTuner singleton instance
  */
 export function getParallelExecutionTuner(
   config?: ParallelExecutionTunerConfig

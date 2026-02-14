@@ -48,7 +48,7 @@ export class CLIOutput {
 
   /**
    * Write an info message to stdout
-   * @param message
+   * @param message - The informational message to display
    */
   info(message: string): void {
     this.stdout.write(`${message}\n`);
@@ -56,7 +56,7 @@ export class CLIOutput {
 
   /**
    * Write a warning message to stderr
-   * @param message
+   * @param message - The warning message to display
    */
   warn(message: string): void {
     this.stderr.write(`${message}\n`);
@@ -64,7 +64,7 @@ export class CLIOutput {
 
   /**
    * Write an error message to stderr
-   * @param message
+   * @param message - The error message to display
    */
   error(message: string): void {
     this.stderr.write(`${message}\n`);
@@ -79,8 +79,8 @@ export class CLIOutput {
 
   /**
    * Display a summary with title and key-value pairs
-   * @param title
-   * @param data
+   * @param title - The summary title to display above the data
+   * @param data - Key-value pairs to display as summary items
    */
   summary(title: string, data: Record<string, string>): void {
     this.stdout.write(`\n${title}:\n`);
@@ -93,8 +93,8 @@ export class CLIOutput {
 
   /**
    * Display a formatted table
-   * @param headers
-   * @param rows
+   * @param headers - Column header labels for the table
+   * @param rows - Table data rows, each containing cell values for all columns
    */
   table(headers: readonly string[], rows: readonly (readonly string[])[]): void {
     if (headers.length === 0) {
@@ -138,7 +138,7 @@ export class CLIOutput {
 
   /**
    * Display a progress indicator message
-   * @param message
+   * @param message - The progress message to display with ellipsis
    */
   progress(message: string): void {
     this.stdout.write(`${message}...\n`);
@@ -146,7 +146,7 @@ export class CLIOutput {
 
   /**
    * Display a success message with checkmark
-   * @param message
+   * @param message - The success message to display with a checkmark prefix
    */
   success(message: string): void {
     this.stdout.write(`✓ ${message}\n`);
@@ -154,7 +154,7 @@ export class CLIOutput {
 
   /**
    * Display a failure message with cross mark
-   * @param message
+   * @param message - The failure message to display with a cross mark prefix
    */
   failure(message: string): void {
     this.stderr.write(`✗ ${message}\n`);
@@ -162,7 +162,7 @@ export class CLIOutput {
 
   /**
    * Display a divider line
-   * @param length
+   * @param length - The character length of the horizontal divider line (defaults to 40)
    */
   divider(length: number = 40): void {
     this.stdout.write('─'.repeat(length) + '\n');
@@ -170,8 +170,8 @@ export class CLIOutput {
 
   /**
    * Display an indented message
-   * @param message
-   * @param level
+   * @param message - The message to display with indentation
+   * @param level - Number of indentation levels (each level is 2 spaces, defaults to 1)
    */
   indent(message: string, level: number = 1): void {
     const spaces = '  '.repeat(level);
@@ -180,7 +180,7 @@ export class CLIOutput {
 
   /**
    * Write raw output to stdout without newline
-   * @param content
+   * @param content - The raw content to write without any formatting
    */
   raw(content: string): void {
     this.stdout.write(content);
@@ -188,7 +188,7 @@ export class CLIOutput {
 
   /**
    * Write JSON formatted output
-   * @param data
+   * @param data - The data to serialize and display as formatted JSON
    */
   json(data: unknown): void {
     this.stdout.write(JSON.stringify(data, null, 2) + '\n');
@@ -200,7 +200,8 @@ let instance: CLIOutput | null = null;
 
 /**
  * Get or create the global CLIOutput instance
- * @param options
+ * @param options - Optional configuration for stdout/stderr streams
+ * @returns The global CLIOutput singleton instance
  */
 export function getCLIOutput(options?: CLIOutputOptions): CLIOutput {
   if (instance === null) {

@@ -90,6 +90,7 @@ export class SpanWrapper {
 
   /**
    * Get the underlying span (may be null if tracing is disabled)
+   * @returns OpenTelemetry Span or null if tracing is disabled
    */
   public getSpan(): Span | null {
     return this.span;
@@ -97,6 +98,7 @@ export class SpanWrapper {
 
   /**
    * Get the context for this span (for creating child spans)
+   * @returns OpenTelemetry Context with this span set as active
    */
   public getContext(): Context {
     if (this.span === null) {
@@ -107,8 +109,9 @@ export class SpanWrapper {
 
   /**
    * Set an attribute on the span
-   * @param key
-   * @param value
+   * @param key - Attribute key name
+   * @param value - Attribute value
+   * @returns This SpanWrapper for method chaining
    */
   public setAttribute(key: string, value: string | number | boolean): this {
     this.span?.setAttribute(key, value);
@@ -117,7 +120,8 @@ export class SpanWrapper {
 
   /**
    * Set multiple attributes on the span
-   * @param attributes
+   * @param attributes - Key-value pairs of attributes to set
+   * @returns This SpanWrapper for method chaining
    */
   public setAttributes(attributes: Record<string, string | number | boolean>): this {
     if (this.span !== null) {
@@ -130,8 +134,9 @@ export class SpanWrapper {
 
   /**
    * Add an event to the span
-   * @param name
-   * @param attributes
+   * @param name - Event name
+   * @param attributes - Optional event attributes
+   * @returns This SpanWrapper for method chaining
    */
   public addEvent(name: string, attributes?: Record<string, string | number | boolean>): this {
     this.span?.addEvent(name, attributes);
@@ -140,9 +145,10 @@ export class SpanWrapper {
 
   /**
    * Record token usage on the span
-   * @param inputTokens
-   * @param outputTokens
-   * @param costUsd
+   * @param inputTokens - Number of input tokens consumed
+   * @param outputTokens - Number of output tokens generated
+   * @param costUsd - Optional cost in USD
+   * @returns This SpanWrapper for method chaining
    */
   public recordTokenUsage(inputTokens: number, outputTokens: number, costUsd?: number): this {
     if (this.span !== null) {
@@ -157,7 +163,7 @@ export class SpanWrapper {
 
   /**
    * End the span with success status
-   * @param attributes
+   * @param attributes - Optional final attributes to add before ending
    */
   public endSuccess(attributes?: Record<string, string | number>): void {
     if (this.ended) {
@@ -169,7 +175,7 @@ export class SpanWrapper {
 
   /**
    * End the span with error status
-   * @param error
+   * @param error - Error that occurred during span execution
    */
   public endError(error: Error): void {
     if (this.ended) {
@@ -181,6 +187,7 @@ export class SpanWrapper {
 
   /**
    * Check if the span has been ended
+   * @returns True if span has been ended
    */
   public isEnded(): boolean {
     return this.ended;
