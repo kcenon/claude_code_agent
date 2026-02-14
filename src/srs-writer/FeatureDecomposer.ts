@@ -134,7 +134,8 @@ export class FeatureDecomposer {
 
   /**
    * Extract actor names from user personas
-   * @param parsedPRD
+   * @param parsedPRD - The parsed PRD document containing user personas
+   * @returns Array of actor names derived from personas
    */
   private extractActors(parsedPRD: ParsedPRD): string[] {
     const actors = parsedPRD.userPersonas.map((p) => p.role || p.name);
@@ -149,8 +150,9 @@ export class FeatureDecomposer {
 
   /**
    * Decompose a single requirement into features
-   * @param requirement
-   * @param actors
+   * @param requirement - The PRD requirement to decompose
+   * @param actors - Available actor names for use case generation
+   * @returns Array of SRS features decomposed from the requirement
    */
   private decomposeRequirement(
     requirement: ParsedPRDRequirement,
@@ -176,7 +178,8 @@ export class FeatureDecomposer {
 
   /**
    * Analyze requirement complexity
-   * @param requirement
+   * @param requirement - The PRD requirement to evaluate
+   * @returns Complexity level based on description length, criteria count, and dependencies
    */
   private analyzeComplexity(requirement: ParsedPRDRequirement): 'simple' | 'moderate' | 'complex' {
     let score = 0;
@@ -205,8 +208,9 @@ export class FeatureDecomposer {
 
   /**
    * Create a single feature from a requirement
-   * @param requirement
-   * @param actors
+   * @param requirement - The PRD requirement to convert into a feature
+   * @param actors - Available actor names for use case generation
+   * @returns A single SRS feature with use cases and NFR references
    */
   private createFeature(requirement: ParsedPRDRequirement, actors: readonly string[]): SRSFeature {
     this.featureCounter++;
@@ -256,9 +260,10 @@ export class FeatureDecomposer {
 
   /**
    * Create multiple sub-features from a complex requirement
-   * @param requirement
-   * @param actors
-   * @param complexity
+   * @param requirement - The complex PRD requirement to split
+   * @param actors - Available actor names for use case generation
+   * @param complexity - Analyzed complexity level controlling segmentation granularity
+   * @returns Array of sub-features derived from the requirement
    */
   private createSubFeatures(
     requirement: ParsedPRDRequirement,
@@ -292,8 +297,9 @@ export class FeatureDecomposer {
 
   /**
    * Segment a complex requirement into smaller parts
-   * @param requirement
-   * @param complexity
+   * @param requirement - The PRD requirement to segment
+   * @param complexity - Complexity level controlling segment granularity
+   * @returns Array of named segments with descriptions and criteria
    */
   private segmentRequirement(
     requirement: ParsedPRDRequirement,
@@ -340,7 +346,8 @@ export class FeatureDecomposer {
 
   /**
    * Get a label for a part index
-   * @param index
+   * @param index - Zero-based index of the part
+   * @returns Descriptive label for the feature part
    */
   private getPartLabel(index: number): string {
     const labels = ['Core Functionality', 'Validation', 'User Feedback', 'Integration', 'Cleanup'];
@@ -349,9 +356,10 @@ export class FeatureDecomposer {
 
   /**
    * Generate use cases from a requirement
-   * @param requirement
-   * @param featureId
-   * @param actors
+   * @param requirement - The PRD requirement providing use case content
+   * @param featureId - Parent feature identifier for traceability
+   * @param actors - Available actor names for use cases
+   * @returns Array of SRS use cases for the requirement
    */
   private generateUseCases(
     requirement: ParsedPRDRequirement,
@@ -380,9 +388,10 @@ export class FeatureDecomposer {
 
   /**
    * Create primary use case for a requirement
-   * @param requirement
-   * @param _featureId
-   * @param actor
+   * @param requirement - The PRD requirement to create a primary use case from
+   * @param _featureId - Parent feature identifier (reserved for future use)
+   * @param actor - Primary actor for the use case
+   * @returns Primary SRS use case with main and alternative flows
    */
   private createPrimaryUseCase(
     requirement: ParsedPRDRequirement,
@@ -417,9 +426,10 @@ export class FeatureDecomposer {
 
   /**
    * Create use cases from acceptance criteria
-   * @param criteria
-   * @param _featureId
-   * @param actor
+   * @param criteria - Acceptance criteria strings to generate use cases from
+   * @param _featureId - Parent feature identifier (reserved for future use)
+   * @param actor - Actor name for the generated use cases
+   * @returns Array of SRS use cases derived from significant criteria
    */
   private createUseCasesFromCriteria(
     criteria: readonly string[],
@@ -454,12 +464,13 @@ export class FeatureDecomposer {
 
   /**
    * Generate use cases from a segment
-   * @param segment
-   * @param segment.name
-   * @param segment.description
-   * @param segment.criteria
-   * @param _featureId
-   * @param actors
+   * @param segment - The requirement segment containing name, description, and criteria
+   * @param segment.name - Display name for the segment
+   * @param segment.description - Detailed description of the segment scope
+   * @param segment.criteria - Acceptance criteria assigned to this segment
+   * @param _featureId - Parent feature identifier (reserved for future use)
+   * @param actors - Available actor names for use cases
+   * @returns Array of SRS use cases for the segment
    */
   private generateUseCasesFromSegment(
     segment: { name: string; description: string; criteria: string[] },
@@ -490,7 +501,8 @@ export class FeatureDecomposer {
 
   /**
    * Generate main flow steps from requirement
-   * @param requirement
+   * @param requirement - The PRD requirement to derive main flow from
+   * @returns Array of main flow step descriptions
    */
   private generateMainFlow(requirement: ParsedPRDRequirement): string[] {
     const flow: string[] = [];
@@ -514,7 +526,8 @@ export class FeatureDecomposer {
 
   /**
    * Generate preconditions from requirement
-   * @param requirement
+   * @param requirement - The PRD requirement to derive preconditions from
+   * @returns Array of precondition strings
    */
   private generatePreconditions(requirement: ParsedPRDRequirement): string[] {
     const preconditions: string[] = ['User is authenticated', 'System is available'];
@@ -529,7 +542,8 @@ export class FeatureDecomposer {
 
   /**
    * Generate postconditions from requirement
-   * @param requirement
+   * @param requirement - The PRD requirement to derive postconditions from
+   * @returns Array of postcondition strings
    */
   private generatePostconditions(requirement: ParsedPRDRequirement): string[] {
     const postconditions: string[] = [];
@@ -547,7 +561,8 @@ export class FeatureDecomposer {
 
   /**
    * Generate alternative flows from requirement
-   * @param requirement
+   * @param requirement - The PRD requirement with acceptance criteria to check
+   * @returns Array of alternative flow description strings
    */
   private generateAlternativeFlows(requirement: ParsedPRDRequirement): string[] {
     const flows: string[] = [];
@@ -564,7 +579,8 @@ export class FeatureDecomposer {
 
   /**
    * Generate use case name from requirement title
-   * @param title
+   * @param title - Raw title string to format as a use case name
+   * @returns Formatted use case name with proper capitalization
    */
   private generateUseCaseName(title: string): string {
     // Convert to action format
@@ -579,7 +595,8 @@ export class FeatureDecomposer {
 
   /**
    * Extract use case name from criterion
-   * @param criterion
+   * @param criterion - The acceptance criterion text to extract a name from
+   * @returns Extracted and formatted use case name
    */
   private extractUseCaseNameFromCriterion(criterion: string): string {
     // Extract key action from criterion
@@ -592,7 +609,8 @@ export class FeatureDecomposer {
 
   /**
    * Convert criterion to flow step
-   * @param criterion
+   * @param criterion - The acceptance criterion text to convert
+   * @returns Flow step description string prefixed with system context
    */
   private criterionToFlowStep(criterion: string): string {
     return `System ensures: ${criterion}`;
@@ -600,7 +618,8 @@ export class FeatureDecomposer {
 
   /**
    * Enhance description with additional context
-   * @param requirement
+   * @param requirement - The PRD requirement whose description is enriched
+   * @returns Enhanced description with source and priority metadata
    */
   private enhanceDescription(requirement: ParsedPRDRequirement): string {
     let description = requirement.description;
@@ -616,7 +635,8 @@ export class FeatureDecomposer {
 
   /**
    * Extract NFR references from text
-   * @param text
+   * @param text - Text content to scan for NFR-XXX identifiers
+   * @returns Deduplicated array of NFR identifiers found in the text
    */
   private extractNFRReferences(text: string): string[] {
     const refs: string[] = [];
@@ -630,8 +650,9 @@ export class FeatureDecomposer {
 
   /**
    * Chunk array into smaller arrays
-   * @param array
-   * @param size
+   * @param array - The source array to split into chunks
+   * @param size - Maximum number of elements per chunk
+   * @returns Array of chunks, each containing up to size elements
    */
   private chunkArray<T>(array: readonly T[], size: number): T[][] {
     const chunks: T[][] = [];

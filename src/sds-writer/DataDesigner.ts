@@ -120,7 +120,8 @@ export class DataDesigner {
 
   /**
    * Design a single data model from a component
-   * @param input
+   * @param input - Design input containing component, features, and model index
+   * @returns Designed data model or null if the component does not require one
    */
   public designModel(input: DataModelDesignInput): DataModel | null {
     const { component, features, modelIndex } = input;
@@ -167,8 +168,9 @@ export class DataDesigner {
 
   /**
    * Get related features for a component
-   * @param component
-   * @param featureById
+   * @param component - Component to find features for
+   * @param featureById - Lookup map of features keyed by ID
+   * @returns Array of features related to the component
    */
   private getRelatedFeatures(
     component: SDSComponent,
@@ -186,7 +188,8 @@ export class DataDesigner {
 
   /**
    * Check if a component needs a data model
-   * @param component
+   * @param component - Component to evaluate
+   * @returns True if the component has data-related indicators or CRUD operations
    */
   private needsDataModel(component: SDSComponent): boolean {
     const nameLower = component.name.toLowerCase();
@@ -245,7 +248,8 @@ export class DataDesigner {
 
   /**
    * Extract model name from component name
-   * @param componentName
+   * @param componentName - Component name with potential suffix
+   * @returns Clean model name with common suffixes removed
    */
   private extractModelName(componentName: string): string {
     return componentName
@@ -258,8 +262,9 @@ export class DataDesigner {
 
   /**
    * Determine data model category
-   * @param component
-   * @param features
+   * @param component - Component to categorize
+   * @param features - Related features providing additional context
+   * @returns Data type category (entity, aggregate, value_object, or enum)
    */
   private determineCategory(
     component: SDSComponent,
@@ -293,8 +298,9 @@ export class DataDesigner {
 
   /**
    * Extract properties from component and features
-   * @param component
-   * @param features
+   * @param component - Component to extract interface parameters from
+   * @param features - Related features to extract criteria-based properties from
+   * @returns Array of deduplicated data properties
    */
   private extractProperties(
     component: SDSComponent,
@@ -363,7 +369,8 @@ export class DataDesigner {
 
   /**
    * Check if parameter is a system parameter (not for data model)
-   * @param name
+   * @param name - Parameter name to check
+   * @returns True if the parameter is a system-level parameter
    */
   private isSystemParam(name: string): boolean {
     const systemParams = [
@@ -381,7 +388,8 @@ export class DataDesigner {
 
   /**
    * Map TypeScript type to data model type
-   * @param tsType
+   * @param tsType - TypeScript type string to convert
+   * @returns Corresponding data model type (e.g., "string", "number", "json")
    */
   private mapToDataType(tsType: string): string {
     const typeLower = tsType.toLowerCase();
@@ -398,7 +406,8 @@ export class DataDesigner {
 
   /**
    * Extract properties from acceptance criteria
-   * @param criteria
+   * @param criteria - Acceptance criteria strings to analyze
+   * @returns Array of data properties detected in the criteria text
    */
   private extractPropertiesFromCriteria(criteria: readonly string[]): DataProperty[] {
     const fullText = criteria.join(' ');
@@ -407,7 +416,8 @@ export class DataDesigner {
 
   /**
    * Extract properties from text
-   * @param text
+   * @param text - Free-form text to scan for property patterns
+   * @returns Array of data properties detected via pattern matching
    */
   private extractPropertiesFromText(text: string): DataProperty[] {
     const properties: DataProperty[] = [];
@@ -499,7 +509,8 @@ export class DataDesigner {
 
   /**
    * Add standard properties to model
-   * @param properties
+   * @param properties - Existing properties to extend
+   * @returns Properties array with timestamp and soft-delete fields appended
    */
   private addStandardProperties(properties: readonly DataProperty[]): DataProperty[] {
     const allProps = [...properties];
@@ -539,8 +550,9 @@ export class DataDesigner {
 
   /**
    * Generate indexes for a model
-   * @param modelName
-   * @param properties
+   * @param modelName - Model name used for index naming
+   * @param properties - Model properties to generate indexes for
+   * @returns Array of generated index definitions
    */
   private generateIndexes(modelName: string, properties: readonly DataProperty[]): DataIndex[] {
     const indexes: DataIndex[] = [];
@@ -579,7 +591,8 @@ export class DataDesigner {
 
   /**
    * Convert to snake_case
-   * @param str
+   * @param str - String to convert (PascalCase or camelCase)
+   * @returns snake_case version of the input string
    */
   private toSnakeCase(str: string): string {
     return str
@@ -590,7 +603,8 @@ export class DataDesigner {
 
   /**
    * Generate description for model
-   * @param component
+   * @param component - Source component providing name and responsibility
+   * @returns Human-readable model description
    */
   private generateDescription(component: SDSComponent): string {
     return `Data model for ${component.name}. ${component.responsibility}`;
@@ -598,7 +612,8 @@ export class DataDesigner {
 
   /**
    * Resolve relationships between models
-   * @param models
+   * @param models - Data models to analyze for cross-references
+   * @returns Models with populated relationship arrays
    */
   private resolveRelationships(models: readonly DataModel[]): readonly DataModel[] {
     // Create model name lookup

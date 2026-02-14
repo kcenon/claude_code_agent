@@ -119,7 +119,8 @@ export class ComponentDesigner {
 
   /**
    * Design a single component from a feature
-   * @param input
+   * @param input - Component design input containing feature, use cases, NFRs, and constraints
+   * @returns Designed SDS component
    */
   public designComponent(input: ComponentDesignInput): SDSComponent {
     const { feature, useCases, nfrs, constraints, componentIndex } = input;
@@ -167,7 +168,8 @@ export class ComponentDesigner {
 
   /**
    * Group use cases by their source feature ID
-   * @param useCases
+   * @param useCases - Use cases to group
+   * @returns Map of feature IDs to their associated use cases
    */
   private groupUseCasesByFeature(useCases: readonly ParsedUseCase[]): Map<string, ParsedUseCase[]> {
     const map = new Map<string, ParsedUseCase[]>();
@@ -186,7 +188,8 @@ export class ComponentDesigner {
 
   /**
    * Generate component name from feature name
-   * @param featureName
+   * @param featureName - Raw feature name to convert
+   * @returns PascalCase component name with an appropriate suffix
    */
   private generateComponentName(featureName: string): string {
     // Remove common prefixes and clean up
@@ -226,7 +229,8 @@ export class ComponentDesigner {
 
   /**
    * Generate responsibility statement from feature
-   * @param feature
+   * @param feature - Source SRS feature
+   * @returns Concise responsibility statement (max 200 characters)
    */
   private generateResponsibility(feature: ParsedSRSFeature): string {
     if (feature.description) {
@@ -243,7 +247,8 @@ export class ComponentDesigner {
 
   /**
    * Generate description from feature
-   * @param feature
+   * @param feature - Source SRS feature
+   * @returns Multi-line description including key capabilities
    */
   private generateDescription(feature: ParsedSRSFeature): string {
     const parts: string[] = [];
@@ -262,9 +267,10 @@ export class ComponentDesigner {
 
   /**
    * Generate interfaces for a component
-   * @param componentName
-   * @param feature
-   * @param useCases
+   * @param componentName - Name of the component
+   * @param feature - Source SRS feature
+   * @param useCases - Related use cases for additional interfaces
+   * @returns Generated SDS interfaces
    */
   private generateInterfaces(
     componentName: string,
@@ -293,8 +299,9 @@ export class ComponentDesigner {
 
   /**
    * Generate main interface for a component
-   * @param componentName
-   * @param feature
+   * @param componentName - Name of the component
+   * @param feature - Source SRS feature providing acceptance criteria
+   * @returns Main interface or null if no methods could be generated
    */
   private generateMainInterface(
     componentName: string,
@@ -331,8 +338,9 @@ export class ComponentDesigner {
 
   /**
    * Generate interface from a use case
-   * @param componentName
-   * @param useCase
+   * @param componentName - Name of the parent component
+   * @param useCase - Source use case with scenarios
+   * @returns Use case interface or null if no methods could be generated
    */
   private generateUseCaseInterface(
     componentName: string,
@@ -372,7 +380,8 @@ export class ComponentDesigner {
 
   /**
    * Sanitize use case name for interface naming
-   * @param name
+   * @param name - Raw use case name
+   * @returns PascalCase alphanumeric string suitable for interface naming
    */
   private sanitizeUseCaseName(name: string): string {
     return name
@@ -384,7 +393,8 @@ export class ComponentDesigner {
 
   /**
    * Generate method from acceptance criterion
-   * @param criterion
+   * @param criterion - Acceptance criterion text (e.g., "User can create...")
+   * @returns Parsed method definition or null if no action verb is detected
    */
   private generateMethodFromCriterion(criterion: string): SDSMethod | null {
     // Parse criterion for action verbs
@@ -417,8 +427,9 @@ export class ComponentDesigner {
 
   /**
    * Generate method from use case scenario
-   * @param scenarioName
-   * @param steps
+   * @param scenarioName - Name of the scenario
+   * @param steps - Ordered list of scenario steps
+   * @returns Method definition or null if scenario is empty
    */
   private generateMethodFromScenario(
     scenarioName: string,
@@ -454,7 +465,8 @@ export class ComponentDesigner {
 
   /**
    * Generate method name from action description
-   * @param action
+   * @param action - Action description text to derive the method name from
+   * @returns camelCase method name (verb + noun)
    */
   private generateMethodName(action: string): string {
     // Extract key verbs and nouns
@@ -527,7 +539,8 @@ export class ComponentDesigner {
 
   /**
    * Extract parameters from action description
-   * @param action
+   * @param action - Action description text to extract parameters from
+   * @returns Array of detected method parameters
    */
   private extractParameters(action: string): MethodParameter[] {
     const parameters: MethodParameter[] = [];
@@ -565,7 +578,8 @@ export class ComponentDesigner {
 
   /**
    * Infer return type from action description
-   * @param action
+   * @param action - Action description text to infer return type from
+   * @returns TypeScript return type string (e.g., "Promise<boolean>")
    */
   private inferReturnType(action: string): string {
     const lowerAction = action.toLowerCase();
@@ -609,7 +623,8 @@ export class ComponentDesigner {
 
   /**
    * Generate default CRUD methods for a feature
-   * @param featureName
+   * @param featureName - Feature name used to derive entity type names
+   * @returns Array of create, get, update, delete, and list methods
    */
   private generateDefaultMethods(featureName: string): SDSMethod[] {
     const entityName = featureName.replace(/\s+/g, '').replace(/^(.)/, (c) => c.toUpperCase());
@@ -653,8 +668,9 @@ export class ComponentDesigner {
 
   /**
    * Generate TypeScript interface code
-   * @param name
-   * @param methods
+   * @param name - Interface name
+   * @param methods - Methods to include in the interface
+   * @returns Raw TypeScript interface code string
    */
   private generateInterfaceCode(name: string, methods: readonly SDSMethod[]): string {
     const methodLines = methods.map((m) => `  ${m.signature};`).join('\n');
@@ -664,9 +680,10 @@ export class ComponentDesigner {
 
   /**
    * Generate implementation notes from NFRs and constraints
-   * @param feature
-   * @param nfrs
-   * @param constraints
+   * @param feature - Source feature for priority-based notes
+   * @param nfrs - Non-functional requirements to extract notes from
+   * @param constraints - Constraints to include in the notes
+   * @returns Multi-line implementation notes string
    */
   private generateImplementationNotes(
     feature: ParsedSRSFeature,
@@ -706,8 +723,9 @@ export class ComponentDesigner {
 
   /**
    * Suggest technology based on feature and NFRs
-   * @param feature
-   * @param nfrs
+   * @param feature - Feature to analyze for technology hints
+   * @param nfrs - NFRs that may influence technology choice
+   * @returns Suggested technology string or undefined if no match
    */
   private suggestTechnology(
     feature: ParsedSRSFeature,
@@ -747,8 +765,9 @@ export class ComponentDesigner {
 
   /**
    * Resolve dependencies between components
-   * @param components
-   * @param features
+   * @param components - Components to resolve cross-references for
+   * @param features - Features used to detect dependency relationships
+   * @returns Components with populated dependency arrays
    */
   private resolveDependencies(
     components: readonly SDSComponent[],

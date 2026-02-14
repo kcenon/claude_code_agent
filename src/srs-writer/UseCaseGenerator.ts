@@ -156,9 +156,10 @@ export class UseCaseGenerator {
 
   /**
    * Generate a primary use case for the main feature flow
-   * @param feature
-   * @param requirement
-   * @param actors
+   * @param feature - The SRS feature to generate a use case for
+   * @param requirement - The parsed PRD requirement providing context
+   * @param actors - Available actor names for the use case
+   * @returns Detailed use case with flows and conditions
    */
   private generatePrimaryUseCase(
     feature: SRSFeature,
@@ -197,10 +198,11 @@ export class UseCaseGenerator {
 
   /**
    * Generate use cases from acceptance criteria
-   * @param feature
-   * @param requirement
-   * @param actors
-   * @param coveredCriteria
+   * @param feature - The SRS feature being processed
+   * @param requirement - The parsed PRD requirement with criteria
+   * @param actors - Available actor names for use cases
+   * @param coveredCriteria - Set of already-covered criteria to avoid duplicates
+   * @returns Array of detailed use cases derived from criteria
    */
   private generateFromAcceptanceCriteria(
     feature: SRSFeature,
@@ -242,7 +244,8 @@ export class UseCaseGenerator {
 
   /**
    * Check if a criterion is significant enough for a separate use case
-   * @param criterion
+   * @param criterion - The acceptance criterion text to evaluate
+   * @returns True if the criterion warrants a separate use case
    */
   private isSignificantCriterion(criterion: string): boolean {
     const significantPatterns = [
@@ -258,11 +261,12 @@ export class UseCaseGenerator {
 
   /**
    * Create a use case from a single criterion
-   * @param ucId
-   * @param criterion
-   * @param feature
-   * @param requirement
-   * @param actors
+   * @param ucId - Unique identifier for the use case
+   * @param criterion - The acceptance criterion text
+   * @param feature - The parent SRS feature
+   * @param requirement - The source PRD requirement
+   * @param actors - Available actor names
+   * @returns Detailed use case derived from the criterion
    */
   private createUseCaseFromCriterion(
     ucId: string,
@@ -296,10 +300,11 @@ export class UseCaseGenerator {
 
   /**
    * Generate a supplementary use case when minimum is not met
-   * @param feature
-   * @param requirement
-   * @param actors
-   * @param index
+   * @param feature - The parent SRS feature
+   * @param requirement - The source PRD requirement
+   * @param actors - Available actor names
+   * @param index - Current use case index for type selection
+   * @returns Supplementary use case to meet the minimum threshold
    */
   private generateSupplementaryUseCase(
     feature: SRSFeature,
@@ -339,8 +344,9 @@ export class UseCaseGenerator {
 
   /**
    * Select the primary actor based on requirement context
-   * @param requirement
-   * @param actors
+   * @param requirement - The PRD requirement to analyze for actor cues
+   * @param actors - Candidate actor names to choose from
+   * @returns Name of the most appropriate primary actor
    */
   private selectPrimaryActor(requirement: ParsedPRDRequirement, actors: readonly string[]): string {
     const text = `${requirement.title} ${requirement.description} ${requirement.userStory ?? ''}`;
@@ -366,9 +372,10 @@ export class UseCaseGenerator {
 
   /**
    * Identify secondary actors from requirement
-   * @param requirement
-   * @param actors
-   * @param primaryActor
+   * @param requirement - The PRD requirement to analyze
+   * @param actors - All available actor names
+   * @param primaryActor - The already-selected primary actor to exclude
+   * @returns Array of secondary actor names mentioned in the requirement
    */
   private identifySecondaryActors(
     requirement: ParsedPRDRequirement,
@@ -397,7 +404,8 @@ export class UseCaseGenerator {
 
   /**
    * Generate main flow steps from requirement
-   * @param requirement
+   * @param requirement - The PRD requirement to derive flow steps from
+   * @returns Array of sequential flow steps for the main scenario
    */
   private generateMainFlow(requirement: ParsedPRDRequirement): FlowStep[] {
     const steps: FlowStep[] = [];
@@ -437,7 +445,8 @@ export class UseCaseGenerator {
 
   /**
    * Parse user story into flow steps
-   * @param userStory
+   * @param userStory - User story text in "As a... I want... so that..." format
+   * @returns Array of flow steps derived from the user story
    */
   private parseUserStoryToSteps(userStory: string): FlowStep[] {
     const steps: FlowStep[] = [];
@@ -472,7 +481,8 @@ export class UseCaseGenerator {
 
   /**
    * Generate flow steps from requirement description
-   * @param requirement
+   * @param requirement - The PRD requirement whose description is parsed into steps
+   * @returns Array of flow steps extracted from the description sentences
    */
   private generateStepsFromDescription(requirement: ParsedPRDRequirement): FlowStep[] {
     const steps: FlowStep[] = [];
@@ -507,7 +517,8 @@ export class UseCaseGenerator {
 
   /**
    * Generate flow from a criterion
-   * @param criterion
+   * @param criterion - The acceptance criterion text to convert into flow steps
+   * @returns Array of flow steps representing the criterion scenario
    */
   private generateFlowFromCriterion(criterion: string): FlowStep[] {
     const steps: FlowStep[] = [];
@@ -537,8 +548,9 @@ export class UseCaseGenerator {
 
   /**
    * Generate alternative flows based on main flow
-   * @param requirement
-   * @param mainFlow
+   * @param requirement - The PRD requirement with acceptance criteria
+   * @param mainFlow - The main flow steps to branch from
+   * @returns Array of alternative flow scenarios
    */
   private generateAlternativeFlows(
     requirement: ParsedPRDRequirement,
@@ -598,8 +610,9 @@ export class UseCaseGenerator {
 
   /**
    * Determine which main flow step an alternative branches from
-   * @param condition
-   * @param mainFlow
+   * @param condition - The alternative flow condition text
+   * @param mainFlow - The main flow steps to find a branch point in
+   * @returns Step number where the alternative flow branches off
    */
   private determineBranchPoint(condition: string, mainFlow: readonly FlowStep[]): number {
     const lowerCondition = condition.toLowerCase();
@@ -626,7 +639,8 @@ export class UseCaseGenerator {
 
   /**
    * Generate exception flows for error scenarios
-   * @param requirement
+   * @param requirement - The PRD requirement to derive exception flows from
+   * @returns Array of exception flow definitions
    */
   private generateExceptionFlows(requirement: ParsedPRDRequirement): ExceptionFlow[] {
     const exceptions: ExceptionFlow[] = [];
@@ -653,6 +667,7 @@ export class UseCaseGenerator {
 
   /**
    * Generate generic exception flows
+   * @returns Array of standard exception flows for common error scenarios
    */
   private generateGenericExceptionFlows(): ExceptionFlow[] {
     return [
@@ -671,7 +686,8 @@ export class UseCaseGenerator {
 
   /**
    * Extract exception type from criterion text
-   * @param criterion
+   * @param criterion - The criterion text mentioning an error condition
+   * @returns Human-readable exception type label
    */
   private extractExceptionType(criterion: string): string {
     const patterns: Array<{ pattern: RegExp; type: string }> = [
@@ -695,8 +711,9 @@ export class UseCaseGenerator {
 
   /**
    * Infer exception handling from criterion
-   * @param criterion
-   * @param exceptionType
+   * @param criterion - The criterion text describing error behavior
+   * @param exceptionType - The classified exception type
+   * @returns Recommended handling action for the exception
    */
   private inferExceptionHandling(criterion: string, exceptionType: string): string {
     // Check if criterion specifies handling
@@ -722,7 +739,8 @@ export class UseCaseGenerator {
 
   /**
    * Generate preconditions from requirement
-   * @param requirement
+   * @param requirement - The PRD requirement to derive preconditions from
+   * @returns Array of precondition strings for the use case
    */
   private generatePreconditions(requirement: ParsedPRDRequirement): string[] {
     const preconditions: string[] = [];
@@ -750,7 +768,8 @@ export class UseCaseGenerator {
 
   /**
    * Generate postconditions from requirement
-   * @param requirement
+   * @param requirement - The PRD requirement to derive postconditions from
+   * @returns Array of postcondition strings for the use case
    */
   private generatePostconditions(requirement: ParsedPRDRequirement): string[] {
     const postconditions: string[] = [];
@@ -784,7 +803,8 @@ export class UseCaseGenerator {
 
   /**
    * Generate use case title from requirement title
-   * @param title
+   * @param title - Raw requirement title to format
+   * @returns Formatted use case title with proper capitalization
    */
   private generateTitle(title: string): string {
     let processedTitle = title.trim();
@@ -798,7 +818,8 @@ export class UseCaseGenerator {
 
   /**
    * Extract title from criterion text
-   * @param criterion
+   * @param criterion - The acceptance criterion text to extract a title from
+   * @returns Extracted and formatted title string
    */
   private extractTitleFromCriterion(criterion: string): string {
     // Try to extract action
@@ -821,9 +842,9 @@ export class UseCaseGenerator {
 
   /**
    * Track which criteria are covered by a use case
-   * @param useCase
-   * @param requirement
-   * @param coveredCriteria
+   * @param useCase - The detailed use case to check coverage for
+   * @param requirement - The PRD requirement containing acceptance criteria
+   * @param coveredCriteria - Mutable set to record covered criteria into
    */
   private trackCoveredCriteria(
     useCase: DetailedUseCase,
