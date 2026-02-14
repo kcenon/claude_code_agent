@@ -297,6 +297,8 @@ export class WriteBatcher {
 
   /**
    * Get the number of pending writes
+   *
+   * @returns Number of writes currently queued for flushing
    */
   get pendingCount(): number {
     return this.pendingWrites.size;
@@ -304,6 +306,8 @@ export class WriteBatcher {
 
   /**
    * Get batcher metrics
+   *
+   * @returns Current write batcher performance metrics
    */
   getMetrics(): WriteBatcherMetrics {
     return {
@@ -348,6 +352,8 @@ export class WriteBatcher {
 
   /**
    * Check if the batcher is closed
+   *
+   * @returns True if the batcher has been closed and no longer accepts writes
    */
   get closed(): boolean {
     return this.isClosed;

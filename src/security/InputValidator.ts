@@ -468,6 +468,7 @@ export class InputValidator {
 
   /**
    * Get the configured base path
+   * @returns The resolved base path for validation
    */
   public getBasePath(): string {
     return this.basePath;
@@ -475,6 +476,7 @@ export class InputValidator {
 
   /**
    * Get the path sanitizer instance
+   * @returns The PathSanitizer used by this validator
    */
   public getPathSanitizer(): PathSanitizer {
     return this.pathSanitizer;
@@ -482,6 +484,7 @@ export class InputValidator {
 
   /**
    * Get the symlink resolver instance
+   * @returns The SymlinkResolver used by this validator
    */
   public getSymlinkResolver(): SymlinkResolver {
     return this.symlinkResolver;
@@ -489,9 +492,9 @@ export class InputValidator {
 
   /**
    * Log a path rejection event for security audit
-   * @param inputPath
-   * @param reason
-   * @param details
+   * @param inputPath - The rejected input path
+   * @param reason - The rejection reason code
+   * @param details - Additional context about the rejection
    */
   private logPathRejection(
     inputPath: string,
@@ -509,7 +512,8 @@ export class InputValidator {
 
   /**
    * Sanitize a path for safe logging (remove control chars, truncate)
-   * @param inputPath
+   * @param inputPath - The path to sanitize for logging
+   * @returns Sanitized path string safe for log output
    */
   private sanitizePathForLogging(inputPath: string): string {
     // Remove control characters and truncate for safe logging

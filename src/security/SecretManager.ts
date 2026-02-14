@@ -175,6 +175,7 @@ export class SecretManager {
 
   /**
    * Check if the secret manager has been initialized
+   * @returns True if load() has been called successfully
    */
   public isInitialized(): boolean {
     return this.initialized;

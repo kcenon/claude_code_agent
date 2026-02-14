@@ -94,7 +94,7 @@ export class SRSUpdaterAgent implements IAgent {
   }
 
   /**
-   *
+   * Initialize the agent and load required dependencies
    */
   public async initialize(): Promise<void> {
     if (this.initialized) return;
@@ -103,7 +103,7 @@ export class SRSUpdaterAgent implements IAgent {
   }
 
   /**
-   *
+   * Dispose of the agent and release resources
    */
   public async dispose(): Promise<void> {
     await Promise.resolve();
@@ -113,7 +113,8 @@ export class SRSUpdaterAgent implements IAgent {
 
   /**
    * Start a new SRS update session
-   * @param projectId
+   * @param projectId - Project identifier for the update session
+   * @returns The created SRS updater session
    */
   public async startSession(projectId: string): Promise<SRSUpdaterSession> {
     await loadYaml();
@@ -133,7 +134,8 @@ export class SRSUpdaterAgent implements IAgent {
 
   /**
    * Load an existing SRS document for updating
-   * @param srsPath
+   * @param srsPath - Optional path to the SRS file; auto-detected if omitted
+   * @returns The parsed SRS document
    */
   public async loadSRS(srsPath?: string): Promise<ParsedSRS> {
     const session = this.ensureSession();
@@ -177,7 +179,8 @@ export class SRSUpdaterAgent implements IAgent {
 
   /**
    * Apply a change request to the loaded SRS
-   * @param changeRequest
+   * @param changeRequest - The change request describing the update operation
+   * @returns Operation result with updated paths and change summary
    */
   public async applyChange(changeRequest: SRSChangeRequest): Promise<SRSUpdateOperationResult> {
     const session = this.ensureSession();
@@ -382,6 +385,7 @@ export class SRSUpdaterAgent implements IAgent {
 
   /**
    * Get the current session
+   * @returns Current updater session or null if none active
    */
   public getSession(): SRSUpdaterSession | null {
     return this.session;
@@ -1552,7 +1556,8 @@ let globalSRSUpdaterAgent: SRSUpdaterAgent | null = null;
 
 /**
  * Get the global SRS Updater Agent instance
- * @param config
+ * @param config - Optional configuration for agent initialization
+ * @returns The global SRSUpdaterAgent singleton instance
  */
 export function getSRSUpdaterAgent(config?: SRSUpdaterConfig): SRSUpdaterAgent {
   if (globalSRSUpdaterAgent === null) {

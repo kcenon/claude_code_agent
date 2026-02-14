@@ -171,6 +171,7 @@ export class PathResolver {
 
   /**
    * Get the configured project root
+   * @returns The resolved project root directory path
    */
   public getProjectRoot(): string {
     return this.projectRoot;
@@ -178,6 +179,7 @@ export class PathResolver {
 
   /**
    * Get allowed external directories
+   * @returns Array of resolved allowed external directory paths
    */
   public getAllowedExternalDirs(): readonly string[] {
     return this.allowedExternalDirs;

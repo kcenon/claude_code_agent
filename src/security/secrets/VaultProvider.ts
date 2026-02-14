@@ -171,8 +171,10 @@ export class VaultProvider extends BaseSecretProvider {
 
   /**
    * Retrieve a secret from Vault
-   * @param name
-   * @param version
+   *
+   * @param name - The secret path within Vault
+   * @param version - Optional version identifier for KV v2
+   * @returns The secret with metadata or null if not found
    */
   protected async doGetSecret(name: string, version?: string): Promise<Secret | null> {
     if (this.client === null) {
@@ -236,6 +238,8 @@ export class VaultProvider extends BaseSecretProvider {
 
   /**
    * Check if Vault is accessible and unsealed
+   *
+   * @returns True if Vault is initialized and unsealed
    */
   protected async doHealthCheck(): Promise<boolean> {
     if (this.client === null) {
@@ -252,6 +256,8 @@ export class VaultProvider extends BaseSecretProvider {
 
   /**
    * Close the Vault client
+   *
+   * @returns A resolved promise after cleanup
    */
   protected doClose(): Promise<void> {
     // node-vault client doesn't have a close method, just clear the reference

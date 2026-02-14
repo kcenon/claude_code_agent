@@ -148,8 +148,10 @@ export class AWSSecretsManagerProvider extends BaseSecretProvider {
 
   /**
    * Retrieve a secret from AWS Secrets Manager
-   * @param name
-   * @param version
+   *
+   * @param name - The secret name or ARN to retrieve
+   * @param version - Optional version ID of the secret
+   * @returns The secret with metadata or null if not found
    */
   protected async doGetSecret(name: string, version?: string): Promise<Secret | null> {
     if (this.client === null || this.awsModule === null) {
@@ -213,6 +215,8 @@ export class AWSSecretsManagerProvider extends BaseSecretProvider {
 
   /**
    * Check if AWS Secrets Manager is accessible
+   *
+   * @returns True if the AWS service is reachable
    */
   protected async doHealthCheck(): Promise<boolean> {
     if (this.client === null || this.awsModule === null) {
@@ -242,6 +246,8 @@ export class AWSSecretsManagerProvider extends BaseSecretProvider {
 
   /**
    * Close the AWS Secrets Manager client
+   *
+   * @returns A resolved promise after cleanup
    */
   protected doClose(): Promise<void> {
     if (this.client !== null) {

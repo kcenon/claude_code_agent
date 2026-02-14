@@ -51,6 +51,8 @@ export class LocalProvider extends BaseSecretProvider {
    * Initialize the provider
    *
    * No initialization needed for local provider.
+   *
+   * @returns A resolved promise
    */
   protected doInitialize(): Promise<void> {
     // No initialization needed
@@ -66,8 +68,10 @@ export class LocalProvider extends BaseSecretProvider {
    * - `database-password` -> `DATABASE_PASSWORD`
    *
    * If envPrefix is configured, it's prepended to the variable name.
-   * @param name
-   * @param _version
+   *
+   * @param name - The secret name to look up
+   * @param _version - Unused version parameter
+   * @returns The secret from environment or null if not found
    */
   protected doGetSecret(name: string, _version?: string): Promise<Secret | null> {
     const envName = this.toEnvName(name);
@@ -88,6 +92,8 @@ export class LocalProvider extends BaseSecretProvider {
 
   /**
    * Health check always returns true for local provider
+   *
+   * @returns Always resolves to true
    */
   protected doHealthCheck(): Promise<boolean> {
     return Promise.resolve(true);
@@ -97,6 +103,8 @@ export class LocalProvider extends BaseSecretProvider {
    * Close the provider
    *
    * No cleanup needed for local provider.
+   *
+   * @returns A resolved promise
    */
   protected doClose(): Promise<void> {
     // No cleanup needed

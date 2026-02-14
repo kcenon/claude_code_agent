@@ -104,7 +104,7 @@ interface WatcherState {
 }
 
 /**
- *
+ * Centralized secure file operations wrapper
  */
 export class SecureFileOps {
   private readonly resolver: PathResolver;
@@ -585,6 +585,7 @@ export class SecureFileOps {
 
   /**
    * Get the project root path
+   * @returns The resolved project root directory
    */
   public getProjectRoot(): string {
     return this.projectRoot;
@@ -841,12 +842,12 @@ export class SecureFileOps {
 
   /**
    * Debounce file watch events
-   * @param watcherState
-   * @param watcherId
-   * @param relativePath
-   * @param absolutePath
-   * @param eventType
-   * @param debounceMs
+   * @param watcherState - The internal state of the watcher
+   * @param watcherId - Unique identifier for the watcher
+   * @param relativePath - Path relative to project root
+   * @param absolutePath - Resolved absolute file path
+   * @param eventType - The file system event type
+   * @param debounceMs - Debounce delay in milliseconds
    */
   private debounceWatchEvent(
     watcherState: WatcherState,
@@ -896,7 +897,8 @@ export class SecureFileOps {
 
   /**
    * Check if a path is within the security boundary
-   * @param absolutePath
+   * @param absolutePath - The absolute path to check
+   * @returns True if the path is within the project root or allowed directories
    */
   private isPathWithinBoundary(absolutePath: string): boolean {
     try {
@@ -923,10 +925,11 @@ export class SecureFileOps {
 
   /**
    * Check if a filename matches the pattern filter
-   * @param filename
-   * @param patterns
-   * @param patterns.include
-   * @param patterns.exclude
+   * @param filename - The filename to check against patterns
+   * @param patterns - Optional include/exclude pattern configuration
+   * @param patterns.include - Glob patterns for files to include
+   * @param patterns.exclude - Glob patterns for files to exclude
+   * @returns True if the filename matches the filter criteria
    */
   private matchesPatternFilter(
     filename: string,
@@ -965,8 +968,9 @@ export class SecureFileOps {
   /**
    * Simple glob pattern matching for file names
    * Supports: * (any chars), ? (single char), ** (recursive)
-   * @param filename
-   * @param pattern
+   * @param filename - The filename to test
+   * @param pattern - The glob pattern to match against
+   * @returns True if the filename matches the glob pattern
    */
   private matchGlob(filename: string, pattern: string): boolean {
     // Convert glob pattern to regex
@@ -982,7 +986,7 @@ export class SecureFileOps {
 
   /**
    * Validate that a symlink target is within allowed boundaries (sync)
-   * @param absolutePath
+   * @param absolutePath - The absolute path of the symlink to validate
    */
   private validateSymlinkTargetSync(absolutePath: string): void {
     try {
@@ -1006,9 +1010,9 @@ export class SecureFileOps {
 
   /**
    * Log file operation to audit log
-   * @param type
-   * @param resource
-   * @param action
+   * @param type - The audit event type
+   * @param resource - The file path or resource identifier
+   * @param action - The operation performed on the resource
    */
   private logFileOperation(type: AuditEventType, resource: string, action: string): void {
     if (!this.enableAuditLog) {

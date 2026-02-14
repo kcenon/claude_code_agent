@@ -203,7 +203,8 @@ export class PathSanitizer {
 
   /**
    * Check if a path contains a null byte
-   * @param inputPath
+   * @param inputPath - The path to check for null bytes
+   * @returns True if the path contains a null byte
    */
   public containsNullByte(inputPath: string): boolean {
     return inputPath.includes('\0');
@@ -211,7 +212,8 @@ export class PathSanitizer {
 
   /**
    * Validate individual path components
-   * @param inputPath
+   * @param inputPath - The normalized path to validate
+   * @returns Object with valid flag and optional error message
    */
   private validateComponents(inputPath: string): { valid: boolean; error?: string } {
     const components = inputPath.split(path.sep).filter((c) => c.length > 0);
@@ -241,7 +243,8 @@ export class PathSanitizer {
 
   /**
    * Check for traversal after normalization
-   * @param normalizedPath
+   * @param normalizedPath - The normalized path to check
+   * @returns True if traversal patterns are detected
    */
   private containsTraversalAfterNormalize(normalizedPath: string): boolean {
     const components = normalizedPath.split(path.sep);
@@ -257,7 +260,8 @@ export class PathSanitizer {
 
   /**
    * Check if a path is within allowed boundaries
-   * @param absolutePath
+   * @param absolutePath - The absolute path to check
+   * @returns True if the path is within the base or allowed directories
    */
   private isWithinBoundary(absolutePath: string): boolean {
     const isWithinBase = this.isPathWithin(absolutePath, this.baseDir);
@@ -267,8 +271,9 @@ export class PathSanitizer {
 
   /**
    * Check if a path is within a directory
-   * @param targetPath
-   * @param basePath
+   * @param targetPath - The path to check
+   * @param basePath - The base directory to check against
+   * @returns True if targetPath is within basePath
    */
   private isPathWithin(targetPath: string, basePath: string): boolean {
     let normalizedTarget = path.normalize(targetPath);
@@ -285,9 +290,10 @@ export class PathSanitizer {
 
   /**
    * Create a rejection result and log to audit
-   * @param inputPath
-   * @param reasonCode
-   * @param error
+   * @param inputPath - The rejected input path
+   * @param reasonCode - The reason for path rejection
+   * @param error - Human-readable error description
+   * @returns Sanitization result indicating failure
    */
   private reject(
     inputPath: string,
@@ -313,7 +319,8 @@ export class PathSanitizer {
 
   /**
    * Sanitize path for safe logging (remove control chars, truncate)
-   * @param inputPath
+   * @param inputPath - The path to sanitize for logging
+   * @returns Sanitized path string safe for log output
    */
   private sanitizeForLogging(inputPath: string): string {
     // Remove control characters and truncate
@@ -371,6 +378,7 @@ export class PathSanitizer {
 
   /**
    * Get the configured base directory
+   * @returns The resolved base directory path
    */
   public getBaseDir(): string {
     return this.baseDir;
@@ -378,6 +386,7 @@ export class PathSanitizer {
 
   /**
    * Get allowed directories
+   * @returns Array of resolved allowed directory paths
    */
   public getAllowedDirs(): readonly string[] {
     return this.allowedDirs;
@@ -385,6 +394,7 @@ export class PathSanitizer {
 
   /**
    * Check if case-insensitive mode is enabled
+   * @returns True if case-insensitive comparison is active
    */
   public isCaseInsensitive(): boolean {
     return this.caseInsensitive;
@@ -392,6 +402,7 @@ export class PathSanitizer {
 
   /**
    * Get maximum path length
+   * @returns The configured maximum path length in characters
    */
   public getMaxPathLength(): number {
     return this.maxPathLength;

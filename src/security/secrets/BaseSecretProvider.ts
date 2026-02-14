@@ -138,8 +138,10 @@ export abstract class BaseSecretProvider implements ISecretProvider {
    * Get a secret by name
    *
    * Checks cache first, then retrieves from provider if not cached or expired.
-   * @param name
-   * @param version
+   *
+   * @param name - The secret name to retrieve
+   * @param version - Optional version identifier
+   * @returns The secret or null if not found
    */
   public async getSecret(name: string, version?: string): Promise<Secret | null> {
     if (this.state !== 'ready') {
@@ -180,6 +182,8 @@ export abstract class BaseSecretProvider implements ISecretProvider {
 
   /**
    * Check if the provider is healthy
+   *
+   * @returns True if the provider is healthy
    */
   public async healthCheck(): Promise<boolean> {
     try {
@@ -214,6 +218,8 @@ export abstract class BaseSecretProvider implements ISecretProvider {
 
   /**
    * Get provider health status
+   *
+   * @returns The current health status of this provider
    */
   public getHealth(): ProviderHealth {
     const health: ProviderHealth = {
@@ -240,6 +246,8 @@ export abstract class BaseSecretProvider implements ISecretProvider {
 
   /**
    * Check if provider is ready
+   *
+   * @returns True if the provider is in ready state
    */
   public isReady(): boolean {
     return this.state === 'ready';
@@ -254,7 +262,9 @@ export abstract class BaseSecretProvider implements ISecretProvider {
 
   /**
    * Check if a cached secret is expired
-   * @param cached
+   *
+   * @param cached - The cached secret entry to check
+   * @returns True if the cached secret has exceeded its TTL
    */
   protected isExpired(cached: CachedSecret): boolean {
     return Date.now() - cached.cachedAt > cached.ttl;
@@ -262,8 +272,9 @@ export abstract class BaseSecretProvider implements ISecretProvider {
 
   /**
    * Handle an error by tracking it
-   * @param _context
-   * @param error
+   *
+   * @param _context - Description of where the error occurred
+   * @param error - The error that was thrown
    */
   protected handleError(_context: string, error: unknown): void {
     this.lastErrorTime = new Date();

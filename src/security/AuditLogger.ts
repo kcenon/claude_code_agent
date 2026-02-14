@@ -141,7 +141,7 @@ export class AuditLogger {
 
   /**
    * Write a log entry to file
-   * @param entry
+   * @param entry - The audit log entry to write
    */
   private writeEntry(entry: AuditLogEntry): void {
     const line = JSON.stringify(entry) + '\n';
@@ -170,7 +170,7 @@ export class AuditLogger {
 
   /**
    * Format and log entry to console
-   * @param entry
+   * @param entry - The audit log entry to output
    */
   private logToConsole(entry: AuditLogEntry): void {
     const icon = entry.result === 'success' ? '✓' : entry.result === 'blocked' ? '⛔' : '✗';
@@ -194,9 +194,9 @@ export class AuditLogger {
 
   /**
    * Log API key usage
-   * @param keyName
-   * @param actor
-   * @param success
+   * @param keyName - Name of the API key used
+   * @param actor - Identity of the actor performing the operation
+   * @param success - Whether the authentication succeeded
    */
   public logApiKeyUsage(keyName: string, actor: string, success: boolean): void {
     this.log({
@@ -210,9 +210,9 @@ export class AuditLogger {
 
   /**
    * Log GitHub issue creation
-   * @param issueNumber
-   * @param repo
-   * @param actor
+   * @param issueNumber - The created issue number
+   * @param repo - Repository in owner/repo format
+   * @param actor - Identity of the actor who created the issue
    */
   public logGitHubIssueCreated(issueNumber: number, repo: string, actor: string): void {
     this.log({
@@ -226,9 +226,9 @@ export class AuditLogger {
 
   /**
    * Log GitHub PR creation
-   * @param prNumber
-   * @param repo
-   * @param actor
+   * @param prNumber - The created pull request number
+   * @param repo - Repository in owner/repo format
+   * @param actor - Identity of the actor who created the PR
    */
   public logGitHubPRCreated(prNumber: number, repo: string, actor: string): void {
     this.log({
@@ -242,9 +242,9 @@ export class AuditLogger {
 
   /**
    * Log GitHub PR merge
-   * @param prNumber
-   * @param repo
-   * @param actor
+   * @param prNumber - The merged pull request number
+   * @param repo - Repository in owner/repo format
+   * @param actor - Identity of the actor who merged the PR
    */
   public logGitHubPRMerged(prNumber: number, repo: string, actor: string): void {
     this.log({
@@ -258,8 +258,8 @@ export class AuditLogger {
 
   /**
    * Log file creation
-   * @param filePath
-   * @param actor
+   * @param filePath - Path of the created file
+   * @param actor - Identity of the actor who created the file
    */
   public logFileCreated(filePath: string, actor: string): void {
     this.log({
@@ -273,8 +273,8 @@ export class AuditLogger {
 
   /**
    * Log file deletion
-   * @param filePath
-   * @param actor
+   * @param filePath - Path of the deleted file
+   * @param actor - Identity of the actor who deleted the file
    */
   public logFileDeleted(filePath: string, actor: string): void {
     this.log({
@@ -288,8 +288,8 @@ export class AuditLogger {
 
   /**
    * Log file modification
-   * @param filePath
-   * @param actor
+   * @param filePath - Path of the modified file
+   * @param actor - Identity of the actor who modified the file
    */
   public logFileModified(filePath: string, actor: string): void {
     this.log({
@@ -303,8 +303,8 @@ export class AuditLogger {
 
   /**
    * Log secret access
-   * @param secretName
-   * @param actor
+   * @param secretName - Name of the accessed secret
+   * @param actor - Identity of the actor who accessed the secret
    */
   public logSecretAccessed(secretName: string, actor: string): void {
     this.log({
@@ -318,9 +318,9 @@ export class AuditLogger {
 
   /**
    * Log validation failure
-   * @param field
-   * @param actor
-   * @param details
+   * @param field - Name of the field that failed validation
+   * @param actor - Identity of the actor whose input was invalid
+   * @param details - Additional context about the validation failure
    */
   public logValidationFailed(
     field: string,
@@ -343,9 +343,9 @@ export class AuditLogger {
 
   /**
    * Log security violation
-   * @param violationType
-   * @param actor
-   * @param details
+   * @param violationType - Type of security violation detected
+   * @param actor - Identity of the actor who triggered the violation
+   * @param details - Additional context about the violation
    */
   public logSecurityViolation(
     violationType: string,
@@ -377,6 +377,7 @@ export class AuditLogger {
 
   /**
    * Get the current correlation ID
+   * @returns The current correlation ID string
    */
   public getCorrelationId(): string {
     return this.correlationId;
@@ -384,6 +385,7 @@ export class AuditLogger {
 
   /**
    * Generate a new correlation ID
+   * @returns The newly generated correlation ID string
    */
   public newCorrelationId(): string {
     this.correlationId = randomUUID();
@@ -392,6 +394,7 @@ export class AuditLogger {
 
   /**
    * Get the current session ID
+   * @returns The current session ID string
    */
   public getSessionId(): string {
     return this.sessionId;
@@ -399,7 +402,7 @@ export class AuditLogger {
 
   /**
    * Set the session ID
-   * @param sessionId
+   * @param sessionId - The session ID to set
    */
   public setSessionId(sessionId: string): void {
     this.sessionId = sessionId;
@@ -407,6 +410,7 @@ export class AuditLogger {
 
   /**
    * Get the log directory path
+   * @returns The absolute path to the audit log directory
    */
   public getLogDir(): string {
     return this.logDir;
@@ -414,6 +418,7 @@ export class AuditLogger {
 
   /**
    * Get the current log file path
+   * @returns The current log file path or null if not initialized
    */
   public getCurrentLogFile(): string | null {
     return this.currentLogFile;

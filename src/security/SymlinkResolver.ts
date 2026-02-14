@@ -380,7 +380,8 @@ export class SymlinkResolver {
 
   /**
    * Check if a path is within allowed boundaries
-   * @param targetPath
+   * @param targetPath - The absolute path to check
+   * @returns True if the path is within the base or allowed directories
    */
   private isWithinAllowedBoundary(targetPath: string): boolean {
     const isWithinBase = this.isPathWithin(targetPath, this.baseDir);
@@ -390,8 +391,9 @@ export class SymlinkResolver {
 
   /**
    * Check if a path is within a directory (case-sensitive aware)
-   * @param targetPath
-   * @param basePath
+   * @param targetPath - The path to check
+   * @param basePath - The base directory to check against
+   * @returns True if targetPath is within basePath
    */
   private isPathWithin(targetPath: string, basePath: string): boolean {
     let normalizedTarget = path.normalize(targetPath);
@@ -408,7 +410,8 @@ export class SymlinkResolver {
 
   /**
    * Read symlink target path
-   * @param linkPath
+   * @param linkPath - The path of the symbolic link
+   * @returns The symlink target path or undefined if unreadable
    */
   private readSymlinkTarget(linkPath: string): string | undefined {
     try {
@@ -420,7 +423,8 @@ export class SymlinkResolver {
 
   /**
    * Read symlink target path asynchronously
-   * @param linkPath
+   * @param linkPath - The path of the symbolic link
+   * @returns The symlink target path or undefined if unreadable
    */
   private async readSymlinkTargetAsync(linkPath: string): Promise<string | undefined> {
     try {
@@ -432,6 +436,7 @@ export class SymlinkResolver {
 
   /**
    * Get the configured base directory
+   * @returns The resolved base directory path
    */
   public getBaseDir(): string {
     return this.baseDir;
@@ -439,6 +444,7 @@ export class SymlinkResolver {
 
   /**
    * Get the symlink policy
+   * @returns The configured symlink handling policy
    */
   public getSymlinkPolicy(): SymlinkPolicy {
     return this.symlinkPolicy;
@@ -446,6 +452,7 @@ export class SymlinkResolver {
 
   /**
    * Check if case-insensitive mode is enabled
+   * @returns True if case-insensitive comparison is active
    */
   public isCaseInsensitive(): boolean {
     return this.caseInsensitive;
