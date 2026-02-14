@@ -227,19 +227,25 @@ export class ErrorHandler {
    * @param level - The console log level to use
    */
   private static log(error: AppError, level: 'debug' | 'info' | 'warn' | 'error' = 'error'): void {
+    // Using console directly to avoid circular dependency with Logger
+    // (Logger may depend on ErrorHandler for its own error handling)
     const formatted = error.format('log');
     switch (level) {
       case 'debug':
+        // eslint-disable-next-line no-console
         console.debug(formatted);
         break;
       case 'info':
+        // eslint-disable-next-line no-console
         console.info(formatted);
         break;
       case 'warn':
+        // eslint-disable-next-line no-console
         console.warn(formatted);
         break;
       case 'error':
       default:
+        // eslint-disable-next-line no-console
         console.error(formatted);
         break;
     }
@@ -250,7 +256,9 @@ export class ErrorHandler {
    * @param error - The critical AppError to report
    */
   private static report(error: AppError): void {
-    // Log critical error details
+    // Using console directly to avoid circular dependency with Logger
+    // (Logger may depend on ErrorHandler for its own error handling)
+    // eslint-disable-next-line no-console
     console.error('CRITICAL ERROR:', error.toJSON());
 
     // Could integrate with error reporting service here

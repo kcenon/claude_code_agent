@@ -11,6 +11,7 @@
 
 import * as path from 'node:path';
 import * as fs from 'node:fs';
+import { getLogger } from '../logging/index.js';
 
 // ============================================================
 // Error Classes
@@ -57,6 +58,7 @@ export interface ProjectContextOptions {
  * Uses singleton pattern to ensure consistent project root across modules.
  */
 class ProjectContextImpl {
+  private readonly logger = getLogger();
   private projectRoot: string | null = null;
   private initialized = false;
   private silent = false;
@@ -92,16 +94,17 @@ class ProjectContextImpl {
         );
       }
       if (!this.silent) {
-        console.warn(`Warning: .ad-sdlc directory not found in ${resolvedRoot}`);
-        console.warn('Run "ad-sdlc init" to initialize the project.');
+        this.logger.warn(`.ad-sdlc directory not found in ${resolvedRoot}`);
+        this.logger.warn('Run "ad-sdlc init" to initialize the project.');
       }
     }
 
     // Warn if CWD differs (informational, not an error)
     if (!this.silent && process.cwd() !== resolvedRoot) {
-      console.warn(`Note: Current working directory differs from project root`);
-      console.warn(`  CWD: ${process.cwd()}`);
-      console.warn(`  Project Root: ${resolvedRoot}`);
+      this.logger.warn('Current working directory differs from project root', {
+        cwd: process.cwd(),
+        projectRoot: resolvedRoot,
+      });
     }
 
     this.projectRoot = resolvedRoot;

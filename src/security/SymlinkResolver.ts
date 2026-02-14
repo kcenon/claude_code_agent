@@ -11,6 +11,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { PathTraversalError } from './errors.js';
+import { getLogger } from '../logging/index.js';
 
 /**
  * Symlink handling policy
@@ -369,7 +370,8 @@ export class SymlinkResolver {
           // Log close errors at debug level for troubleshooting
           const errorMsg = error instanceof Error ? error.message : String(error);
           if (process.env.DEBUG === 'true' || process.env.NODE_ENV !== 'production') {
-            console.debug(`File handle close failed for ${validatedPath}: ${errorMsg}`);
+            const logger = getLogger();
+            logger.debug(`File handle close failed for ${validatedPath}: ${errorMsg}`);
           }
         });
       },

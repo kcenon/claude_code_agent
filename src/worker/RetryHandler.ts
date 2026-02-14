@@ -14,6 +14,7 @@
 import { mkdir, writeFile, readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { getLogger } from '../logging/index.js';
 import type {
   RetryPolicy,
   RetryAttempt,
@@ -538,6 +539,7 @@ export class RetryHandler {
    * @param message - Message to log
    */
   private log(message: string): void {
-    console.log(`[RetryHandler:${this.config.workerId}] ${message}`);
+    const logger = getLogger();
+    logger.info(message, { component: 'RetryHandler', workerId: this.config.workerId });
   }
 }

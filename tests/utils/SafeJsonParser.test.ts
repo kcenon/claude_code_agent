@@ -3,6 +3,18 @@ import { z } from 'zod';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
+
+const mockLogger = {
+  info: vi.fn(),
+  warn: vi.fn(),
+  error: vi.fn(),
+  debug: vi.fn(),
+};
+
+vi.mock('../../src/logging/index.js', () => ({
+  getLogger: () => mockLogger,
+}));
+
 import {
   safeJsonParse,
   tryJsonParse,
@@ -72,14 +84,13 @@ describe('SafeJsonParser', () => {
     });
 
     it('should log error when fallback is used with logError=true', () => {
-      const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      mockLogger.warn.mockClear();
       const json = '{"name": "John"}';
       const fallback = { name: 'Default', age: 0 };
 
       safeJsonParse(json, SimpleSchema, { fallback, logError: true });
 
-      expect(consoleSpy).toHaveBeenCalled();
-      consoleSpy.mockRestore();
+      expect(mockLogger.warn).toHaveBeenCalled();
     });
 
     it('should parse nested objects correctly', () => {

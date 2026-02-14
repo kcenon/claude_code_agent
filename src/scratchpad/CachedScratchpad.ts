@@ -34,6 +34,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as yaml from 'js-yaml';
+import { getLogger } from '../logging/index.js';
 import { Scratchpad } from './Scratchpad.js';
 import { LRUCache } from './LRUCache.js';
 import type { CacheMetrics } from './LRUCache.js';
@@ -45,6 +46,8 @@ import type {
   ReadOptions,
   SerializationFormat,
 } from './types.js';
+
+const logger = getLogger();
 
 /**
  * Cache entry storing both raw content and parsed value
@@ -284,10 +287,7 @@ export class CachedScratchpad extends Scratchpad {
       this.batcher.write(filePath, content).catch((error: unknown) => {
         // Primary error handling is done by batcher's onError callback
         // This catch prevents unhandled promise rejection
-        const errorMsg = error instanceof Error ? error.message : String(error);
-        if (process.env.DEBUG === 'true') {
-          console.debug(`Batched write failed for ${filePath}: ${errorMsg}`);
-        }
+        logger.debug(`Batched write failed for ${filePath}`, { error });
       });
     } else {
       await super.atomicWrite(filePath, content, options);

@@ -9,6 +9,7 @@
 import { randomUUID } from 'node:crypto';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { getLogger } from '../logging/index.js';
 import { getScratchpad } from '../scratchpad/index.js';
 import { getStateManager, type StateManager } from '../state-manager/index.js';
 import type { ProjectState } from '../state-manager/types.js';
@@ -344,7 +345,11 @@ export class ApprovalWorkflow {
       await this.stateManager.transitionState(projectId, 'cancelled');
     } catch (error) {
       // If transition fails, just log - rejection is still recorded in history
-      console.warn(`Could not transition project ${projectId} to cancelled state:`, error);
+      const logger = getLogger();
+      logger.warn(`Could not transition project ${projectId} to cancelled state`, {
+        projectId,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 

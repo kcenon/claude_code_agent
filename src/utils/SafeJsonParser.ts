@@ -9,6 +9,7 @@
 
 import { z, ZodError } from 'zod';
 import * as fs from 'fs';
+import { getLogger } from '../logging/index.js';
 
 // ============================================================
 // Types
@@ -209,10 +210,11 @@ export function safeJsonParse<T>(
   // Step 3: Handle validation failure
   if (options?.fallback !== undefined) {
     if (options.logError === true) {
-      console.warn(
-        `[SafeJsonParser] Validation failed for ${schemaName}, using fallback:`,
-        result.error.issues
-      );
+      const logger = getLogger();
+      logger.warn(`Validation failed for ${schemaName}, using fallback`, {
+        schema: schemaName,
+        issues: result.error.issues,
+      });
     }
     return options.fallback;
   }

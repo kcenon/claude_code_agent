@@ -2,6 +2,18 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
+
+const mockLogger = {
+  info: vi.fn(),
+  warn: vi.fn(),
+  error: vi.fn(),
+  debug: vi.fn(),
+};
+
+vi.mock('../../src/logging/index.js', () => ({
+  getLogger: () => mockLogger,
+}));
+
 import {
   getProjectContext,
   initializeProject,
@@ -80,23 +92,21 @@ describe('ProjectContext', () => {
     });
 
     it('should warn when .ad-sdlc directory is missing (non-silent mode)', () => {
-      const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      mockLogger.warn.mockClear();
 
       initializeProject(tempDir);
 
-      expect(consoleSpy).toHaveBeenCalledWith(
+      expect(mockLogger.warn).toHaveBeenCalledWith(
         expect.stringContaining('.ad-sdlc directory not found')
       );
-      consoleSpy.mockRestore();
     });
 
     it('should not warn when silent option is true', () => {
-      const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      mockLogger.warn.mockClear();
 
       initializeProject(tempDir, { silent: true });
 
-      expect(consoleSpy).not.toHaveBeenCalled();
-      consoleSpy.mockRestore();
+      expect(mockLogger.warn).not.toHaveBeenCalled();
     });
 
     it('should throw when requireAdSdlc is true and .ad-sdlc is missing', () => {
@@ -255,15 +265,15 @@ describe('ProjectContext', () => {
 
   describe('CWD warning', () => {
     it('should warn when CWD differs from project root', () => {
-      const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      mockLogger.warn.mockClear();
 
       // Initialize with a path different from cwd
       initializeProject(tempDir);
 
-      expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('differs from project root')
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        expect.stringContaining('differs from project root'),
+        expect.any(Object)
       );
-      consoleSpy.mockRestore();
     });
   });
 });

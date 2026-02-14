@@ -297,12 +297,15 @@ export class ConsoleTransport extends BaseTransport {
   private writeToConsole(level: LogLevel, output: string): void {
     switch (level) {
       case 'ERROR':
+        // eslint-disable-next-line no-console
         console.error(output);
         break;
       case 'WARN':
+        // eslint-disable-next-line no-console
         console.warn(output);
         break;
       default:
+        // eslint-disable-next-line no-console
         console.log(output);
     }
   }

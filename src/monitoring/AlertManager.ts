@@ -384,10 +384,13 @@ export class AlertManager {
     const message = `[ALERT] ${icon} [${severityLabel}] ${event.name}: ${event.message}`;
 
     if (event.severity === 'critical' && !isResolved) {
+      // eslint-disable-next-line no-console -- Intentional console output for user-facing alerts
       console.error(message);
     } else if (event.severity === 'warning' && !isResolved) {
+      // eslint-disable-next-line no-console -- Intentional console output for user-facing alerts
       console.warn(message);
     } else {
+      // eslint-disable-next-line no-console -- Intentional console output for user-facing alerts
       console.log(message);
     }
   }
@@ -567,6 +570,7 @@ export class AlertManager {
 
     // Log escalation
     if (this.consoleAlerts) {
+      // eslint-disable-next-line no-console -- Intentional console output for user-facing alerts
       console.warn(
         `[ALERT] \u26A0 Alert '${alertName}' escalated to level ${String(newLevel)} (${escalation.escalateTo})`
       );
@@ -599,6 +603,7 @@ export class AlertManager {
     }
 
     if (this.consoleAlerts) {
+      // eslint-disable-next-line no-console -- Intentional console output for user-facing alerts
       console.log(`[ALERT] \u2713 Alert '${alertName}' acknowledged`);
     }
 
