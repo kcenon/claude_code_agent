@@ -27,7 +27,8 @@ import type {
 export class APISpecificationGenerator {
   /**
    * Extract all API endpoints from components
-   * @param components
+   * @param components - Array of component definitions to extract endpoints from
+   * @returns Array of API endpoints found in the components
    */
   public extractAPIEndpoints(components: readonly ComponentDefinition[]): APIEndpoint[] {
     const endpoints: APIEndpoint[] = [];
@@ -46,7 +47,8 @@ export class APISpecificationGenerator {
 
   /**
    * Generate API specification table in markdown format
-   * @param endpoints
+   * @param endpoints - Array of API endpoints to include in the table
+   * @returns Markdown-formatted table of API specifications
    */
   public generateSpecificationTable(endpoints: readonly APIEndpoint[]): string {
     const lines: string[] = [];
@@ -72,8 +74,9 @@ export class APISpecificationGenerator {
 
   /**
    * Generate detailed API documentation in markdown format
-   * @param endpoints
-   * @param interfaces
+   * @param endpoints - Array of API endpoints to document
+   * @param interfaces - Array of interface specifications to cross-reference
+   * @returns Comprehensive markdown documentation for all endpoints
    */
   public generateDetailedDocumentation(
     endpoints: readonly APIEndpoint[],
@@ -126,9 +129,10 @@ export class APISpecificationGenerator {
 
   /**
    * Generate OpenAPI specification (YAML format)
-   * @param endpoints
-   * @param title
-   * @param version
+   * @param endpoints - Array of API endpoints to include in the spec
+   * @param title - Title of the API specification
+   * @param version - Version number of the API
+   * @returns OpenAPI 3.0.3 specification in YAML format
    */
   public generateOpenAPISpec(
     endpoints: readonly APIEndpoint[],
@@ -158,7 +162,8 @@ export class APISpecificationGenerator {
 
   /**
    * Generate TypeScript interface definitions from API endpoints
-   * @param endpoints
+   * @param endpoints - Array of API endpoints to generate TypeScript interfaces for
+   * @returns TypeScript interface definitions as a string
    */
   public generateTypeScriptInterfaces(endpoints: readonly APIEndpoint[]): string {
     const lines: string[] = [];
@@ -212,7 +217,8 @@ export class APISpecificationGenerator {
 
   /**
    * Format request section for documentation
-   * @param endpoint
+   * @param endpoint - API endpoint containing request specifications
+   * @returns Array of markdown lines describing the request format
    */
   private formatRequestSection(endpoint: APIEndpoint): string[] {
     const lines: string[] = [];
@@ -273,7 +279,8 @@ export class APISpecificationGenerator {
 
   /**
    * Format response section for documentation
-   * @param endpoint
+   * @param endpoint - API endpoint containing response specifications
+   * @returns Array of markdown lines describing success and error responses
    */
   private formatResponseSection(endpoint: APIEndpoint): string[] {
     const lines: string[] = [];
@@ -308,7 +315,8 @@ export class APISpecificationGenerator {
 
   /**
    * Format body schema as JSON example
-   * @param body
+   * @param body - Body schema to format as example JSON
+   * @returns JSON string representation of the body example
    */
   private formatBodyExample(body: BodySchema): string {
     const example = body.example ?? this.generateExampleFromFields(body.fields);
@@ -317,7 +325,8 @@ export class APISpecificationGenerator {
 
   /**
    * Generate example object from field specifications
-   * @param fields
+   * @param fields - Array of field specifications to generate example values for
+   * @returns Example object with keys matching field names
    */
   private generateExampleFromFields(fields: readonly FieldSpec[]): Record<string, unknown> {
     const example: Record<string, unknown> = {};
@@ -331,7 +340,8 @@ export class APISpecificationGenerator {
 
   /**
    * Generate example value for a field
-   * @param field
+   * @param field - Field specification to generate example value for
+   * @returns Example value matching the field's data type
    */
   private generateFieldExample(field: FieldSpec): unknown {
     switch (field.type) {
@@ -361,7 +371,8 @@ export class APISpecificationGenerator {
 
   /**
    * Get example string value based on field name
-   * @param name
+   * @param name - Field name to generate contextual example for
+   * @returns Example string value appropriate for the field name
    */
   private getStringExample(name: string): string {
     const examples: Record<string, string> = {
@@ -385,7 +396,8 @@ export class APISpecificationGenerator {
 
   /**
    * Group endpoints by path
-   * @param endpoints
+   * @param endpoints - Array of API endpoints to group
+   * @returns Map of endpoint paths to arrays of endpoints sharing that path
    */
   private groupEndpointsByPath(endpoints: readonly APIEndpoint[]): Map<string, APIEndpoint[]> {
     const groups = new Map<string, APIEndpoint[]>();
@@ -401,7 +413,8 @@ export class APISpecificationGenerator {
 
   /**
    * Format OpenAPI operation
-   * @param endpoint
+   * @param endpoint - API endpoint to format as OpenAPI operation
+   * @returns Array of YAML lines representing the OpenAPI operation
    */
   private formatOpenAPIOperation(endpoint: APIEndpoint): string[] {
     const lines: string[] = [];
@@ -423,8 +436,9 @@ export class APISpecificationGenerator {
 
   /**
    * Derive interface name from endpoint
-   * @param endpoint
-   * @param suffix
+   * @param endpoint - API endpoint to derive interface name from
+   * @param suffix - Suffix to append to the interface name (e.g., 'Request', 'Response')
+   * @returns TypeScript interface name derived from endpoint path and method
    */
   private deriveInterfaceName(endpoint: APIEndpoint, suffix: string): string {
     const parts = endpoint.endpoint.split('/').filter((p) => p !== '' && !p.startsWith('{'));
@@ -437,9 +451,10 @@ export class APISpecificationGenerator {
 
   /**
    * Generate TypeScript interface from field specifications
-   * @param name
-   * @param fields
-   * @param indent
+   * @param name - Name of the TypeScript interface to generate
+   * @param fields - Array of field specifications to include in the interface
+   * @param indent - Indentation level for nested interfaces
+   * @returns TypeScript interface definition as a string
    */
   private generateTypeScriptInterface(
     name: string,
@@ -464,7 +479,8 @@ export class APISpecificationGenerator {
 
   /**
    * Convert field spec to TypeScript type
-   * @param field
+   * @param field - Field specification to convert
+   * @returns TypeScript type string for the field
    */
   private fieldToTypeScriptType(field: FieldSpec): string {
     return this.dataTypeToTypeScript(field.type, field.fields, field.items);
@@ -472,9 +488,10 @@ export class APISpecificationGenerator {
 
   /**
    * Convert data type to TypeScript type
-   * @param type
-   * @param nestedFields
-   * @param arrayItems
+   * @param type - Data type to convert
+   * @param nestedFields - Optional nested field specifications for object types
+   * @param arrayItems - Optional item type specification for array types
+   * @returns TypeScript type string representation
    */
   private dataTypeToTypeScript(
     type: DataType,

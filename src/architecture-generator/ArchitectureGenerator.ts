@@ -115,7 +115,8 @@ export class ArchitectureGenerator implements IAgent {
   }
 
   /**
-   *
+   * Initialize the architecture generator and its components
+   * @returns Promise that resolves when initialization is complete
    */
   public async initialize(): Promise<void> {
     if (this.initialized) return;
@@ -124,7 +125,8 @@ export class ArchitectureGenerator implements IAgent {
   }
 
   /**
-   *
+   * Dispose of the architecture generator and clean up resources
+   * @returns Promise that resolves when disposal is complete
    */
   public async dispose(): Promise<void> {
     await Promise.resolve();
@@ -133,8 +135,9 @@ export class ArchitectureGenerator implements IAgent {
 
   /**
    * Generate complete architecture design from SRS file
-   * @param srsPath
-   * @param options
+   * @param srsPath - Path to the SRS markdown file to process
+   * @param options - Optional generation options to override defaults
+   * @returns Complete architecture design including analysis, tech stack, diagrams, and directory structure
    */
   public generateFromFile(
     srsPath: string,
@@ -150,8 +153,9 @@ export class ArchitectureGenerator implements IAgent {
 
   /**
    * Generate complete architecture design from SRS content
-   * @param srsContent
-   * @param options
+   * @param srsContent - Raw SRS markdown content to process
+   * @param options - Optional generation options to override defaults
+   * @returns Complete architecture design including analysis, tech stack, diagrams, and directory structure
    */
   public generateFromContent(
     srsContent: string,
@@ -167,8 +171,9 @@ export class ArchitectureGenerator implements IAgent {
 
   /**
    * Generate complete architecture design from parsed SRS
-   * @param srs
-   * @param options
+   * @param srs - Pre-parsed SRS data structure to process
+   * @param options - Optional generation options to override defaults
+   * @returns Complete architecture design including analysis, tech stack, diagrams, and directory structure
    */
   public generateFromParsedSRS(
     srs: ParsedSRS,
@@ -229,9 +234,10 @@ export class ArchitectureGenerator implements IAgent {
 
   /**
    * Generate architecture and save to files
-   * @param srsPath
-   * @param projectId
-   * @param options
+   * @param srsPath - Path to the SRS markdown file to process
+   * @param projectId - Project identifier used for output filename
+   * @param options - Optional generation options to override defaults
+   * @returns Object containing the generated design and the output file path
    */
   public generateAndSave(
     srsPath: string,
@@ -246,8 +252,9 @@ export class ArchitectureGenerator implements IAgent {
 
   /**
    * Save architecture design to markdown file
-   * @param design
-   * @param projectId
+   * @param design - Complete architecture design to save
+   * @param projectId - Project identifier used for output filename
+   * @returns Path to the saved markdown file
    */
   public saveDesign(design: ArchitectureDesign, projectId: string): string {
     const markdown = this.designToMarkdown(design);
@@ -270,7 +277,8 @@ export class ArchitectureGenerator implements IAgent {
 
   /**
    * Convert architecture design to markdown format
-   * @param design
+   * @param design - Complete architecture design to convert
+   * @returns Formatted markdown document containing the complete architecture specification
    */
   public designToMarkdown(design: ArchitectureDesign): string {
     const lines: string[] = [];
@@ -423,7 +431,8 @@ export class ArchitectureGenerator implements IAgent {
 
   /**
    * Get SRS file path for a project
-   * @param projectId
+   * @param projectId - Project identifier to locate SRS file
+   * @returns Full path to the project's SRS markdown file in scratchpad
    */
   public getSRSPath(projectId: string): string {
     return path.join(this.config.scratchpadDir, projectId, 'srs.md');
@@ -431,7 +440,8 @@ export class ArchitectureGenerator implements IAgent {
 
   /**
    * Check if SRS exists for a project
-   * @param projectId
+   * @param projectId - Project identifier to check
+   * @returns True if the SRS file exists in scratchpad, false otherwise
    */
   public srsExists(projectId: string): boolean {
     return fs.existsSync(this.getSRSPath(projectId));
@@ -439,7 +449,7 @@ export class ArchitectureGenerator implements IAgent {
 
   /**
    * Log message if verbose mode is enabled
-   * @param message
+   * @param message - Log message to output
    */
   private log(message: string): void {
     const logger = getLogger();
@@ -453,7 +463,8 @@ export class ArchitectureGenerator implements IAgent {
 
 /**
  * Get singleton instance of ArchitectureGenerator
- * @param config
+ * @param config - Optional configuration to apply when creating new instance
+ * @returns Singleton instance of ArchitectureGenerator
  */
 export function getArchitectureGenerator(
   config?: ArchitectureGeneratorConfig

@@ -33,8 +33,9 @@ export class DiagramGenerator {
 
   /**
    * Generate all diagrams for the architecture
-   * @param srs
-   * @param analysis
+   * @param srs - Parsed SRS document containing features and requirements
+   * @param analysis - Architecture analysis results with pattern recommendations
+   * @returns Array of generated Mermaid diagrams
    */
   public generate(srs: ParsedSRS, analysis: ArchitectureAnalysis): MermaidDiagram[] {
     const diagrams: MermaidDiagram[] = [];
@@ -61,8 +62,9 @@ export class DiagramGenerator {
 
   /**
    * Generate architecture overview diagram
-   * @param srs
-   * @param analysis
+   * @param srs - Parsed SRS document containing features and requirements
+   * @param analysis - Architecture analysis results with pattern recommendations
+   * @returns Mermaid flowchart showing system architecture with layered components
    */
   public generateArchitectureOverview(
     srs: ParsedSRS,
@@ -94,8 +96,9 @@ export class DiagramGenerator {
 
   /**
    * Generate component interaction diagram
-   * @param srs
-   * @param analysis
+   * @param srs - Parsed SRS document containing features and requirements
+   * @param analysis - Architecture analysis results with pattern recommendations
+   * @returns Mermaid flowchart showing component interactions and communication patterns
    */
   public generateComponentInteraction(
     srs: ParsedSRS,
@@ -132,7 +135,8 @@ export class DiagramGenerator {
 
   /**
    * Generate deployment diagram
-   * @param analysis
+   * @param analysis - Architecture analysis results with pattern recommendations
+   * @returns Mermaid graph showing deployment architecture for the selected pattern
    */
   public generateDeploymentDiagram(analysis: ArchitectureAnalysis): MermaidDiagram {
     let code = 'graph TB\n';
@@ -156,8 +160,9 @@ export class DiagramGenerator {
 
   /**
    * Generate data flow diagram
-   * @param srs
-   * @param _analysis
+   * @param srs - Parsed SRS document containing features and requirements
+   * @param _analysis - Architecture analysis results (unused but kept for interface consistency)
+   * @returns Mermaid flowchart showing data flow from sources through processing to sinks
    */
   public generateDataFlowDiagram(srs: ParsedSRS, _analysis: ArchitectureAnalysis): MermaidDiagram {
     let code = 'flowchart LR\n';
@@ -205,8 +210,9 @@ export class DiagramGenerator {
 
   /**
    * Extract components from SRS features
-   * @param srs
-   * @param analysis
+   * @param srs - Parsed SRS document containing features and requirements
+   * @param analysis - Architecture analysis results with pattern recommendations
+   * @returns Array of diagram components with validated connections
    */
   private extractComponents(srs: ParsedSRS, analysis: ArchitectureAnalysis): DiagramComponent[] {
     const components: DiagramComponent[] = [];
@@ -231,7 +237,8 @@ export class DiagramGenerator {
 
   /**
    * Get default components for architecture pattern
-   * @param pattern
+   * @param pattern - Architecture pattern to get components for
+   * @returns Array of pattern-specific default components with predefined connections
    */
   private getPatternComponents(pattern: ArchitecturePattern): DiagramComponent[] {
     const patterns: Record<ArchitecturePattern, DiagramComponent[]> = {
@@ -476,8 +483,9 @@ export class DiagramGenerator {
 
   /**
    * Convert SRS feature to diagram component
-   * @param feature
-   * @param existingComponents
+   * @param feature - SRS feature to convert
+   * @param existingComponents - List of existing components to check for duplicates and create connections
+   * @returns Diagram component derived from feature, or null if component cannot be created
    */
   private featureToComponent(
     feature: SRSFeature,
@@ -519,7 +527,8 @@ export class DiagramGenerator {
 
   /**
    * Validate and fix component connections
-   * @param components
+   * @param components - Components to validate
+   * @returns Components with only valid connections (targets exist in component list)
    */
   private validateConnections(components: DiagramComponent[]): DiagramComponent[] {
     const componentIds = new Set(components.map((c) => c.id));
@@ -532,7 +541,8 @@ export class DiagramGenerator {
 
   /**
    * Group components by layer
-   * @param components
+   * @param components - Components to group
+   * @returns Map of layer names to arrays of components in each layer
    */
   private groupByLayer(components: DiagramComponent[]): Record<string, DiagramComponent[]> {
     const groups: Record<string, DiagramComponent[]> = {};
@@ -552,8 +562,9 @@ export class DiagramGenerator {
 
   /**
    * Generate Mermaid subgraph for a layer
-   * @param layerName
-   * @param components
+   * @param layerName - Name of the layer for the subgraph
+   * @param components - Components to include in the layer subgraph
+   * @returns Mermaid subgraph code with component nodes
    */
   private generateLayerSubgraph(layerName: string, components: DiagramComponent[]): string {
     let code = `    subgraph ${this.sanitizeId(layerName)}["${layerName} Layer"]\n`;
@@ -569,7 +580,8 @@ export class DiagramGenerator {
 
   /**
    * Generate connections between components
-   * @param components
+   * @param components - Components with connection definitions
+   * @returns Mermaid code for all component connections with appropriate arrows
    */
   private generateConnections(components: DiagramComponent[]): string {
     let code = '';
@@ -586,7 +598,8 @@ export class DiagramGenerator {
 
   /**
    * Get Mermaid shape for component type
-   * @param type
+   * @param type - Type of component (service, controller, repository, etc.)
+   * @returns Object with open and close shape delimiters for Mermaid syntax
    */
   private getComponentShape(type: DiagramComponent['type']): { open: string; close: string } {
     const shapes: Record<DiagramComponent['type'], { open: string; close: string }> = {
@@ -602,7 +615,8 @@ export class DiagramGenerator {
 
   /**
    * Get Mermaid arrow for connection type
-   * @param type
+   * @param type - Type of connection (sync, async, event, or data)
+   * @returns Mermaid arrow syntax appropriate for the connection type
    */
   private getConnectionArrow(type: 'sync' | 'async' | 'event' | 'data'): string {
     const arrows: Record<string, string> = {
@@ -617,7 +631,8 @@ export class DiagramGenerator {
 
   /**
    * Generate pattern-specific styling
-   * @param pattern
+   * @param pattern - Architecture pattern to generate styles for
+   * @returns Mermaid classDef styling code specific to the pattern
    */
   private generatePatternStyling(pattern: ArchitecturePattern): string {
     let code = '\n';
@@ -644,6 +659,7 @@ export class DiagramGenerator {
 
   /**
    * Generate microservices deployment diagram
+   * @returns Mermaid code for Kubernetes-based microservices deployment architecture
    */
   private generateMicroservicesDeployment(): string {
     return `    subgraph Cloud["Cloud Environment"]
@@ -672,6 +688,7 @@ export class DiagramGenerator {
 
   /**
    * Generate agent deployment diagram
+   * @returns Mermaid code for hierarchical multi-agent deployment architecture
    */
   private generateAgentDeployment(): string {
     return `    subgraph Host["Host Environment"]
@@ -699,6 +716,7 @@ export class DiagramGenerator {
 
   /**
    * Generate standard deployment diagram
+   * @returns Mermaid code for standard monolithic application deployment architecture
    */
   private generateStandardDeployment(): string {
     return `    subgraph Server["Application Server"]
@@ -721,7 +739,8 @@ export class DiagramGenerator {
 
   /**
    * Extract data flows from SRS
-   * @param srs
+   * @param srs - Parsed SRS document containing features and requirements
+   * @returns Object containing data sources, processors, sinks, and flow connections
    */
   private extractDataFlows(srs: ParsedSRS): {
     sources: { id: string; name: string }[];
@@ -765,7 +784,8 @@ export class DiagramGenerator {
 
   /**
    * Wrap code in Mermaid code block
-   * @param code
+   * @param code - Mermaid diagram code to wrap
+   * @returns Code wrapped in markdown mermaid code fence
    */
   private wrapInCodeBlock(code: string): string {
     return '```mermaid\n' + code + '```';
@@ -773,7 +793,8 @@ export class DiagramGenerator {
 
   /**
    * Sanitize ID for Mermaid
-   * @param name
+   * @param name - Raw name to sanitize
+   * @returns Sanitized identifier safe for use in Mermaid diagrams (alphanumeric and underscores only)
    */
   private sanitizeId(name: string): string {
     return name.replace(/[^a-zA-Z0-9]/g, '_');
@@ -781,8 +802,9 @@ export class DiagramGenerator {
 
   /**
    * Truncate name to max length
-   * @param name
-   * @param maxLength
+   * @param name - Name to truncate
+   * @param maxLength - Maximum allowed length for the name
+   * @returns Truncated name with ellipsis if exceeds max length, original name otherwise
    */
   private truncateName(name: string, maxLength: number): string {
     if (name.length <= maxLength) {
