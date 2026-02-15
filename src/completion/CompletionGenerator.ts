@@ -205,7 +205,8 @@ export class CompletionGenerator {
 
   /**
    * Generate completion script for the specified shell
-   * @param shell
+   * @param shell - The target shell type (bash, zsh, or fish)
+   * @returns Completion result containing the script and installation instructions
    */
   generate(shell: ShellType): CompletionResult {
     try {
@@ -246,6 +247,7 @@ export class CompletionGenerator {
 
   /**
    * Generate Bash completion script
+   * @returns The generated Bash completion script string
    */
   private generateBashCompletion(): string {
     const commandNames = this.commands.map((c) => c.name).join(' ');
@@ -315,6 +317,7 @@ complete -F _${this.programName.replace(/-/g, '_')}_completions ${this.programNa
 
   /**
    * Generate Zsh completion script
+   * @returns The generated Zsh completion script string
    */
   private generateZshCompletion(): string {
     const commandDescriptions = this.commands
@@ -377,6 +380,7 @@ _${this.programName.replace(/-/g, '_')} "$@"
 
   /**
    * Generate Fish completion script
+   * @returns The generated Fish completion script string
    */
   private generateFishCompletion(): string {
     const commandCompletions = this.commands
@@ -428,7 +432,8 @@ ${optionCompletions}
 
   /**
    * Get installation instructions for the specified shell
-   * @param shell
+   * @param shell - The target shell type to generate instructions for
+   * @returns Shell-specific installation instructions string
    */
   private getInstallationInstructions(shell: ShellType): string {
     const path = SHELL_COMPLETION_PATHS[shell];
@@ -471,6 +476,7 @@ ${optionCompletions}
 
   /**
    * Get list of supported shells
+   * @returns Read-only array of supported shell types
    */
   getSupportedShells(): readonly ShellType[] {
     return ['bash', 'zsh', 'fish'] as const;
@@ -478,6 +484,7 @@ ${optionCompletions}
 
   /**
    * Get command definitions (for testing/inspection)
+   * @returns Read-only array of CLI command definitions
    */
   getCommands(): readonly CommandDefinition[] {
     return this.commands;
@@ -489,6 +496,7 @@ let completionGeneratorInstance: CompletionGenerator | null = null;
 
 /**
  * Get or create the CompletionGenerator singleton
+ * @returns The shared CompletionGenerator instance
  */
 export function getCompletionGenerator(): CompletionGenerator {
   if (completionGeneratorInstance === null) {

@@ -50,7 +50,8 @@ const FIELD_DESCRIPTIONS: Readonly<Record<string, string>> = {
 
 /**
  * Get user-friendly description for a field path
- * @param path
+ * @param path - The dot-separated field path to look up
+ * @returns User-friendly description string for the field
  */
 function getFieldDescription(path: string): string {
   // Check for exact match
@@ -79,7 +80,8 @@ function getFieldDescription(path: string): string {
  * Format field path for user-friendly display
  *
  * Converts paths like ['pipeline', 'stages', 0, 'name'] to 'pipeline.stages[0].name'
- * @param pathParts
+ * @param pathParts - Array of property keys representing the path segments
+ * @returns Dot-notation string representation of the field path
  */
 function formatFieldPath(pathParts: PropertyKey[]): string {
   if (pathParts.length === 0) {
@@ -105,7 +107,8 @@ function formatFieldPath(pathParts: PropertyKey[]): string {
 
 /**
  * Detect input type as a string description
- * @param input
+ * @param input - The value whose type to detect
+ * @returns Human-readable type description (e.g., 'a list', 'an object', 'a number')
  */
 function detectInputType(input: unknown): string {
   if (input === undefined) return 'undefined';
@@ -120,8 +123,9 @@ function detectInputType(input: unknown): string {
 
 /**
  * Generate user-friendly error message based on Zod issue (Zod 4 API)
- * @param issue
- * @param path
+ * @param issue - The Zod validation issue to convert
+ * @param path - The formatted field path where the error occurred
+ * @returns Human-readable error message describing the validation failure
  */
 function generateUserFriendlyMessage(issue: ZodIssue, path: string): string {
   const fieldDesc = getFieldDescription(path);
@@ -211,7 +215,8 @@ function generateUserFriendlyMessage(issue: ZodIssue, path: string): string {
 
 /**
  * Format type description for user-friendly display
- * @param type
+ * @param type - The Zod type name to format (e.g., 'string', 'number', 'array')
+ * @returns Human-readable type description (e.g., 'a text value', 'a number', 'a list')
  */
 function formatTypeDescription(type: string): string {
   const typeDescriptions: Readonly<Record<string, string>> = {
@@ -234,8 +239,9 @@ function formatTypeDescription(type: string): string {
 
 /**
  * Generate suggestion for fixing the error (Zod 4 API)
- * @param issue
- * @param path
+ * @param issue - The Zod validation issue to generate a suggestion for
+ * @param path - The formatted field path where the error occurred
+ * @returns Actionable suggestion string, or undefined if no suggestion is available
  */
 function generateSuggestion(issue: ZodIssue, path: string): string | undefined {
   const code = issue.code;
@@ -294,7 +300,8 @@ function generateSuggestion(issue: ZodIssue, path: string): string | undefined {
  *
  * Converts Zod validation errors into human-readable messages with
  * helpful suggestions for fixing common issues.
- * @param error
+ * @param error - The ZodError containing one or more validation issues
+ * @returns Array of field errors with paths, messages, and optional suggestions
  */
 function formatZodError(error: ZodError): FieldError[] {
   return error.issues.map((issue) => {
@@ -316,8 +323,9 @@ function formatZodError(error: ZodError): FieldError[] {
 
 /**
  * Validate data against a Zod schema
- * @param schema
- * @param data
+ * @param schema - The Zod schema to validate against
+ * @param data - The raw data to validate
+ * @returns Validation result containing either the parsed data or field errors
  */
 function validate<T>(schema: z.ZodType<T>, data: unknown): ValidationResult<T> {
   const result = schema.safeParse(data);
@@ -433,6 +441,7 @@ export function assertAgentsConfig(data: unknown, filePath: string): AgentsConfi
 
 /**
  * Get current configuration schema version
+ * @returns The semantic version string of the config schema
  */
 export function getConfigSchemaVersion(): string {
   return CONFIG_SCHEMA_VERSION;
@@ -440,7 +449,8 @@ export function getConfigSchemaVersion(): string {
 
 /**
  * Check if configuration has compatible schema version
- * @param data
+ * @param data - The configuration data containing a version field
+ * @returns True if the data's major version matches the current schema version
  */
 export function isCompatibleConfigVersion(data: unknown): boolean {
   if (typeof data !== 'object' || data === null) {

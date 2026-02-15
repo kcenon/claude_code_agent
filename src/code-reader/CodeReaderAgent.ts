@@ -90,7 +90,8 @@ export class CodeReaderAgent {
 
   /**
    * Start a new code reading session
-   * @param projectId
+   * @param projectId - The unique identifier for the project to analyze
+   * @returns The newly created code reading session
    */
   public async startSession(projectId: string): Promise<CodeReadingSession> {
     await loadYaml();
@@ -114,6 +115,7 @@ export class CodeReaderAgent {
 
   /**
    * Read and analyze all source code in the project
+   * @returns The analysis result containing inventory, statistics, and warnings
    */
   public async analyzeCode(): Promise<CodeReadingResult> {
     const session = this.ensureSession();
@@ -243,6 +245,7 @@ export class CodeReaderAgent {
 
   /**
    * Get the current session
+   * @returns The active code reading session, or null if no session exists
    */
   public getSession(): CodeReadingSession | null {
     return this.session;
@@ -1018,7 +1021,8 @@ let globalCodeReaderAgent: CodeReaderAgent | null = null;
 
 /**
  * Get the global Code Reader Agent instance
- * @param config
+ * @param config - Optional configuration to use when creating a new instance
+ * @returns The singleton CodeReaderAgent instance
  */
 export function getCodeReaderAgent(config?: CodeReaderConfig): CodeReaderAgent {
   if (globalCodeReaderAgent === null) {

@@ -97,6 +97,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
 
   /**
    * Dispose of the orchestrator and release resources
+   * @returns A promise that resolves when all resources are released
    */
   dispose(): Promise<void> {
     for (const timer of this.stageTimers.values()) {
@@ -114,6 +115,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
 
   /**
    * Get the current active session
+   * @returns The active orchestrator session, or null if none exists
    */
   getSession(): OrchestratorSession | null {
     return this.session;
@@ -121,7 +123,8 @@ export class AdsdlcOrchestratorAgent implements IAgent {
 
   /**
    * Start a new orchestrator session
-   * @param request
+   * @param request - The pipeline request containing project directory and user intent
+   * @returns The newly created orchestrator session
    */
   async startSession(request: PipelineRequest): Promise<OrchestratorSession> {
     if (this.session?.status === 'running') {
@@ -153,8 +156,9 @@ export class AdsdlcOrchestratorAgent implements IAgent {
    *
    * This is the main entry point. It detects the mode and delegates
    * to the appropriate pipeline execution method.
-   * @param projectDir
-   * @param userRequest
+   * @param projectDir - The root directory of the target project
+   * @param userRequest - The user's natural language request describing the desired outcome
+   * @returns The pipeline execution result including stage outcomes and artifacts
    */
   async executePipeline(projectDir: string, userRequest: string): Promise<PipelineResult> {
     if (!this.initialized) {
@@ -221,8 +225,9 @@ export class AdsdlcOrchestratorAgent implements IAgent {
 
   /**
    * Coordinate multiple agents in sequence or parallel
-   * @param agents
-   * @param strategy
+   * @param agents - The list of agent invocations to execute
+   * @param strategy - The execution strategy ('sequential' or 'parallel')
+   * @returns The results from each agent invocation
    */
   async coordinateAgents(
     agents: readonly AgentInvocation[],
@@ -236,6 +241,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
 
   /**
    * Get the current pipeline status for monitoring
+   * @returns The current pipeline status and completed stage results
    */
   getStatus(): { status: PipelineStatus; stages: readonly StageResult[] } {
     if (!this.session) {
@@ -249,6 +255,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
 
   /**
    * Get a monitoring snapshot of the current pipeline execution
+   * @returns A snapshot of pipeline progress including stage counts and summaries
    */
   monitorPipeline(): PipelineMonitorSnapshot {
     if (!this.session) {
@@ -300,7 +307,8 @@ export class AdsdlcOrchestratorAgent implements IAgent {
 
   /**
    * Get stage definitions for the given pipeline mode
-   * @param mode
+   * @param mode - The pipeline mode (greenfield, enhancement, or import)
+   * @returns The ordered list of stage definitions for the specified mode
    */
   private getStagesForMode(mode: PipelineMode): readonly PipelineStageDefinition[] {
     switch (mode) {
@@ -315,8 +323,9 @@ export class AdsdlcOrchestratorAgent implements IAgent {
 
   /**
    * Execute pipeline stages sequentially, respecting dependencies
-   * @param stages
-   * @param session
+   * @param stages - The stage definitions to execute in dependency order
+   * @param session - The current orchestrator session providing execution context
+   * @returns The results from all executed, skipped, or failed stages
    */
   private async executeStages(
     stages: readonly PipelineStageDefinition[],
@@ -430,8 +439,9 @@ export class AdsdlcOrchestratorAgent implements IAgent {
 
   /**
    * Execute multiple stages in parallel
-   * @param stages
-   * @param session
+   * @param stages - The stage definitions to execute concurrently
+   * @param session - The current orchestrator session providing execution context
+   * @returns The results from all parallel stage executions
    */
   private async executeParallelStages(
     stages: readonly PipelineStageDefinition[],
@@ -443,8 +453,9 @@ export class AdsdlcOrchestratorAgent implements IAgent {
 
   /**
    * Execute a single stage with retry logic
-   * @param stage
-   * @param session
+   * @param stage - The stage definition to execute
+   * @param session - The current orchestrator session providing execution context
+   * @returns The stage result after all attempts (success or final failure)
    */
   private async executeStageWithRetry(
     stage: PipelineStageDefinition,
@@ -499,9 +510,10 @@ export class AdsdlcOrchestratorAgent implements IAgent {
    * This delegates to the appropriate agent based on stage.agentType.
    * The actual agent invocation is abstracted to support testing and
    * future integration with the AgentFactory.
-   * @param stage
-   * @param session
-   * @param timeoutMs
+   * @param stage - The stage definition identifying which agent to invoke
+   * @param session - The current orchestrator session providing execution context
+   * @param timeoutMs - The maximum time in milliseconds before the stage is aborted
+   * @returns The agent output string upon successful execution
    */
   private async executeStageAgent(
     stage: PipelineStageDefinition,
@@ -536,8 +548,9 @@ export class AdsdlcOrchestratorAgent implements IAgent {
    * Invoke an agent for a pipeline stage
    *
    * Override this method in tests or extend for AgentFactory integration.
-   * @param stage
-   * @param _session
+   * @param stage - The stage definition identifying which agent to invoke
+   * @param _session - The current orchestrator session (unused in base implementation)
+   * @returns The agent output string describing the execution result
    */
   protected invokeAgent(
     stage: PipelineStageDefinition,
@@ -554,7 +567,8 @@ export class AdsdlcOrchestratorAgent implements IAgent {
 
   /**
    * Execute agent invocations in parallel
-   * @param agents
+   * @param agents - The agent invocations to execute concurrently
+   * @returns The results from all parallel agent executions
    */
   private executeParallel(agents: readonly AgentInvocation[]): Promise<StageResult[]> {
     const promises = agents.map((invocation) => {
@@ -577,7 +591,8 @@ export class AdsdlcOrchestratorAgent implements IAgent {
 
   /**
    * Execute agent invocations sequentially
-   * @param agents
+   * @param agents - The agent invocations to execute one after another
+   * @returns The results from all sequential agent executions
    */
   private executeSequential(agents: readonly AgentInvocation[]): Promise<StageResult[]> {
     const results: StageResult[] = [];
@@ -610,8 +625,9 @@ export class AdsdlcOrchestratorAgent implements IAgent {
    * - manual: always requires user approval (returns denied for now)
    * - critical: approve unless prior stages have failures
    * - custom: delegate to overridable approveStage method
-   * @param stage
-   * @param priorResults
+   * @param stage - The stage awaiting approval
+   * @param priorResults - Results from previously executed stages used for decision-making
+   * @returns The approval decision indicating whether the stage may proceed
    */
   private async checkApprovalGate(
     stage: PipelineStageDefinition,
@@ -660,8 +676,9 @@ export class AdsdlcOrchestratorAgent implements IAgent {
    * Custom approval logic for 'custom' approval mode.
    *
    * Override this method to implement project-specific approval logic.
-   * @param _stage
-   * @param _priorResults
+   * @param _stage - The stage awaiting approval (unused in default implementation)
+   * @param _priorResults - Results from previously executed stages (unused in default implementation)
+   * @returns The approval decision (default: always approved)
    */
   protected approveStage(
     _stage: PipelineStageDefinition,
@@ -677,7 +694,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
 
   /**
    * Validate that a project directory exists and is accessible
-   * @param dir
+   * @param dir - The filesystem path to validate as a project directory
    */
   private async validateProjectDir(dir: string): Promise<void> {
     try {
@@ -696,9 +713,10 @@ export class AdsdlcOrchestratorAgent implements IAgent {
 
   /**
    * Check if all dependencies for a stage are satisfied
-   * @param stage
-   * @param completedStages
-   * @param results
+   * @param stage - The stage whose dependencies to check
+   * @param completedStages - The set of stage names that have completed successfully
+   * @param results - All stage results collected so far for failure detection
+   * @returns The list of dependency stage names that have failed or been skipped
    */
   private checkDependencies(
     stage: PipelineStageDefinition,
@@ -721,7 +739,8 @@ export class AdsdlcOrchestratorAgent implements IAgent {
 
   /**
    * Create a skipped stage result
-   * @param stage
+   * @param stage - The stage definition to create a skipped result for
+   * @returns A StageResult with 'skipped' status and zero duration
    */
   private createSkippedResult(stage: PipelineStageDefinition): StageResult {
     return {
@@ -742,7 +761,8 @@ export class AdsdlcOrchestratorAgent implements IAgent {
    * Uses graceful degradation: if some stages fail but others succeed,
    * the pipeline reports 'partial' instead of 'failed', allowing
    * downstream consumers to inspect individual stage results.
-   * @param stages
+   * @param stages - The stage results to evaluate for overall status
+   * @returns The aggregated pipeline status ('completed', 'partial', or 'failed')
    */
   private determineOverallStatus(stages: readonly StageResult[]): PipelineStatus {
     if (stages.length === 0) return 'completed';
@@ -759,7 +779,8 @@ export class AdsdlcOrchestratorAgent implements IAgent {
 
   /**
    * Get the timeout for a specific stage
-   * @param stageName
+   * @param stageName - The name of the stage to look up the timeout for
+   * @returns The timeout in milliseconds, using stage override or default
    */
   private getTimeoutForStage(stageName: StageName): number {
     const overrides = this.config.timeouts.overrides;
@@ -771,8 +792,8 @@ export class AdsdlcOrchestratorAgent implements IAgent {
 
   /**
    * Persist pipeline state to the scratchpad directory
-   * @param session
-   * @param result
+   * @param session - The orchestrator session containing scratchpad path and session ID
+   * @param result - The pipeline result to serialize and persist as YAML
    */
   private async persistState(session: OrchestratorSession, result: PipelineResult): Promise<void> {
     if (!yaml) return;
@@ -814,7 +835,8 @@ export class AdsdlcOrchestratorAgent implements IAgent {
    * Sleep for the specified duration
    *
    * Protected to allow test subclasses to override for fast execution.
-   * @param ms
+   * @param ms - The number of milliseconds to sleep
+   * @returns A promise that resolves after the specified delay
    */
   protected sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
@@ -829,7 +851,8 @@ let agentInstance: AdsdlcOrchestratorAgent | null = null;
 
 /**
  * Get or create the singleton AD-SDLC Orchestrator Agent instance
- * @param config
+ * @param config - Optional configuration to use when creating a new instance
+ * @returns The singleton orchestrator agent instance
  */
 export function getAdsdlcOrchestratorAgent(config?: OrchestratorConfig): AdsdlcOrchestratorAgent {
   if (agentInstance === null) {

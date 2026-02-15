@@ -93,7 +93,8 @@ export class StatePersistence implements IStatePersistence {
 
   /**
    * Get metadata file path
-   * @param projectId
+   * @param projectId - The unique identifier for the project
+   * @returns The absolute file path to the state metadata JSON file
    */
   getMetaPath(projectId: string): string {
     return path.join(this.scratchpad.getProjectPath('progress', projectId), STATE_META_FILE);
@@ -101,8 +102,9 @@ export class StatePersistence implements IStatePersistence {
 
   /**
    * Get section state file path
-   * @param section
-   * @param projectId
+   * @param section - The scratchpad section to get the state path for
+   * @param projectId - The unique identifier for the project
+   * @returns The absolute file path to the section state file
    */
   getSectionStatePath(section: ScratchpadSection, projectId: string): string {
     switch (section) {
@@ -290,11 +292,11 @@ export class StatePersistence implements IStatePersistence {
    */
 
   /**
-   *
-   * @param section
-   * @param projectId
-   * @param data
-   * @param _options
+   * @param section - The scratchpad section to write state to
+   * @param projectId - The unique identifier for the project
+   * @param data - The state data to persist
+   * @param _options - Update options (unused, kept for interface compatibility)
+   * @returns An object containing the previous value and whether this was a create operation
    */
   async setState<T extends object>(
     section: ScratchpadSection,

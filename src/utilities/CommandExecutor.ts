@@ -69,8 +69,9 @@ export class ShellCommandExecutor implements ICommandExecutor {
 
   /**
    * Execute a command using the secure CommandSanitizer
-   * @param command
-   * @param options
+   * @param command - The shell command string to execute
+   * @param options - Execution options for cwd, timeout, and buffer size
+   * @returns Promise resolving to the command execution result
    */
   public async execute(command: string, options?: ExecuteOptions): Promise<ExecutionResult> {
     const sanitizer = getCommandSanitizer();
@@ -148,6 +149,7 @@ export class MockCommandExecutor implements ICommandExecutor {
 
   /**
    * Get list of all executed commands (for assertions)
+   * @returns Read-only array of recorded command executions
    */
   public getExecutedCommands(): ReadonlyArray<{ command: string; options?: ExecuteOptions }> {
     return this.executedCommands;
@@ -185,8 +187,9 @@ export class MockCommandExecutor implements ICommandExecutor {
 
   /**
    * Execute a mocked command
-   * @param command
-   * @param options
+   * @param command - The shell command string to look up in mock responses
+   * @param options - Execution options (recorded but not used for mock behavior)
+   * @returns Promise resolving to the matched or default mock result
    */
   public execute(command: string, options?: ExecuteOptions): Promise<ExecutionResult> {
     // Only add options if defined to maintain exactOptionalPropertyTypes compatibility
@@ -221,6 +224,7 @@ let defaultExecutor: ICommandExecutor | null = null;
 
 /**
  * Get the default command executor singleton
+ * @returns The current command executor instance, creating one if needed
  */
 export function getCommandExecutor(): ICommandExecutor {
   if (defaultExecutor === null) {
