@@ -20,6 +20,7 @@ export type {
   PipelineMode,
   ExecutionStrategy,
   ApprovalMode,
+  ResumeMode,
   // Stage name types
   StageName,
   GreenfieldStageName,
