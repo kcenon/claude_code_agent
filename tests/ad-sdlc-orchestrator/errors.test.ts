@@ -16,6 +16,8 @@ import {
   PipelineFailedError,
   StatePersistenceError,
   InvalidPipelineStatusError,
+  SessionNotFoundError,
+  SessionCorruptedError,
 } from '../../src/ad-sdlc-orchestrator/errors.js';
 
 describe('OrchestratorError', () => {
@@ -119,6 +121,26 @@ describe('StatePersistenceError', () => {
   });
 });
 
+describe('SessionNotFoundError', () => {
+  it('should include session ID', () => {
+    const error = new SessionNotFoundError('sess-abc');
+    expect(error.message).toContain('sess-abc');
+    expect(error.sessionId).toBe('sess-abc');
+    expect(error.name).toBe('SessionNotFoundError');
+  });
+});
+
+describe('SessionCorruptedError', () => {
+  it('should include session ID and reason', () => {
+    const error = new SessionCorruptedError('sess-abc', 'invalid YAML');
+    expect(error.message).toContain('sess-abc');
+    expect(error.message).toContain('invalid YAML');
+    expect(error.sessionId).toBe('sess-abc');
+    expect(error.reason).toBe('invalid YAML');
+    expect(error.name).toBe('SessionCorruptedError');
+  });
+});
+
 describe('InvalidPipelineStatusError', () => {
   it('should include operation and current status', () => {
     const error = new InvalidPipelineStatusError('resume', 'running');
@@ -141,6 +163,8 @@ describe('error inheritance', () => {
     expect(new PipelineFailedError('id', 'greenfield', [])).toBeInstanceOf(OrchestratorError);
     expect(new StatePersistenceError('path', 'reason')).toBeInstanceOf(OrchestratorError);
     expect(new InvalidPipelineStatusError('op', 'failed')).toBeInstanceOf(OrchestratorError);
+    expect(new SessionNotFoundError('id')).toBeInstanceOf(OrchestratorError);
+    expect(new SessionCorruptedError('id', 'reason')).toBeInstanceOf(OrchestratorError);
   });
 
   it('all errors should extend Error', () => {

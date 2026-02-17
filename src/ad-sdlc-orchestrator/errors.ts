@@ -150,6 +150,34 @@ export class StatePersistenceError extends OrchestratorError {
 }
 
 /**
+ * Error thrown when a prior session cannot be found for resume
+ */
+export class SessionNotFoundError extends OrchestratorError {
+  public readonly sessionId: string;
+
+  constructor(sessionId: string) {
+    super(`Session "${sessionId}" not found in pipeline state directory`);
+    this.name = 'SessionNotFoundError';
+    this.sessionId = sessionId;
+  }
+}
+
+/**
+ * Error thrown when a session YAML file is corrupted or malformed
+ */
+export class SessionCorruptedError extends OrchestratorError {
+  public readonly sessionId: string;
+  public readonly reason: string;
+
+  constructor(sessionId: string, reason: string) {
+    super(`Session "${sessionId}" is corrupted: ${reason}`);
+    this.name = 'SessionCorruptedError';
+    this.sessionId = sessionId;
+    this.reason = reason;
+  }
+}
+
+/**
  * Error thrown when pipeline status is invalid for the requested operation
  */
 export class InvalidPipelineStatusError extends OrchestratorError {

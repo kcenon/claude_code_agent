@@ -2604,6 +2604,21 @@ interface IADSDLCOrchestrator {
     agents: AgentInvocation[],
     strategy: 'sequential' | 'parallel'
   ): Promise<AgentResult[]>;
+
+  /**
+   * Load a prior session from persisted YAML state
+   * @param sessionId Session ID to load
+   * @param projectDir Project root directory
+   * @returns Reconstructed session or null if not found
+   */
+  loadPriorSession(sessionId: string, projectDir: string): Promise<OrchestratorSession | null>;
+
+  /**
+   * Find the most recent session for a project directory
+   * @param projectDir Project root directory
+   * @returns Most recent session ID or null
+   */
+  findLatestSession(projectDir: string): Promise<string | null>;
 }
 
 interface PipelineResult {

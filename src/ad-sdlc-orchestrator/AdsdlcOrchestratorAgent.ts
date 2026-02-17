@@ -40,6 +40,7 @@ import {
   InvalidProjectDirError,
   PipelineFailedError,
   PipelineInProgressError,
+  SessionCorruptedError,
   StageTimeoutError,
   StatePersistenceError,
 } from './errors.js';
@@ -132,6 +133,16 @@ export class AdsdlcOrchestratorAgent implements IAgent {
     }
 
     await this.validateProjectDir(request.projectDir);
+
+    // Resume from prior session if requested
+    if (request.resumeSessionId !== undefined && request.resumeSessionId !== '') {
+      const prior = await this.loadPriorSession(request.resumeSessionId, request.projectDir);
+      if (prior) {
+        this.session = { ...prior, status: 'running' };
+        this.abortController = new AbortController();
+        return this.session;
+      }
+    }
 
     const mode = request.overrideMode ?? 'greenfield';
     const scratchpadDir = path.resolve(request.projectDir, this.config.scratchpadDir);
@@ -806,6 +817,9 @@ export class AdsdlcOrchestratorAgent implements IAgent {
       const content = yaml.dump({
         pipelineId: result.pipelineId,
         projectId: result.projectId,
+        projectDir: session.projectDir,
+        userRequest: session.userRequest,
+        startedAt: session.startedAt,
         mode: result.mode,
         overallStatus: result.overallStatus,
         durationMs: result.durationMs,
@@ -818,7 +832,10 @@ export class AdsdlcOrchestratorAgent implements IAgent {
           agentType: s.agentType,
           status: s.status,
           durationMs: s.durationMs,
+          output: s.output,
+          artifacts: s.artifacts,
           error: s.error,
+          retryCount: s.retryCount,
         })),
       });
 
@@ -829,6 +846,124 @@ export class AdsdlcOrchestratorAgent implements IAgent {
         error instanceof Error ? error.message : String(error)
       );
     }
+  }
+
+  /**
+   * Load a prior session from persisted YAML state
+   * @param sessionId - The session ID to load
+   * @param projectDir - The project root directory for resolving scratchpad path
+   * @returns The reconstructed session, or null if not found
+   */
+  async loadPriorSession(
+    sessionId: string,
+    projectDir: string
+  ): Promise<OrchestratorSession | null> {
+    if (!yaml) {
+      await loadYaml();
+    }
+
+    const stateDir = path.join(path.resolve(projectDir, this.config.scratchpadDir), 'pipeline');
+    const statePath = path.join(stateDir, `${sessionId}.yaml`);
+
+    let content: string;
+    try {
+      content = await fs.readFile(statePath, 'utf-8');
+    } catch {
+      return null;
+    }
+
+    let data: Record<string, unknown>;
+    try {
+      if (yaml === null) {
+        throw new SessionCorruptedError(sessionId, 'YAML parser not loaded');
+      }
+      const parsed = yaml.load(content);
+      if (typeof parsed !== 'object' || parsed === null) {
+        throw new SessionCorruptedError(sessionId, 'YAML did not parse to an object');
+      }
+      data = parsed as Record<string, unknown>;
+    } catch (error) {
+      if (error instanceof SessionCorruptedError) throw error;
+      throw new SessionCorruptedError(
+        sessionId,
+        error instanceof Error ? error.message : 'Failed to parse YAML'
+      );
+    }
+
+    if (typeof data['mode'] !== 'string') {
+      throw new SessionCorruptedError(sessionId, 'Missing or invalid "mode" field');
+    }
+
+    const stages = Array.isArray(data['stages']) ? data['stages'] : [];
+    const stageResults: StageResult[] = stages.map((s: Record<string, unknown>) => ({
+      name: (s['name'] ?? '') as StageName,
+      agentType: (s['agentType'] ?? '') as string,
+      status: (s['status'] ?? 'failed') as PipelineStageStatus,
+      durationMs: (s['durationMs'] ?? 0) as number,
+      output: (s['output'] ?? '') as string,
+      artifacts: Array.isArray(s['artifacts']) ? (s['artifacts'] as string[]) : [],
+      error: (s['error'] ?? null) as string | null,
+      retryCount: (s['retryCount'] ?? 0) as number,
+    }));
+
+    const completedStageNames = stageResults
+      .filter((s) => s.status === 'completed')
+      .map((s) => s.name);
+
+    return {
+      sessionId: (data['pipelineId'] ?? sessionId) as string,
+      projectDir: (data['projectDir'] ?? projectDir) as string,
+      userRequest: (data['userRequest'] ?? '') as string,
+      mode: data['mode'] as PipelineMode,
+      startedAt: (data['startedAt'] ?? new Date().toISOString()) as string,
+      status: (data['overallStatus'] ?? 'partial') as PipelineStatus,
+      stageResults,
+      scratchpadDir: path.resolve(projectDir, this.config.scratchpadDir),
+      resumedFrom: sessionId,
+      preCompletedStages: completedStageNames,
+    };
+  }
+
+  /**
+   * Find the most recent session for a project directory
+   * @param projectDir - The project root directory
+   * @returns The most recent session ID, or null if none found
+   */
+  async findLatestSession(projectDir: string): Promise<string | null> {
+    if (!yaml) {
+      await loadYaml();
+    }
+
+    const stateDir = path.join(path.resolve(projectDir, this.config.scratchpadDir), 'pipeline');
+
+    let files: string[];
+    try {
+      files = await fs.readdir(stateDir);
+    } catch {
+      return null;
+    }
+
+    const yamlFiles = files.filter((f) => f.endsWith('.yaml'));
+    if (yamlFiles.length === 0) return null;
+
+    // Find the most recently modified YAML file
+    let latestFile: string | null = null;
+    let latestMtime = 0;
+
+    for (const file of yamlFiles) {
+      try {
+        const stat = await fs.stat(path.join(stateDir, file));
+        if (stat.mtimeMs > latestMtime) {
+          latestMtime = stat.mtimeMs;
+          latestFile = file;
+        }
+      } catch {
+        continue;
+      }
+    }
+
+    if (latestFile === null) return null;
+    return latestFile.replace(/\.yaml$/, '');
   }
 
   /**

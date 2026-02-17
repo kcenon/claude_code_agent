@@ -2593,6 +2593,21 @@ interface IADSDLCOrchestrator {
     agents: AgentInvocation[],
     strategy: 'sequential' | 'parallel'
   ): Promise<AgentResult[]>;
+
+  /**
+   * 이전 세션을 영속화된 YAML 상태에서 로드
+   * @param sessionId 로드할 세션 ID
+   * @param projectDir 프로젝트 루트 디렉터리
+   * @returns 재구성된 세션 또는 null
+   */
+  loadPriorSession(sessionId: string, projectDir: string): Promise<OrchestratorSession | null>;
+
+  /**
+   * 프로젝트 디렉터리의 가장 최근 세션 검색
+   * @param projectDir 프로젝트 루트 디렉터리
+   * @returns 가장 최근 세션 ID 또는 null
+   */
+  findLatestSession(projectDir: string): Promise<string | null>;
 }
 
 interface PipelineResult {

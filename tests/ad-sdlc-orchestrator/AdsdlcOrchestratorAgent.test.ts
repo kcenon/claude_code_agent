@@ -17,6 +17,7 @@ import {
   InvalidProjectDirError,
   PipelineInProgressError,
   PipelineFailedError,
+  SessionCorruptedError,
 } from '../../src/ad-sdlc-orchestrator/errors.js';
 import {
   DEFAULT_ORCHESTRATOR_CONFIG,
@@ -613,6 +614,171 @@ describe('AdsdlcOrchestratorAgent', () => {
       expect(result.warnings.length).toBeGreaterThan(0);
       expect(result.warnings[0]).toContain('partially');
       await partialAgent.dispose();
+    });
+  });
+
+  describe('loadPriorSession', () => {
+    it('should return null when session file does not exist', async () => {
+      await agent.initialize();
+      const result = await agent.loadPriorSession('nonexistent-id', tempDir);
+      expect(result).toBeNull();
+    });
+
+    it('should load a valid session from YAML', async () => {
+      await agent.initialize();
+
+      // First run a pipeline to persist state
+      const result = await agent.executePipeline(tempDir, 'Build a web app');
+      const sessionId = result.pipelineId;
+
+      // Create a new agent and load the prior session
+      const agent2 = new AdsdlcOrchestratorAgent();
+      await agent2.initialize();
+      const loaded = await agent2.loadPriorSession(sessionId, tempDir);
+
+      expect(loaded).not.toBeNull();
+      expect(loaded!.sessionId).toBe(sessionId);
+      expect(loaded!.mode).toBe('greenfield');
+      expect(loaded!.projectDir).toBe(tempDir);
+      expect(loaded!.resumedFrom).toBe(sessionId);
+      expect(loaded!.preCompletedStages).toBeDefined();
+      expect(loaded!.preCompletedStages!.length).toBeGreaterThan(0);
+      expect(loaded!.stageResults.length).toBeGreaterThan(0);
+
+      await agent2.dispose();
+    });
+
+    it('should throw SessionCorruptedError for malformed YAML', async () => {
+      await agent.initialize();
+
+      // Write a corrupt YAML file
+      const stateDir = path.join(tempDir, '.ad-sdlc', 'scratchpad', 'pipeline');
+      await fs.mkdir(stateDir, { recursive: true });
+      await fs.writeFile(
+        path.join(stateDir, 'corrupt-session.yaml'),
+        '{{invalid yaml content',
+        'utf-8'
+      );
+
+      await expect(
+        agent.loadPriorSession('corrupt-session', tempDir)
+      ).rejects.toThrow(SessionCorruptedError);
+    });
+
+    it('should throw SessionCorruptedError when mode is missing', async () => {
+      await agent.initialize();
+
+      const stateDir = path.join(tempDir, '.ad-sdlc', 'scratchpad', 'pipeline');
+      await fs.mkdir(stateDir, { recursive: true });
+      await fs.writeFile(
+        path.join(stateDir, 'no-mode.yaml'),
+        'pipelineId: test\nstages: []\n',
+        'utf-8'
+      );
+
+      await expect(
+        agent.loadPriorSession('no-mode', tempDir)
+      ).rejects.toThrow(SessionCorruptedError);
+    });
+
+    it('should only include completed stages in preCompletedStages', async () => {
+      await agent.initialize();
+
+      // Create a YAML with mixed stage statuses
+      const stateDir = path.join(tempDir, '.ad-sdlc', 'scratchpad', 'pipeline');
+      await fs.mkdir(stateDir, { recursive: true });
+
+      const yaml = await import('js-yaml');
+      const content = yaml.dump({
+        pipelineId: 'mixed-session',
+        projectDir: tempDir,
+        userRequest: 'test',
+        startedAt: new Date().toISOString(),
+        mode: 'import',
+        overallStatus: 'partial',
+        stages: [
+          { name: 'issue_reading', agentType: 'issue-reader', status: 'completed', durationMs: 100, error: null, retryCount: 0 },
+          { name: 'orchestration', agentType: 'controller', status: 'completed', durationMs: 200, error: null, retryCount: 0 },
+          { name: 'implementation', agentType: 'worker', status: 'failed', durationMs: 300, error: 'timeout', retryCount: 3 },
+          { name: 'review', agentType: 'pr-reviewer', status: 'skipped', durationMs: 0, error: null, retryCount: 0 },
+        ],
+      });
+      await fs.writeFile(path.join(stateDir, 'mixed-session.yaml'), content, 'utf-8');
+
+      const loaded = await agent.loadPriorSession('mixed-session', tempDir);
+      expect(loaded).not.toBeNull();
+      expect(loaded!.preCompletedStages).toEqual(['issue_reading', 'orchestration']);
+    });
+  });
+
+  describe('findLatestSession', () => {
+    it('should return null when no sessions exist', async () => {
+      await agent.initialize();
+      const result = await agent.findLatestSession(tempDir);
+      expect(result).toBeNull();
+    });
+
+    it('should return null when pipeline directory does not exist', async () => {
+      await agent.initialize();
+      const result = await agent.findLatestSession('/nonexistent/path/12345');
+      expect(result).toBeNull();
+    });
+
+    it('should return the most recent session ID', async () => {
+      await agent.initialize();
+
+      // Run a pipeline to create a session file
+      const result = await agent.executePipeline(tempDir, 'test');
+      const sessionId = result.pipelineId;
+
+      const agent2 = new AdsdlcOrchestratorAgent();
+      await agent2.initialize();
+      const latestId = await agent2.findLatestSession(tempDir);
+
+      expect(latestId).toBe(sessionId);
+      await agent2.dispose();
+    });
+  });
+
+  describe('startSession with resume', () => {
+    it('should resume from prior session when resumeSessionId is provided', async () => {
+      await agent.initialize();
+
+      // Run a pipeline to persist state
+      const result = await agent.executePipeline(tempDir, 'Build a web app');
+      const sessionId = result.pipelineId;
+
+      // Dispose old agent, create new one
+      await agent.dispose();
+      const agent2 = new AdsdlcOrchestratorAgent();
+      await agent2.initialize();
+
+      const session = await agent2.startSession({
+        projectDir: tempDir,
+        userRequest: 'Continue build',
+        resumeSessionId: sessionId,
+      });
+
+      expect(session.resumedFrom).toBe(sessionId);
+      expect(session.status).toBe('running');
+      expect(session.preCompletedStages).toBeDefined();
+      expect(session.preCompletedStages!.length).toBeGreaterThan(0);
+
+      await agent2.dispose();
+    });
+
+    it('should create fresh session when resumeSessionId points to nonexistent session', async () => {
+      await agent.initialize();
+
+      const session = await agent.startSession({
+        projectDir: tempDir,
+        userRequest: 'test',
+        resumeSessionId: 'nonexistent-session-id',
+      });
+
+      // Should fall through to fresh session creation
+      expect(session.resumedFrom).toBeUndefined();
+      expect(session.status).toBe('pending');
     });
   });
 });
