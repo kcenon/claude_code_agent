@@ -862,10 +862,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
       await loadYaml();
     }
 
-    const stateDir = path.join(
-      path.resolve(projectDir, this.config.scratchpadDir),
-      'pipeline'
-    );
+    const stateDir = path.join(path.resolve(projectDir, this.config.scratchpadDir), 'pipeline');
     const statePath = path.join(stateDir, `${sessionId}.yaml`);
 
     let content: string;
@@ -898,18 +895,16 @@ export class AdsdlcOrchestratorAgent implements IAgent {
     }
 
     const stages = Array.isArray(data['stages']) ? data['stages'] : [];
-    const stageResults: StageResult[] = stages.map(
-      (s: Record<string, unknown>) => ({
-        name: (s['name'] ?? '') as StageName,
-        agentType: (s['agentType'] ?? '') as string,
-        status: (s['status'] ?? 'failed') as PipelineStageStatus,
-        durationMs: (s['durationMs'] ?? 0) as number,
-        output: (s['output'] ?? '') as string,
-        artifacts: Array.isArray(s['artifacts']) ? (s['artifacts'] as string[]) : [],
-        error: (s['error'] ?? null) as string | null,
-        retryCount: (s['retryCount'] ?? 0) as number,
-      })
-    );
+    const stageResults: StageResult[] = stages.map((s: Record<string, unknown>) => ({
+      name: (s['name'] ?? '') as StageName,
+      agentType: (s['agentType'] ?? '') as string,
+      status: (s['status'] ?? 'failed') as PipelineStageStatus,
+      durationMs: (s['durationMs'] ?? 0) as number,
+      output: (s['output'] ?? '') as string,
+      artifacts: Array.isArray(s['artifacts']) ? (s['artifacts'] as string[]) : [],
+      error: (s['error'] ?? null) as string | null,
+      retryCount: (s['retryCount'] ?? 0) as number,
+    }));
 
     const completedStageNames = stageResults
       .filter((s) => s.status === 'completed')
@@ -939,10 +934,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
       await loadYaml();
     }
 
-    const stateDir = path.join(
-      path.resolve(projectDir, this.config.scratchpadDir),
-      'pipeline'
-    );
+    const stateDir = path.join(path.resolve(projectDir, this.config.scratchpadDir), 'pipeline');
 
     let files: string[];
     try {
