@@ -68,4 +68,6 @@ export {
   PipelineFailedError,
   StatePersistenceError,
   InvalidPipelineStatusError,
+  SessionNotFoundError,
+  SessionCorruptedError,
 } from './errors.js';
