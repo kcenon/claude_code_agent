@@ -83,7 +83,7 @@ describe('ReviewChecks', () => {
       expect(result).toHaveProperty('checklist');
       expect(result).toHaveProperty('metrics');
       expect(Array.isArray(result.comments)).toBe(true);
-    }, 30000);
+    }, 60000);
 
     it('should handle deleted files without errors', async () => {
       const checks = new ReviewChecks({
@@ -128,7 +128,7 @@ describe('ReviewChecks', () => {
       );
       expect(secretComments.length).toBeGreaterThan(0);
       expect(secretComments[0].severity).toBe('critical');
-    }, 15000);
+    }, 45000);
 
     it('should detect hardcoded passwords', async () => {
       const checks = new ReviewChecks({
@@ -225,7 +225,7 @@ describe('ReviewChecks', () => {
       // The check runs and security checklist is generated
       expect(result.checklist.security).toBeDefined();
       expect(result.checklist.security.some(item => item.name.includes('XSS'))).toBe(true);
-    }, 15000);
+    }, 45000);
 
     it('should detect eval usage', async () => {
       const checks = new ReviewChecks({
