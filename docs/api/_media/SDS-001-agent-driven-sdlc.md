@@ -2615,6 +2615,39 @@ interface StageResult {
   output: string;
   artifacts: string[];
 }
+
+/** Resume mode for pipeline execution */
+type ResumeMode = 'fresh' | 'resume' | 'start_from';
+
+interface PipelineRequest {
+  projectDir: string;
+  userRequest: string;
+  overrideMode?: PipelineMode;
+  projectId?: string;
+  /** Resume mode: fresh (default), resume prior session, or start from stage */
+  resumeMode?: ResumeMode;
+  /** Session ID to resume from (required when resumeMode is 'resume') */
+  resumeSessionId?: string;
+  /** Stage to start from (required when resumeMode is 'start_from') */
+  startFromStage?: StageName;
+  /** Stages treated as already completed */
+  preCompletedStages?: readonly StageName[];
+}
+
+interface OrchestratorSession {
+  sessionId: string;
+  projectDir: string;
+  userRequest: string;
+  mode: PipelineMode;
+  startedAt: string;
+  status: PipelineStatus;
+  stageResults: StageResult[];
+  scratchpadDir: string;
+  /** Session ID that this session was resumed from */
+  resumedFrom?: string;
+  /** Stages treated as pre-completed when resuming */
+  preCompletedStages?: StageName[];
+}
 ```
 
 #### 3.12.5 CMP-026: Analysis Orchestrator Agent

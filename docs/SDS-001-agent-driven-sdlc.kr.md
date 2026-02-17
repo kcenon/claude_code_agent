@@ -2620,6 +2620,39 @@ interface StageResult {
   output: string;
   artifacts: string[];
 }
+
+/** 파이프라인 실행 재개 모드 */
+type ResumeMode = 'fresh' | 'resume' | 'start_from';
+
+interface PipelineRequest {
+  projectDir: string;
+  userRequest: string;
+  overrideMode?: PipelineMode;
+  projectId?: string;
+  /** 재개 모드: fresh (기본), 이전 세션 재개, 또는 특정 단계부터 시작 */
+  resumeMode?: ResumeMode;
+  /** 재개할 세션 ID (resumeMode가 'resume'일 때 필수) */
+  resumeSessionId?: string;
+  /** 시작할 단계 (resumeMode가 'start_from'일 때 필수) */
+  startFromStage?: StageName;
+  /** 이미 완료된 것으로 간주할 단계 목록 */
+  preCompletedStages?: readonly StageName[];
+}
+
+interface OrchestratorSession {
+  sessionId: string;
+  projectDir: string;
+  userRequest: string;
+  mode: PipelineMode;
+  startedAt: string;
+  status: PipelineStatus;
+  stageResults: StageResult[];
+  scratchpadDir: string;
+  /** 이 세션이 재개된 원본 세션 ID */
+  resumedFrom?: string;
+  /** 재개 시 사전 완료된 단계 목록 */
+  preCompletedStages?: StageName[];
+}
 ```
 
 #### 3.12.5 CMP-026: Analysis Orchestrator Agent
