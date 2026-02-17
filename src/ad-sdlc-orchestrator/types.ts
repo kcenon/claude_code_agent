@@ -76,6 +76,15 @@ export type ApprovalMode = 'auto' | 'manual' | 'critical' | 'custom';
 export type ExecutionStrategy = 'sequential' | 'parallel';
 
 /**
+ * Resume mode for pipeline execution
+ *
+ * - 'fresh': Start a new pipeline from scratch (default behavior)
+ * - 'resume': Continue from the last completed stage of a prior session
+ * - 'start_from': Begin at a specific stage, marking earlier stages as pre-completed
+ */
+export type ResumeMode = 'fresh' | 'resume' | 'start_from';
+
+/**
  * Pipeline stage definition
  */
 export interface PipelineStageDefinition {
@@ -171,6 +180,10 @@ export interface OrchestratorSession {
   readonly stageResults: readonly StageResult[];
   /** Scratchpad directory for intermediate files */
   readonly scratchpadDir: string;
+  /** Session ID that this session was resumed from (if any) */
+  readonly resumedFrom?: string;
+  /** Stages treated as pre-completed when resuming */
+  readonly preCompletedStages?: readonly StageName[];
 }
 
 /**
@@ -185,6 +198,14 @@ export interface PipelineRequest {
   readonly overrideMode?: PipelineMode;
   /** Project identifier (optional, auto-generated if omitted) */
   readonly projectId?: string;
+  /** Resume mode: fresh (default), resume from prior session, or start from specific stage */
+  readonly resumeMode?: ResumeMode;
+  /** Session ID to resume from (required when resumeMode is 'resume') */
+  readonly resumeSessionId?: string;
+  /** Stage to start from (required when resumeMode is 'start_from') */
+  readonly startFromStage?: StageName;
+  /** Stages to treat as already completed (auto-populated from prior session or computed from startFromStage) */
+  readonly preCompletedStages?: readonly StageName[];
 }
 
 /**
