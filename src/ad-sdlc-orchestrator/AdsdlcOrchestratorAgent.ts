@@ -135,7 +135,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
     await this.validateProjectDir(request.projectDir);
 
     // Resume from prior session if requested
-    if (request.resumeSessionId) {
+    if (request.resumeSessionId !== undefined && request.resumeSessionId !== '') {
       const prior = await this.loadPriorSession(request.resumeSessionId, request.projectDir);
       if (prior) {
         this.session = { ...prior, status: 'running' };
@@ -877,7 +877,10 @@ export class AdsdlcOrchestratorAgent implements IAgent {
 
     let data: Record<string, unknown>;
     try {
-      const parsed = yaml!.load(content);
+      if (yaml === null) {
+        throw new SessionCorruptedError(sessionId, 'YAML parser not loaded');
+      }
+      const parsed = yaml.load(content);
       if (typeof parsed !== 'object' || parsed === null) {
         throw new SessionCorruptedError(sessionId, 'YAML did not parse to an object');
       }
@@ -967,7 +970,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
       }
     }
 
-    if (!latestFile) return null;
+    if (latestFile === null) return null;
     return latestFile.replace(/\.yaml$/, '');
   }
 
