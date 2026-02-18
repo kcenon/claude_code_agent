@@ -25,7 +25,7 @@ That's it! The agents will generate documents, create issues, implement code, an
 
 ## What is AD-SDLC?
 
-AD-SDLC is an automated software development pipeline that uses **specialized Claude agents** to transform your requirements into production-ready code. It supports two modes:
+AD-SDLC is an automated software development pipeline that uses **25 specialized Claude agents** to transform your requirements into production-ready code. It supports three modes:
 
 ### Greenfield Pipeline (New Projects)
 
@@ -40,24 +40,41 @@ User Input → Collector → PRD Writer → SRS Writer → SDS Writer
 ### Enhancement Pipeline (Existing Projects)
 
 ```
-Existing Docs + Code → Document Reader → Codebase Analyzer
-                                               ↓
-                                       Impact Analyzer
-                                               ↓
-                        PRD/SRS/SDS Updaters (Delta Updates)
-                                               ↓
-                   Issue Generator + Regression Tester
-                                               ↓
-                              Controller → Worker → PR Reviewer
-                                                      ↓
-                                              CI Fix (on failure)
+Existing Docs + Code → Document Reader → Codebase Analyzer → Code Reader
+                                                                  ↓
+                                                      Doc-Code Comparator
+                                                                  ↓
+                                                        Impact Analyzer
+                                                                  ↓
+                                      PRD Updater → SRS Updater → SDS Updater
+                                                                  ↓
+                                         Issue Generator + Regression Tester
+                                                                  ↓
+                                            Controller → Worker → PR Reviewer
+                                                                      ↓
+                                                              CI Fix (on failure)
 ```
 
-### Agent Pipeline
+### Import Pipeline (Existing GitHub Issues)
+
+```
+GitHub Issues → Issue Reader → Controller → Worker → PR Reviewer
+                                                         ↓
+                                                 CI Fix (on failure)
+```
+
+### Agent Pipeline (25 Agents)
 
 | Phase | Agent | Role |
 |-------|-------|------|
+| **Orchestration** | AD-SDLC Orchestrator | Coordinates the full pipeline lifecycle |
+| | Analysis Orchestrator | Coordinates the analysis sub-pipeline |
+| **Setup** | Mode Detector | Detects Greenfield vs Enhancement vs Import mode |
+| | Project Initializer | Creates `.ad-sdlc` directory structure and config |
+| | Repo Detector | Determines if existing repo or new setup needed |
+| | GitHub Repo Setup | Creates and initializes GitHub repository |
 | **Collection** | Collector | Gathers requirements from text, files, and URLs |
+| | Issue Reader | Imports existing GitHub Issues for Import pipeline |
 | **Documentation** | PRD Writer | Generates Product Requirements Document |
 | | SRS Writer | Generates Software Requirements Specification |
 | | SDS Writer | Generates Software Design Specification |
@@ -66,25 +83,30 @@ Existing Docs + Code → Document Reader → Codebase Analyzer
 | | Worker | Implements code based on assigned issues |
 | **Quality** | PR Reviewer | Creates PRs and performs automated code review |
 | | CI Fixer | Automatically diagnoses and fixes CI failures |
+| | Regression Tester | Validates existing functionality after changes |
 | **Enhancement** | Document Reader | Parses existing PRD/SRS/SDS documents |
-| | Codebase Analyzer | Analyzes current architecture and code structure |
 | | Code Reader | Extracts source code structure and dependencies |
+| | Codebase Analyzer | Analyzes current architecture and code structure |
+| | Doc-Code Comparator | Detects gaps between documentation and code |
 | | Impact Analyzer | Assesses change implications and risks |
-| | PRD/SRS/SDS Updaters | Performs incremental document updates |
-| | Regression Tester | Identifies affected tests for changes |
-| | Mode Detector | Automatically detects Greenfield vs Enhancement |
-| | Analysis Orchestrator | Coordinates the analysis pipeline |
+| | PRD Updater | Incremental PRD updates (delta changes) |
+| | SRS Updater | Incremental SRS updates (delta changes) |
+| | SDS Updater | Incremental SDS updates (delta changes) |
 
 ## Features
 
 - **Automatic Document Generation**: PRD, SRS, SDS documents from natural language requirements
 - **Enhancement Pipeline**: Incremental updates to existing projects without full rewrites
-- **Mode Detection**: Automatically detects whether to use Greenfield or Enhancement pipeline
+- **Import Pipeline**: Process existing GitHub Issues directly, skipping document generation
+- **Mode Detection**: Automatically detects Greenfield, Enhancement, or Import pipeline
+- **Pipeline Resume**: Resume interrupted pipelines from the last completed stage (`--resume`)
+- **Session Persistence**: Automatic state persistence for pipeline recovery
 - **GitHub Integration**: Automatic issue creation with dependencies and labels
 - **Parallel Implementation**: Multiple workers implementing issues concurrently
 - **Automated PR Review**: Code review and quality gate enforcement
 - **Progress Tracking**: Real-time visibility into pipeline status
 - **Regression Testing**: Identifies affected tests when modifying existing code
+- **Doc-Code Gap Analysis**: Detects discrepancies between documentation and implementation
 - **Customizable Workflows**: Configure agents, templates, and quality gates
 
 ## Installation
@@ -183,6 +205,32 @@ ad-sdlc analyze [--project <path>] [--scope full|documents_only|code_only]
 ad-sdlc completion --shell <bash|zsh|fish>
 ```
 
+### Full Pipeline Script
+
+Run the complete AD-SDLC pipeline end-to-end:
+
+```bash
+# Auto-detect mode and run full pipeline
+./ad-sdlc-full-pipeline.sh [project_path] [mode]
+
+# Specify mode explicitly
+./ad-sdlc-full-pipeline.sh . greenfield
+./ad-sdlc-full-pipeline.sh . enhancement
+./ad-sdlc-full-pipeline.sh . import
+
+# Resume an interrupted pipeline
+./ad-sdlc-full-pipeline.sh . auto --resume
+
+# Resume a specific session
+./ad-sdlc-full-pipeline.sh . auto --resume <session-id>
+
+# Start from a specific stage
+./ad-sdlc-full-pipeline.sh . greenfield --start-from sds_generation
+
+# List available sessions for resume
+./ad-sdlc-full-pipeline.sh . auto --list-sessions
+```
+
 ### Shell Autocompletion
 
 Enable tab completion for AD-SDLC commands in your shell:
@@ -235,7 +283,7 @@ See [Use Cases Guide](docs/use-cases.md) for more examples.
 ```
 your-project/
 ├── .claude/
-│   └── agents/              # Agent definitions
+│   └── agents/              # Agent definitions (25 agents)
 │       ├── *.md             # English versions (used by Claude)
 │       └── *.kr.md          # Korean versions (for reference)
 ├── .ad-sdlc/
@@ -243,8 +291,11 @@ your-project/
 │   │   ├── agents.yaml      # Agent registry
 │   │   └── workflow.yaml    # Pipeline configuration
 │   ├── logs/                # Audit logs
+│   ├── scripts/             # Pipeline shell scripts
+│   │   └── ad-sdlc-full-pipeline.sh
 │   ├── templates/           # Document templates
 │   └── scratchpad/          # Inter-agent state (Scratchpad pattern)
+│       └── pipeline/        # Pipeline session state (resume support)
 ├── docs/                    # Generated documentation
 ├── src/                     # Generated source code
 └── README.md
