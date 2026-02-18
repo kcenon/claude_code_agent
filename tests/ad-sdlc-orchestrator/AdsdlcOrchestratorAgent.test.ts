@@ -2,7 +2,7 @@
  * AD-SDLC Orchestrator Agent tests
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, afterEach } from 'vitest';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import * as os from 'node:os';
@@ -779,6 +779,243 @@ describe('AdsdlcOrchestratorAgent', () => {
       // Should fall through to fresh session creation
       expect(session.resumedFrom).toBeUndefined();
       expect(session.status).toBe('pending');
+    });
+  });
+
+  describe('startSession with startFromStage', () => {
+    it('should build preCompletedStages from startFromStage', async () => {
+      await agent.initialize();
+
+      const session = await agent.startSession({
+        projectDir: tempDir,
+        userRequest: 'Continue from SDS',
+        overrideMode: 'greenfield',
+        startFromStage: 'sds_generation',
+      });
+
+      // All stages before sds_generation should be pre-completed
+      expect(session.preCompletedStages).toBeDefined();
+      expect(session.preCompletedStages).toContain('initialization');
+      expect(session.preCompletedStages).toContain('mode_detection');
+      expect(session.preCompletedStages).toContain('collection');
+      expect(session.preCompletedStages).toContain('prd_generation');
+      expect(session.preCompletedStages).toContain('srs_generation');
+      // sds_generation itself should NOT be pre-completed
+      expect(session.preCompletedStages).not.toContain('sds_generation');
+    });
+
+    it('should pass preCompletedStages directly when provided', async () => {
+      await agent.initialize();
+
+      const session = await agent.startSession({
+        projectDir: tempDir,
+        userRequest: 'Resume',
+        overrideMode: 'import',
+        preCompletedStages: ['issue_reading', 'orchestration'],
+      });
+
+      expect(session.preCompletedStages).toEqual(['issue_reading', 'orchestration']);
+    });
+  });
+
+  describe('executePipeline with pre-completed stages', () => {
+    it('should skip pre-completed stages and only execute remaining', async () => {
+      const executionOrder: string[] = [];
+
+      class TrackingOrchestrator extends AdsdlcOrchestratorAgent {
+        protected override async invokeAgent(
+          stage: { name: string; agentType: string },
+          _session: unknown
+        ): Promise<string> {
+          executionOrder.push(stage.name);
+          return `Stage "${stage.name}" completed`;
+        }
+      }
+
+      const trackingAgent = new TrackingOrchestrator();
+      await trackingAgent.initialize();
+
+      // Pre-complete first two import stages
+      await trackingAgent.startSession({
+        projectDir: tempDir,
+        userRequest: 'Resume from implementation',
+        overrideMode: 'import',
+        preCompletedStages: ['issue_reading', 'orchestration'],
+      });
+
+      const result = await trackingAgent.executePipeline(tempDir, 'Resume from implementation');
+
+      expect(result.overallStatus).toBe('completed');
+      // Only implementation and review should be executed
+      expect(executionOrder).toEqual(['implementation', 'review']);
+      // But result should contain all stages (prior + new)
+      expect(result.stages).toHaveLength(2);
+
+      await trackingAgent.dispose();
+    });
+
+    it('should skip pre-completed stages in greenfield with startFromStage', async () => {
+      const executionOrder: string[] = [];
+
+      class TrackingOrchestrator extends AdsdlcOrchestratorAgent {
+        protected override async invokeAgent(
+          stage: { name: string; agentType: string },
+          _session: unknown
+        ): Promise<string> {
+          executionOrder.push(stage.name);
+          return `Stage "${stage.name}" completed`;
+        }
+      }
+
+      const trackingAgent = new TrackingOrchestrator();
+      await trackingAgent.initialize();
+
+      await trackingAgent.startSession({
+        projectDir: tempDir,
+        userRequest: 'Start from issue generation',
+        overrideMode: 'greenfield',
+        startFromStage: 'issue_generation',
+      });
+
+      const result = await trackingAgent.executePipeline(
+        tempDir,
+        'Start from issue generation'
+      );
+
+      expect(result.overallStatus).toBe('completed');
+      // Stages before issue_generation should NOT be executed
+      expect(executionOrder).not.toContain('initialization');
+      expect(executionOrder).not.toContain('mode_detection');
+      expect(executionOrder).not.toContain('collection');
+      expect(executionOrder).not.toContain('prd_generation');
+      expect(executionOrder).not.toContain('srs_generation');
+      expect(executionOrder).not.toContain('sds_generation');
+      // issue_generation and after should be executed
+      expect(executionOrder).toContain('issue_generation');
+      expect(executionOrder).toContain('orchestration');
+      expect(executionOrder).toContain('implementation');
+      expect(executionOrder).toContain('review');
+
+      await trackingAgent.dispose();
+    });
+
+    it('should merge prior results with new results in resumed pipeline', async () => {
+      await agent.initialize();
+
+      // First run a pipeline to persist state
+      const firstResult = await agent.executePipeline(tempDir, 'Build a web app');
+      const sessionId = firstResult.pipelineId;
+
+      // Resume from prior session
+      await agent.dispose();
+      const agent2 = new AdsdlcOrchestratorAgent();
+      await agent2.initialize();
+
+      await agent2.startSession({
+        projectDir: tempDir,
+        userRequest: 'Continue build',
+        resumeSessionId: sessionId,
+      });
+
+      const result = await agent2.executePipeline(tempDir, 'Continue build');
+
+      // All stages from prior session were completed, so no new stages to execute
+      // Prior completed results should still appear
+      expect(result.overallStatus).toBe('completed');
+      expect(result.stages.length).toBeGreaterThan(0);
+
+      await agent2.dispose();
+    });
+
+    it('should not break fresh pipeline execution (no regression)', async () => {
+      await agent.initialize();
+      const result = await agent.executePipeline(tempDir, 'Build something');
+
+      expect(result.overallStatus).toBe('completed');
+      expect(result.stages).toHaveLength(GREENFIELD_STAGES.length);
+      // All stages should be executed fresh
+      for (const stage of result.stages) {
+        expect(stage.status).toBe('completed');
+      }
+    });
+
+    it('should handle resuming with partial results correctly', async () => {
+      class PartialResumeOrchestrator extends AdsdlcOrchestratorAgent {
+        protected override async invokeAgent(
+          stage: { name: string; agentType: string },
+          _session: unknown
+        ): Promise<string> {
+          return `Stage "${stage.name}" completed`;
+        }
+      }
+
+      const partialAgent = new PartialResumeOrchestrator();
+      await partialAgent.initialize();
+
+      // Simulate a session with partial completion
+      // Pre-complete only first stage, so remaining stages must run
+      await partialAgent.startSession({
+        projectDir: tempDir,
+        userRequest: 'Resume from orchestration',
+        overrideMode: 'import',
+        preCompletedStages: ['issue_reading'],
+      });
+
+      const result = await partialAgent.executePipeline(
+        tempDir,
+        'Resume from orchestration'
+      );
+
+      expect(result.overallStatus).toBe('completed');
+      // New stages: orchestration, implementation, review (3 stages)
+      // Plus no prior results (issue_reading has no stageResults to merge)
+      const newStageNames = result.stages.map((s) => s.name);
+      expect(newStageNames).toContain('orchestration');
+      expect(newStageNames).toContain('implementation');
+      expect(newStageNames).toContain('review');
+      // issue_reading should NOT appear (no prior stageResults to merge)
+      expect(newStageNames).not.toContain('issue_reading');
+
+      await partialAgent.dispose();
+    });
+
+    it('should treat dependencies of pre-completed stages as satisfied', async () => {
+      const executionOrder: string[] = [];
+
+      class DepTrackingOrchestrator extends AdsdlcOrchestratorAgent {
+        protected override async invokeAgent(
+          stage: { name: string; agentType: string },
+          _session: unknown
+        ): Promise<string> {
+          executionOrder.push(stage.name);
+          return `Stage "${stage.name}" completed`;
+        }
+      }
+
+      const depAgent = new DepTrackingOrchestrator();
+      await depAgent.initialize();
+
+      // In enhancement pipeline, doc_code_comparison depends on
+      // document_reading, codebase_analysis, code_reading
+      // Pre-complete all three analysis stages
+      await depAgent.startSession({
+        projectDir: tempDir,
+        userRequest: 'Start from comparison',
+        overrideMode: 'enhancement',
+        preCompletedStages: ['document_reading', 'codebase_analysis', 'code_reading'],
+      });
+
+      const result = await depAgent.executePipeline(tempDir, 'Start from comparison');
+
+      expect(result.overallStatus).toBe('completed');
+      // doc_code_comparison should be the first executed stage
+      expect(executionOrder[0]).toBe('doc_code_comparison');
+      // None of the pre-completed analysis stages should be executed
+      expect(executionOrder).not.toContain('document_reading');
+      expect(executionOrder).not.toContain('codebase_analysis');
+      expect(executionOrder).not.toContain('code_reading');
+
+      await depAgent.dispose();
     });
   });
 });

@@ -2662,6 +2662,22 @@ interface OrchestratorSession {
 }
 ```
 
+**재개 실행 흐름 (Resume Execution Flow)**
+
+파이프라인이 재개될 때 (`resumeSessionId` 또는 `startFromStage`를 통해), 오케스트레이터는 다음 흐름을 따릅니다:
+
+1. **사전 완료 세트 구성**: `startSession()`이 `preCompletedStages`를 다음 중 하나로부터 빌드합니다:
+   - 이전 세션의 완료된 단계들 (`loadPriorSession()` 사용)
+   - `startFromStage` 이전의 모든 단계 (단계 정의에서 계산)
+   - `PipelineRequest.preCompletedStages`에서 직접 전달
+
+2. **단계 필터링**: `executeStages()`가 선택적 `preCompleted: ReadonlySet<StageName>` 매개변수를 받습니다:
+   - 내부 `completedStages` 세트에 초기화 시 추가됨
+   - `remaining` 단계 목록에서 제외됨
+   - 의존성 해결 루프는 변경 없이 이들을 충족된 것으로 처리
+
+3. **결과 병합**: `executePipeline()`이 이전 완료 결과와 새로 실행된 결과를 최종 `PipelineResult.stages` 배열로 병합합니다.
+
 #### 3.12.5 CMP-026: Analysis Orchestrator Agent
 
 **Source Features**: SF-030 (UC-043)

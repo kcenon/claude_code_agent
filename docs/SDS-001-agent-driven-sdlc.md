@@ -2673,6 +2673,47 @@ interface OrchestratorSession {
 }
 ```
 
+**Resume Execution Flow**
+
+When a pipeline is resumed (via `resumeSessionId` or `startFromStage`), the orchestrator follows this flow:
+
+1. **Pre-completed set construction**: `startSession()` builds `preCompletedStages` from either:
+   - Prior session's completed stages (via `loadPriorSession()`)
+   - All stages before `startFromStage` (computed from stage definitions)
+   - Directly from `PipelineRequest.preCompletedStages`
+
+2. **Stage filtering**: `executeStages()` accepts an optional `preCompleted: ReadonlySet<StageName>` parameter. Pre-completed stages are:
+   - Added to the internal `completedStages` set at initialization
+   - Filtered out of the `remaining` stages list
+   - The dependency resolution loop treats them as satisfied without changes
+
+3. **Result merging**: `executePipeline()` merges prior completed results with newly executed results into the final `PipelineResult.stages` array.
+
+```
+┌─────────────┐     ┌──────────────────┐     ┌───────────────────┐
+│startSession()│────▶│ Build            │────▶│ executeStages()   │
+│             │     │ preCompletedStages│     │ preCompleted param│
+└─────────────┘     └──────────────────┘     └───────────────────┘
+                                                      │
+                                              ┌───────▼───────┐
+                                              │completedStages │
+                                              │= new Set(      │
+                                              │  preCompleted) │
+                                              └───────┬───────┘
+                                                      │
+                                              ┌───────▼───────┐
+                                              │remaining =     │
+                                              │stages.filter(  │
+                                              │  !completed)   │
+                                              └───────┬───────┘
+                                                      │
+                                              ┌───────▼───────┐
+                                              │ Dependency     │
+                                              │ resolution     │
+                                              │ loop (unchanged)│
+                                              └───────────────┘
+```
+
 #### 3.12.5 CMP-026: Analysis Orchestrator Agent
 
 **Source Features**: SF-030 (UC-043)

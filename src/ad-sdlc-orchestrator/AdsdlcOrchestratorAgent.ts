@@ -147,6 +147,19 @@ export class AdsdlcOrchestratorAgent implements IAgent {
     const mode = request.overrideMode ?? 'greenfield';
     const scratchpadDir = path.resolve(request.projectDir, this.config.scratchpadDir);
 
+    // Build preCompletedStages from startFromStage if provided
+    let preCompletedStages: StageName[] | null = null;
+    if (request.startFromStage !== undefined) {
+      const stages = this.getStagesForMode(mode);
+      preCompletedStages = [];
+      for (const stage of stages) {
+        if (stage.name === request.startFromStage) break;
+        preCompletedStages.push(stage.name);
+      }
+    } else if (request.preCompletedStages) {
+      preCompletedStages = [...request.preCompletedStages];
+    }
+
     this.session = {
       sessionId: randomUUID(),
       projectDir: request.projectDir,
@@ -156,6 +169,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
       status: 'pending',
       stageResults: [],
       scratchpadDir,
+      ...(preCompletedStages !== null ? { preCompletedStages } : {}),
     };
 
     this.abortController = new AbortController();
@@ -188,7 +202,25 @@ export class AdsdlcOrchestratorAgent implements IAgent {
 
     try {
       const stages = this.getStagesForMode(session.mode);
-      const stageResults = await this.executeStages(stages, session);
+
+      // Build pre-completed set from session state
+      const preCompleted = new Set<StageName>();
+      if (session.preCompletedStages) {
+        for (const name of session.preCompletedStages) {
+          preCompleted.add(name);
+        }
+      }
+
+      // Collect prior results for final aggregation
+      const priorResults: StageResult[] =
+        preCompleted.size > 0
+          ? session.stageResults.filter((r) => r.status === 'completed' && preCompleted.has(r.name))
+          : [];
+
+      const newResults = await this.executeStages(stages, session, preCompleted);
+
+      // Merge prior + new results
+      const stageResults = [...priorResults, ...newResults];
       const failedStages = stageResults.filter((s) => s.status === 'failed');
       const overallStatus = this.determineOverallStatus(stageResults);
 
@@ -336,15 +368,17 @@ export class AdsdlcOrchestratorAgent implements IAgent {
    * Execute pipeline stages sequentially, respecting dependencies
    * @param stages - The stage definitions to execute in dependency order
    * @param session - The current orchestrator session providing execution context
+   * @param preCompleted - Optional set of stage names to treat as already completed
    * @returns The results from all executed, skipped, or failed stages
    */
   private async executeStages(
     stages: readonly PipelineStageDefinition[],
-    session: OrchestratorSession
+    session: OrchestratorSession,
+    preCompleted?: ReadonlySet<StageName>
   ): Promise<StageResult[]> {
     const results: StageResult[] = [];
-    const completedStages = new Set<StageName>();
-    const remaining = [...stages];
+    const completedStages = new Set<StageName>(preCompleted);
+    const remaining = stages.filter((s) => !completedStages.has(s.name));
 
     while (remaining.length > 0) {
       // Check if abort was requested
