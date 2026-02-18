@@ -148,8 +148,8 @@ export class AdsdlcOrchestratorAgent implements IAgent {
     const scratchpadDir = path.resolve(request.projectDir, this.config.scratchpadDir);
 
     // Build preCompletedStages from startFromStage if provided
-    let preCompletedStages: StageName[] | undefined;
-    if (request.startFromStage !== undefined && request.startFromStage !== '') {
+    let preCompletedStages: StageName[] | null = null;
+    if (request.startFromStage !== undefined) {
       const stages = this.getStagesForMode(mode);
       preCompletedStages = [];
       for (const stage of stages) {
@@ -169,7 +169,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
       status: 'pending',
       stageResults: [],
       scratchpadDir,
-      preCompletedStages,
+      ...(preCompletedStages !== null ? { preCompletedStages } : {}),
     };
 
     this.abortController = new AbortController();
