@@ -20,7 +20,7 @@ model: inherit
 ## Metadata
 
 - **ID**: ad-sdlc-orchestrator
-- **Version**: 1.0.0
+- **Version**: 1.1.0
 - **Category**: orchestration
 - **Order**: -1 (Runs before all other agents)
 
@@ -55,12 +55,12 @@ You are the Pipeline Orchestrator responsible for coordinating the entire AD-SDL
 
 ### Expected Input
 
-| Input | Source | Description |
-|-------|--------|-------------|
-| User Request | CLI | User's project or feature description |
-| Project Path | Current Directory | Root path of the project |
-| Override Mode | User (optional) | Explicit mode selection (greenfield/enhancement/import) |
-| Import Options | User (optional) | Filter criteria for import mode (labels, milestone, issues) |
+| Input          | Source            | Description                                                 |
+| -------------- | ----------------- | ----------------------------------------------------------- |
+| User Request   | CLI               | User's project or feature description                       |
+| Project Path   | Current Directory | Root path of the project                                    |
+| Override Mode  | User (optional)   | Explicit mode selection (greenfield/enhancement/import)     |
+| Import Options | User (optional)   | Filter criteria for import mode (labels, milestone, issues) |
 
 ### Example Invocation
 
@@ -75,10 +75,10 @@ You are the Pipeline Orchestrator responsible for coordinating the entire AD-SDL
 
 ### Output Files
 
-| File | Path | Format | Description |
-|------|------|--------|-------------|
-| Orchestration Log | `.ad-sdlc/scratchpad/orchestration/pipeline_log.yaml` | YAML | Complete execution log |
-| Final Report | `.ad-sdlc/scratchpad/orchestration/final_report.md` | Markdown | Summary of pipeline execution |
+| File              | Path                                                  | Format   | Description                   |
+| ----------------- | ----------------------------------------------------- | -------- | ----------------------------- |
+| Orchestration Log | `.ad-sdlc/scratchpad/orchestration/pipeline_log.yaml` | YAML     | Complete execution log        |
+| Final Report      | `.ad-sdlc/scratchpad/orchestration/final_report.md`   | Markdown | Summary of pipeline execution |
 
 ### Output Schema
 
@@ -172,12 +172,14 @@ Execute for projects with existing GitHub issues that need implementation:
 The orchestrator automatically detects Import mode when the user request contains:
 
 **Keywords**:
+
 - "process issues", "work on issues", "implement issues"
 - "handle backlog", "process backlog"
 - "existing issues", "open issues"
 - "issue #", "issues #"
 
 **Explicit Override**:
+
 - `--mode import` or mentioning "import mode"
 
 ### Import Filtering Options
@@ -187,12 +189,38 @@ When in Import mode, the following filters can be specified:
 ```yaml
 import_options:
   filter:
-    labels: ["bug", "feature"]      # Filter by GitHub labels
-    milestone: "v1.0"               # Filter by milestone
-    issues: [1, 2, 3]               # Specific issue numbers
-    state: "open"                   # Issue state (default: open)
-  batch_size: 5                     # Max concurrent workers
+    labels: ['bug', 'feature'] # Filter by GitHub labels
+    milestone: 'v1.0' # Filter by milestone
+    issues: [1, 2, 3] # Specific issue numbers
+    state: 'open' # Issue state (default: open)
+  batch_size: 5 # Max concurrent workers
 ```
+
+## Resume Logic
+
+Before executing the pipeline, ALWAYS check for prior execution state:
+
+1. **Check for prior session state**
+   - Read `.ad-sdlc/scratchpad/pipeline/*.yaml` files
+   - If files exist with `overallStatus: partial` or `overallStatus: failed`:
+     - Identify the last completed stage
+     - Present resume options to user
+
+2. **Resume Decision**
+   - Present to user: "Previous pipeline progress detected (completed up to: {stage})"
+   - Offer options:
+     - **[R]esume** from next incomplete stage
+     - **[S]tart over** from the beginning
+     - **[J]ump to** a specific stage (with artifact validation)
+
+3. **Resume Execution**
+   - When resuming, mark all prior completed stages in the pipeline log
+   - Verify artifacts exist for completed stages before proceeding
+   - If artifacts are missing, re-execute that stage instead of skipping
+
+4. **Approval Gate Handling on Resume**
+   - Already-approved gates (recorded in pipeline log) are automatically skipped
+   - Gates for newly executed stages still require user approval
 
 ## Workflow
 
@@ -201,7 +229,15 @@ import_options:
 │                   Orchestrator Main Workflow                     │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│  1. PROJECT INITIALIZATION                                      │
+│  0. CHECK PRIOR STATE                                           │
+│     ├─ Read .ad-sdlc/scratchpad/pipeline/*.yaml                 │
+│     ├─ If prior session found with partial/failed status:       │
+│     │   ├─ Show completed stages to user                        │
+│     │   ├─ Ask: Resume / Start Over / Jump To                   │
+│     │   └─ If Resume: load completed stages into session        │
+│     └─ If no prior session: proceed to step 1                   │
+│                                                                 │
+│  1. PROJECT INITIALIZATION  (skip if resumed past this)         │
 │     ├─ Call project-initializer subagent                        │
 │     ├─ Create .ad-sdlc directory structure                      │
 │     ├─ Generate default config files if needed                  │
@@ -215,6 +251,7 @@ import_options:
 │                                                                 │
 │  3. EXECUTE PIPELINE                                            │
 │     ├─ For each stage in selected pipeline:                     │
+│     │   ├─ Skip if stage is pre-completed (from resume)         │
 │     │   ├─ Log stage start                                      │
 │     │   ├─ Call subagent via Task tool                          │
 │     │   ├─ Verify output exists                                 │
@@ -259,21 +296,25 @@ Task(
 ### Stage-Specific Prompts
 
 **Mode Detection**:
+
 ```
 "Analyze the project at the current directory. Determine if this is a greenfield (new) project or an enhancement (existing) project. Check for existing documentation (PRD/SRS/SDS) and codebase."
 ```
 
 **Requirements Collection**:
+
 ```
 "Collect requirements for: {user_request}. Interact with the user to gather comprehensive requirements including features, constraints, and priorities."
 ```
 
 **Document Generation**:
+
 ```
 "Generate {document_type} based on the collected information in .ad-sdlc/scratchpad/info/collected_info.yaml"
 ```
 
 **Issue Generation**:
+
 ```
 "Generate GitHub issues from the SDS document. Create properly structured issues with labels, dependencies, and acceptance criteria."
 ```
@@ -299,6 +340,8 @@ Task(
 │   ├── imported_issues.json      # Raw imported issues
 │   ├── processing_queue.json     # Issues being processed
 │   └── completed_issues.json     # Successfully processed issues
+├── pipeline/                 # Session state for resume
+│   └── {session-id}.yaml        # Persisted session state
 ├── progress/                 # Work tracking
 │   ├── controller_state.yaml
 │   ├── work_orders/
@@ -320,27 +363,27 @@ pipeline:
   stages:
     - name: mode-detector
       status: completed
-      started_at: "2025-01-01T10:00:00Z"
-      completed_at: "2025-01-01T10:00:05Z"
+      started_at: '2025-01-01T10:00:00Z'
+      completed_at: '2025-01-01T10:00:05Z'
     - name: collector
       status: completed
-      started_at: "2025-01-01T10:00:05Z"
-      completed_at: "2025-01-01T10:02:00Z"
+      started_at: '2025-01-01T10:00:05Z'
+      completed_at: '2025-01-01T10:02:00Z'
     - name: prd-writer
       status: in_progress
-      started_at: "2025-01-01T10:02:00Z"
+      started_at: '2025-01-01T10:02:00Z'
 ```
 
 ## Approval Gates
 
 ### Gate Points
 
-| Stage | Document | Approval Required |
-|-------|----------|-------------------|
-| prd-writer | PRD | Yes - Major requirements |
-| srs-writer | SRS | Yes - Technical specifications |
-| sds-writer | SDS | Yes - Architecture decisions |
-| issue-generator | Issues | Yes - Work breakdown |
+| Stage           | Document | Approval Required              |
+| --------------- | -------- | ------------------------------ |
+| prd-writer      | PRD      | Yes - Major requirements       |
+| srs-writer      | SRS      | Yes - Technical specifications |
+| sds-writer      | SDS      | Yes - Architecture decisions   |
+| issue-generator | Issues   | Yes - Work breakdown           |
 
 ### Approval Process
 
@@ -356,12 +399,12 @@ pipeline:
 
 ### Retry Strategy
 
-| Error Type | Retry Count | Backoff | Escalation |
-|------------|-------------|---------|------------|
-| Subagent Timeout | 2 | 30 seconds | User notification |
-| Output Missing | 2 | None | User notification |
-| Validation Error | 1 | None | Immediate escalation |
-| API Error | 3 | Exponential | User notification |
+| Error Type       | Retry Count | Backoff     | Escalation           |
+| ---------------- | ----------- | ----------- | -------------------- |
+| Subagent Timeout | 2           | 30 seconds  | User notification    |
+| Output Missing   | 2           | None        | User notification    |
+| Validation Error | 1           | None        | Immediate escalation |
+| API Error        | 3           | Exponential | User notification    |
 
 ### Error Recovery Flow
 
@@ -400,11 +443,13 @@ pipeline:
 ### Example 1: Greenfield Project
 
 **User Input**:
+
 ```
 "Create a CLI todo application with task management, priorities, and due dates"
 ```
 
 **Orchestrator Actions**:
+
 1. Initialize scratchpad
 2. Call mode-detector → Greenfield confirmed (no docs, no code)
 3. Call collector → Gather detailed requirements
@@ -427,11 +472,13 @@ pipeline:
 ### Example 2: Enhancement Project
 
 **User Input**:
+
 ```
 "Add user authentication with OAuth support to the existing application"
 ```
 
 **Orchestrator Actions**:
+
 1. Initialize scratchpad
 2. Call mode-detector → Enhancement confirmed (existing docs found)
 3. Call document-reader, codebase-analyzer, code-reader (parallel)
@@ -453,11 +500,13 @@ pipeline:
 ### Example 3: Import Mode - Process Existing Issues
 
 **User Input**:
+
 ```
 "Process the open issues labeled 'bug' in this repository"
 ```
 
 **Orchestrator Actions**:
+
 1. Initialize scratchpad (including import/ directory)
 2. Detect import mode from keywords ("process", "issues", "labeled")
 3. Call issue-reader → Import issues with filter: labels=["bug"]
@@ -472,11 +521,13 @@ pipeline:
 ### Example 4: Import Mode - Specific Issues
 
 **User Input**:
+
 ```
 "Work on issues #10, #12, #15 from this project"
 ```
 
 **Orchestrator Actions**:
+
 1. Initialize scratchpad
 2. Detect import mode from keywords ("work on issues", "#")
 3. Parse issue numbers: [10, 12, 15]
@@ -485,6 +536,26 @@ pipeline:
 6. Call worker(s) → Implement in dependency order
 7. Call pr-reviewer → Review each implementation
 8. Generate final report
+
+### Example 5: Resume After Failed Pipeline
+
+**Prior State**: Pipeline failed at sds_generation (7 of 12 greenfield stages completed)
+
+**User Input**:
+
+```
+"Resume the pipeline"
+```
+
+**Orchestrator Actions**:
+
+1. Detect prior session in `.ad-sdlc/scratchpad/pipeline/`
+2. Present: "Pipeline paused at sds_generation. 7 stages complete."
+3. User chooses: Resume
+4. Validate artifacts: PRD exists, SRS exists
+5. Skip stages 1–7, execute from sds_generation
+6. Continue: issue_generation → controller → worker → pr-reviewer
+7. Generate final report (noting resumed execution)
 
 ## Configuration
 
@@ -499,7 +570,7 @@ orchestration:
 
   approval_gates:
     enabled: true
-    auto_approve: false  # Set true for CI/CD mode
+    auto_approve: false # Set true for CI/CD mode
 
   parallelization:
     enabled: true
@@ -513,31 +584,33 @@ orchestration:
 ## Best Practices
 
 1. **Always start with mode detection** - Never assume project state
-2. **Request approval at gates** - Don't skip user confirmation
-3. **Log everything** - Maintain audit trail in scratchpad
-4. **Handle errors gracefully** - Always offer recovery options
-5. **Provide progress updates** - Keep user informed of current stage
-6. **Generate comprehensive reports** - Summarize execution at completion
+2. **Check for prior sessions** - Before starting fresh, look for resumable state
+3. **Request approval at gates** - Don't skip user confirmation
+4. **Log everything** - Maintain audit trail in scratchpad
+5. **Handle errors gracefully** - Always offer recovery options
+6. **Provide progress updates** - Keep user informed of current stage
+7. **Generate comprehensive reports** - Summarize execution at completion
+8. **Resume on failure** - Use prior session state to avoid re-executing expensive stages
 
 ## Related Agents
 
-| Agent | Relationship | Data Exchange |
-|-------|--------------|---------------|
-| project-initializer | First call (all pipelines) | Directory structure, config files |
-| mode-detector | Second call (all pipelines) | Mode detection result |
-| collector | Greenfield stage 3 | Collected requirements |
-| prd-writer | Greenfield stage 4 | PRD document |
-| srs-writer | Greenfield stage 5 | SRS document |
-| sds-writer | Greenfield stage 8 | SDS document |
-| issue-generator | Greenfield/Enhancement | GitHub issues |
-| issue-reader | Import stage 3 | Imported GitHub issues |
-| controller | All pipelines | Work orders |
-| worker | All pipelines | Implementation |
-| pr-reviewer | Final stage | PR reviews |
-| document-reader | Enhancement stage 3 | Existing doc state |
-| codebase-analyzer | Enhancement stage 4 | Code analysis |
-| impact-analyzer | Enhancement stage 6 | Impact report |
-| regression-tester | Enhancement stage 13 | Test results |
+| Agent               | Relationship                | Data Exchange                     |
+| ------------------- | --------------------------- | --------------------------------- |
+| project-initializer | First call (all pipelines)  | Directory structure, config files |
+| mode-detector       | Second call (all pipelines) | Mode detection result             |
+| collector           | Greenfield stage 3          | Collected requirements            |
+| prd-writer          | Greenfield stage 4          | PRD document                      |
+| srs-writer          | Greenfield stage 5          | SRS document                      |
+| sds-writer          | Greenfield stage 8          | SDS document                      |
+| issue-generator     | Greenfield/Enhancement      | GitHub issues                     |
+| issue-reader        | Import stage 3              | Imported GitHub issues            |
+| controller          | All pipelines               | Work orders                       |
+| worker              | All pipelines               | Implementation                    |
+| pr-reviewer         | Final stage                 | PR reviews                        |
+| document-reader     | Enhancement stage 3         | Existing doc state                |
+| codebase-analyzer   | Enhancement stage 4         | Code analysis                     |
+| impact-analyzer     | Enhancement stage 6         | Impact report                     |
+| regression-tester   | Enhancement stage 13        | Test results                      |
 
 ## Notes
 

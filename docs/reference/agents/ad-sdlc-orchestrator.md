@@ -1,6 +1,6 @@
 # AD-SDLC Pipeline Orchestrator
 
-> **Version**: 1.1.0
+> **Version**: 1.2.0
 > **Category**: Orchestration
 > **Order**: -1 (Top-level agent)
 
@@ -19,22 +19,24 @@ The AD-SDLC Pipeline Orchestrator is the top-level coordination agent that manag
 ```yaml
 # .ad-sdlc/config/agents.yaml
 ad-sdlc-orchestrator:
-  id: "ad-sdlc-orchestrator"
-  name: "AD-SDLC Pipeline Orchestrator"
-  korean_name: "AD-SDLC 파이프라인 오케스트레이터"
-  description: "Coordinates full AD-SDLC pipeline execution by invoking subagents in sequence"
-  definition_file: ".claude/agents/ad-sdlc-orchestrator.md"
-  category: "orchestration"
+  id: 'ad-sdlc-orchestrator'
+  name: 'AD-SDLC Pipeline Orchestrator'
+  korean_name: 'AD-SDLC 파이프라인 오케스트레이터'
+  description: 'Coordinates full AD-SDLC pipeline execution by invoking subagents in sequence'
+  definition_file: '.claude/agents/ad-sdlc-orchestrator.md'
+  category: 'orchestration'
   order: -1
 
   capabilities:
-    - "pipeline_coordination"
-    - "subagent_invocation"
-    - "progress_monitoring"
-    - "approval_gate_management"
-    - "error_recovery"
-    - "import_mode_support"
-    - "issue_filtering"
+    - 'pipeline_coordination'
+    - 'subagent_invocation'
+    - 'progress_monitoring'
+    - 'approval_gate_management'
+    - 'error_recovery'
+    - 'import_mode_support'
+    - 'issue_filtering'
+    - 'session_resume'
+    - 'start_from_stage'
 
   io:
     inputs:
@@ -50,7 +52,7 @@ ad-sdlc-orchestrator:
   token_budget:
     default_limit: 200000
     cost_limit_usd: 5.00
-    model_preference: "opus"
+    model_preference: 'opus'
 ```
 
 ## Input
@@ -65,16 +67,16 @@ ad-sdlc-orchestrator:
 
 ```yaml
 input:
-  user_request: string    # "Build a task management CLI"
-  project_path: string    # "/path/to/project"
-  override_mode: string   # "greenfield" | "enhancement" | "import" | null
-  import_options:         # Only for import mode
+  user_request: string # "Build a task management CLI"
+  project_path: string # "/path/to/project"
+  override_mode: string # "greenfield" | "enhancement" | "import" | null
+  import_options: # Only for import mode
     filter:
-      labels: [string]    # ["bug", "feature"]
-      milestone: string   # "v1.0"
-      issues: [integer]   # [1, 2, 3]
-      state: string       # "open" (default)
-    batch_size: integer   # Max concurrent workers (default: 5)
+      labels: [string] # ["bug", "feature"]
+      milestone: string # "v1.0"
+      issues: [integer] # [1, 2, 3]
+      state: string # "open" (default)
+    batch_size: integer # Max concurrent workers (default: 5)
 ```
 
 ## Output
@@ -120,38 +122,50 @@ orchestration_result:
 
 ### Processing Steps
 
-1. **Initialize**
+1. **Check Prior State**
+   - Scan `.ad-sdlc/scratchpad/pipeline/*.yaml` for prior sessions
+   - If a session with `overallStatus: partial` or `failed` exists:
+     - Present completed stages to the user
+     - Offer: Resume / Start Over / Jump To a specific stage
+   - If resuming: load pre-completed stages and skip to next incomplete stage
+
+2. **Initialize**
    - Verify project directory exists
    - Create scratchpad directories if needed
    - Start orchestration log
 
-2. **Detect Mode**
+3. **Detect Mode**
    - Invoke `mode-detector` subagent
    - Check for user override
    - Confirm mode with user
 
-3. **Execute Pipeline**
+4. **Execute Pipeline**
    - Select Greenfield or Enhancement pipeline
+   - Skip pre-completed stages (from resume or start-from)
    - Invoke subagents in sequence
    - Handle approval gates at checkpoints
+   - Validate artifacts exist for skipped stages
 
-4. **Manage Approvals**
+5. **Manage Approvals**
    - Present generated artifacts to user
    - Request explicit approval
    - Handle modifications or regeneration
+   - Already-approved gates from prior sessions are automatically skipped
 
-5. **Handle Errors**
+6. **Handle Errors**
    - Retry failed stages (up to 2 times)
    - Escalate to user if retries exhausted
    - Allow skip, retry, or abort
+   - On failure, persist session state for future resume
 
-6. **Finalize**
+7. **Finalize**
    - Generate final report
    - List all artifacts
    - Provide recommendations
 
 ### Decision Points
 
+- **Resume Detection**: Check for prior sessions before starting fresh
 - **Mode Selection**: Based on existing docs/code and user keywords
 - **Pipeline Branch**: Greenfield vs Enhancement vs Import pipeline
 - **Import Detection**: Triggered by keywords like "process issues", "work on issues", "existing issues"
@@ -162,70 +176,117 @@ orchestration_result:
 
 #### Greenfield Pipeline
 
-| Order | Agent | Description | Approval Gate |
-|-------|-------|-------------|---------------|
-| 1 | mode-detector | Confirm mode | No |
-| 2 | collector | Gather requirements | No |
-| 3 | prd-writer | Generate PRD | Yes |
-| 4 | srs-writer | Generate SRS | Yes |
-| 5 | repo-detector | Check repository | No |
-| 6 | github-repo-setup | Create repo | No |
-| 7 | sds-writer | Generate SDS | Yes |
-| 8 | issue-generator | Create issues | Yes |
-| 9 | controller | Assign work | No |
-| 10 | worker | Implement | No |
-| 11 | pr-reviewer | Review PRs | No |
+| Order | Agent             | Description         | Approval Gate |
+| ----- | ----------------- | ------------------- | ------------- |
+| 1     | mode-detector     | Confirm mode        | No            |
+| 2     | collector         | Gather requirements | No            |
+| 3     | prd-writer        | Generate PRD        | Yes           |
+| 4     | srs-writer        | Generate SRS        | Yes           |
+| 5     | repo-detector     | Check repository    | No            |
+| 6     | github-repo-setup | Create repo         | No            |
+| 7     | sds-writer        | Generate SDS        | Yes           |
+| 8     | issue-generator   | Create issues       | Yes           |
+| 9     | controller        | Assign work         | No            |
+| 10    | worker            | Implement           | No            |
+| 11    | pr-reviewer       | Review PRs          | No            |
 
 #### Enhancement Pipeline
 
-| Order | Agent | Description | Approval Gate |
-|-------|-------|-------------|---------------|
-| 1 | mode-detector | Confirm mode | No |
-| 2 | document-reader | Parse existing docs | No |
-| 3 | codebase-analyzer | Analyze code | No |
-| 4 | code-reader | Extract structure | No |
-| 5 | impact-analyzer | Assess impact | No |
-| 6 | prd-updater | Update PRD | Yes |
-| 7 | srs-updater | Update SRS | Yes |
-| 8 | sds-updater | Update SDS | Yes |
-| 9 | issue-generator | Create issues | Yes |
-| 10 | controller | Assign work | No |
-| 11 | worker | Implement | No |
-| 12 | regression-tester | Verify stability | No |
-| 13 | pr-reviewer | Review PRs | No |
+| Order | Agent             | Description         | Approval Gate |
+| ----- | ----------------- | ------------------- | ------------- |
+| 1     | mode-detector     | Confirm mode        | No            |
+| 2     | document-reader   | Parse existing docs | No            |
+| 3     | codebase-analyzer | Analyze code        | No            |
+| 4     | code-reader       | Extract structure   | No            |
+| 5     | impact-analyzer   | Assess impact       | No            |
+| 6     | prd-updater       | Update PRD          | Yes           |
+| 7     | srs-updater       | Update SRS          | Yes           |
+| 8     | sds-updater       | Update SDS          | Yes           |
+| 9     | issue-generator   | Create issues       | Yes           |
+| 10    | controller        | Assign work         | No            |
+| 11    | worker            | Implement           | No            |
+| 12    | regression-tester | Verify stability    | No            |
+| 13    | pr-reviewer       | Review PRs          | No            |
 
 #### Import Pipeline
 
-| Order | Agent | Description | Approval Gate |
-|-------|-------|-------------|---------------|
-| 1 | mode-detector | Confirm import mode | No |
-| 2 | issue-reader | Import GitHub issues | No |
-| 3 | controller | Prioritize and assign | No |
-| 4 | worker | Implement issues | No |
-| 5 | pr-reviewer | Review PRs | No |
+| Order | Agent         | Description           | Approval Gate |
+| ----- | ------------- | --------------------- | ------------- |
+| 1     | mode-detector | Confirm import mode   | No            |
+| 2     | issue-reader  | Import GitHub issues  | No            |
+| 3     | controller    | Prioritize and assign | No            |
+| 4     | worker        | Implement issues      | No            |
+| 5     | pr-reviewer   | Review PRs            | No            |
 
 **Import Mode Keywords** (auto-detection):
+
 - "process issues", "work on issues", "implement issues"
 - "handle backlog", "process backlog"
 - "existing issues", "open issues"
 - "issue #", "issues #"
 
+## Resume Capability
+
+The orchestrator supports resuming interrupted or failed pipelines. Session state is automatically persisted to `.ad-sdlc/scratchpad/pipeline/<session-id>.yaml` after each pipeline execution.
+
+### Session State Format
+
+```yaml
+pipelineId: 'a1b2c3d4-...'
+mode: 'greenfield'
+startedAt: '2026-02-18T10:00:00Z'
+overallStatus: 'partial' # "success" | "partial" | "failed"
+totalStages: 12
+completedStages: 7
+stages:
+  - name: 'initialization'
+    status: 'completed'
+  - name: 'sds_generation'
+    status: 'failed'
+    error: 'Subagent timeout'
+```
+
+### Resume Modes
+
+| Mode             | Description                                                          | CLI Flag                |
+| ---------------- | -------------------------------------------------------------------- | ----------------------- |
+| Resume Latest    | Load the most recent session and continue from next incomplete stage | `--resume`              |
+| Resume Specific  | Load a specific session by ID                                        | `--resume <session-id>` |
+| Start From Stage | Skip to a named stage, marking all prior stages as pre-completed     | `--start-from <stage>`  |
+
+### Artifact Validation
+
+When resuming, the orchestrator validates that expected artifacts exist for pre-completed stages. If an artifact is missing (e.g., PRD file deleted), that stage is removed from the pre-completed list and re-executed.
+
+### State Persistence Flow
+
+```
+Pipeline Execution
+  ├─ Stage completes → update in-memory state
+  ├─ Pipeline ends (success/partial/failed)
+  │   └─ Persist state to .ad-sdlc/scratchpad/pipeline/{session-id}.yaml
+  └─ Next run
+      ├─ Scan pipeline directory for prior sessions
+      ├─ Load session state → rebuild pre-completed stages
+      └─ Continue from next incomplete stage
+```
+
 ## Error Handling
 
 ### Recoverable Errors
 
-| Error | Recovery Action |
-|-------|-----------------|
+| Error            | Recovery Action                      |
+| ---------------- | ------------------------------------ |
 | Subagent Timeout | Retry up to 2 times with 30s backoff |
-| Output Missing | Retry with explicit output request |
-| API Error | Retry with exponential backoff |
+| Output Missing   | Retry with explicit output request   |
+| API Error        | Retry with exponential backoff       |
 
 ### Non-Recoverable Errors
 
-| Error | User Action Required |
-|-------|---------------------|
-| Project Not Found | Verify path and restart |
-| Validation Failed | Review input and restart |
+| Error                | User Action Required          |
+| -------------------- | ----------------------------- |
+| Project Not Found    | Verify path and restart       |
+| Validation Failed    | Review input and restart      |
 | Max Retries Exceeded | Choose: retry, skip, or abort |
 
 ## Examples
@@ -233,11 +294,13 @@ orchestration_result:
 ### Basic Usage: Greenfield Project
 
 **Invocation**:
+
 ```
 "Use the ad-sdlc-orchestrator to build a task management CLI application"
 ```
 
 **Expected Flow**:
+
 1. Mode detection → Greenfield
 2. Collect requirements interactively
 3. Generate PRD → User approval
@@ -252,11 +315,13 @@ orchestration_result:
 ### Basic Usage: Enhancement Project
 
 **Invocation**:
+
 ```
 "Use the ad-sdlc-orchestrator to add OAuth authentication to the existing app"
 ```
 
 **Expected Flow**:
+
 1. Mode detection → Enhancement (existing docs found)
 2. Analyze existing documentation
 3. Analyze codebase structure
@@ -273,11 +338,13 @@ orchestration_result:
 ### Basic Usage: Import Mode
 
 **Invocation**:
+
 ```
 "Use the ad-sdlc-orchestrator to process the open issues labeled 'bug'"
 ```
 
 **Expected Flow**:
+
 1. Import mode detected from keywords ("process", "issues")
 2. Import GitHub issues with label filter: ["bug"]
 3. Prioritize and assign work orders
@@ -288,11 +355,13 @@ orchestration_result:
 ### Import Mode with Specific Issues
 
 **Invocation**:
+
 ```
 "Use the ad-sdlc-orchestrator to work on issues #10, #12, #15"
 ```
 
 **Expected Flow**:
+
 1. Import mode detected from keywords ("work on issues", "#")
 2. Parse and import issues: [10, 12, 15]
 3. Analyze dependencies between issues
@@ -300,14 +369,36 @@ orchestration_result:
 5. Review each implementation
 6. Final report generated
 
+### Resume After Failed Pipeline
+
+**Invocation**:
+
+```
+"Resume the pipeline"
+```
+
+**Prior State**: Pipeline failed at `sds_generation` (7 of 12 greenfield stages completed)
+
+**Expected Flow**:
+
+1. Detect prior session in `.ad-sdlc/scratchpad/pipeline/`
+2. Present: "Pipeline paused at sds_generation. 7 stages complete."
+3. User chooses: Resume
+4. Validate artifacts: PRD exists, SRS exists
+5. Skip stages 1-7, execute from `sds_generation`
+6. Continue: issue_generation → controller → worker → pr-reviewer
+7. Generate final report (noting resumed execution)
+
 ### With Mode Override
 
 **Invocation**:
+
 ```
 "Use the ad-sdlc-orchestrator in greenfield mode to completely rebuild the authentication system"
 ```
 
 **Expected Flow**:
+
 - Mode override accepted
 - Greenfield pipeline executed regardless of existing docs/code
 
@@ -315,28 +406,28 @@ orchestration_result:
 
 ### Dependencies (Invokes)
 
-| Agent | Pipeline | Purpose |
-|-------|----------|---------|
-| mode-detector | All | Determine pipeline mode |
-| collector | Greenfield | Gather requirements |
-| prd-writer | Greenfield | Generate PRD |
-| srs-writer | Greenfield | Generate SRS |
-| sds-writer | Greenfield | Generate SDS |
-| repo-detector | Greenfield | Check for existing repo |
-| github-repo-setup | Greenfield | Create repository |
-| issue-generator | Greenfield/Enhancement | Create GitHub issues |
-| issue-reader | Import | Import existing GitHub issues |
-| controller | All | Orchestrate work |
-| worker | All | Implement features |
-| pr-reviewer | All | Review PRs |
-| document-reader | Enhancement | Parse existing docs |
-| codebase-analyzer | Enhancement | Analyze codebase |
-| code-reader | Enhancement | Extract code structure |
-| impact-analyzer | Enhancement | Assess change impact |
-| prd-updater | Enhancement | Update PRD |
-| srs-updater | Enhancement | Update SRS |
-| sds-updater | Enhancement | Update SDS |
-| regression-tester | Enhancement | Verify no regressions |
+| Agent             | Pipeline               | Purpose                       |
+| ----------------- | ---------------------- | ----------------------------- |
+| mode-detector     | All                    | Determine pipeline mode       |
+| collector         | Greenfield             | Gather requirements           |
+| prd-writer        | Greenfield             | Generate PRD                  |
+| srs-writer        | Greenfield             | Generate SRS                  |
+| sds-writer        | Greenfield             | Generate SDS                  |
+| repo-detector     | Greenfield             | Check for existing repo       |
+| github-repo-setup | Greenfield             | Create repository             |
+| issue-generator   | Greenfield/Enhancement | Create GitHub issues          |
+| issue-reader      | Import                 | Import existing GitHub issues |
+| controller        | All                    | Orchestrate work              |
+| worker            | All                    | Implement features            |
+| pr-reviewer       | All                    | Review PRs                    |
+| document-reader   | Enhancement            | Parse existing docs           |
+| codebase-analyzer | Enhancement            | Analyze codebase              |
+| code-reader       | Enhancement            | Extract code structure        |
+| impact-analyzer   | Enhancement            | Assess change impact          |
+| prd-updater       | Enhancement            | Update PRD                    |
+| srs-updater       | Enhancement            | Update SRS                    |
+| sds-updater       | Enhancement            | Update SDS                    |
+| regression-tester | Enhancement            | Verify no regressions         |
 
 ### Dependents
 
@@ -355,7 +446,7 @@ orchestration:
 
   approval_gates:
     enabled: true
-    auto_approve: false  # Set true for CI/CD mode
+    auto_approve: false # Set true for CI/CD mode
 
   parallelization:
     enabled: true
@@ -378,12 +469,12 @@ The pipeline can be executed via the shell script with support for resume and st
 
 ### Options
 
-| Option | Description |
-|--------|-------------|
-| `--start-from <stage>` | Start execution from a specific stage, skipping prior stages |
-| `--resume [session-id]` | Resume from the latest session or a specific session ID |
-| `--list-sessions` | List available pipeline sessions for resume |
-| `-h, --help` | Show help message with stage names and examples |
+| Option                  | Description                                                  |
+| ----------------------- | ------------------------------------------------------------ |
+| `--start-from <stage>`  | Start execution from a specific stage, skipping prior stages |
+| `--resume [session-id]` | Resume from the latest session or a specific session ID      |
+| `--list-sessions`       | List available pipeline sessions for resume                  |
+| `-h, --help`            | Show help message with stage names and examples              |
 
 ### Resume Pipeline
 
@@ -432,4 +523,4 @@ The `--start-from` option requires an explicit mode (`greenfield`, `enhancement`
 
 ---
 
-*Part of [Agent Reference Documentation](./README.md)*
+_Part of [Agent Reference Documentation](./README.md)_
