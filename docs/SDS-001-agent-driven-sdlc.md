@@ -2714,6 +2714,68 @@ When a pipeline is resumed (via `resumeSessionId` or `startFromStage`), the orch
                                               └───────────────┘
 ```
 
+**Artifact Validation for Pre-completed Stages**
+
+Before executing remaining stages, the orchestrator validates that output artifacts
+from pre-completed stages actually exist on disk. This prevents runtime failures
+when a user claims stages are complete but artifacts are missing.
+
+The `ArtifactValidator` class maps each stage to its expected output artifacts:
+
+```typescript
+interface ArtifactSpec {
+  readonly pathPattern: string;   // Glob pattern (supports * wildcard)
+  readonly description: string;   // Human-readable label
+  readonly required: boolean;     // Whether downstream stages need this
+}
+
+interface StageArtifactMap {
+  readonly stage: StageName;
+  readonly requiredArtifacts: readonly ArtifactSpec[];
+}
+
+interface ValidationResult {
+  readonly valid: boolean;
+  readonly stage: StageName;
+  readonly missing: readonly ArtifactSpec[];
+  readonly found: readonly string[];
+}
+```
+
+**Graceful degradation flow:**
+
+1. `executePipeline()` builds the `preCompleted` set from session state
+2. `ArtifactValidator.validatePreCompletedStages()` checks each stage's artifacts
+3. Stages with missing required artifacts are removed from `preCompleted`
+4. Removed stages are re-executed in the normal pipeline flow
+
+```
+preCompleted: {init, collection, prd_gen}
+                    │
+         ┌──────────▼──────────┐
+         │ ArtifactValidator    │
+         │ validatePreCompleted │
+         └──────────┬──────────┘
+                    │
+         init: ✓ .ad-sdlc/scratchpad exists
+         collection: ✗ collected_info.yaml missing
+         prd_gen: ✓ prd.md found
+                    │
+         ┌──────────▼──────────┐
+         │ Remove invalid:      │
+         │ preCompleted.delete( │
+         │   'collection')      │
+         └──────────┬──────────┘
+                    │
+         preCompleted: {init, prd_gen}
+         → collection will re-execute
+```
+
+Artifact maps are defined per pipeline mode:
+- **Greenfield**: initialization, collection, prd/srs/sds_generation, issue_generation
+- **Enhancement**: document_reading, codebase_analysis, code_reading, comparisons, updates, issue_generation
+- **Import**: No artifact prerequisites (returns empty map)
+
 #### 3.12.5 CMP-026: Analysis Orchestrator Agent
 
 **Source Features**: SF-030 (UC-043)
