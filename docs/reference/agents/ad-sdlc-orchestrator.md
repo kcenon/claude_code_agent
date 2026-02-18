@@ -1,6 +1,6 @@
 # AD-SDLC Pipeline Orchestrator
 
-> **Version**: 1.0.0
+> **Version**: 1.1.0
 > **Category**: Orchestration
 > **Order**: -1 (Top-level agent)
 
@@ -366,6 +366,60 @@ orchestration:
     output: scratchpad
 ```
 
+## CLI Usage
+
+The pipeline can be executed via the shell script with support for resume and start-from-middle capabilities.
+
+### Basic Usage
+
+```bash
+./ad-sdlc-full-pipeline.sh [project_path] [mode] [options]
+```
+
+### Options
+
+| Option | Description |
+|--------|-------------|
+| `--start-from <stage>` | Start execution from a specific stage, skipping prior stages |
+| `--resume [session-id]` | Resume from the latest session or a specific session ID |
+| `--list-sessions` | List available pipeline sessions for resume |
+| `-h, --help` | Show help message with stage names and examples |
+
+### Resume Pipeline
+
+```bash
+# Resume from the latest session
+./ad-sdlc-full-pipeline.sh . auto --resume
+
+# Resume from a specific session
+./ad-sdlc-full-pipeline.sh . auto --resume a1b2c3-session-id
+
+# List available sessions first
+./ad-sdlc-full-pipeline.sh . auto --list-sessions
+```
+
+Session state is stored in `.ad-sdlc/scratchpad/pipeline/<session-id>.yaml`. When resuming, the orchestrator loads prior state and continues from the next incomplete stage. Completed stages are not re-executed.
+
+### Start From Stage
+
+```bash
+# Skip to SDS generation (assumes PRD and SRS already exist)
+./ad-sdlc-full-pipeline.sh . greenfield --start-from sds_generation
+
+# Skip to issue generation in enhancement mode
+./ad-sdlc-full-pipeline.sh . enhancement --start-from issue_generation
+```
+
+The `--start-from` option requires an explicit mode (`greenfield`, `enhancement`, or `import`) — it cannot be used with `auto` mode. Artifacts from skipped stages are validated before proceeding.
+
+### Available Stage Names
+
+**Greenfield**: `initialization`, `mode_detection`, `collection`, `prd_generation`, `srs_generation`, `repo_detection`, `github_repo_setup`, `sds_generation`, `issue_generation`, `orchestration`, `implementation`, `review`
+
+**Enhancement**: `document_reading`, `codebase_analysis`, `code_reading`, `doc_code_comparison`, `impact_analysis`, `prd_update`, `srs_update`, `sds_update`, `issue_generation`, `orchestration`, `implementation`, `regression_testing`, `review`
+
+**Import**: `issue_reading`, `orchestration`, `implementation`, `review`
+
 ## Best Practices
 
 1. **Start Fresh**: Let the orchestrator detect mode automatically
@@ -373,6 +427,8 @@ orchestration:
 3. **Monitor Progress**: Check pipeline log for current status
 4. **Handle Errors Gracefully**: Choose appropriate recovery actions
 5. **Use Override Sparingly**: Only override mode when intentional
+6. **Resume on Failure**: Use `--resume` to continue after a failed pipeline run
+7. **Skip Completed Work**: Use `--start-from` to avoid re-executing expensive stages
 
 ---
 
