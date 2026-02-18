@@ -5,6 +5,7 @@
  * in E2E tests, including document generation and issue creation.
  */
 
+import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import type { TestEnvironment } from './test-environment.js';
 import type { CollectionResult } from '../../../src/collector/types.js';
@@ -363,4 +364,273 @@ export async function runDocumentPipeline(
   options: PipelineOptions = {}
 ): Promise<PipelineResult> {
   return runPipeline(env, inputText, { ...options, generateIssues: false });
+}
+
+// =============================================================================
+// Resume / Start-From Helpers
+// =============================================================================
+
+/**
+ * Options for running pipeline with resume capabilities
+ */
+export interface ResumeOptions {
+  /** Session ID to resume from */
+  resumeSessionId?: string;
+  /** Stage to start from */
+  startFromStage?: string;
+  /** Pipeline mode override */
+  mode?: 'greenfield' | 'enhancement' | 'import';
+  /** Stages to treat as pre-completed */
+  preCompletedStages?: readonly string[];
+}
+
+/**
+ * Create a mock persisted session YAML for testing
+ *
+ * Writes a valid session YAML file to the pipeline state directory
+ * that can be loaded by `loadPriorSession()`.
+ *
+ * @param projectDir - Project root directory
+ * @param mode - Pipeline mode for the session
+ * @param completedStages - Stage names to mark as completed
+ * @param options - Additional session options
+ * @returns Session ID of the created mock session
+ */
+export async function createMockSession(
+  projectDir: string,
+  mode: 'greenfield' | 'enhancement' | 'import',
+  completedStages: readonly string[],
+  options: {
+    sessionId?: string;
+    overallStatus?: string;
+    failedStages?: ReadonlyArray<{ name: string; error: string }>;
+  } = {}
+): Promise<string> {
+  const yaml = await import('js-yaml');
+
+  const sessionId = options.sessionId ?? `mock-session-${Date.now()}`;
+  const stateDir = path.join(projectDir, '.ad-sdlc', 'scratchpad', 'pipeline');
+  await fs.mkdir(stateDir, { recursive: true });
+
+  const stages: Array<Record<string, unknown>> = [];
+
+  // Add completed stages
+  for (const stageName of completedStages) {
+    stages.push({
+      name: stageName,
+      agentType: `mock-${stageName}`,
+      status: 'completed',
+      durationMs: Math.floor(Math.random() * 5000) + 100,
+      output: `Stage "${stageName}" completed`,
+      artifacts: [],
+      error: null,
+      retryCount: 0,
+    });
+  }
+
+  // Add failed stages
+  if (options.failedStages) {
+    for (const failed of options.failedStages) {
+      stages.push({
+        name: failed.name,
+        agentType: `mock-${failed.name}`,
+        status: 'failed',
+        durationMs: Math.floor(Math.random() * 5000) + 100,
+        output: '',
+        artifacts: [],
+        error: failed.error,
+        retryCount: 3,
+      });
+    }
+  }
+
+  const overallStatus =
+    options.overallStatus ??
+    (options.failedStages && options.failedStages.length > 0 ? 'partial' : 'completed');
+
+  const content = yaml.dump({
+    pipelineId: sessionId,
+    projectDir,
+    userRequest: 'Mock session for testing',
+    startedAt: new Date().toISOString(),
+    mode,
+    overallStatus,
+    stages,
+  });
+
+  await fs.writeFile(path.join(stateDir, `${sessionId}.yaml`), content, 'utf-8');
+  return sessionId;
+}
+
+/**
+ * Place mock artifacts for specified greenfield pipeline stages
+ *
+ * Creates the expected directory/file structure so that `ArtifactValidator`
+ * considers these stages as having valid artifacts.
+ *
+ * @param projectDir - Project root directory
+ * @param stages - Stage names to create artifacts for
+ * @param projectId - Project ID for artifact paths (default: 'mock-project')
+ */
+export async function placeMockArtifacts(
+  projectDir: string,
+  stages: readonly string[],
+  projectId: string = 'mock-project'
+): Promise<void> {
+  for (const stage of stages) {
+    switch (stage) {
+      case 'initialization':
+        await fs.mkdir(path.join(projectDir, '.ad-sdlc', 'scratchpad'), { recursive: true });
+        break;
+      case 'collection':
+        await fs.mkdir(path.join(projectDir, '.ad-sdlc', 'scratchpad', 'info', projectId), {
+          recursive: true,
+        });
+        await fs.writeFile(
+          path.join(projectDir, '.ad-sdlc', 'scratchpad', 'info', projectId, 'collected_info.yaml'),
+          'collected: true\n',
+          'utf-8'
+        );
+        break;
+      case 'prd_generation':
+        await fs.mkdir(path.join(projectDir, '.ad-sdlc', 'scratchpad', 'documents', projectId), {
+          recursive: true,
+        });
+        await fs.writeFile(
+          path.join(projectDir, '.ad-sdlc', 'scratchpad', 'documents', projectId, 'prd.md'),
+          '# Mock PRD\n',
+          'utf-8'
+        );
+        break;
+      case 'srs_generation':
+        await fs.mkdir(path.join(projectDir, '.ad-sdlc', 'scratchpad', 'documents', projectId), {
+          recursive: true,
+        });
+        await fs.writeFile(
+          path.join(projectDir, '.ad-sdlc', 'scratchpad', 'documents', projectId, 'srs.md'),
+          '# Mock SRS\n',
+          'utf-8'
+        );
+        break;
+      case 'sds_generation':
+        await fs.mkdir(path.join(projectDir, '.ad-sdlc', 'scratchpad', 'documents', projectId), {
+          recursive: true,
+        });
+        await fs.writeFile(
+          path.join(projectDir, '.ad-sdlc', 'scratchpad', 'documents', projectId, 'sds.md'),
+          '# Mock SDS\n',
+          'utf-8'
+        );
+        break;
+      case 'issue_generation':
+        await fs.mkdir(path.join(projectDir, '.ad-sdlc', 'scratchpad', 'issues'), {
+          recursive: true,
+        });
+        await fs.writeFile(
+          path.join(projectDir, '.ad-sdlc', 'scratchpad', 'issues', 'issue_list.json'),
+          '{"issues": []}\n',
+          'utf-8'
+        );
+        break;
+      // Enhancement mode artifacts
+      case 'document_reading':
+        await fs.mkdir(path.join(projectDir, '.ad-sdlc', 'scratchpad', 'analysis', projectId), {
+          recursive: true,
+        });
+        await fs.writeFile(
+          path.join(
+            projectDir,
+            '.ad-sdlc',
+            'scratchpad',
+            'analysis',
+            projectId,
+            'document_state.yaml'
+          ),
+          'state: analyzed\n',
+          'utf-8'
+        );
+        break;
+      case 'codebase_analysis':
+        await fs.mkdir(path.join(projectDir, '.ad-sdlc', 'scratchpad', 'analysis', projectId), {
+          recursive: true,
+        });
+        await fs.writeFile(
+          path.join(
+            projectDir,
+            '.ad-sdlc',
+            'scratchpad',
+            'analysis',
+            projectId,
+            'architecture_overview.yaml'
+          ),
+          'overview: analyzed\n',
+          'utf-8'
+        );
+        break;
+      case 'code_reading':
+        await fs.mkdir(path.join(projectDir, '.ad-sdlc', 'scratchpad', 'analysis', projectId), {
+          recursive: true,
+        });
+        await fs.writeFile(
+          path.join(
+            projectDir,
+            '.ad-sdlc',
+            'scratchpad',
+            'analysis',
+            projectId,
+            'code_inventory.yaml'
+          ),
+          'inventory: read\n',
+          'utf-8'
+        );
+        break;
+      case 'doc_code_comparison':
+        await fs.mkdir(path.join(projectDir, '.ad-sdlc', 'scratchpad', 'analysis', projectId), {
+          recursive: true,
+        });
+        await fs.writeFile(
+          path.join(
+            projectDir,
+            '.ad-sdlc',
+            'scratchpad',
+            'analysis',
+            projectId,
+            'comparison_report.yaml'
+          ),
+          'comparison: done\n',
+          'utf-8'
+        );
+        break;
+      case 'impact_analysis':
+        await fs.mkdir(path.join(projectDir, '.ad-sdlc', 'scratchpad', 'analysis', projectId), {
+          recursive: true,
+        });
+        await fs.writeFile(
+          path.join(
+            projectDir,
+            '.ad-sdlc',
+            'scratchpad',
+            'analysis',
+            projectId,
+            'impact_report.yaml'
+          ),
+          'impact: assessed\n',
+          'utf-8'
+        );
+        break;
+      // prd_update, srs_update, sds_update use same artifacts as prd/srs/sds_generation
+      case 'prd_update':
+        await placeMockArtifacts(projectDir, ['prd_generation'], projectId);
+        break;
+      case 'srs_update':
+        await placeMockArtifacts(projectDir, ['srs_generation'], projectId);
+        break;
+      case 'sds_update':
+        await placeMockArtifacts(projectDir, ['sds_generation'], projectId);
+        break;
+      // Stages without artifact definitions (mode_detection, repo_detection, etc.) — no-op
+      default:
+        break;
+    }
+  }
 }
