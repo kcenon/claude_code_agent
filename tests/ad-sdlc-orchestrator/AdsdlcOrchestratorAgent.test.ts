@@ -19,6 +19,21 @@ import {
   PipelineFailedError,
   SessionCorruptedError,
 } from '../../src/ad-sdlc-orchestrator/errors.js';
+import { ArtifactValidator } from '../../src/ad-sdlc-orchestrator/ArtifactValidator.js';
+
+/**
+ * ArtifactValidator subclass that treats all stages as valid.
+ * Used in tests where pre-completed stages have no real artifacts on disk.
+ */
+class NoOpArtifactValidator extends ArtifactValidator {
+  constructor() {
+    super('/dev/null');
+  }
+  override async validatePreCompletedStages(): Promise<never[]> {
+    return [];
+  }
+}
+
 import {
   DEFAULT_ORCHESTRATOR_CONFIG,
   GREENFIELD_STAGES,
@@ -660,9 +675,9 @@ describe('AdsdlcOrchestratorAgent', () => {
         'utf-8'
       );
 
-      await expect(
-        agent.loadPriorSession('corrupt-session', tempDir)
-      ).rejects.toThrow(SessionCorruptedError);
+      await expect(agent.loadPriorSession('corrupt-session', tempDir)).rejects.toThrow(
+        SessionCorruptedError
+      );
     });
 
     it('should throw SessionCorruptedError when mode is missing', async () => {
@@ -676,9 +691,9 @@ describe('AdsdlcOrchestratorAgent', () => {
         'utf-8'
       );
 
-      await expect(
-        agent.loadPriorSession('no-mode', tempDir)
-      ).rejects.toThrow(SessionCorruptedError);
+      await expect(agent.loadPriorSession('no-mode', tempDir)).rejects.toThrow(
+        SessionCorruptedError
+      );
     });
 
     it('should only include completed stages in preCompletedStages', async () => {
@@ -697,10 +712,38 @@ describe('AdsdlcOrchestratorAgent', () => {
         mode: 'import',
         overallStatus: 'partial',
         stages: [
-          { name: 'issue_reading', agentType: 'issue-reader', status: 'completed', durationMs: 100, error: null, retryCount: 0 },
-          { name: 'orchestration', agentType: 'controller', status: 'completed', durationMs: 200, error: null, retryCount: 0 },
-          { name: 'implementation', agentType: 'worker', status: 'failed', durationMs: 300, error: 'timeout', retryCount: 3 },
-          { name: 'review', agentType: 'pr-reviewer', status: 'skipped', durationMs: 0, error: null, retryCount: 0 },
+          {
+            name: 'issue_reading',
+            agentType: 'issue-reader',
+            status: 'completed',
+            durationMs: 100,
+            error: null,
+            retryCount: 0,
+          },
+          {
+            name: 'orchestration',
+            agentType: 'controller',
+            status: 'completed',
+            durationMs: 200,
+            error: null,
+            retryCount: 0,
+          },
+          {
+            name: 'implementation',
+            agentType: 'worker',
+            status: 'failed',
+            durationMs: 300,
+            error: 'timeout',
+            retryCount: 3,
+          },
+          {
+            name: 'review',
+            agentType: 'pr-reviewer',
+            status: 'skipped',
+            durationMs: 0,
+            error: null,
+            retryCount: 0,
+          },
         ],
       });
       await fs.writeFile(path.join(stateDir, 'mixed-session.yaml'), content, 'utf-8');
@@ -858,6 +901,9 @@ describe('AdsdlcOrchestratorAgent', () => {
       const executionOrder: string[] = [];
 
       class TrackingOrchestrator extends AdsdlcOrchestratorAgent {
+        protected override createArtifactValidator(): ArtifactValidator {
+          return new NoOpArtifactValidator();
+        }
         protected override async invokeAgent(
           stage: { name: string; agentType: string },
           _session: unknown
@@ -877,10 +923,7 @@ describe('AdsdlcOrchestratorAgent', () => {
         startFromStage: 'issue_generation',
       });
 
-      const result = await trackingAgent.executePipeline(
-        tempDir,
-        'Start from issue generation'
-      );
+      const result = await trackingAgent.executePipeline(tempDir, 'Start from issue generation');
 
       expect(result.overallStatus).toBe('completed');
       // Stages before issue_generation should NOT be executed
@@ -961,10 +1004,7 @@ describe('AdsdlcOrchestratorAgent', () => {
         preCompletedStages: ['issue_reading'],
       });
 
-      const result = await partialAgent.executePipeline(
-        tempDir,
-        'Resume from orchestration'
-      );
+      const result = await partialAgent.executePipeline(tempDir, 'Resume from orchestration');
 
       expect(result.overallStatus).toBe('completed');
       // New stages: orchestration, implementation, review (3 stages)
@@ -979,10 +1019,90 @@ describe('AdsdlcOrchestratorAgent', () => {
       await partialAgent.dispose();
     });
 
+    it('should re-execute stages with missing artifacts (graceful degradation)', async () => {
+      const executionOrder: string[] = [];
+
+      class TrackingOrchestrator extends AdsdlcOrchestratorAgent {
+        protected override async invokeAgent(
+          stage: { name: string; agentType: string },
+          _session: unknown
+        ): Promise<string> {
+          executionOrder.push(stage.name);
+          return `Stage "${stage.name}" completed`;
+        }
+      }
+
+      const trackingAgent = new TrackingOrchestrator();
+      await trackingAgent.initialize();
+
+      // Pre-complete collection and prd_generation, but don't create artifacts
+      // The validator should remove them from preCompleted, causing them to execute
+      await trackingAgent.startSession({
+        projectDir: tempDir,
+        userRequest: 'Resume with missing artifacts',
+        overrideMode: 'greenfield',
+        preCompletedStages: ['initialization', 'mode_detection', 'collection'],
+      });
+
+      const result = await trackingAgent.executePipeline(tempDir, 'Resume with missing artifacts');
+
+      expect(result.overallStatus).toBe('completed');
+      // collection had a required artifact (collected_info.yaml) that doesn't exist,
+      // so it should have been removed from preCompleted and re-executed.
+      // initialization has .ad-sdlc/scratchpad which doesn't exist either.
+      // mode_detection has no artifact definition, so it stays pre-completed.
+      expect(executionOrder).toContain('initialization');
+      expect(executionOrder).toContain('collection');
+      // mode_detection has no artifact spec, so it remains pre-completed
+      expect(executionOrder).not.toContain('mode_detection');
+
+      await trackingAgent.dispose();
+    });
+
+    it('should keep pre-completed stages when artifacts exist', async () => {
+      const executionOrder: string[] = [];
+
+      class TrackingOrchestrator extends AdsdlcOrchestratorAgent {
+        protected override async invokeAgent(
+          stage: { name: string; agentType: string },
+          _session: unknown
+        ): Promise<string> {
+          executionOrder.push(stage.name);
+          return `Stage "${stage.name}" completed`;
+        }
+      }
+
+      const trackingAgent = new TrackingOrchestrator();
+      await trackingAgent.initialize();
+
+      // Create the artifacts that initialization expects
+      await fs.mkdir(path.join(tempDir, '.ad-sdlc', 'scratchpad'), { recursive: true });
+
+      await trackingAgent.startSession({
+        projectDir: tempDir,
+        userRequest: 'Resume with valid artifacts',
+        overrideMode: 'greenfield',
+        preCompletedStages: ['initialization'],
+      });
+
+      const result = await trackingAgent.executePipeline(tempDir, 'Resume with valid artifacts');
+
+      expect(result.overallStatus).toBe('completed');
+      // initialization should NOT be re-executed because its artifact exists
+      expect(executionOrder).not.toContain('initialization');
+      // mode_detection should execute (depends on initialization which is pre-completed)
+      expect(executionOrder).toContain('mode_detection');
+
+      await trackingAgent.dispose();
+    });
+
     it('should treat dependencies of pre-completed stages as satisfied', async () => {
       const executionOrder: string[] = [];
 
       class DepTrackingOrchestrator extends AdsdlcOrchestratorAgent {
+        protected override createArtifactValidator(): ArtifactValidator {
+          return new NoOpArtifactValidator();
+        }
         protected override async invokeAgent(
           stage: { name: string; agentType: string },
           _session: unknown

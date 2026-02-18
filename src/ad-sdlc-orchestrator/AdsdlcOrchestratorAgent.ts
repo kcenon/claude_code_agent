@@ -44,6 +44,7 @@ import {
   StageTimeoutError,
   StatePersistenceError,
 } from './errors.js';
+import { ArtifactValidator } from './ArtifactValidator.js';
 
 // YAML parser (dynamically loaded)
 let yaml: { dump: (obj: unknown) => string; load: (str: string) => unknown } | null = null;
@@ -208,6 +209,16 @@ export class AdsdlcOrchestratorAgent implements IAgent {
       if (session.preCompletedStages) {
         for (const name of session.preCompletedStages) {
           preCompleted.add(name);
+        }
+      }
+
+      // Validate artifacts for pre-completed stages (graceful degradation)
+      if (preCompleted.size > 0) {
+        const validator = this.createArtifactValidator(session.projectDir);
+        const validations = await validator.validatePreCompletedStages(preCompleted, session.mode);
+        const invalid = validations.filter((v) => !v.valid);
+        for (const v of invalid) {
+          preCompleted.delete(v.stage);
         }
       }
 
@@ -735,6 +746,17 @@ export class AdsdlcOrchestratorAgent implements IAgent {
       decidedBy: 'system',
       decidedAt: new Date().toISOString(),
     });
+  }
+
+  /**
+   * Create an ArtifactValidator for the given project directory.
+   *
+   * Override this method in tests to provide a no-op or mock validator.
+   * @param projectDir - The project root directory to validate artifacts against
+   * @returns A new ArtifactValidator instance
+   */
+  protected createArtifactValidator(projectDir: string): ArtifactValidator {
+    return new ArtifactValidator(projectDir);
   }
 
   /**
