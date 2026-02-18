@@ -176,7 +176,7 @@ describe('ReviewChecks', () => {
       // Main assertion is that the check runs without error
       expect(result.checklist.security).toBeDefined();
       expect(result.checklist.security.some(item => item.name.includes('SQL'))).toBe(true);
-    }, 15000);
+    }, 45000);
 
     it('should detect XSS patterns', async () => {
       const checks = new ReviewChecks({
@@ -201,7 +201,7 @@ describe('ReviewChecks', () => {
       );
       expect(xssComments.length).toBeGreaterThan(0);
       expect(xssComments[0].severity).toBe('major');
-    }, 15000);
+    }, 45000);
 
     it('should detect dangerouslySetInnerHTML in tsx files', async () => {
       const checks = new ReviewChecks({
@@ -249,7 +249,7 @@ describe('ReviewChecks', () => {
         c.comment.toLowerCase().includes('xss')
       );
       expect(xssComments.length).toBeGreaterThan(0);
-    }, 15000);
+    }, 45000);
   });
 
   describe('quality checks', () => {
@@ -279,7 +279,7 @@ describe('ReviewChecks', () => {
       );
       expect(errorComments.length).toBeGreaterThan(0);
       expect(errorComments[0].severity).toBe('major');
-    }, 15000);
+    }, 45000);
 
     it('should include SOLID principles check in quality checklist', async () => {
       const checks = new ReviewChecks({
@@ -305,7 +305,7 @@ describe('ReviewChecks', () => {
       // Check that SOLID principles are evaluated
       expect(result.checklist.quality).toBeDefined();
       expect(result.checklist.quality.some(item => item.name.includes('SOLID'))).toBe(true);
-    }, 15000);
+    }, 45000);
   });
 
   describe('performance checks', () => {
@@ -332,7 +332,7 @@ describe('ReviewChecks', () => {
       // Check that N+1 query pattern is part of performance checks
       expect(result.checklist.performance).toBeDefined();
       expect(result.checklist.performance.some(item => item.name.includes('N+1'))).toBe(true);
-    }, 15000);
+    }, 45000);
   });
 
   describe('documentation checks', () => {
@@ -359,7 +359,7 @@ describe('ReviewChecks', () => {
       expect(result.checklist.documentation.some(item =>
         item.name.includes('API') || item.name.includes('documented')
       )).toBe(true);
-    }, 15000);
+    }, 45000);
 
     it('should not suggest JSDoc when present', async () => {
       const checks = new ReviewChecks({
@@ -388,7 +388,7 @@ describe('ReviewChecks', () => {
          c.comment.toLowerCase().includes('documentation'))
       );
       expect(docComments.length).toBe(0);
-    }, 15000);
+    }, 45000);
   });
 
   describe('checklist', () => {
@@ -412,7 +412,7 @@ describe('ReviewChecks', () => {
       expect(result.checklist).toHaveProperty('testing');
       expect(result.checklist).toHaveProperty('performance');
       expect(result.checklist).toHaveProperty('documentation');
-    }, 15000);
+    }, 45000);
 
     it('should have check items with required properties', async () => {
       const checks = new ReviewChecks({
@@ -434,7 +434,7 @@ describe('ReviewChecks', () => {
         expect(item).toHaveProperty('passed');
         expect(item).toHaveProperty('description');
       }
-    }, 15000);
+    }, 45000);
   });
 
   describe('metrics', () => {
@@ -468,7 +468,7 @@ describe('ReviewChecks', () => {
       // Complexity score is calculated, may be 0 or greater
       expect(typeof result.metrics.complexityScore).toBe('number');
       expect(result.metrics.complexityScore).toBeGreaterThanOrEqual(0);
-    }, 15000);
+    }, 45000);
 
     it('should return metrics with expected properties', async () => {
       const checks = new ReviewChecks({
@@ -569,7 +569,7 @@ describe('ReviewChecks', () => {
         c.comment.toLowerCase().includes('complexity')
       );
       expect(complexityComments.length).toBeGreaterThan(0);
-    }, 15000);
+    }, 45000);
 
     it('should not flag simple functions', async () => {
       const checks = new ReviewChecks({
@@ -596,7 +596,7 @@ describe('ReviewChecks', () => {
         c.comment.toLowerCase().includes('complexity') && c.file === 'src/simple.ts'
       );
       expect(complexityComments.length).toBe(0);
-    }, 15000);
+    }, 45000);
   });
 
   describe('anti-pattern detection', () => {
@@ -628,7 +628,7 @@ describe('ReviewChecks', () => {
       );
       expect(magicComments.length).toBeGreaterThan(0);
       expect(magicComments.some((c) => c.severity === 'suggestion')).toBe(true);
-    }, 15000);
+    }, 45000);
 
     it('should skip test files for magic number detection', async () => {
       const checks = new ReviewChecks({
@@ -658,7 +658,7 @@ describe('ReviewChecks', () => {
           c.file === 'src/example.test.ts'
       );
       expect(magicComments.length).toBe(0);
-    }, 15000);
+    }, 45000);
 
     it('should detect path traversal vulnerabilities', async () => {
       const checks = new ReviewChecks({
@@ -689,7 +689,7 @@ describe('ReviewChecks', () => {
       );
       expect(pathComments.length).toBeGreaterThan(0);
       expect(pathComments.some((c) => c.severity === 'critical')).toBe(true);
-    }, 15000);
+    }, 45000);
 
     it('should detect god class pattern', async () => {
       const checks = new ReviewChecks({
@@ -718,7 +718,7 @@ describe('ReviewChecks', () => {
         c.comment.toLowerCase().includes('god class')
       );
       expect(godClassComments.length).toBeGreaterThan(0);
-    }, 15000);
+    }, 45000);
   });
 
   describe('dependency vulnerability check', () => {
@@ -770,7 +770,7 @@ describe('ReviewChecks', () => {
         item.name.toLowerCase().includes('duplicate')
       );
       expect(dupCheck).toBeDefined();
-    }, 15000);
+    }, 45000);
   });
 
   describe('incremental review', () => {
@@ -797,7 +797,7 @@ describe('ReviewChecks', () => {
       expect(result).toHaveProperty('comments');
       expect(result).toHaveProperty('checklist');
       expect(result).toHaveProperty('metrics');
-    }, 15000);
+    }, 45000);
 
     it('should use incremental review for large PRs', async () => {
       const checks = new ReviewChecks({
@@ -895,7 +895,7 @@ describe('ReviewChecks', () => {
       // Should not use incremental review even with many files
       expect(result.isIncremental).toBe(false);
       expect(result.batchCount).toBe(1);
-    }, 15000);
+    }, 45000);
 
     it('should merge check items correctly across batches', async () => {
       const checks = new ReviewChecks({

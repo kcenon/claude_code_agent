@@ -2681,6 +2681,24 @@ When a pipeline is resumed (via `resumeSessionId` or `startFromStage`), the orch
 
 3. **Result merging**: `executePipeline()` merges prior completed results with newly executed results into the final `PipelineResult.stages` array.
 
+**Artifact Validation for Pre-completed Stages**
+
+Before executing remaining stages, the orchestrator validates that output artifacts
+from pre-completed stages actually exist on disk. The `ArtifactValidator` class maps
+each stage to its expected output artifacts and checks their presence using glob matching.
+
+**Graceful degradation flow:**
+
+1. `executePipeline()` builds the `preCompleted` set from session state
+2. `ArtifactValidator.validatePreCompletedStages()` checks each stage's artifacts
+3. Stages with missing required artifacts are removed from `preCompleted`
+4. Removed stages are re-executed in the normal pipeline flow
+
+Artifact maps are defined per pipeline mode:
+- **Greenfield**: initialization, collection, prd/srs/sds_generation, issue_generation
+- **Enhancement**: document_reading, codebase_analysis, code_reading, comparisons, updates, issue_generation
+- **Import**: No artifact prerequisites (returns empty map)
+
 #### 3.12.5 CMP-026: Analysis Orchestrator Agent
 
 **Source Features**: SF-030 (UC-043)

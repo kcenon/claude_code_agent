@@ -14,6 +14,15 @@ export {
   ADSDLC_ORCHESTRATOR_AGENT_ID,
 } from './AdsdlcOrchestratorAgent.js';
 
+// Artifact validation
+export {
+  ArtifactValidator,
+  GREENFIELD_ARTIFACTS,
+  ENHANCEMENT_ARTIFACTS,
+} from './ArtifactValidator.js';
+
+export type { ArtifactSpec, StageArtifactMap, ValidationResult } from './ArtifactValidator.js';
+
 // Type exports
 export type {
   // Mode and strategy types

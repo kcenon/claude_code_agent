@@ -2686,6 +2686,41 @@ interface OrchestratorSession {
 
 3. **결과 병합**: `executePipeline()`이 이전 완료 결과와 새로 실행된 결과를 최종 `PipelineResult.stages` 배열로 병합합니다.
 
+**사전 완료 단계의 아티팩트 검증 (Artifact Validation)**
+
+나머지 단계를 실행하기 전에, 오케스트레이터는 사전 완료된 단계의 출력 아티팩트가
+디스크에 실제로 존재하는지 검증합니다. 이를 통해 아티팩트가 누락된 상태에서
+다운스트림 단계가 실행되어 런타임 오류가 발생하는 것을 방지합니다.
+
+`ArtifactValidator` 클래스가 각 단계를 예상 출력 아티팩트에 매핑합니다:
+
+```typescript
+interface ArtifactSpec {
+  readonly pathPattern: string;   // Glob 패턴 (* 와일드카드 지원)
+  readonly description: string;   // 사람이 읽을 수 있는 레이블
+  readonly required: boolean;     // 다운스트림 단계에 필수 여부
+}
+
+interface ValidationResult {
+  readonly valid: boolean;
+  readonly stage: StageName;
+  readonly missing: readonly ArtifactSpec[];
+  readonly found: readonly string[];
+}
+```
+
+**Graceful degradation 흐름:**
+
+1. `executePipeline()`이 세션 상태에서 `preCompleted` 세트를 빌드
+2. `ArtifactValidator.validatePreCompletedStages()`가 각 단계의 아티팩트를 확인
+3. 필수 아티팩트가 누락된 단계는 `preCompleted`에서 제거
+4. 제거된 단계는 일반 파이프라인 흐름에서 재실행
+
+아티팩트 맵은 파이프라인 모드별로 정의됩니다:
+- **Greenfield**: initialization, collection, prd/srs/sds_generation, issue_generation
+- **Enhancement**: document_reading, codebase_analysis, code_reading, 비교, 업데이트, issue_generation
+- **Import**: 아티팩트 전제 조건 없음 (빈 맵 반환)
+
 #### 3.12.5 CMP-026: Analysis Orchestrator Agent
 
 **Source Features**: SF-030 (UC-043)
