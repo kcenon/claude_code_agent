@@ -73,6 +73,8 @@ import {
   ControllerStatePersistenceError,
 } from './errors.js';
 import { BoundedWorkQueue } from './BoundedWorkQueue.js';
+import type { AgentBridge, AgentRequest, AgentResponse } from '../agents/AgentBridge.js';
+import type { BridgeRegistry } from '../agents/BridgeRegistry.js';
 
 /**
  * Internal mutable worker state
@@ -138,6 +140,8 @@ export class WorkerPoolManager {
   private readonly sharedStatePath: string;
   /** Metrics collector for observability */
   private readonly metrics: WorkerPoolMetrics | null;
+  /** Optional BridgeRegistry for delegating work to real AI execution */
+  private _bridgeRegistry: BridgeRegistry | null = null;
 
   constructor(config: WorkerPoolConfig = {}, scratchpadOptions?: ScratchpadOptions) {
     // Merge distributed lock options with defaults
@@ -484,6 +488,52 @@ export class WorkerPoolManager {
         error instanceof Error ? error : undefined
       );
     }
+  }
+
+  /**
+   * Set the BridgeRegistry for delegating work to real AI execution.
+   *
+   * When a registry is set, `assignWork` will asynchronously execute the
+   * work order through the resolved bridge after updating worker state.
+   *
+   * @param registry - The BridgeRegistry to use for agent execution
+   */
+  public setBridgeRegistry(registry: BridgeRegistry): void {
+    this._bridgeRegistry = registry;
+  }
+
+  /**
+   * Execute a work order through the bridge registry.
+   *
+   * Resolves the appropriate bridge for the 'worker' agent type
+   * and delegates execution. Returns the bridge response.
+   *
+   * @param workOrder - The work order to execute
+   * @param projectDir - Project directory for file operations
+   * @returns The agent response from bridge execution
+   */
+  public async executeWithBridge(
+    workOrder: WorkOrder,
+    projectDir = ''
+  ): Promise<AgentResponse> {
+    if (this._bridgeRegistry === null) {
+      return {
+        output: `No bridge registry configured for ${workOrder.issueId}`,
+        artifacts: [],
+        success: true,
+      };
+    }
+
+    const bridge: AgentBridge = this._bridgeRegistry.resolve('worker');
+    const request: AgentRequest = {
+      agentType: 'worker',
+      input: workOrder.issueId,
+      scratchpadDir: this.config.workOrdersPath,
+      projectDir,
+      priorStageOutputs: {},
+    };
+
+    return bridge.execute(request);
   }
 
   /**
