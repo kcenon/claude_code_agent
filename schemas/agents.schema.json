@@ -42,12 +42,21 @@
           },
           "category": {
             "type": "string",
-            "enum": ["document_pipeline", "issue_management", "execution"],
+            "enum": [
+              "orchestration",
+              "infrastructure",
+              "document_pipeline",
+              "project_setup",
+              "document_update",
+              "issue_management",
+              "execution",
+              "analysis_pipeline",
+              "enhancement_pipeline"
+            ],
             "description": "Agent category"
           },
           "order": {
-            "type": "integer",
-            "minimum": 1,
+            "type": "number",
             "description": "Execution order within category"
           },
           "capabilities": {
@@ -114,6 +123,30 @@
                 "description": "Average issues generated per project"
               }
             }
+          },
+          "token_budget": {
+            "type": "object",
+            "description": "Token budget for this agent",
+            "properties": {
+              "default_limit": {
+                "type": "integer",
+                "description": "Default token limit"
+              },
+              "cost_limit_usd": {
+                "type": "number",
+                "description": "Cost limit in USD"
+              },
+              "model_preference": {
+                "type": "string",
+                "enum": ["sonnet", "opus", "haiku"],
+                "description": "Preferred model for this agent"
+              }
+            }
+          },
+          "model_preference": {
+            "type": "string",
+            "enum": ["sonnet", "opus", "haiku"],
+            "description": "Preferred Claude model for this agent"
           }
         }
       }
@@ -141,7 +174,7 @@
           },
           "execution_mode": {
             "type": "string",
-            "enum": ["sequential", "parallel"],
+            "enum": ["sequential", "parallel", "on_demand", "mixed"],
             "default": "sequential",
             "description": "How agents in this category execute"
           }
@@ -157,11 +190,32 @@
           "description": "Agent dependency definitions",
           "additionalProperties": {
             "type": "object",
+            "required": ["requires"],
             "properties": {
               "requires": {
                 "type": "array",
                 "items": { "type": "string" },
                 "description": "Required agents that must complete first"
+              },
+              "blocks": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Agents blocked by this agent"
+              },
+              "alternative_to": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Agents this can substitute for"
+              },
+              "alternative_inputs": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Alternative input sources"
+              },
+              "orchestrates": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Agents orchestrated by this agent"
               }
             }
           }
@@ -189,6 +243,10 @@
                   { "type": "array", "items": { "type": "string" } }
                 ],
                 "description": "Data files passed between agents"
+              },
+              "mode": {
+                "type": "string",
+                "description": "Data flow mode"
               }
             }
           }
