@@ -32,6 +32,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Verify dependency integrity
+        run: |
+          INVALID_COUNT=$(npm ls 2>&1 | grep -c "invalid" || true)
+          if [ "$INVALID_COUNT" -gt 0 ]; then
+            echo "::error::Found $INVALID_COUNT invalid packages"
+            exit 1
+          fi
+
       - name: Run linter
         run: npm run lint
 
