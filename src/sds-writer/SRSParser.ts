@@ -236,7 +236,7 @@ export class SRSParser {
       const line = lines[i] ?? '';
 
       // Check for Features section
-      if (line.match(/^##\s+\d*\.?\s*(Software\s+)?Features/i)) {
+      if (line.match(/^##\s+\d*\.?\s*(Software\s+|System\s+)?Features/i)) {
         inFeaturesSection = true;
         continue;
       }
