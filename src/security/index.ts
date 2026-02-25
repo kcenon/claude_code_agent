@@ -130,5 +130,32 @@ export type {
   MkdirOptions,
 } from './SecureFileOps.js';
 
-// Secret Providers - Pluggable secret management with multiple backends
-export * from './secrets/index.js';
+// Secret Providers - Type-only re-exports (safe for sandboxed environments)
+export type { ISecretProvider } from './secrets/ISecretProvider.js';
+export type {
+  Secret,
+  CachedSecret,
+  ProviderState,
+  ProviderHealth,
+  BaseSecretProviderConfig,
+  LocalProviderConfig,
+  AWSSecretsManagerConfig,
+  VaultProviderConfig,
+  AzureKeyVaultConfig,
+  SecretProviderConfig,
+  SecretManagerConfig,
+  CircuitBreakerState,
+  CircuitBreakerConfig,
+  CircuitBreakerStatus,
+} from './secrets/types.js';
+
+/**
+ * Lazy-load the secrets module. Only call when secret management is needed.
+ *
+ * This avoids eagerly importing the secrets submodule at startup, which
+ * can trigger EPERM errors in sandboxed environments where the `secrets`
+ * path pattern is blocked.
+ *
+ * @returns A promise resolving to the full secrets module exports
+ */
+export const getSecretsModule = () => import('./secrets/index.js');
