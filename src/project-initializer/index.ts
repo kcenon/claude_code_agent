@@ -52,6 +52,12 @@ export {
   resetProjectInitializer,
 } from './ProjectInitializer.js';
 
+// ProjectInitializerAgentAdapter
+export {
+  ProjectInitializerAgentAdapter,
+  PROJECT_INITIALIZER_AGENT_ID,
+} from './ProjectInitializerAgentAdapter.js';
+
 // InteractiveWizard
 export { createInteractiveWizard, InteractiveWizard } from './InteractiveWizard.js';
 

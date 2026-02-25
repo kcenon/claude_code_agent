@@ -9,6 +9,12 @@
 export { IssueGenerator, getIssueGenerator, resetIssueGenerator } from './IssueGenerator.js';
 export type { IssueGeneratorConfig } from './IssueGenerator.js';
 
+// IssueGeneratorAgentAdapter
+export {
+  IssueGeneratorAgentAdapter,
+  ISSUE_GENERATOR_AGENT_ID,
+} from './IssueGeneratorAgentAdapter.js';
+
 export { SDSParser } from './SDSParser.js';
 export { IssueTransformer } from './IssueTransformer.js';
 export { EffortEstimator } from './EffortEstimator.js';
