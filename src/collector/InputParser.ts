@@ -10,8 +10,8 @@ import * as path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { getLogger } from '../logging/index.js';
 import * as yaml from 'js-yaml';
-import { PDFParse } from 'pdf-parse';
-import * as mammoth from 'mammoth';
+// pdf-parse (~21MB) and mammoth (docx parsing) are loaded dynamically
+// to reduce CLI startup time. See parsePdfFile() and parseDocxFile().
 import type {
   InputSource,
   ParsedInput,
@@ -203,8 +203,9 @@ export class InputParser {
    * @returns FileParseResult with extracted text
    */
   private async parsePdfFile(filePath: string, stats: fs.Stats): Promise<FileParseResult> {
-    let pdfParser: PDFParse | null = null;
+    let pdfParser: InstanceType<(typeof import('pdf-parse'))['PDFParse']> | null = null;
     try {
+      const { PDFParse } = await import('pdf-parse');
       const dataBuffer = await fs.promises.readFile(filePath);
       pdfParser = new PDFParse({ data: dataBuffer });
       const textResult = await pdfParser.getText();
@@ -263,6 +264,7 @@ export class InputParser {
    */
   private async parseDocxFile(filePath: string, stats: fs.Stats): Promise<FileParseResult> {
     try {
+      const mammoth = await import('mammoth');
       const result = await mammoth.extractRawText({ path: filePath });
 
       const content = result.value.trim();
