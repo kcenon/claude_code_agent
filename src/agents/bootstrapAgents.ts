@@ -46,7 +46,7 @@ export interface BootstrapResult {
  * console.log(`Registered ${result.registered} agents`);
  * ```
  */
-export async function bootstrapAgents(): Promise<BootstrapResult> {
+export function bootstrapAgents(): BootstrapResult {
   const registry = AgentRegistry.getInstance();
 
   let registered = 0;

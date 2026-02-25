@@ -17,7 +17,9 @@ import type {
  * Dynamically load the AWS CloudWatch Logs module.
  * Avoids eagerly importing ~8MB of @aws-sdk/client-cloudwatch-logs at startup.
  */
-const getCloudWatchModule = async () => import('@aws-sdk/client-cloudwatch-logs');
+const getCloudWatchModule = async (): Promise<
+  typeof import('@aws-sdk/client-cloudwatch-logs')
+> => import('@aws-sdk/client-cloudwatch-logs');
 import { BaseTransport } from './BaseTransport.js';
 import type { TransportLogEntry, CloudWatchTransportConfig } from './types.js';
 import { hostname } from 'node:os';

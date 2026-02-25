@@ -158,4 +158,5 @@ export type {
  *
  * @returns A promise resolving to the full secrets module exports
  */
-export const getSecretsModule = () => import('./secrets/index.js');
+export const getSecretsModule = (): Promise<typeof import('./secrets/index.js')> =>
+  import('./secrets/index.js');

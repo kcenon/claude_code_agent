@@ -234,7 +234,7 @@ export class RepoDetector implements IAgent {
       };
     }
 
-    let hasCommits = false;
+    let hasCommits: boolean;
     let currentBranch: string | null = null;
     let isClean = true;
 

@@ -166,7 +166,6 @@ export class SRSParser {
     productDescription: string;
   } {
     let productName = '';
-    let productDescription = '';
     let inIntroduction = false;
     const descriptionLines: string[] = [];
 
@@ -201,7 +200,7 @@ export class SRSParser {
       }
     }
 
-    productDescription = descriptionLines.join(' ').slice(0, 500);
+    const productDescription = descriptionLines.join(' ').slice(0, 500);
 
     // Fallback: try to extract from title
     if (!productName) {

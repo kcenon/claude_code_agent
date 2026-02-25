@@ -174,7 +174,7 @@ export { TelemetryConfigSchema };
 /**
  * Pipeline stage input/output
  */
-const StageIOSchema = z.array(z.union([z.string(), z.object({ type: z.string() }).passthrough()]));
+const StageIOSchema = z.array(z.union([z.string(), z.object({ type: z.string() }).loose()]));
 
 /**
  * Pipeline stage definition
@@ -187,7 +187,7 @@ const OnCiFailureSchema = z.object({
   outputs: z.array(z.string()).optional(),
 }).optional();
 
-const PipelineStageSchema: z.ZodType<unknown> = z.lazy(() => z.object({
+const PipelineStageSchema: z.ZodType = z.lazy(() => z.object({
   name: z.string().min(1, 'Stage name is required'),
   agent: z.string().optional(),
   description: z.string().optional(),
@@ -200,7 +200,7 @@ const PipelineStageSchema: z.ZodType<unknown> = z.lazy(() => z.object({
   conditional: z.boolean().optional(),
   on_ci_failure: OnCiFailureSchema,
   substages: z.array(z.lazy(() => PipelineStageSchema)).optional(),
-}).passthrough());
+}).loose());
 
 /**
  * Pipeline configuration
@@ -283,7 +283,7 @@ const WorkflowAgentConfigSchema = z.object({
   coding: AgentCodingSchema.optional(),
   verification: AgentVerificationSchema.optional(),
   review: AgentReviewSchema.optional(),
-}).passthrough();
+}).loose();
 
 /**
  * All agents configuration in workflow
@@ -528,7 +528,7 @@ export const ObservabilityConfigSchema = z.object({
 const TokenBudgetEntrySchema = z.object({
   max_tokens: z.number().int().optional(),
   max_cost_usd: z.number().optional(),
-}).passthrough();
+}).loose();
 
 /**
  * Token budgets configuration
@@ -612,7 +612,7 @@ const AgentDefinitionSchema = z.object({
     model_preference: ModelSchema.optional(),
   }).optional(),
   model_preference: ModelSchema.optional(),
-}).passthrough();
+}).loose();
 
 /**
  * Agent category definition
