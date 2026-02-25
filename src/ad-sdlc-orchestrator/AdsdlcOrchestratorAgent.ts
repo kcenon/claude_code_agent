@@ -129,9 +129,9 @@ export class AdsdlcOrchestratorAgent implements IAgent {
    *
    * @returns The initialized AgentDispatcher instance
    */
-  private async getDispatcher(): Promise<AgentDispatcher> {
+  private getDispatcher(): AgentDispatcher {
     if (!this._dispatcher) {
-      await bootstrapAgents();
+      bootstrapAgents();
       this._dispatcher = new AgentDispatcher();
     }
     return this._dispatcher;
@@ -637,7 +637,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
     stage: PipelineStageDefinition,
     session: OrchestratorSession
   ): Promise<string> {
-    const dispatcher = await this.getDispatcher();
+    const dispatcher = this.getDispatcher();
     return dispatcher.dispatch(stage, session);
   }
 

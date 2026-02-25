@@ -10,10 +10,7 @@
 export { PriorityAnalyzer } from './PriorityAnalyzer.js';
 export { WorkerPoolManager } from './WorkerPoolManager.js';
 export { ProgressMonitor } from './ProgressMonitor.js';
-export {
-  ControllerAgentAdapter,
-  CONTROLLER_AGENT_ID,
-} from './ControllerAgentAdapter.js';
+export { ControllerAgentAdapter, CONTROLLER_AGENT_ID } from './ControllerAgentAdapter.js';
 export type { ControllerAgentConfig } from './ControllerAgentAdapter.js';
 export { WorkerHealthMonitor } from './WorkerHealthMonitor.js';
 export { StuckWorkerHandler } from './StuckWorkerHandler.js';

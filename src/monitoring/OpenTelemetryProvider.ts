@@ -23,12 +23,20 @@ const ATTR_DEPLOYMENT_ENVIRONMENT = 'deployment.environment';
  * Avoids eagerly importing these modules at CLI startup.
  * The lightweight @opentelemetry/api is cached on first use via initialize().
  */
-const getOTelApi = async () => import('@opentelemetry/api');
-const getOTelSdkNode = async () => import('@opentelemetry/sdk-node');
-const getOTelResources = async () => import('@opentelemetry/resources');
-const getOTelSemanticConventions = async () => import('@opentelemetry/semantic-conventions');
-const getOTelSdkTraceBase = async () => import('@opentelemetry/sdk-trace-base');
-const getOTelExporterOtlp = async () => import('@opentelemetry/exporter-trace-otlp-http');
+const getOTelApi = async (): Promise<typeof import('@opentelemetry/api')> =>
+  import('@opentelemetry/api');
+const getOTelSdkNode = async (): Promise<typeof import('@opentelemetry/sdk-node')> =>
+  import('@opentelemetry/sdk-node');
+const getOTelResources = async (): Promise<typeof import('@opentelemetry/resources')> =>
+  import('@opentelemetry/resources');
+const getOTelSemanticConventions = async (): Promise<
+  typeof import('@opentelemetry/semantic-conventions')
+> => import('@opentelemetry/semantic-conventions');
+const getOTelSdkTraceBase = async (): Promise<typeof import('@opentelemetry/sdk-trace-base')> =>
+  import('@opentelemetry/sdk-trace-base');
+const getOTelExporterOtlp = async (): Promise<
+  typeof import('@opentelemetry/exporter-trace-otlp-http')
+> => import('@opentelemetry/exporter-trace-otlp-http');
 import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -141,7 +149,8 @@ export class OpenTelemetryProvider {
       this.registerShutdownHandlers();
     } catch (error) {
       throw new Error(
-        `Failed to initialize OpenTelemetry SDK: ${error instanceof Error ? error.message : String(error)}`
+        `Failed to initialize OpenTelemetry SDK: ${error instanceof Error ? error.message : String(error)}`,
+        { cause: error }
       );
     }
   }
@@ -190,7 +199,8 @@ export class OpenTelemetryProvider {
       }
     } catch (error) {
       throw new Error(
-        `Failed to load OpenTelemetry configuration: ${error instanceof Error ? error.message : String(error)}`
+        `Failed to load OpenTelemetry configuration: ${error instanceof Error ? error.message : String(error)}`,
+        { cause: error }
       );
     }
   }

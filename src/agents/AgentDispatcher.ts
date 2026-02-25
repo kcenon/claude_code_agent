@@ -16,7 +16,10 @@
  */
 
 import path from 'node:path';
-import type { PipelineStageDefinition, OrchestratorSession } from '../ad-sdlc-orchestrator/types.js';
+import type {
+  PipelineStageDefinition,
+  OrchestratorSession,
+} from '../ad-sdlc-orchestrator/types.js';
 import type { IAgent } from './types.js';
 import { isAgent } from './types.js';
 import { getAgentTypeEntry } from './AgentTypeMapping.js';
@@ -49,9 +52,7 @@ export class AgentDispatchError extends Error {
  */
 export class AgentModuleError extends Error {
   constructor(agentType: string, importPath: string) {
-    super(
-      `No valid agent class found in module '${importPath}' for agent type '${agentType}'`
-    );
+    super(`No valid agent class found in module '${importPath}' for agent type '${agentType}'`);
     this.name = 'AgentModuleError';
   }
 }
@@ -107,10 +108,7 @@ export class AgentDispatcher {
    * @returns Agent output string
    * @throws AgentDispatchError if the agent type is unknown or dispatch fails
    */
-  async dispatch(
-    stage: PipelineStageDefinition,
-    session: OrchestratorSession
-  ): Promise<string> {
+  async dispatch(stage: PipelineStageDefinition, session: OrchestratorSession): Promise<string> {
     const entry = getAgentTypeEntry(stage.agentType);
     if (!entry) {
       throw new AgentDispatchError(
@@ -136,10 +134,7 @@ export class AgentDispatcher {
       return await adapter(agent, stage, session);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      throw new AgentDispatchError(
-        stage.agentType,
-        `Agent execution failed: ${message}`
-      );
+      throw new AgentDispatchError(stage.agentType, `Agent execution failed: ${message}`);
     }
   }
 
@@ -230,10 +225,7 @@ export class AgentDispatcher {
    * @param entry - Agent type entry from AGENT_TYPE_MAP
    * @returns The agent instance
    */
-  private async getOrCreateAgent(
-    agentType: string,
-    entry: AgentTypeEntry
-  ): Promise<IAgent> {
+  private async getOrCreateAgent(agentType: string, entry: AgentTypeEntry): Promise<IAgent> {
     // Check cache for singletons
     if (entry.lifecycle === 'singleton') {
       const cached = this.agentCache.get(agentType);
@@ -387,10 +379,7 @@ export class AgentDispatcher {
    * @param entry - Agent type entry providing agentId and name
    * @returns An IAgent wrapper around the instance
    */
-  private wrapNonAgent(
-    instance: Record<string, unknown>,
-    entry: AgentTypeEntry
-  ): IAgent {
+  private wrapNonAgent(instance: Record<string, unknown>, entry: AgentTypeEntry): IAgent {
     return {
       agentId: entry.agentId,
       name: entry.name,
@@ -428,10 +417,9 @@ export class AgentDispatcher {
       const a = toRecord(agent);
       if (typeof a['collectFromText'] === 'function') {
         const projectName = path.basename(session.projectDir);
-        const result = await (a['collectFromText'] as (text: string, project?: string) => Promise<unknown>)(
-          session.userRequest,
-          projectName
-        );
+        const result = await (
+          a['collectFromText'] as (text: string, project?: string) => Promise<unknown>
+        )(session.userRequest, projectName);
         return JSON.stringify(result);
       }
       return this.defaultAdapter(agent, _stage, session);
@@ -603,7 +591,9 @@ export class AgentDispatcher {
     // Try generateFromProject pattern (doc writers)
     if (typeof a['generateFromProject'] === 'function') {
       const projectId = path.basename(session.projectDir);
-      const result = await (a['generateFromProject'] as (id: string) => Promise<unknown>)(projectId);
+      const result = await (a['generateFromProject'] as (id: string) => Promise<unknown>)(
+        projectId
+      );
       return JSON.stringify(result);
     }
 
@@ -615,7 +605,9 @@ export class AgentDispatcher {
 
     // Try execute pattern (generic agents)
     if (typeof a['execute'] === 'function') {
-      const result = await (a['execute'] as (session: OrchestratorSession) => Promise<unknown>)(session);
+      const result = await (a['execute'] as (session: OrchestratorSession) => Promise<unknown>)(
+        session
+      );
       return JSON.stringify(result);
     }
 
