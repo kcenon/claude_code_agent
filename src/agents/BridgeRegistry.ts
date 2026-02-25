@@ -10,6 +10,8 @@
 
 import type { AgentBridge } from './AgentBridge.js';
 import { StubBridge } from './bridges/StubBridge.js';
+import { AnthropicApiBridge } from './bridges/AnthropicApiBridge.js';
+import { ClaudeCodeBridge } from './bridges/ClaudeCodeBridge.js';
 
 /**
  * Registry that selects the appropriate AgentBridge for a given agent type.
@@ -84,4 +86,38 @@ export class BridgeRegistry {
     await Promise.all(promises);
     this.bridges.length = 0;
   }
+}
+
+/**
+ * Create a BridgeRegistry with auto-detected bridges based on environment.
+ *
+ * Detection logic:
+ * 1. If inside a Claude Code session → register ClaudeCodeBridge
+ * 2. If ANTHROPIC_API_KEY is set → register AnthropicApiBridge
+ * 3. StubBridge is always the final fallback (built into BridgeRegistry)
+ */
+export function createDefaultBridgeRegistry(): BridgeRegistry {
+  const registry = new BridgeRegistry();
+
+  // Claude Code session detection
+  if (isClaudeCodeSession()) {
+    registry.register(new ClaudeCodeBridge());
+  }
+
+  // Anthropic API key detection
+  if (process.env['ANTHROPIC_API_KEY']) {
+    registry.register(new AnthropicApiBridge());
+  }
+
+  return registry;
+}
+
+/**
+ * Detect if running inside a Claude Code session.
+ */
+function isClaudeCodeSession(): boolean {
+  return (
+    !!process.env['CLAUDE_CODE_SESSION'] ||
+    !!process.env['CLAUDE_CODE']
+  );
 }

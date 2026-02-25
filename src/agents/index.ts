@@ -62,9 +62,11 @@ export { AgentDispatcher, AgentDispatchError, AgentModuleError } from './AgentDi
 
 export type { AgentCallAdapter } from './AgentDispatcher.js';
 
-export { BridgeRegistry } from './BridgeRegistry.js';
+export { BridgeRegistry, createDefaultBridgeRegistry } from './BridgeRegistry.js';
 
 export { StubBridge } from './bridges/StubBridge.js';
+export { AnthropicApiBridge } from './bridges/AnthropicApiBridge.js';
+export { ClaudeCodeBridge } from './bridges/ClaudeCodeBridge.js';
 
 export type { AgentBridge, AgentRequest, AgentResponse } from './AgentBridge.js';
 

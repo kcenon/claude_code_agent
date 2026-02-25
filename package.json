@@ -83,6 +83,7 @@
     "vitest": "^4.0.16"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.78.0",
     "@aws-sdk/client-cloudwatch-logs": "^3.995.0",
     "@elastic/elasticsearch": "^9.3.2",
     "@opentelemetry/api": "^1.9.0",
