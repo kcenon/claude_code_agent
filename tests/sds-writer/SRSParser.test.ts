@@ -305,6 +305,45 @@ A simple feature.
       expect(result.features[0]?.useCaseIds).toHaveLength(0);
     });
 
+    it('should parse features section with "System Features" heading', () => {
+      const parser = new SRSParser();
+      const result = parser.parse(`
+## 2. System Features
+
+### SF-001: Feature One
+
+| **Priority** | P0 |
+| **Source** | FR-001 |
+
+**Description:**
+
+A feature under System Features heading.
+
+**Acceptance Criteria:**
+
+- Criterion one
+- Criterion two
+
+### SF-002: Feature Two
+
+| **Priority** | P1 |
+| **Source** | FR-002 |
+
+**Description:**
+
+Another feature.
+      `);
+
+      expect(result.features).toHaveLength(2);
+      expect(result.features[0]?.id).toBe('SF-001');
+      expect(result.features[0]?.name).toBe('Feature One');
+      expect(result.features[0]?.priority).toBe('P0');
+      expect(result.features[0]?.sourceRequirements).toContain('FR-001');
+      expect(result.features[0]?.acceptanceCriteria).toHaveLength(2);
+      expect(result.features[1]?.id).toBe('SF-002');
+      expect(result.features[1]?.name).toBe('Feature Two');
+    });
+
     it('should handle priority extraction from complex strings', () => {
       const parser = new SRSParser();
       const result = parser.parse(`
