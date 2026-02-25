@@ -8,7 +8,7 @@
  * @module logging/transports
  */
 
-import { Client } from '@elastic/elasticsearch';
+import type { Client } from '@elastic/elasticsearch';
 
 /**
  * Elasticsearch client options inferred from the Client constructor.
@@ -16,6 +16,15 @@ import { Client } from '@elastic/elasticsearch';
  * ClientOptions directly, so we extract it from the constructor signature.
  */
 type ClientOptions = NonNullable<ConstructorParameters<typeof Client>[0]>;
+
+/**
+ * Dynamically load the Elasticsearch Client constructor.
+ * Avoids eagerly importing ~14MB of @elastic/elasticsearch at startup.
+ */
+const getElasticsearchClient = async (): Promise<typeof Client> => {
+  const { Client: ESClient } = await import('@elastic/elasticsearch');
+  return ESClient;
+};
 import { BaseTransport } from './BaseTransport.js';
 import type { TransportLogEntry, ElasticsearchTransportConfig } from './types.js';
 
@@ -188,7 +197,8 @@ export class ElasticsearchTransport extends BaseTransport {
       clientOptions.tls = tlsConfig;
     }
 
-    this.client = new Client(clientOptions);
+    const ESClient = await getElasticsearchClient();
+    this.client = new ESClient(clientOptions);
 
     // Verify connection
     await this.client.ping();

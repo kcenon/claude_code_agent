@@ -8,16 +8,16 @@
  * @module logging/transports
  */
 
-import {
+import type {
   CloudWatchLogsClient,
-  CreateLogGroupCommand,
-  CreateLogStreamCommand,
-  DescribeLogGroupsCommand,
-  DescribeLogStreamsCommand,
-  PutLogEventsCommand,
-  PutRetentionPolicyCommand,
-  type InputLogEvent,
+  InputLogEvent,
 } from '@aws-sdk/client-cloudwatch-logs';
+
+/**
+ * Dynamically load the AWS CloudWatch Logs module.
+ * Avoids eagerly importing ~8MB of @aws-sdk/client-cloudwatch-logs at startup.
+ */
+const getCloudWatchModule = async () => import('@aws-sdk/client-cloudwatch-logs');
 import { BaseTransport } from './BaseTransport.js';
 import type { TransportLogEntry, CloudWatchTransportConfig } from './types.js';
 import { hostname } from 'node:os';
@@ -176,7 +176,8 @@ export class CloudWatchTransport extends BaseTransport {
       }
     }
 
-    this.client = new CloudWatchLogsClient(clientConfig);
+    const cwModule = await getCloudWatchModule();
+    this.client = new cwModule.CloudWatchLogsClient(clientConfig);
 
     // Ensure log group exists
     await this.ensureLogGroup();
@@ -254,9 +255,11 @@ export class CloudWatchTransport extends BaseTransport {
     }
 
     try {
+      const cwModule = await getCloudWatchModule();
+
       // Check if log group exists
       const describeResponse = await this.client.send(
-        new DescribeLogGroupsCommand({
+        new cwModule.DescribeLogGroupsCommand({
           logGroupNamePrefix: this.logGroupName,
           limit: 1,
         })
@@ -269,14 +272,14 @@ export class CloudWatchTransport extends BaseTransport {
       if (!exists && this.createLogGroup) {
         // Create log group
         await this.client.send(
-          new CreateLogGroupCommand({
+          new cwModule.CreateLogGroupCommand({
             logGroupName: this.logGroupName,
           })
         );
 
         // Set retention policy
         await this.client.send(
-          new PutRetentionPolicyCommand({
+          new cwModule.PutRetentionPolicyCommand({
             logGroupName: this.logGroupName,
             retentionInDays: this.retentionInDays,
           })
@@ -308,8 +311,10 @@ export class CloudWatchTransport extends BaseTransport {
     this.logStreamName = `${this.logStreamPrefix}/${hostName}/${timestamp}`;
 
     try {
+      const cwModule = await getCloudWatchModule();
+
       await this.client.send(
-        new CreateLogStreamCommand({
+        new cwModule.CreateLogStreamCommand({
           logGroupName: this.logGroupName,
           logStreamName: this.logStreamName,
         })
@@ -337,8 +342,9 @@ export class CloudWatchTransport extends BaseTransport {
     }
 
     try {
+      const cwModule = await getCloudWatchModule();
       const response = await this.client.send(
-        new DescribeLogStreamsCommand({
+        new cwModule.DescribeLogStreamsCommand({
           logGroupName: this.logGroupName,
           logStreamNamePrefix: this.logStreamName,
           limit: 1,
@@ -365,8 +371,10 @@ export class CloudWatchTransport extends BaseTransport {
     }
 
     try {
+      const cwModule = await getCloudWatchModule();
+
       const response = await this.client.send(
-        new PutLogEventsCommand({
+        new cwModule.PutLogEventsCommand({
           logGroupName: this.logGroupName,
           logStreamName: this.logStreamName,
           logEvents: batch,
@@ -381,8 +389,9 @@ export class CloudWatchTransport extends BaseTransport {
       if (this.isInvalidSequenceTokenError(error)) {
         await this.refreshSequenceToken();
         // Retry with updated token
+        const cwModule = await getCloudWatchModule();
         const response = await this.client.send(
-          new PutLogEventsCommand({
+          new cwModule.PutLogEventsCommand({
             logGroupName: this.logGroupName,
             logStreamName: this.logStreamName,
             logEvents: batch,

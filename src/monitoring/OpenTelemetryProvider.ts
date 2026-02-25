@@ -12,28 +12,23 @@
  * - Custom AD-SDLC span attributes
  */
 
-import { NodeSDK } from '@opentelemetry/sdk-node';
-import { resourceFromAttributes, type Resource } from '@opentelemetry/resources';
-import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from '@opentelemetry/semantic-conventions';
+import type { Resource } from '@opentelemetry/resources';
+import type { SpanProcessor, SpanExporter } from '@opentelemetry/sdk-trace-base';
+import type { Tracer, Span, SpanOptions, Context } from '@opentelemetry/api';
 
 const ATTR_DEPLOYMENT_ENVIRONMENT = 'deployment.environment';
-import {
-  BatchSpanProcessor,
-  ConsoleSpanExporter,
-  SimpleSpanProcessor,
-  type SpanProcessor,
-  type SpanExporter,
-} from '@opentelemetry/sdk-trace-base';
-import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
-import {
-  trace,
-  context,
-  type Tracer,
-  type Span,
-  SpanStatusCode,
-  type SpanOptions,
-  type Context,
-} from '@opentelemetry/api';
+
+/**
+ * Dynamically load heavy @opentelemetry/* SDK packages (~37MB total).
+ * Avoids eagerly importing these modules at CLI startup.
+ * The lightweight @opentelemetry/api is cached on first use via initialize().
+ */
+const getOTelApi = async () => import('@opentelemetry/api');
+const getOTelSdkNode = async () => import('@opentelemetry/sdk-node');
+const getOTelResources = async () => import('@opentelemetry/resources');
+const getOTelSemanticConventions = async () => import('@opentelemetry/semantic-conventions');
+const getOTelSdkTraceBase = async () => import('@opentelemetry/sdk-trace-base');
+const getOTelExporterOtlp = async () => import('@opentelemetry/exporter-trace-otlp-http');
 import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -75,11 +70,19 @@ const DEFAULT_CONFIG: OpenTelemetryConfig = {
  * OpenTelemetry provider for distributed tracing
  */
 export class OpenTelemetryProvider {
-  private sdk: NodeSDK | null = null;
+  private sdk: InstanceType<(typeof import('@opentelemetry/sdk-node'))['NodeSDK']> | null = null;
   private tracer: Tracer | null = null;
   private config: OpenTelemetryConfig;
   private initialized = false;
   private shutdownPromise: Promise<void> | null = null;
+
+  /**
+   * Cached references to @opentelemetry/api values, populated during initialize().
+   * Keeps runtime methods synchronous after one-time async loading.
+   */
+  private otelTrace: (typeof import('@opentelemetry/api'))['trace'] | null = null;
+  private otelContext: (typeof import('@opentelemetry/api'))['context'] | null = null;
+  private otelSpanStatusCode: (typeof import('@opentelemetry/api'))['SpanStatusCode'] | null = null;
 
   constructor(config?: Partial<OpenTelemetryConfig>) {
     this.config = { ...DEFAULT_CONFIG, ...config };
@@ -107,10 +110,10 @@ export class OpenTelemetryProvider {
     }
 
     // Create resource with service information
-    const resource = this.createResource();
+    const resource = await this.createResource();
 
     // Create span processors for each enabled exporter
-    const spanProcessors = this.createSpanProcessors();
+    const spanProcessors = await this.createSpanProcessors();
 
     if (spanProcessors.length === 0) {
       // No exporters enabled, just mark as initialized
@@ -119,6 +122,7 @@ export class OpenTelemetryProvider {
     }
 
     // Initialize the SDK
+    const { NodeSDK } = await getOTelSdkNode();
     this.sdk = new NodeSDK({
       resource,
       spanProcessors,
@@ -126,7 +130,11 @@ export class OpenTelemetryProvider {
 
     try {
       this.sdk.start();
-      this.tracer = trace.getTracer(this.config.serviceName, '1.0.0');
+      const otelApi = await getOTelApi();
+      this.otelTrace = otelApi.trace;
+      this.otelContext = otelApi.context;
+      this.otelSpanStatusCode = otelApi.SpanStatusCode;
+      this.tracer = this.otelTrace.getTracer(this.config.serviceName, '1.0.0');
       this.initialized = true;
 
       // Register shutdown handlers
@@ -191,7 +199,10 @@ export class OpenTelemetryProvider {
    * Create OpenTelemetry resource with service attributes
    * @returns OpenTelemetry resource with service name, version, and custom attributes
    */
-  private createResource(): Resource {
+  private async createResource(): Promise<Resource> {
+    const { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } = await getOTelSemanticConventions();
+    const { resourceFromAttributes } = await getOTelResources();
+
     const attributes: Record<string, string> = {
       [ATTR_SERVICE_NAME]: this.config.serviceName,
     };
@@ -218,22 +229,23 @@ export class OpenTelemetryProvider {
    * Create span processors for configured exporters
    * @returns Array of span processors for each enabled exporter
    */
-  private createSpanProcessors(): SpanProcessor[] {
+  private async createSpanProcessors(): Promise<SpanProcessor[]> {
     const processors: SpanProcessor[] = [];
+    const traceBase = await getOTelSdkTraceBase();
 
     for (const exporterConfig of this.config.exporters) {
       if (exporterConfig.enabled === false) {
         continue;
       }
 
-      const exporter = this.createExporter(exporterConfig);
+      const exporter = await this.createExporter(exporterConfig);
       if (exporter !== null) {
         // Use SimpleSpanProcessor for console (for immediate output)
         // Use BatchSpanProcessor for network exporters (for efficiency)
         const processor =
           exporterConfig.type === 'console'
-            ? new SimpleSpanProcessor(exporter)
-            : new BatchSpanProcessor(exporter);
+            ? new traceBase.SimpleSpanProcessor(exporter)
+            : new traceBase.BatchSpanProcessor(exporter);
         processors.push(processor);
       }
     }
@@ -246,10 +258,12 @@ export class OpenTelemetryProvider {
    * @param config - Exporter configuration specifying type, endpoint, and connection options
    * @returns Configured span exporter instance, or null if configuration is invalid
    */
-  private createExporter(config: OpenTelemetryExporterConfig): SpanExporter | null {
+  private async createExporter(config: OpenTelemetryExporterConfig): Promise<SpanExporter | null> {
     switch (config.type) {
-      case 'console':
+      case 'console': {
+        const { ConsoleSpanExporter } = await getOTelSdkTraceBase();
         return new ConsoleSpanExporter();
+      }
 
       case 'otlp':
       case 'jaeger': {
@@ -269,6 +283,7 @@ export class OpenTelemetryProvider {
         if (config.timeoutMs !== undefined) {
           exporterOptions.timeoutMillis = config.timeoutMs;
         }
+        const { OTLPTraceExporter } = await getOTelExporterOtlp();
         return new OTLPTraceExporter(exporterOptions);
       }
 
@@ -352,11 +367,11 @@ export class OpenTelemetryProvider {
    * @returns Started span or null if not enabled
    */
   public startSpan(name: string, options?: SpanOptions, parentContext?: Context): Span | null {
-    if (!this.isEnabled() || this.tracer === null) {
+    if (!this.isEnabled() || this.tracer === null || this.otelContext === null) {
       return null;
     }
 
-    const ctx = parentContext ?? context.active();
+    const ctx = parentContext ?? this.otelContext.active();
     return this.tracer.startSpan(name, options, ctx);
   }
 
@@ -438,7 +453,9 @@ export class OpenTelemetryProvider {
       }
     }
 
-    span.setStatus({ code: SpanStatusCode.OK });
+    if (this.otelSpanStatusCode !== null) {
+      span.setStatus({ code: this.otelSpanStatusCode.OK });
+    }
     span.end();
   }
 
@@ -453,10 +470,12 @@ export class OpenTelemetryProvider {
       return;
     }
 
-    span.setStatus({
-      code: SpanStatusCode.ERROR,
-      message: error.message,
-    });
+    if (this.otelSpanStatusCode !== null) {
+      span.setStatus({
+        code: this.otelSpanStatusCode.ERROR,
+        message: error.message,
+      });
+    }
     span.recordException(error);
     span.end();
   }
@@ -496,7 +515,10 @@ export class OpenTelemetryProvider {
       return null;
     }
 
-    const span = trace.getActiveSpan();
+    if (this.otelTrace === null) {
+      return null;
+    }
+    const span = this.otelTrace.getActiveSpan();
     if (span === undefined) {
       return null;
     }
@@ -540,6 +562,9 @@ export class OpenTelemetryProvider {
   public async reset(): Promise<void> {
     await this.shutdown();
     this.config = { ...DEFAULT_CONFIG };
+    this.otelTrace = null;
+    this.otelContext = null;
+    this.otelSpanStatusCode = null;
   }
 }
 
