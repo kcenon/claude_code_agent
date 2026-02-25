@@ -38,8 +38,8 @@ describe('Document Traceability', () => {
   });
 
   describe('PRD → SRS Traceability', () => {
-    // TODO: Depends on full pipeline which requires SDS generation
-    it.skip('should include PRD reference in SRS document', async () => {
+
+    it('should include PRD reference in SRS document', async () => {
       // Given: A complete pipeline execution
       const result = await runPipeline(env, MEDIUM_FEATURE_INPUT, {
         projectName: 'Traceability Test',
@@ -58,8 +58,8 @@ describe('Document Traceability', () => {
       expect(srsContent).toContain('Source PRD');
     }, 60000);
 
-    // TODO: Depends on full pipeline which requires SDS generation
-    it.skip('should map PRD requirements to SRS features', async () => {
+
+    it('should map PRD requirements to SRS features', async () => {
       // Given: A complete pipeline with known requirements
       const result = await runPipeline(env, MEDIUM_FEATURE_INPUT, {
         projectName: 'Requirement Mapping Test',
@@ -78,8 +78,8 @@ describe('Document Traceability', () => {
       expect(counts.srsFeatures).toBeGreaterThanOrEqual(counts.prdFunctional);
     }, 60000);
 
-    // TODO: Depends on full pipeline which requires SDS generation
-    it.skip('should include traceability matrix in SRS', async () => {
+
+    it('should include traceability matrix in SRS', async () => {
       // Given: A complete pipeline execution
       const result = await runPipeline(env, MEDIUM_FEATURE_INPUT, {
         projectName: 'Matrix Test',
@@ -99,9 +99,7 @@ describe('Document Traceability', () => {
   });
 
   describe('SRS → SDS Traceability', () => {
-    // TODO: SDS Writer validation fails due to SRS format mismatch.
-    // This needs to be addressed in a separate issue.
-    it.skip('should include SRS reference in SDS document', async () => {
+    it('should include SRS reference in SDS document', async () => {
       // Given: A complete pipeline execution
       const result = await runPipeline(env, MEDIUM_FEATURE_INPUT, {
         projectName: 'SRS-SDS Trace Test',
@@ -119,8 +117,8 @@ describe('Document Traceability', () => {
       expect(sdsContent).toContain(`SRS-${result.projectId}`);
     }, 60000);
 
-    // TODO: Depends on SDS generation which has format mismatch issue
-    it.skip('should map SRS features to SDS components', async () => {
+
+    it('should map SRS features to SDS components', async () => {
       // Given: A complete pipeline execution
       const result = await runPipeline(env, MEDIUM_FEATURE_INPUT, {
         projectName: 'Feature Component Mapping',
@@ -137,8 +135,8 @@ describe('Document Traceability', () => {
       expect(counts.sdsComponents).toBeGreaterThan(0);
     }, 60000);
 
-    // TODO: Depends on SDS generation which has format mismatch issue
-    it.skip('should include traceability matrix in SDS', async () => {
+
+    it('should include traceability matrix in SDS', async () => {
       // Given: A complete pipeline execution
       const result = await runPipeline(env, MEDIUM_FEATURE_INPUT, {
         projectName: 'SDS Matrix Test',
@@ -158,8 +156,8 @@ describe('Document Traceability', () => {
   });
 
   describe('SDS → Issues Traceability', () => {
-    // TODO: Depends on SDS generation which has format mismatch issue
-    it.skip('should link issues to SDS components', async () => {
+
+    it('should link issues to SDS components', async () => {
       // Given: A complete pipeline with issue generation
       const result = await runPipeline(env, MEDIUM_FEATURE_INPUT, {
         projectName: 'Issue Traceability Test',
@@ -180,8 +178,8 @@ describe('Document Traceability', () => {
       expect(issuesWithSource.length).toBeGreaterThan(0);
     }, 90000);
 
-    // TODO: Depends on SDS generation which has format mismatch issue
-    it.skip('should maintain dependency graph based on SDS', async () => {
+
+    it('should maintain dependency graph based on SDS', async () => {
       // Given: A complete pipeline with dependencies
       const result = await runPipeline(env, COMPLEX_FEATURE_INPUT, {
         projectName: 'Dependency Graph Test',
@@ -202,8 +200,8 @@ describe('Document Traceability', () => {
   });
 
   describe('Full Chain Traceability', () => {
-    // TODO: Depends on SDS generation which has format mismatch issue
-    it.skip('should maintain complete traceability chain', async () => {
+
+    it('should maintain complete traceability chain', async () => {
       // Given: A complete pipeline execution
       const result = await runPipeline(env, MEDIUM_FEATURE_INPUT, {
         projectName: 'Full Chain Test',
@@ -222,8 +220,8 @@ describe('Document Traceability', () => {
       expect(traceability.brokenLinks).toHaveLength(0);
     }, 90000);
 
-    // TODO: Depends on SDS generation which has format mismatch issue
-    it.skip('should preserve requirement counts through the chain', async () => {
+
+    it('should preserve requirement counts through the chain', async () => {
       // Given: A complete pipeline execution
       const result = await runPipeline(env, MEDIUM_FEATURE_INPUT, {
         projectName: 'Count Preservation Test',
@@ -243,8 +241,8 @@ describe('Document Traceability', () => {
       expect(counts.issues).toBeGreaterThan(0);
     }, 90000);
 
-    // TODO: Depends on SDS generation which has format mismatch issue
-    it.skip('should have consistent document IDs across chain', async () => {
+
+    it('should have consistent document IDs across chain', async () => {
       // Given: A complete pipeline execution
       const result = await runPipeline(env, MEDIUM_FEATURE_INPUT, {
         projectName: 'Document ID Test',
@@ -271,8 +269,8 @@ describe('Document Traceability', () => {
   });
 
   describe('Traceability Metadata', () => {
-    // TODO: Depends on SDS generation which has format mismatch issue
-    it.skip('should include version information in all documents', async () => {
+
+    it('should include version information in all documents', async () => {
       // Given: A complete pipeline execution
       const result = await runPipeline(env, MEDIUM_FEATURE_INPUT, {
         projectName: 'Version Test',
@@ -293,8 +291,8 @@ describe('Document Traceability', () => {
       expect(sdsVerification.hasMetadata).toBe(true);
     }, 60000);
 
-    // TODO: Depends on SDS generation which has format mismatch issue
-    it.skip('should include timestamps in document metadata', async () => {
+
+    it('should include timestamps in document metadata', async () => {
       // Given: A complete pipeline execution
       const result = await runPipeline(env, MEDIUM_FEATURE_INPUT, {
         projectName: 'Timestamp Test',
