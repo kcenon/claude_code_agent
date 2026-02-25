@@ -169,9 +169,7 @@ describe('Agent Transitions', () => {
   });
 
   describe('SRS Writer → SDS Writer Transition', () => {
-    // TODO: SDS Writer validation fails due to SRS format mismatch.
-    // This needs to be addressed in a separate issue.
-    it.skip('should use SRS as source for SDS generation', async () => {
+    it('should use SRS as source for SDS generation', async () => {
       // Given: A generated SRS
       const collectionResult = await runCollectionStage(env, SIMPLE_FEATURE_INPUT, {
         projectName: 'Test Project',
@@ -202,8 +200,8 @@ describe('Agent Transitions', () => {
       expect(sdsContent).toContain(`SRS-${projectId}`);
     }, 60000);
 
-    // TODO: Depends on SDS generation which has format mismatch issue
-    it.skip('should generate components from SRS features', async () => {
+
+    it('should generate components from SRS features', async () => {
       // Given: An SRS with features
       const collectionResult = await runCollectionStage(env, MEDIUM_FEATURE_INPUT, {
         projectName: 'Dashboard Project',
@@ -230,8 +228,8 @@ describe('Agent Transitions', () => {
   });
 
   describe('SDS Writer → Issue Generator Transition', () => {
-    // TODO: Depends on SDS generation which has format mismatch issue
-    it.skip('should generate issues from SDS components', async () => {
+
+    it('should generate issues from SDS components', async () => {
       // Given: A generated SDS
       const collectionResult = await runCollectionStage(env, SIMPLE_FEATURE_INPUT, {
         projectName: 'Test Project',
@@ -254,8 +252,8 @@ describe('Agent Transitions', () => {
       expect(issueResult.result?.issues.length).toBeGreaterThan(0);
     }, 60000);
 
-    // TODO: Depends on SDS generation which has format mismatch issue
-    it.skip('should maintain component traceability in issues', async () => {
+
+    it('should maintain component traceability in issues', async () => {
       // Given: A generated SDS with components
       const collectionResult = await runCollectionStage(env, MEDIUM_FEATURE_INPUT, {
         projectName: 'Dashboard Project',
@@ -285,8 +283,8 @@ describe('Agent Transitions', () => {
   });
 
   describe('Full Chain State Preservation', () => {
-    // TODO: Depends on SDS generation which has format mismatch issue
-    it.skip('should preserve project context across all transitions', async () => {
+
+    it('should preserve project context across all transitions', async () => {
       // Given: A feature request
       const projectName = 'Full Chain Test';
       const collectionResult = await runCollectionStage(env, MEDIUM_FEATURE_INPUT, {

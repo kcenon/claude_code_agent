@@ -58,8 +58,8 @@ describe('Pipeline Benchmarks', () => {
   });
 
   describe('Simple Feature Benchmarks', () => {
-    // TODO: Depends on SDS generation which has format mismatch issue
-    it.skip('should complete document generation within benchmark', async () => {
+
+    it('should complete document generation within benchmark', async () => {
       const timer = new Timer();
       timer.start();
 
@@ -77,8 +77,8 @@ describe('Pipeline Benchmarks', () => {
       console.log(`Simple document generation: ${elapsed}ms (target: ${BENCHMARKS.simple.documentGeneration}ms)`);
     }, 60000);
 
-    // TODO: Depends on SDS generation which has format mismatch issue
-    it.skip('should complete full pipeline within benchmark', async () => {
+
+    it('should complete full pipeline within benchmark', async () => {
       const timer = new Timer();
       timer.start();
 
@@ -98,8 +98,8 @@ describe('Pipeline Benchmarks', () => {
   });
 
   describe('Medium Feature Benchmarks', () => {
-    // TODO: Depends on SDS generation which has format mismatch issue
-    it.skip('should complete document generation within benchmark', async () => {
+
+    it('should complete document generation within benchmark', async () => {
       const timer = new Timer();
       timer.start();
 
@@ -116,8 +116,8 @@ describe('Pipeline Benchmarks', () => {
       console.log(`Medium document generation: ${elapsed}ms (target: ${BENCHMARKS.medium.documentGeneration}ms)`);
     }, 90000);
 
-    // TODO: Depends on SDS generation which has format mismatch issue
-    it.skip('should complete full pipeline within benchmark', async () => {
+
+    it('should complete full pipeline within benchmark', async () => {
       const timer = new Timer();
       timer.start();
 
@@ -137,8 +137,8 @@ describe('Pipeline Benchmarks', () => {
   });
 
   describe('Complex Feature Benchmarks', () => {
-    // TODO: Depends on SDS generation which has format mismatch issue
-    it.skip('should complete document generation within benchmark', async () => {
+
+    it('should complete document generation within benchmark', async () => {
       const timer = new Timer();
       timer.start();
 
@@ -155,8 +155,8 @@ describe('Pipeline Benchmarks', () => {
       console.log(`Complex document generation: ${elapsed}ms (target: ${BENCHMARKS.complex.documentGeneration}ms)`);
     }, 120000);
 
-    // TODO: Depends on SDS generation which has format mismatch issue
-    it.skip('should complete full pipeline within benchmark', async () => {
+
+    it('should complete full pipeline within benchmark', async () => {
       const timer = new Timer();
       timer.start();
 
@@ -176,8 +176,8 @@ describe('Pipeline Benchmarks', () => {
   });
 
   describe('Stage-by-Stage Benchmarks', () => {
-    // TODO: Depends on SDS generation which has format mismatch issue
-    it.skip('should track timing for each pipeline stage', async () => {
+
+    it('should track timing for each pipeline stage', async () => {
       const result = await runPipeline(env, MEDIUM_FEATURE_INPUT, {
         projectName: 'Stage Timing Test',
         skipClarification: true,
@@ -211,8 +211,8 @@ describe('Pipeline Benchmarks', () => {
   });
 
   describe('Throughput Benchmarks', () => {
-    // TODO: Depends on SDS generation which has format mismatch issue
-    it.skip('should process multiple simple projects sequentially', async () => {
+
+    it('should process multiple simple projects sequentially', async () => {
       const projectCount = 3;
       const timer = new Timer();
       timer.start();

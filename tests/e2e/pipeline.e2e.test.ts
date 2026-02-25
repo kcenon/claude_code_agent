@@ -37,9 +37,7 @@ describe('E2E Pipeline Integration', () => {
   });
 
   describe('Simple Feature Flow', () => {
-    // TODO: SDS Writer validation fails due to SRS format mismatch.
-    // This needs to be addressed in a separate issue.
-    it.skip('should complete full pipeline for single feature request', async () => {
+    it('should complete full pipeline for single feature request', async () => {
       // Given: A simple feature request
       const input = SIMPLE_FEATURE_INPUT;
 
@@ -70,8 +68,8 @@ describe('E2E Pipeline Integration', () => {
       expect(result.totalTimeMs).toBeLessThan(FIXTURE_EXPECTATIONS.simple.maxTimeMs);
     }, 60000);
 
-    // TODO: Depends on SDS generation which has format mismatch issue
-    it.skip('should generate valid issues from simple feature', async () => {
+
+    it('should generate valid issues from simple feature', async () => {
       // Given: A simple feature request
       const input = SIMPLE_FEATURE_INPUT;
 
@@ -99,8 +97,8 @@ describe('E2E Pipeline Integration', () => {
   });
 
   describe('Medium Feature Flow', () => {
-    // TODO: Depends on SDS generation which has format mismatch issue
-    it.skip('should handle multiple requirements with dependency chain', async () => {
+
+    it('should handle multiple requirements with dependency chain', async () => {
       // Given: A medium complexity feature request
       const input = MEDIUM_FEATURE_INPUT;
 
@@ -129,8 +127,8 @@ describe('E2E Pipeline Integration', () => {
       }
     }, 90000);
 
-    // TODO: Depends on SDS generation which has format mismatch issue
-    it.skip('should maintain document traceability for medium feature', async () => {
+
+    it('should maintain document traceability for medium feature', async () => {
       // Given: A medium complexity feature request
       const input = MEDIUM_FEATURE_INPUT;
 
@@ -150,8 +148,8 @@ describe('E2E Pipeline Integration', () => {
   });
 
   describe('Complex Feature Flow', () => {
-    // TODO: Depends on SDS generation which has format mismatch issue
-    it.skip('should process complex requirements with many components', async () => {
+
+    it('should process complex requirements with many components', async () => {
       // Given: A complex feature request
       const input = COMPLEX_FEATURE_INPUT;
 
@@ -176,8 +174,8 @@ describe('E2E Pipeline Integration', () => {
       expect(result.totalTimeMs).toBeLessThan(FIXTURE_EXPECTATIONS.complex.maxTimeMs);
     }, 120000);
 
-    // TODO: Depends on SDS generation which has format mismatch issue
-    it.skip('should generate appropriate number of issues for complex feature', async () => {
+
+    it('should generate appropriate number of issues for complex feature', async () => {
       // Given: A complex feature request
       const input = COMPLEX_FEATURE_INPUT;
 
@@ -200,8 +198,8 @@ describe('E2E Pipeline Integration', () => {
   });
 
   describe('Document Pipeline Only', () => {
-    // TODO: Depends on SDS generation which has format mismatch issue
-    it.skip('should generate documents without issues', async () => {
+
+    it('should generate documents without issues', async () => {
       // Given: A simple feature request
       const input = SIMPLE_FEATURE_INPUT;
 
@@ -222,8 +220,8 @@ describe('E2E Pipeline Integration', () => {
   });
 
   describe('Pipeline Timing Benchmarks', () => {
-    // TODO: Depends on SDS generation which has format mismatch issue
-    it.skip('should complete simple pipeline within benchmark time', async () => {
+
+    it('should complete simple pipeline within benchmark time', async () => {
       const input = SIMPLE_FEATURE_INPUT;
 
       const result = await runPipeline(env, input, {

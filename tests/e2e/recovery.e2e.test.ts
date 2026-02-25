@@ -71,8 +71,8 @@ describe('Error Recovery', () => {
   });
 
   describe('Missing Predecessor Document', () => {
-    // TODO: Requires full agent implementation to test error handling
-    it.skip('should fail gracefully when collected info is missing for PRD', async () => {
+
+    it('should fail gracefully when collected info is missing for PRD', async () => {
       // Given: A non-existent project ID
       const fakeProjectId = 'non-existent-project-id';
 
@@ -149,8 +149,8 @@ describe('Error Recovery', () => {
       expect(result.error).toBeDefined();
     }, 30000);
 
-    // TODO: Requires full agent implementation to test error handling
-    it.skip('should handle corrupted PRD file', async () => {
+
+    it('should handle corrupted PRD file', async () => {
       // Given: A project with valid collection but corrupted PRD
       const collectionResult = await runCollectionStage(env, SIMPLE_FEATURE_INPUT, {
         projectName: 'Corrupted PRD Test',
@@ -176,8 +176,8 @@ describe('Error Recovery', () => {
   });
 
   describe('Partial Pipeline Recovery', () => {
-    // TODO: Depends on SDS generation which has format mismatch issue
-    it.skip('should allow resuming from valid checkpoint', async () => {
+
+    it('should allow resuming from valid checkpoint', async () => {
       // Given: A completed collection stage
       const collectionResult = await runCollectionStage(env, SIMPLE_FEATURE_INPUT, {
         projectName: 'Resume Test',
@@ -204,8 +204,8 @@ describe('Error Recovery', () => {
       expect(sdsResult.success).toBe(true);
     }, 60000);
 
-    // TODO: Depends on SDS generation which has format mismatch issue
-    it.skip('should preserve documents after agent reset', async () => {
+
+    it('should preserve documents after agent reset', async () => {
       // Given: Completed document pipeline
       const collectionResult = await runCollectionStage(env, SIMPLE_FEATURE_INPUT, {
         projectName: 'Preservation Test',
@@ -243,8 +243,8 @@ describe('Error Recovery', () => {
   });
 
   describe('Timeout Handling', () => {
-    // TODO: Depends on SDS generation which has format mismatch issue
-    it.skip('should handle minimal input within timeout', async () => {
+
+    it('should handle minimal input within timeout', async () => {
       // Given: Minimal input that should process quickly
       const result = await runPipeline(env, MINIMAL_INPUT, {
         projectName: 'Timeout Test',
