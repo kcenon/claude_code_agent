@@ -24,6 +24,8 @@ import type { IAgent } from './types.js';
 import { isAgent } from './types.js';
 import { getAgentTypeEntry } from './AgentTypeMapping.js';
 import type { AgentTypeEntry } from './AgentTypeMapping.js';
+import type { AgentRequest } from './AgentBridge.js';
+import { BridgeRegistry } from './BridgeRegistry.js';
 
 /**
  * Function signature for per-agent call adapters.
@@ -92,8 +94,10 @@ function toRecord(agent: IAgent): Record<string, unknown> {
 export class AgentDispatcher {
   private readonly agentCache = new Map<string, IAgent>();
   private readonly callAdapters = new Map<string, AgentCallAdapter>();
+  private readonly bridgeRegistry: BridgeRegistry;
 
-  constructor() {
+  constructor(bridgeRegistry?: BridgeRegistry) {
+    this.bridgeRegistry = bridgeRegistry ?? new BridgeRegistry();
     this.registerDefaultAdapters();
   }
 
@@ -117,6 +121,29 @@ export class AgentDispatcher {
       );
     }
 
+    // If a registered (non-stub) bridge supports this agent type, use it
+    if (this.bridgeRegistry.hasBridge(stage.agentType)) {
+      const bridge = this.bridgeRegistry.resolve(stage.agentType);
+      try {
+        const request = this.buildAgentRequest(stage, session);
+        const response = await bridge.execute(request);
+        if (!response.success) {
+          throw new AgentDispatchError(
+            stage.agentType,
+            `Bridge execution failed: ${response.error ?? 'unknown error'}`
+          );
+        }
+        return response.output;
+      } catch (error) {
+        if (error instanceof AgentDispatchError) {
+          throw error;
+        }
+        const message = error instanceof Error ? error.message : String(error);
+        throw new AgentDispatchError(stage.agentType, `Bridge execution failed: ${message}`);
+      }
+    }
+
+    // Fall back to existing call adapter logic
     let agent: IAgent;
     try {
       agent = await this.getOrCreateAgent(stage.agentType, entry);
@@ -206,9 +233,56 @@ export class AgentDispatcher {
       );
     }
 
+    disposePromises.push(
+      this.bridgeRegistry.disposeAll().catch(() => {
+        // Suppress bridge dispose errors
+      })
+    );
+
     await Promise.all(disposePromises);
     this.agentCache.clear();
     this.callAdapters.clear();
+  }
+
+  /**
+   * Get the bridge registry for registering custom bridges.
+   *
+   * @returns The BridgeRegistry instance used by this dispatcher
+   */
+  getBridgeRegistry(): BridgeRegistry {
+    return this.bridgeRegistry;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Private: Bridge Support
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Build an AgentRequest from the pipeline stage and orchestrator session.
+   *
+   * @param stage - Pipeline stage definition
+   * @param session - Orchestrator session context
+   * @returns AgentRequest for bridge execution
+   */
+  private buildAgentRequest(
+    stage: PipelineStageDefinition,
+    session: OrchestratorSession
+  ): AgentRequest {
+    // Collect outputs from completed prior stages
+    const priorStageOutputs: Record<string, string> = {};
+    for (const result of session.stageResults) {
+      if (result.status === 'completed' && result.output) {
+        priorStageOutputs[result.name] = result.output;
+      }
+    }
+
+    return {
+      agentType: stage.agentType,
+      input: session.userRequest,
+      scratchpadDir: session.scratchpadDir,
+      projectDir: session.projectDir,
+      priorStageOutputs,
+    };
   }
 
   // ---------------------------------------------------------------------------
