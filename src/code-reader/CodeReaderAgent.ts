@@ -9,7 +9,9 @@ import { randomUUID } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 
-import {
+// ts-morph (~1.4MB + typescript ~23MB) is loaded dynamically
+// to reduce CLI startup time. See getTsMorphModule().
+import type {
   Project,
   SourceFile,
   ClassDeclaration,
@@ -22,8 +24,20 @@ import {
   PropertyDeclaration,
   PropertySignature,
   ParameterDeclaration,
-  Scope,
 } from 'ts-morph';
+
+/**
+ * Cached ts-morph module for lazy loading.
+ * Avoids eagerly importing ~24MB of ts-morph + typescript at startup.
+ */
+let _tsMorphModule: typeof import('ts-morph') | null = null;
+
+async function getTsMorphModule(): Promise<typeof import('ts-morph')> {
+  if (_tsMorphModule === null) {
+    _tsMorphModule = await import('ts-morph');
+  }
+  return _tsMorphModule;
+}
 
 import type {
   ClassInfo,
@@ -134,8 +148,9 @@ export class CodeReaderAgent {
         throw new SourceDirectoryNotFoundError(sourceRootPath);
       }
 
-      // Initialize TypeScript project
-      this.project = new Project({
+      // Initialize TypeScript project (lazy-load ts-morph)
+      const tsMorph = await getTsMorphModule();
+      this.project = new tsMorph.Project({
         skipAddingFilesFromTsConfig: true,
         skipFileDependencyResolution: false,
         compilerOptions: {
@@ -513,7 +528,8 @@ export class CodeReaderAgent {
   }
 
   private extractPropertyInfo(prop: PropertyDeclaration | PropertySignature): PropertyInfo {
-    const isClassProperty = prop instanceof PropertyDeclaration;
+    const isClassProperty =
+      _tsMorphModule !== null && prop instanceof _tsMorphModule.PropertyDeclaration;
     const classProp = isClassProperty ? prop : null;
 
     return {
@@ -627,15 +643,17 @@ export class CodeReaderAgent {
 
   private getVisibility(method: MethodDeclaration): Visibility {
     const scope = method.getScope();
-    if (scope === Scope.Private) return 'private';
-    if (scope === Scope.Protected) return 'protected';
+    const ScopeEnum = _tsMorphModule?.Scope;
+    if (ScopeEnum !== undefined && scope === ScopeEnum.Private) return 'private';
+    if (ScopeEnum !== undefined && scope === ScopeEnum.Protected) return 'protected';
     return 'public';
   }
 
   private getPropertyVisibility(prop: PropertyDeclaration): Visibility {
     const scope = prop.getScope();
-    if (scope === Scope.Private) return 'private';
-    if (scope === Scope.Protected) return 'protected';
+    const ScopeEnum = _tsMorphModule?.Scope;
+    if (ScopeEnum !== undefined && scope === ScopeEnum.Private) return 'private';
+    if (ScopeEnum !== undefined && scope === ScopeEnum.Protected) return 'protected';
     return 'public';
   }
 
