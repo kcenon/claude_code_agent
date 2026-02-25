@@ -43,10 +43,25 @@ import {
 import type {
   ApprovalDecision,
   OrchestratorConfig,
+  OrchestratorSession,
   PipelineRequest,
   PipelineStageDefinition,
   StageResult,
 } from '../../src/ad-sdlc-orchestrator/types.js';
+
+/**
+ * Stub orchestrator that bypasses the AgentDispatcher.
+ * Used for tests that exercise pipeline mechanics (stage ordering, retries,
+ * persistence) without requiring real agent modules.
+ */
+class StubOrchestrator extends AdsdlcOrchestratorAgent {
+  protected override async invokeAgent(
+    stage: PipelineStageDefinition,
+    _session: OrchestratorSession
+  ): Promise<string> {
+    return `Stage "${stage.name}" executed by ${stage.agentType}`;
+  }
+}
 
 describe('AdsdlcOrchestratorAgent', () => {
   let tempDir: string;
@@ -180,10 +195,22 @@ describe('AdsdlcOrchestratorAgent', () => {
   });
 
   describe('executePipeline', () => {
-    it('should execute greenfield pipeline successfully', async () => {
-      await agent.initialize();
+    // These tests exercise pipeline mechanics (stage ordering, persistence, etc.)
+    // using StubOrchestrator to bypass real agent dispatch.
+    let stubAgent: StubOrchestrator;
 
-      const result = await agent.executePipeline(tempDir, 'Build a web app');
+    beforeEach(() => {
+      stubAgent = new StubOrchestrator();
+    });
+
+    afterEach(async () => {
+      await stubAgent.dispose();
+    });
+
+    it('should execute greenfield pipeline successfully', async () => {
+      await stubAgent.initialize();
+
+      const result = await stubAgent.executePipeline(tempDir, 'Build a web app');
 
       expect(result.pipelineId).toBeTruthy();
       expect(result.mode).toBe('greenfield');
@@ -194,14 +221,14 @@ describe('AdsdlcOrchestratorAgent', () => {
 
     it('should auto-initialize if not initialized', async () => {
       // Do NOT call initialize() first
-      const result = await agent.executePipeline(tempDir, 'Build a web app');
+      const result = await stubAgent.executePipeline(tempDir, 'Build a web app');
 
       expect(result.overallStatus).toBe('completed');
     });
 
     it('should track all greenfield stages', async () => {
-      await agent.initialize();
-      const result = await agent.executePipeline(tempDir, 'test');
+      await stubAgent.initialize();
+      const result = await stubAgent.executePipeline(tempDir, 'test');
 
       const stageNames = result.stages.map((s) => s.name);
       expect(stageNames).toContain('initialization');
@@ -216,8 +243,8 @@ describe('AdsdlcOrchestratorAgent', () => {
     });
 
     it('should persist pipeline state to scratchpad', async () => {
-      await agent.initialize();
-      const result = await agent.executePipeline(tempDir, 'test');
+      await stubAgent.initialize();
+      const result = await stubAgent.executePipeline(tempDir, 'test');
 
       const stateDir = path.join(tempDir, '.ad-sdlc', 'scratchpad', 'pipeline');
       const files = await fs.readdir(stateDir);
@@ -230,22 +257,22 @@ describe('AdsdlcOrchestratorAgent', () => {
     });
 
     it('should throw InvalidProjectDirError for invalid path', async () => {
-      await agent.initialize();
-      await expect(agent.executePipeline('/nonexistent/path', 'test')).rejects.toThrow(
+      await stubAgent.initialize();
+      await expect(stubAgent.executePipeline('/nonexistent/path', 'test')).rejects.toThrow(
         InvalidProjectDirError
       );
     });
 
     it('should execute enhancement pipeline with all stages', async () => {
-      await agent.initialize();
+      await stubAgent.initialize();
 
-      await agent.startSession({
+      await stubAgent.startSession({
         projectDir: tempDir,
         userRequest: 'Improve existing code',
         overrideMode: 'enhancement',
       });
 
-      const result = await agent.executePipeline(tempDir, 'Improve existing code');
+      const result = await stubAgent.executePipeline(tempDir, 'Improve existing code');
       expect(result.mode).toBe('enhancement');
       expect(result.stages).toHaveLength(ENHANCEMENT_STAGES.length);
       expect(result.overallStatus).toBe('completed');
@@ -263,15 +290,15 @@ describe('AdsdlcOrchestratorAgent', () => {
     });
 
     it('should execute import pipeline with all stages', async () => {
-      await agent.initialize();
+      await stubAgent.initialize();
 
-      await agent.startSession({
+      await stubAgent.startSession({
         projectDir: tempDir,
         userRequest: 'Import issues from repo',
         overrideMode: 'import',
       });
 
-      const result = await agent.executePipeline(tempDir, 'Import issues from repo');
+      const result = await stubAgent.executePipeline(tempDir, 'Import issues from repo');
       expect(result.mode).toBe('import');
       expect(result.stages).toHaveLength(IMPORT_STAGES.length);
       expect(result.overallStatus).toBe('completed');
@@ -430,7 +457,8 @@ describe('AdsdlcOrchestratorAgent', () => {
 
   describe('approval gate', () => {
     it('should auto-approve in auto mode', async () => {
-      const autoAgent = new AdsdlcOrchestratorAgent({ approvalMode: 'auto' });
+      class AutoStubOrchestrator extends StubOrchestrator {}
+      const autoAgent = new AutoStubOrchestrator({ approvalMode: 'auto' });
       await autoAgent.initialize();
 
       await autoAgent.startSession({
@@ -519,6 +547,16 @@ describe('AdsdlcOrchestratorAgent', () => {
   });
 
   describe('monitorPipeline', () => {
+    let stubAgent: StubOrchestrator;
+
+    beforeEach(() => {
+      stubAgent = new StubOrchestrator();
+    });
+
+    afterEach(async () => {
+      await stubAgent.dispose();
+    });
+
     it('should return empty snapshot when no session exists', () => {
       const snapshot = agent.monitorPipeline();
       expect(snapshot.sessionId).toBe('');
@@ -529,10 +567,10 @@ describe('AdsdlcOrchestratorAgent', () => {
     });
 
     it('should return pipeline state after execution', async () => {
-      await agent.initialize();
-      await agent.executePipeline(tempDir, 'test');
+      await stubAgent.initialize();
+      await stubAgent.executePipeline(tempDir, 'test');
 
-      const snapshot = agent.monitorPipeline();
+      const snapshot = stubAgent.monitorPipeline();
       expect(snapshot.sessionId).toBeTruthy();
       expect(snapshot.mode).toBe('greenfield');
       expect(snapshot.totalStages).toBe(GREENFIELD_STAGES.length);
@@ -543,16 +581,16 @@ describe('AdsdlcOrchestratorAgent', () => {
     });
 
     it('should reflect enhancement pipeline stages', async () => {
-      await agent.initialize();
+      await stubAgent.initialize();
 
-      await agent.startSession({
+      await stubAgent.startSession({
         projectDir: tempDir,
         userRequest: 'test',
         overrideMode: 'enhancement',
       });
 
-      await agent.executePipeline(tempDir, 'test');
-      const snapshot = agent.monitorPipeline();
+      await stubAgent.executePipeline(tempDir, 'test');
+      const snapshot = stubAgent.monitorPipeline();
 
       expect(snapshot.mode).toBe('enhancement');
       expect(snapshot.totalStages).toBe(ENHANCEMENT_STAGES.length);
@@ -640,14 +678,15 @@ describe('AdsdlcOrchestratorAgent', () => {
     });
 
     it('should load a valid session from YAML', async () => {
-      await agent.initialize();
+      const stubAgent = new StubOrchestrator();
+      await stubAgent.initialize();
 
       // First run a pipeline to persist state
-      const result = await agent.executePipeline(tempDir, 'Build a web app');
+      const result = await stubAgent.executePipeline(tempDir, 'Build a web app');
       const sessionId = result.pipelineId;
 
       // Create a new agent and load the prior session
-      const agent2 = new AdsdlcOrchestratorAgent();
+      const agent2 = new StubOrchestrator();
       await agent2.initialize();
       const loaded = await agent2.loadPriorSession(sessionId, tempDir);
 
@@ -661,6 +700,7 @@ describe('AdsdlcOrchestratorAgent', () => {
       expect(loaded!.stageResults.length).toBeGreaterThan(0);
 
       await agent2.dispose();
+      await stubAgent.dispose();
     });
 
     it('should throw SessionCorruptedError for malformed YAML', async () => {
@@ -768,32 +808,35 @@ describe('AdsdlcOrchestratorAgent', () => {
     });
 
     it('should return the most recent session ID', async () => {
-      await agent.initialize();
+      const stubAgent = new StubOrchestrator();
+      await stubAgent.initialize();
 
       // Run a pipeline to create a session file
-      const result = await agent.executePipeline(tempDir, 'test');
+      const result = await stubAgent.executePipeline(tempDir, 'test');
       const sessionId = result.pipelineId;
 
-      const agent2 = new AdsdlcOrchestratorAgent();
+      const agent2 = new StubOrchestrator();
       await agent2.initialize();
       const latestId = await agent2.findLatestSession(tempDir);
 
       expect(latestId).toBe(sessionId);
       await agent2.dispose();
+      await stubAgent.dispose();
     });
   });
 
   describe('startSession with resume', () => {
     it('should resume from prior session when resumeSessionId is provided', async () => {
-      await agent.initialize();
+      const stubAgent = new StubOrchestrator();
+      await stubAgent.initialize();
 
       // Run a pipeline to persist state
-      const result = await agent.executePipeline(tempDir, 'Build a web app');
+      const result = await stubAgent.executePipeline(tempDir, 'Build a web app');
       const sessionId = result.pipelineId;
 
       // Dispose old agent, create new one
-      await agent.dispose();
-      const agent2 = new AdsdlcOrchestratorAgent();
+      await stubAgent.dispose();
+      const agent2 = new StubOrchestrator();
       await agent2.initialize();
 
       const session = await agent2.startSession({
@@ -943,15 +986,16 @@ describe('AdsdlcOrchestratorAgent', () => {
     });
 
     it('should merge prior results with new results in resumed pipeline', async () => {
-      await agent.initialize();
+      const stubAgent = new StubOrchestrator();
+      await stubAgent.initialize();
 
       // First run a pipeline to persist state
-      const firstResult = await agent.executePipeline(tempDir, 'Build a web app');
+      const firstResult = await stubAgent.executePipeline(tempDir, 'Build a web app');
       const sessionId = firstResult.pipelineId;
 
       // Resume from prior session
-      await agent.dispose();
-      const agent2 = new AdsdlcOrchestratorAgent();
+      await stubAgent.dispose();
+      const agent2 = new StubOrchestrator();
       await agent2.initialize();
 
       await agent2.startSession({
@@ -971,8 +1015,9 @@ describe('AdsdlcOrchestratorAgent', () => {
     });
 
     it('should not break fresh pipeline execution (no regression)', async () => {
-      await agent.initialize();
-      const result = await agent.executePipeline(tempDir, 'Build something');
+      const stubAgent = new StubOrchestrator();
+      await stubAgent.initialize();
+      const result = await stubAgent.executePipeline(tempDir, 'Build something');
 
       expect(result.overallStatus).toBe('completed');
       expect(result.stages).toHaveLength(GREENFIELD_STAGES.length);
@@ -980,6 +1025,7 @@ describe('AdsdlcOrchestratorAgent', () => {
       for (const stage of result.stages) {
         expect(stage.status).toBe('completed');
       }
+      await stubAgent.dispose();
     });
 
     it('should handle resuming with partial results correctly', async () => {
