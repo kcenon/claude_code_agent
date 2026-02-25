@@ -45,6 +45,19 @@ export {
   CircularDependencyError as AgentCircularDependencyError,
 } from './AgentRegistry.js';
 
+export {
+  AGENT_TYPE_MAP,
+  getAgentTypes,
+  getAgentTypeEntry,
+  getRegisteredAgentIds,
+} from './AgentTypeMapping.js';
+
+export type { AgentTypeEntry } from './AgentTypeMapping.js';
+
+export { bootstrapAgents } from './bootstrapAgents.js';
+
+export type { BootstrapResult } from './bootstrapAgents.js';
+
 export { isAgent } from './types.js';
 
 export type {
