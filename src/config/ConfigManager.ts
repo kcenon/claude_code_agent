@@ -325,17 +325,20 @@ export class ConfigManager {
   getPipelineStages(): readonly PipelineStage[] {
     const stages = this.workflowConfig.pipeline?.stages ?? [];
 
-    return stages.map((stage) => ({
-      name: stage.name,
-      agent: stage.agent,
-      description: stage.description,
-      inputs: stage.inputs,
-      outputs: stage.outputs,
-      next: stage.next ?? null,
-      approvalRequired: stage.approval_required ?? false,
-      parallel: stage.parallel ?? false,
-      maxParallel: stage.max_parallel,
-    }));
+    return stages.map((raw) => {
+      const stage = raw as Record<string, unknown>;
+      return {
+        name: stage.name as string,
+        agent: (stage.agent as string | undefined) ?? '',
+        description: stage.description as string | undefined,
+        inputs: stage.inputs as readonly string[] | undefined,
+        outputs: stage.outputs as readonly string[] | undefined,
+        next: (stage.next as string | null) ?? null,
+        approvalRequired: (stage.approval_required as boolean | undefined) ?? false,
+        parallel: (stage.parallel as boolean | undefined) ?? false,
+        maxParallel: stage.max_parallel as number | undefined,
+      };
+    });
   }
 
   /**
