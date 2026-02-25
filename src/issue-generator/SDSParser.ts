@@ -96,23 +96,40 @@ export class SDSParser {
 
   /**
    * Parse document metadata from the header table
+   *
+   * Supports two formats:
+   * - 2-column: `| **Key** | Value |` rows (one key-value pair per row)
+   * - Multi-column: header row with bold column names + data row with values
+   *   (e.g., `| **Document ID** | **Source SRS** | **Version** | **Status** |`)
+   *
    * @param lines - The markdown content split into lines
    * @returns Parsed metadata including document ID, source references, version, and dates
    */
   private parseMetadata(lines: readonly string[]): SDSMetadata {
     const metadata: Record<string, string> = {};
 
+    // Find the metadata region: from start to first '---' separator
+    const metadataLines: string[] = [];
     for (const line of lines) {
-      const match = PATTERNS.metadataRow.exec(line);
-      if (match) {
-        const [, key, value] = match;
-        if (key !== undefined && key !== '' && value !== undefined && value !== '') {
-          metadata[key.trim().toLowerCase().replace(/\s+/g, '_')] = value.trim();
-        }
-      }
-      // Stop after the metadata table
-      if (line.startsWith('---') && Object.keys(metadata).length > 0) {
+      if (line.startsWith('---')) {
         break;
+      }
+      metadataLines.push(line);
+    }
+
+    // Try multi-column format first (more specific match)
+    this.parseMultiColumnMetadata(metadataLines, metadata);
+
+    // Fall back to 2-column format (| **Key** | Value |) if multi-column found nothing
+    if (Object.keys(metadata).length === 0) {
+      for (const line of metadataLines) {
+        const match = PATTERNS.metadataRow.exec(line);
+        if (match) {
+          const [, key, value] = match;
+          if (key !== undefined && key !== '' && value !== undefined && value !== '') {
+            metadata[key.trim().toLowerCase().replace(/\s+/g, '_')] = value.trim();
+          }
+        }
       }
     }
 
@@ -125,6 +142,59 @@ export class SDSParser {
       createdDate: metadata['created'] ?? '',
       updatedDate: metadata['last_updated'] ?? '',
     };
+  }
+
+  /**
+   * Parse multi-column metadata table format
+   *
+   * Handles tables like:
+   * ```
+   * | **Document ID** | **Source SRS** | **Version** | **Status** |
+   * |-----------------|----------------|-------------|------------|
+   * | SDS-001         | SRS-001        | 1.0.0       | Draft      |
+   * ```
+   *
+   * @param lines - The markdown content split into lines
+   * @param metadata - Record to populate with parsed key-value pairs
+   */
+  private parseMultiColumnMetadata(
+    lines: readonly string[],
+    metadata: Record<string, string>
+  ): void {
+    let headerColumns: string[] | null = null;
+
+    for (const line of lines) {
+      // Detect multi-column header row (contains multiple ** bold ** cells)
+      if (headerColumns === null && line.includes('**') && line.startsWith('|')) {
+        const boldMatches = [...line.matchAll(/\*\*([^*]+)\*\*/g)];
+        if (boldMatches.length >= 2) {
+          headerColumns = boldMatches.map((m) => m[1]?.trim() ?? '');
+        }
+        continue;
+      }
+
+      // Skip separator row
+      if (line.match(/^\|[-\s|]+\|$/)) {
+        continue;
+      }
+
+      // Parse data row using detected headers
+      if (headerColumns !== null && line.startsWith('|')) {
+        const cells = line
+          .split('|')
+          .slice(1, -1) // Remove leading/trailing empty strings from split
+          .map((cell) => cell.trim());
+
+        for (let i = 0; i < Math.min(headerColumns.length, cells.length); i++) {
+          const key = headerColumns[i];
+          const value = cells[i];
+          if (key !== undefined && key !== '' && value !== undefined && value !== '') {
+            metadata[key.toLowerCase().replace(/\s+/g, '_')] = value;
+          }
+        }
+        break; // Only parse the first data row
+      }
+    }
   }
 
   /**

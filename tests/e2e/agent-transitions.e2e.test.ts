@@ -275,7 +275,7 @@ describe('Agent Transitions', () => {
 
       const issues = issueResult.result?.issues ?? [];
       const issuesWithComponents = issues.filter((i) =>
-        i.sourceComponent?.startsWith('CMP-')
+        i.traceability?.sdsComponent?.startsWith('CMP-')
       );
 
       expect(issuesWithComponents.length).toBeGreaterThan(0);

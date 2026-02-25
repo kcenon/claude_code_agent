@@ -352,6 +352,10 @@ describe('CloudWatchTransport Integration', () => {
 
       logger.info('Test message', { userId: '123' });
 
+      // Logger.log() uses void transport.log() (fire-and-forget).
+      // Wait for the microtask queue to drain so the async transport call completes.
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
       // CloudWatch should receive the log
       const putLogEventsCalls = mockSend.mock.calls.filter(
         (call) => call[0].constructor.name === 'MockPutLogEventsCommand'
@@ -381,6 +385,10 @@ describe('CloudWatchTransport Integration', () => {
       logger.setStage('processing');
       logger.setTraceContext('trace-abc', 'span-xyz', 'parent-123');
       logger.info('Traced message');
+
+      // Logger.log() uses void transport.log() (fire-and-forget).
+      // Wait for the microtask queue to drain so the async transport call completes.
+      await new Promise((resolve) => setTimeout(resolve, 0));
 
       const putLogEventsCalls = mockSend.mock.calls.filter(
         (call) => call[0].constructor.name === 'MockPutLogEventsCommand'
