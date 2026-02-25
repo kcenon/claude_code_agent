@@ -145,14 +145,14 @@ describe('Config Validation', () => {
       expect(result.errors?.some((e) => e.path.includes('pipeline'))).toBe(true);
     });
 
-    it('should reject empty stages array', () => {
+    it('should accept empty stages array (stages can be in modes instead)', () => {
       const config = {
         version: '1.0.0',
         pipeline: { stages: [] },
       };
 
       const result = validateWorkflowConfig(config);
-      expect(result.success).toBe(false);
+      expect(result.success).toBe(true);
     });
 
     it('should reject invalid model type', () => {

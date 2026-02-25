@@ -58,14 +58,7 @@ const ToolSchema = z.enum([
 /**
  * Approval gates configuration
  */
-const ApprovalGatesSchema = z.object({
-  after_collection: z.boolean().optional().default(true),
-  after_prd: z.boolean().optional().default(true),
-  after_srs: z.boolean().optional().default(true),
-  after_sds: z.boolean().optional().default(true),
-  after_issues: z.boolean().optional().default(true),
-  before_merge: z.boolean().optional().default(false),
-});
+const ApprovalGatesSchema = z.record(z.string(), z.boolean());
 
 /**
  * Retry policy configuration
@@ -162,6 +155,7 @@ const GlobalSettingsSchema = z.object({
   scratchpad_dir: z.string().optional().default('.ad-sdlc/scratchpad'),
   output_docs_dir: z.string().optional().default('docs'),
   log_level: LogLevelSchema.optional().default('INFO'),
+  approval_mode: z.enum(['auto', 'manual', 'critical', 'custom']).optional().default('auto'),
   approval_gates: ApprovalGatesSchema.optional(),
   retry_policy: RetryPolicySchema.optional(),
   timeouts: TimeoutsSchema.optional(),
@@ -180,28 +174,50 @@ export { TelemetryConfigSchema };
 /**
  * Pipeline stage input/output
  */
-const StageIOSchema = z.array(z.string());
+const StageIOSchema = z.array(z.union([z.string(), z.object({ type: z.string() }).passthrough()]));
 
 /**
  * Pipeline stage definition
  */
-const PipelineStageSchema = z.object({
+const OnCiFailureSchema = z.object({
+  agent: z.string(),
+  description: z.string().optional(),
+  max_attempts: z.number().int().min(1).optional(),
+  inputs: z.array(z.string()).optional(),
+  outputs: z.array(z.string()).optional(),
+}).optional();
+
+const PipelineStageSchema: z.ZodType<unknown> = z.lazy(() => z.object({
   name: z.string().min(1, 'Stage name is required'),
-  agent: z.string().min(1, 'Agent name is required'),
+  agent: z.string().optional(),
   description: z.string().optional(),
   inputs: StageIOSchema.optional(),
-  outputs: StageIOSchema.optional(),
+  outputs: z.array(z.string()).optional(),
   next: z.string().nullable().optional(),
   approval_required: z.boolean().optional().default(false),
   parallel: z.boolean().optional().default(false),
   max_parallel: z.number().int().min(1).max(10).optional(),
-});
+  conditional: z.boolean().optional(),
+  on_ci_failure: OnCiFailureSchema,
+  substages: z.array(z.lazy(() => PipelineStageSchema)).optional(),
+}).passthrough());
 
 /**
  * Pipeline configuration
  */
+const PipelineModeSchema = z.object({
+  description: z.string().optional(),
+  stages: z.array(PipelineStageSchema).min(1),
+});
+
 const PipelineSchema = z.object({
-  stages: z.array(PipelineStageSchema).min(1, 'At least one stage is required'),
+  default_mode: z.enum(['greenfield', 'enhancement', 'import']).optional(),
+  modes: z.object({
+    greenfield: PipelineModeSchema.optional(),
+    enhancement: PipelineModeSchema.optional(),
+    import: PipelineModeSchema.optional(),
+  }).optional(),
+  stages: z.array(PipelineStageSchema).optional(),
 });
 
 /**
@@ -267,7 +283,7 @@ const WorkflowAgentConfigSchema = z.object({
   coding: AgentCodingSchema.optional(),
   verification: AgentVerificationSchema.optional(),
   review: AgentReviewSchema.optional(),
-});
+}).passthrough();
 
 /**
  * All agents configuration in workflow
@@ -507,6 +523,28 @@ export const ObservabilityConfigSchema = z.object({
 });
 
 /**
+ * Token budget entry for an agent or default
+ */
+const TokenBudgetEntrySchema = z.object({
+  max_tokens: z.number().int().optional(),
+  max_cost_usd: z.number().optional(),
+}).passthrough();
+
+/**
+ * Token budgets configuration
+ */
+const TokenBudgetsSchema = z.object({
+  default_model: ModelSchema.optional(),
+  pipeline: z.object({
+    max_tokens: z.number().int().optional(),
+    max_cost_usd: z.number().optional(),
+    warning_threshold: z.number().min(0).max(1).optional(),
+  }).optional(),
+  defaults: z.record(z.string(), TokenBudgetEntrySchema).optional(),
+  agents: z.record(z.string(), TokenBudgetEntrySchema).optional(),
+}).optional();
+
+/**
  * Complete workflow configuration schema
  */
 export const WorkflowConfigSchema = z.object({
@@ -522,6 +560,7 @@ export const WorkflowConfigSchema = z.object({
   monitoring: MonitoringSchema.optional(),
   scratchpad: ScratchpadConfigSchema.optional(),
   telemetry: TelemetryConfigSchema.optional(),
+  token_budgets: TokenBudgetsSchema,
 });
 
 // ============================================================
@@ -556,14 +595,24 @@ const AgentDefinitionSchema = z.object({
   korean_name: z.string().optional(),
   description: z.string().optional(),
   definition_file: z.string().optional(),
-  category: z.enum(['document_pipeline', 'issue_management', 'execution']).optional(),
-  order: z.number().int().min(1).optional(),
+  category: z.enum([
+    'orchestration', 'infrastructure', 'document_pipeline',
+    'project_setup', 'document_update', 'issue_management',
+    'execution', 'analysis_pipeline', 'enhancement_pipeline',
+  ]).optional(),
+  order: z.number().optional(),
   capabilities: z.array(z.string()).optional(),
   io: AgentIOSchema.optional(),
   parallelizable: z.boolean().optional(),
   max_instances: z.number().int().min(1).max(10).optional(),
   metrics: AgentMetricsSchema.optional(),
-});
+  token_budget: z.object({
+    default_limit: z.number().int().optional(),
+    cost_limit_usd: z.number().optional(),
+    model_preference: ModelSchema.optional(),
+  }).optional(),
+  model_preference: ModelSchema.optional(),
+}).passthrough();
 
 /**
  * Agent category definition
@@ -572,7 +621,7 @@ const AgentCategorySchema = z.object({
   name: z.string().min(1, 'Category name is required'),
   description: z.string().optional(),
   agents: z.array(z.string()),
-  execution_mode: z.enum(['sequential', 'parallel']).optional().default('sequential'),
+  execution_mode: z.enum(['sequential', 'parallel', 'on_demand', 'mixed']).optional().default('sequential'),
 });
 
 /**
@@ -580,6 +629,10 @@ const AgentCategorySchema = z.object({
  */
 const AgentDependencySchema = z.object({
   requires: z.array(z.string()),
+  blocks: z.array(z.string()).optional(),
+  alternative_to: z.array(z.string()).optional(),
+  alternative_inputs: z.array(z.string()).optional(),
+  orchestrates: z.array(z.string()).optional(),
 });
 
 /**
@@ -589,6 +642,7 @@ const DataFlowSchema = z.object({
   from: z.string().min(1, 'Source agent is required'),
   to: z.string().min(1, 'Target agent is required'),
   data: z.union([z.string(), z.array(z.string())]),
+  mode: z.string().optional(),
 });
 
 /**
