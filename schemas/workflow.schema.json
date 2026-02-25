@@ -5,6 +5,49 @@
   "description": "Schema for workflow.yaml configuration file",
   "type": "object",
   "required": ["version", "pipeline"],
+  "definitions": {
+    "pipeline_stage": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "description": "Stage name" },
+        "agent": { "type": "string", "description": "Agent to execute this stage" },
+        "description": { "type": "string", "description": "Stage description" },
+        "inputs": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              { "type": "string" },
+              { "type": "object" }
+            ]
+          },
+          "description": "Input files/patterns (strings or typed objects)"
+        },
+        "outputs": { "type": "array", "items": { "type": "string" }, "description": "Output files/patterns" },
+        "next": { "type": ["string", "null"], "description": "Next stage name" },
+        "approval_required": { "type": "boolean", "default": false, "description": "Whether approval is required" },
+        "parallel": { "type": "boolean", "default": false, "description": "Whether stage runs in parallel" },
+        "max_parallel": { "type": "integer", "minimum": 1, "maximum": 10, "description": "Max parallel workers" },
+        "conditional": { "type": "boolean", "description": "Whether this stage is conditionally executed" },
+        "on_ci_failure": {
+          "type": "object",
+          "description": "CI failure handling configuration",
+          "properties": {
+            "agent": { "type": "string", "description": "Agent to handle CI failure" },
+            "description": { "type": "string", "description": "Description of failure handler" },
+            "max_attempts": { "type": "integer", "minimum": 1, "description": "Max retry attempts on CI failure" },
+            "inputs": { "type": "array", "items": { "type": "string" }, "description": "Inputs for failure handler" },
+            "outputs": { "type": "array", "items": { "type": "string" }, "description": "Outputs from failure handler" }
+          }
+        },
+        "substages": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/pipeline_stage" },
+          "description": "Nested substages within this stage"
+        }
+      }
+    }
+  },
   "properties": {
     "version": {
       "type": "string",
@@ -40,17 +83,16 @@
           "default": "INFO",
           "description": "Logging level"
         },
+        "approval_mode": {
+          "type": "string",
+          "enum": ["auto", "manual", "critical", "custom"],
+          "default": "auto",
+          "description": "Approval mode for pipeline gates"
+        },
         "approval_gates": {
           "type": "object",
-          "description": "Human-in-the-loop approval gates",
-          "properties": {
-            "after_collection": { "type": "boolean", "default": true },
-            "after_prd": { "type": "boolean", "default": true },
-            "after_srs": { "type": "boolean", "default": true },
-            "after_sds": { "type": "boolean", "default": true },
-            "after_issues": { "type": "boolean", "default": true },
-            "before_merge": { "type": "boolean", "default": false }
-          }
+          "description": "Human-in-the-loop approval gates (dynamic keys)",
+          "additionalProperties": { "type": "boolean" }
         },
         "retry_policy": {
           "type": "object",
@@ -76,28 +118,59 @@
     },
     "pipeline": {
       "type": "object",
-      "required": ["stages"],
-      "description": "Pipeline configuration",
+      "description": "Pipeline configuration with optional mode-based stages",
       "properties": {
-        "stages": {
-          "type": "array",
-          "minItems": 1,
-          "description": "Pipeline stages",
-          "items": {
-            "type": "object",
-            "required": ["name", "agent"],
-            "properties": {
-              "name": { "type": "string", "minLength": 1, "description": "Stage name" },
-              "agent": { "type": "string", "minLength": 1, "description": "Agent to execute this stage" },
-              "description": { "type": "string", "description": "Stage description" },
-              "inputs": { "type": "array", "items": { "type": "string" }, "description": "Input files/patterns" },
-              "outputs": { "type": "array", "items": { "type": "string" }, "description": "Output files/patterns" },
-              "next": { "type": ["string", "null"], "description": "Next stage name" },
-              "approval_required": { "type": "boolean", "default": false, "description": "Whether approval is required" },
-              "parallel": { "type": "boolean", "default": false, "description": "Whether stage runs in parallel" },
-              "max_parallel": { "type": "integer", "minimum": 1, "maximum": 10, "description": "Max parallel workers" }
+        "default_mode": {
+          "type": "string",
+          "enum": ["greenfield", "enhancement", "import"],
+          "description": "Default pipeline mode"
+        },
+        "modes": {
+          "type": "object",
+          "description": "Pipeline modes with per-mode stage definitions",
+          "properties": {
+            "greenfield": {
+              "type": "object",
+              "properties": {
+                "description": { "type": "string" },
+                "stages": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": { "$ref": "#/definitions/pipeline_stage" }
+                }
+              },
+              "required": ["stages"]
+            },
+            "enhancement": {
+              "type": "object",
+              "properties": {
+                "description": { "type": "string" },
+                "stages": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": { "$ref": "#/definitions/pipeline_stage" }
+                }
+              },
+              "required": ["stages"]
+            },
+            "import": {
+              "type": "object",
+              "properties": {
+                "description": { "type": "string" },
+                "stages": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": { "$ref": "#/definitions/pipeline_stage" }
+                }
+              },
+              "required": ["stages"]
             }
           }
+        },
+        "stages": {
+          "type": "array",
+          "description": "Legacy flat stages (when not using modes)",
+          "items": { "$ref": "#/definitions/pipeline_stage" }
         }
       }
     },
@@ -293,6 +366,126 @@
       "properties": {
         "enabled": { "type": "boolean", "default": false },
         "metrics": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "scratchpad": {
+      "type": "object",
+      "description": "Scratchpad backend configuration",
+      "properties": {
+        "backend": {
+          "type": "string",
+          "enum": ["file", "sqlite", "redis"],
+          "default": "file",
+          "description": "Storage backend type"
+        },
+        "file": {
+          "type": "object",
+          "description": "File backend configuration",
+          "properties": {
+            "base_path": { "type": "string" },
+            "file_mode": { "type": "integer" },
+            "dir_mode": { "type": "integer" },
+            "format": { "type": "string", "enum": ["yaml", "json", "raw"] }
+          }
+        },
+        "sqlite": {
+          "type": "object",
+          "description": "SQLite backend configuration",
+          "properties": {
+            "db_path": { "type": "string" },
+            "wal_mode": { "type": "boolean" },
+            "busy_timeout": { "type": "integer" }
+          }
+        },
+        "redis": {
+          "type": "object",
+          "description": "Redis backend configuration",
+          "properties": {
+            "host": { "type": "string" },
+            "port": { "type": "integer" },
+            "password": { "type": "string" },
+            "db": { "type": "integer" },
+            "prefix": { "type": "string" },
+            "ttl": { "type": "integer" },
+            "connect_timeout": { "type": "integer" },
+            "max_retries": { "type": "integer" },
+            "lock": {
+              "type": "object",
+              "properties": {
+                "lock_ttl": { "type": "integer" },
+                "lock_timeout": { "type": "integer" },
+                "lock_retry_interval": { "type": "integer" }
+              }
+            },
+            "fallback": {
+              "type": "object",
+              "properties": {
+                "enabled": { "type": "boolean" },
+                "file_config": {
+                  "type": "object",
+                  "properties": {
+                    "base_path": { "type": "string" },
+                    "file_mode": { "type": "integer" },
+                    "dir_mode": { "type": "integer" },
+                    "format": { "type": "string", "enum": ["yaml", "json", "raw"] }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "telemetry": {
+      "type": "object",
+      "description": "Telemetry configuration (opt-in only)",
+      "properties": {
+        "enabled": { "type": "boolean", "default": false },
+        "flush_interval_ms": { "type": "integer", "minimum": 1000, "default": 60000 },
+        "max_buffer_size": { "type": "integer", "minimum": 1, "maximum": 1000, "default": 100 },
+        "include_debug_events": { "type": "boolean", "default": false }
+      }
+    },
+    "token_budgets": {
+      "type": "object",
+      "description": "Token budget configuration for pipeline and agents",
+      "properties": {
+        "default_model": {
+          "type": "string",
+          "enum": ["sonnet", "opus", "haiku"],
+          "description": "Default model for budget calculations"
+        },
+        "pipeline": {
+          "type": "object",
+          "description": "Pipeline-level token budget",
+          "properties": {
+            "max_tokens": { "type": "integer", "description": "Maximum tokens for the entire pipeline" },
+            "max_cost_usd": { "type": "number", "description": "Maximum cost in USD for the pipeline" },
+            "warning_threshold": { "type": "number", "minimum": 0, "maximum": 1, "description": "Threshold (0-1) to trigger budget warning" }
+          }
+        },
+        "defaults": {
+          "type": "object",
+          "description": "Default budgets per agent category or role",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "max_tokens": { "type": "integer" },
+              "max_cost_usd": { "type": "number" }
+            }
+          }
+        },
+        "agents": {
+          "type": "object",
+          "description": "Per-agent token budgets",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "max_tokens": { "type": "integer" },
+              "max_cost_usd": { "type": "number" }
+            }
+          }
+        }
       }
     }
   }
