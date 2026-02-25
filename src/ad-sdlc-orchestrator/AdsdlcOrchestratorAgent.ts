@@ -12,6 +12,8 @@ import { randomUUID } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 
+import { AgentDispatcher } from '../agents/AgentDispatcher.js';
+import { bootstrapAgents } from '../agents/bootstrapAgents.js';
 import type { IAgent } from '../agents/types.js';
 import type {
   AgentInvocation,
@@ -76,6 +78,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
   private initialized = false;
   private stageTimers = new Map<StageName, ReturnType<typeof setTimeout>>();
   private abortController: AbortController | null = null;
+  private _dispatcher: AgentDispatcher | null = null;
 
   constructor(config: OrchestratorConfig = {}) {
     this.config = {
@@ -101,7 +104,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
    * Dispose of the orchestrator and release resources
    * @returns A promise that resolves when all resources are released
    */
-  dispose(): Promise<void> {
+  async dispose(): Promise<void> {
     for (const timer of this.stageTimers.values()) {
       clearTimeout(timer);
     }
@@ -110,9 +113,28 @@ export class AdsdlcOrchestratorAgent implements IAgent {
       this.abortController.abort();
       this.abortController = null;
     }
+    if (this._dispatcher) {
+      await this._dispatcher.disposeAll();
+      this._dispatcher = null;
+    }
     this.session = null;
     this.initialized = false;
-    return Promise.resolve();
+  }
+
+  /**
+   * Get or create the AgentDispatcher instance (lazy initialization).
+   *
+   * Ensures bootstrapAgents() is called exactly once before the first
+   * dispatch. Subsequent calls return the cached dispatcher.
+   *
+   * @returns The initialized AgentDispatcher instance
+   */
+  private async getDispatcher(): Promise<AgentDispatcher> {
+    if (!this._dispatcher) {
+      await bootstrapAgents();
+      this._dispatcher = new AgentDispatcher();
+    }
+    return this._dispatcher;
   }
 
   /**
@@ -603,18 +625,20 @@ export class AdsdlcOrchestratorAgent implements IAgent {
   /**
    * Invoke an agent for a pipeline stage
    *
-   * Override this method in tests or extend for AgentFactory integration.
+   * Delegates to AgentDispatcher which resolves the agentType to a real
+   * agent instance and calls the appropriate adapter.
+   * Override this method in tests to bypass real agent execution.
+   *
    * @param stage - The stage definition identifying which agent to invoke
-   * @param _session - The current orchestrator session (unused in base implementation)
+   * @param session - The current orchestrator session providing execution context
    * @returns The agent output string describing the execution result
    */
-  protected invokeAgent(
+  protected async invokeAgent(
     stage: PipelineStageDefinition,
-    _session: OrchestratorSession
+    session: OrchestratorSession
   ): Promise<string> {
-    // Base implementation delegates to subclass or returns structured result
-    // This method is designed to be overridden for actual agent invocation
-    return Promise.resolve(`Stage "${stage.name}" executed by ${stage.agentType}`);
+    const dispatcher = await this.getDispatcher();
+    return dispatcher.dispatch(stage, session);
   }
 
   // ---------------------------------------------------------------------------
