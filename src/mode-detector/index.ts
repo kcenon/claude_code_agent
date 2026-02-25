@@ -9,10 +9,7 @@
 export { ModeDetector, getModeDetector, resetModeDetector } from './ModeDetector.js';
 
 // ModeDetectorAgentAdapter
-export {
-  ModeDetectorAgentAdapter,
-  MODE_DETECTOR_AGENT_ID,
-} from './ModeDetectorAgentAdapter.js';
+export { ModeDetectorAgentAdapter, MODE_DETECTOR_AGENT_ID } from './ModeDetectorAgentAdapter.js';
 
 // Type exports
 export type {

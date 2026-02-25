@@ -179,28 +179,34 @@ const StageIOSchema = z.array(z.union([z.string(), z.object({ type: z.string() }
 /**
  * Pipeline stage definition
  */
-const OnCiFailureSchema = z.object({
-  agent: z.string(),
-  description: z.string().optional(),
-  max_attempts: z.number().int().min(1).optional(),
-  inputs: z.array(z.string()).optional(),
-  outputs: z.array(z.string()).optional(),
-}).optional();
+const OnCiFailureSchema = z
+  .object({
+    agent: z.string(),
+    description: z.string().optional(),
+    max_attempts: z.number().int().min(1).optional(),
+    inputs: z.array(z.string()).optional(),
+    outputs: z.array(z.string()).optional(),
+  })
+  .optional();
 
-const PipelineStageSchema: z.ZodType = z.lazy(() => z.object({
-  name: z.string().min(1, 'Stage name is required'),
-  agent: z.string().optional(),
-  description: z.string().optional(),
-  inputs: StageIOSchema.optional(),
-  outputs: z.array(z.string()).optional(),
-  next: z.string().nullable().optional(),
-  approval_required: z.boolean().optional().default(false),
-  parallel: z.boolean().optional().default(false),
-  max_parallel: z.number().int().min(1).max(10).optional(),
-  conditional: z.boolean().optional(),
-  on_ci_failure: OnCiFailureSchema,
-  substages: z.array(z.lazy(() => PipelineStageSchema)).optional(),
-}).loose());
+const PipelineStageSchema: z.ZodType = z.lazy(() =>
+  z
+    .object({
+      name: z.string().min(1, 'Stage name is required'),
+      agent: z.string().optional(),
+      description: z.string().optional(),
+      inputs: StageIOSchema.optional(),
+      outputs: z.array(z.string()).optional(),
+      next: z.string().nullable().optional(),
+      approval_required: z.boolean().optional().default(false),
+      parallel: z.boolean().optional().default(false),
+      max_parallel: z.number().int().min(1).max(10).optional(),
+      conditional: z.boolean().optional(),
+      on_ci_failure: OnCiFailureSchema,
+      substages: z.array(z.lazy(() => PipelineStageSchema)).optional(),
+    })
+    .loose()
+);
 
 /**
  * Pipeline configuration
@@ -212,11 +218,13 @@ const PipelineModeSchema = z.object({
 
 const PipelineSchema = z.object({
   default_mode: z.enum(['greenfield', 'enhancement', 'import']).optional(),
-  modes: z.object({
-    greenfield: PipelineModeSchema.optional(),
-    enhancement: PipelineModeSchema.optional(),
-    import: PipelineModeSchema.optional(),
-  }).optional(),
+  modes: z
+    .object({
+      greenfield: PipelineModeSchema.optional(),
+      enhancement: PipelineModeSchema.optional(),
+      import: PipelineModeSchema.optional(),
+    })
+    .optional(),
   stages: z.array(PipelineStageSchema).optional(),
 });
 
@@ -273,17 +281,19 @@ const AgentReviewSchema = z.object({
 /**
  * Individual agent configuration in workflow
  */
-const WorkflowAgentConfigSchema = z.object({
-  model: ModelSchema.optional().default('sonnet'),
-  tools: z.array(ToolSchema).optional(),
-  template: z.string().optional(),
-  max_questions: z.number().int().min(1).optional(),
-  github: AgentGitHubSettingsSchema.optional(),
-  scheduling: AgentSchedulingSchema.optional(),
-  coding: AgentCodingSchema.optional(),
-  verification: AgentVerificationSchema.optional(),
-  review: AgentReviewSchema.optional(),
-}).loose();
+const WorkflowAgentConfigSchema = z
+  .object({
+    model: ModelSchema.optional().default('sonnet'),
+    tools: z.array(ToolSchema).optional(),
+    template: z.string().optional(),
+    max_questions: z.number().int().min(1).optional(),
+    github: AgentGitHubSettingsSchema.optional(),
+    scheduling: AgentSchedulingSchema.optional(),
+    coding: AgentCodingSchema.optional(),
+    verification: AgentVerificationSchema.optional(),
+    review: AgentReviewSchema.optional(),
+  })
+  .loose();
 
 /**
  * All agents configuration in workflow
@@ -525,24 +535,30 @@ export const ObservabilityConfigSchema = z.object({
 /**
  * Token budget entry for an agent or default
  */
-const TokenBudgetEntrySchema = z.object({
-  max_tokens: z.number().int().optional(),
-  max_cost_usd: z.number().optional(),
-}).loose();
+const TokenBudgetEntrySchema = z
+  .object({
+    max_tokens: z.number().int().optional(),
+    max_cost_usd: z.number().optional(),
+  })
+  .loose();
 
 /**
  * Token budgets configuration
  */
-const TokenBudgetsSchema = z.object({
-  default_model: ModelSchema.optional(),
-  pipeline: z.object({
-    max_tokens: z.number().int().optional(),
-    max_cost_usd: z.number().optional(),
-    warning_threshold: z.number().min(0).max(1).optional(),
-  }).optional(),
-  defaults: z.record(z.string(), TokenBudgetEntrySchema).optional(),
-  agents: z.record(z.string(), TokenBudgetEntrySchema).optional(),
-}).optional();
+const TokenBudgetsSchema = z
+  .object({
+    default_model: ModelSchema.optional(),
+    pipeline: z
+      .object({
+        max_tokens: z.number().int().optional(),
+        max_cost_usd: z.number().optional(),
+        warning_threshold: z.number().min(0).max(1).optional(),
+      })
+      .optional(),
+    defaults: z.record(z.string(), TokenBudgetEntrySchema).optional(),
+    agents: z.record(z.string(), TokenBudgetEntrySchema).optional(),
+  })
+  .optional();
 
 /**
  * Complete workflow configuration schema
@@ -589,30 +605,42 @@ const AgentMetricsSchema = z.object({
 /**
  * Individual agent definition
  */
-const AgentDefinitionSchema = z.object({
-  id: z.string().min(1, 'Agent ID is required'),
-  name: z.string().min(1, 'Agent name is required'),
-  korean_name: z.string().optional(),
-  description: z.string().optional(),
-  definition_file: z.string().optional(),
-  category: z.enum([
-    'orchestration', 'infrastructure', 'document_pipeline',
-    'project_setup', 'document_update', 'issue_management',
-    'execution', 'analysis_pipeline', 'enhancement_pipeline',
-  ]).optional(),
-  order: z.number().optional(),
-  capabilities: z.array(z.string()).optional(),
-  io: AgentIOSchema.optional(),
-  parallelizable: z.boolean().optional(),
-  max_instances: z.number().int().min(1).max(10).optional(),
-  metrics: AgentMetricsSchema.optional(),
-  token_budget: z.object({
-    default_limit: z.number().int().optional(),
-    cost_limit_usd: z.number().optional(),
+const AgentDefinitionSchema = z
+  .object({
+    id: z.string().min(1, 'Agent ID is required'),
+    name: z.string().min(1, 'Agent name is required'),
+    korean_name: z.string().optional(),
+    description: z.string().optional(),
+    definition_file: z.string().optional(),
+    category: z
+      .enum([
+        'orchestration',
+        'infrastructure',
+        'document_pipeline',
+        'project_setup',
+        'document_update',
+        'issue_management',
+        'execution',
+        'analysis_pipeline',
+        'enhancement_pipeline',
+      ])
+      .optional(),
+    order: z.number().optional(),
+    capabilities: z.array(z.string()).optional(),
+    io: AgentIOSchema.optional(),
+    parallelizable: z.boolean().optional(),
+    max_instances: z.number().int().min(1).max(10).optional(),
+    metrics: AgentMetricsSchema.optional(),
+    token_budget: z
+      .object({
+        default_limit: z.number().int().optional(),
+        cost_limit_usd: z.number().optional(),
+        model_preference: ModelSchema.optional(),
+      })
+      .optional(),
     model_preference: ModelSchema.optional(),
-  }).optional(),
-  model_preference: ModelSchema.optional(),
-}).loose();
+  })
+  .loose();
 
 /**
  * Agent category definition
@@ -621,7 +649,10 @@ const AgentCategorySchema = z.object({
   name: z.string().min(1, 'Category name is required'),
   description: z.string().optional(),
   agents: z.array(z.string()),
-  execution_mode: z.enum(['sequential', 'parallel', 'on_demand', 'mixed']).optional().default('sequential'),
+  execution_mode: z
+    .enum(['sequential', 'parallel', 'on_demand', 'mixed'])
+    .optional()
+    .default('sequential'),
 });
 
 /**

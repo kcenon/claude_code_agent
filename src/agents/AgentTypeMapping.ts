@@ -61,7 +61,7 @@ export const AGENT_TYPE_MAP: Readonly<Record<string, AgentTypeEntry>> = {
     importPath: '../mode-detector/index.js',
   },
 
-  'collector': {
+  collector: {
     agentId: 'collector-agent',
     name: 'Collector Agent',
     lifecycle: 'singleton',
@@ -117,7 +117,7 @@ export const AGENT_TYPE_MAP: Readonly<Record<string, AgentTypeEntry>> = {
     importPath: '../issue-generator/index.js',
   },
 
-  'controller': {
+  controller: {
     agentId: 'controller',
     name: 'Controller',
     lifecycle: 'singleton',
@@ -125,7 +125,7 @@ export const AGENT_TYPE_MAP: Readonly<Record<string, AgentTypeEntry>> = {
     importPath: '../controller/index.js',
   },
 
-  'worker': {
+  worker: {
     agentId: 'worker-agent',
     name: 'Worker Agent',
     lifecycle: 'transient',

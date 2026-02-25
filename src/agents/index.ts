@@ -58,11 +58,7 @@ export { bootstrapAgents } from './bootstrapAgents.js';
 
 export type { BootstrapResult } from './bootstrapAgents.js';
 
-export {
-  AgentDispatcher,
-  AgentDispatchError,
-  AgentModuleError,
-} from './AgentDispatcher.js';
+export { AgentDispatcher, AgentDispatchError, AgentModuleError } from './AgentDispatcher.js';
 
 export type { AgentCallAdapter } from './AgentDispatcher.js';
 
