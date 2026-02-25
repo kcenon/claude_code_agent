@@ -47,7 +47,9 @@ export {
 
 // ProjectInitializer
 export {
+  cleanupEmptyScaffolds,
   createProjectInitializer,
+  isEmptyDirectory,
   ProjectInitializer,
   resetProjectInitializer,
 } from './ProjectInitializer.js';
