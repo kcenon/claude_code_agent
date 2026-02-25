@@ -31,6 +31,8 @@ export type { InputParserOptions } from './InputParser.js';
 export { InformationExtractor } from './InformationExtractor.js';
 export type { InformationExtractorOptions } from './InformationExtractor.js';
 
+export { LLMExtractor } from './LLMExtractor.js';
+
 // Error classes
 export {
   CollectorError,

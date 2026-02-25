@@ -15,9 +15,11 @@
 
 import { randomUUID } from 'node:crypto';
 import type { IAgent } from '../agents/types.js';
+import type { AgentBridge } from '../agents/AgentBridge.js';
 import { getScratchpad, type CollectedInfo } from '../scratchpad/index.js';
 import { InputParser, type InputParserOptions } from './InputParser.js';
 import { InformationExtractor, type InformationExtractorOptions } from './InformationExtractor.js';
+import { LLMExtractor } from './LLMExtractor.js';
 import type {
   InputSource,
   CollectorAgentConfig,
@@ -62,10 +64,11 @@ export class CollectorAgent implements IAgent {
   private readonly config: Required<CollectorAgentConfig>;
   private readonly inputParser: InputParser;
   private readonly extractor: InformationExtractor;
+  private readonly llmExtractor: LLMExtractor | null;
   private session: CollectionSession | null = null;
   private initialized = false;
 
-  constructor(config: CollectorAgentConfig = {}) {
+  constructor(config: CollectorAgentConfig = {}, bridge?: AgentBridge) {
     this.config = { ...DEFAULT_CONFIG, ...config };
 
     const parserOptions: InputParserOptions = {};
@@ -77,6 +80,25 @@ export class CollectorAgent implements IAgent {
 
     this.inputParser = new InputParser(parserOptions);
     this.extractor = new InformationExtractor(extractorOptions);
+
+    if (bridge !== undefined && !this.isStubBridge(bridge)) {
+      this.llmExtractor = new LLMExtractor(
+        bridge,
+        this.extractor,
+        this.config.scratchpadBasePath,
+      );
+    } else {
+      this.llmExtractor = null;
+    }
+  }
+
+  /**
+   * Check if a bridge is a StubBridge (no-op fallback).
+   * StubBridge always returns `true` from supports() and outputs start with "Stub execution".
+   * We detect it by constructor name to avoid a hard import dependency.
+   */
+  private isStubBridge(bridge: AgentBridge): boolean {
+    return bridge.constructor.name === 'StubBridge';
   }
 
   /**
@@ -345,6 +367,38 @@ export class CollectorAgent implements IAgent {
   }
 
   /**
+   * Process inputs using LLM extractor when available, falling back to keyword extraction.
+   * This async variant is used internally by convenience methods.
+   *
+   * @returns ExtractionResult with all extracted information
+   */
+  private async processInputsAsync(): Promise<ExtractionResult> {
+    if (this.llmExtractor === null) {
+      return this.processInputs();
+    }
+
+    const session = this.ensureSession('collecting');
+
+    if (session.sources.length === 0) {
+      throw new MissingInformationError(['No input sources provided']);
+    }
+
+    const parsed = this.inputParser.combineInputs(session.sources);
+    const extraction = await this.llmExtractor.extract(parsed);
+
+    // Update session with extraction results
+    this.session = {
+      ...session,
+      extraction,
+      pendingQuestions: extraction.clarificationQuestions,
+      status: extraction.clarificationQuestions.length > 0 ? 'clarifying' : 'completed',
+      updatedAt: new Date().toISOString(),
+    };
+
+    return extraction;
+  }
+
+  /**
    * Get pending clarification questions
    *
    * @returns Array of pending questions
@@ -426,8 +480,8 @@ export class CollectorAgent implements IAgent {
     let currentSession = this.session;
 
     if (currentSession.status === 'collecting' && currentSession.sources.length > 0) {
-      this.processInputs();
-      // Re-read session after processInputs call since it updates this.session
+      await this.processInputsAsync();
+      // Re-read session after processInputsAsync call since it updates this.session
       currentSession = this.session;
     }
 
@@ -634,7 +688,7 @@ export class CollectorAgent implements IAgent {
   ): Promise<CollectionResult> {
     await this.startSession(options?.projectName);
     this.addTextInput(text);
-    const extraction = this.processInputs();
+    const extraction = await this.processInputsAsync();
 
     // Skip clarification if confidence is high enough
     if (
@@ -662,7 +716,7 @@ export class CollectorAgent implements IAgent {
   ): Promise<CollectionResult> {
     await this.startSession(options?.projectName);
     await this.addFileInput(filePath);
-    const extraction = this.processInputs();
+    const extraction = await this.processInputsAsync();
 
     if (
       this.config.skipClarificationIfConfident &&
@@ -710,7 +764,7 @@ export class CollectorAgent implements IAgent {
       throw new MissingInformationError(['No files could be processed successfully', ...errors]);
     }
 
-    const extraction = this.processInputs();
+    const extraction = await this.processInputsAsync();
 
     // Add file processing errors as warnings
     if (errors.length > 0 && this.session !== null) {
@@ -785,7 +839,7 @@ export class CollectorAgent implements IAgent {
       throw new MissingInformationError(['No inputs could be processed successfully', ...errors]);
     }
 
-    const extraction = this.processInputs();
+    const extraction = await this.processInputsAsync();
 
     // Add processing errors as warnings
     const errors = batchResults
