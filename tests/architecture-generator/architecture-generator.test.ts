@@ -7,6 +7,7 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
 import {
   ArchitectureGenerator,
@@ -330,19 +331,18 @@ describe('SRSParser', () => {
   });
 
   describe('parseFile', () => {
-    const testDir = '/tmp/architecture-generator-test';
-    const testFile = path.join(testDir, 'test-srs.md');
+    let testDir: string;
+    let testFile: string;
 
     beforeEach(() => {
-      if (!fs.existsSync(testDir)) {
-        fs.mkdirSync(testDir, { recursive: true });
-      }
+      testDir = fs.mkdtempSync(path.join(os.tmpdir(), 'architecture-generator-test-'));
+      testFile = path.join(testDir, 'test-srs.md');
       fs.writeFileSync(testFile, SAMPLE_SRS_CONTENT);
     });
 
     afterEach(() => {
-      if (fs.existsSync(testFile)) {
-        fs.unlinkSync(testFile);
+      if (fs.existsSync(testDir)) {
+        fs.rmSync(testDir, { recursive: true, force: true });
       }
     });
 
