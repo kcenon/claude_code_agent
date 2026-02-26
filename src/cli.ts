@@ -12,6 +12,7 @@ import chalk from 'chalk';
 import { Command } from 'commander';
 
 import {
+  cleanupEmptyScaffolds,
   createInteractiveWizard,
   createProjectInitializer,
   getPrerequisiteValidator,
@@ -159,6 +160,13 @@ program
       const result = await initializer.initialize();
 
       if (result.success) {
+        // Clean up any pre-existing empty scaffold directories
+        const scratchpadDir = resolve(result.projectPath, '.ad-sdlc', 'scratchpad');
+        const cleanedCount = await cleanupEmptyScaffolds(scratchpadDir);
+        if (cleanedCount > 0) {
+          output.info(chalk.dim(`Cleaned up ${String(cleanedCount)} empty scaffold directories.`));
+        }
+
         output.info(chalk.green('\n✅ Project initialized successfully!\n'));
         output.info(chalk.dim('Created files:'));
         for (const file of result.createdFiles.slice(0, 10)) {

@@ -887,3 +887,70 @@ export function createProjectInitializer(options: InitOptions): ProjectInitializ
 export function resetProjectInitializer(): void {
   initializerInstance = null;
 }
+
+// ============================================================
+// Scaffold Cleanup Utilities
+// ============================================================
+
+/**
+ * Check if a directory is effectively empty.
+ *
+ * A directory is considered "empty" if it contains no files at any depth.
+ * A directory with only empty subdirectories is also considered empty.
+ * README.md files are preserved (not counted as making a directory non-empty
+ * for cleanup purposes) — callers should handle README preservation separately.
+ *
+ * @param dirPath - Absolute path to the directory to check
+ * @returns True if the directory is empty or contains only empty subdirectories
+ */
+export async function isEmptyDirectory(dirPath: string): Promise<boolean> {
+  try {
+    const stat = fs.statSync(dirPath);
+    if (!stat.isDirectory()) return false;
+    const entries = fs.readdirSync(dirPath);
+    if (entries.length === 0) return true;
+    // Check recursively: a dir with only empty subdirs is also "empty"
+    for (const entry of entries) {
+      const childPath = path.join(dirPath, entry);
+      const childStat = fs.statSync(childPath);
+      if (!childStat.isDirectory()) return false;
+      if (!(await isEmptyDirectory(childPath))) return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Clean up pre-created empty scaffold directories under the scratchpad.
+ *
+ * Scans the `issues`, `progress`, and `documents` sections of the scratchpad
+ * and removes any project directories that are effectively empty (no files
+ * at any depth). Directories with actual content are preserved.
+ *
+ * This is intended as a migration step for projects that were initialized
+ * with pre-allocated numbered directories (e.g., 002-099) that were never used.
+ *
+ * @param scratchpadDir - Absolute path to the `.ad-sdlc/scratchpad` directory
+ * @returns Number of empty directories removed
+ */
+export async function cleanupEmptyScaffolds(scratchpadDir: string): Promise<number> {
+  let removed = 0;
+  for (const prefix of ['issues', 'progress', 'documents']) {
+    const dir = path.join(scratchpadDir, prefix);
+    try {
+      const entries = fs.readdirSync(dir);
+      for (const entry of entries) {
+        const fullPath = path.join(dir, entry);
+        if (await isEmptyDirectory(fullPath)) {
+          fs.rmSync(fullPath, { recursive: true });
+          removed++;
+        }
+      }
+    } catch {
+      // Directory may not exist — skip silently
+    }
+  }
+  return removed;
+}
