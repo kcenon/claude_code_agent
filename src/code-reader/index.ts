@@ -69,3 +69,5 @@ export {
   TooManyParseErrorsError,
   InvalidTsConfigError,
 } from './errors.js';
+
+export type { ParseErrorDetail } from './errors.js';

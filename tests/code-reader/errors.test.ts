@@ -192,6 +192,25 @@ describe('TooManyParseErrorsError', () => {
     const error = new TooManyParseErrorsError(1, 10, 0.05);
     expect(error instanceof CodeReaderError).toBe(true);
   });
+
+  it('should include per-file error details when provided', () => {
+    const fileErrors = [
+      { filePath: '/src/a.ts', message: 'Cannot find name X', line: 5 },
+      { filePath: '/src/b.ts', message: 'Type error' },
+    ];
+    const error = new TooManyParseErrorsError(2, 3, 0.5, fileErrors);
+    expect(error.fileErrors).toHaveLength(2);
+    expect(error.message).toContain('Failed files:');
+    expect(error.message).toContain('/src/a.ts:5');
+    expect(error.message).toContain('Cannot find name X');
+    expect(error.message).toContain('/src/b.ts');
+  });
+
+  it('should default to empty fileErrors array', () => {
+    const error = new TooManyParseErrorsError(5, 10, 0.3);
+    expect(error.fileErrors).toHaveLength(0);
+    expect(error.message).not.toContain('Failed files:');
+  });
 });
 
 describe('InvalidTsConfigError', () => {

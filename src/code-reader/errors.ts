@@ -141,22 +141,52 @@ export class CircularDependencyError extends CodeReaderError {
 }
 
 /**
+ * Per-file parse error detail
+ */
+export interface ParseErrorDetail {
+  /** File path that failed to parse */
+  readonly filePath: string;
+  /** Error message describing the parse failure */
+  readonly message: string;
+  /** Line number where the error occurred (if available) */
+  readonly line?: number;
+}
+
+/**
  * Error thrown when too many files fail to parse
  */
 export class TooManyParseErrorsError extends CodeReaderError {
   public readonly failedCount: number;
   public readonly totalCount: number;
   public readonly threshold: number;
+  public readonly fileErrors: readonly ParseErrorDetail[];
 
-  constructor(failedCount: number, totalCount: number, threshold: number) {
+  constructor(
+    failedCount: number,
+    totalCount: number,
+    threshold: number,
+    fileErrors: readonly ParseErrorDetail[] = []
+  ) {
     const percentage = ((failedCount / totalCount) * 100).toFixed(1);
-    super(
-      `Too many files failed to parse: ${String(failedCount)}/${String(totalCount)} (${percentage}%) exceeds threshold of ${String(threshold * 100)}%`
-    );
+    const header = `Too many files failed to parse: ${String(failedCount)}/${String(totalCount)} (${percentage}%) exceeds threshold of ${String(threshold * 100)}%`;
+    const details =
+      fileErrors.length > 0
+        ? '\nFailed files:\n' +
+          fileErrors
+            .slice(0, 10)
+            .map(
+              (e) =>
+                `  - ${e.filePath}${e.line !== undefined ? `:${String(e.line)}` : ''}: ${e.message}`
+            )
+            .join('\n') +
+          (fileErrors.length > 10 ? `\n  ... and ${String(fileErrors.length - 10)} more` : '')
+        : '';
+    super(header + details);
     this.name = 'TooManyParseErrorsError';
     this.failedCount = failedCount;
     this.totalCount = totalCount;
     this.threshold = threshold;
+    this.fileErrors = fileErrors;
   }
 }
 
