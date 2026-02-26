@@ -684,6 +684,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
       const startTime = Date.now();
       try {
         const bridge = registry.resolve(invocation.agentType);
+        const isStub = registry.isStub(invocation.agentType);
         const request: AgentRequest = {
           agentType: invocation.agentType,
           input: invocation.inputs.join('\n'),
@@ -699,10 +700,11 @@ export class AdsdlcOrchestratorAgent implements IAgent {
           agentType: invocation.agentType,
           status: response.success ? 'completed' : 'failed',
           durationMs: Date.now() - startTime,
-          output: response.output,
+          output: isStub ? `[STUB] ${response.output}` : response.output,
           artifacts: [...invocation.outputs, ...response.artifacts.map((a) => a.path)],
           error: response.error ?? null,
           retryCount: 0,
+          ...(isStub && { warnings: ['StubBridge used — no real agent execution'] }),
         };
       } catch (error) {
         return {
@@ -760,6 +762,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
       const startTime = Date.now();
       try {
         const bridge = registry.resolve(invocation.agentType);
+        const isStub = registry.isStub(invocation.agentType);
         const request: AgentRequest = {
           agentType: invocation.agentType,
           input: invocation.inputs.join('\n'),
@@ -775,10 +778,11 @@ export class AdsdlcOrchestratorAgent implements IAgent {
           agentType: invocation.agentType,
           status: response.success ? 'completed' : 'failed',
           durationMs: Date.now() - startTime,
-          output: response.output,
+          output: isStub ? `[STUB] ${response.output}` : response.output,
           artifacts: [...invocation.outputs, ...response.artifacts.map((a) => a.path)],
           error: response.error ?? null,
           retryCount: 0,
+          ...(isStub && { warnings: ['StubBridge used — no real agent execution'] }),
         });
 
         // Stop on failure — sequential stages are dependent
