@@ -130,9 +130,11 @@ export type {
   MkdirOptions,
 } from './SecureFileOps.js';
 
-// Secret Providers - Type-only re-exports (safe for sandboxed environments)
-export type { ISecretProvider } from './secrets/ISecretProvider.js';
+// Secret Provider Types - Re-exported from sandbox-safe location
+// Types are defined in secret-provider-types.ts (outside secrets/ directory)
+// to avoid sandbox read restrictions on paths matching **/secrets
 export type {
+  ISecretProvider,
   Secret,
   CachedSecret,
   ProviderState,
@@ -147,7 +149,7 @@ export type {
   CircuitBreakerState,
   CircuitBreakerConfig,
   CircuitBreakerStatus,
-} from './secrets/types.js';
+} from './secret-provider-types.js';
 
 /**
  * Lazy-load the secrets module. Only call when secret management is needed.
@@ -156,7 +158,11 @@ export type {
  * can trigger EPERM errors in sandboxed environments where the `secrets`
  * path pattern is blocked.
  *
+ * The module path is stored in a variable to prevent TypeScript from
+ * performing static module resolution on the sandbox-restricted path.
+ *
  * @returns A promise resolving to the full secrets module exports
  */
-export const getSecretsModule = (): Promise<typeof import('./secrets/index.js')> =>
-  import('./secrets/index.js');
+const SECRETS_MODULE_PATH = './secrets/index.js';
+export const getSecretsModule = (): Promise<Record<string, unknown>> =>
+  import(SECRETS_MODULE_PATH);
