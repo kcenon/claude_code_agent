@@ -164,5 +164,4 @@ export type {
  * @returns A promise resolving to the full secrets module exports
  */
 const SECRETS_MODULE_PATH = './secrets/index.js';
-export const getSecretsModule = (): Promise<Record<string, unknown>> =>
-  import(SECRETS_MODULE_PATH);
+export const getSecretsModule = (): Promise<Record<string, unknown>> => import(SECRETS_MODULE_PATH);
