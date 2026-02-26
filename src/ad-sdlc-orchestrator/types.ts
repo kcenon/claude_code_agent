@@ -232,6 +232,8 @@ export interface OrchestratorConfig {
   readonly timeouts?: StageTimeoutConfig;
   /** Maximum retry attempts per stage */
   readonly maxRetries?: number;
+  /** Maximum number of agents that can execute in parallel (default: 3) */
+  readonly maxParallelAgents?: number;
   /** Log level */
   readonly logLevel?: 'DEBUG' | 'INFO' | 'WARN' | 'ERROR';
 }
@@ -248,6 +250,7 @@ export const DEFAULT_ORCHESTRATOR_CONFIG: Required<OrchestratorConfig> = {
     overrides: {},
   },
   maxRetries: 3,
+  maxParallelAgents: 3,
   logLevel: 'INFO',
 };
 

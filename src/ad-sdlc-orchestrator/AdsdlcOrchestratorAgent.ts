@@ -13,8 +13,11 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 
 import { AgentDispatcher } from '../agents/AgentDispatcher.js';
+import type { AgentRequest } from '../agents/AgentBridge.js';
+import { BridgeRegistry, createDefaultBridgeRegistry } from '../agents/BridgeRegistry.js';
 import { bootstrapAgents } from '../agents/bootstrapAgents.js';
 import type { IAgent } from '../agents/types.js';
+import { Semaphore } from '../utilities/Semaphore.js';
 import type {
   AgentInvocation,
   ApprovalDecision,
@@ -79,6 +82,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
   private stageTimers = new Map<StageName, ReturnType<typeof setTimeout>>();
   private abortController: AbortController | null = null;
   private _dispatcher: AgentDispatcher | null = null;
+  private _bridgeRegistry: BridgeRegistry | null = null;
 
   constructor(config: OrchestratorConfig = {}) {
     this.config = {
@@ -117,6 +121,10 @@ export class AdsdlcOrchestratorAgent implements IAgent {
       await this._dispatcher.disposeAll();
       this._dispatcher = null;
     }
+    if (this._bridgeRegistry) {
+      await this._bridgeRegistry.disposeAll();
+      this._bridgeRegistry = null;
+    }
     this.session = null;
     this.initialized = false;
   }
@@ -135,6 +143,20 @@ export class AdsdlcOrchestratorAgent implements IAgent {
       this._dispatcher = new AgentDispatcher();
     }
     return this._dispatcher;
+  }
+
+  /**
+   * Get or create the BridgeRegistry instance (lazy initialization).
+   *
+   * Override this method in tests to inject a custom registry.
+   *
+   * @returns The BridgeRegistry for resolving agent bridges
+   */
+  protected getBridgeRegistry(): BridgeRegistry {
+    if (!this._bridgeRegistry) {
+      this._bridgeRegistry = createDefaultBridgeRegistry();
+    }
+    return this._bridgeRegistry;
   }
 
   /**
@@ -646,27 +668,80 @@ export class AdsdlcOrchestratorAgent implements IAgent {
   // ---------------------------------------------------------------------------
 
   /**
-   * Execute agent invocations in parallel
+   * Execute agent invocations in parallel with concurrency limiting.
+   *
+   * Uses a Semaphore to cap the number of concurrent agent executions
+   * at `maxParallelAgents`. Uses `Promise.allSettled` so that individual
+   * agent failures do not abort sibling executions.
+   *
    * @param agents - The agent invocations to execute concurrently
    * @returns The results from all parallel agent executions
    */
-  private executeParallel(agents: readonly AgentInvocation[]): Promise<StageResult[]> {
-    const promises = agents.map((invocation) => {
+  private async executeParallel(agents: readonly AgentInvocation[]): Promise<StageResult[]> {
+    const semaphore = new Semaphore(this.config.maxParallelAgents);
+    const registry = this.getBridgeRegistry();
+
+    const promises = agents.map(async (invocation): Promise<StageResult> => {
+      await semaphore.acquire();
       const startTime = Date.now();
-      const result: StageResult = {
-        name: invocation.stageName,
-        agentType: invocation.agentType,
-        status: 'completed' as PipelineStageStatus,
-        durationMs: Date.now() - startTime,
-        output: `Parallel execution of ${invocation.agentType}`,
-        artifacts: [...invocation.outputs],
-        error: null,
-        retryCount: 0,
-      };
-      return Promise.resolve(result);
+      try {
+        const bridge = registry.resolve(invocation.agentType);
+        const request: AgentRequest = {
+          agentType: invocation.agentType,
+          input: invocation.inputs.join('\n'),
+          scratchpadDir: this.session?.scratchpadDir ?? '',
+          projectDir: this.session?.projectDir ?? '',
+          priorStageOutputs: {},
+        };
+
+        const response = await bridge.execute(request);
+
+        return {
+          name: invocation.stageName,
+          agentType: invocation.agentType,
+          status: response.success ? 'completed' : 'failed',
+          durationMs: Date.now() - startTime,
+          output: response.output,
+          artifacts: [...invocation.outputs, ...response.artifacts.map((a) => a.path)],
+          error: response.error ?? null,
+          retryCount: 0,
+        };
+      } catch (error) {
+        return {
+          name: invocation.stageName,
+          agentType: invocation.agentType,
+          status: 'failed',
+          durationMs: Date.now() - startTime,
+          output: '',
+          artifacts: [...invocation.outputs],
+          error: error instanceof Error ? error.message : String(error),
+          retryCount: 0,
+        };
+      } finally {
+        semaphore.release();
+      }
     });
 
-    return Promise.all(promises);
+    const settled = await Promise.allSettled(promises);
+
+    return settled.map((outcome, index) => {
+      if (outcome.status === 'fulfilled') {
+        return outcome.value;
+      }
+      // This branch handles unexpected rejections that escape the try/catch above
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- index is guaranteed valid by Promise.allSettled
+      const invocation = agents[index]!;
+      return {
+        name: invocation.stageName,
+        agentType: invocation.agentType,
+        status: 'failed' as PipelineStageStatus,
+        durationMs: 0,
+        output: '',
+        artifacts: [...invocation.outputs],
+        error: outcome.reason instanceof Error ? outcome.reason.message : String(outcome.reason),
+        retryCount: 0,
+      };
+    });
   }
 
   /**
