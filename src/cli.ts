@@ -32,6 +32,11 @@ import {
   resetAnalysisOrchestratorAgent,
 } from './analysis-orchestrator/index.js';
 import type { AnalysisScope } from './analysis-orchestrator/types.js';
+import {
+  getAdsdlcOrchestratorAgent,
+  resetAdsdlcOrchestratorAgent,
+} from './ad-sdlc-orchestrator/index.js';
+import type { PipelineMode, PipelineRequest } from './ad-sdlc-orchestrator/index.js';
 import { StatusService } from './status/index.js';
 import type { OutputFormat } from './status/types.js';
 import { initializeProject, isProjectInitialized } from './utils/index.js';
@@ -867,6 +872,205 @@ function formatConsentStatus(status: string): string {
     case 'pending':
     default:
       return chalk.yellow('Pending (not set)');
+  }
+}
+
+/**
+ * Run command - Execute the AD-SDLC pipeline
+ */
+program
+  .command('run')
+  .description('Execute the AD-SDLC pipeline to generate documents, issues, and implementation')
+  .argument('<requirements>', 'Project requirements or description text')
+  .option('-m, --mode <mode>', 'Pipeline mode: greenfield | enhancement | import', 'greenfield')
+  .option('--stop-after <stage>', 'Stop pipeline after specified stage')
+  .option('--project-dir <dir>', 'Target project directory', process.cwd())
+  .option('--dry-run', 'Validate pipeline configuration without executing agents', false)
+  .option('--resume <session-id>', 'Resume a previously interrupted pipeline session')
+  .action(async (requirements: string, cmdOptions: Record<string, unknown>) => {
+    const modeInput = typeof cmdOptions['mode'] === 'string' ? cmdOptions['mode'] : 'greenfield';
+    const stopAfter =
+      typeof cmdOptions['stopAfter'] === 'string' ? cmdOptions['stopAfter'] : undefined;
+    const projectDir =
+      typeof cmdOptions['projectDir'] === 'string'
+        ? resolve(cmdOptions['projectDir'])
+        : resolve(process.cwd());
+    const dryRun = cmdOptions['dryRun'] === true;
+    const resumeSessionId =
+      typeof cmdOptions['resume'] === 'string' ? cmdOptions['resume'] : undefined;
+
+    // Validate mode
+    const validModes = ['greenfield', 'enhancement', 'import'];
+    if (!validModes.includes(modeInput)) {
+      output.error(chalk.red(`\n❌ Invalid mode: ${modeInput}`));
+      output.info(chalk.dim(`Valid modes: ${validModes.join(', ')}\n`));
+      process.exit(1);
+    }
+    const mode = modeInput as PipelineMode;
+
+    // Check .ad-sdlc/ directory exists
+    const exists = configFilesExist();
+    if (!exists.workflow && !exists.agents) {
+      output.error(chalk.red('\n❌ No AD-SDLC configuration found.'));
+      output.info(chalk.dim('Run "ad-sdlc init" to initialize a project first.\n'));
+      process.exit(1);
+    }
+
+    // Initialize project context
+    if (!isProjectInitialized()) {
+      try {
+        initializeProject(projectDir, { silent: true });
+      } catch {
+        // Ignore — modules will fallback to process.cwd()
+      }
+    }
+
+    // Dry-run mode
+    if (dryRun) {
+      output.info(chalk.blue('\n🔍 Dry Run — Validating pipeline configuration\n'));
+      output.info(chalk.dim(`Mode: ${mode}`));
+      output.info(chalk.dim(`Project: ${projectDir}`));
+      output.info(
+        chalk.dim(
+          `Requirements: ${requirements.slice(0, 120)}${requirements.length > 120 ? '...' : ''}`
+        )
+      );
+      if (stopAfter !== undefined) {
+        output.info(chalk.dim(`Stop after: ${stopAfter}`));
+      }
+      output.blank();
+
+      try {
+        const report = await validateAllConfigs();
+        if (report.valid) {
+          output.info(chalk.green('✅ Configuration is valid. Pipeline is ready to execute.\n'));
+        } else {
+          output.info(
+            chalk.red(
+              `❌ Found ${String(report.totalErrors)} configuration error(s). Fix these before running.\n`
+            )
+          );
+          process.exit(1);
+        }
+      } catch (error) {
+        output.error(
+          `${chalk.red('\n❌ Error:')} ${error instanceof Error ? error.message : String(error)}`
+        );
+        process.exit(1);
+      }
+      return;
+    }
+
+    // Display pipeline info
+    output.info(chalk.blue('\n🚀 AD-SDLC Pipeline Execution\n'));
+    output.info(chalk.dim(`Mode: ${mode}`));
+    output.info(chalk.dim(`Project: ${projectDir}`));
+    output.info(
+      chalk.dim(
+        `Requirements: ${requirements.slice(0, 120)}${requirements.length > 120 ? '...' : ''}`
+      )
+    );
+    if (resumeSessionId !== undefined) {
+      output.info(chalk.dim(`Resuming session: ${resumeSessionId}`));
+    }
+    if (stopAfter !== undefined) {
+      output.info(chalk.dim(`Stop after: ${stopAfter}`));
+    }
+    output.blank();
+
+    const agent = getAdsdlcOrchestratorAgent();
+
+    try {
+      // Build pipeline request
+      const request: PipelineRequest = {
+        projectDir,
+        userRequest: requirements,
+        overrideMode: mode,
+        ...(resumeSessionId !== undefined && {
+          resumeMode: 'resume' as const,
+          resumeSessionId,
+        }),
+        ...(stopAfter !== undefined && {
+          resumeMode: 'start_from' as const,
+        }),
+      };
+
+      // Start session
+      const session = await agent.startSession(request);
+      output.info(chalk.green(`✓ Session started: ${session.sessionId}`));
+      output.info(chalk.dim(`Pipeline mode: ${session.mode}`));
+      output.blank();
+
+      // Execute pipeline
+      output.info(chalk.blue('⟳ Executing pipeline stages...\n'));
+      const result = await agent.executePipeline(projectDir, requirements);
+
+      // Display results
+      output.info(chalk.green('\n✅ Pipeline Complete\n'));
+      output.info(`${chalk.white('Pipeline ID:')} ${result.pipelineId}`);
+      output.info(`${chalk.white('Project ID:')} ${result.projectId}`);
+      output.info(`${chalk.white('Mode:')} ${result.mode}`);
+      output.info(`${chalk.white('Status:')} ${formatPipelineStatus(result.overallStatus)}`);
+
+      if (result.stages.length > 0) {
+        output.info(chalk.blue('\nStages:'));
+        for (const stage of result.stages) {
+          const icon = getStatusIcon(stage.status);
+          const duration = chalk.dim(`(${String(stage.durationMs)}ms)`);
+          output.info(`  ${icon} ${stage.name} ${duration}`);
+          if (stage.error !== null) {
+            output.info(chalk.red(`      Error: ${stage.error}`));
+          }
+        }
+      }
+
+      if (result.artifacts.length > 0) {
+        output.info(chalk.blue('\nArtifacts:'));
+        for (const artifact of result.artifacts) {
+          output.info(`  ${chalk.dim(artifact)}`);
+        }
+      }
+
+      if (result.warnings.length > 0) {
+        output.info(chalk.yellow('\nWarnings:'));
+        for (const warning of result.warnings) {
+          output.info(chalk.yellow(`  ⚠ ${warning}`));
+        }
+      }
+
+      output.info(chalk.dim(`\nTotal duration: ${String(result.durationMs)}ms\n`));
+
+      resetAdsdlcOrchestratorAgent();
+
+      if (result.overallStatus === 'failed') {
+        process.exit(1);
+      }
+    } catch (error) {
+      output.error(
+        `${chalk.red('\n❌ Pipeline failed:')} ${error instanceof Error ? error.message : String(error)}`
+      );
+      resetAdsdlcOrchestratorAgent();
+      process.exit(1);
+    }
+  });
+
+/**
+ * Format pipeline overall status for display
+ * @param status - The pipeline status string
+ * @returns A chalk-colored status label
+ */
+function formatPipelineStatus(status: string): string {
+  switch (status) {
+    case 'completed':
+      return chalk.green(status);
+    case 'running':
+      return chalk.blue(status);
+    case 'partial':
+      return chalk.yellow(status);
+    case 'failed':
+      return chalk.red(status);
+    default:
+      return chalk.dim(status);
   }
 }
 
