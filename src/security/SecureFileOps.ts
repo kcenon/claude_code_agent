@@ -750,7 +750,10 @@ export class SecureFileOps {
       }
     );
 
+    // Attach error handler immediately to prevent unhandled EMFILE errors
+    // from crashing the process when file descriptor limits are reached
     fsWatcher.on('error', (error) => {
+      watcherState.active = false;
       const event: FileWatchEvent = {
         type: 'error',
         path: relativePath,
@@ -791,7 +794,11 @@ export class SecureFileOps {
     }
 
     watcherState.active = false;
-    watcherState.watcher.close();
+    try {
+      watcherState.watcher.close();
+    } catch {
+      // Watcher may already be closed due to error (e.g., EMFILE)
+    }
 
     // Clear all pending debounce timers
     for (const timer of watcherState.debounceTimers.values()) {
