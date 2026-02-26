@@ -42,14 +42,17 @@ describe('SecureFileOps', () => {
       expect(handle.isActive()).toBe(true);
       expect(handle.watchPath).toBe('.');
 
+      // Wait for watcher to initialize before creating the file
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
       // Create a file
       fs.writeFileSync(testFile, 'test content');
 
-      // Wait for debounce
-      await new Promise((resolve) => setTimeout(resolve, 100));
-
-      expect(events.length).toBeGreaterThan(0);
-      expect(events.some((e) => e.path.includes('test.txt'))).toBe(true);
+      // Poll until the event is received instead of fixed timeout
+      await vi.waitFor(() => {
+        expect(events.length).toBeGreaterThan(0);
+        expect(events.some((e) => e.path.includes('test.txt'))).toBe(true);
+      }, { timeout: 2000, interval: 50 });
 
       handle.close();
       expect(handle.isActive()).toBe(false);
@@ -305,18 +308,18 @@ describe('SecureFileOps', () => {
         events.push(event);
       }, { debounceMs: 10 });
 
-      // Wait a bit before modifying
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      // Wait for watcher to initialize
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
       fs.writeFileSync(testFile, 'modified');
 
-      await new Promise((resolve) => setTimeout(resolve, 150));
-
-      // Should have events for the modification (change or add depending on OS)
-      const modifyEvents = events.filter(
-        (e) => (e.type === 'change' || e.type === 'add') && e.path.includes('modify-test')
-      );
-      expect(modifyEvents.length).toBeGreaterThan(0);
+      // Poll until modification event is received
+      await vi.waitFor(() => {
+        const modifyEvents = events.filter(
+          (e) => (e.type === 'change' || e.type === 'add') && e.path.includes('modify-test')
+        );
+        expect(modifyEvents.length).toBeGreaterThan(0);
+      }, { timeout: 2000, interval: 50 });
 
       handle.close();
     });
@@ -331,17 +334,18 @@ describe('SecureFileOps', () => {
         events.push(event);
       }, { debounceMs: 10 });
 
-      // Wait a bit before deleting
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      // Wait for watcher to initialize
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
       fs.unlinkSync(testFile);
 
-      await new Promise((resolve) => setTimeout(resolve, 150));
-
-      const unlinkEvents = events.filter(
-        (e) => e.type === 'unlink' && e.path.includes('delete-test')
-      );
-      expect(unlinkEvents.length).toBeGreaterThan(0);
+      // Poll until unlink event is received
+      await vi.waitFor(() => {
+        const unlinkEvents = events.filter(
+          (e) => e.type === 'unlink' && e.path.includes('delete-test')
+        );
+        expect(unlinkEvents.length).toBeGreaterThan(0);
+      }, { timeout: 2000, interval: 50 });
 
       handle.close();
     });
