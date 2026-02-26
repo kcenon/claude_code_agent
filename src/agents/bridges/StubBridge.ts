@@ -23,15 +23,15 @@ export class StubBridge implements AgentBridge {
     return true;
   }
 
-  async execute(request: AgentRequest): Promise<AgentResponse> {
-    return {
+  execute(request: AgentRequest): Promise<AgentResponse> {
+    return Promise.resolve({
       output: `Stub execution for ${request.agentType}`,
       artifacts: [],
       success: true,
-    };
+    });
   }
 
-  async dispose(): Promise<void> {
-    // No resources to clean up
+  dispose(): Promise<void> {
+    return Promise.resolve();
   }
 }
