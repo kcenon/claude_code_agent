@@ -82,11 +82,7 @@ export class CollectorAgent implements IAgent {
     this.extractor = new InformationExtractor(extractorOptions);
 
     if (bridge !== undefined && !this.isStubBridge(bridge)) {
-      this.llmExtractor = new LLMExtractor(
-        bridge,
-        this.extractor,
-        this.config.scratchpadBasePath,
-      );
+      this.llmExtractor = new LLMExtractor(bridge, this.extractor, this.config.scratchpadBasePath);
     } else {
       this.llmExtractor = null;
     }

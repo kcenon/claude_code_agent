@@ -188,9 +188,7 @@ describe('LLMExtractor', () => {
       };
 
       const extractor = new LLMExtractor(bridge, fallback);
-      const input = parser.combineInputs([
-        parser.parseText('The system must support login.'),
-      ]);
+      const input = parser.combineInputs([parser.parseText('The system must support login.')]);
 
       const result = await extractor.extract(input);
 
@@ -230,9 +228,7 @@ describe('LLMExtractor', () => {
       });
 
       const extractor = new LLMExtractor(bridge, fallback);
-      const input = parser.combineInputs([
-        parser.parseText('The system should process data.'),
-      ]);
+      const input = parser.combineInputs([parser.parseText('The system should process data.')]);
 
       const result = await extractor.extract(input);
 

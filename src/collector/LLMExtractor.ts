@@ -45,7 +45,7 @@ export class LLMExtractor {
     private readonly bridge: AgentBridge,
     private readonly fallback: InformationExtractor,
     private readonly scratchpadDir: string = '',
-    private readonly projectDir: string = '',
+    private readonly projectDir: string = ''
   ) {}
 
   /**
@@ -80,9 +80,10 @@ export class LLMExtractor {
    * Build the prompt sent to the LLM for extraction.
    */
   private buildExtractionPrompt(text: string, context?: string): string {
-    const contextBlock = context !== undefined && context.length > 0
-      ? `\n\nAdditional project context:\n${context}`
-      : '';
+    const contextBlock =
+      context !== undefined && context.length > 0
+        ? `\n\nAdditional project context:\n${context}`
+        : '';
 
     return `Analyze the following text and extract structured project information.
 
@@ -190,13 +191,16 @@ ${text}${contextBlock}`;
     }));
 
     const allConfidences = llmResult.requirements.map((r) => r.confidence);
-    const overallConfidence = allConfidences.length > 0
-      ? allConfidences.reduce((sum, c) => sum + c, 0) / allConfidences.length
-      : 0.5;
+    const overallConfidence =
+      allConfidences.length > 0
+        ? allConfidences.reduce((sum, c) => sum + c, 0) / allConfidences.length
+        : 0.5;
 
     const warnings: string[] = [];
     if (functionalRequirements.length === 0) {
-      warnings.push('No functional requirements detected - consider providing more specific feature descriptions');
+      warnings.push(
+        'No functional requirements detected - consider providing more specific feature descriptions'
+      );
     }
 
     return {
@@ -217,10 +221,13 @@ ${text}${contextBlock}`;
    * Map a free-form category string to a known NFR category.
    */
   private mapCategory(
-    category: string,
+    category: string
   ): 'performance' | 'security' | 'scalability' | 'usability' | 'reliability' | 'maintainability' {
     const lower = category.toLowerCase();
-    const mapping: Record<string, 'performance' | 'security' | 'scalability' | 'usability' | 'reliability' | 'maintainability'> = {
+    const mapping: Record<
+      string,
+      'performance' | 'security' | 'scalability' | 'usability' | 'reliability' | 'maintainability'
+    > = {
       performance: 'performance',
       speed: 'performance',
       latency: 'performance',
@@ -242,7 +249,9 @@ ${text}${contextBlock}`;
   /**
    * Map a free-form category string to a known constraint type.
    */
-  private mapConstraintType(category: string): 'technical' | 'business' | 'regulatory' | 'resource' {
+  private mapConstraintType(
+    category: string
+  ): 'technical' | 'business' | 'regulatory' | 'resource' {
     const lower = category.toLowerCase();
     const mapping: Record<string, 'technical' | 'business' | 'regulatory' | 'resource'> = {
       technical: 'technical',
