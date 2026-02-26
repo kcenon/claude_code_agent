@@ -144,7 +144,7 @@ export class AnthropicApiBridge implements AgentBridge {
         output: totalOutput,
         artifacts: collectedArtifacts,
         success: totalOutput.length > 0,
-        error: `Reached maximum turn limit (${maxTurns})`,
+        error: `Reached maximum turn limit (${String(maxTurns)})`,
         ...(totalInputTokens > 0 && {
           tokenUsage: { inputTokens: totalInputTokens, outputTokens: totalOutputTokens },
         }),

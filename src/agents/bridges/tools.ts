@@ -147,22 +147,20 @@ export async function executeTool(
   input: Record<string, unknown>,
   projectDir: string
 ): Promise<string> {
+  const asString = (key: string): string => (typeof input[key] === 'string' ? input[key] : '');
+
   switch (toolName) {
     case 'read_file':
-      return executeReadFile(String(input['path'] ?? ''), projectDir);
+      return executeReadFile(asString('path'), projectDir);
     case 'write_file':
-      return executeWriteFile(
-        String(input['path'] ?? ''),
-        String(input['content'] ?? ''),
-        projectDir
-      );
+      return executeWriteFile(asString('path'), asString('content'), projectDir);
     case 'list_files':
-      return executeListFiles(String(input['pattern'] ?? ''), projectDir);
+      return executeListFiles(asString('pattern'), projectDir);
     case 'search_code':
       return executeSearchCode(
-        String(input['pattern'] ?? ''),
+        asString('pattern'),
         projectDir,
-        input['glob'] ? String(input['glob']) : undefined
+        typeof input['glob'] === 'string' ? input['glob'] : undefined
       );
     default:
       throw new Error(`Unknown tool: ${toolName}`);
@@ -204,13 +202,13 @@ async function executeWriteFile(
 
 /**
  * Convert a simple glob pattern to a RegExp.
- * Supports: `*` (any non-slash), `**​/` (any directory depth), `?` (single char).
+ * Supports: `*` (any non-slash), `**(slash)` (any directory depth), `?` (single char).
  */
 function globToRegex(pattern: string): RegExp {
   let re = '';
   let i = 0;
   while (i < pattern.length) {
-    const ch = pattern[i]!;
+    const ch = pattern.charAt(i);
     if (ch === '*' && pattern[i + 1] === '*') {
       // ** matches any path segment(s)
       re += '.*';
@@ -272,7 +270,7 @@ async function executeListFiles(pattern: string, projectDir: string): Promise<st
   const limited = files.slice(0, 200);
   const result = limited.join('\n');
   if (files.length > 200) {
-    return result + `\n... (${files.length - 200} more files)`;
+    return result + `\n... (${String(files.length - 200)} more files)`;
   }
   return result;
 }
@@ -283,7 +281,7 @@ async function executeSearchCode(
   fileGlob?: string
 ): Promise<string> {
   const allFiles = await listAllFiles(projectDir);
-  const globRegex = fileGlob ? globToRegex(fileGlob) : null;
+  const globRegex = fileGlob !== undefined ? globToRegex(fileGlob) : null;
   const files = globRegex ? allFiles.filter((f) => globRegex.test(f)) : allFiles;
 
   const regex = new RegExp(pattern, 'gi');
@@ -298,8 +296,9 @@ async function executeSearchCode(
       const lines = content.split('\n');
       for (let i = 0; i < lines.length; i++) {
         if (matches.length >= maxMatches) break;
-        if (regex.test(lines[i]!)) {
-          matches.push(`${file}:${i + 1}: ${lines[i]!.trim()}`);
+        const line = lines[i] ?? '';
+        if (regex.test(line)) {
+          matches.push(`${file}:${String(i + 1)}: ${line.trim()}`);
         }
         // Reset regex lastIndex since we use 'g' flag
         regex.lastIndex = 0;
