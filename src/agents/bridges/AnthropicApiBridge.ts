@@ -11,6 +11,13 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import type { AgentBridge, AgentRequest, AgentResponse } from '../AgentBridge.js';
+import {
+  getToolDefinitions,
+  executeTool,
+  type ContentBlock,
+  type ConversationMessage,
+  type ToolResultBlock,
+} from './tools.js';
 
 /** Model ID mapping from agents.yaml model_preference to Anthropic API model IDs */
 const MODEL_MAP: Record<string, string> = {
@@ -21,12 +28,15 @@ const MODEL_MAP: Record<string, string> = {
 
 const DEFAULT_MODEL = 'claude-sonnet-4-6';
 const DEFAULT_MAX_TOKENS = 4096;
+const DEFAULT_MAX_TURNS = 10;
 
 /**
  * Bridge that invokes agents via the Anthropic Messages API.
  *
- * This is the primary bridge for standalone CLI usage where agents
- * need actual AI execution capabilities.
+ * Supports multi-turn conversations with tool use. When the API returns
+ * `stop_reason: 'tool_use'`, tools are executed locally and results
+ * are sent back for the next turn. The loop continues until `end_turn`
+ * or the maximum turn limit is reached.
  */
 export class AnthropicApiBridge implements AgentBridge {
   private client: unknown = null;
@@ -51,6 +61,15 @@ export class AnthropicApiBridge implements AgentBridge {
     const userMessage = this.buildUserMessage(request);
     const modelId = this.resolveModel(request.modelPreference);
     const maxTokens = request.tokenBudget?.maxOutput ?? DEFAULT_MAX_TOKENS;
+    const maxTurns = request.maxTurns ?? DEFAULT_MAX_TURNS;
+    const enableTools = request.enableTools !== false;
+
+    const tools = enableTools ? getToolDefinitions(request.allowedTools) : [];
+    const messages: ConversationMessage[] = [{ role: 'user', content: userMessage }];
+    const collectedArtifacts: AgentResponse['artifacts'] = [];
+    let totalOutput = '';
+    let totalInputTokens = 0;
+    let totalOutputTokens = 0;
 
     try {
       const typedClient = client as {
@@ -58,48 +77,123 @@ export class AnthropicApiBridge implements AgentBridge {
           create: (params: Record<string, unknown>) => Promise<Record<string, unknown>>;
         };
       };
-      const message = await typedClient.messages.create({
-        model: modelId,
-        max_tokens: maxTokens,
-        system: systemPrompt,
-        messages: [{ role: 'user', content: userMessage }],
-      });
 
-      const content = message['content'] as Array<{ type: string; text?: string }>;
-      const output = content
-        .filter((block) => block.type === 'text')
-        .map((block) => block.text ?? '')
-        .join('\n');
-
-      const usage = message['usage'] as { input_tokens: number; output_tokens: number } | undefined;
-
-      const response: AgentResponse = {
-        output,
-        artifacts: [],
-        success: message['stop_reason'] === 'end_turn',
-      };
-
-      if (usage) {
-        response.tokenUsage = {
-          inputTokens: usage.input_tokens,
-          outputTokens: usage.output_tokens,
+      for (let turn = 0; turn < maxTurns; turn++) {
+        const createParams: Record<string, unknown> = {
+          model: modelId,
+          max_tokens: maxTokens,
+          system: systemPrompt,
+          messages,
         };
+        if (tools.length > 0) {
+          createParams['tools'] = tools;
+        }
+
+        const message = await typedClient.messages.create(createParams);
+
+        const content = message['content'] as ContentBlock[];
+        const stopReason = message['stop_reason'] as string;
+        const usage = message['usage'] as
+          | { input_tokens: number; output_tokens: number }
+          | undefined;
+
+        // Accumulate token usage across turns
+        if (usage) {
+          totalInputTokens += usage.input_tokens;
+          totalOutputTokens += usage.output_tokens;
+        }
+
+        // Collect text output from this turn
+        for (const block of content) {
+          if (block.type === 'text') {
+            totalOutput += block.text;
+          }
+        }
+
+        // If conversation is complete, return results
+        if (stopReason === 'end_turn' || stopReason !== 'tool_use') {
+          const response: AgentResponse = {
+            output: totalOutput,
+            artifacts: collectedArtifacts,
+            success: stopReason === 'end_turn',
+          };
+
+          if (totalInputTokens > 0 || totalOutputTokens > 0) {
+            response.tokenUsage = {
+              inputTokens: totalInputTokens,
+              outputTokens: totalOutputTokens,
+            };
+          }
+
+          if (stopReason !== 'end_turn') {
+            response.error = `Unexpected stop reason: ${stopReason}`;
+          }
+
+          return response;
+        }
+
+        // stop_reason === 'tool_use': execute tools and continue conversation
+        messages.push({ role: 'assistant', content });
+
+        const toolResults = await this.executeToolBlocks(content, request, collectedArtifacts);
+        messages.push({ role: 'user', content: toolResults });
       }
 
-      if (message['stop_reason'] !== 'end_turn') {
-        response.error = `Unexpected stop reason: ${String(message['stop_reason'])}`;
-      }
-
-      return response;
+      // Max turns reached
+      return {
+        output: totalOutput,
+        artifacts: collectedArtifacts,
+        success: totalOutput.length > 0,
+        error: `Reached maximum turn limit (${maxTurns})`,
+        ...(totalInputTokens > 0 && {
+          tokenUsage: { inputTokens: totalInputTokens, outputTokens: totalOutputTokens },
+        }),
+      };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       return {
-        output: '',
-        artifacts: [],
+        output: totalOutput,
+        artifacts: collectedArtifacts,
         success: false,
         error: `Anthropic API error: ${errorMessage}`,
       };
     }
+  }
+
+  /**
+   * Execute tool_use blocks from an API response and return results.
+   */
+  private async executeToolBlocks(
+    content: readonly ContentBlock[],
+    request: AgentRequest,
+    artifacts: AgentResponse['artifacts']
+  ): Promise<ToolResultBlock[]> {
+    const toolBlocks = content.filter(
+      (b): b is ContentBlock & { type: 'tool_use' } => b.type === 'tool_use'
+    );
+
+    const results: ToolResultBlock[] = [];
+    for (const block of toolBlocks) {
+      try {
+        const result = await executeTool(block.name, block.input, request.projectDir);
+
+        // Track write_file as an artifact
+        if (block.name === 'write_file' && typeof block.input['path'] === 'string') {
+          artifacts.push({ path: block.input['path'], action: 'created' });
+        }
+
+        results.push({ type: 'tool_result', tool_use_id: block.id, content: result });
+      } catch (error) {
+        results.push({
+          type: 'tool_result',
+          tool_use_id: block.id,
+          content: `Error: ${error instanceof Error ? error.message : String(error)}`,
+          is_error: true,
+        });
+      }
+    }
+
+    return results;
   }
 
   dispose(): Promise<void> {

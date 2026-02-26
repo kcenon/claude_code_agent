@@ -60,9 +60,9 @@ describe('AnthropicApiBridge', () => {
       });
 
       // Access private method via dynamic cast for testing
-      const loadDef = (bridge as unknown as Record<string, unknown>)[
-        'loadAgentDefinition'
-      ] as (type: string) => Promise<string>;
+      const loadDef = (bridge as unknown as Record<string, unknown>)['loadAgentDefinition'] as (
+        type: string
+      ) => Promise<string>;
 
       const def = await loadDef.call(bridge, 'collector');
       expect(def).not.toContain('---');
@@ -76,9 +76,9 @@ describe('AnthropicApiBridge', () => {
         agentDefsDir: path.join(tempDir, 'nonexistent'),
       });
 
-      const loadDef = (bridge as unknown as Record<string, unknown>)[
-        'loadAgentDefinition'
-      ] as (type: string) => Promise<string>;
+      const loadDef = (bridge as unknown as Record<string, unknown>)['loadAgentDefinition'] as (
+        type: string
+      ) => Promise<string>;
 
       const def = await loadDef.call(bridge, 'missing-agent');
       expect(def).toContain('missing-agent');
@@ -89,9 +89,9 @@ describe('AnthropicApiBridge', () => {
   describe('model resolution', () => {
     it('should map model preferences to Anthropic model IDs', () => {
       const bridge = new AnthropicApiBridge({ apiKey: 'test-key' });
-      const resolveModel = (bridge as unknown as Record<string, unknown>)[
-        'resolveModel'
-      ] as (pref?: string) => string;
+      const resolveModel = (bridge as unknown as Record<string, unknown>)['resolveModel'] as (
+        pref?: string
+      ) => string;
 
       expect(resolveModel.call(bridge, 'opus')).toBe('claude-opus-4-6');
       expect(resolveModel.call(bridge, 'sonnet')).toBe('claude-sonnet-4-6');
@@ -104,9 +104,9 @@ describe('AnthropicApiBridge', () => {
   describe('message building', () => {
     it('should build user message with prior stage outputs', () => {
       const bridge = new AnthropicApiBridge({ apiKey: 'test-key' });
-      const buildMsg = (bridge as unknown as Record<string, unknown>)[
-        'buildUserMessage'
-      ] as (req: AgentRequest) => string;
+      const buildMsg = (bridge as unknown as Record<string, unknown>)['buildUserMessage'] as (
+        req: AgentRequest
+      ) => string;
 
       const request = createRequest({
         input: 'Generate SRS',
@@ -123,9 +123,9 @@ describe('AnthropicApiBridge', () => {
 
     it('should truncate large prior outputs', () => {
       const bridge = new AnthropicApiBridge({ apiKey: 'test-key' });
-      const buildMsg = (bridge as unknown as Record<string, unknown>)[
-        'buildUserMessage'
-      ] as (req: AgentRequest) => string;
+      const buildMsg = (bridge as unknown as Record<string, unknown>)['buildUserMessage'] as (
+        req: AgentRequest
+      ) => string;
 
       const request = createRequest({
         priorStageOutputs: {
@@ -174,13 +174,200 @@ describe('AnthropicApiBridge', () => {
         },
       });
 
-      const response = await bridge.execute(
-        createRequest({ agentType: 'prd-writer' })
-      );
+      const response = await bridge.execute(createRequest({ agentType: 'prd-writer' }));
 
       expect(response.success).toBe(true);
       expect(response.output).toBe('Generated PRD content');
       expect(response.tokenUsage).toEqual({ inputTokens: 100, outputTokens: 50 });
+    });
+  });
+
+  describe('multi-turn tool use', () => {
+    let tempDir: string;
+
+    beforeEach(async () => {
+      tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'bridge-multi-'));
+      await fs.writeFile(path.join(tempDir, 'data.txt'), 'hello world\n', 'utf-8');
+    });
+
+    afterEach(async () => {
+      await fs.rm(tempDir, { recursive: true, force: true });
+    });
+
+    it('should execute tools and continue conversation on tool_use stop', async () => {
+      const bridge = new AnthropicApiBridge({ apiKey: 'test-key' });
+      let callCount = 0;
+
+      (bridge as unknown as Record<string, unknown>)['getClient'] = async () => ({
+        messages: {
+          create: async () => {
+            callCount++;
+            if (callCount === 1) {
+              // First turn: API requests a tool
+              return {
+                content: [
+                  { type: 'text', text: 'Let me read the file.' },
+                  { type: 'tool_use', id: 'tu_1', name: 'read_file', input: { path: 'data.txt' } },
+                ],
+                stop_reason: 'tool_use',
+                usage: { input_tokens: 50, output_tokens: 30 },
+              };
+            }
+            // Second turn: API completes
+            return {
+              content: [{ type: 'text', text: 'The file contains: hello world' }],
+              stop_reason: 'end_turn',
+              usage: { input_tokens: 80, output_tokens: 40 },
+            };
+          },
+        },
+      });
+
+      const response = await bridge.execute(
+        createRequest({ projectDir: tempDir, enableTools: true })
+      );
+
+      expect(response.success).toBe(true);
+      expect(response.output).toContain('Let me read the file.');
+      expect(response.output).toContain('The file contains: hello world');
+      expect(callCount).toBe(2);
+      // Token usage should be accumulated across turns
+      expect(response.tokenUsage).toEqual({ inputTokens: 130, outputTokens: 70 });
+    });
+
+    it('should track write_file as artifact', async () => {
+      const bridge = new AnthropicApiBridge({ apiKey: 'test-key' });
+      let callCount = 0;
+
+      (bridge as unknown as Record<string, unknown>)['getClient'] = async () => ({
+        messages: {
+          create: async () => {
+            callCount++;
+            if (callCount === 1) {
+              return {
+                content: [
+                  {
+                    type: 'tool_use',
+                    id: 'tu_w',
+                    name: 'write_file',
+                    input: { path: 'output.txt', content: 'result' },
+                  },
+                ],
+                stop_reason: 'tool_use',
+                usage: { input_tokens: 50, output_tokens: 30 },
+              };
+            }
+            return {
+              content: [{ type: 'text', text: 'Done.' }],
+              stop_reason: 'end_turn',
+              usage: { input_tokens: 60, output_tokens: 10 },
+            };
+          },
+        },
+      });
+
+      const response = await bridge.execute(
+        createRequest({ projectDir: tempDir, enableTools: true })
+      );
+
+      expect(response.success).toBe(true);
+      expect(response.artifacts).toEqual([{ path: 'output.txt', action: 'created' }]);
+      // Verify file was actually written
+      const written = await fs.readFile(path.join(tempDir, 'output.txt'), 'utf-8');
+      expect(written).toBe('result');
+    });
+
+    it('should respect maxTurns limit', async () => {
+      const bridge = new AnthropicApiBridge({ apiKey: 'test-key' });
+      let callCount = 0;
+
+      (bridge as unknown as Record<string, unknown>)['getClient'] = async () => ({
+        messages: {
+          create: async () => {
+            callCount++;
+            // Always request tool_use — never end_turn
+            return {
+              content: [
+                { type: 'text', text: `Turn ${callCount}` },
+                {
+                  type: 'tool_use',
+                  id: `tu_${callCount}`,
+                  name: 'read_file',
+                  input: { path: 'data.txt' },
+                },
+              ],
+              stop_reason: 'tool_use',
+              usage: { input_tokens: 10, output_tokens: 10 },
+            };
+          },
+        },
+      });
+
+      const response = await bridge.execute(createRequest({ projectDir: tempDir, maxTurns: 3 }));
+
+      expect(callCount).toBe(3);
+      expect(response.error).toContain('maximum turn limit');
+      expect(response.output).toContain('Turn 1');
+    });
+
+    it('should handle tool execution errors gracefully', async () => {
+      const bridge = new AnthropicApiBridge({ apiKey: 'test-key' });
+      let callCount = 0;
+
+      (bridge as unknown as Record<string, unknown>)['getClient'] = async () => ({
+        messages: {
+          create: async () => {
+            callCount++;
+            if (callCount === 1) {
+              return {
+                content: [
+                  {
+                    type: 'tool_use',
+                    id: 'tu_err',
+                    name: 'read_file',
+                    input: { path: 'nonexistent.txt' },
+                  },
+                ],
+                stop_reason: 'tool_use',
+                usage: { input_tokens: 20, output_tokens: 20 },
+              };
+            }
+            return {
+              content: [{ type: 'text', text: 'File not found, proceeding.' }],
+              stop_reason: 'end_turn',
+              usage: { input_tokens: 40, output_tokens: 20 },
+            };
+          },
+        },
+      });
+
+      const response = await bridge.execute(createRequest({ projectDir: tempDir }));
+
+      // Should still complete successfully — tool errors are sent back to the model
+      expect(response.success).toBe(true);
+      expect(callCount).toBe(2);
+    });
+
+    it('should skip tools when enableTools is false', async () => {
+      const bridge = new AnthropicApiBridge({ apiKey: 'test-key' });
+
+      (bridge as unknown as Record<string, unknown>)['getClient'] = async () => ({
+        messages: {
+          create: async (params: Record<string, unknown>) => {
+            // Verify no tools were sent
+            expect(params['tools']).toBeUndefined();
+            return {
+              content: [{ type: 'text', text: 'No tools available.' }],
+              stop_reason: 'end_turn',
+              usage: { input_tokens: 30, output_tokens: 20 },
+            };
+          },
+        },
+      });
+
+      const response = await bridge.execute(createRequest({ enableTools: false }));
+
+      expect(response.success).toBe(true);
     });
   });
 
