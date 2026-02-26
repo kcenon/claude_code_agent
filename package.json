@@ -63,7 +63,15 @@
     "node": ">=18.0.0"
   },
   "devDependencies": {
+    "@aws-sdk/client-cloudwatch-logs": "^3.995.0",
+    "@elastic/elasticsearch": "^9.3.2",
     "@eslint/js": "^10.0.1",
+    "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.212.0",
+    "@opentelemetry/resources": "^2.5.1",
+    "@opentelemetry/sdk-node": "^0.212.0",
+    "@opentelemetry/sdk-trace-base": "^2.4.0",
+    "@opentelemetry/semantic-conventions": "^1.39.0",
     "@types/better-sqlite3": "^7.6.13",
     "@types/inquirer": "^9.0.9",
     "@types/js-yaml": "^4.0.9",
@@ -72,9 +80,13 @@
     "@typescript-eslint/eslint-plugin": "^8.56.1",
     "@typescript-eslint/parser": "^8.56.1",
     "@vitest/coverage-v8": "^4.0.18",
+    "better-sqlite3": "^12.6.2",
     "eslint": "^10.0.2",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-jsdoc": "^62.7.1",
+    "ioredis": "^5.9.3",
+    "mammoth": "^1.11.0",
+    "pdf-parse": "^2.4.5",
     "prettier": "^3.8.1",
     "typedoc": "^0.28.17",
     "typedoc-plugin-markdown": "^4.10.0",
@@ -84,6 +96,15 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",
+    "chalk": "^5.6.2",
+    "commander": "^14.0.3",
+    "dotenv": "^17.3.1",
+    "inquirer": "^13.3.0",
+    "js-yaml": "^4.1.1",
+    "ts-morph": "^27.0.2",
+    "zod": "^4.3.6"
+  },
+  "peerDependencies": {
     "@aws-sdk/client-cloudwatch-logs": "^3.995.0",
     "@elastic/elasticsearch": "^9.3.2",
     "@opentelemetry/api": "^1.9.0",
@@ -93,15 +114,22 @@
     "@opentelemetry/sdk-trace-base": "^2.4.0",
     "@opentelemetry/semantic-conventions": "^1.39.0",
     "better-sqlite3": "^12.6.2",
-    "chalk": "^5.6.2",
-    "commander": "^14.0.3",
-    "dotenv": "^17.3.1",
-    "inquirer": "^13.3.0",
     "ioredis": "^5.9.3",
-    "js-yaml": "^4.1.1",
     "mammoth": "^1.11.0",
-    "pdf-parse": "^2.4.5",
-    "ts-morph": "^27.0.2",
-    "zod": "^4.3.6"
+    "pdf-parse": "^2.4.5"
+  },
+  "peerDependenciesMeta": {
+    "@aws-sdk/client-cloudwatch-logs": { "optional": true },
+    "@elastic/elasticsearch": { "optional": true },
+    "@opentelemetry/api": { "optional": true },
+    "@opentelemetry/exporter-trace-otlp-http": { "optional": true },
+    "@opentelemetry/resources": { "optional": true },
+    "@opentelemetry/sdk-node": { "optional": true },
+    "@opentelemetry/sdk-trace-base": { "optional": true },
+    "@opentelemetry/semantic-conventions": { "optional": true },
+    "better-sqlite3": { "optional": true },
+    "ioredis": { "optional": true },
+    "mammoth": { "optional": true },
+    "pdf-parse": { "optional": true }
   }
 }

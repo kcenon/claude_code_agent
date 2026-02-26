@@ -7,9 +7,33 @@
  * @packageDocumentation
  */
 
-import { context, type Context, type Span, trace } from '@opentelemetry/api';
+import type { Context, Span } from '@opentelemetry/api';
 import { getOpenTelemetryProvider } from './OpenTelemetryProvider.js';
 import { ADSDLC_SPAN_ATTRIBUTES, type PipelineMode } from './types.js';
+
+// Dynamic import of @opentelemetry/api (optional peer dependency).
+// Provides no-op fallbacks when the package is not installed.
+let otelContext: {
+  active(): Context;
+  with<T>(ctx: Context, fn: () => T): T;
+} = {
+  active: () => ({}) as Context,
+  with: <T>(_ctx: Context, fn: () => T): T => fn(),
+};
+
+let otelTrace: {
+  setSpan(ctx: Context, span: Span): Context;
+} = {
+  setSpan: () => ({}) as Context,
+};
+
+try {
+  const api = await import('@opentelemetry/api');
+  otelContext = api.context;
+  otelTrace = api.trace;
+} catch {
+  // @opentelemetry/api not installed — tracing functions will use no-op fallbacks
+}
 
 /**
  * Options for starting an agent span
@@ -102,9 +126,9 @@ export class SpanWrapper {
    */
   public getContext(): Context {
     if (this.span === null) {
-      return context.active();
+      return otelContext.active();
     }
-    return trace.setSpan(context.active(), this.span);
+    return otelTrace.setSpan(otelContext.active(), this.span);
   }
 
   /**
@@ -446,7 +470,7 @@ export function propagateToSubagent(parentSpan: SpanWrapper, toolUseId: string):
  * @returns Current context or default context if no active span
  */
 export function getCurrentContext(): Context {
-  return context.active();
+  return otelContext.active();
 }
 
 /**
@@ -457,7 +481,7 @@ export function getCurrentContext(): Context {
  * @returns Result of the function
  */
 export function runInContext<T>(ctx: Context, fn: () => T): T {
-  return context.with(ctx, fn);
+  return otelContext.with(ctx, fn);
 }
 
 /**
@@ -468,7 +492,7 @@ export function runInContext<T>(ctx: Context, fn: () => T): T {
  * @returns Promise of the function result
  */
 export async function runInContextAsync<T>(ctx: Context, fn: () => Promise<T>): Promise<T> {
-  return context.with(ctx, fn);
+  return otelContext.with(ctx, fn);
 }
 
 /**
