@@ -26,8 +26,10 @@
  * @module worker/WorkerAgent
  */
 
-import { join } from 'node:path';
+import { join, normalize, resolve, relative, isAbsolute } from 'node:path';
+import { mkdir, writeFile as fsWriteFile, unlink } from 'node:fs/promises';
 import type { IAgent } from '../agents/types.js';
+import type { AgentBridge, AgentRequest } from '../agents/AgentBridge.js';
 import { getLogger } from '../logging/index.js';
 
 import type {
@@ -61,6 +63,7 @@ import {
   ContextAnalysisError,
   BranchCreationError,
   CommitError,
+  CodeGenerationError,
   VerificationError,
   MaxRetriesExceededError,
   ImplementationBlockedError,
@@ -95,6 +98,24 @@ interface CheckpointResumeState {
 }
 
 /**
+ * Parsed code change from LLM output
+ */
+export interface CodeChange {
+  /** File path relative to project root */
+  readonly filePath: string;
+  /** Action to perform */
+  readonly action: 'create' | 'modify' | 'delete';
+  /** File content (for create/modify) */
+  readonly content?: string;
+  /** Description of the change */
+  readonly description: string;
+  /** Lines added */
+  readonly linesAdded: number;
+  /** Lines removed */
+  readonly linesRemoved: number;
+}
+
+/**
  * Agent ID for WorkerAgent used in AgentFactory
  */
 export const WORKER_AGENT_ID = 'worker-agent';
@@ -120,6 +141,7 @@ export class WorkerAgent implements IAgent {
   private lastTestGenerationResult: TestGenerationResult | null;
   private currentBranchName: string | null;
   private initialized = false;
+  private bridge?: AgentBridge;
 
   constructor(
     config: WorkerAgentConfig = {},
@@ -166,6 +188,15 @@ export class WorkerAgent implements IAgent {
     // but the interface requires this method
     await Promise.resolve();
     this.initialized = true;
+  }
+
+  /**
+   * Set the AgentBridge for AI-backed code generation.
+   * When set, generateCode() delegates to the bridge instead of using stub behavior.
+   * @param bridge - The AgentBridge implementation to use
+   */
+  public setBridge(bridge: AgentBridge): void {
+    this.bridge = bridge;
   }
 
   /**
@@ -695,22 +726,60 @@ export class WorkerAgent implements IAgent {
   /**
    * Generate code based on work order.
    *
-   * Analyzes the execution context and prepares file change records for the
-   * target files identified in the work order. This method serves as the LLM
-   * integration point — external code generation providers (e.g., Claude API)
-   * should override or extend this method to produce actual file modifications.
+   * When an AgentBridge is configured (via setBridge()), delegates code
+   * generation to the AI backend. The bridge response is parsed for file
+   * changes which are then applied to disk and recorded.
    *
-   * When no LLM provider is configured, this method records the target files
-   * from the work order context so that subsequent pipeline steps (test
-   * generation, verification) have awareness of the intended scope.
+   * When no bridge is set, falls back to stub behavior: records the target
+   * files from the work order context so that subsequent pipeline steps
+   * (test generation, verification) have awareness of the intended scope.
    *
    * @param context - Execution context containing work order, code patterns, and config
    */
   public async generateCode(context: ExecutionContext): Promise<void> {
     const { workOrder, codeContext } = context;
 
-    // Record each related file from the work order as a pending modification
-    // so downstream steps (test generation, verification) know the scope
+    // Delegate to bridge when available
+    if (this.bridge) {
+      const request: AgentRequest = {
+        agentType: 'worker',
+        input: this.buildCodeGenPrompt(workOrder, codeContext),
+        scratchpadDir: this.config.resultsPath,
+        projectDir: this.config.projectRoot,
+        priorStageOutputs: {
+          issue: JSON.stringify(workOrder),
+          codeContext: JSON.stringify(codeContext),
+        },
+      };
+
+      const response = await this.bridge.execute(request);
+      if (!response.success) {
+        throw new CodeGenerationError(
+          workOrder.issueId,
+          new Error(response.error ?? 'Unknown code generation error')
+        );
+      }
+
+      const changes = this.parseCodeGenOutput(response.output);
+      for (const change of changes) {
+        await this.applyFileChange(change);
+        this.recordFileChange({
+          filePath: change.filePath,
+          changeType:
+            change.action === 'delete'
+              ? 'delete'
+              : change.action === 'create'
+                ? 'create'
+                : 'modify',
+          description: change.description,
+          linesAdded: change.linesAdded,
+          linesRemoved: change.linesRemoved,
+        });
+      }
+      return;
+    }
+
+    // Fallback: stub behavior — record target files as pending modifications
     for (const file of workOrder.context.relatedFiles) {
       const existingChange = this.fileChanges.get(file.path);
       if (!existingChange) {
@@ -738,8 +807,6 @@ export class WorkerAgent implements IAgent {
       }
     }
 
-    // Async contract: this method is async to support LLM integration where
-    // code generation requires awaiting API responses and file I/O
     await Promise.resolve();
   }
 
@@ -1329,6 +1396,161 @@ export class WorkerAgent implements IAgent {
     this.commits.length = 0;
     this.lastTestGenerationResult = null;
     this.currentBranchName = null;
+  }
+
+  /**
+   * Build a structured prompt for code generation from work order and code context.
+   * @param workOrder - The work order describing the task
+   * @param codeContext - Analyzed code context with related files and patterns
+   * @returns Formatted prompt string for the LLM
+   */
+  private buildCodeGenPrompt(workOrder: WorkOrder, codeContext: CodeContext): string {
+    const sections: string[] = [];
+
+    sections.push('## Task');
+    sections.push(`Issue: ${workOrder.issueId}`);
+    sections.push(`Priority: ${String(workOrder.priority)}`);
+    sections.push(
+      `Acceptance Criteria:\n${workOrder.acceptanceCriteria.map((c) => `- ${c}`).join('\n')}`
+    );
+
+    if (workOrder.context.relatedFiles.length > 0) {
+      sections.push('\n## Related Files');
+      for (const file of workOrder.context.relatedFiles) {
+        sections.push(`- ${file.path}: ${file.reason}`);
+      }
+    }
+
+    if (codeContext.relatedFiles.length > 0) {
+      sections.push('\n## Code Context');
+      for (const fileCtx of codeContext.relatedFiles) {
+        sections.push(`### ${fileCtx.path}`);
+        sections.push(`Reason: ${fileCtx.reason}`);
+        sections.push('```');
+        sections.push(fileCtx.content);
+        sections.push('```');
+      }
+    }
+
+    sections.push('\n## Code Style');
+    sections.push(
+      `Indentation: ${codeContext.patterns.indentation} (${String(codeContext.patterns.indentSize)})`
+    );
+    sections.push(`Quotes: ${codeContext.patterns.quoteStyle}`);
+    sections.push(`Semicolons: ${String(codeContext.patterns.useSemicolons)}`);
+
+    sections.push('\n## Output Format');
+    sections.push('Respond with a JSON array of file changes:');
+    sections.push('```json');
+    sections.push(
+      '[{ "filePath": "...", "action": "create|modify|delete", "content": "...", "description": "...", "linesAdded": N, "linesRemoved": N }]'
+    );
+    sections.push('```');
+
+    return sections.join('\n');
+  }
+
+  /**
+   * Parse LLM output into structured CodeChange array.
+   * Supports JSON array output (with optional markdown fencing).
+   * @param output - Raw output string from the LLM
+   * @returns Array of parsed code changes
+   */
+  public parseCodeGenOutput(output: string): CodeChange[] {
+    // Strip markdown code fences if present
+    let jsonStr = output.trim();
+    const fenceMatch = jsonStr.match(/```(?:json)?\s*\n?([\s\S]*?)```/);
+    if (fenceMatch?.[1] != null && fenceMatch[1] !== '') {
+      jsonStr = fenceMatch[1].trim();
+    }
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(jsonStr);
+    } catch {
+      return [];
+    }
+
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    const changes: CodeChange[] = [];
+    for (const item of parsed) {
+      if (
+        typeof item === 'object' &&
+        item !== null &&
+        typeof (item as Record<string, unknown>).filePath === 'string' &&
+        typeof (item as Record<string, unknown>).action === 'string'
+      ) {
+        const raw = item as Record<string, unknown>;
+        const action = raw.action as string;
+        if (action !== 'create' && action !== 'modify' && action !== 'delete') {
+          continue;
+        }
+        const typedAction: 'create' | 'modify' | 'delete' = action;
+        const base = {
+          filePath: raw.filePath as string,
+          action: typedAction,
+          description:
+            typeof raw.description === 'string'
+              ? raw.description
+              : `${typedAction} ${raw.filePath as string}`,
+          linesAdded: typeof raw.linesAdded === 'number' ? raw.linesAdded : 0,
+          linesRemoved: typeof raw.linesRemoved === 'number' ? raw.linesRemoved : 0,
+        };
+        const change: CodeChange =
+          typeof raw.content === 'string' ? { ...base, content: raw.content } : base;
+        changes.push(change);
+      }
+    }
+
+    return changes;
+  }
+
+  /**
+   * Apply a file change to disk, respecting project root boundaries.
+   * Creates parent directories as needed. Validates path traversal.
+   * @param change - The code change to apply
+   * @throws CodeGenerationError if path escapes project root
+   */
+  private async applyFileChange(change: CodeChange): Promise<void> {
+    // Validate file path stays within project root
+    const projectRoot = resolve(this.config.projectRoot);
+    const targetPath = isAbsolute(change.filePath)
+      ? resolve(change.filePath)
+      : resolve(projectRoot, change.filePath);
+    const normalizedTarget = normalize(targetPath);
+    const relativePath = relative(projectRoot, normalizedTarget);
+
+    if (relativePath.startsWith('..') || isAbsolute(relativePath)) {
+      throw new CodeGenerationError(
+        `path-traversal:${change.filePath}`,
+        new Error(`File path "${change.filePath}" escapes project root`)
+      );
+    }
+
+    if (change.action === 'delete') {
+      try {
+        await unlink(normalizedTarget);
+      } catch {
+        // Ignore if file doesn't exist
+      }
+      return;
+    }
+
+    // create or modify
+    const dir = join(normalizedTarget, '..');
+    await mkdir(dir, { recursive: true });
+    await fsWriteFile(normalizedTarget, change.content ?? '', 'utf-8');
+  }
+
+  /**
+   * Get the current file changes map.
+   * @returns Read-only view of tracked file changes
+   */
+  public getFileChanges(): ReadonlyMap<string, FileChange> {
+    return this.fileChanges;
   }
 
   /**
