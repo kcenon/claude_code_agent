@@ -122,6 +122,8 @@ export interface StageResult {
   readonly error: string | null;
   /** Number of retry attempts */
   readonly retryCount: number;
+  /** Warning messages (e.g., StubBridge detection) */
+  readonly warnings?: readonly string[];
 }
 
 /**

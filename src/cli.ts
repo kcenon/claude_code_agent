@@ -35,8 +35,10 @@ import type { AnalysisScope } from './analysis-orchestrator/types.js';
 import {
   getAdsdlcOrchestratorAgent,
   resetAdsdlcOrchestratorAgent,
+  GREENFIELD_STAGES,
 } from './ad-sdlc-orchestrator/index.js';
 import type { PipelineMode, PipelineRequest } from './ad-sdlc-orchestrator/index.js';
+import { createDefaultBridgeRegistry } from './agents/BridgeRegistry.js';
 import { StatusService } from './status/index.js';
 import type { OutputFormat } from './status/types.js';
 import { initializeProject, isProjectInitialized } from './utils/index.js';
@@ -886,6 +888,7 @@ program
   .option('--stop-after <stage>', 'Stop pipeline after specified stage')
   .option('--project-dir <dir>', 'Target project directory', process.cwd())
   .option('--dry-run', 'Validate pipeline configuration without executing agents', false)
+  .option('--strict', 'Fail if any stage would use StubBridge (no silent no-ops)', false)
   .option('--resume <session-id>', 'Resume a previously interrupted pipeline session')
   .action(async (requirements: string, cmdOptions: Record<string, unknown>) => {
     const modeInput = typeof cmdOptions['mode'] === 'string' ? cmdOptions['mode'] : 'greenfield';
@@ -896,6 +899,7 @@ program
         ? resolve(cmdOptions['projectDir'])
         : resolve(process.cwd());
     const dryRun = cmdOptions['dryRun'] === true;
+    const strict = cmdOptions['strict'] === true;
     const resumeSessionId =
       typeof cmdOptions['resume'] === 'string' ? cmdOptions['resume'] : undefined;
 
@@ -959,6 +963,26 @@ program
         process.exit(1);
       }
       return;
+    }
+
+    // Strict mode: reject if any stage would use StubBridge
+    if (strict) {
+      const strictRegistry = createDefaultBridgeRegistry();
+      const stages = GREENFIELD_STAGES;
+      const stubAgents = stages
+        .filter((stage) => strictRegistry.isStub(stage.agentType))
+        .map((stage) => stage.agentType);
+      if (stubAgents.length > 0) {
+        output.error(
+          chalk.red(
+            `\nStrict mode: ${String(stubAgents.length)} agent(s) would use StubBridge: ${stubAgents.join(', ')}`
+          )
+        );
+        output.info(
+          chalk.dim('Set ANTHROPIC_API_KEY or run inside Claude Code to enable real execution.\n')
+        );
+        process.exit(1);
+      }
     }
 
     // Display pipeline info

@@ -87,6 +87,62 @@ describe('BridgeRegistry', () => {
     });
   });
 
+  describe('isStub', () => {
+    it('should return true when no bridge supports the agent type', () => {
+      expect(registry.isStub('collector')).toBe(true);
+    });
+
+    it('should return false when a registered bridge supports the type', () => {
+      registry.register(new MockBridge(['collector']));
+      expect(registry.isStub('collector')).toBe(false);
+    });
+
+    it('should return true for unsupported types even with registered bridges', () => {
+      registry.register(new MockBridge(['collector']));
+      expect(registry.isStub('worker')).toBe(true);
+    });
+  });
+
+  describe('getStubBridge', () => {
+    it('should return the internal StubBridge instance', () => {
+      const stub = registry.getStubBridge();
+      expect(stub).toBeInstanceOf(StubBridge);
+    });
+
+    it('should return same instance as resolve fallback', () => {
+      const stub = registry.getStubBridge();
+      // Suppress console.warn from resolve fallback
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const resolved = registry.resolve('nonexistent');
+      warnSpy.mockRestore();
+      expect(resolved).toBe(stub);
+    });
+  });
+
+  describe('resolve warnings', () => {
+    it('should log warning when falling back to StubBridge', () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      registry.resolve('collector');
+
+      expect(warnSpy).toHaveBeenCalledOnce();
+      expect(warnSpy.mock.calls[0]?.[0]).toContain('StubBridge');
+      expect(warnSpy.mock.calls[0]?.[0]).toContain('collector');
+      expect(warnSpy.mock.calls[0]?.[0]).toContain('ANTHROPIC_API_KEY');
+      warnSpy.mockRestore();
+    });
+
+    it('should not log warning when a real bridge handles the type', () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      registry.register(new MockBridge(['collector']));
+
+      registry.resolve('collector');
+
+      expect(warnSpy).not.toHaveBeenCalled();
+      warnSpy.mockRestore();
+    });
+  });
+
   describe('hasBridge', () => {
     it('should return false when no bridges are registered', () => {
       expect(registry.hasBridge('collector')).toBe(false);
@@ -133,7 +189,9 @@ describe('BridgeRegistry', () => {
       const failingBridge: AgentBridge = {
         supports: () => true,
         execute: async () => ({ output: '', artifacts: [], success: true }),
-        dispose: async () => { throw new Error('Dispose failed'); },
+        dispose: async () => {
+          throw new Error('Dispose failed');
+        },
       };
       registry.register(failingBridge);
 

@@ -52,6 +52,27 @@ export class BridgeRegistry {
         return bridge;
       }
     }
+    console.warn(
+      `[BridgeRegistry] No real bridge registered for agent type "${agentType}" — using StubBridge (no-op). ` +
+        'Set ANTHROPIC_API_KEY or run inside Claude Code session to enable real execution.'
+    );
+    return this.stubBridge;
+  }
+
+  /**
+   * Check if the resolved bridge for an agent type is the StubBridge fallback.
+   *
+   * @param agentType - Pipeline agent type string
+   * @returns True if no real bridge handles this type
+   */
+  isStub(agentType: string): boolean {
+    return !this.bridges.some((b) => b.supports(agentType));
+  }
+
+  /**
+   * Get the StubBridge instance used as fallback.
+   */
+  getStubBridge(): AgentBridge {
     return this.stubBridge;
   }
 
