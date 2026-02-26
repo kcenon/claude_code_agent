@@ -121,7 +121,7 @@ export class AnthropicApiBridge implements AgentBridge {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     const AnthropicConstructor = module.default as new (opts: { apiKey?: string }) => unknown;
     this.client = new AnthropicConstructor({
-      apiKey: this.apiKey,
+      ...(this.apiKey !== undefined && { apiKey: this.apiKey }),
     });
 
     return this.client;
