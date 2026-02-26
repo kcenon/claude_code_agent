@@ -82,6 +82,7 @@ This SDS covers the following design scope:
 | SRS-001 | Software Requirements Specification |
 | Claude Agent SDK | https://platform.claude.com/docs/en/agent-sdk |
 | Claude Code Subagents | https://code.claude.com/docs/en/sub-agents |
+| Dual-Layer Architecture | [docs/architecture/dual-layer-design.md](architecture/dual-layer-design.md) -- Infrastructure vs. Intelligence layer separation for all 25 agents |
 
 ---
 
