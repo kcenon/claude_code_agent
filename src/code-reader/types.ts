@@ -456,6 +456,8 @@ export interface CodeReaderConfig {
   readonly maxFileSize?: number;
   /** Maximum files to process at once (for memory management) */
   readonly batchSize?: number;
+  /** Maximum allowed ratio of files with parse errors (0.0–1.0, default 0.5) */
+  readonly parseErrorThreshold?: number;
 }
 
 /**
@@ -480,6 +482,7 @@ export const DEFAULT_CODE_READER_CONFIG: Required<CodeReaderConfig> = {
   analyzeDependencies: true,
   maxFileSize: 5 * 1024 * 1024, // 5MB
   batchSize: 100,
+  parseErrorThreshold: 0.5,
 } as const;
 
 /**

@@ -13,6 +13,7 @@ import {
   resetCodeReaderAgent,
   NoActiveSessionError,
   SourceDirectoryNotFoundError,
+  TooManyParseErrorsError,
   DEFAULT_CODE_READER_CONFIG,
 } from '../../src/code-reader/index.js';
 
@@ -442,6 +443,45 @@ export class F {}`
 
       // Only main.ts should be processed
       expect(result.stats.filesProcessed).toBe(1);
+    });
+  });
+
+  describe('parse error threshold', () => {
+    it('should use configurable parseErrorThreshold', async () => {
+      // Create an agent with a very low threshold (0.0) so any error triggers it
+      const strictAgent = new CodeReaderAgent({
+        sourceRoot: path.join(tempDir, 'src'),
+        scratchpadBasePath: path.join(tempDir, '.ad-sdlc', 'scratchpad'),
+        parseErrorThreshold: 0.0,
+      });
+
+      // A file that will produce TypeScript diagnostics (referencing undefined type)
+      await fs.writeFile(path.join(tempDir, 'src', 'broken.ts'), 'const x: NonExistentType = 42;');
+
+      await strictAgent.startSession('test-project');
+      await expect(strictAgent.analyzeCode()).rejects.toThrow(TooManyParseErrorsError);
+    });
+
+    it('should include per-file details in TooManyParseErrorsError', async () => {
+      const strictAgent = new CodeReaderAgent({
+        sourceRoot: path.join(tempDir, 'src'),
+        scratchpadBasePath: path.join(tempDir, '.ad-sdlc', 'scratchpad'),
+        parseErrorThreshold: 0.0,
+      });
+
+      await fs.writeFile(path.join(tempDir, 'src', 'bad.ts'), 'const x: UndefinedType = 1;');
+
+      await strictAgent.startSession('test-project');
+      try {
+        await strictAgent.analyzeCode();
+        expect.unreachable('Should have thrown');
+      } catch (error) {
+        expect(error).toBeInstanceOf(TooManyParseErrorsError);
+        const parseError = error as TooManyParseErrorsError;
+        expect(parseError.fileErrors.length).toBeGreaterThan(0);
+        expect(parseError.fileErrors[0]?.filePath).toContain('bad.ts');
+        expect(parseError.message).toContain('Failed files:');
+      }
     });
   });
 

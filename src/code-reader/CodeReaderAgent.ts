@@ -164,11 +164,27 @@ export class CodeReaderAgent {
       const sourceFiles = await this.discoverSourceFiles(sourceRootPath);
 
       // Check for too many parse errors (category 1 = Error)
+      const threshold = this.config.parseErrorThreshold;
       const parseErrors = this.project
         .getPreEmitDiagnostics()
         .filter((d) => (d.getCategory() as number) === 1);
-      if (parseErrors.length > sourceFiles.length * 0.5) {
-        throw new TooManyParseErrorsError(parseErrors.length, sourceFiles.length, 0.5);
+      if (parseErrors.length > sourceFiles.length * threshold) {
+        const fileErrors = parseErrors.slice(0, 20).map((d) => {
+          const lineNumber = d.getLineNumber();
+          const msgText = d.getMessageText();
+          const message = typeof msgText === 'string' ? msgText : msgText.getMessageText();
+          return {
+            filePath: String(d.getSourceFile()?.getFilePath() ?? '<unknown>'),
+            message,
+            ...(lineNumber !== undefined && { line: lineNumber }),
+          };
+        });
+        throw new TooManyParseErrorsError(
+          parseErrors.length,
+          sourceFiles.length,
+          threshold,
+          fileErrors
+        );
       }
 
       // Group files by module (directory)
