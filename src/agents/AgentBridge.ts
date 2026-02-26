@@ -57,6 +57,15 @@ export interface AgentRequest {
 
   /** Model preference from agents.yaml (opus, sonnet, haiku) */
   modelPreference?: string;
+
+  /** Maximum conversation turns for multi-turn execution (default: 10) */
+  maxTurns?: number;
+
+  /** Whether to enable tool use in the bridge (default: true) */
+  enableTools?: boolean;
+
+  /** Restrict which tools are available (by tool name) */
+  allowedTools?: string[];
 }
 
 /**
