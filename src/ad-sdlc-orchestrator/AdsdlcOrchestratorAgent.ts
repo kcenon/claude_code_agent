@@ -627,9 +627,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
 
       this.stageTimers.set(stage.name, timer);
 
-      // Delegate to agent execution
-      // Currently returns a structured output summary.
-      // Full agent integration will wire this to AgentFactory in Part 3 (#435).
+      // Delegate to agent execution via AgentDispatcher
       this.invokeAgent(stage, session)
         .then((output) => {
           clearTimeout(timer);
@@ -745,28 +743,80 @@ export class AdsdlcOrchestratorAgent implements IAgent {
   }
 
   /**
-   * Execute agent invocations sequentially
+   * Execute agent invocations sequentially, passing prior stage outputs forward.
+   *
+   * Unlike `executeParallel()`, sequential execution:
+   * - Stops on the first failure (stages are dependent)
+   * - Passes accumulated outputs from completed stages to subsequent stages
+   *
    * @param agents - The agent invocations to execute one after another
    * @returns The results from all sequential agent executions
    */
-  private executeSequential(agents: readonly AgentInvocation[]): Promise<StageResult[]> {
+  private async executeSequential(agents: readonly AgentInvocation[]): Promise<StageResult[]> {
+    const registry = this.getBridgeRegistry();
     const results: StageResult[] = [];
 
     for (const invocation of agents) {
       const startTime = Date.now();
-      results.push({
-        name: invocation.stageName,
-        agentType: invocation.agentType,
-        status: 'completed',
-        durationMs: Date.now() - startTime,
-        output: `Sequential execution of ${invocation.agentType}`,
-        artifacts: [...invocation.outputs],
-        error: null,
-        retryCount: 0,
-      });
+      try {
+        const bridge = registry.resolve(invocation.agentType);
+        const request: AgentRequest = {
+          agentType: invocation.agentType,
+          input: invocation.inputs.join('\n'),
+          scratchpadDir: this.session?.scratchpadDir ?? '',
+          projectDir: this.session?.projectDir ?? '',
+          priorStageOutputs: this.buildPriorOutputs(results),
+        };
+
+        const response = await bridge.execute(request);
+
+        results.push({
+          name: invocation.stageName,
+          agentType: invocation.agentType,
+          status: response.success ? 'completed' : 'failed',
+          durationMs: Date.now() - startTime,
+          output: response.output,
+          artifacts: [...invocation.outputs, ...response.artifacts.map((a) => a.path)],
+          error: response.error ?? null,
+          retryCount: 0,
+        });
+
+        // Stop on failure — sequential stages are dependent
+        if (!response.success) {
+          break;
+        }
+      } catch (error) {
+        results.push({
+          name: invocation.stageName,
+          agentType: invocation.agentType,
+          status: 'failed',
+          durationMs: Date.now() - startTime,
+          output: '',
+          artifacts: [...invocation.outputs],
+          error: error instanceof Error ? error.message : String(error),
+          retryCount: 0,
+        });
+        break; // Sequential: stop on first failure
+      }
     }
 
-    return Promise.resolve(results);
+    return results;
+  }
+
+  /**
+   * Build a record of prior stage outputs for sequential pipeline forwarding.
+   *
+   * @param priorResults - Results from previously completed stages
+   * @returns A mapping of agentType to output string
+   */
+  private buildPriorOutputs(priorResults: readonly StageResult[]): Record<string, string> {
+    const outputs: Record<string, string> = {};
+    for (const result of priorResults) {
+      if (result.status === 'completed' && result.output) {
+        outputs[result.agentType] = result.output;
+      }
+    }
+    return outputs;
   }
 
   // ---------------------------------------------------------------------------
