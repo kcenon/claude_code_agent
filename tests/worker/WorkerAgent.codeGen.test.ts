@@ -5,16 +5,8 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { WorkerAgent, CodeGenerationError } from '../../src/worker/index.js';
 import type { CodeChange } from '../../src/worker/index.js';
-import type {
-  WorkOrder,
-  CodeContext,
-  ExecutionContext,
-} from '../../src/worker/index.js';
-import type {
-  AgentBridge,
-  AgentRequest,
-  AgentResponse,
-} from '../../src/agents/AgentBridge.js';
+import type { WorkOrder, CodeContext, ExecutionContext } from '../../src/worker/index.js';
+import type { AgentBridge, AgentRequest, AgentResponse } from '../../src/agents/AgentBridge.js';
 
 /**
  * Create a minimal stub bridge for testing.
@@ -31,18 +23,13 @@ describe('WorkerAgent - generateCode with bridge delegation', () => {
   let agent: WorkerAgent;
   let testDir: string;
 
-  const createWorkOrder = (
-    id: string = 'ISS-001',
-    orderId: string = 'WO-001'
-  ): WorkOrder => ({
+  const createWorkOrder = (id: string = 'ISS-001', orderId: string = 'WO-001'): WorkOrder => ({
     orderId,
     issueId: id,
     createdAt: new Date().toISOString(),
     priority: 75,
     context: {
-      relatedFiles: [
-        { path: 'src/foo.ts', reason: 'Main implementation file' },
-      ],
+      relatedFiles: [{ path: 'src/foo.ts', reason: 'Main implementation file' }],
       dependenciesStatus: [],
     },
     acceptanceCriteria: ['Implement feature', 'Add tests'],
@@ -355,14 +342,16 @@ describe('WorkerAgent - generateCode with bridge delegation', () => {
     });
 
     it('should parse JSON wrapped in markdown code fences', () => {
-      const output = '```json\n[{"filePath":"src/x.ts","action":"create","content":"x","description":"d","linesAdded":1,"linesRemoved":0}]\n```';
+      const output =
+        '```json\n[{"filePath":"src/x.ts","action":"create","content":"x","description":"d","linesAdded":1,"linesRemoved":0}]\n```';
       const changes = agent.parseCodeGenOutput(output);
       expect(changes).toHaveLength(1);
       expect(changes[0].filePath).toBe('src/x.ts');
     });
 
     it('should parse JSON wrapped in plain code fences', () => {
-      const output = '```\n[{"filePath":"src/y.ts","action":"modify","content":"y","description":"d","linesAdded":1,"linesRemoved":0}]\n```';
+      const output =
+        '```\n[{"filePath":"src/y.ts","action":"modify","content":"y","description":"d","linesAdded":1,"linesRemoved":0}]\n```';
       const changes = agent.parseCodeGenOutput(output);
       expect(changes).toHaveLength(1);
       expect(changes[0].action).toBe('modify');
@@ -389,26 +378,20 @@ describe('WorkerAgent - generateCode with bridge delegation', () => {
     });
 
     it('should skip items missing filePath', () => {
-      const output = JSON.stringify([
-        { action: 'create', content: 'x' },
-      ]);
+      const output = JSON.stringify([{ action: 'create', content: 'x' }]);
       const changes = agent.parseCodeGenOutput(output);
       expect(changes).toHaveLength(0);
     });
 
     it('should provide default description when missing', () => {
-      const output = JSON.stringify([
-        { filePath: 'src/z.ts', action: 'create', content: 'z' },
-      ]);
+      const output = JSON.stringify([{ filePath: 'src/z.ts', action: 'create', content: 'z' }]);
       const changes = agent.parseCodeGenOutput(output);
       expect(changes).toHaveLength(1);
       expect(changes[0].description).toBe('create src/z.ts');
     });
 
     it('should default linesAdded and linesRemoved to 0', () => {
-      const output = JSON.stringify([
-        { filePath: 'src/w.ts', action: 'modify', content: 'w' },
-      ]);
+      const output = JSON.stringify([{ filePath: 'src/w.ts', action: 'modify', content: 'w' }]);
       const changes = agent.parseCodeGenOutput(output);
       expect(changes[0].linesAdded).toBe(0);
       expect(changes[0].linesRemoved).toBe(0);

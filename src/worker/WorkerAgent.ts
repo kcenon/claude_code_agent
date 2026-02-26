@@ -765,7 +765,12 @@ export class WorkerAgent implements IAgent {
         await this.applyFileChange(change);
         this.recordFileChange({
           filePath: change.filePath,
-          changeType: change.action === 'delete' ? 'delete' : change.action === 'create' ? 'create' : 'modify',
+          changeType:
+            change.action === 'delete'
+              ? 'delete'
+              : change.action === 'create'
+                ? 'create'
+                : 'modify',
           description: change.description,
           linesAdded: change.linesAdded,
           linesRemoved: change.linesRemoved,
@@ -1405,7 +1410,9 @@ export class WorkerAgent implements IAgent {
     sections.push('## Task');
     sections.push(`Issue: ${workOrder.issueId}`);
     sections.push(`Priority: ${String(workOrder.priority)}`);
-    sections.push(`Acceptance Criteria:\n${workOrder.acceptanceCriteria.map((c) => `- ${c}`).join('\n')}`);
+    sections.push(
+      `Acceptance Criteria:\n${workOrder.acceptanceCriteria.map((c) => `- ${c}`).join('\n')}`
+    );
 
     if (workOrder.context.relatedFiles.length > 0) {
       sections.push('\n## Related Files');
@@ -1426,14 +1433,18 @@ export class WorkerAgent implements IAgent {
     }
 
     sections.push('\n## Code Style');
-    sections.push(`Indentation: ${codeContext.patterns.indentation} (${String(codeContext.patterns.indentSize)})`);
+    sections.push(
+      `Indentation: ${codeContext.patterns.indentation} (${String(codeContext.patterns.indentSize)})`
+    );
     sections.push(`Quotes: ${codeContext.patterns.quoteStyle}`);
     sections.push(`Semicolons: ${String(codeContext.patterns.useSemicolons)}`);
 
     sections.push('\n## Output Format');
     sections.push('Respond with a JSON array of file changes:');
     sections.push('```json');
-    sections.push('[{ "filePath": "...", "action": "create|modify|delete", "content": "...", "description": "...", "linesAdded": N, "linesRemoved": N }]');
+    sections.push(
+      '[{ "filePath": "...", "action": "create|modify|delete", "content": "...", "description": "...", "linesAdded": N, "linesRemoved": N }]'
+    );
     sections.push('```');
 
     return sections.join('\n');
@@ -1449,7 +1460,7 @@ export class WorkerAgent implements IAgent {
     // Strip markdown code fences if present
     let jsonStr = output.trim();
     const fenceMatch = jsonStr.match(/```(?:json)?\s*\n?([\s\S]*?)```/);
-    if (fenceMatch?.[1]) {
+    if (fenceMatch?.[1] != null && fenceMatch[1] !== '') {
       jsonStr = fenceMatch[1].trim();
     }
 
@@ -1477,17 +1488,19 @@ export class WorkerAgent implements IAgent {
         if (action !== 'create' && action !== 'modify' && action !== 'delete') {
           continue;
         }
-        const typedAction = action as 'create' | 'modify' | 'delete';
+        const typedAction: 'create' | 'modify' | 'delete' = action;
         const base = {
           filePath: raw.filePath as string,
           action: typedAction,
-          description: typeof raw.description === 'string' ? raw.description : `${typedAction} ${raw.filePath as string}`,
+          description:
+            typeof raw.description === 'string'
+              ? raw.description
+              : `${typedAction} ${raw.filePath as string}`,
           linesAdded: typeof raw.linesAdded === 'number' ? raw.linesAdded : 0,
           linesRemoved: typeof raw.linesRemoved === 'number' ? raw.linesRemoved : 0,
         };
-        const change: CodeChange = typeof raw.content === 'string'
-          ? { ...base, content: raw.content }
-          : base;
+        const change: CodeChange =
+          typeof raw.content === 'string' ? { ...base, content: raw.content } : base;
         changes.push(change);
       }
     }
