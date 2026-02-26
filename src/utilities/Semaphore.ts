@@ -61,12 +61,18 @@ export class Semaphore {
     }
   }
 
-  /** Number of currently acquired slots. */
+  /**
+   * Number of currently acquired slots.
+   * @returns The count of active slots.
+   */
   get activeCount(): number {
     return this.current;
   }
 
-  /** Number of tasks waiting in the queue. */
+  /**
+   * Number of tasks waiting in the queue.
+   * @returns The count of queued tasks.
+   */
   get waitingCount(): number {
     return this.queue.length;
   }

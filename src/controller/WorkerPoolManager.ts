@@ -512,10 +512,7 @@ export class WorkerPoolManager {
    * @param projectDir - Project directory for file operations
    * @returns The agent response from bridge execution
    */
-  public async executeWithBridge(
-    workOrder: WorkOrder,
-    projectDir = ''
-  ): Promise<AgentResponse> {
+  public async executeWithBridge(workOrder: WorkOrder, projectDir = ''): Promise<AgentResponse> {
     if (this._bridgeRegistry === null) {
       return {
         output: `No bridge registry configured for ${workOrder.issueId}`,

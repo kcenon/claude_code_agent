@@ -702,10 +702,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
           status: response.success ? 'completed' : 'failed',
           durationMs: Date.now() - startTime,
           output: response.output,
-          artifacts: [
-            ...invocation.outputs,
-            ...response.artifacts.map((a) => a.path),
-          ],
+          artifacts: [...invocation.outputs, ...response.artifacts.map((a) => a.path)],
           error: response.error ?? null,
           retryCount: 0,
         };
@@ -732,6 +729,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
         return outcome.value;
       }
       // This branch handles unexpected rejections that escape the try/catch above
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- index is guaranteed valid by Promise.allSettled
       const invocation = agents[index]!;
       return {
         name: invocation.stageName,
