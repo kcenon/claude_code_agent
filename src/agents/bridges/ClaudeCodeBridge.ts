@@ -29,10 +29,7 @@ export class ClaudeCodeBridge implements AgentBridge {
   private pollIntervalMs: number;
   private timeoutMs: number;
 
-  constructor(options?: {
-    pollIntervalMs?: number;
-    timeoutMs?: number;
-  }) {
+  constructor(options?: { pollIntervalMs?: number; timeoutMs?: number }) {
     this.pollIntervalMs = options?.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
     this.timeoutMs = options?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   }
@@ -71,8 +68,9 @@ export class ClaudeCodeBridge implements AgentBridge {
     }
   }
 
-  async dispose(): Promise<void> {
+  dispose(): Promise<void> {
     // No persistent resources to clean up
+    return Promise.resolve();
   }
 
   /**
@@ -123,7 +121,7 @@ export class ClaudeCodeBridge implements AgentBridge {
     }
 
     throw new Error(
-      `Timeout waiting for agent output after ${this.timeoutMs}ms: ${outputPath}`
+      `Timeout waiting for agent output after ${String(this.timeoutMs)}ms: ${outputPath}`
     );
   }
 
@@ -143,7 +141,7 @@ export class ClaudeCodeBridge implements AgentBridge {
         response.tokenUsage = parsed.tokenUsage;
       }
 
-      if (parsed.error) {
+      if (parsed.error !== undefined && parsed.error !== '') {
         response.error = parsed.error;
       }
 

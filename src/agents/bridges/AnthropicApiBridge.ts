@@ -53,15 +53,18 @@ export class AnthropicApiBridge implements AgentBridge {
     const maxTokens = request.tokenBudget?.maxOutput ?? DEFAULT_MAX_TOKENS;
 
     try {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
-      const message = await (client as { messages: { create: (params: unknown) => Promise<Record<string, unknown>> } }).messages.create({
+      const typedClient = client as {
+        messages: {
+          create: (params: Record<string, unknown>) => Promise<Record<string, unknown>>;
+        };
+      };
+      const message = await typedClient.messages.create({
         model: modelId,
         max_tokens: maxTokens,
         system: systemPrompt,
         messages: [{ role: 'user', content: userMessage }],
       });
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
       const content = message['content'] as Array<{ type: string; text?: string }>;
       const output = content
         .filter((block) => block.type === 'text')
@@ -99,8 +102,9 @@ export class AnthropicApiBridge implements AgentBridge {
     }
   }
 
-  async dispose(): Promise<void> {
+  dispose(): Promise<void> {
     this.client = null;
+    return Promise.resolve();
   }
 
   /**
@@ -108,12 +112,15 @@ export class AnthropicApiBridge implements AgentBridge {
    * This avoids requiring the SDK at module load time.
    */
   private async getClient(): Promise<unknown> {
-    if (this.client) {
+    if (this.client !== null) {
       return this.client;
     }
 
-    const { default: Anthropic } = await import('@anthropic-ai/sdk');
-    this.client = new Anthropic({
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    const module = await import('@anthropic-ai/sdk');
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    const AnthropicConstructor = module.default as new (opts: { apiKey?: string }) => unknown;
+    this.client = new AnthropicConstructor({
       apiKey: this.apiKey,
     });
 
@@ -174,9 +181,8 @@ export class AnthropicApiBridge implements AgentBridge {
       parts.push('\n## Prior Stage Outputs\n');
       for (const [stage, output] of priorEntries) {
         // Truncate large outputs to stay within token budget
-        const truncated = output.length > 10000
-          ? output.slice(0, 10000) + '\n... (truncated)'
-          : output;
+        const truncated =
+          output.length > 10000 ? output.slice(0, 10000) + '\n... (truncated)' : output;
         parts.push(`### ${stage}\n\`\`\`\n${truncated}\n\`\`\`\n`);
       }
     }
@@ -188,7 +194,7 @@ export class AnthropicApiBridge implements AgentBridge {
    * Resolve model preference string to Anthropic model ID.
    */
   private resolveModel(preference?: string): string {
-    if (!preference) return DEFAULT_MODEL;
+    if (preference === undefined || preference === '') return DEFAULT_MODEL;
     return MODEL_MAP[preference] ?? DEFAULT_MODEL;
   }
 }

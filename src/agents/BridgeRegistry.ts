@@ -105,7 +105,7 @@ export function createDefaultBridgeRegistry(): BridgeRegistry {
   }
 
   // Anthropic API key detection
-  if (process.env['ANTHROPIC_API_KEY']) {
+  if (process.env['ANTHROPIC_API_KEY'] !== undefined && process.env['ANTHROPIC_API_KEY'] !== '') {
     registry.register(new AnthropicApiBridge());
   }
 
@@ -117,7 +117,8 @@ export function createDefaultBridgeRegistry(): BridgeRegistry {
  */
 function isClaudeCodeSession(): boolean {
   return (
-    !!process.env['CLAUDE_CODE_SESSION'] ||
-    !!process.env['CLAUDE_CODE']
+    (process.env['CLAUDE_CODE_SESSION'] !== undefined &&
+      process.env['CLAUDE_CODE_SESSION'] !== '') ||
+    (process.env['CLAUDE_CODE'] !== undefined && process.env['CLAUDE_CODE'] !== '')
   );
 }
