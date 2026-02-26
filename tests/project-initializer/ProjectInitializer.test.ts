@@ -3,6 +3,7 @@
  */
 
 import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -16,35 +17,30 @@ import { resetPrerequisiteValidator } from '../../src/project-initializer/Prereq
 import type { InitOptions } from '../../src/project-initializer/types.js';
 
 describe('ProjectInitializer', () => {
-  const testDir = path.join(process.cwd(), 'test-output');
+  let testDir: string;
   const testProjectName = 'test-project';
-  const testProjectPath = path.join(testDir, testProjectName);
-
-  const defaultOptions: InitOptions = {
-    projectName: testProjectName,
-    techStack: 'typescript',
-    template: 'standard',
-    targetDir: testDir,
-    skipValidation: true,
-  };
+  let testProjectPath: string;
+  let defaultOptions: InitOptions;
 
   beforeEach(() => {
     resetProjectInitializer();
     resetPrerequisiteValidator();
-    // Clean up test directory
-    if (fs.existsSync(testProjectPath)) {
-      fs.rmSync(testProjectPath, { recursive: true });
-    }
-    // Create test directory
-    if (!fs.existsSync(testDir)) {
-      fs.mkdirSync(testDir, { recursive: true });
-    }
+    // Use OS temp directory to avoid sandbox write restrictions on .claude paths
+    testDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pi-test-'));
+    testProjectPath = path.join(testDir, testProjectName);
+    defaultOptions = {
+      projectName: testProjectName,
+      techStack: 'typescript',
+      template: 'standard',
+      targetDir: testDir,
+      skipValidation: true,
+    };
   });
 
   afterEach(() => {
-    // Clean up after tests
-    if (fs.existsSync(testProjectPath)) {
-      fs.rmSync(testProjectPath, { recursive: true });
+    // Clean up temp directory
+    if (fs.existsSync(testDir)) {
+      fs.rmSync(testDir, { recursive: true });
     }
   });
 
