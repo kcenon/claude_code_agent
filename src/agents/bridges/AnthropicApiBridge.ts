@@ -359,7 +359,7 @@ export class AnthropicApiBridge implements AgentBridge {
         },
         (error: unknown) => {
           clearTimeout(id);
-          reject(error);
+          reject(error instanceof Error ? error : new Error(String(error)));
         }
       );
     });
