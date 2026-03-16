@@ -30,6 +30,67 @@ const DEFAULT_MODEL = 'claude-sonnet-4-6';
 const DEFAULT_MAX_TOKENS = 4096;
 const DEFAULT_MAX_TURNS = 10;
 
+/** Default per-call API timeout: 2 minutes */
+const DEFAULT_CALL_TIMEOUT_MS = 120_000;
+
+/** Maximum retry attempts for transient API errors */
+const MAX_API_RETRIES = 3;
+
+/**
+ * Rate limiter configuration for Anthropic API calls.
+ */
+export interface RateLimitConfig {
+  /** Maximum API requests per minute (default: 50) */
+  requestsPerMinute: number;
+  /** Minimum delay in milliseconds between sequential calls (default: 200) */
+  minDelayMs: number;
+  /** Maximum concurrent in-flight API calls (default: 5) */
+  maxConcurrent: number;
+}
+
+const DEFAULT_RATE_LIMIT_CONFIG: RateLimitConfig = {
+  requestsPerMinute: 50,
+  minDelayMs: 200,
+  maxConcurrent: 5,
+};
+
+/**
+ * Metrics emitted by AnthropicApiBridge for observability.
+ */
+export interface ApiCallMetrics {
+  /** Total API calls made (including retries) */
+  totalCalls: number;
+  /** Total retry attempts triggered by transient errors */
+  totalRetries: number;
+  /** Total calls that exceeded the per-call timeout */
+  totalTimeouts: number;
+}
+
+/** Returns true for errors that warrant a retry (429, 529, 5xx, connection). */
+function isRetryableAnthropicError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const status = (error as { status?: number }).status;
+  if (status !== undefined) {
+    return status === 429 || status === 529 || status >= 500;
+  }
+  const msg = error.message.toLowerCase();
+  return (
+    msg.includes('rate limit') ||
+    msg.includes('connection') ||
+    msg.includes('econnreset') ||
+    msg.includes('etimedout') ||
+    msg.includes('service unavailable')
+  );
+}
+
+function isTimeoutError(error: unknown): boolean {
+  return error instanceof Error && (error as { isTimeout?: boolean }).isTimeout === true;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise<void>((resolve) => setTimeout(resolve, ms));
+}
+
 /**
  * Bridge that invokes agents via the Anthropic Messages API.
  *
@@ -43,9 +104,39 @@ export class AnthropicApiBridge implements AgentBridge {
   private apiKey: string | undefined;
   private agentDefsDir: string;
 
-  constructor(options?: { apiKey?: string; agentDefsDir?: string }) {
+  // Rate limiter state
+  private readonly rateLimitConfig: RateLimitConfig;
+  private readonly baseBackoffMs: number;
+  private callTimestamps: number[] = [];
+  private lastCallTime = 0;
+  private activeCalls = 0;
+
+  // Observability metrics
+  private readonly apiMetrics: ApiCallMetrics = {
+    totalCalls: 0,
+    totalRetries: 0,
+    totalTimeouts: 0,
+  };
+
+  constructor(options?: {
+    apiKey?: string;
+    agentDefsDir?: string;
+    rateLimitConfig?: Partial<RateLimitConfig>;
+    /**
+     * Base delay in milliseconds for exponential backoff (default: 1000).
+     * Override to a small value (e.g. 1) in tests to avoid real waits.
+     */
+    baseBackoffMs?: number;
+  }) {
     this.apiKey = options?.apiKey;
     this.agentDefsDir = options?.agentDefsDir ?? path.join('.claude', 'agents');
+    this.rateLimitConfig = { ...DEFAULT_RATE_LIMIT_CONFIG, ...options?.rateLimitConfig };
+    this.baseBackoffMs = options?.baseBackoffMs ?? 1_000;
+  }
+
+  /** Return a snapshot of API call metrics. */
+  getMetrics(): ApiCallMetrics {
+    return { ...this.apiMetrics };
   }
 
   supports(_agentType: string): boolean {
@@ -71,6 +162,8 @@ export class AnthropicApiBridge implements AgentBridge {
     let totalInputTokens = 0;
     let totalOutputTokens = 0;
 
+    const callTimeoutMs = request.timeoutMs ?? DEFAULT_CALL_TIMEOUT_MS;
+
     try {
       const typedClient = client as {
         messages: {
@@ -89,7 +182,10 @@ export class AnthropicApiBridge implements AgentBridge {
           createParams['tools'] = tools;
         }
 
-        const message = await typedClient.messages.create(createParams);
+        const message = await this.callWithBackoff(
+          () => typedClient.messages.create(createParams),
+          callTimeoutMs
+        );
 
         const content = message['content'] as ContentBlock[];
         const stopReason = message['stop_reason'] as string;
@@ -199,6 +295,108 @@ export class AnthropicApiBridge implements AgentBridge {
   dispose(): Promise<void> {
     this.client = null;
     return Promise.resolve();
+  }
+
+  /**
+   * Acquire a rate-limit slot before making an API call.
+   * Enforces RPM, minDelayMs, and maxConcurrent limits.
+   */
+  private async acquireRateLimit(): Promise<void> {
+    // Wait for a concurrent slot
+    while (this.activeCalls >= this.rateLimitConfig.maxConcurrent) {
+      await sleep(50);
+    }
+
+    // Sliding window: drop timestamps outside the 1-minute window
+    const now = Date.now();
+    this.callTimestamps = this.callTimestamps.filter((t) => t > now - 60_000);
+
+    // Stall until the RPM window has space
+    if (this.callTimestamps.length >= this.rateLimitConfig.requestsPerMinute) {
+      const oldest = this.callTimestamps[0] ?? Date.now();
+      const waitMs = oldest + 60_000 - Date.now();
+      if (waitMs > 0) {
+        await sleep(waitMs);
+        this.callTimestamps = this.callTimestamps.filter((t) => t > Date.now() - 60_000);
+      }
+    }
+
+    // Enforce minimum delay between sequential calls
+    const elapsed = Date.now() - this.lastCallTime;
+    if (this.lastCallTime > 0 && elapsed < this.rateLimitConfig.minDelayMs) {
+      await sleep(this.rateLimitConfig.minDelayMs - elapsed);
+    }
+
+    const callTime = Date.now();
+    this.lastCallTime = callTime;
+    this.callTimestamps.push(callTime);
+    this.activeCalls++;
+  }
+
+  private releaseRateLimit(): void {
+    this.activeCalls = Math.max(0, this.activeCalls - 1);
+  }
+
+  /**
+   * Run a single API call with a hard per-call timeout.
+   * Rejects with an error flagged as `.isTimeout = true` on expiry.
+   */
+  private withCallTimeout(
+    createFn: () => Promise<Record<string, unknown>>,
+    timeoutMs: number
+  ): Promise<Record<string, unknown>> {
+    return new Promise<Record<string, unknown>>((resolve, reject) => {
+      const id = setTimeout(() => {
+        const err = new Error(`Anthropic API call timed out after ${String(timeoutMs)}ms`);
+        (err as { isTimeout?: boolean }).isTimeout = true;
+        reject(err);
+      }, timeoutMs);
+
+      createFn().then(
+        (result) => {
+          clearTimeout(id);
+          resolve(result);
+        },
+        (error: unknown) => {
+          clearTimeout(id);
+          reject(error instanceof Error ? error : new Error(String(error)));
+        }
+      );
+    });
+  }
+
+  /**
+   * Call the Anthropic API with rate limiting and exponential backoff.
+   * Retries on 429/529/5xx errors up to MAX_API_RETRIES times.
+   */
+  private async callWithBackoff(
+    createFn: () => Promise<Record<string, unknown>>,
+    callTimeoutMs: number
+  ): Promise<Record<string, unknown>> {
+    for (let attempt = 0; attempt <= MAX_API_RETRIES; attempt++) {
+      await this.acquireRateLimit();
+      this.apiMetrics.totalCalls++;
+      try {
+        const result = await this.withCallTimeout(createFn, callTimeoutMs);
+        this.releaseRateLimit();
+        return result;
+      } catch (error) {
+        this.releaseRateLimit();
+        if (isTimeoutError(error)) {
+          this.apiMetrics.totalTimeouts++;
+        }
+        if (!isRetryableAnthropicError(error) || attempt === MAX_API_RETRIES) {
+          throw error;
+        }
+        this.apiMetrics.totalRetries++;
+        const backoffMs =
+          Math.min(this.baseBackoffMs * Math.pow(2, attempt), 30_000) +
+          Math.random() * this.baseBackoffMs;
+        await sleep(backoffMs);
+      }
+    }
+    // Unreachable — loop always returns or throws above.
+    throw new Error('callWithBackoff: internal error');
   }
 
   /**
