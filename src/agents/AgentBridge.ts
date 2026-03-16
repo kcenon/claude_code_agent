@@ -69,6 +69,12 @@ export interface AgentRequest {
 
   /** Restrict which tools are available (by tool name) */
   allowedTools?: string[];
+
+  /** Number of recent turn-pairs to keep in message history (default: 3) */
+  historyWindowSize?: number;
+
+  /** Maximum aggregate bytes for prior stage outputs in user message (default: 50000) */
+  maxPriorOutputBytes?: number;
 }
 
 /**
