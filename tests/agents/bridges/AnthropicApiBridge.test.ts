@@ -606,4 +606,163 @@ describe('AnthropicApiBridge', () => {
       expect(bridge.supports('any-agent')).toBe(true);
     });
   });
+
+  describe('message history windowing', () => {
+    let tempDir: string;
+
+    beforeEach(async () => {
+      tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'bridge-window-'));
+      await fs.writeFile(path.join(tempDir, 'data.txt'), 'content\n', 'utf-8');
+    });
+
+    afterEach(async () => {
+      await fs.rm(tempDir, { recursive: true, force: true });
+    });
+
+    it('should cap messages sent to API when window size is exceeded', async () => {
+      const bridge = new AnthropicApiBridge({
+        apiKey: 'test-key',
+        rateLimitConfig: { requestsPerMinute: 1000, minDelayMs: 0, maxConcurrent: 10 },
+      });
+      const sentMessageCounts: number[] = [];
+      let callCount = 0;
+
+      (bridge as unknown as Record<string, unknown>)['getClient'] = async () => ({
+        messages: {
+          create: async (params: Record<string, unknown>) => {
+            callCount++;
+            sentMessageCounts.push((params['messages'] as unknown[]).length);
+            if (callCount < 5) {
+              return {
+                content: [
+                  {
+                    type: 'tool_use',
+                    id: `tu_${callCount}`,
+                    name: 'read_file',
+                    input: { path: 'data.txt' },
+                  },
+                ],
+                stop_reason: 'tool_use',
+                usage: { input_tokens: 10, output_tokens: 10 },
+              };
+            }
+            return {
+              content: [{ type: 'text', text: 'done' }],
+              stop_reason: 'end_turn',
+              usage: { input_tokens: 10, output_tokens: 5 },
+            };
+          },
+        },
+      });
+
+      await bridge.execute(
+        createRequest({ projectDir: tempDir, historyWindowSize: 1, maxTurns: 5 })
+      );
+
+      // Turn 1: sent [user] = 1 message (window not yet applicable)
+      expect(sentMessageCounts[0]).toBe(1);
+      // Turn 2+: window=1 keeps [initial_user, last_assistant, last_tool_result] = 3 messages
+      for (const count of sentMessageCounts.slice(1)) {
+        expect(count).toBe(3);
+      }
+    });
+
+    it('should always preserve the first user message regardless of window size', async () => {
+      const bridge = new AnthropicApiBridge({
+        apiKey: 'test-key',
+        rateLimitConfig: { requestsPerMinute: 1000, minDelayMs: 0, maxConcurrent: 10 },
+      });
+      const firstRolesInEachCall: string[] = [];
+      let callCount = 0;
+
+      (bridge as unknown as Record<string, unknown>)['getClient'] = async () => ({
+        messages: {
+          create: async (params: Record<string, unknown>) => {
+            callCount++;
+            const msgs = params['messages'] as Array<{ role: string }>;
+            firstRolesInEachCall.push(msgs[0]?.role ?? '');
+            if (callCount === 1) {
+              return {
+                content: [
+                  { type: 'tool_use', id: 'tu_1', name: 'read_file', input: { path: 'data.txt' } },
+                ],
+                stop_reason: 'tool_use',
+                usage: { input_tokens: 10, output_tokens: 10 },
+              };
+            }
+            return {
+              content: [{ type: 'text', text: 'done' }],
+              stop_reason: 'end_turn',
+              usage: { input_tokens: 10, output_tokens: 5 },
+            };
+          },
+        },
+      });
+
+      await bridge.execute(createRequest({ projectDir: tempDir, historyWindowSize: 1 }));
+
+      expect(callCount).toBe(2);
+      for (const role of firstRolesInEachCall) {
+        expect(role).toBe('user');
+      }
+    });
+  });
+
+  describe('prior output aggregate limit', () => {
+    it('should omit stages that exceed the aggregate byte limit', () => {
+      const bridge = new AnthropicApiBridge({ apiKey: 'test-key' });
+      const buildMsg = (bridge as unknown as Record<string, unknown>)['buildUserMessage'] as (
+        req: AgentRequest
+      ) => string;
+
+      // 5 stages × ~10KB each; aggregate limit of 30KB — only first 2 should fit
+      const priorOutputs: Record<string, string> = {};
+      for (let i = 1; i <= 5; i++) {
+        priorOutputs[`stage_${i}`] = 'a'.repeat(15000);
+      }
+
+      const message = buildMsg.call(bridge, createRequest({ priorStageOutputs: priorOutputs, maxPriorOutputBytes: 30_000 }));
+
+      expect(message).toContain('stage_1');
+      expect(message).toContain('omitted');
+      expect(message).not.toContain('stage_5');
+    });
+
+    it('should include all stages when total is within aggregate limit', () => {
+      const bridge = new AnthropicApiBridge({ apiKey: 'test-key' });
+      const buildMsg = (bridge as unknown as Record<string, unknown>)['buildUserMessage'] as (
+        req: AgentRequest
+      ) => string;
+
+      const message = buildMsg.call(
+        bridge,
+        createRequest({
+          priorStageOutputs: { stage_a: 'small A', stage_b: 'small B' },
+          maxPriorOutputBytes: 50_000,
+        })
+      );
+
+      expect(message).toContain('stage_a');
+      expect(message).toContain('stage_b');
+      expect(message).not.toContain('omitted');
+    });
+
+    it('should use 50KB default aggregate limit when maxPriorOutputBytes is not set', () => {
+      const bridge = new AnthropicApiBridge({ apiKey: 'test-key' });
+      const buildMsg = (bridge as unknown as Record<string, unknown>)['buildUserMessage'] as (
+        req: AgentRequest
+      ) => string;
+
+      // 6 stages × 10KB each = ~60KB total → exceeds 50KB default
+      const priorOutputs: Record<string, string> = {};
+      for (let i = 1; i <= 6; i++) {
+        priorOutputs[`stage_${i}`] = 'b'.repeat(10000);
+      }
+
+      const message = buildMsg.call(bridge, createRequest({ priorStageOutputs: priorOutputs }));
+
+      expect(message).toContain('omitted');
+      expect(message).not.toContain('stage_6');
+    });
+  });
 });

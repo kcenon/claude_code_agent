@@ -36,6 +36,12 @@ const DEFAULT_CALL_TIMEOUT_MS = 120_000;
 /** Maximum retry attempts for transient API errors */
 const MAX_API_RETRIES = 3;
 
+/** Default message history window: keep last 3 turn-pairs (assistant + tool_result) */
+const DEFAULT_HISTORY_WINDOW_SIZE = 3;
+
+/** Default aggregate size limit for prior stage outputs injected into the user message (50KB) */
+const DEFAULT_MAX_PRIOR_OUTPUT_BYTES = 50_000;
+
 /**
  * Rate limiter configuration for Anthropic API calls.
  */
@@ -163,6 +169,7 @@ export class AnthropicApiBridge implements AgentBridge {
     let totalOutputTokens = 0;
 
     const callTimeoutMs = request.timeoutMs ?? DEFAULT_CALL_TIMEOUT_MS;
+    const historyWindowSize = request.historyWindowSize ?? DEFAULT_HISTORY_WINDOW_SIZE;
 
     try {
       const typedClient = client as {
@@ -176,7 +183,7 @@ export class AnthropicApiBridge implements AgentBridge {
           model: modelId,
           max_tokens: maxTokens,
           system: systemPrompt,
-          messages,
+          messages: this.windowMessages(messages, historyWindowSize),
         };
         if (tools.length > 0) {
           createParams['tools'] = tools;
@@ -463,20 +470,70 @@ export class AnthropicApiBridge implements AgentBridge {
   }
 
   /**
+   * Window the message history to keep token costs bounded across multi-turn conversations.
+   * Always preserves the first user message (the task description).
+   * Returns the last windowSize turn-pairs plus the initial message.
+   */
+  private windowMessages(
+    messages: ConversationMessage[],
+    windowSize: number
+  ): ConversationMessage[] {
+    if (messages.length <= 1) return messages;
+    const firstMessage = messages[0] as ConversationMessage;
+    const recentMessages = messages.slice(1).slice(-(windowSize * 2));
+    return [firstMessage, ...recentMessages];
+  }
+
+  /**
+   * Build the prior stage outputs section with an aggregate size limit.
+   * Each stage's output is individually capped at 10KB; the aggregate is capped
+   * at maxAggregateBytes. Appends an omission notice if stages are excluded.
+   */
+  private buildPriorOutputContext(
+    priorOutputs: Record<string, string>,
+    maxAggregateBytes: number
+  ): string {
+    const entries = Object.entries(priorOutputs);
+    if (entries.length === 0) return '';
+
+    const stageParts: string[] = [];
+    let totalSize = 0;
+    let stagesAdded = 0;
+
+    for (const [stage, output] of entries) {
+      const truncated =
+        output.length > 10000 ? output.slice(0, 10000) + '\n... (truncated)' : output;
+      const chunk = `### ${stage}\n\`\`\`\n${truncated}\n\`\`\`\n`;
+
+      if (totalSize + chunk.length > maxAggregateBytes) {
+        const omitted = entries.length - stagesAdded;
+        stageParts.push(
+          `\n... (${String(omitted)} stage${omitted === 1 ? '' : 's'} omitted — aggregate output limit reached)`
+        );
+        break;
+      }
+
+      stageParts.push(chunk);
+      totalSize += chunk.length;
+      stagesAdded++;
+    }
+
+    return '\n## Prior Stage Outputs\n\n' + stageParts.join('\n');
+  }
+
+  /**
    * Build the user message from request input and prior stage outputs.
    */
   private buildUserMessage(request: AgentRequest): string {
     const parts = [request.input];
 
-    const priorEntries = Object.entries(request.priorStageOutputs);
-    if (priorEntries.length > 0) {
-      parts.push('\n## Prior Stage Outputs\n');
-      for (const [stage, output] of priorEntries) {
-        // Truncate large outputs to stay within token budget
-        const truncated =
-          output.length > 10000 ? output.slice(0, 10000) + '\n... (truncated)' : output;
-        parts.push(`### ${stage}\n\`\`\`\n${truncated}\n\`\`\`\n`);
-      }
+    const maxPriorOutputBytes = request.maxPriorOutputBytes ?? DEFAULT_MAX_PRIOR_OUTPUT_BYTES;
+    const priorContext = this.buildPriorOutputContext(
+      request.priorStageOutputs,
+      maxPriorOutputBytes
+    );
+    if (priorContext) {
+      parts.push(priorContext);
     }
 
     return parts.join('\n');
