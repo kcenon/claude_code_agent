@@ -377,4 +377,233 @@ describe('AnthropicApiBridge', () => {
       await expect(bridge.dispose()).resolves.toBeUndefined();
     });
   });
+
+  describe('exponential backoff and retry', () => {
+    // Use baseBackoffMs: 1 so retry delays are ~1-2ms instead of 1-2s
+    function makeRetryBridge() {
+      return new AnthropicApiBridge({
+        apiKey: 'test-key',
+        baseBackoffMs: 1,
+        rateLimitConfig: { requestsPerMinute: 1000, minDelayMs: 0, maxConcurrent: 10 },
+      });
+    }
+
+    it('should retry on 429 and succeed on the next attempt', async () => {
+      const bridge = makeRetryBridge();
+      let callCount = 0;
+
+      (bridge as unknown as Record<string, unknown>)['getClient'] = async () => ({
+        messages: {
+          create: async () => {
+            callCount++;
+            if (callCount === 1) {
+              const err = new Error('Rate limit exceeded');
+              (err as { status?: number }).status = 429;
+              throw err;
+            }
+            return {
+              content: [{ type: 'text', text: 'Succeeded after retry' }],
+              stop_reason: 'end_turn',
+              usage: { input_tokens: 10, output_tokens: 5 },
+            };
+          },
+        },
+      });
+
+      const response = await bridge.execute(createRequest());
+
+      expect(response.success).toBe(true);
+      expect(response.output).toBe('Succeeded after retry');
+      expect(callCount).toBe(2);
+      const metrics = bridge.getMetrics();
+      expect(metrics.totalCalls).toBe(2);
+      expect(metrics.totalRetries).toBe(1);
+      expect(metrics.totalTimeouts).toBe(0);
+    });
+
+    it('should retry on 529 (overloaded) status', async () => {
+      const bridge = makeRetryBridge();
+      let callCount = 0;
+
+      (bridge as unknown as Record<string, unknown>)['getClient'] = async () => ({
+        messages: {
+          create: async () => {
+            callCount++;
+            if (callCount === 1) {
+              const err = new Error('API overloaded');
+              (err as { status?: number }).status = 529;
+              throw err;
+            }
+            return {
+              content: [{ type: 'text', text: 'ok' }],
+              stop_reason: 'end_turn',
+              usage: { input_tokens: 10, output_tokens: 5 },
+            };
+          },
+        },
+      });
+
+      const response = await bridge.execute(createRequest());
+
+      expect(response.success).toBe(true);
+      expect(callCount).toBe(2);
+      expect(bridge.getMetrics().totalRetries).toBe(1);
+    });
+
+    it('should retry on 500 internal server error', async () => {
+      const bridge = makeRetryBridge();
+      let callCount = 0;
+
+      (bridge as unknown as Record<string, unknown>)['getClient'] = async () => ({
+        messages: {
+          create: async () => {
+            callCount++;
+            if (callCount === 1) {
+              const err = new Error('Internal server error');
+              (err as { status?: number }).status = 500;
+              throw err;
+            }
+            return {
+              content: [{ type: 'text', text: 'ok' }],
+              stop_reason: 'end_turn',
+              usage: { input_tokens: 10, output_tokens: 5 },
+            };
+          },
+        },
+      });
+
+      const response = await bridge.execute(createRequest());
+
+      expect(response.success).toBe(true);
+      expect(callCount).toBe(2);
+    });
+
+    it('should not retry 401 authentication errors', async () => {
+      const bridge = new AnthropicApiBridge({ apiKey: 'test-key' });
+      let callCount = 0;
+
+      (bridge as unknown as Record<string, unknown>)['getClient'] = async () => ({
+        messages: {
+          create: async () => {
+            callCount++;
+            const err = new Error('Unauthorized');
+            (err as { status?: number }).status = 401;
+            throw err;
+          },
+        },
+      });
+
+      const response = await bridge.execute(createRequest());
+
+      expect(response.success).toBe(false);
+      expect(response.error).toContain('Unauthorized');
+      expect(callCount).toBe(1); // No retries
+      expect(bridge.getMetrics().totalRetries).toBe(0);
+    });
+
+    it('should propagate error after max retries (3)', async () => {
+      const bridge = makeRetryBridge();
+
+      (bridge as unknown as Record<string, unknown>)['getClient'] = async () => ({
+        messages: {
+          create: async () => {
+            const err = new Error('Rate limit exceeded');
+            (err as { status?: number }).status = 429;
+            throw err;
+          },
+        },
+      });
+
+      const response = await bridge.execute(createRequest());
+
+      expect(response.success).toBe(false);
+      expect(response.error).toContain('Anthropic API error');
+      const metrics = bridge.getMetrics();
+      // 4 total calls: initial + 3 retries (MAX_API_RETRIES = 3)
+      expect(metrics.totalCalls).toBe(4);
+      expect(metrics.totalRetries).toBe(3);
+    });
+  });
+
+  describe('per-call timeout', () => {
+    it('should fail when the API call exceeds timeoutMs', async () => {
+      const bridge = new AnthropicApiBridge({
+        apiKey: 'test-key',
+        rateLimitConfig: { requestsPerMinute: 1000, minDelayMs: 0, maxConcurrent: 10 },
+      });
+
+      (bridge as unknown as Record<string, unknown>)['getClient'] = async () => ({
+        messages: {
+          // create never resolves
+          create: () => new Promise<never>(() => undefined),
+        },
+      });
+
+      const response = await bridge.execute(createRequest({ timeoutMs: 30 }));
+
+      expect(response.success).toBe(false);
+      expect(response.error).toContain('timed out');
+    });
+
+    it('should track timed-out calls in metrics without retrying', async () => {
+      const bridge = new AnthropicApiBridge({
+        apiKey: 'test-key',
+        rateLimitConfig: { requestsPerMinute: 1000, minDelayMs: 0, maxConcurrent: 10 },
+      });
+
+      (bridge as unknown as Record<string, unknown>)['getClient'] = async () => ({
+        messages: {
+          create: () => new Promise<never>(() => undefined),
+        },
+      });
+
+      await bridge.execute(createRequest({ timeoutMs: 30 }));
+
+      const metrics = bridge.getMetrics();
+      expect(metrics.totalCalls).toBe(1);
+      expect(metrics.totalTimeouts).toBe(1);
+      expect(metrics.totalRetries).toBe(0); // Timeouts are not retried
+    });
+  });
+
+  describe('metrics tracking', () => {
+    it('should expose correct metrics via getMetrics()', async () => {
+      const bridge = new AnthropicApiBridge({ apiKey: 'test-key' });
+
+      (bridge as unknown as Record<string, unknown>)['getClient'] = async () => ({
+        messages: {
+          create: async () => ({
+            content: [{ type: 'text', text: 'ok' }],
+            stop_reason: 'end_turn',
+            usage: { input_tokens: 10, output_tokens: 5 },
+          }),
+        },
+      });
+
+      await bridge.execute(createRequest());
+      const metrics = bridge.getMetrics();
+
+      expect(metrics.totalCalls).toBe(1);
+      expect(metrics.totalRetries).toBe(0);
+      expect(metrics.totalTimeouts).toBe(0);
+    });
+
+    it('should return a metrics snapshot (not live reference)', () => {
+      const bridge = new AnthropicApiBridge({ apiKey: 'test-key' });
+      const m1 = bridge.getMetrics();
+      const m2 = bridge.getMetrics();
+      expect(m1).not.toBe(m2);
+      expect(m1).toEqual(m2);
+    });
+  });
+
+  describe('rate limit configuration', () => {
+    it('should accept custom rateLimitConfig in constructor', () => {
+      const bridge = new AnthropicApiBridge({
+        apiKey: 'test-key',
+        rateLimitConfig: { requestsPerMinute: 10, minDelayMs: 500, maxConcurrent: 2 },
+      });
+      expect(bridge.supports('any-agent')).toBe(true);
+    });
+  });
 });

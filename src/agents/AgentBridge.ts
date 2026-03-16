@@ -61,6 +61,9 @@ export interface AgentRequest {
   /** Maximum conversation turns for multi-turn execution (default: 10) */
   maxTurns?: number;
 
+  /** Per-call API timeout in milliseconds (default: 120000) */
+  timeoutMs?: number;
+
   /** Whether to enable tool use in the bridge (default: true) */
   enableTools?: boolean;
 
