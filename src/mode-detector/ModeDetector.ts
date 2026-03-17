@@ -33,6 +33,7 @@ import {
   InvalidSessionStateError,
   OutputWriteError,
 } from './errors.js';
+import { getLogger } from '../logging/index.js';
 
 /**
  * Mode Detector Agent
@@ -245,7 +246,12 @@ export class ModeDetector {
     try {
       const files = fs.readdirSync(dirPath);
       return files.some((file) => file.endsWith('.md'));
-    } catch {
+    } catch (error) {
+      getLogger().debug('Cannot read directory for markdown detection', {
+        agent: 'ModeDetector',
+        dirPath,
+        error: error instanceof Error ? error.message : String(error),
+      });
       return false;
     }
   }
@@ -365,13 +371,16 @@ export class ModeDetector {
                 const content = fs.readFileSync(fullPath, 'utf-8');
                 lines += content.split('\n').length;
               } catch {
-                // Skip files that can't be read
+                // Expected for binary/locked files -- skip silently
               }
             }
           }
         }
-      } catch {
-        // Skip directories that can't be read
+      } catch (error) {
+        getLogger().debug('Skipping unreadable directory during mode detection', {
+          agent: 'ModeDetector',
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     };
 

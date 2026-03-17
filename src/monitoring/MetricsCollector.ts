@@ -20,6 +20,7 @@ import type {
   StageDuration,
 } from './types.js';
 import { DEFAULT_PATHS } from '../config/paths.js';
+import { getLogger } from '../logging/index.js';
 
 /**
  * Default metrics directory
@@ -499,8 +500,11 @@ export class MetricsCollector {
 
     try {
       fs.writeFileSync(filename, JSON.stringify(data, null, 2), { mode: 0o644 });
-    } catch {
-      // Ignore write errors
+    } catch (error) {
+      getLogger().debug('Failed to write metrics file', {
+        agent: 'MetricsCollector',
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
 
     // Also export Prometheus format if enabled
@@ -559,8 +563,11 @@ export class MetricsCollector {
     const filename = path.join(this.metricsDir, 'metrics.prom');
     try {
       fs.writeFileSync(filename, output, { mode: 0o644 });
-    } catch {
-      // Ignore write errors
+    } catch (error) {
+      getLogger().debug('Failed to write metrics file', {
+        agent: 'MetricsCollector',
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
 
     return output;

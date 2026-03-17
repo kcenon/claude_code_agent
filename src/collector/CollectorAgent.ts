@@ -34,6 +34,7 @@ import type {
   BatchInputResult,
 } from './types.js';
 import { ProjectInitError, MissingInformationError, SessionStateError } from './errors.js';
+import { getLogger } from '../logging/index.js';
 
 /**
  * Default configuration for CollectorAgent
@@ -190,8 +191,12 @@ export class CollectorAgent implements IAgent {
       const projectPath = scratchpad.getProjectPath(section, projectId);
       try {
         await fs.promises.rm(projectPath, { recursive: true, force: true });
-      } catch {
-        // Ignore cleanup errors - best effort cleanup
+      } catch (error) {
+        getLogger().debug('Scratchpad section cleanup failed', {
+          agent: 'CollectorAgent',
+          section,
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     }
 
@@ -203,8 +208,12 @@ export class CollectorAgent implements IAgent {
         if (entries.length === 0) {
           await fs.promises.rmdir(sectionPath);
         }
-      } catch {
-        // Ignore cleanup errors
+      } catch (error) {
+        getLogger().debug('Empty section directory cleanup failed', {
+          agent: 'CollectorAgent',
+          section,
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     }
   }

@@ -28,6 +28,7 @@ import type {
 import { getCommandSanitizer } from '../security/index.js';
 import { tryJsonParse, tryGetProjectRoot } from '../utils/index.js';
 import { SecurityAuditResultSchema } from '../schemas/github.js';
+import { getLogger } from '../logging/index.js';
 
 /**
  * Review Checks Options
@@ -466,8 +467,11 @@ export class ReviewChecks {
             }
           }
         }
-      } catch {
-        // File read failed, skip
+      } catch (error) {
+        getLogger().debug('Skipping unreadable file during review check', {
+          agent: 'ReviewChecks',
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     }
 
@@ -527,8 +531,11 @@ export class ReviewChecks {
             }
           }
         }
-      } catch {
-        // File read failed, skip
+      } catch (error) {
+        getLogger().debug('Skipping unreadable file during review check', {
+          agent: 'ReviewChecks',
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     }
 
@@ -589,8 +596,11 @@ export class ReviewChecks {
             }
           }
         }
-      } catch {
-        // File read failed, skip
+      } catch (error) {
+        getLogger().debug('Skipping unreadable file during review check', {
+          agent: 'ReviewChecks',
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     }
 
@@ -652,8 +662,11 @@ export class ReviewChecks {
             }
           }
         }
-      } catch {
-        // File read failed, skip
+      } catch (error) {
+        getLogger().debug('Skipping unreadable file during review check', {
+          agent: 'ReviewChecks',
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     }
 
@@ -743,8 +756,11 @@ export class ReviewChecks {
             violationsFound = true;
           }
         }
-      } catch {
-        // File read failed, skip
+      } catch (error) {
+        getLogger().debug('Skipping unreadable file during review check', {
+          agent: 'ReviewChecks',
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     }
 
@@ -823,8 +839,11 @@ export class ReviewChecks {
           // Simplified check - just flag if no try-catch visible
           hasProperErrorHandling = false;
         }
-      } catch {
-        // File read failed, skip
+      } catch (error) {
+        getLogger().debug('Skipping unreadable file during review check', {
+          agent: 'ReviewChecks',
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     }
 
@@ -889,7 +908,11 @@ export class ReviewChecks {
           details: 'Some tests are failing',
         });
       }
-    } catch {
+    } catch (error) {
+      getLogger().warn('Failed to run test suite', {
+        agent: 'ReviewChecks',
+        error: error instanceof Error ? error.message : String(error),
+      });
       items.push({
         name: 'Tests pass',
         passed: true,
@@ -943,8 +966,11 @@ export class ReviewChecks {
             });
           }
         }
-      } catch {
-        // File read failed, skip
+      } catch (error) {
+        getLogger().debug('Skipping unreadable file during review check', {
+          agent: 'ReviewChecks',
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     }
 
@@ -1005,8 +1031,11 @@ export class ReviewChecks {
             });
           }
         }
-      } catch {
-        // File read failed, skip
+      } catch (error) {
+        getLogger().debug('Skipping unreadable file during review check', {
+          agent: 'ReviewChecks',
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     }
 
@@ -1061,8 +1090,11 @@ export class ReviewChecks {
 
         totalComplexity += ifCount + forCount + whileCount + caseCount + catchCount;
         fileCount++;
-      } catch {
-        // File read failed, skip
+      } catch (error) {
+        getLogger().debug('Skipping unreadable file during review check', {
+          agent: 'ReviewChecks',
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     }
 
@@ -1150,7 +1182,11 @@ export class ReviewChecks {
           }
         }
       }
-    } catch {
+    } catch (error) {
+      getLogger().warn('Failed to run TypeScript compiler', {
+        agent: 'ReviewChecks',
+        error: error instanceof Error ? error.message : String(error),
+      });
       items.push({
         name: 'TypeScript type checking',
         passed: true,
@@ -1204,8 +1240,11 @@ export class ReviewChecks {
             });
           }
         }
-      } catch {
-        // File read failed, skip
+      } catch (error) {
+        getLogger().debug('Skipping unreadable file during review check', {
+          agent: 'ReviewChecks',
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     }
 
@@ -1383,7 +1422,11 @@ export class ReviewChecks {
               suggestedFix: "Run 'npm audit fix' or update affected packages manually",
             });
           }
-        } catch {
+        } catch (error) {
+          getLogger().warn('Failed to parse npm audit results', {
+            agent: 'ReviewChecks',
+            error: error instanceof Error ? error.message : String(error),
+          });
           items.push({
             name: 'Dependency vulnerabilities',
             passed: true,
@@ -1392,7 +1435,11 @@ export class ReviewChecks {
           });
         }
       }
-    } catch {
+    } catch (error) {
+      getLogger().warn('Failed to run npm audit', {
+        agent: 'ReviewChecks',
+        error: error instanceof Error ? error.message : String(error),
+      });
       items.push({
         name: 'Dependency vulnerabilities',
         passed: true,
@@ -1495,8 +1542,11 @@ export class ReviewChecks {
             }
           }
         }
-      } catch {
-        // File read failed, skip
+      } catch (error) {
+        getLogger().debug('Skipping unreadable file during review check', {
+          agent: 'ReviewChecks',
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     }
 
@@ -1563,8 +1613,11 @@ export class ReviewChecks {
             }
           }
         }
-      } catch {
-        // File read failed, skip
+      } catch (error) {
+        getLogger().debug('Skipping unreadable file during review check', {
+          agent: 'ReviewChecks',
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     }
 
@@ -1620,8 +1673,11 @@ export class ReviewChecks {
             }
           }
         }
-      } catch {
-        // File read failed, skip
+      } catch (error) {
+        getLogger().debug('Skipping unreadable file during review check', {
+          agent: 'ReviewChecks',
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     }
 
@@ -1703,8 +1759,11 @@ export class ReviewChecks {
             });
           }
         }
-      } catch {
-        // File read failed, skip
+      } catch (error) {
+        getLogger().debug('Skipping unreadable file during review check', {
+          agent: 'ReviewChecks',
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     }
 

@@ -13,6 +13,7 @@ import * as fs from 'node:fs';
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
 import { DEFAULT_PATHS } from '../config/paths.js';
+import { getLogger } from '../logging/index.js';
 
 /**
  * Latency targets in milliseconds
@@ -246,7 +247,13 @@ export class LatencyOptimizer {
       // Check if file exists
       try {
         await fsp.access(definitionPath);
-      } catch {
+      } catch (error) {
+        getLogger().debug('Agent definition not found during warmup', {
+          agent: 'LatencyOptimizer',
+          agentName,
+          definitionPath,
+          error: error instanceof Error ? error.message : String(error),
+        });
         const status: WarmupStatus = {
           resource: agentName,
           isWarm: false,

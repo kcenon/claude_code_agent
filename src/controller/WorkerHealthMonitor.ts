@@ -18,6 +18,7 @@ import type {
   HealthEventCallback,
   WorkerInfo,
 } from './types.js';
+import { getLogger } from '../logging/index.js';
 import { DEFAULT_HEALTH_CHECK_CONFIG } from './types.js';
 import { HealthMonitorAlreadyRunningError, HealthMonitorNotRunningError } from './errors.js';
 
@@ -287,8 +288,12 @@ export class WorkerHealthMonitor {
     if (this.onZombieDetected !== undefined) {
       try {
         await this.onZombieDetected(state.workerId, currentTask);
-      } catch {
-        // Log but don't throw - continue with recovery
+      } catch (error) {
+        getLogger().warn('Zombie detection handler failed', {
+          agent: 'WorkerHealthMonitor',
+          workerId: state.workerId,
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     }
 
@@ -302,8 +307,13 @@ export class WorkerHealthMonitor {
             newWorkerId,
           });
         }
-      } catch {
-        // Task reassignment failed - will be retried
+      } catch (error) {
+        getLogger().warn('Task reassignment failed for zombie worker', {
+          agent: 'WorkerHealthMonitor',
+          workerId: state.workerId,
+          taskId: currentTask,
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     }
 
@@ -508,8 +518,12 @@ export class WorkerHealthMonitor {
     for (const listener of this.eventListeners) {
       try {
         await listener(event);
-      } catch {
-        // Ignore listener errors
+      } catch (error) {
+        getLogger().debug('Health event listener error', {
+          agent: 'WorkerHealthMonitor',
+          eventType: type,
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     }
   }

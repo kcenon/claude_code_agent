@@ -27,6 +27,7 @@ import {
 import type { StateMachine } from './StateMachine.js';
 import type { StatePersistence } from './StatePersistence.js';
 import type { StateHistoryManager } from './StateHistory.js';
+import { getLogger } from '../logging/index.js';
 
 /**
  * Interface for state recovery operations
@@ -387,8 +388,13 @@ export class StateRecovery implements IStateRecovery {
         if (sectionState !== null) {
           sections[section] = sectionState;
         }
-      } catch {
-        // Ignore sections that don't exist
+      } catch (error) {
+        getLogger().debug('Recovery section state not found', {
+          agent: 'StateRecovery',
+          section,
+          projectId,
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     }
 

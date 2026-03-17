@@ -432,8 +432,12 @@ export class CircuitBreaker {
     for (const callback of this.eventCallbacks) {
       try {
         callback(event);
-      } catch {
-        // Ignore callback errors to prevent disrupting circuit breaker operation
+      } catch (error) {
+        getLogger().debug('Circuit breaker event callback error', {
+          agent: 'CircuitBreaker',
+          eventType: event.type,
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     }
   }

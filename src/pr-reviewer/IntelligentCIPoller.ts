@@ -21,6 +21,7 @@ import type {
 import { DEFAULT_INTELLIGENT_POLLER_CONFIG } from './types.js';
 import { CICircuitBreaker } from './CICircuitBreaker.js';
 import { CircuitOpenError } from './errors.js';
+import { getLogger } from '../logging/index.js';
 
 /**
  * CI status from GitHub check
@@ -206,8 +207,13 @@ export class IntelligentCIPoller {
         });
 
         await this.delay(interval);
-      } catch {
-        // Network or API errors
+      } catch (error) {
+        getLogger().warn('CI poll failed with network/API error', {
+          agent: 'IntelligentCIPoller',
+          prNumber,
+          pollCount,
+          error: error instanceof Error ? error.message : String(error),
+        });
         this.circuitBreaker.recordFailure('transient');
 
         // Apply backoff and continue
@@ -409,8 +415,12 @@ export class IntelligentCIPoller {
     for (const listener of this.listeners) {
       try {
         listener(event);
-      } catch {
-        // Ignore listener errors
+      } catch (error) {
+        getLogger().debug('CI poller event listener error', {
+          agent: 'IntelligentCIPoller',
+          eventType: event.type,
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     }
   }

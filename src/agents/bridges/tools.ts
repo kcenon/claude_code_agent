@@ -10,6 +10,7 @@
 
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { getLogger } from '../../logging/index.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -251,8 +252,11 @@ async function listAllFiles(projectDir: string): Promise<string[]> {
       if (stat.isFile()) {
         results.push(normalised);
       }
-    } catch {
-      // Skip inaccessible entries
+    } catch (error) {
+      getLogger().debug('Skipping inaccessible entry during file listing', {
+        path: fullPath,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
   return results;
@@ -303,8 +307,11 @@ async function executeSearchCode(
         // Reset regex lastIndex since we use 'g' flag
         regex.lastIndex = 0;
       }
-    } catch {
-      // Skip unreadable files
+    } catch (error) {
+      getLogger().debug('Skipping unreadable file during code search', {
+        file,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 

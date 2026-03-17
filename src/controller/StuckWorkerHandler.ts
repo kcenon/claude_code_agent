@@ -21,6 +21,7 @@ import type {
 } from './types.js';
 import { DEFAULT_STUCK_WORKER_CONFIG } from './types.js';
 import { StuckWorkerRecoveryError } from './errors.js';
+import { getLogger } from '../logging/index.js';
 
 /**
  * Worker state tracked by the handler
@@ -558,8 +559,12 @@ export class StuckWorkerHandler {
     for (const listener of this.eventListeners) {
       try {
         await listener(event);
-      } catch {
-        // Ignore listener errors
+      } catch (error) {
+        getLogger().debug('Stuck worker event listener error', {
+          agent: 'StuckWorkerHandler',
+          eventType: event.type,
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     }
   }

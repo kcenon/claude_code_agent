@@ -18,6 +18,7 @@ import type {
   LazyAgent,
 } from './types.js';
 import { AgentRegistry } from './AgentRegistry.js';
+import { getLogger } from '../logging/index.js';
 
 /**
  * Error thrown when agent creation fails
@@ -175,8 +176,12 @@ export class AgentFactory {
         if (oldInstance) {
           try {
             await oldInstance.dispose();
-          } catch {
-            // Ignore dispose errors when replacing
+          } catch (error) {
+            getLogger().warn('Failed to dispose old singleton during replacement', {
+              agent: 'AgentFactory',
+              agentId,
+              error: error instanceof Error ? error.message : String(error),
+            });
           }
         }
       }

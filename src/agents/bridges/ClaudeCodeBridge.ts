@@ -12,6 +12,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import type { AgentBridge, AgentRequest, AgentResponse } from '../AgentBridge.js';
+import { getLogger } from '../../logging/index.js';
 
 const DEFAULT_POLL_INTERVAL_MS = 1000;
 const DEFAULT_TIMEOUT_MS = 300_000; // 5 minutes
@@ -114,7 +115,7 @@ export class ClaudeCodeBridge implements AgentBridge {
           return content;
         }
       } catch {
-        // File doesn't exist yet — keep polling
+        // File doesn't exist yet -- keep polling
       }
 
       await new Promise((resolve) => setTimeout(resolve, this.pollIntervalMs));
@@ -147,7 +148,10 @@ export class ClaudeCodeBridge implements AgentBridge {
 
       return response;
     } catch {
-      // If not JSON, treat the raw content as the output
+      // Not JSON -- treat raw content as output
+      getLogger().debug('Agent output is not JSON, treating as raw text', {
+        agent: 'ClaudeCodeBridge',
+      });
       return {
         output: content,
         artifacts: [],

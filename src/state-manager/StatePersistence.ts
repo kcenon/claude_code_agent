@@ -13,6 +13,7 @@ import { randomUUID } from 'node:crypto';
 import { Scratchpad } from '../scratchpad/Scratchpad.js';
 import type { ScratchpadSection } from '../scratchpad/types.js';
 import type { ProjectState, StateWithMetadata, UpdateOptions, ReadStateOptions } from './types.js';
+import { getLogger } from '../logging/index.js';
 import {
   ProjectNotFoundError,
   ProjectExistsError,
@@ -184,8 +185,13 @@ export class StatePersistence implements IStatePersistence {
       const sectionPath = this.scratchpad.getProjectPath(section, projectId);
       try {
         await fs.promises.rm(sectionPath, { recursive: true, force: true });
-      } catch {
-        // Ignore errors during cleanup
+      } catch (error) {
+        getLogger().debug('Project section cleanup failed', {
+          agent: 'StatePersistence',
+          projectId,
+          section,
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     }
   }

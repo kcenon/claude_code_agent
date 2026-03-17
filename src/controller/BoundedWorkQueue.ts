@@ -27,6 +27,7 @@ import type {
   QueueRejectionReason,
 } from './types.js';
 import { DEFAULT_BOUNDED_QUEUE_CONFIG } from './types.js';
+import { getLogger } from '../logging/index.js';
 
 /**
  * Internal mutable work queue entry with priority
@@ -565,8 +566,12 @@ export class BoundedWorkQueue {
 
     try {
       await this.eventCallback(event);
-    } catch {
-      // Ignore callback errors
+    } catch (error) {
+      getLogger().debug('Queue event callback error', {
+        agent: 'BoundedWorkQueue',
+        eventType: type,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 

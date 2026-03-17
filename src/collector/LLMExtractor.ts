@@ -11,6 +11,7 @@ import { z } from 'zod';
 import type { AgentBridge } from '../agents/AgentBridge.js';
 import type { InformationExtractor } from './InformationExtractor.js';
 import type { ParsedInput, ExtractionResult } from './types.js';
+import { getLogger } from '../logging/index.js';
 
 /**
  * Zod schema for validating LLM extraction output.
@@ -71,7 +72,11 @@ export class LLMExtractor {
       }
 
       return this.parseExtraction(response.output);
-    } catch {
+    } catch (error) {
+      getLogger().warn('LLM extraction failed, falling back to keyword extractor', {
+        agent: 'LLMExtractor',
+        error: error instanceof Error ? error.message : String(error),
+      });
       return this.fallback.extract(input);
     }
   }

@@ -24,6 +24,7 @@ import type {
   TelemetryStats,
 } from './types.js';
 import { ConsentRequiredError, ConsentStorageError, InvalidEventError } from './errors.js';
+import { getLogger } from '../logging/index.js';
 
 // ============================================================
 // Constants
@@ -484,8 +485,11 @@ export class Telemetry {
           this.consentRecord = parsed as ConsentRecord;
         }
       }
-    } catch {
-      // Ignore errors loading consent - will be treated as pending
+    } catch (error) {
+      getLogger().debug('Failed to load telemetry consent, treating as pending', {
+        agent: 'Telemetry',
+        error: error instanceof Error ? error.message : String(error),
+      });
       this.consentRecord = null;
     }
   }

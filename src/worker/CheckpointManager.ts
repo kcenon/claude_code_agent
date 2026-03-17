@@ -18,6 +18,7 @@ import { join } from 'node:path';
 
 import type { ProgressCheckpoint, WorkerStep, WorkOrder, FileChange, CommitInfo } from './types.js';
 import { getScratchpad, type Scratchpad } from '../scratchpad/index.js';
+import { getLogger } from '../logging/index.js';
 import { tryGetProjectRoot } from '../utils/index.js';
 
 /**
@@ -197,8 +198,12 @@ export class CheckpointManager {
     const checkpointPath = this.getCheckpointPath(workOrderId);
     try {
       await this.scratchpad.deleteFile(checkpointPath);
-    } catch {
-      // Ignore if file doesn't exist
+    } catch (error) {
+      getLogger().debug('Checkpoint file not found or already deleted', {
+        agent: 'CheckpointManager',
+        workOrderId,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 
@@ -266,7 +271,12 @@ export class CheckpointManager {
           commits,
         };
       }
-    } catch {
+    } catch (error) {
+      getLogger().debug('Failed to extract checkpoint state', {
+        agent: 'CheckpointManager',
+        workOrderId: checkpoint.workOrderId,
+        error: error instanceof Error ? error.message : String(error),
+      });
       return null;
     }
   }
@@ -396,7 +406,11 @@ export class CheckpointManager {
       return entries
         .filter((name) => name.endsWith('-checkpoint.yaml'))
         .map((name) => name.replace('-checkpoint.yaml', ''));
-    } catch {
+    } catch (error) {
+      getLogger().debug('Failed to list checkpoints', {
+        agent: 'CheckpointManager',
+        error: error instanceof Error ? error.message : String(error),
+      });
       return [];
     }
   }

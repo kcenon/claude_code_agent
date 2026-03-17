@@ -202,7 +202,12 @@ function isCacheValid(filePath: string): boolean {
   try {
     const stats = statSync(filePath);
     return stats.mtimeMs === entry.mtime;
-  } catch {
+  } catch (error) {
+    getLogger().debug('Config cache validation failed, file may have been deleted', {
+      agent: 'ConfigLoader',
+      filePath,
+      error: error instanceof Error ? error.message : String(error),
+    });
     return false;
   }
 }
@@ -232,8 +237,12 @@ function setCachedConfig(filePath: string, data: unknown): void {
       timestamp: Date.now(),
       mtime: stats.mtimeMs,
     });
-  } catch {
-    // If we can't stat the file, don't cache
+  } catch (error) {
+    getLogger().debug('Cannot stat config file for caching', {
+      agent: 'ConfigLoader',
+      filePath,
+      error: error instanceof Error ? error.message : String(error),
+    });
   }
 }
 

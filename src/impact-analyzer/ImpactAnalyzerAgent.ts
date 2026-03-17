@@ -398,7 +398,7 @@ export class ImpactAnalyzerAgent implements IAgent {
           }
         }
       } catch {
-        // Fall through to text parsing
+        // YAML parse failed -- fall through to text parsing
       }
     }
 
@@ -438,6 +438,7 @@ export class ImpactAnalyzerAgent implements IAgent {
       await fs.access(filePath);
       return true;
     } catch {
+      // File does not exist or is inaccessible
       return false;
     }
   }

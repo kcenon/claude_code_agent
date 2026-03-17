@@ -21,6 +21,7 @@ import type {
 } from './types.js';
 import { DEFAULT_CIRCUIT_BREAKER_CONFIG } from './types.js';
 import { CircuitOpenError } from './errors.js';
+import { getLogger } from '../logging/index.js';
 
 /**
  * Event types emitted by the circuit breaker
@@ -337,8 +338,12 @@ export class CICircuitBreaker {
     for (const listener of this.listeners) {
       try {
         listener(event);
-      } catch {
-        // Ignore listener errors
+      } catch (error) {
+        getLogger().debug('Circuit breaker event listener error', {
+          agent: 'CICircuitBreaker',
+          eventType: event.type,
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     }
   }
