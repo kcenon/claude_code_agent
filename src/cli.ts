@@ -992,6 +992,17 @@ program
       }
     }
 
+    // Validate API credentials before starting (fail fast instead of mid-pipeline)
+    {
+      const preCheckRegistry = createDefaultBridgeRegistry();
+      if (preCheckRegistry.isStub('collector')) {
+        output.error(chalk.red('\n❌ No API credentials configured.'));
+        output.info(chalk.dim('Set ANTHROPIC_API_KEY or run inside a Claude Code session.'));
+        output.info(chalk.dim('Use --dry-run to validate configuration without execution.\n'));
+        process.exit(1);
+      }
+    }
+
     // Display pipeline info
     output.info(chalk.blue('\n🚀 AD-SDLC Pipeline Execution\n'));
     output.info(chalk.dim(`Mode: ${mode}`));
@@ -1104,6 +1115,21 @@ function formatPipelineStatus(status: string): string {
       return chalk.dim(status);
   }
 }
+
+// Global error handlers — catch async errors that escape command handlers
+process.on('uncaughtException', (error: Error) => {
+  output.error(`Fatal: Uncaught exception — ${error.message}`);
+  if (error.stack !== undefined) {
+    output.error(error.stack);
+  }
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason: unknown) => {
+  const message = reason instanceof Error ? reason.message : String(reason);
+  output.error(`Fatal: Unhandled promise rejection — ${message}`);
+  process.exit(1);
+});
 
 // Parse command line arguments
 program.parse();

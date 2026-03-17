@@ -81,8 +81,15 @@ export class SQLiteBackend implements IScratchpadBackend {
     const dir = path.dirname(this.dbPath);
     await fs.promises.mkdir(dir, { recursive: true });
 
-    // Dynamic import of better-sqlite3
-    const BetterSqlite3Module = await import('better-sqlite3');
+    // Dynamic import of better-sqlite3 (optional peer dependency)
+    let BetterSqlite3Module;
+    try {
+      BetterSqlite3Module = await import('better-sqlite3');
+    } catch {
+      throw new Error(
+        'better-sqlite3 is required for SQLite scratchpad backend. Install: npm install better-sqlite3'
+      );
+    }
     const BetterSqlite3 =
       'default' in BetterSqlite3Module ? BetterSqlite3Module.default : BetterSqlite3Module;
 
