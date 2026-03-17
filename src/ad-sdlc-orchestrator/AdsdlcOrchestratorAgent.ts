@@ -558,7 +558,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
       const stage = stages[index]!;
       return {
         name: stage.name,
-        agentType: stage.agentType ?? stage.name,
+        agentType: stage.agentType,
         status: 'failed' as const,
         durationMs: 0,
         output: '',
