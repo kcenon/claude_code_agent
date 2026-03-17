@@ -264,7 +264,7 @@ export function invalidateConfigCache(filePath: string): void {
  * @param filePath - Path to the configuration file
  * @returns Deep clone of cached data, or undefined if not cached
  */
-export function snapshotConfigCache(filePath: string): unknown | undefined {
+export function snapshotConfigCache(filePath: string): unknown {
   const entry = configCache.get(filePath);
   if (!entry) {
     return undefined;
