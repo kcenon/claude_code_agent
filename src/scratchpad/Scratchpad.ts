@@ -479,7 +479,11 @@ export class Scratchpad {
     try {
       const entries = await fs.promises.readdir(documentsPath, { withFileTypes: true });
       return entries.filter((e) => e.isDirectory()).map((e) => e.name);
-    } catch {
+    } catch (error) {
+      logger.debug('No projects found in documents section', {
+        agent: 'Scratchpad',
+        error: error instanceof Error ? error.message : String(error),
+      });
       return [];
     }
   }
@@ -494,7 +498,11 @@ export class Scratchpad {
     try {
       const entries = fs.readdirSync(documentsPath, { withFileTypes: true });
       return entries.filter((e) => e.isDirectory()).map((e) => e.name);
-    } catch {
+    } catch (error) {
+      logger.debug('No projects found in documents section (sync)', {
+        agent: 'Scratchpad',
+        error: error instanceof Error ? error.message : String(error),
+      });
       return [];
     }
   }
@@ -600,8 +608,11 @@ export class Scratchpad {
     } catch (error) {
       try {
         fs.unlinkSync(tempPath);
-      } catch {
-        // Ignore cleanup errors
+      } catch (error) {
+        logger.debug('Cleanup error (non-critical)', {
+          agent: 'Scratchpad',
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
       throw error;
     }
@@ -707,7 +718,11 @@ export class Scratchpad {
       });
 
       return true;
-    } catch {
+    } catch (error) {
+      logger.debug('Lock heartbeat renewal failed', {
+        agent: 'Scratchpad',
+        error: error instanceof Error ? error.message : String(error),
+      });
       return false;
     }
   }
@@ -783,11 +798,14 @@ export class Scratchpad {
             cleanedCount++;
           }
         } catch {
-          // Ignore individual lock cleanup errors
+          // Lock file may have already been cleaned up
         }
       }
-    } catch {
-      // Ignore scan errors
+    } catch (error) {
+      logger.debug('Lock directory scan failed', {
+        agent: 'Scratchpad',
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
 
     return cleanedCount;
@@ -815,8 +833,11 @@ export class Scratchpad {
           lockFiles.push(fullPath);
         }
       }
-    } catch {
-      // Ignore access errors
+    } catch (error) {
+      logger.debug('File access check failed', {
+        agent: 'Scratchpad',
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
 
     return lockFiles;
@@ -881,7 +902,11 @@ export class Scratchpad {
       // Atomic replace using rename (atomic on POSIX systems)
       await fs.promises.rename(tempPath, lockPath);
       return true;
-    } catch {
+    } catch (error) {
+      logger.debug('Stale lock reclamation failed', {
+        agent: 'Scratchpad',
+        error: error instanceof Error ? error.message : String(error),
+      });
       return false;
     }
   }
@@ -932,7 +957,7 @@ export class Scratchpad {
     try {
       await fs.promises.mkdir(lockDir, { recursive: true, mode: this.dirMode });
     } catch {
-      // Directory may already exist
+      // Directory may already exist -- not an error
     }
 
     for (let attempt = 0; attempt < retryAttempts; attempt++) {
@@ -1095,6 +1120,7 @@ export class Scratchpad {
       // Internal data saved by this class - use direct parse with type assertion
       return JSON.parse(content) as FileLock;
     } catch {
+      // Lock file may not exist or be corrupted
       return null;
     }
   }
@@ -1147,7 +1173,11 @@ export class Scratchpad {
       });
       this.pendingReleaseRequests.add(releaseRequestPath);
       return request;
-    } catch {
+    } catch (error) {
+      logger.debug('Failed to create lock release request', {
+        agent: 'Scratchpad',
+        error: error instanceof Error ? error.message : String(error),
+      });
       return null;
     }
   }
@@ -1164,6 +1194,7 @@ export class Scratchpad {
       const content = await fs.promises.readFile(releaseRequestPath, 'utf8');
       return JSON.parse(content) as LockReleaseRequest;
     } catch {
+      // Release request may not exist or be corrupted
       return null;
     }
   }
@@ -1179,7 +1210,7 @@ export class Scratchpad {
       await fs.promises.unlink(releaseRequestPath);
       this.pendingReleaseRequests.delete(releaseRequestPath);
     } catch {
-      // Ignore if not found
+      // File may not exist -- not an error
     }
   }
 
@@ -1532,8 +1563,11 @@ export class Scratchpad {
     } catch (error) {
       try {
         fs.unlinkSync(tempPath);
-      } catch {
-        // Ignore cleanup errors
+      } catch (error) {
+        logger.debug('Cleanup error (non-critical)', {
+          agent: 'Scratchpad',
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
       throw error;
     }
@@ -1898,8 +1932,11 @@ export class Scratchpad {
       }
       try {
         await this.releaseLock(filePath, entry.holderId);
-      } catch {
-        // Ignore cleanup errors
+      } catch (error) {
+        logger.debug('Cleanup error (non-critical)', {
+          agent: 'Scratchpad',
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     }
     this.activeLocks.clear();
@@ -1908,8 +1945,11 @@ export class Scratchpad {
     for (const requestPath of this.pendingReleaseRequests) {
       try {
         await fs.promises.unlink(requestPath);
-      } catch {
-        // Ignore cleanup errors
+      } catch (error) {
+        logger.debug('Cleanup error (non-critical)', {
+          agent: 'Scratchpad',
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     }
     this.pendingReleaseRequests.clear();
@@ -1937,8 +1977,11 @@ export class Scratchpad {
     for (const requestPath of this.pendingReleaseRequests) {
       try {
         fs.unlinkSync(requestPath);
-      } catch {
-        // Ignore cleanup errors
+      } catch (error) {
+        logger.debug('Cleanup error (non-critical)', {
+          agent: 'Scratchpad',
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     }
     this.pendingReleaseRequests.clear();

@@ -404,7 +404,12 @@ export class RetryHandler {
       const content = await readFile(filePath, 'utf-8');
       // Internal data saved by this class - use direct parse with type assertion
       return JSON.parse(content) as ProgressCheckpoint;
-    } catch {
+    } catch (error) {
+      getLogger().debug('Failed to load checkpoint', {
+        agent: 'RetryHandler',
+        taskId,
+        error: error instanceof Error ? error.message : String(error),
+      });
       return null;
     }
   }
@@ -427,8 +432,12 @@ export class RetryHandler {
       if (existsSync(filePath)) {
         await unlink(filePath);
       }
-    } catch {
-      // Ignore deletion errors
+    } catch (error) {
+      getLogger().debug('Failed to clear checkpoint file', {
+        agent: 'RetryHandler',
+        taskId,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 

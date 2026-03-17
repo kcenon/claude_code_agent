@@ -24,6 +24,7 @@ import type {
   AlertEventWithEscalation,
 } from './types.js';
 import { DEFAULT_PATHS } from '../config/paths.js';
+import { getLogger } from '../logging/index.js';
 
 /**
  * Default alerts directory
@@ -370,8 +371,12 @@ export class AlertManager {
     for (const handler of this.handlers) {
       try {
         void handler(event);
-      } catch {
-        // Ignore handler errors
+      } catch (error) {
+        getLogger().debug('Alert handler error', {
+          agent: 'AlertManager',
+          alertName: event.name,
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     }
   }
@@ -414,8 +419,12 @@ export class AlertManager {
 
     try {
       fs.appendFileSync(filename, JSON.stringify(event) + '\n', { mode: 0o644 });
-    } catch {
-      // Ignore write errors
+    } catch (error) {
+      getLogger().debug('Failed to write alert to file', {
+        agent: 'AlertManager',
+        alertName: event.name,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 

@@ -45,6 +45,7 @@ import { StatePersistence } from './StatePersistence.js';
 import { StateHistoryManager } from './StateHistory.js';
 import { StateWatcherManager } from './StateWatcher.js';
 import { StateRecovery } from './StateRecovery.js';
+import { getLogger } from '../logging/index.js';
 
 /**
  * Default options for StateManager
@@ -485,8 +486,13 @@ export class StateManager {
         if (sectionState !== null) {
           sections[section] = sectionState;
         }
-      } catch {
-        // Ignore sections that don't exist
+      } catch (error) {
+        getLogger().debug('Section state not found, skipping', {
+          agent: 'StateManager',
+          section,
+          projectId,
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     }
 

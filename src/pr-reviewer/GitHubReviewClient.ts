@@ -18,6 +18,7 @@ import { DEFAULT_GITHUB_REVIEW_CLIENT_CONFIG } from './types.js';
 import { ReviewCommentError } from './errors.js';
 import { getCommandSanitizer } from '../security/index.js';
 import { tryGetProjectRoot } from '../utils/index.js';
+import { getLogger } from '../logging/index.js';
 
 /**
  * Command execution result
@@ -268,7 +269,11 @@ export class GitHubReviewClient {
         reviewSubmitted: true,
         reviewId: response.id,
       };
-    } catch {
+    } catch (error) {
+      getLogger().warn('Failed to submit GitHub review with line comments', {
+        agent: 'GitHubReviewClient',
+        error: error instanceof Error ? error.message : String(error),
+      });
       return {
         reviewSubmitted: false,
       };
@@ -305,7 +310,13 @@ export class GitHubReviewClient {
         success: true,
         reviewId: response.id,
       };
-    } catch {
+    } catch (error) {
+      getLogger().warn('Failed to submit GitHub review', {
+        agent: 'GitHubReviewClient',
+        prNumber,
+        event,
+        error: error instanceof Error ? error.message : String(error),
+      });
       return { success: false };
     }
   }

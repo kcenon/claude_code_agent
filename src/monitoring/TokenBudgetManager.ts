@@ -26,6 +26,7 @@ import type {
   ProjectedOverageAlert,
 } from './types.js';
 import { DEFAULT_PATHS } from '../config/paths.js';
+import { getLogger } from '../logging/index.js';
 
 /**
  * Budget threshold configuration
@@ -925,7 +926,12 @@ export class TokenBudgetManager {
       const filePath = this.getPersistenceFilePath();
       fs.writeFileSync(filePath, JSON.stringify(state, null, 2), { mode: 0o644 });
       return true;
-    } catch {
+    } catch (error) {
+      getLogger().warn('Failed to persist budget state', {
+        agent: 'TokenBudgetManager',
+        sessionId: this.sessionId,
+        error: error instanceof Error ? error.message : String(error),
+      });
       return false;
     }
   }
@@ -977,7 +983,12 @@ export class TokenBudgetManager {
       }
 
       return true;
-    } catch {
+    } catch (error) {
+      getLogger().warn('Failed to load budget state from persistence', {
+        agent: 'TokenBudgetManager',
+        sessionId: this.sessionId,
+        error: error instanceof Error ? error.message : String(error),
+      });
       return false;
     }
   }
@@ -997,7 +1008,12 @@ export class TokenBudgetManager {
         fs.unlinkSync(filePath);
       }
       return true;
-    } catch {
+    } catch (error) {
+      getLogger().warn('Failed to delete persisted budget state', {
+        agent: 'TokenBudgetManager',
+        sessionId: this.sessionId,
+        error: error instanceof Error ? error.message : String(error),
+      });
       return false;
     }
   }
@@ -1036,7 +1052,11 @@ export class TokenBudgetManager {
         .filter((f) => f.startsWith('budget-') && f.endsWith('.json'));
 
       return files.map((f) => f.replace(/^budget-/, '').replace(/\.json$/, ''));
-    } catch {
+    } catch (error) {
+      getLogger().debug('Failed to list persisted budget sessions', {
+        agent: 'TokenBudgetManager',
+        error: error instanceof Error ? error.message : String(error),
+      });
       return [];
     }
   }
@@ -1061,7 +1081,12 @@ export class TokenBudgetManager {
     try {
       const content = fs.readFileSync(filePath, 'utf8');
       return JSON.parse(content) as BudgetPersistenceState;
-    } catch {
+    } catch (error) {
+      getLogger().debug('Failed to load budget session', {
+        agent: 'TokenBudgetManager',
+        sessionId,
+        error: error instanceof Error ? error.message : String(error),
+      });
       return null;
     }
   }
@@ -1081,7 +1106,12 @@ export class TokenBudgetManager {
         fs.unlinkSync(filePath);
       }
       return true;
-    } catch {
+    } catch (error) {
+      getLogger().debug('Failed to delete budget session', {
+        agent: 'TokenBudgetManager',
+        sessionId,
+        error: error instanceof Error ? error.message : String(error),
+      });
       return false;
     }
   }
@@ -1117,8 +1147,11 @@ export class TokenBudgetManager {
           deletedCount++;
         }
       }
-    } catch {
-      // Ignore cleanup errors
+    } catch (error) {
+      getLogger().debug('Failed to clean up old budget sessions', {
+        agent: 'TokenBudgetManager',
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
 
     return deletedCount;

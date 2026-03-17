@@ -26,6 +26,7 @@ import { getAgentTypeEntry } from './AgentTypeMapping.js';
 import type { AgentTypeEntry } from './AgentTypeMapping.js';
 import type { AgentRequest } from './AgentBridge.js';
 import { BridgeRegistry } from './BridgeRegistry.js';
+import { getLogger } from '../logging/index.js';
 
 /**
  * Function signature for per-agent call adapters.
@@ -373,8 +374,11 @@ export class AgentDispatcher {
           await wrapped.initialize();
           return wrapped;
         }
-      } catch {
-        // Constructor may require arguments; skip and try next
+      } catch (error) {
+        getLogger().debug(`Constructor for ${name} requires arguments, skipping`, {
+          agent: 'AgentDispatcher',
+          error: error instanceof Error ? error.message : String(error),
+        });
         continue;
       }
     }
@@ -393,8 +397,11 @@ export class AgentDispatcher {
             await instance.initialize();
             return instance;
           }
-        } catch {
-          // Not a constructable default
+        } catch (error) {
+          getLogger().debug('Default export is not constructable', {
+            agent: 'AgentDispatcher',
+            error: error instanceof Error ? error.message : String(error),
+          });
         }
       }
     }

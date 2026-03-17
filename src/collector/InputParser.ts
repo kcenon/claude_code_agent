@@ -447,6 +447,7 @@ export class InputParser {
         const parsed: unknown = JSON.parse(content);
         return JSON.stringify(parsed, null, 2);
       } catch {
+        // Content claimed to be JSON but failed to parse -- return raw
         return content;
       }
     }

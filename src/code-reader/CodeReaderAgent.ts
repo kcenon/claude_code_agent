@@ -73,6 +73,7 @@ import {
   SourceDirectoryNotFoundError,
   TooManyParseErrorsError,
 } from './errors.js';
+import { getLogger } from '../logging/index.js';
 
 // YAML import with dynamic loading for compatibility
 let yaml: { dump: (obj: unknown) => string } | null = null;
@@ -354,8 +355,12 @@ export class CodeReaderAgent {
               };
             }
           }
-        } catch {
-          // File might have been deleted, skip
+        } catch (error) {
+          getLogger().debug('Skipping file that may have been deleted', {
+            agent: 'CodeReaderAgent',
+            filePath,
+            error: error instanceof Error ? error.message : String(error),
+          });
         }
       }
     }
@@ -701,8 +706,11 @@ export class CodeReaderAgent {
 
       const description = firstDoc.getDescription();
       return description.trim() || undefined;
-    } catch {
-      // If JSDoc parsing fails, return undefined
+    } catch (error) {
+      getLogger().debug('JSDoc parsing failed', {
+        agent: 'CodeReaderAgent',
+        error: error instanceof Error ? error.message : String(error),
+      });
       return undefined;
     }
   }

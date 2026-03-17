@@ -13,6 +13,7 @@ import { randomUUID } from 'node:crypto';
 import type { IAgent } from '../agents/types.js';
 import { WorkerPoolManager } from './WorkerPoolManager.js';
 import { PriorityAnalyzer } from './PriorityAnalyzer.js';
+import { getLogger } from '../logging/index.js';
 import { ProgressMonitor } from './ProgressMonitor.js';
 import type {
   WorkerPoolConfig,
@@ -89,8 +90,11 @@ export class ControllerAgentAdapter implements IAgent {
     if (this.progressMonitor) {
       try {
         this.progressMonitor.stop();
-      } catch {
-        // Monitor may not be running - safe to ignore
+      } catch (error) {
+        getLogger().debug('ProgressMonitor stop failed during dispose', {
+          agent: 'ControllerAgentAdapter',
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     }
     this.poolManager = null;

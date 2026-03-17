@@ -12,6 +12,7 @@ import { randomUUID } from 'node:crypto';
 import { Scratchpad } from '../scratchpad/Scratchpad.js';
 import type { ScratchpadSection } from '../scratchpad/types.js';
 import type { StateChangeEvent, StateChangeCallback, StateWatcher } from './types.js';
+import { getLogger } from '../logging/index.js';
 
 /**
  * Interface for state watcher operations
@@ -93,8 +94,12 @@ export class StateWatcherManager implements IStateWatcher {
       });
 
       this.fsWatchers.set(watcherId, fsWatcher);
-    } catch {
-      // Directory might not exist yet, which is fine
+    } catch (error) {
+      getLogger().debug('Watch directory does not exist yet', {
+        agent: 'StateWatcher',
+        projectId,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
 
     const watcher: StateWatcher = {
@@ -148,8 +153,13 @@ export class StateWatcherManager implements IStateWatcher {
         };
         callback(event);
       }
-    } catch {
-      // Ignore errors during watch callback
+    } catch (error) {
+      getLogger().debug('Watch callback error', {
+        agent: 'StateWatcher',
+        projectId,
+        section,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 
@@ -187,8 +197,12 @@ export class StateWatcherManager implements IStateWatcher {
         if (callback) {
           try {
             callback(event as StateChangeEvent);
-          } catch {
-            // Ignore callback errors
+          } catch (error) {
+            getLogger().debug('State change notification callback error', {
+              agent: 'StateWatcher',
+              watcherId,
+              error: error instanceof Error ? error.message : String(error),
+            });
           }
         }
       }

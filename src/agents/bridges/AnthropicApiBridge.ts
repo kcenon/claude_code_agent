@@ -18,6 +18,7 @@ import {
   type ConversationMessage,
   type ToolResultBlock,
 } from './tools.js';
+import { getLogger } from '../../logging/index.js';
 
 /** Model ID mapping from agents.yaml model_preference to Anthropic API model IDs */
 const MODEL_MAP: Record<string, string> = {
@@ -471,7 +472,12 @@ export class AnthropicApiBridge implements AgentBridge {
     try {
       const content = await fs.readFile(defPath, 'utf-8');
       return this.stripFrontmatter(content);
-    } catch {
+    } catch (error) {
+      getLogger().debug(`Agent definition not found at ${defPath}, using fallback prompt`, {
+        agent: 'AnthropicApiBridge',
+        agentType,
+        error: error instanceof Error ? error.message : String(error),
+      });
       return `You are the ${agentType} agent. Complete the requested task.`;
     }
   }

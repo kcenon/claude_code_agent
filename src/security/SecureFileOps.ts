@@ -24,6 +24,7 @@ import type {
   FileWatchEvent,
   FileWatchEventType,
 } from './types.js';
+import { getLogger } from '../logging/index.js';
 
 /**
  * Configuration options for SecureFileOps
@@ -734,7 +735,7 @@ export class SecureFileOps {
               this.validateSymlinkTargetSync(changedPath);
             }
           } catch {
-            // File may have been deleted, which is OK
+            // File may have been deleted during watch -- expected
           }
         }
 
@@ -796,8 +797,11 @@ export class SecureFileOps {
     watcherState.active = false;
     try {
       watcherState.watcher.close();
-    } catch {
-      // Watcher may already be closed due to error (e.g., EMFILE)
+    } catch (error) {
+      getLogger().debug('Watcher already closed', {
+        agent: 'SecureFileOps',
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
 
     // Clear all pending debounce timers
@@ -1035,8 +1039,11 @@ export class SecureFileOps {
         action,
         result: 'success',
       });
-    } catch {
-      // Silently ignore audit logging errors
+    } catch (error) {
+      getLogger().debug('Audit logging failed', {
+        agent: 'SecureFileOps',
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 }

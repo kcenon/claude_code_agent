@@ -1119,7 +1119,11 @@ export class WorkerAgent implements IAgent {
     try {
       const { stdout } = await this.execGit('branch --show-current');
       return stdout.trim();
-    } catch {
+    } catch (error) {
+      getLogger().debug('Failed to detect current git branch', {
+        agent: 'WorkerAgent',
+        error: error instanceof Error ? error.message : String(error),
+      });
       return 'unknown';
     }
   }
@@ -1467,7 +1471,11 @@ export class WorkerAgent implements IAgent {
     let parsed: unknown;
     try {
       parsed = JSON.parse(jsonStr);
-    } catch {
+    } catch (error) {
+      getLogger().warn('Failed to parse code changes JSON from agent output', {
+        agent: 'WorkerAgent',
+        error: error instanceof Error ? error.message : String(error),
+      });
       return [];
     }
 
@@ -1533,8 +1541,12 @@ export class WorkerAgent implements IAgent {
     if (change.action === 'delete') {
       try {
         await unlink(normalizedTarget);
-      } catch {
-        // Ignore if file doesn't exist
+      } catch (error) {
+        getLogger().debug('File to delete not found, skipping', {
+          agent: 'WorkerAgent',
+          filePath: change.filePath,
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
       return;
     }

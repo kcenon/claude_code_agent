@@ -25,6 +25,7 @@ import type {
   ActivityEntry,
   StatusDisplayResult,
 } from './types.js';
+import { getLogger } from '../logging/index.js';
 
 /**
  * Default status options
@@ -181,7 +182,11 @@ export class StatusService {
       }
 
       return result;
-    } catch {
+    } catch (error) {
+      getLogger().debug('Failed to get pipeline status', {
+        agent: 'StatusService',
+        error: error instanceof Error ? error.message : String(error),
+      });
       return null;
     }
   }
@@ -384,7 +389,12 @@ export class StatusService {
       }
       const info = await this.scratchpad.readYaml<{ name?: string }>(infoPath);
       return info?.name;
-    } catch {
+    } catch (error) {
+      getLogger().debug('Failed to get project name', {
+        agent: 'StatusService',
+        projectId,
+        error: error instanceof Error ? error.message : String(error),
+      });
       return undefined;
     }
   }
@@ -443,7 +453,11 @@ export class StatusService {
       }
 
       return counts;
-    } catch {
+    } catch (error) {
+      getLogger().debug('Failed to get issue status counts', {
+        agent: 'StatusService',
+        error: error instanceof Error ? error.message : String(error),
+      });
       return { total: 0, pending: 0, inProgress: 0, completed: 0, blocked: 0 };
     }
   }
@@ -496,13 +510,21 @@ export class StatusService {
             }
             workers.push(finalStatus);
           }
-        } catch {
-          // Skip invalid files
+        } catch (error) {
+          getLogger().debug('Skipping invalid work order file', {
+            agent: 'StatusService',
+            file,
+            error: error instanceof Error ? error.message : String(error),
+          });
         }
       }
 
       return workers;
-    } catch {
+    } catch (error) {
+      getLogger().debug('Failed to get worker status', {
+        agent: 'StatusService',
+        error: error instanceof Error ? error.message : String(error),
+      });
       return [];
     }
   }
@@ -540,7 +562,11 @@ export class StatusService {
           type: 'info',
         };
       });
-    } catch {
+    } catch (error) {
+      getLogger().debug('Failed to get recent activity', {
+        agent: 'StatusService',
+        error: error instanceof Error ? error.message : String(error),
+      });
       return [];
     }
   }

@@ -16,6 +16,7 @@ import {
   type ExecutionResult,
   getCommandExecutor,
 } from '../utilities/CommandExecutor.js';
+import { getLogger } from '../logging/index.js';
 
 /**
  * Command execution result (alias for ExecutionResult for backward compatibility)
@@ -711,7 +712,12 @@ export class FixStrategies {
 
       const scriptName = npmScript.replace('npm run ', '');
       return packageJson.scripts?.[scriptName] !== undefined;
-    } catch {
+    } catch (error) {
+      getLogger().debug('Cannot read package.json to check for npm script', {
+        agent: 'FixStrategies',
+        npmScript,
+        error: error instanceof Error ? error.message : String(error),
+      });
       return false;
     }
   }

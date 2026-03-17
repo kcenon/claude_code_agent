@@ -10,6 +10,7 @@
 import { mkdir, writeFile, readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { getLogger } from '../logging/index.js';
 
 import type {
   WorkerPoolStatus,
@@ -331,8 +332,12 @@ export class ProgressMonitor {
     for (const listener of this.eventListeners) {
       try {
         await listener(event);
-      } catch {
-        // Ignore listener errors
+      } catch (error) {
+        getLogger().debug('Progress event listener error', {
+          agent: 'ProgressMonitor',
+          eventType: type,
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     }
   }

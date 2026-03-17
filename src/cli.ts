@@ -32,6 +32,7 @@ import {
   resetAnalysisOrchestratorAgent,
 } from './analysis-orchestrator/index.js';
 import type { AnalysisScope } from './analysis-orchestrator/types.js';
+import { getLogger } from './logging/index.js';
 import {
   getAdsdlcOrchestratorAgent,
   resetAdsdlcOrchestratorAgent,
@@ -462,8 +463,11 @@ program
       if (!isProjectInitialized()) {
         try {
           initializeProject(resolve(projectPath), { silent: true });
-        } catch {
-          // Ignore initialization errors - modules will fallback to process.cwd()
+        } catch (error) {
+          getLogger().debug('Project initialization skipped, using fallback paths', {
+            agent: 'CLI',
+            error: error instanceof Error ? error.message : String(error),
+          });
         }
       }
 
@@ -924,8 +928,11 @@ program
     if (!isProjectInitialized()) {
       try {
         initializeProject(projectDir, { silent: true });
-      } catch {
-        // Ignore — modules will fallback to process.cwd()
+      } catch (error) {
+        getLogger().debug('Project initialization skipped, using fallback paths', {
+          agent: 'CLI',
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     }
 

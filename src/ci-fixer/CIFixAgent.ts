@@ -46,6 +46,7 @@ import {
   type ExecutionResult,
   getCommandExecutor,
 } from '../utilities/CommandExecutor.js';
+import { getLogger } from '../logging/index.js';
 
 /**
  * Command execution result (alias for ExecutionResult for backward compatibility)
@@ -336,8 +337,12 @@ export class CIFixAgent implements IAgent {
         try {
           const logs = await this.fetchCILogs(check.runId);
           allLogs += `\n=== ${check.name} ===\n${logs}\n`;
-        } catch {
-          // Log fetch failure is not critical
+        } catch (error) {
+          getLogger().debug('CI log fetch failed for check', {
+            agent: 'CIFixAgent',
+            checkName: check.name,
+            error: error instanceof Error ? error.message : String(error),
+          });
           allLogs += `\n=== ${check.name} === (logs unavailable)\n`;
         }
       }
@@ -347,8 +352,12 @@ export class CIFixAgent implements IAgent {
     try {
       const workflowLogs = await this.fetchWorkflowLogs(handoff.prNumber);
       allLogs += `\n=== Workflow Logs ===\n${workflowLogs}\n`;
-    } catch {
-      // Workflow logs unavailable
+    } catch (error) {
+      getLogger().debug('Workflow logs unavailable', {
+        agent: 'CIFixAgent',
+        prNumber: handoff.prNumber,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
 
     // Analyze the logs
@@ -735,7 +744,11 @@ _This escalation was generated automatically by the CI Fix Agent._`;
           conclusion: c.conclusion as 'failure' | 'neutral',
           logsUrl: c.detailsUrl,
         }));
-    } catch {
+    } catch (error) {
+      getLogger().warn('Failed to fetch CI check results', {
+        agent: 'CIFixAgent',
+        error: error instanceof Error ? error.message : String(error),
+      });
       return [];
     }
   }

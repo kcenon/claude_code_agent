@@ -27,6 +27,7 @@ import {
   GitHubReviewsResponseSchema,
   type GitHubReview,
 } from '../schemas/github.js';
+import { getLogger } from '../logging/index.js';
 
 /**
  * Command execution result
@@ -130,7 +131,11 @@ export class MergeDecision {
         mergeable: data.mergeable === true,
         mergeableState,
       };
-    } catch {
+    } catch (error) {
+      getLogger().warn('Failed to check merge conflicts', {
+        agent: 'MergeDecision',
+        error: error instanceof Error ? error.message : String(error),
+      });
       return {
         hasConflicts: false,
         conflictingFiles: [],
@@ -186,7 +191,11 @@ export class MergeDecision {
       }
 
       return blockingReviews;
-    } catch {
+    } catch (error) {
+      getLogger().warn('Failed to check blocking reviews', {
+        agent: 'MergeDecision',
+        error: error instanceof Error ? error.message : String(error),
+      });
       return [];
     }
   }

@@ -37,6 +37,7 @@ import {
   FileWriteError,
   SessionStateError,
 } from './errors.js';
+import { getLogger } from '../logging/index.js';
 
 /**
  * Default configuration for PRDWriterAgent
@@ -257,8 +258,11 @@ export class PRDWriterAgent implements IAgent {
       // Try template-based generation first
       const templateResult = this.templateProcessor.process(session.collectedInfo, metadata);
       content = templateResult.content;
-    } catch {
-      // Fall back to template-less generation
+    } catch (error) {
+      getLogger().warn('Template-based PRD generation failed, using fallback', {
+        agent: 'PRDWriterAgent',
+        error: error instanceof Error ? error.message : String(error),
+      });
       content = this.templateProcessor.generateWithoutTemplate(session.collectedInfo, metadata);
     }
 
