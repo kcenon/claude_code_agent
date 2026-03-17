@@ -26,27 +26,47 @@ import { getLogger } from '../logging/index.js';
 // Debounce Utility
 // ============================================================
 
+/** Debounced function with cancel capability */
+interface DebouncedFilePath {
+  (filePath: string): void;
+  /** Cancel all pending debounced invocations */
+  cancel: () => void;
+}
+
 /**
  * Create a debounced function for file path handling
  * @param fn - The async function to debounce, receiving a file path argument
  * @param delay - Debounce delay in milliseconds
- * @returns A debounced version of the function that resets its timer on each call
+ * @returns A debounced version of the function with a cancel() method
  */
 function debounceFilePath(
   fn: (filePath: string) => Promise<void>,
   delay: number
-): (filePath: string) => void {
-  let timeoutId: NodeJS.Timeout | null = null;
+): DebouncedFilePath {
+  const timers = new Map<string, NodeJS.Timeout>();
 
-  return (filePath: string) => {
-    if (timeoutId !== null) {
-      clearTimeout(timeoutId);
+  const debounced: DebouncedFilePath = (filePath: string) => {
+    const existing = timers.get(filePath);
+    if (existing !== undefined) {
+      clearTimeout(existing);
     }
-    timeoutId = setTimeout(() => {
-      void fn(filePath);
-      timeoutId = null;
-    }, delay);
+    timers.set(
+      filePath,
+      setTimeout(() => {
+        timers.delete(filePath);
+        void fn(filePath);
+      }, delay)
+    );
   };
+
+  debounced.cancel = (): void => {
+    for (const timer of timers.values()) {
+      clearTimeout(timer);
+    }
+    timers.clear();
+  };
+
+  return debounced;
 }
 
 // ============================================================
@@ -82,6 +102,8 @@ export class ConfigWatcher {
   private readonly logger: Logger;
   /** Snapshots of last known valid config data per file path */
   private readonly configSnapshots = new Map<string, unknown>();
+  /** Reference to the debounced handler for cancellation on close */
+  private debouncedHandler: DebouncedFilePath | null = null;
 
   constructor(baseDir?: string) {
     this.baseDir = baseDir ?? tryGetProjectRoot() ?? process.cwd();
@@ -115,7 +137,7 @@ export class ConfigWatcher {
     const paths = getAllConfigFilePaths(this.baseDir);
     const filePaths = Object.values(paths);
 
-    const debouncedHandler = debounceFilePath(async (filePath: string) => {
+    this.debouncedHandler = debounceFilePath(async (filePath: string) => {
       try {
         if (validateOnChange) {
           // Snapshot current config before attempting reload
@@ -183,7 +205,7 @@ export class ConfigWatcher {
       try {
         const watcher = watch(filePath, (eventType) => {
           if (eventType === 'change') {
-            debouncedHandler(filePath);
+            this.debouncedHandler?.(filePath);
           }
         });
 
@@ -210,6 +232,10 @@ export class ConfigWatcher {
    * Stop watching configuration files
    */
   close(): void {
+    // Cancel pending debounced callbacks before closing watchers
+    this.debouncedHandler?.cancel();
+    this.debouncedHandler = null;
+
     for (const watcher of this.watchers) {
       watcher.close();
     }
