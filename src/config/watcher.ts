@@ -10,7 +10,13 @@
 import { watch, FSWatcher } from 'node:fs';
 import { existsSync } from 'node:fs';
 import { ConfigWatchError } from './errors.js';
-import { validateConfigFile, getConfigDir, getAllConfigFilePaths } from './loader.js';
+import {
+  validateConfigFile,
+  getConfigDir,
+  getAllConfigFilePaths,
+  snapshotConfigCache,
+  restoreConfigCache,
+} from './loader.js';
 import type { WatchOptions, FileChangeCallback } from './types.js';
 import { tryGetProjectRoot } from '../utils/index.js';
 import type { Logger } from '../logging/index.js';
@@ -74,6 +80,8 @@ export class ConfigWatcher {
   private isWatching = false;
   private baseDir: string;
   private readonly logger: Logger;
+  /** Snapshots of last known valid config data per file path */
+  private readonly configSnapshots = new Map<string, unknown>();
 
   constructor(baseDir?: string) {
     this.baseDir = baseDir ?? tryGetProjectRoot() ?? process.cwd();
@@ -110,7 +118,33 @@ export class ConfigWatcher {
     const debouncedHandler = debounceFilePath(async (filePath: string) => {
       try {
         if (validateOnChange) {
+          // Snapshot current config before attempting reload
+          const snapshot = snapshotConfigCache(filePath);
+          if (snapshot !== undefined) {
+            this.configSnapshots.set(filePath, snapshot);
+          }
+
           const result = await validateConfigFile(filePath);
+
+          if (!result.valid && this.configSnapshots.has(filePath)) {
+            // Validation failed: rollback to last known valid config
+            const previousConfig = this.configSnapshots.get(filePath);
+            restoreConfigCache(filePath, previousConfig);
+            this.logger.warn(
+              'Configuration validation failed, rolled back to previous valid config',
+              {
+                filePath,
+                errors: result.errors,
+              }
+            );
+          } else if (result.valid) {
+            // Validation succeeded: update snapshot with new valid config
+            const newSnapshot = snapshotConfigCache(filePath);
+            if (newSnapshot !== undefined) {
+              this.configSnapshots.set(filePath, newSnapshot);
+            }
+          }
+
           callback(filePath, result);
         } else {
           callback(filePath, {
@@ -121,6 +155,16 @@ export class ConfigWatcher {
           });
         }
       } catch (error) {
+        // On unexpected errors, attempt rollback if we have a snapshot
+        if (this.configSnapshots.has(filePath)) {
+          const previousConfig = this.configSnapshots.get(filePath);
+          restoreConfigCache(filePath, previousConfig);
+          this.logger.warn('Configuration reload error, rolled back to previous valid config', {
+            filePath,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+
         onError(
           new ConfigWatchError(
             `Error processing file change: ${filePath}`,
@@ -170,6 +214,7 @@ export class ConfigWatcher {
       watcher.close();
     }
     this.watchers = [];
+    this.configSnapshots.clear();
     this.isWatching = false;
   }
 

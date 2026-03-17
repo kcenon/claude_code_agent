@@ -75,6 +75,9 @@ export {
   clearConfigCache,
   invalidateConfigCache,
   getConfigCacheStats,
+  // Cache snapshot/restore (Issue #595)
+  snapshotConfigCache,
+  restoreConfigCache,
 } from './loader.js';
 
 // Watcher

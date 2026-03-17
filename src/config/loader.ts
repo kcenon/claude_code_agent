@@ -256,6 +256,41 @@ export function invalidateConfigCache(filePath: string): void {
 }
 
 /**
+ * Snapshot the current cache entry for a configuration file
+ *
+ * Returns a deep clone of the cached data so the caller can restore
+ * it later without risk of mutation.
+ *
+ * @param filePath - Path to the configuration file
+ * @returns Deep clone of cached data, or undefined if not cached
+ */
+export function snapshotConfigCache(filePath: string): unknown | undefined {
+  const entry = configCache.get(filePath);
+  if (!entry) {
+    return undefined;
+  }
+  return structuredClone(entry.data);
+}
+
+/**
+ * Restore a previously snapshotted cache entry for a configuration file
+ *
+ * This forcefully sets the cache entry with the given data and
+ * the current timestamp, bypassing file mtime checks. Useful for
+ * rolling back to a known-good configuration after a validation failure.
+ *
+ * @param filePath - Path to the configuration file
+ * @param data - Previously snapshotted data to restore
+ */
+export function restoreConfigCache(filePath: string, data: unknown): void {
+  configCache.set(filePath, {
+    data,
+    timestamp: Date.now(),
+    mtime: 0, // Use 0 to indicate a restored entry; will be refreshed on next valid load
+  });
+}
+
+/**
  * Get cache statistics for debugging
  *
  * @returns Cache statistics including size and entry details
