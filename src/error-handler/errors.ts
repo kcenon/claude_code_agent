@@ -18,7 +18,11 @@ import type { RetryAttemptResult } from './types.js';
  * Base class for error handler errors
  */
 export class ErrorHandlerError extends AppError {
-  constructor(message: string, code: string = ErrorHandlerErrorCodes.ERH_MAX_RETRIES_EXCEEDED, options: AppErrorOptions = {}) {
+  constructor(
+    message: string,
+    code: string = ErrorHandlerErrorCodes.ERH_MAX_RETRIES_EXCEEDED,
+    options: AppErrorOptions = {}
+  ) {
     super(code, message, {
       severity: options.severity ?? ErrorSeverity.MEDIUM,
       category: options.category ?? 'transient',
