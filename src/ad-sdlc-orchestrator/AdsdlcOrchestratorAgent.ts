@@ -562,14 +562,22 @@ export class AdsdlcOrchestratorAgent implements IAgent {
     session: OrchestratorSession
   ): Promise<StageResult> {
     const maxRetries = this.config.maxRetries;
-    const timeoutMs = this.getTimeoutForStage(stage.name);
+    const stageTimeoutMs = this.getTimeoutForStage(stage.name);
+    const stageDeadline = Date.now() + stageTimeoutMs;
     let lastError: string | null = null;
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       const startTime = Date.now();
+      // Timeout cascade: inner attempt timeout must not exceed remaining stage budget
+      const remainingMs = stageDeadline - Date.now();
+      if (remainingMs <= 0) {
+        lastError = `Stage '${stage.name}' budget exhausted before attempt ${String(attempt + 1)}`;
+        break;
+      }
+      const attemptTimeoutMs = Math.min(remainingMs, stageTimeoutMs);
 
       try {
-        const output = await this.executeStageAgent(stage, session, timeoutMs);
+        const output = await this.executeStageAgent(stage, session, attemptTimeoutMs);
 
         return {
           name: stage.name,

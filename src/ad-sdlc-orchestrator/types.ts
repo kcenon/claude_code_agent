@@ -211,10 +211,15 @@ export interface PipelineRequest {
 }
 
 /**
- * Per-stage timeout configuration
+ * Per-stage timeout configuration.
+ *
+ * Timeout hierarchy invariant: API_CALL (120s) < STAGE (default 300s).
+ * The orchestrator enforces this by capping per-attempt timeout to
+ * the remaining stage budget, preventing retry cascades from exceeding
+ * the stage deadline.
  */
 export interface StageTimeoutConfig {
-  /** Default timeout for all stages in milliseconds */
+  /** Default timeout for all stages in milliseconds (must be > API call timeout) */
   readonly default: number;
   /** Per-stage timeout overrides */
   readonly overrides?: Readonly<Partial<Record<StageName, number>>>;
