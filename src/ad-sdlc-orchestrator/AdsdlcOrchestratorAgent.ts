@@ -548,7 +548,25 @@ export class AdsdlcOrchestratorAgent implements IAgent {
     session: OrchestratorSession
   ): Promise<StageResult[]> {
     const promises = stages.map((stage) => this.executeStageWithRetry(stage, session));
-    return Promise.all(promises);
+    const settled = await Promise.allSettled(promises);
+
+    return settled.map((outcome, index) => {
+      if (outcome.status === 'fulfilled') {
+        return outcome.value;
+      }
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- index is guaranteed valid
+      const stage = stages[index]!;
+      return {
+        name: stage.name,
+        agentType: stage.agentType ?? stage.name,
+        status: 'failed' as const,
+        durationMs: 0,
+        output: '',
+        artifacts: [],
+        error: outcome.reason instanceof Error ? outcome.reason.message : String(outcome.reason),
+        retryCount: 0,
+      };
+    });
   }
 
   /**
@@ -691,6 +709,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
           scratchpadDir: this.session?.scratchpadDir ?? '',
           projectDir: this.session?.projectDir ?? '',
           priorStageOutputs: {},
+          ...(this.abortController !== null ? { signal: this.abortController.signal } : {}),
         };
 
         const response = await bridge.execute(request);
@@ -769,6 +788,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
           scratchpadDir: this.session?.scratchpadDir ?? '',
           projectDir: this.session?.projectDir ?? '',
           priorStageOutputs: this.buildPriorOutputs(results),
+          ...(this.abortController !== null ? { signal: this.abortController.signal } : {}),
         };
 
         const response = await bridge.execute(request);

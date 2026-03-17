@@ -179,6 +179,19 @@ export class AnthropicApiBridge implements AgentBridge {
       };
 
       for (let turn = 0; turn < maxTurns; turn++) {
+        // Check abort signal before each turn
+        if (request.signal?.aborted === true) {
+          return {
+            output: totalOutput,
+            artifacts: collectedArtifacts,
+            success: false,
+            error: 'Operation aborted',
+            ...(totalInputTokens > 0 && {
+              tokenUsage: { inputTokens: totalInputTokens, outputTokens: totalOutputTokens },
+            }),
+          };
+        }
+
         const createParams: Record<string, unknown> = {
           model: modelId,
           max_tokens: maxTokens,
@@ -191,7 +204,8 @@ export class AnthropicApiBridge implements AgentBridge {
 
         const message = await this.callWithBackoff(
           () => typedClient.messages.create(createParams),
-          callTimeoutMs
+          callTimeoutMs,
+          request.signal
         );
 
         const content = message['content'] as ContentBlock[];
@@ -350,22 +364,38 @@ export class AnthropicApiBridge implements AgentBridge {
    */
   private withCallTimeout(
     createFn: () => Promise<Record<string, unknown>>,
-    timeoutMs: number
+    timeoutMs: number,
+    signal?: AbortSignal
   ): Promise<Record<string, unknown>> {
     return new Promise<Record<string, unknown>>((resolve, reject) => {
+      // Reject immediately if already aborted
+      if (signal?.aborted === true) {
+        reject(new Error('Operation aborted'));
+        return;
+      }
+
       const id = setTimeout(() => {
         const err = new Error(`Anthropic API call timed out after ${String(timeoutMs)}ms`);
         (err as { isTimeout?: boolean }).isTimeout = true;
         reject(err);
       }, timeoutMs);
 
+      // Listen for abort signal
+      const onAbort = (): void => {
+        clearTimeout(id);
+        reject(new Error('Operation aborted'));
+      };
+      signal?.addEventListener('abort', onAbort, { once: true });
+
       createFn().then(
         (result) => {
           clearTimeout(id);
+          signal?.removeEventListener('abort', onAbort);
           resolve(result);
         },
         (error: unknown) => {
           clearTimeout(id);
+          signal?.removeEventListener('abort', onAbort);
           reject(error instanceof Error ? error : new Error(String(error)));
         }
       );
@@ -378,13 +408,18 @@ export class AnthropicApiBridge implements AgentBridge {
    */
   private async callWithBackoff(
     createFn: () => Promise<Record<string, unknown>>,
-    callTimeoutMs: number
+    callTimeoutMs: number,
+    signal?: AbortSignal
   ): Promise<Record<string, unknown>> {
     for (let attempt = 0; attempt <= MAX_API_RETRIES; attempt++) {
+      // Check abort before each retry attempt
+      if (signal?.aborted === true) {
+        throw new Error('Operation aborted');
+      }
       await this.acquireRateLimit();
       this.apiMetrics.totalCalls++;
       try {
-        const result = await this.withCallTimeout(createFn, callTimeoutMs);
+        const result = await this.withCallTimeout(createFn, callTimeoutMs, signal);
         this.releaseRateLimit();
         return result;
       } catch (error) {
