@@ -210,8 +210,15 @@ export class RedisBackend implements IScratchpadBackend {
    */
   async initialize(): Promise<void> {
     try {
-      // Dynamic import of ioredis
-      const IoRedisModule = await import('ioredis');
+      // Dynamic import of ioredis (optional peer dependency)
+      let IoRedisModule;
+      try {
+        IoRedisModule = await import('ioredis');
+      } catch {
+        throw new Error(
+          'ioredis is required for Redis scratchpad backend. Install: npm install ioredis'
+        );
+      }
       const Redis =
         'default' in IoRedisModule
           ? (IoRedisModule.default as unknown as new (options: object) => RedisClient)
