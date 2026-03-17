@@ -104,7 +104,7 @@ export class BridgeRegistry {
         // Suppress dispose error
       })
     );
-    await Promise.all(promises);
+    await Promise.allSettled(promises);
     this.bridges.length = 0;
   }
 }

@@ -239,7 +239,7 @@ export class AgentDispatcher {
       })
     );
 
-    await Promise.all(disposePromises);
+    await Promise.allSettled(disposePromises);
     this.agentCache.clear();
     this.callAdapters.clear();
   }

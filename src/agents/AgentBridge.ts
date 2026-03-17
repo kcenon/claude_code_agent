@@ -75,6 +75,9 @@ export interface AgentRequest {
 
   /** Maximum aggregate bytes for prior stage outputs in user message (default: 50000) */
   maxPriorOutputBytes?: number;
+
+  /** AbortSignal for cooperative cancellation of in-flight API calls */
+  signal?: AbortSignal;
 }
 
 /**
