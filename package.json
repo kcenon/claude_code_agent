@@ -32,7 +32,7 @@
     "format": "prettier --write 'src/**/*.ts'",
     "format:check": "prettier --check 'src/**/*.ts'",
     "clean": "rm -rf dist",
-    "prepare": "npm run build",
+    "prepare": "husky",
     "todo": "grep -rn 'TODO(' src/ --include='*.ts' | sort",
     "todo:fixme": "grep -rn 'FIXME(' src/ --include='*.ts' | sort",
     "todo:hack": "grep -rn 'HACK' src/ --include='*.ts' | sort",
@@ -84,7 +84,9 @@
     "eslint": "^10.0.3",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-jsdoc": "^62.8.0",
+    "husky": "^9.1.7",
     "ioredis": "^5.10.0",
+    "lint-staged": "^16.4.0",
     "mammoth": "^1.12.0",
     "pdf-parse": "^2.4.5",
     "prettier": "^3.8.1",
@@ -119,17 +121,50 @@
     "pdf-parse": "^2.4.5"
   },
   "peerDependenciesMeta": {
-    "@aws-sdk/client-cloudwatch-logs": { "optional": true },
-    "@elastic/elasticsearch": { "optional": true },
-    "@opentelemetry/api": { "optional": true },
-    "@opentelemetry/exporter-trace-otlp-http": { "optional": true },
-    "@opentelemetry/resources": { "optional": true },
-    "@opentelemetry/sdk-node": { "optional": true },
-    "@opentelemetry/sdk-trace-base": { "optional": true },
-    "@opentelemetry/semantic-conventions": { "optional": true },
-    "better-sqlite3": { "optional": true },
-    "ioredis": { "optional": true },
-    "mammoth": { "optional": true },
-    "pdf-parse": { "optional": true }
+    "@aws-sdk/client-cloudwatch-logs": {
+      "optional": true
+    },
+    "@elastic/elasticsearch": {
+      "optional": true
+    },
+    "@opentelemetry/api": {
+      "optional": true
+    },
+    "@opentelemetry/exporter-trace-otlp-http": {
+      "optional": true
+    },
+    "@opentelemetry/resources": {
+      "optional": true
+    },
+    "@opentelemetry/sdk-node": {
+      "optional": true
+    },
+    "@opentelemetry/sdk-trace-base": {
+      "optional": true
+    },
+    "@opentelemetry/semantic-conventions": {
+      "optional": true
+    },
+    "better-sqlite3": {
+      "optional": true
+    },
+    "ioredis": {
+      "optional": true
+    },
+    "mammoth": {
+      "optional": true
+    },
+    "pdf-parse": {
+      "optional": true
+    }
+  },
+  "lint-staged": {
+    "*.ts": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,yaml,yml,md}": [
+      "prettier --write"
+    ]
   }
 }
