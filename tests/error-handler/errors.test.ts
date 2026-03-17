@@ -8,6 +8,8 @@ import {
   InvalidRetryPolicyError,
   RetryContextError,
 } from '../../src/error-handler/index.js';
+import { AppError } from '../../src/errors/AppError.js';
+import { ErrorHandlerErrorCodes } from '../../src/errors/codes.js';
 import type { RetryAttemptResult } from '../../src/error-handler/index.js';
 
 describe('Error Handler Errors', () => {
@@ -17,8 +19,9 @@ describe('Error Handler Errors', () => {
 
       expect(error.message).toBe('Test error');
       expect(error.name).toBe('ErrorHandlerError');
-      expect(error.code).toBe('ERROR_HANDLER_ERROR');
+      expect(error.code).toBe(ErrorHandlerErrorCodes.ERH_MAX_RETRIES_EXCEEDED);
       expect(error).toBeInstanceOf(Error);
+      expect(error).toBeInstanceOf(AppError);
       expect(error).toBeInstanceOf(ErrorHandlerError);
     });
 
@@ -26,6 +29,15 @@ describe('Error Handler Errors', () => {
       const error = new ErrorHandlerError('Test error', 'CUSTOM_CODE');
 
       expect(error.code).toBe('CUSTOM_CODE');
+    });
+
+    it('should have AppError properties', () => {
+      const error = new ErrorHandlerError('Test error');
+
+      expect(error.severity).toBeDefined();
+      expect(error.category).toBeDefined();
+      expect(error.timestamp).toBeInstanceOf(Date);
+      expect(error.context).toBeDefined();
     });
   });
 
@@ -41,7 +53,7 @@ describe('Error Handler Errors', () => {
       const error = new MaxRetriesExceededError(3, 3, lastError, attemptResults, 'fetchData');
 
       expect(error.name).toBe('MaxRetriesExceededError');
-      expect(error.code).toBe('MAX_RETRIES_EXCEEDED');
+      expect(error.code).toBe(ErrorHandlerErrorCodes.ERH_MAX_RETRIES_EXCEEDED);
       expect(error.attempts).toBe(3);
       expect(error.maxAttempts).toBe(3);
       expect(error.lastError).toBe(lastError);
@@ -59,6 +71,13 @@ describe('Error Handler Errors', () => {
       expect(error.operationName).toBeUndefined();
       expect(error.lastError).toBeUndefined();
     });
+
+    it('should have recoverable category for retry decisions', () => {
+      const error = new MaxRetriesExceededError(3, 3);
+
+      expect(error.category).toBe('recoverable');
+      expect(error.isRetryable()).toBe(true);
+    });
   });
 
   describe('OperationTimeoutError', () => {
@@ -66,7 +85,7 @@ describe('Error Handler Errors', () => {
       const error = new OperationTimeoutError(30000, 'fetchData');
 
       expect(error.name).toBe('OperationTimeoutError');
-      expect(error.code).toBe('OPERATION_TIMEOUT');
+      expect(error.code).toBe(ErrorHandlerErrorCodes.ERH_OPERATION_TIMEOUT);
       expect(error.timeoutMs).toBe(30000);
       expect(error.operationName).toBe('fetchData');
       expect(error.message).toContain("'fetchData'");
@@ -79,6 +98,13 @@ describe('Error Handler Errors', () => {
       expect(error.message).toBe('Operation timed out after 5000ms');
       expect(error.operationName).toBeUndefined();
     });
+
+    it('should have transient category for retry decisions', () => {
+      const error = new OperationTimeoutError(5000);
+
+      expect(error.category).toBe('transient');
+      expect(error.isRetryable()).toBe(true);
+    });
   });
 
   describe('OperationAbortedError', () => {
@@ -86,7 +112,7 @@ describe('Error Handler Errors', () => {
       const error = new OperationAbortedError('fetchData', 'User cancelled');
 
       expect(error.name).toBe('OperationAbortedError');
-      expect(error.code).toBe('OPERATION_ABORTED');
+      expect(error.code).toBe(ErrorHandlerErrorCodes.ERH_OPERATION_ABORTED);
       expect(error.operationName).toBe('fetchData');
       expect(error.reason).toBe('User cancelled');
       expect(error.message).toContain("'fetchData'");
@@ -100,6 +126,13 @@ describe('Error Handler Errors', () => {
       expect(error.operationName).toBeUndefined();
       expect(error.reason).toBeUndefined();
     });
+
+    it('should have fatal category (non-retryable)', () => {
+      const error = new OperationAbortedError();
+
+      expect(error.category).toBe('fatal');
+      expect(error.isRetryable()).toBe(false);
+    });
   });
 
   describe('NonRetryableError', () => {
@@ -108,17 +141,31 @@ describe('Error Handler Errors', () => {
       const error = new NonRetryableError(originalError, 'validation');
 
       expect(error.name).toBe('NonRetryableError');
-      expect(error.code).toBe('NON_RETRYABLE_ERROR');
+      expect(error.code).toBe(ErrorHandlerErrorCodes.ERH_NON_RETRYABLE);
       expect(error.originalError).toBe(originalError);
-      expect(error.category).toBe('validation');
+      expect(error.errorKind).toBe('validation');
       expect(error.message).toContain('Validation failed');
     });
 
-    it('should use default category', () => {
+    it('should use default errorKind', () => {
       const originalError = new Error('Auth error');
       const error = new NonRetryableError(originalError);
 
-      expect(error.category).toBe('non-retryable');
+      expect(error.errorKind).toBe('non-retryable');
+    });
+
+    it('should have fatal category for retry decisions', () => {
+      const error = new NonRetryableError(new Error('test'));
+
+      expect(error.category).toBe('fatal');
+      expect(error.isRetryable()).toBe(false);
+    });
+
+    it('should chain original error as cause', () => {
+      const originalError = new Error('Root cause');
+      const error = new NonRetryableError(originalError);
+
+      expect(error.cause).toBe(originalError);
     });
   });
 
@@ -127,7 +174,7 @@ describe('Error Handler Errors', () => {
       const error = new InvalidRetryPolicyError('maxAttempts', 0, 'must be >= 1');
 
       expect(error.name).toBe('InvalidRetryPolicyError');
-      expect(error.code).toBe('INVALID_RETRY_POLICY');
+      expect(error.code).toBe(ErrorHandlerErrorCodes.ERH_INVALID_RETRY_POLICY);
       expect(error.field).toBe('maxAttempts');
       expect(error.value).toBe(0);
       expect(error.constraint).toBe('must be >= 1');
@@ -142,7 +189,7 @@ describe('Error Handler Errors', () => {
       const error = new RetryContextError(originalError, 2, 3);
 
       expect(error.name).toBe('RetryContextError');
-      expect(error.code).toBe('RETRY_CONTEXT_ERROR');
+      expect(error.code).toBe(ErrorHandlerErrorCodes.ERH_RETRY_CONTEXT);
       expect(error.originalError).toBe(originalError);
       expect(error.attempt).toBe(2);
       expect(error.maxAttempts).toBe(3);
@@ -157,6 +204,13 @@ describe('Error Handler Errors', () => {
 
       expect(error.isFinalAttempt).toBe(true);
     });
+
+    it('should chain original error as cause', () => {
+      const originalError = new Error('Root cause');
+      const error = new RetryContextError(originalError, 1, 3);
+
+      expect(error.cause).toBe(originalError);
+    });
   });
 
   describe('Error inheritance', () => {
@@ -170,6 +224,16 @@ describe('Error Handler Errors', () => {
       expect(new RetryContextError(new Error('test'), 1, 1)).toBeInstanceOf(Error);
     });
 
+    it('all errors should extend AppError', () => {
+      expect(new ErrorHandlerError('test')).toBeInstanceOf(AppError);
+      expect(new MaxRetriesExceededError(1, 1)).toBeInstanceOf(AppError);
+      expect(new OperationTimeoutError(1000)).toBeInstanceOf(AppError);
+      expect(new OperationAbortedError()).toBeInstanceOf(AppError);
+      expect(new NonRetryableError(new Error('test'))).toBeInstanceOf(AppError);
+      expect(new InvalidRetryPolicyError('field', 'value', 'constraint')).toBeInstanceOf(AppError);
+      expect(new RetryContextError(new Error('test'), 1, 1)).toBeInstanceOf(AppError);
+    });
+
     it('all errors should extend ErrorHandlerError', () => {
       expect(new MaxRetriesExceededError(1, 1)).toBeInstanceOf(ErrorHandlerError);
       expect(new OperationTimeoutError(1000)).toBeInstanceOf(ErrorHandlerError);
@@ -177,6 +241,22 @@ describe('Error Handler Errors', () => {
       expect(new NonRetryableError(new Error('test'))).toBeInstanceOf(ErrorHandlerError);
       expect(new InvalidRetryPolicyError('field', 'value', 'constraint')).toBeInstanceOf(ErrorHandlerError);
       expect(new RetryContextError(new Error('test'), 1, 1)).toBeInstanceOf(ErrorHandlerError);
+    });
+
+    it('all errors should support AppError features', () => {
+      const error = new MaxRetriesExceededError(3, 3);
+
+      // toJSON serialization
+      const json = error.toJSON();
+      expect(json.code).toBe(ErrorHandlerErrorCodes.ERH_MAX_RETRIES_EXCEEDED);
+      expect(json.severity).toBeDefined();
+      expect(json.timestamp).toBeDefined();
+
+      // format
+      expect(error.format('log')).toContain('ERH-001');
+
+      // isRetryable
+      expect(typeof error.isRetryable()).toBe('boolean');
     });
   });
 });

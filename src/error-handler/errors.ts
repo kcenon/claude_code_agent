@@ -2,25 +2,30 @@
  * Error Handler module error definitions
  *
  * Custom error classes for retry operations, timeout handling,
- * and error categorization.
+ * and error categorization. All errors extend AppError for unified
+ * error handling with standardized codes, severity, and context.
  *
  * @module error-handler/errors
  */
 
+import { AppError } from '../errors/AppError.js';
+import { ErrorHandlerErrorCodes } from '../errors/codes.js';
+import { ErrorSeverity } from '../errors/types.js';
+import type { AppErrorOptions } from '../errors/types.js';
 import type { RetryAttemptResult } from './types.js';
 
 /**
  * Base class for error handler errors
  */
-export class ErrorHandlerError extends Error {
-  /** Error code for programmatic handling */
-  public readonly code: string;
-
-  constructor(message: string, code: string = 'ERROR_HANDLER_ERROR') {
-    super(message);
+export class ErrorHandlerError extends AppError {
+  constructor(message: string, code: string = ErrorHandlerErrorCodes.ERH_MAX_RETRIES_EXCEEDED, options: AppErrorOptions = {}) {
+    super(code, message, {
+      severity: options.severity ?? ErrorSeverity.MEDIUM,
+      category: options.category ?? 'transient',
+      context: options.context ?? {},
+      ...(options.cause !== undefined ? { cause: options.cause } : {}),
+    });
     this.name = 'ErrorHandlerError';
-    this.code = code;
-    Object.setPrototypeOf(this, ErrorHandlerError.prototype);
   }
 }
 
@@ -50,7 +55,13 @@ export class MaxRetriesExceededError extends ErrorHandlerError {
     const lastErrorMsg = lastError !== undefined ? `: ${lastError.message}` : '';
     super(
       `Max retries exceeded${opName} after ${String(attempts)} of ${String(maxAttempts)} attempts${lastErrorMsg}`,
-      'MAX_RETRIES_EXCEEDED'
+      ErrorHandlerErrorCodes.ERH_MAX_RETRIES_EXCEEDED,
+      {
+        severity: ErrorSeverity.HIGH,
+        category: 'recoverable',
+        context: { attempts, maxAttempts, operationName },
+        ...(lastError !== undefined ? { cause: lastError } : {}),
+      }
     );
     this.name = 'MaxRetriesExceededError';
     this.attempts = attempts;
@@ -58,7 +69,6 @@ export class MaxRetriesExceededError extends ErrorHandlerError {
     this.lastError = lastError;
     this.attemptResults = attemptResults;
     this.operationName = operationName;
-    Object.setPrototypeOf(this, MaxRetriesExceededError.prototype);
   }
 }
 
@@ -73,11 +83,18 @@ export class OperationTimeoutError extends ErrorHandlerError {
 
   constructor(timeoutMs: number, operationName?: string) {
     const opName = operationName !== undefined ? ` '${operationName}'` : '';
-    super(`Operation${opName} timed out after ${String(timeoutMs)}ms`, 'OPERATION_TIMEOUT');
+    super(
+      `Operation${opName} timed out after ${String(timeoutMs)}ms`,
+      ErrorHandlerErrorCodes.ERH_OPERATION_TIMEOUT,
+      {
+        severity: ErrorSeverity.HIGH,
+        category: 'transient',
+        context: { timeoutMs, operationName },
+      }
+    );
     this.name = 'OperationTimeoutError';
     this.timeoutMs = timeoutMs;
     this.operationName = operationName;
-    Object.setPrototypeOf(this, OperationTimeoutError.prototype);
   }
 }
 
@@ -93,11 +110,18 @@ export class OperationAbortedError extends ErrorHandlerError {
   constructor(operationName?: string, reason?: string) {
     const opName = operationName !== undefined ? ` '${operationName}'` : '';
     const reasonMsg = reason !== undefined ? `: ${reason}` : '';
-    super(`Operation${opName} was aborted${reasonMsg}`, 'OPERATION_ABORTED');
+    super(
+      `Operation${opName} was aborted${reasonMsg}`,
+      ErrorHandlerErrorCodes.ERH_OPERATION_ABORTED,
+      {
+        severity: ErrorSeverity.MEDIUM,
+        category: 'fatal',
+        context: { operationName, reason },
+      }
+    );
     this.name = 'OperationAbortedError';
     this.reason = reason;
     this.operationName = operationName;
-    Object.setPrototypeOf(this, OperationAbortedError.prototype);
   }
 }
 
@@ -107,15 +131,23 @@ export class OperationAbortedError extends ErrorHandlerError {
 export class NonRetryableError extends ErrorHandlerError {
   /** The original non-retryable error */
   public readonly originalError: Error;
-  /** Category determined for the error */
-  public readonly category: string;
+  /** Classification category determined for the error (e.g., 'validation', 'authentication') */
+  public readonly errorKind: string;
 
-  constructor(originalError: Error, category: string = 'non-retryable') {
-    super(`Non-retryable error encountered: ${originalError.message}`, 'NON_RETRYABLE_ERROR');
+  constructor(originalError: Error, errorKind: string = 'non-retryable') {
+    super(
+      `Non-retryable error encountered: ${originalError.message}`,
+      ErrorHandlerErrorCodes.ERH_NON_RETRYABLE,
+      {
+        severity: ErrorSeverity.HIGH,
+        category: 'fatal',
+        context: { errorKind },
+        cause: originalError,
+      }
+    );
     this.name = 'NonRetryableError';
     this.originalError = originalError;
-    this.category = category;
-    Object.setPrototypeOf(this, NonRetryableError.prototype);
+    this.errorKind = errorKind;
   }
 }
 
@@ -133,13 +165,17 @@ export class InvalidRetryPolicyError extends ErrorHandlerError {
   constructor(field: string, value: unknown, constraint: string) {
     super(
       `Invalid retry policy: ${field} (${String(value)}) ${constraint}`,
-      'INVALID_RETRY_POLICY'
+      ErrorHandlerErrorCodes.ERH_INVALID_RETRY_POLICY,
+      {
+        severity: ErrorSeverity.HIGH,
+        category: 'fatal',
+        context: { field, value: String(value), constraint },
+      }
     );
     this.name = 'InvalidRetryPolicyError';
     this.field = field;
     this.value = value;
     this.constraint = constraint;
-    Object.setPrototypeOf(this, InvalidRetryPolicyError.prototype);
   }
 }
 
@@ -159,14 +195,19 @@ export class RetryContextError extends ErrorHandlerError {
   constructor(originalError: Error, attempt: number, maxAttempts: number) {
     super(
       `Retry attempt ${String(attempt)}/${String(maxAttempts)} failed: ${originalError.message}`,
-      'RETRY_CONTEXT_ERROR'
+      ErrorHandlerErrorCodes.ERH_RETRY_CONTEXT,
+      {
+        severity: ErrorSeverity.MEDIUM,
+        category: 'transient',
+        context: { attempt, maxAttempts, isFinalAttempt: attempt >= maxAttempts },
+        cause: originalError,
+      }
     );
     this.name = 'RetryContextError';
     this.originalError = originalError;
     this.attempt = attempt;
     this.maxAttempts = maxAttempts;
     this.isFinalAttempt = attempt >= maxAttempts;
-    Object.setPrototypeOf(this, RetryContextError.prototype);
   }
 }
 
@@ -185,13 +226,17 @@ export class CircuitOpenError extends ErrorHandlerError {
     const name = circuitName !== undefined ? ` '${circuitName}'` : '';
     super(
       `Circuit breaker${name} is open. Retry after ${String(remainingTimeoutMs)}ms`,
-      'CIRCUIT_OPEN'
+      ErrorHandlerErrorCodes.ERH_CIRCUIT_OPEN,
+      {
+        severity: ErrorSeverity.MEDIUM,
+        category: 'transient',
+        context: { remainingTimeoutMs, failureCount, circuitName },
+      }
     );
     this.name = 'CircuitOpenError';
     this.remainingTimeoutMs = remainingTimeoutMs;
     this.circuitName = circuitName;
     this.failureCount = failureCount;
-    Object.setPrototypeOf(this, CircuitOpenError.prototype);
   }
 }
 
@@ -209,12 +254,16 @@ export class InvalidCircuitBreakerConfigError extends ErrorHandlerError {
   constructor(field: string, value: unknown, constraint: string) {
     super(
       `Invalid circuit breaker config: ${field} (${String(value)}) ${constraint}`,
-      'INVALID_CIRCUIT_BREAKER_CONFIG'
+      ErrorHandlerErrorCodes.ERH_INVALID_CIRCUIT_BREAKER,
+      {
+        severity: ErrorSeverity.HIGH,
+        category: 'fatal',
+        context: { field, value: String(value), constraint },
+      }
     );
     this.name = 'InvalidCircuitBreakerConfigError';
     this.field = field;
     this.value = value;
     this.constraint = constraint;
-    Object.setPrototypeOf(this, InvalidCircuitBreakerConfigError.prototype);
   }
 }
