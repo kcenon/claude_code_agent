@@ -468,15 +468,41 @@ export class ControlPlane {
    * @returns Promise that resolves when cleanup is complete
    */
   async cleanup(): Promise<void> {
-    this.agents.clear();
+    const errors: Array<{ step: string; message: string }> = [];
 
-    // StateManager cleanup is async (involves scratchpad I/O and watcher teardown)
-    const sm = getStateManager(this.options.stateManager);
-    await sm.cleanup();
+    try {
+      this.agents.clear();
+    } catch (e) {
+      errors.push({ step: 'agents.clear', message: e instanceof Error ? e.message : String(e) });
+    }
 
-    resetStateManager();
+    let stateManagerCleaned = false;
+    try {
+      const sm = getStateManager(this.options.stateManager);
+      await sm.cleanup();
+      stateManagerCleaned = true;
+    } catch (e) {
+      errors.push({
+        step: 'stateManager.cleanup',
+        message: e instanceof Error ? e.message : String(e),
+      });
+    }
+
+    if (stateManagerCleaned) {
+      resetStateManager();
+    }
     resetModeDetector();
     resetAnalysisOrchestratorAgent();
+
+    if (errors.length > 0) {
+      const details = errors.map((e) => `${e.step}: ${e.message}`).join('; ');
+      throw this.wrapError(
+        new Error(details),
+        ControlPlaneErrorCodes.CPL_PIPELINE_STATE_ERROR,
+        `Cleanup completed with ${String(errors.length)} error(s)`,
+        { errors }
+      );
+    }
   }
 
   // -------------------------------------------------------------------------

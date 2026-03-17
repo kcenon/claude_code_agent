@@ -892,7 +892,9 @@ export class AlertManager {
    */
   public dispose(): void {
     this.stopEscalationChecker();
+    this.history.length = 0;
     this.unacknowledgedAlerts.clear();
+    this.lastFired.clear();
   }
 }
 
