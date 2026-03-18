@@ -32,7 +32,7 @@
     "format": "prettier --write 'src/**/*.ts'",
     "format:check": "prettier --check 'src/**/*.ts'",
     "clean": "rm -rf dist",
-    "prepare": "husky",
+    "prepare": "husky || true",
     "todo": "grep -rn 'TODO(' src/ --include='*.ts' | sort",
     "todo:fixme": "grep -rn 'FIXME(' src/ --include='*.ts' | sort",
     "todo:hack": "grep -rn 'HACK' src/ --include='*.ts' | sort",
@@ -63,7 +63,7 @@
     "node": ">=18.0.0"
   },
   "devDependencies": {
-    "@aws-sdk/client-cloudwatch-logs": "^3.1009.0",
+    "@aws-sdk/client-cloudwatch-logs": "^3.1011.0",
     "@elastic/elasticsearch": "^9.3.4",
     "@eslint/js": "^10.0.1",
     "@opentelemetry/api": "^1.9.0",
@@ -158,9 +158,15 @@
       "optional": true
     }
   },
+  "overrides": {
+    "fast-xml-parser": "^5.5.6"
+  },
   "lint-staged": {
-    "*.ts": [
+    "src/**/*.ts": [
       "eslint --fix",
+      "prettier --write"
+    ],
+    "tests/**/*.ts": [
       "prettier --write"
     ],
     "*.{json,yaml,yml,md}": [

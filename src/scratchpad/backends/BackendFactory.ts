@@ -16,6 +16,7 @@ import { FileBackend } from './FileBackend.js';
 import { SQLiteBackend } from './SQLiteBackend.js';
 import { RedisBackend } from './RedisBackend.js';
 import { loadScratchpadConfig } from './configLoader.js';
+import { getLogger } from '../../logging/index.js';
 
 /**
  * Error thrown when backend creation fails
@@ -88,14 +89,40 @@ export class BackendFactory {
   static async createAndInitialize(
     config: ScratchpadBackendConfig = {}
   ): Promise<IScratchpadBackend> {
+    const backendType = config.backend ?? 'file';
     const backend = BackendFactory.create(config);
 
     try {
       await backend.initialize();
       return backend;
     } catch (error) {
+      // For non-file backends, attempt fallback to FileBackend
+      if (backendType !== 'file') {
+        const logger = getLogger();
+        const fallbackFileConfig =
+          backendType === 'redis' ? config.redis?.fallback?.fileConfig : config.file;
+
+        logger.warn(`${backendType} backend initialization failed, falling back to FileBackend`, {
+          component: 'BackendFactory',
+          originalBackend: backendType,
+          error: (error as Error).message,
+        });
+
+        try {
+          const fallbackBackend = new FileBackend(fallbackFileConfig);
+          await fallbackBackend.initialize();
+          return fallbackBackend;
+        } catch (fallbackError) {
+          throw new BackendCreationError(
+            backendType,
+            `Initialization failed and FileBackend fallback also failed: ${(fallbackError as Error).message}`,
+            error as Error
+          );
+        }
+      }
+
       throw new BackendCreationError(
-        config.backend ?? 'file',
+        backendType,
         `Initialization failed: ${(error as Error).message}`,
         error as Error
       );
