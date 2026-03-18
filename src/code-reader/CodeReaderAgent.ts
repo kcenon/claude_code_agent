@@ -165,10 +165,17 @@ export class CodeReaderAgent {
       const sourceFiles = await this.discoverSourceFiles(sourceRootPath);
 
       // Check for too many parse errors (category 1 = Error)
+      // Only count errors from discovered source files, not auto-resolved node_modules
       const threshold = this.config.parseErrorThreshold;
-      const parseErrors = this.project
-        .getPreEmitDiagnostics()
-        .filter((d) => (d.getCategory() as number) === 1);
+      const sourceFilePaths = new Set(sourceFiles.map((f) => f.getFilePath()));
+      const parseErrors = this.project.getPreEmitDiagnostics().filter((d) => {
+        const filePath = d.getSourceFile()?.getFilePath();
+        return (
+          (d.getCategory() as number) === 1 &&
+          filePath !== undefined &&
+          sourceFilePaths.has(filePath)
+        );
+      });
       if (parseErrors.length > sourceFiles.length * threshold) {
         const fileErrors = parseErrors.slice(0, 20).map((d) => {
           const lineNumber = d.getLineNumber();
@@ -329,9 +336,10 @@ export class CodeReaderAgent {
         // Simple glob matching for common patterns
         if (pattern.includes('**')) {
           const regexPattern = pattern
-            .replace(/\*\*/g, '.*')
+            .replace(/\./g, '\\.')
+            .replace(/\*\*/g, '<<<GLOBSTAR>>>')
             .replace(/\*/g, '[^/]*')
-            .replace(/\./g, '\\.');
+            .replace(/<<<GLOBSTAR>>>/g, '.*');
           return new RegExp(regexPattern).test(relativePath);
         }
         return relativePath.includes(pattern.replace(/\*/g, ''));
