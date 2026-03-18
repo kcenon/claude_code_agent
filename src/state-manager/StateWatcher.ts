@@ -93,6 +93,17 @@ export class StateWatcherManager implements IStateWatcher {
         }
       });
 
+      // Handle async watcher errors (e.g., EMFILE) to prevent uncaught exceptions
+      fsWatcher.on('error', (err) => {
+        getLogger().debug('File watcher error', {
+          agent: 'StateWatcher',
+          projectId,
+          error: err instanceof Error ? err.message : String(err),
+        });
+        fsWatcher.close();
+        this.fsWatchers.delete(watcherId);
+      });
+
       this.fsWatchers.set(watcherId, fsWatcher);
     } catch (error) {
       getLogger().debug('Watch directory does not exist yet', {
