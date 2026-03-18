@@ -4,15 +4,20 @@
  * Tests the CLI entry point for:
  * - Command routing (help, version, unknown commands)
  * - Error exit codes for invalid inputs
+ *
+ * Requires a prior build (`npm run build`) since it executes dist/cli.js.
+ * Automatically skipped when dist/cli.js does not exist (e.g., CI test-before-build).
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 import { execFile } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { promisify } from 'node:util';
 import { resolve } from 'node:path';
 
 const execFileAsync = promisify(execFile);
 const cliPath = resolve(__dirname, '../../dist/cli.js');
+const cliBuilt = existsSync(cliPath);
 
 async function runCli(
   args: string[]
@@ -33,7 +38,7 @@ async function runCli(
   }
 }
 
-describe('CLI', () => {
+describe.skipIf(!cliBuilt)('CLI', () => {
   describe('command routing', () => {
     it('should show help with --help flag', async () => {
       const result = await runCli(['--help']);
