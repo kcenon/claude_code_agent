@@ -4,7 +4,7 @@
  * Tests for UC-014: PR Creation from Completed Work
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { PRCreator, DEFAULT_PR_CREATOR_CONFIG } from '../../src/pr-reviewer/PRCreator.js';
 import type { ImplementationResult, FileChange } from '../../src/pr-reviewer/types.js';
 
@@ -160,7 +160,13 @@ describe('PRCreator', () => {
 
     it('should infer labels from branch prefix', () => {
       const changes: FileChange[] = [
-        { filePath: 'src/feature.ts', changeType: 'create', description: '', linesAdded: 10, linesRemoved: 0 },
+        {
+          filePath: 'src/feature.ts',
+          changeType: 'create',
+          description: '',
+          linesAdded: 10,
+          linesRemoved: 0,
+        },
       ];
 
       const result = creator.inferLabels(changes, 'feature/ISS-001-something');
@@ -171,7 +177,13 @@ describe('PRCreator', () => {
 
     it('should infer labels from fix branch', () => {
       const changes: FileChange[] = [
-        { filePath: 'src/bugfix.ts', changeType: 'modify', description: '', linesAdded: 5, linesRemoved: 3 },
+        {
+          filePath: 'src/bugfix.ts',
+          changeType: 'modify',
+          description: '',
+          linesAdded: 5,
+          linesRemoved: 3,
+        },
       ];
 
       const result = creator.inferLabels(changes, 'fix/ISS-002-null-check');
@@ -181,7 +193,13 @@ describe('PRCreator', () => {
 
     it('should infer testing label from test files', () => {
       const changes: FileChange[] = [
-        { filePath: 'tests/feature.test.ts', changeType: 'create', description: '', linesAdded: 50, linesRemoved: 0 },
+        {
+          filePath: 'tests/feature.test.ts',
+          changeType: 'create',
+          description: '',
+          linesAdded: 50,
+          linesRemoved: 0,
+        },
       ];
 
       const result = creator.inferLabels(changes, 'test/ISS-003-add-tests');
@@ -191,7 +209,13 @@ describe('PRCreator', () => {
 
     it('should infer documentation label from docs files', () => {
       const changes: FileChange[] = [
-        { filePath: 'docs/README.md', changeType: 'modify', description: '', linesAdded: 20, linesRemoved: 5 },
+        {
+          filePath: 'docs/README.md',
+          changeType: 'modify',
+          description: '',
+          linesAdded: 20,
+          linesRemoved: 5,
+        },
       ];
 
       const result = creator.inferLabels(changes, 'docs/update-docs');
@@ -201,7 +225,13 @@ describe('PRCreator', () => {
 
     it('should infer security label from security files', () => {
       const changes: FileChange[] = [
-        { filePath: 'src/auth/security.ts', changeType: 'modify', description: '', linesAdded: 30, linesRemoved: 10 },
+        {
+          filePath: 'src/auth/security.ts',
+          changeType: 'modify',
+          description: '',
+          linesAdded: 30,
+          linesRemoved: 10,
+        },
       ];
 
       const result = creator.inferLabels(changes, 'feature/ISS-004-auth');
@@ -211,7 +241,13 @@ describe('PRCreator', () => {
 
     it('should infer ci label from workflow files', () => {
       const changes: FileChange[] = [
-        { filePath: '.github/workflows/ci.yml', changeType: 'modify', description: '', linesAdded: 10, linesRemoved: 5 },
+        {
+          filePath: '.github/workflows/ci.yml',
+          changeType: 'modify',
+          description: '',
+          linesAdded: 10,
+          linesRemoved: 5,
+        },
       ];
 
       const result = creator.inferLabels(changes, 'chore/update-ci');
@@ -221,8 +257,20 @@ describe('PRCreator', () => {
 
     it('should infer new-feature label from file creations', () => {
       const changes: FileChange[] = [
-        { filePath: 'src/new.ts', changeType: 'create', description: '', linesAdded: 100, linesRemoved: 0 },
-        { filePath: 'src/another.ts', changeType: 'create', description: '', linesAdded: 50, linesRemoved: 0 },
+        {
+          filePath: 'src/new.ts',
+          changeType: 'create',
+          description: '',
+          linesAdded: 100,
+          linesRemoved: 0,
+        },
+        {
+          filePath: 'src/another.ts',
+          changeType: 'create',
+          description: '',
+          linesAdded: 50,
+          linesRemoved: 0,
+        },
       ];
 
       const result = creator.inferLabels(changes, 'feature/ISS-005-new-feature');
@@ -232,8 +280,20 @@ describe('PRCreator', () => {
 
     it('should infer cleanup label from deletion-only changes', () => {
       const changes: FileChange[] = [
-        { filePath: 'src/old.ts', changeType: 'delete', description: '', linesAdded: 0, linesRemoved: 100 },
-        { filePath: 'src/deprecated.ts', changeType: 'delete', description: '', linesAdded: 0, linesRemoved: 50 },
+        {
+          filePath: 'src/old.ts',
+          changeType: 'delete',
+          description: '',
+          linesAdded: 0,
+          linesRemoved: 100,
+        },
+        {
+          filePath: 'src/deprecated.ts',
+          changeType: 'delete',
+          description: '',
+          linesAdded: 0,
+          linesRemoved: 50,
+        },
       ];
 
       const result = creator.inferLabels(changes, 'chore/cleanup');
@@ -243,7 +303,13 @@ describe('PRCreator', () => {
 
     it('should handle invalid branch name gracefully', () => {
       const changes: FileChange[] = [
-        { filePath: 'src/feature.ts', changeType: 'create', description: '', linesAdded: 10, linesRemoved: 0 },
+        {
+          filePath: 'src/feature.ts',
+          changeType: 'create',
+          description: '',
+          linesAdded: 10,
+          linesRemoved: 0,
+        },
       ];
 
       const result = creator.inferLabels(changes, 'invalid-branch-no-prefix');
@@ -264,7 +330,14 @@ describe('PRCreator', () => {
     it('should return false when all checks pass and coverage is above threshold', () => {
       const implResult = createMinimalImplementationResult({
         tests: { filesCreated: [], totalTests: 10, coveragePercentage: 85 },
-        verification: { testsPassed: true, testsOutput: '', lintPassed: true, lintOutput: '', buildPassed: true, buildOutput: '' },
+        verification: {
+          testsPassed: true,
+          testsOutput: '',
+          lintPassed: true,
+          lintOutput: '',
+          buildPassed: true,
+          buildOutput: '',
+        },
       });
 
       expect(creator.shouldBeDraft(implResult)).toBe(false);
@@ -273,7 +346,14 @@ describe('PRCreator', () => {
     it('should return true when coverage is below threshold', () => {
       const implResult = createMinimalImplementationResult({
         tests: { filesCreated: [], totalTests: 10, coveragePercentage: 60 },
-        verification: { testsPassed: true, testsOutput: '', lintPassed: true, lintOutput: '', buildPassed: true, buildOutput: '' },
+        verification: {
+          testsPassed: true,
+          testsOutput: '',
+          lintPassed: true,
+          lintOutput: '',
+          buildPassed: true,
+          buildOutput: '',
+        },
       });
 
       expect(creator.shouldBeDraft(implResult)).toBe(true);
@@ -282,7 +362,14 @@ describe('PRCreator', () => {
     it('should return true when tests fail', () => {
       const implResult = createMinimalImplementationResult({
         tests: { filesCreated: [], totalTests: 10, coveragePercentage: 85 },
-        verification: { testsPassed: false, testsOutput: '', lintPassed: true, lintOutput: '', buildPassed: true, buildOutput: '' },
+        verification: {
+          testsPassed: false,
+          testsOutput: '',
+          lintPassed: true,
+          lintOutput: '',
+          buildPassed: true,
+          buildOutput: '',
+        },
       });
 
       expect(creator.shouldBeDraft(implResult)).toBe(true);
@@ -291,7 +378,14 @@ describe('PRCreator', () => {
     it('should return true when lint fails', () => {
       const implResult = createMinimalImplementationResult({
         tests: { filesCreated: [], totalTests: 10, coveragePercentage: 85 },
-        verification: { testsPassed: true, testsOutput: '', lintPassed: false, lintOutput: '', buildPassed: true, buildOutput: '' },
+        verification: {
+          testsPassed: true,
+          testsOutput: '',
+          lintPassed: false,
+          lintOutput: '',
+          buildPassed: true,
+          buildOutput: '',
+        },
       });
 
       expect(creator.shouldBeDraft(implResult)).toBe(true);
@@ -300,7 +394,14 @@ describe('PRCreator', () => {
     it('should return true when build fails', () => {
       const implResult = createMinimalImplementationResult({
         tests: { filesCreated: [], totalTests: 10, coveragePercentage: 85 },
-        verification: { testsPassed: true, testsOutput: '', lintPassed: true, lintOutput: '', buildPassed: false, buildOutput: '' },
+        verification: {
+          testsPassed: true,
+          testsOutput: '',
+          lintPassed: true,
+          lintOutput: '',
+          buildPassed: false,
+          buildOutput: '',
+        },
       });
 
       expect(creator.shouldBeDraft(implResult)).toBe(true);
@@ -334,7 +435,10 @@ describe('PRCreator', () => {
 
     it('should generate PR title with conventional commit format', () => {
       const implResult = createMinimalImplementationResult({
-        branch: { name: 'feature/ISS-001-login', commits: [{ hash: 'abc', message: 'feat: add login' }] },
+        branch: {
+          name: 'feature/ISS-001-login',
+          commits: [{ hash: 'abc', message: 'feat: add login' }],
+        },
       });
 
       const content = creator.generatePRContent(implResult, ['enhancement'], false);
@@ -353,7 +457,13 @@ describe('PRCreator', () => {
     it('should include changes in body', () => {
       const implResult = createMinimalImplementationResult({
         changes: [
-          { filePath: 'src/feature.ts', changeType: 'create', description: 'New feature', linesAdded: 100, linesRemoved: 0 },
+          {
+            filePath: 'src/feature.ts',
+            changeType: 'create',
+            description: 'New feature',
+            linesAdded: 100,
+            linesRemoved: 0,
+          },
         ],
       });
 
@@ -365,7 +475,14 @@ describe('PRCreator', () => {
 
     it('should include verification status', () => {
       const implResult = createMinimalImplementationResult({
-        verification: { testsPassed: true, testsOutput: '', lintPassed: true, lintOutput: '', buildPassed: false, buildOutput: '' },
+        verification: {
+          testsPassed: true,
+          testsOutput: '',
+          lintPassed: true,
+          lintOutput: '',
+          buildPassed: false,
+          buildOutput: '',
+        },
       });
 
       const content = creator.generatePRContent(implResult, [], false);
@@ -519,11 +636,33 @@ describe('PRCreator', () => {
         issueId: 'ISS-042-implement-auth',
         githubIssue: 42,
         changes: [
-          { filePath: 'src/auth/login.ts', changeType: 'create', description: 'Login service', linesAdded: 150, linesRemoved: 0 },
-          { filePath: 'src/auth/security.ts', changeType: 'create', description: 'Security utils', linesAdded: 80, linesRemoved: 0 },
-          { filePath: 'tests/auth/login.test.ts', changeType: 'create', description: 'Login tests', linesAdded: 100, linesRemoved: 0 },
+          {
+            filePath: 'src/auth/login.ts',
+            changeType: 'create',
+            description: 'Login service',
+            linesAdded: 150,
+            linesRemoved: 0,
+          },
+          {
+            filePath: 'src/auth/security.ts',
+            changeType: 'create',
+            description: 'Security utils',
+            linesAdded: 80,
+            linesRemoved: 0,
+          },
+          {
+            filePath: 'tests/auth/login.test.ts',
+            changeType: 'create',
+            description: 'Login tests',
+            linesAdded: 100,
+            linesRemoved: 0,
+          },
         ],
-        tests: { filesCreated: ['tests/auth/login.test.ts'], totalTests: 15, coveragePercentage: 92 },
+        tests: {
+          filesCreated: ['tests/auth/login.test.ts'],
+          totalTests: 15,
+          coveragePercentage: 92,
+        },
         branch: {
           name: 'feature/ISS-042-implement-auth',
           commits: [
@@ -588,6 +727,87 @@ describe('PRCreator', () => {
       });
 
       expect(creator.shouldBeDraft(implResult)).toBe(true);
+    });
+  });
+
+  describe('gh CLI operations (mocked)', () => {
+    let creator: PRCreator;
+
+    beforeEach(() => {
+      creator = new PRCreator();
+    });
+
+    it('should handle findExistingPR returning null on command failure', async () => {
+      // Access private method for testing via prototype
+      const mockExecute = vi.fn().mockResolvedValue({
+        stdout: '',
+        stderr: 'not found',
+        exitCode: 1,
+      });
+      (creator as unknown as { executeCommand: typeof mockExecute }).executeCommand = mockExecute;
+
+      const result = await (
+        creator as unknown as { findExistingPR: (b: string) => Promise<unknown> }
+      ).findExistingPR('feature/test');
+      expect(result).toBeNull();
+    });
+
+    it('should handle findExistingPR returning null on empty output', async () => {
+      const mockExecute = vi.fn().mockResolvedValue({
+        stdout: '[]',
+        stderr: '',
+        exitCode: 0,
+      });
+      (creator as unknown as { executeCommand: typeof mockExecute }).executeCommand = mockExecute;
+
+      const result = await (
+        creator as unknown as { findExistingPR: (b: string) => Promise<unknown> }
+      ).findExistingPR('feature/test');
+      expect(result).toBeNull();
+    });
+
+    it('should handle addLabels with empty labels array', async () => {
+      const mockExecute = vi.fn();
+      (creator as unknown as { executeCommand: typeof mockExecute }).executeCommand = mockExecute;
+
+      await (
+        creator as unknown as { addLabels: (n: number, l: string[]) => Promise<void> }
+      ).addLabels(1, []);
+
+      // Should not execute any command for empty labels
+      expect(mockExecute).not.toHaveBeenCalled();
+    });
+
+    it('should handle addLabels gracefully on command failure', async () => {
+      const mockExecute = vi.fn().mockRejectedValue(new Error('gh not found'));
+      (creator as unknown as { executeCommand: typeof mockExecute }).executeCommand = mockExecute;
+
+      // Should not throw - errors are caught and logged
+      await expect(
+        (creator as unknown as { addLabels: (n: number, l: string[]) => Promise<void> }).addLabels(
+          1,
+          ['bug', 'enhancement']
+        )
+      ).resolves.toBeUndefined();
+    });
+
+    it('should construct correct gh command for addLabels', async () => {
+      const mockExecute = vi.fn().mockResolvedValue({
+        stdout: '',
+        stderr: '',
+        exitCode: 0,
+      });
+      (creator as unknown as { executeCommand: typeof mockExecute }).executeCommand = mockExecute;
+
+      await (
+        creator as unknown as { addLabels: (n: number, l: string[]) => Promise<void> }
+      ).addLabels(42, ['bug', 'enhancement']);
+
+      expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining('gh pr edit 42'));
+      expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining('--add-label "bug"'));
+      expect(mockExecute).toHaveBeenCalledWith(
+        expect.stringContaining('--add-label "enhancement"')
+      );
     });
   });
 });
