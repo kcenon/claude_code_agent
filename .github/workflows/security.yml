@@ -34,7 +34,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run npm audit
+      - name: Run npm audit (production)
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Run npm audit (all, informational)
         run: npm audit --audit-level=high
         continue-on-error: true
 
@@ -157,7 +160,8 @@ jobs:
   summary:
     name: Security Summary
     runs-on: ubuntu-latest
-    needs: [dependency-audit, codeql-analysis, secret-scanning, license-check, security-headers-check]
+    needs:
+      [dependency-audit, codeql-analysis, secret-scanning, license-check, security-headers-check]
     if: always()
     steps:
       - name: Check results
