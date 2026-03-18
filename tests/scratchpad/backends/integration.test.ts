@@ -283,17 +283,18 @@ describe('Backend Integration Tests', () => {
       await backend.close();
     });
 
-    it('should fail initialization gracefully for invalid config', async () => {
-      await expect(
-        BackendFactory.createAndInitialize({
-          backend: 'redis',
-          redis: {
-            host: 'nonexistent-host.invalid',
-            port: 9999,
-            connectTimeout: 1000,
-          },
-        })
-      ).rejects.toThrow();
+    it('should fall back to FileBackend for invalid Redis config', async () => {
+      const backend = await BackendFactory.createAndInitialize({
+        backend: 'redis',
+        redis: {
+          host: 'nonexistent-host.invalid',
+          port: 9999,
+          connectTimeout: 1000,
+        },
+      });
+      // With automatic fallback, should return a FileBackend instead of throwing
+      expect(backend.name).toBe('file');
+      await backend.close();
     });
   });
 

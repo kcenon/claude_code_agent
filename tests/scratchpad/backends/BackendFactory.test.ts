@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { mkdir, writeFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -42,15 +42,13 @@ describe('BackendFactory', () => {
     });
 
     it('should throw error for redis without config', () => {
-      expect(() => BackendFactory.create({ backend: 'redis' })).toThrow(
-        BackendCreationError
-      );
+      expect(() => BackendFactory.create({ backend: 'redis' })).toThrow(BackendCreationError);
     });
 
     it('should throw error for unknown backend type', () => {
-      expect(() =>
-        BackendFactory.create({ backend: 'unknown' as 'file' })
-      ).toThrow(BackendCreationError);
+      expect(() => BackendFactory.create({ backend: 'unknown' as 'file' })).toThrow(
+        BackendCreationError
+      );
     });
 
     it('should pass file config to FileBackend', () => {
@@ -196,5 +194,45 @@ scratchpad:
     );
     const backend = await BackendFactory.createFromConfig(testDir);
     expect(backend).toBeInstanceOf(SQLiteBackend);
+  });
+});
+
+describe('BackendFactory.createAndInitialize fallback', () => {
+  it('should fall back to FileBackend when Redis initialization fails', async () => {
+    const backend = await BackendFactory.createAndInitialize({
+      backend: 'redis',
+      redis: {
+        host: 'localhost',
+        port: 19999, // Non-existent Redis
+        connectTimeout: 100,
+        maxRetries: 0,
+      },
+    });
+
+    // Should return a FileBackend instead of throwing
+    expect(backend).toBeInstanceOf(FileBackend);
+  });
+
+  it('should fall back to FileBackend when SQLite initialization fails', async () => {
+    const backend = await BackendFactory.createAndInitialize({
+      backend: 'sqlite',
+      sqlite: {
+        dbPath: '/nonexistent/path/that/will/fail/db.sqlite',
+      },
+    });
+
+    expect(backend).toBeInstanceOf(FileBackend);
+  });
+
+  it('should throw when file backend itself fails', async () => {
+    // Mock FileBackend.initialize to fail
+    const originalInit = FileBackend.prototype.initialize;
+    FileBackend.prototype.initialize = vi.fn().mockRejectedValue(new Error('disk full'));
+
+    await expect(BackendFactory.createAndInitialize({ backend: 'file' })).rejects.toThrow(
+      BackendCreationError
+    );
+
+    FileBackend.prototype.initialize = originalInit;
   });
 });
