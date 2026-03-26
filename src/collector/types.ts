@@ -5,6 +5,7 @@
  */
 
 import type { Priority, CollectedInfo } from '../scratchpad/index.js';
+import type { InvestigationDepth, InvestigationState } from './investigation-types.js';
 
 /**
  * Input source types supported by the Collector Agent
@@ -207,7 +208,7 @@ export interface CollectionSession {
   /** Project identifier */
   readonly projectId: string;
   /** Current collection status */
-  readonly status: 'collecting' | 'clarifying' | 'completed';
+  readonly status: 'collecting' | 'investigating' | 'clarifying' | 'completed';
   /** All input sources processed */
   readonly sources: readonly InputSource[];
   /** Current extraction result */
@@ -220,6 +221,8 @@ export interface CollectionSession {
   readonly startedAt: string;
   /** Session last update time */
   readonly updatedAt: string;
+  /** Investigation state (present when investigation is active or completed) */
+  readonly investigation?: InvestigationState | undefined;
 }
 
 /**
@@ -238,6 +241,8 @@ export interface CollectorAgentConfig {
   readonly detectLanguage?: boolean;
   /** Base path for scratchpad (defaults to .ad-sdlc/scratchpad) */
   readonly scratchpadBasePath?: string;
+  /** Investigation depth controlling multi-round investigation behavior */
+  readonly investigationDepth?: InvestigationDepth;
 }
 
 /**
@@ -280,6 +285,10 @@ export interface CollectionStats {
   readonly questionsAnswered: number;
   /** Total processing time in milliseconds */
   readonly processingTimeMs: number;
+  /** Number of investigation rounds completed */
+  readonly investigationRounds: number;
+  /** Number of investigation questions asked */
+  readonly investigationQuestionsAsked: number;
 }
 
 /**

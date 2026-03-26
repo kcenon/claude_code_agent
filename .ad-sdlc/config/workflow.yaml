@@ -44,6 +44,13 @@ global:
     # Import Pipeline stages
     issue_reading: false # After issue import
 
+  # Investigation Configuration (pre-PRD requirements elicitation)
+  investigation:
+    depth: standard # thorough | standard | quick
+    max_questions_per_round: 5 # 1-10 questions per investigation round
+    confidence_target: 0.85 # stop investigation when confidence reaches this threshold
+    early_exit_on_high_confidence: true
+
   # V&V (Verification & Validation) Configuration
   vnv:
     rigor: standard # strict | standard | minimal

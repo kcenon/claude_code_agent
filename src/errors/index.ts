@@ -62,6 +62,7 @@ export {
   ExtendedSecurityErrorCodes,
   ExternalServiceErrorCodes,
   VnvErrorCodes,
+  CollectorErrorCodes,
   ErrorCodeDescriptions,
   type ErrorCode,
 } from './codes.js';

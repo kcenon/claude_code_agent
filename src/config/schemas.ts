@@ -150,6 +150,13 @@ const ScratchpadConfigSchema = z.object({
 /**
  * V&V (Verification & Validation) configuration
  */
+const InvestigationConfigSchema = z.object({
+  depth: z.enum(['thorough', 'standard', 'quick']).optional().default('standard'),
+  max_questions_per_round: z.number().int().min(1).max(10).optional().default(5),
+  confidence_target: z.number().min(0).max(1).optional().default(0.85),
+  early_exit_on_high_confidence: z.boolean().optional().default(true),
+});
+
 const VnvConfigSchema = z.object({
   rigor: z.enum(['strict', 'standard', 'minimal']).optional().default('standard'),
   halt_on_verification_failure: z.boolean().optional().default(false),
@@ -173,6 +180,7 @@ const GlobalSettingsSchema = z.object({
   retry_policy: RetryPolicySchema.optional(),
   timeouts: TimeoutsSchema.optional(),
   vnv: VnvConfigSchema.optional(),
+  investigation: InvestigationConfigSchema.optional(),
 });
 
 /**

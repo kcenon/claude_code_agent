@@ -318,6 +318,55 @@ const collectionRules: readonly VerificationRule[] = [
       );
     },
   },
+  {
+    checkId: 'VR-COL-INV-001',
+    name: 'Investigation completed for non-quick depth',
+    category: 'content',
+    minRigor: 'standard',
+    severity: 'warning',
+    async check(artifacts): Promise<VerificationCheck> {
+      const artifact = findArtifact(artifacts, 'collected_info');
+      if (artifact === undefined) {
+        return passCheck(this, 'No collected_info artifact — investigation check skipped');
+      }
+      const content = await safeReadFile(artifact);
+      if (content === null) {
+        return passCheck(this, 'Cannot read collected_info — investigation check skipped');
+      }
+      const parsed = safeParseYaml(content);
+      if (!parsed) {
+        return passCheck(this, 'Cannot parse collected_info — investigation check skipped');
+      }
+
+      const investigation = parsed['investigation'] as Record<string, unknown> | undefined;
+      if (investigation === undefined) {
+        return passCheck(this, 'No investigation metadata — likely quick depth');
+      }
+
+      const depth = investigation['depth'] as string | undefined;
+      const roundsCompleted = investigation['roundsCompleted'] as number | undefined;
+
+      if (depth !== 'quick' && (roundsCompleted === undefined || roundsCompleted < 1)) {
+        return failCheck(
+          this,
+          `Investigation depth is "${String(depth)}" but no rounds were completed`,
+          {
+            depth,
+            roundsCompleted: roundsCompleted ?? 0,
+          }
+        );
+      }
+
+      return passCheck(
+        this,
+        `Investigation completed: ${String(roundsCompleted)} round(s) at "${String(depth)}" depth`,
+        {
+          depth,
+          roundsCompleted,
+        }
+      );
+    },
+  },
 ];
 
 // =============================================================================

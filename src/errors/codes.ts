@@ -400,6 +400,20 @@ export const VnvErrorCodes = {
 } as const;
 
 /**
+ * Collector module error codes (COL-xxx)
+ *
+ * For investigation engine and collection process errors
+ */
+export const CollectorErrorCodes = {
+  // Investigation errors (001-009)
+  COL_INVESTIGATION_FAILED: 'COL-001',
+  COL_INVESTIGATION_ROUND_FAILED: 'COL-002',
+  COL_INVESTIGATION_LLM_FAILED: 'COL-003',
+  COL_INVESTIGATION_INVALID_ANSWER: 'COL-004',
+  COL_INVESTIGATION_STATE_ERROR: 'COL-005',
+} as const;
+
+/**
  * Extended Security error codes (SEC-xxx)
  *
  * Extends SecurityErrorCodes with more specific security errors
@@ -478,6 +492,7 @@ export const ErrorCodes = {
   ...ExtendedSecurityErrorCodes,
   ...ExternalServiceErrorCodes,
   ...VnvErrorCodes,
+  ...CollectorErrorCodes,
 } as const;
 
 /**
@@ -747,4 +762,11 @@ export const ErrorCodeDescriptions: Record<ErrorCode, string> = {
   [ErrorCodes.VNV_PLAN_GENERATION_ERROR]: 'V&V plan generation failed',
   [ErrorCodes.VNV_CONFIG_ERROR]: 'V&V configuration error',
   [ErrorCodes.VNV_RIGOR_UNSUPPORTED]: 'Unsupported V&V rigor level',
+
+  // Collector
+  [ErrorCodes.COL_INVESTIGATION_FAILED]: 'Investigation process failed',
+  [ErrorCodes.COL_INVESTIGATION_ROUND_FAILED]: 'Investigation round failed',
+  [ErrorCodes.COL_INVESTIGATION_LLM_FAILED]: 'LLM question generation failed',
+  [ErrorCodes.COL_INVESTIGATION_INVALID_ANSWER]: 'Invalid investigation answer',
+  [ErrorCodes.COL_INVESTIGATION_STATE_ERROR]: 'Investigation state error',
 };

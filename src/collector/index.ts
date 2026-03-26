@@ -33,6 +33,11 @@ export type { InformationExtractorOptions } from './InformationExtractor.js';
 
 export { LLMExtractor } from './LLMExtractor.js';
 
+// Investigation
+export { InvestigationEngine } from './InvestigationEngine.js';
+export { InvestigationTemplates, TRIGGER_CONDITIONS } from './InvestigationTemplates.js';
+export type { QuestionTemplate } from './InvestigationTemplates.js';
+
 // Error classes
 export {
   CollectorError,
@@ -45,7 +50,35 @@ export {
   SessionStateError,
   UnsupportedFileTypeError,
   ProjectInitError,
+  InvestigationError,
 } from './errors.js';
+
+// Investigation types
+export {
+  type InvestigationDepth,
+  type InvestigationQuestionFormat,
+  type InvestigationPhase,
+  type InvestigationQuestion,
+  type InvestigationAnswer,
+  type InvestigationRound,
+  type InvestigationState,
+  type InvestigationEngineConfig,
+  type InvestigationPhaseConfig,
+  type InvestigationMetadata,
+  InvestigationDepthSchema,
+  InvestigationQuestionFormatSchema,
+  InvestigationPhaseSchema,
+  InvestigationQuestionSchema,
+  InvestigationAnswerSchema,
+  InvestigationRoundSchema,
+  InvestigationStateSchema,
+  InvestigationEngineConfigSchema,
+  InvestigationMetadataSchema,
+  getPhasesForDepth,
+  getMaxTotalQuestions,
+  getDefaultConfidenceTarget,
+  isEarlyExitAllowed,
+} from './investigation-types.js';
 
 // Type exports
 export type {

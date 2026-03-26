@@ -144,6 +144,23 @@ export class UnsupportedFileTypeError extends CollectorError {
 }
 
 /**
+ * Error thrown when investigation process fails
+ */
+export class InvestigationError extends CollectorError {
+  /** The investigation phase where the error occurred */
+  public readonly phase: string;
+  /** The round number */
+  public readonly round: number;
+
+  constructor(phase: string, round: number, reason: string) {
+    super(`Investigation failed at phase "${phase}" (round ${String(round)}): ${reason}`);
+    this.name = 'InvestigationError';
+    this.phase = phase;
+    this.round = round;
+  }
+}
+
+/**
  * Error thrown when project initialization fails
  */
 export class ProjectInitError extends CollectorError {
