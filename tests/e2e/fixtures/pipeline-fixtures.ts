@@ -222,20 +222,33 @@ export const prReviewerOutput = JSON.stringify({
 });
 
 /**
+ * Output from the validation agent.
+ * Validates implementation against requirements and acceptance criteria.
+ */
+export const validationOutput = JSON.stringify({
+  status: 'completed',
+  overallResult: 'pass',
+  requirementsCoverage: 1.0,
+  acceptanceCriteriaPassed: 6,
+  acceptanceCriteriaFailed: 0,
+});
+
+/**
  * Complete response map for all Greenfield pipeline agent types.
  * Keys match the agentType field in GREENFIELD_STAGES.
  */
 export const GREENFIELD_RESPONSES: Record<string, string> = {
   'project-initializer': initializerOutput,
   'mode-detector': modeDetectorOutput,
-  'collector': collectorOutput,
+  collector: collectorOutput,
   'prd-writer': prdOutput,
   'srs-writer': srsOutput,
   'repo-detector': repoDetectorOutput,
   'github-repo-setup': githubRepoSetupOutput,
   'sds-writer': sdsOutput,
   'issue-generator': issueGeneratorOutput,
-  'controller': controllerOutput,
-  'worker': workerOutput,
+  controller: controllerOutput,
+  worker: workerOutput,
+  validation: validationOutput,
   'pr-reviewer': prReviewerOutput,
 };

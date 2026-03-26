@@ -1,24 +1,24 @@
 # AD-SDLC Workflow Configuration
 # Agent-Driven Software Development Lifecycle System
 
-version: "1.0.0"
-name: "AD-SDLC Workflow"
+version: '1.0.0'
+name: 'AD-SDLC Workflow'
 
 # =============================================================================
 # Global Settings
 # =============================================================================
 global:
-  project_root: "${PWD}"
-  scratchpad_dir: ".ad-sdlc/scratchpad"
-  output_docs_dir: "docs"
-  log_level: "INFO"  # DEBUG, INFO, WARN, ERROR
+  project_root: '${PWD}'
+  scratchpad_dir: '.ad-sdlc/scratchpad'
+  output_docs_dir: 'docs'
+  log_level: 'INFO' # DEBUG, INFO, WARN, ERROR
 
   # Approval mode for pipeline execution
   # - "auto": No approval prompts, fully automated execution (default)
   # - "manual": Approval required at every gate
   # - "critical": Only critical stages require approval (before_merge, after_sds)
   # - "custom": Use individual approval_gates settings below
-  approval_mode: "auto"
+  approval_mode: 'auto'
 
   # Human-in-the-loop approval gates
   # Only used when approval_mode is "custom"
@@ -26,35 +26,46 @@ global:
   # Keys match actual pipeline stage names in modes.*.stages[].name
   approval_gates:
     # Greenfield Pipeline stages
-    collection: false           # After collector agent
-    prd_generation: false       # After PRD writer
-    srs_generation: false       # After SRS writer
-    repo_detection: false       # After repo detector
-    github_repo_setup: false    # After GitHub repo setup
-    sds_generation: false       # After SDS writer
-    issue_generation: false     # After issue generator
-    review: false               # Before PR merge
+    collection: false # After collector agent
+    prd_generation: false # After PRD writer
+    srs_generation: false # After SRS writer
+    repo_detection: false # After repo detector
+    github_repo_setup: false # After GitHub repo setup
+    sds_generation: false # After SDS writer
+    issue_generation: false # After issue generator
+    validation: false # After V&V validation
+    review: false # Before PR merge
     # Enhancement Pipeline stages
-    doc_code_comparison: false  # After gap analysis
-    impact_analysis: false      # After impact assessment
-    prd_update: false           # After PRD updater
-    srs_update: false           # After SRS updater
-    sds_update: false           # After SDS updater
+    doc_code_comparison: false # After gap analysis
+    impact_analysis: false # After impact assessment
+    prd_update: false # After PRD updater
+    srs_update: false # After SRS updater
+    sds_update: false # After SDS updater
     # Import Pipeline stages
-    issue_reading: false        # After issue import
+    issue_reading: false # After issue import
+
+  # V&V (Verification & Validation) Configuration
+  vnv:
+    rigor: standard # strict | standard | minimal
+    halt_on_verification_failure: false
+    generate_vnv_plan: true
+    generate_vnv_report: true
+    generate_rtm: true
+    cross_document_consistency: true
+    acceptance_criteria_validation: true
 
   # Retry policy for agents
   retry_policy:
     max_attempts: 3
-    backoff: "exponential"
+    backoff: 'exponential'
     base_delay_seconds: 5
     max_delay_seconds: 60
 
   # Timeout settings
   timeouts:
-    document_generation: 300  # 5 minutes
+    document_generation: 300 # 5 minutes
     issue_creation: 60
-    implementation: 1800  # 30 minutes
+    implementation: 1800 # 30 minutes
     pr_review: 300
 
 # =============================================================================
@@ -68,390 +79,432 @@ global:
 # =============================================================================
 pipeline:
   # Default mode (can be overridden by user or auto-detected)
-  default_mode: "greenfield"
+  default_mode: 'greenfield'
 
   modes:
     # =========================================================================
     # Greenfield Mode - Full document generation pipeline for new projects
     # =========================================================================
     greenfield:
-      description: "Full document generation pipeline for new projects"
+      description: 'Full document generation pipeline for new projects'
       stages:
-        - name: "collection"
-          agent: "collector"
-          description: "Collect and structure user requirements"
+        - name: 'collection'
+          agent: 'collector'
+          description: 'Collect and structure user requirements'
           inputs:
-            - type: "user_message"
-            - type: "files"
-            - type: "urls"
+            - type: 'user_message'
+            - type: 'files'
+            - type: 'urls'
           outputs:
-            - "${scratchpad_dir}/info/${project_id}/collected_info.yaml"
-          next: "prd_generation"
+            - '${scratchpad_dir}/info/${project_id}/collected_info.yaml'
+          next: 'prd_generation'
           approval_required: true
 
-        - name: "prd_generation"
-          agent: "prd-writer"
-          description: "Generate PRD from collected information"
+        - name: 'prd_generation'
+          agent: 'prd-writer'
+          description: 'Generate PRD from collected information'
           inputs:
-            - "${scratchpad_dir}/info/${project_id}/collected_info.yaml"
+            - '${scratchpad_dir}/info/${project_id}/collected_info.yaml'
           outputs:
-            - "${scratchpad_dir}/documents/${project_id}/prd.md"
-            - "${output_docs_dir}/prd/PRD-${project_id}.md"
-          next: "srs_generation"
+            - '${scratchpad_dir}/documents/${project_id}/prd.md'
+            - '${output_docs_dir}/prd/PRD-${project_id}.md'
+          next: 'srs_generation'
           approval_required: true
 
-        - name: "srs_generation"
-          agent: "srs-writer"
-          description: "Generate SRS from PRD"
+        - name: 'srs_generation'
+          agent: 'srs-writer'
+          description: 'Generate SRS from PRD'
           inputs:
-            - "${scratchpad_dir}/documents/${project_id}/prd.md"
+            - '${scratchpad_dir}/documents/${project_id}/prd.md'
           outputs:
-            - "${scratchpad_dir}/documents/${project_id}/srs.md"
-            - "${output_docs_dir}/srs/SRS-${project_id}.md"
-          next: "repo_detection"
+            - '${scratchpad_dir}/documents/${project_id}/srs.md'
+            - '${output_docs_dir}/srs/SRS-${project_id}.md'
+          next: 'repo_detection'
           approval_required: true
 
-        - name: "repo_detection"
-          agent: "repo-detector"
-          description: "Detect existing GitHub repository presence"
+        - name: 'repo_detection'
+          agent: 'repo-detector'
+          description: 'Detect existing GitHub repository presence'
           inputs:
-            - "${scratchpad_dir}/documents/${project_id}/prd.md"
+            - '${scratchpad_dir}/documents/${project_id}/prd.md'
           outputs:
-            - "${scratchpad_dir}/repo/${project_id}/detection_result.yaml"
-          next: "github_repo_setup"
+            - '${scratchpad_dir}/repo/${project_id}/detection_result.yaml'
+          next: 'github_repo_setup'
           approval_required: false
-          conditional: true  # Skip github_repo_setup if repo already exists
+          conditional: true # Skip github_repo_setup if repo already exists
 
-        - name: "github_repo_setup"
-          agent: "github-repo-setup"
-          description: "Create and initialize public GitHub repository"
+        - name: 'github_repo_setup'
+          agent: 'github-repo-setup'
+          description: 'Create and initialize public GitHub repository'
           inputs:
-            - "${scratchpad_dir}/documents/${project_id}/prd.md"
-            - "${scratchpad_dir}/documents/${project_id}/srs.md"
+            - '${scratchpad_dir}/documents/${project_id}/prd.md'
+            - '${scratchpad_dir}/documents/${project_id}/srs.md'
           outputs:
-            - "${scratchpad_dir}/repo/${project_id}/github_repo.yaml"
-          next: "sds_generation"
+            - '${scratchpad_dir}/repo/${project_id}/github_repo.yaml'
+          next: 'sds_generation'
           approval_required: true
 
-        - name: "sds_generation"
-          agent: "sds-writer"
-          description: "Generate SDS from SRS"
+        - name: 'sds_generation'
+          agent: 'sds-writer'
+          description: 'Generate SDS from SRS'
           inputs:
-            - "${scratchpad_dir}/documents/${project_id}/srs.md"
+            - '${scratchpad_dir}/documents/${project_id}/srs.md'
           outputs:
-            - "${scratchpad_dir}/documents/${project_id}/sds.md"
-            - "${output_docs_dir}/sds/SDS-${project_id}.md"
-          next: "issue_generation"
+            - '${scratchpad_dir}/documents/${project_id}/sds.md'
+            - '${output_docs_dir}/sds/SDS-${project_id}.md'
+          next: 'issue_generation'
           approval_required: true
 
-        - name: "issue_generation"
-          agent: "issue-generator"
-          description: "Generate GitHub issues from SDS"
+        - name: 'issue_generation'
+          agent: 'issue-generator'
+          description: 'Generate GitHub issues from SDS'
           inputs:
-            - "${scratchpad_dir}/documents/${project_id}/sds.md"
+            - '${scratchpad_dir}/documents/${project_id}/sds.md'
           outputs:
-            - "${scratchpad_dir}/issues/${project_id}/issue_list.json"
-            - "${scratchpad_dir}/issues/${project_id}/dependency_graph.json"
-          next: "orchestration"
+            - '${scratchpad_dir}/issues/${project_id}/issue_list.json'
+            - '${scratchpad_dir}/issues/${project_id}/dependency_graph.json'
+          next: 'orchestration'
           approval_required: true
 
-        - name: "orchestration"
-          agent: "controller"
-          description: "Orchestrate work distribution"
+        - name: 'orchestration'
+          agent: 'controller'
+          description: 'Orchestrate work distribution'
           inputs:
-            - "${scratchpad_dir}/issues/${project_id}/issue_list.json"
-            - "${scratchpad_dir}/issues/${project_id}/dependency_graph.json"
+            - '${scratchpad_dir}/issues/${project_id}/issue_list.json'
+            - '${scratchpad_dir}/issues/${project_id}/dependency_graph.json'
           outputs:
-            - "${scratchpad_dir}/progress/${project_id}/controller_state.yaml"
-            - "${scratchpad_dir}/progress/${project_id}/work_orders/*.yaml"
-          next: "implementation"
+            - '${scratchpad_dir}/progress/${project_id}/controller_state.yaml'
+            - '${scratchpad_dir}/progress/${project_id}/work_orders/*.yaml'
+          next: 'implementation'
           approval_required: false
 
-        - name: "implementation"
-          agent: "worker"
-          description: "Implement assigned issues"
+        - name: 'implementation'
+          agent: 'worker'
+          description: 'Implement assigned issues'
           parallel: true
           max_parallel: 5
           inputs:
-            - "${scratchpad_dir}/progress/${project_id}/work_orders/*.yaml"
+            - '${scratchpad_dir}/progress/${project_id}/work_orders/*.yaml'
           outputs:
-            - "${scratchpad_dir}/progress/${project_id}/results/*.yaml"
-            - "src/**/*"
-          next: "review"
+            - '${scratchpad_dir}/progress/${project_id}/results/*.yaml'
+            - 'src/**/*'
+          next: 'validation'
           approval_required: false
 
-        - name: "review"
-          agent: "pr-reviewer"
-          description: "Create and review PRs"
+        - name: 'validation'
+          agent: 'validation'
+          description: 'Validate implementation against requirements'
           inputs:
-            - "${scratchpad_dir}/progress/${project_id}/results/*.yaml"
+            - '${scratchpad_dir}/progress/${project_id}/results/*.yaml'
+            - '${scratchpad_dir}/vnv/${project_id}/rtm.yaml'
           outputs:
-            - "${scratchpad_dir}/progress/${project_id}/reviews/*.yaml"
-          next: null  # End of pipeline
+            - '${scratchpad_dir}/vnv/${project_id}/validation-report.yaml'
+            - 'docs/vnv/vnv-report.md'
+            - 'docs/vnv/rtm-report.md'
+          next: 'review'
+          approval_required: false
+
+        - name: 'review'
+          agent: 'pr-reviewer'
+          description: 'Create and review PRs'
+          inputs:
+            - '${scratchpad_dir}/progress/${project_id}/results/*.yaml'
+            - '${scratchpad_dir}/vnv/${project_id}/validation-report.yaml'
+          outputs:
+            - '${scratchpad_dir}/progress/${project_id}/reviews/*.yaml'
+          next: null # End of pipeline
           approval_required: false
           on_ci_failure:
-            agent: "ci-fixer"
-            description: "Automatically diagnose and fix CI/CD failures"
+            agent: 'ci-fixer'
+            description: 'Automatically diagnose and fix CI/CD failures'
             max_attempts: 3
             inputs:
-              - "${scratchpad_dir}/progress/${project_id}/reviews/*.yaml"
+              - '${scratchpad_dir}/progress/${project_id}/reviews/*.yaml'
             outputs:
-              - "${scratchpad_dir}/progress/${project_id}/ci_fixes/*.yaml"
+              - '${scratchpad_dir}/progress/${project_id}/ci_fixes/*.yaml'
 
     # =========================================================================
     # Enhancement Mode - Incremental update pipeline for existing projects
     # =========================================================================
     enhancement:
-      description: "Incremental update pipeline for existing projects"
+      description: 'Incremental update pipeline for existing projects'
       stages:
-        - name: "analysis_parallel"
-          description: "Parallel analysis of existing documents and codebase"
+        - name: 'analysis_parallel'
+          description: 'Parallel analysis of existing documents and codebase'
           parallel: true
           substages:
-            - name: "document_reading"
-              agent: "document-reader"
-              description: "Parse existing PRD/SRS/SDS documents"
+            - name: 'document_reading'
+              agent: 'document-reader'
+              description: 'Parse existing PRD/SRS/SDS documents'
               inputs:
-                - type: "existing_documents"
-                - "${output_docs_dir}/prd/*.md"
-                - "${output_docs_dir}/srs/*.md"
-                - "${output_docs_dir}/sds/*.md"
+                - type: 'existing_documents'
+                - '${output_docs_dir}/prd/*.md'
+                - '${output_docs_dir}/srs/*.md'
+                - '${output_docs_dir}/sds/*.md'
               outputs:
-                - "${scratchpad_dir}/current_state/${project_id}/current_state.yaml"
+                - '${scratchpad_dir}/current_state/${project_id}/current_state.yaml'
               approval_required: false
 
-            - name: "codebase_analysis"
-              agent: "codebase-analyzer"
-              description: "Analyze existing codebase structure"
+            - name: 'codebase_analysis'
+              agent: 'codebase-analyzer'
+              description: 'Analyze existing codebase structure'
               inputs:
-                - type: "source_code"
-                - "src/**/*"
-                - "package.json"
-                - "tsconfig.json"
+                - type: 'source_code'
+                - 'src/**/*'
+                - 'package.json'
+                - 'tsconfig.json'
               outputs:
-                - "${scratchpad_dir}/analysis/${project_id}/architecture_overview.yaml"
-                - "${scratchpad_dir}/analysis/${project_id}/dependency_graph.json"
+                - '${scratchpad_dir}/analysis/${project_id}/architecture_overview.yaml'
+                - '${scratchpad_dir}/analysis/${project_id}/dependency_graph.json'
               approval_required: false
 
-            - name: "code_reading"
-              agent: "code-reader"
-              description: "Analyze source code AST for classes, functions, and dependencies"
+            - name: 'code_reading'
+              agent: 'code-reader'
+              description: 'Analyze source code AST for classes, functions, and dependencies'
               inputs:
-                - type: "source_code"
-                - "src/**/*"
+                - type: 'source_code'
+                - 'src/**/*'
               outputs:
-                - "${scratchpad_dir}/analysis/${project_id}/code_inventory.yaml"
+                - '${scratchpad_dir}/analysis/${project_id}/code_inventory.yaml'
               approval_required: false
-          next: "doc_code_comparison"
+          next: 'doc_code_comparison'
 
-        - name: "doc_code_comparison"
-          agent: "doc-code-comparator"
-          description: "Compare document specifications against code implementation"
+        - name: 'doc_code_comparison'
+          agent: 'doc-code-comparator'
+          description: 'Compare document specifications against code implementation'
           inputs:
-            - "${scratchpad_dir}/current_state/${project_id}/current_state.yaml"
-            - "${scratchpad_dir}/analysis/${project_id}/code_inventory.yaml"
-            - "${scratchpad_dir}/analysis/${project_id}/architecture_overview.yaml"
+            - '${scratchpad_dir}/current_state/${project_id}/current_state.yaml'
+            - '${scratchpad_dir}/analysis/${project_id}/code_inventory.yaml'
+            - '${scratchpad_dir}/analysis/${project_id}/architecture_overview.yaml'
           outputs:
-            - "${scratchpad_dir}/analysis/${project_id}/gap_report.yaml"
-          next: "impact_analysis"
+            - '${scratchpad_dir}/analysis/${project_id}/gap_report.yaml'
+          next: 'impact_analysis'
           approval_required: false
 
-        - name: "impact_analysis"
-          agent: "impact-analyzer"
-          description: "Analyze change impact on existing system"
+        - name: 'impact_analysis'
+          agent: 'impact-analyzer'
+          description: 'Analyze change impact on existing system'
           inputs:
-            - type: "user_message"
-            - "${scratchpad_dir}/current_state/${project_id}/current_state.yaml"
-            - "${scratchpad_dir}/analysis/${project_id}/architecture_overview.yaml"
-            - "${scratchpad_dir}/analysis/${project_id}/dependency_graph.json"
+            - type: 'user_message'
+            - '${scratchpad_dir}/current_state/${project_id}/current_state.yaml'
+            - '${scratchpad_dir}/analysis/${project_id}/architecture_overview.yaml'
+            - '${scratchpad_dir}/analysis/${project_id}/dependency_graph.json'
           outputs:
-            - "${scratchpad_dir}/impact/${project_id}/impact_report.yaml"
-          next: "document_update"
-          approval_required: true  # Human review of impact analysis
+            - '${scratchpad_dir}/impact/${project_id}/impact_report.yaml'
+          next: 'document_update'
+          approval_required: true # Human review of impact analysis
 
-        - name: "document_update"
-          description: "Sequential document updates (PRD → SRS → SDS)"
+        - name: 'document_update'
+          description: 'Sequential document updates (PRD → SRS → SDS)'
           substages:
-            - name: "prd_update"
-              agent: "prd-updater"
-              description: "Incrementally update PRD"
+            - name: 'prd_update'
+              agent: 'prd-updater'
+              description: 'Incrementally update PRD'
               inputs:
-                - "${output_docs_dir}/prd/*.md"
-                - "${scratchpad_dir}/impact/${project_id}/impact_report.yaml"
+                - '${output_docs_dir}/prd/*.md'
+                - '${scratchpad_dir}/impact/${project_id}/impact_report.yaml'
               outputs:
-                - "${scratchpad_dir}/documents/${project_id}/prd_update_result.yaml"
-                - "${output_docs_dir}/prd/PRD-${project_id}.md"
-                - "${output_docs_dir}/prd/prd_changelog.md"
-              next: "srs_update"
+                - '${scratchpad_dir}/documents/${project_id}/prd_update_result.yaml'
+                - '${output_docs_dir}/prd/PRD-${project_id}.md'
+                - '${output_docs_dir}/prd/prd_changelog.md'
+              next: 'srs_update'
               approval_required: true
 
-            - name: "srs_update"
-              agent: "srs-updater"
-              description: "Incrementally update SRS"
+            - name: 'srs_update'
+              agent: 'srs-updater'
+              description: 'Incrementally update SRS'
               inputs:
-                - "${output_docs_dir}/srs/*.md"
-                - "${scratchpad_dir}/documents/${project_id}/prd_update_result.yaml"
+                - '${output_docs_dir}/srs/*.md'
+                - '${scratchpad_dir}/documents/${project_id}/prd_update_result.yaml'
               outputs:
-                - "${scratchpad_dir}/documents/${project_id}/srs_update_result.yaml"
-                - "${output_docs_dir}/srs/SRS-${project_id}.md"
-                - "${output_docs_dir}/srs/srs_changelog.md"
-              next: "sds_update"
+                - '${scratchpad_dir}/documents/${project_id}/srs_update_result.yaml'
+                - '${output_docs_dir}/srs/SRS-${project_id}.md'
+                - '${output_docs_dir}/srs/srs_changelog.md'
+              next: 'sds_update'
               approval_required: true
 
-            - name: "sds_update"
-              agent: "sds-updater"
-              description: "Incrementally update SDS"
+            - name: 'sds_update'
+              agent: 'sds-updater'
+              description: 'Incrementally update SDS'
               inputs:
-                - "${output_docs_dir}/sds/*.md"
-                - "${scratchpad_dir}/documents/${project_id}/srs_update_result.yaml"
+                - '${output_docs_dir}/sds/*.md'
+                - '${scratchpad_dir}/documents/${project_id}/srs_update_result.yaml'
               outputs:
-                - "${scratchpad_dir}/documents/${project_id}/sds_update_result.yaml"
-                - "${output_docs_dir}/sds/SDS-${project_id}.md"
-                - "${output_docs_dir}/sds/sds_changelog.md"
+                - '${scratchpad_dir}/documents/${project_id}/sds_update_result.yaml'
+                - '${output_docs_dir}/sds/SDS-${project_id}.md'
+                - '${output_docs_dir}/sds/sds_changelog.md'
               approval_required: true
-          next: "issue_generation"
+          next: 'issue_generation'
 
-        - name: "issue_generation"
-          agent: "issue-generator"
-          description: "Generate issues from updated SDS and impact report"
+        - name: 'issue_generation'
+          agent: 'issue-generator'
+          description: 'Generate issues from updated SDS and impact report'
           inputs:
-            - "${scratchpad_dir}/documents/${project_id}/sds_update_result.yaml"
-            - "${scratchpad_dir}/impact/${project_id}/impact_report.yaml"
+            - '${scratchpad_dir}/documents/${project_id}/sds_update_result.yaml'
+            - '${scratchpad_dir}/impact/${project_id}/impact_report.yaml'
           outputs:
-            - "${scratchpad_dir}/issues/${project_id}/issue_list.json"
-            - "${scratchpad_dir}/issues/${project_id}/dependency_graph.json"
-          next: "orchestration"
+            - '${scratchpad_dir}/issues/${project_id}/issue_list.json'
+            - '${scratchpad_dir}/issues/${project_id}/dependency_graph.json'
+          next: 'orchestration'
           approval_required: true
 
-        - name: "orchestration"
-          agent: "controller"
-          description: "Orchestrate work distribution"
+        - name: 'orchestration'
+          agent: 'controller'
+          description: 'Orchestrate work distribution'
           inputs:
-            - "${scratchpad_dir}/issues/${project_id}/issue_list.json"
-            - "${scratchpad_dir}/issues/${project_id}/dependency_graph.json"
+            - '${scratchpad_dir}/issues/${project_id}/issue_list.json'
+            - '${scratchpad_dir}/issues/${project_id}/dependency_graph.json'
           outputs:
-            - "${scratchpad_dir}/progress/${project_id}/controller_state.yaml"
-            - "${scratchpad_dir}/progress/${project_id}/work_orders/*.yaml"
-          next: "parallel_execution"
+            - '${scratchpad_dir}/progress/${project_id}/controller_state.yaml'
+            - '${scratchpad_dir}/progress/${project_id}/work_orders/*.yaml'
+          next: 'parallel_execution'
           approval_required: false
 
-        - name: "parallel_execution"
-          description: "Parallel execution of implementation and regression testing"
+        - name: 'parallel_execution'
+          description: 'Parallel execution of implementation and regression testing'
           parallel: true
           substages:
-            - name: "implementation"
-              agent: "worker"
-              description: "Implement assigned issues"
+            - name: 'implementation'
+              agent: 'worker'
+              description: 'Implement assigned issues'
               parallel: true
               max_parallel: 5
               inputs:
-                - "${scratchpad_dir}/progress/${project_id}/work_orders/*.yaml"
+                - '${scratchpad_dir}/progress/${project_id}/work_orders/*.yaml'
               outputs:
-                - "${scratchpad_dir}/progress/${project_id}/results/*.yaml"
-                - "src/**/*"
+                - '${scratchpad_dir}/progress/${project_id}/results/*.yaml'
+                - 'src/**/*'
               approval_required: false
 
-            - name: "regression_testing"
-              agent: "regression-tester"
-              description: "Run regression tests for affected areas"
+            - name: 'regression_testing'
+              agent: 'regression-tester'
+              description: 'Run regression tests for affected areas'
               inputs:
-                - "${scratchpad_dir}/progress/${project_id}/results/*.yaml"
-                - "${scratchpad_dir}/analysis/${project_id}/dependency_graph.json"
+                - '${scratchpad_dir}/progress/${project_id}/results/*.yaml'
+                - '${scratchpad_dir}/analysis/${project_id}/dependency_graph.json'
               outputs:
-                - "${scratchpad_dir}/progress/${project_id}/regression_report.yaml"
+                - '${scratchpad_dir}/progress/${project_id}/regression_report.yaml'
               approval_required: false
-          next: "review"
+          next: 'validation'
 
-        - name: "review"
-          agent: "pr-reviewer"
-          description: "Create and review PRs with regression report"
+        - name: 'validation'
+          agent: 'validation'
+          description: 'Validate implementation against requirements'
           inputs:
-            - "${scratchpad_dir}/progress/${project_id}/results/*.yaml"
-            - "${scratchpad_dir}/progress/${project_id}/regression_report.yaml"
+            - '${scratchpad_dir}/progress/${project_id}/results/*.yaml'
+            - '${scratchpad_dir}/vnv/${project_id}/rtm.yaml'
           outputs:
-            - "${scratchpad_dir}/progress/${project_id}/reviews/*.yaml"
-          next: null  # End of pipeline
+            - '${scratchpad_dir}/vnv/${project_id}/validation-report.yaml'
+            - 'docs/vnv/vnv-report.md'
+            - 'docs/vnv/rtm-report.md'
+          next: 'review'
+          approval_required: false
+
+        - name: 'review'
+          agent: 'pr-reviewer'
+          description: 'Create and review PRs with regression report'
+          inputs:
+            - '${scratchpad_dir}/progress/${project_id}/results/*.yaml'
+            - '${scratchpad_dir}/progress/${project_id}/regression_report.yaml'
+            - '${scratchpad_dir}/vnv/${project_id}/validation-report.yaml'
+          outputs:
+            - '${scratchpad_dir}/progress/${project_id}/reviews/*.yaml'
+          next: null # End of pipeline
           approval_required: false
           on_ci_failure:
-            agent: "ci-fixer"
-            description: "Automatically diagnose and fix CI/CD failures"
+            agent: 'ci-fixer'
+            description: 'Automatically diagnose and fix CI/CD failures'
             max_attempts: 3
             inputs:
-              - "${scratchpad_dir}/progress/${project_id}/reviews/*.yaml"
+              - '${scratchpad_dir}/progress/${project_id}/reviews/*.yaml'
             outputs:
-              - "${scratchpad_dir}/progress/${project_id}/ci_fixes/*.yaml"
+              - '${scratchpad_dir}/progress/${project_id}/ci_fixes/*.yaml'
 
     # =========================================================================
     # Import Mode - Start from existing GitHub issues
     # =========================================================================
     import:
-      description: "Import existing GitHub issues and start execution pipeline"
+      description: 'Import existing GitHub issues and start execution pipeline'
       stages:
-        - name: "issue_reading"
-          agent: "issue-reader"
-          description: "Import existing GitHub issues to AD-SDLC format"
+        - name: 'issue_reading'
+          agent: 'issue-reader'
+          description: 'Import existing GitHub issues to AD-SDLC format'
           inputs:
-            - type: "github_issues"
-            - type: "filter_criteria"
+            - type: 'github_issues'
+            - type: 'filter_criteria'
           outputs:
-            - "${scratchpad_dir}/issues/${project_id}/issue_list.json"
-            - "${scratchpad_dir}/issues/${project_id}/dependency_graph.json"
-          next: "orchestration"
+            - '${scratchpad_dir}/issues/${project_id}/issue_list.json'
+            - '${scratchpad_dir}/issues/${project_id}/dependency_graph.json'
+          next: 'orchestration'
           approval_required: true
 
-        - name: "orchestration"
-          agent: "controller"
-          description: "Orchestrate work distribution from imported issues"
+        - name: 'orchestration'
+          agent: 'controller'
+          description: 'Orchestrate work distribution from imported issues'
           inputs:
-            - "${scratchpad_dir}/issues/${project_id}/issue_list.json"
-            - "${scratchpad_dir}/issues/${project_id}/dependency_graph.json"
+            - '${scratchpad_dir}/issues/${project_id}/issue_list.json'
+            - '${scratchpad_dir}/issues/${project_id}/dependency_graph.json'
           outputs:
-            - "${scratchpad_dir}/progress/${project_id}/controller_state.yaml"
-            - "${scratchpad_dir}/progress/${project_id}/work_orders/*.yaml"
-          next: "implementation"
+            - '${scratchpad_dir}/progress/${project_id}/controller_state.yaml'
+            - '${scratchpad_dir}/progress/${project_id}/work_orders/*.yaml'
+          next: 'implementation'
           approval_required: false
 
-        - name: "implementation"
-          agent: "worker"
-          description: "Implement assigned issues"
+        - name: 'implementation'
+          agent: 'worker'
+          description: 'Implement assigned issues'
           parallel: true
           max_parallel: 5
           inputs:
-            - "${scratchpad_dir}/progress/${project_id}/work_orders/*.yaml"
+            - '${scratchpad_dir}/progress/${project_id}/work_orders/*.yaml'
           outputs:
-            - "${scratchpad_dir}/progress/${project_id}/results/*.yaml"
-            - "src/**/*"
-          next: "review"
+            - '${scratchpad_dir}/progress/${project_id}/results/*.yaml'
+            - 'src/**/*'
+          next: 'validation'
           approval_required: false
 
-        - name: "review"
-          agent: "pr-reviewer"
-          description: "Create and review PRs"
+        - name: 'validation'
+          agent: 'validation'
+          description: 'Validate implementation against requirements'
           inputs:
-            - "${scratchpad_dir}/progress/${project_id}/results/*.yaml"
+            - '${scratchpad_dir}/progress/${project_id}/results/*.yaml'
+            - '${scratchpad_dir}/vnv/${project_id}/rtm.yaml'
           outputs:
-            - "${scratchpad_dir}/progress/${project_id}/reviews/*.yaml"
-          next: null  # End of pipeline
+            - '${scratchpad_dir}/vnv/${project_id}/validation-report.yaml'
+            - 'docs/vnv/vnv-report.md'
+            - 'docs/vnv/rtm-report.md'
+          next: 'review'
+          approval_required: false
+
+        - name: 'review'
+          agent: 'pr-reviewer'
+          description: 'Create and review PRs'
+          inputs:
+            - '${scratchpad_dir}/progress/${project_id}/results/*.yaml'
+            - '${scratchpad_dir}/vnv/${project_id}/validation-report.yaml'
+          outputs:
+            - '${scratchpad_dir}/progress/${project_id}/reviews/*.yaml'
+          next: null # End of pipeline
           approval_required: false
           on_ci_failure:
-            agent: "ci-fixer"
-            description: "Automatically diagnose and fix CI/CD failures"
+            agent: 'ci-fixer'
+            description: 'Automatically diagnose and fix CI/CD failures'
             max_attempts: 3
             inputs:
-              - "${scratchpad_dir}/progress/${project_id}/reviews/*.yaml"
+              - '${scratchpad_dir}/progress/${project_id}/reviews/*.yaml'
             outputs:
-              - "${scratchpad_dir}/progress/${project_id}/ci_fixes/*.yaml"
+              - '${scratchpad_dir}/progress/${project_id}/ci_fixes/*.yaml'
 
   # Legacy compatibility: stages array for backward compatibility
   # When no mode is specified, this defaults to greenfield stages
-  stages: []  # Use modes.greenfield.stages, modes.enhancement.stages, or modes.import.stages
+  stages: [] # Use modes.greenfield.stages, modes.enhancement.stages, or modes.import.stages
 
 # =============================================================================
 # Agent Configurations
 # =============================================================================
 agents:
   collector:
-    model: "sonnet"
+    model: 'sonnet'
     tools:
       - Read
       - WebFetch
@@ -459,36 +512,36 @@ agents:
       - Grep
       - Glob
       - Write
-    max_questions: 5  # Max clarifying questions before proceeding
+    max_questions: 5 # Max clarifying questions before proceeding
 
   prd-writer:
-    model: "sonnet"
+    model: 'sonnet'
     tools:
       - Read
       - Write
       - Edit
       - Glob
       - Grep
-    template: ".ad-sdlc/templates/prd-template.md"
-    quality_gate_ref: "quality_gates.document_quality.prd"
-    timeout_ref: "global.timeouts.document_generation"  # 300s
-    retry_ref: "global.retry_policy"
+    template: '.ad-sdlc/templates/prd-template.md'
+    quality_gate_ref: 'quality_gates.document_quality.prd'
+    timeout_ref: 'global.timeouts.document_generation' # 300s
+    retry_ref: 'global.retry_policy'
 
   srs-writer:
-    model: "sonnet"
+    model: 'sonnet'
     tools:
       - Read
       - Write
       - Edit
       - Glob
       - Grep
-    template: ".ad-sdlc/templates/srs-template.md"
-    quality_gate_ref: "quality_gates.document_quality.srs"
-    timeout_ref: "global.timeouts.document_generation"
-    retry_ref: "global.retry_policy"
+    template: '.ad-sdlc/templates/srs-template.md'
+    quality_gate_ref: 'quality_gates.document_quality.srs'
+    timeout_ref: 'global.timeouts.document_generation'
+    retry_ref: 'global.retry_policy'
 
   github-repo-setup:
-    model: "sonnet"
+    model: 'sonnet'
     tools:
       - Read
       - Write
@@ -497,41 +550,41 @@ agents:
       - Grep
       - Bash
     repository:
-      visibility: "public"
-      default_branch: "main"
-      default_license: "MIT"
+      visibility: 'public'
+      default_branch: 'main'
+      default_license: 'MIT'
     github:
       require_auth: true
       add_topics: true
 
   sds-writer:
-    model: "sonnet"
+    model: 'sonnet'
     tools:
       - Read
       - Write
       - Edit
       - Glob
       - Grep
-    template: ".ad-sdlc/templates/sds-template.md"
-    quality_gate_ref: "quality_gates.document_quality.sds"
-    timeout_ref: "global.timeouts.document_generation"
-    retry_ref: "global.retry_policy"
+    template: '.ad-sdlc/templates/sds-template.md'
+    quality_gate_ref: 'quality_gates.document_quality.sds'
+    timeout_ref: 'global.timeouts.document_generation'
+    retry_ref: 'global.retry_policy'
 
   issue-generator:
-    model: "sonnet"
+    model: 'sonnet'
     tools:
       - Read
       - Write
       - Bash
       - Glob
       - Grep
-    template: ".ad-sdlc/templates/issue-template.md"
+    template: '.ad-sdlc/templates/issue-template.md'
     github:
-      labels_prefix: "ad-sdlc"
+      labels_prefix: 'ad-sdlc'
       auto_assign: false
 
   issue-reader:
-    model: "sonnet"
+    model: 'sonnet'
     tools:
       - Read
       - Write
@@ -539,26 +592,26 @@ agents:
       - Glob
       - Grep
     github:
-      default_state: "open"
+      default_state: 'open'
       max_issues: 500
     priority_mapping:
-      critical: "P0"
-      priority-p0: "P0"
-      high: "P1"
-      priority-p1: "P1"
-      medium: "P2"
-      priority-p2: "P2"
-      low: "P3"
-      priority-p3: "P3"
+      critical: 'P0'
+      priority-p0: 'P0'
+      high: 'P1'
+      priority-p1: 'P1'
+      medium: 'P2'
+      priority-p2: 'P2'
+      low: 'P3'
+      priority-p3: 'P3'
     effort_mapping:
-      "size:XS": 2
-      "size:S": 4
-      "size:M": 6
-      "size:L": 12
-      "size:XL": 20
+      'size:XS': 2
+      'size:S': 4
+      'size:M': 6
+      'size:L': 12
+      'size:XL': 20
 
   controller:
-    model: "sonnet"
+    model: 'sonnet'
     tools:
       - Read
       - Write
@@ -567,12 +620,12 @@ agents:
       - Glob
       - Grep
     scheduling:
-      algorithm: "priority_dependency"  # priority_only, dependency_only, priority_dependency
+      algorithm: 'priority_dependency' # priority_only, dependency_only, priority_dependency
       max_workers: 5
       check_interval_seconds: 30
 
   worker:
-    model: "sonnet"
+    model: 'sonnet'
     tools:
       - Read
       - Write
@@ -581,22 +634,22 @@ agents:
       - Glob
       - Grep
     coding:
-      language: "typescript"  # Adjust per project
-      test_framework: "vitest"
-      lint_command: "npm run lint"
-      test_command: "npm test"
-      build_command: "npm run build"
+      language: 'typescript' # Adjust per project
+      test_framework: 'vitest'
+      lint_command: 'npm run lint'
+      test_command: 'npm test'
+      build_command: 'npm run build'
     verification:
       run_tests: true
       run_lint: true
       run_build: true
-      coverage_threshold: 80  # References quality_gates.code_quality.coverage_threshold
-    quality_gate_ref: "quality_gates.code_quality"  # Enforced before submitting results
-    timeout_ref: "global.timeouts.implementation"  # 1800s
-    retry_ref: "global.retry_policy"  # max 3 attempts, exponential backoff
+      coverage_threshold: 80 # References quality_gates.code_quality.coverage_threshold
+    quality_gate_ref: 'quality_gates.code_quality' # Enforced before submitting results
+    timeout_ref: 'global.timeouts.implementation' # 1800s
+    retry_ref: 'global.retry_policy' # max 3 attempts, exponential backoff
 
   pr-reviewer:
-    model: "sonnet"
+    model: 'sonnet'
     tools:
       - Read
       - Write
@@ -607,21 +660,21 @@ agents:
     review:
       auto_merge: false
       require_all_checks: true
-      coverage_threshold: 80  # References quality_gates.code_quality.coverage_threshold
-      max_complexity: 10  # References quality_gates.code_quality.max_complexity
+      coverage_threshold: 80 # References quality_gates.code_quality.coverage_threshold
+      max_complexity: 10 # References quality_gates.code_quality.max_complexity
     github:
-      merge_strategy: "squash"  # merge, squash, rebase
+      merge_strategy: 'squash' # merge, squash, rebase
       delete_branch_after_merge: true
-    quality_gate_ref: "quality_gates.code_quality"  # Enforced before merge decision
-    security_gate_ref: "quality_gates.security"  # Enforced: no hardcoded secrets
-    timeout_ref: "global.timeouts.pr_review"  # 300s
-    retry_ref: "global.retry_policy"  # max 3 attempts, exponential backoff
+    quality_gate_ref: 'quality_gates.code_quality' # Enforced before merge decision
+    security_gate_ref: 'quality_gates.security' # Enforced: no hardcoded secrets
+    timeout_ref: 'global.timeouts.pr_review' # 300s
+    retry_ref: 'global.retry_policy' # max 3 attempts, exponential backoff
 
   # ---------------------------------------------------------------------------
   # Enhancement Pipeline Agent Configurations
   # ---------------------------------------------------------------------------
   document-reader:
-    model: "sonnet"
+    model: 'sonnet'
     tools:
       - Read
       - Write
@@ -635,7 +688,7 @@ agents:
       build_traceability: true
 
   codebase-analyzer:
-    model: "sonnet"
+    model: 'sonnet'
     tools:
       - Read
       - Write
@@ -652,7 +705,7 @@ agents:
       max_depth: 10
 
   impact-analyzer:
-    model: "sonnet"
+    model: 'sonnet'
     tools:
       - Read
       - Write
@@ -667,7 +720,7 @@ agents:
         - change_scope
 
   prd-updater:
-    model: "sonnet"
+    model: 'sonnet'
     tools:
       - Read
       - Write
@@ -684,7 +737,7 @@ agents:
       generate_changelog: true
 
   srs-updater:
-    model: "sonnet"
+    model: 'sonnet'
     tools:
       - Read
       - Write
@@ -702,7 +755,7 @@ agents:
       auto_update_matrix: true
 
   sds-updater:
-    model: "sonnet"
+    model: 'sonnet'
     tools:
       - Read
       - Write
@@ -720,7 +773,7 @@ agents:
       auto_update_matrix: true
 
   regression-tester:
-    model: "sonnet"
+    model: 'sonnet'
     tools:
       - Read
       - Write
@@ -733,10 +786,10 @@ agents:
       compatibility_check: true
     thresholds:
       min_coverage: 80
-      max_regression_risk: "medium"
+      max_regression_risk: 'medium'
 
   repo-detector:
-    model: "haiku"
+    model: 'haiku'
     tools:
       - Read
       - Bash
@@ -746,7 +799,7 @@ agents:
       check_local_git: true
 
   code-reader:
-    model: "sonnet"
+    model: 'sonnet'
     tools:
       - Read
       - Write
@@ -759,7 +812,7 @@ agents:
       extract_dependencies: true
 
   doc-code-comparator:
-    model: "sonnet"
+    model: 'sonnet'
     tools:
       - Read
       - Write
@@ -770,7 +823,7 @@ agents:
       auto_create_issues: false
 
   ci-fixer:
-    model: "sonnet"
+    model: 'sonnet'
     tools:
       - Read
       - Write
@@ -786,7 +839,7 @@ agents:
     max_fix_attempts: 3
 
   analysis-orchestrator:
-    model: "sonnet"
+    model: 'sonnet'
     tools:
       - Read
       - Write
@@ -795,10 +848,36 @@ agents:
       - Bash
     pipeline:
       steps:
-        - "document-reader"
-        - "code-reader"
-        - "doc-code-comparator"
-        - "issue-generator"
+        - 'document-reader'
+        - 'code-reader'
+        - 'doc-code-comparator'
+        - 'issue-generator'
+
+  # ---------------------------------------------------------------------------
+  # V&V Agent Configurations
+  # ---------------------------------------------------------------------------
+  stage-verifier:
+    model: 'haiku'
+    tools:
+      - Read
+      - Glob
+      - Grep
+
+  rtm-builder:
+    model: 'haiku'
+    tools:
+      - Read
+      - Write
+      - Glob
+      - Grep
+
+  validation:
+    model: 'sonnet'
+    tools:
+      - Read
+      - Write
+      - Glob
+      - Grep
 
 # =============================================================================
 # Quality Gates
@@ -844,18 +923,18 @@ quality_gates:
 # Notifications
 # =============================================================================
 notifications:
-  enabled: false  # Set to true to enable
+  enabled: false # Set to true to enable
   channels:
-    - type: "slack"
-      webhook: "${SLACK_WEBHOOK_URL}"
+    - type: 'slack'
+      webhook: '${SLACK_WEBHOOK_URL}'
       events:
         - stage_complete
         - approval_required
         - error
 
-    - type: "email"
+    - type: 'email'
       recipients:
-        - "${NOTIFICATION_EMAIL}"
+        - '${NOTIFICATION_EMAIL}'
       events:
         - approval_required
         - pipeline_complete
@@ -869,13 +948,13 @@ notifications:
 # GitHub Integration
 # =============================================================================
 github:
-  repo: "${GITHUB_REPO}"  # owner/repo format
-  default_branch: "main"
+  repo: '${GITHUB_REPO}' # owner/repo format
+  default_branch: 'main'
   issue_labels:
-    - "ad-sdlc:auto-generated"
+    - 'ad-sdlc:auto-generated'
   pr_labels:
-    - "ad-sdlc:auto-generated"
-  milestone_prefix: "AD-SDLC"
+    - 'ad-sdlc:auto-generated'
+  milestone_prefix: 'AD-SDLC'
 
 # =============================================================================
 # Token Budgets
@@ -894,14 +973,14 @@ github:
 #   - new agent with no override → uses default_model (opus)
 token_budgets:
   # Default model preference for all agents
-  default_model: "opus"  # claude-opus-4-6
+  default_model: 'opus' # claude-opus-4-6
 
   # Pipeline-level limits (aggregate of all agents)
   # High enough to allow multiple agents with 150000 tokens each
   pipeline:
     max_tokens: 1500000
     max_cost_usd: 50.00
-    warning_threshold: 0.8  # 80% warning
+    warning_threshold: 0.8 # 80% warning
 
   # Default limits by agent category
   defaults:
@@ -921,30 +1000,30 @@ token_budgets:
   # Agent-specific overrides (optional)
   agents:
     sds-writer:
-      max_tokens: 150000  # Complex design docs
+      max_tokens: 150000 # Complex design docs
       max_cost_usd: 3.00
     worker:
-      max_tokens: 150000  # Heavy implementation work
+      max_tokens: 150000 # Heavy implementation work
       max_cost_usd: 3.00
     collector:
-      max_tokens: 150000  # Multi-source collection
+      max_tokens: 150000 # Multi-source collection
       max_cost_usd: 3.00
 
 # =============================================================================
 # Logging & Monitoring
 # =============================================================================
 logging:
-  level: "INFO"
-  format: "json"
+  level: 'INFO'
+  format: 'json'
   output:
-    - type: "file"
-      path: ".ad-sdlc/logs/ad-sdlc.log"
+    - type: 'file'
+      path: '.ad-sdlc/logs/ad-sdlc.log'
       rotate: true
-      max_size: "10MB"
+      max_size: '10MB'
       max_files: 5
 
-    - type: "console"
-      format: "pretty"
+    - type: 'console'
+      format: 'pretty'
 
   include:
     - agent_name

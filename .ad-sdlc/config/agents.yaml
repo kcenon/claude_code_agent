@@ -1,7 +1,7 @@
 # AD-SDLC Agent Registry
 # Centralized agent configuration and metadata
 
-version: "1.0.0"
+version: '1.0.0'
 
 # =============================================================================
 # Agent Definitions
@@ -24,22 +24,22 @@ agents:
   # Orchestration Agents (Top-level pipeline coordination)
   # ---------------------------------------------------------------------------
   ad-sdlc-orchestrator:
-    id: "ad-sdlc-orchestrator"
-    name: "AD-SDLC Pipeline Orchestrator"
-    korean_name: "AD-SDLC 파이프라인 오케스트레이터"
-    description: "Coordinates full AD-SDLC pipeline execution by invoking subagents in sequence"
-    definition_file: ".claude/agents/ad-sdlc-orchestrator.md"
-    category: "orchestration"
+    id: 'ad-sdlc-orchestrator'
+    name: 'AD-SDLC Pipeline Orchestrator'
+    korean_name: 'AD-SDLC 파이프라인 오케스트레이터'
+    description: 'Coordinates full AD-SDLC pipeline execution by invoking subagents in sequence'
+    definition_file: '.claude/agents/ad-sdlc-orchestrator.md'
+    category: 'orchestration'
     order: -1
 
     capabilities:
-      - "pipeline_coordination"
-      - "subagent_invocation"
-      - "progress_monitoring"
-      - "approval_gate_management"
-      - "error_recovery"
-      - "import_mode_support"
-      - "issue_filtering"
+      - 'pipeline_coordination'
+      - 'subagent_invocation'
+      - 'progress_monitoring'
+      - 'approval_gate_management'
+      - 'error_recovery'
+      - 'import_mode_support'
+      - 'issue_filtering'
 
     io:
       inputs:
@@ -53,31 +53,31 @@ agents:
         - imported_issues.json
 
     metrics:
-      avg_duration_seconds: 1800  # Full pipeline execution
+      avg_duration_seconds: 1800 # Full pipeline execution
       success_rate: 0.90
 
     token_budget:
       default_limit: 200000
       cost_limit_usd: 5.00
-      model_preference: "opus"
+      model_preference: 'opus'
 
   # ---------------------------------------------------------------------------
   # Infrastructure Agents (Pre-pipeline)
   # ---------------------------------------------------------------------------
   project-initializer:
-    id: "project-initializer"
-    name: "Project Initializer Agent"
-    korean_name: "프로젝트 초기화 에이전트"
-    description: "Creates .ad-sdlc directory structure and initial configuration files"
-    definition_file: ".claude/agents/project-initializer.md"
-    category: "infrastructure"
-    order: -2  # Before mode-detector
+    id: 'project-initializer'
+    name: 'Project Initializer Agent'
+    korean_name: '프로젝트 초기화 에이전트'
+    description: 'Creates .ad-sdlc directory structure and initial configuration files'
+    definition_file: '.claude/agents/project-initializer.md'
+    category: 'infrastructure'
+    order: -2 # Before mode-detector
 
     capabilities:
-      - "directory_creation"
-      - "config_generation"
-      - "gitignore_management"
-      - "idempotent_initialization"
+      - 'directory_creation'
+      - 'config_generation'
+      - 'gitignore_management'
+      - 'idempotent_initialization'
 
     io:
       inputs:
@@ -92,23 +92,23 @@ agents:
     token_budget:
       default_limit: 10000
       cost_limit_usd: 0.10
-      model_preference: "haiku"
+      model_preference: 'haiku'
 
   mode-detector:
-    id: "mode-detector"
-    name: "Mode Detector Agent"
-    korean_name: "모드 감지 에이전트"
-    description: "Determines whether to use Greenfield or Enhancement pipeline based on project state"
-    definition_file: ".claude/agents/mode-detector.md"
-    category: "infrastructure"
+    id: 'mode-detector'
+    name: 'Mode Detector Agent'
+    korean_name: '모드 감지 에이전트'
+    description: 'Determines whether to use Greenfield or Enhancement pipeline based on project state'
+    definition_file: '.claude/agents/mode-detector.md'
+    category: 'infrastructure'
     order: 0
 
     capabilities:
-      - "document_presence_detection"
-      - "codebase_analysis"
-      - "keyword_analysis"
-      - "confidence_scoring"
-      - "user_override_support"
+      - 'document_presence_detection'
+      - 'codebase_analysis'
+      - 'keyword_analysis'
+      - 'confidence_scoring'
+      - 'user_override_support'
 
     io:
       inputs:
@@ -125,25 +125,25 @@ agents:
     token_budget:
       default_limit: 20000
       cost_limit_usd: 0.30
-      model_preference: "sonnet"
+      model_preference: 'sonnet'
 
   # ---------------------------------------------------------------------------
   # Document Pipeline Agents
   # ---------------------------------------------------------------------------
   collector:
-    id: "collector"
-    name: "Collector Agent"
-    korean_name: "정보 수집 에이전트"
-    description: "Collects and structures user requirements from various sources"
-    definition_file: ".claude/agents/collector.md"
-    category: "document_pipeline"
+    id: 'collector'
+    name: 'Collector Agent'
+    korean_name: '정보 수집 에이전트'
+    description: 'Collects and structures user requirements from various sources'
+    definition_file: '.claude/agents/collector.md'
+    category: 'document_pipeline'
     order: 1
 
     capabilities:
-      - "multi_source_input"
-      - "information_extraction"
-      - "clarification_loop"
-      - "structured_output"
+      - 'multi_source_input'
+      - 'information_extraction'
+      - 'clarification_loop'
+      - 'structured_output'
 
     io:
       inputs:
@@ -160,22 +160,22 @@ agents:
     token_budget:
       default_limit: 60000
       cost_limit_usd: 1.00
-      model_preference: "sonnet"
+      model_preference: 'sonnet'
 
   prd-writer:
-    id: "prd-writer"
-    name: "PRD Writer Agent"
-    korean_name: "PRD 작성 에이전트"
-    description: "Generates PRD documents from collected information"
-    definition_file: ".claude/agents/prd-writer.md"
-    category: "document_pipeline"
+    id: 'prd-writer'
+    name: 'PRD Writer Agent'
+    korean_name: 'PRD 작성 에이전트'
+    description: 'Generates PRD documents from collected information'
+    definition_file: '.claude/agents/prd-writer.md'
+    category: 'document_pipeline'
     order: 2
 
     capabilities:
-      - "template_based_generation"
-      - "gap_analysis"
-      - "consistency_check"
-      - "priority_assignment"
+      - 'template_based_generation'
+      - 'gap_analysis'
+      - 'consistency_check'
+      - 'priority_assignment'
 
     io:
       inputs:
@@ -190,22 +190,22 @@ agents:
     token_budget:
       default_limit: 80000
       cost_limit_usd: 1.50
-      model_preference: "sonnet"
+      model_preference: 'sonnet'
 
   srs-writer:
-    id: "srs-writer"
-    name: "SRS Writer Agent"
-    korean_name: "SRS 작성 에이전트"
-    description: "Generates SRS documents from PRD"
-    definition_file: ".claude/agents/srs-writer.md"
-    category: "document_pipeline"
+    id: 'srs-writer'
+    name: 'SRS Writer Agent'
+    korean_name: 'SRS 작성 에이전트'
+    description: 'Generates SRS documents from PRD'
+    definition_file: '.claude/agents/srs-writer.md'
+    category: 'document_pipeline'
     order: 3
 
     capabilities:
-      - "requirement_decomposition"
-      - "use_case_generation"
-      - "interface_definition"
-      - "traceability_matrix"
+      - 'requirement_decomposition'
+      - 'use_case_generation'
+      - 'interface_definition'
+      - 'traceability_matrix'
 
     io:
       inputs:
@@ -220,24 +220,24 @@ agents:
     token_budget:
       default_limit: 80000
       cost_limit_usd: 1.50
-      model_preference: "sonnet"
+      model_preference: 'sonnet'
 
   github-repo-setup:
-    id: "github-repo-setup"
-    name: "GitHub Repo Setup Agent"
-    korean_name: "GitHub 저장소 설정 에이전트"
-    description: "Creates and initializes public GitHub repository after SRS approval"
-    definition_file: ".claude/agents/github-repo-setup.md"
-    category: "project_setup"
+    id: 'github-repo-setup'
+    name: 'GitHub Repo Setup Agent'
+    korean_name: 'GitHub 저장소 설정 에이전트'
+    description: 'Creates and initializes public GitHub repository after SRS approval'
+    definition_file: '.claude/agents/github-repo-setup.md'
+    category: 'project_setup'
     order: 3.5
 
     capabilities:
-      - "project_info_extraction"
-      - "readme_generation"
-      - "license_selection"
-      - "gitignore_generation"
-      - "repository_creation"
-      - "initial_commit"
+      - 'project_info_extraction'
+      - 'readme_generation'
+      - 'license_selection'
+      - 'gitignore_generation'
+      - 'repository_creation'
+      - 'initial_commit'
 
     io:
       inputs:
@@ -254,19 +254,19 @@ agents:
       success_rate: 0.95
 
   sds-writer:
-    id: "sds-writer"
-    name: "SDS Writer Agent"
-    korean_name: "SDS 작성 에이전트"
-    description: "Generates SDS documents from SRS"
-    definition_file: ".claude/agents/sds-writer.md"
-    category: "document_pipeline"
+    id: 'sds-writer'
+    name: 'SDS Writer Agent'
+    korean_name: 'SDS 작성 에이전트'
+    description: 'Generates SDS documents from SRS'
+    definition_file: '.claude/agents/sds-writer.md'
+    category: 'document_pipeline'
     order: 4
 
     capabilities:
-      - "architecture_design"
-      - "component_definition"
-      - "api_design"
-      - "database_schema"
+      - 'architecture_design'
+      - 'component_definition'
+      - 'api_design'
+      - 'database_schema'
 
     io:
       inputs:
@@ -281,26 +281,26 @@ agents:
     token_budget:
       default_limit: 120000
       cost_limit_usd: 2.50
-      model_preference: "sonnet"
+      model_preference: 'sonnet'
 
   # ---------------------------------------------------------------------------
   # Document Update Agents
   # ---------------------------------------------------------------------------
   prd-updater:
-    id: "prd-updater"
-    name: "PRD Updater Agent"
-    korean_name: "PRD 업데이트 에이전트"
-    description: "Incrementally updates PRD documents with new requirements, modifications, or deprecations"
-    definition_file: ".claude/agents/prd-updater.md"
-    category: "document_update"
+    id: 'prd-updater'
+    name: 'PRD Updater Agent'
+    korean_name: 'PRD 업데이트 에이전트'
+    description: 'Incrementally updates PRD documents with new requirements, modifications, or deprecations'
+    definition_file: '.claude/agents/prd-updater.md'
+    category: 'document_update'
     order: 5
 
     capabilities:
-      - "incremental_update"
-      - "version_management"
-      - "conflict_detection"
-      - "change_tracking"
-      - "consistency_check"
+      - 'incremental_update'
+      - 'version_management'
+      - 'conflict_detection'
+      - 'change_tracking'
+      - 'consistency_check'
 
     io:
       inputs:
@@ -315,20 +315,20 @@ agents:
       success_rate: 0.92
 
   srs-updater:
-    id: "srs-updater"
-    name: "SRS Updater Agent"
-    korean_name: "SRS 업데이트 에이전트"
-    description: "Incrementally updates SRS documents with new features, use cases, and traceability"
-    definition_file: ".claude/agents/srs-updater.md"
-    category: "document_update"
+    id: 'srs-updater'
+    name: 'SRS Updater Agent'
+    korean_name: 'SRS 업데이트 에이전트'
+    description: 'Incrementally updates SRS documents with new features, use cases, and traceability'
+    definition_file: '.claude/agents/srs-updater.md'
+    category: 'document_update'
     order: 6
 
     capabilities:
-      - "incremental_update"
-      - "traceability_update"
-      - "use_case_generation"
-      - "interface_update"
-      - "consistency_check"
+      - 'incremental_update'
+      - 'traceability_update'
+      - 'use_case_generation'
+      - 'interface_update'
+      - 'consistency_check'
 
     io:
       inputs:
@@ -344,21 +344,21 @@ agents:
       success_rate: 0.90
 
   sds-updater:
-    id: "sds-updater"
-    name: "SDS Updater Agent"
-    korean_name: "SDS 업데이트 에이전트"
-    description: "Incrementally updates SDS documents with new components, APIs, and architecture changes"
-    definition_file: ".claude/agents/sds-updater.md"
-    category: "document_update"
+    id: 'sds-updater'
+    name: 'SDS Updater Agent'
+    korean_name: 'SDS 업데이트 에이전트'
+    description: 'Incrementally updates SDS documents with new components, APIs, and architecture changes'
+    definition_file: '.claude/agents/sds-updater.md'
+    category: 'document_update'
     order: 7
 
     capabilities:
-      - "incremental_update"
-      - "component_integration"
-      - "api_specification"
-      - "architecture_evolution"
-      - "traceability_update"
-      - "consistency_check"
+      - 'incremental_update'
+      - 'component_integration'
+      - 'api_specification'
+      - 'architecture_evolution'
+      - 'traceability_update'
+      - 'consistency_check'
 
     io:
       inputs:
@@ -377,21 +377,21 @@ agents:
   # Issue Management Agents
   # ---------------------------------------------------------------------------
   issue-reader:
-    id: "issue-reader"
-    name: "Issue Reader Agent"
-    korean_name: "이슈 리더 에이전트"
-    description: "Imports existing GitHub issues and converts them to AD-SDLC internal format for pipeline execution"
-    definition_file: ".claude/agents/issue-reader.md"
-    category: "issue_management"
+    id: 'issue-reader'
+    name: 'Issue Reader Agent'
+    korean_name: '이슈 리더 에이전트'
+    description: 'Imports existing GitHub issues and converts them to AD-SDLC internal format for pipeline execution'
+    definition_file: '.claude/agents/issue-reader.md'
+    category: 'issue_management'
     order: 4.5
 
     capabilities:
-      - "github_issue_fetching"
-      - "issue_parsing"
-      - "dependency_extraction"
-      - "priority_mapping"
-      - "effort_estimation"
-      - "dependency_graph_building"
+      - 'github_issue_fetching'
+      - 'issue_parsing'
+      - 'dependency_extraction'
+      - 'priority_mapping'
+      - 'effort_estimation'
+      - 'dependency_graph_building'
 
     io:
       inputs:
@@ -406,19 +406,19 @@ agents:
       success_rate: 0.95
 
   issue-generator:
-    id: "issue-generator"
-    name: "Issue Generator Agent"
-    korean_name: "이슈 생성 에이전트"
-    description: "Generates GitHub issues from SDS components"
-    definition_file: ".claude/agents/issue-generator.md"
-    category: "issue_management"
+    id: 'issue-generator'
+    name: 'Issue Generator Agent'
+    korean_name: '이슈 생성 에이전트'
+    description: 'Generates GitHub issues from SDS components'
+    definition_file: '.claude/agents/issue-generator.md'
+    category: 'issue_management'
     order: 5
 
     capabilities:
-      - "work_breakdown"
-      - "issue_templating"
-      - "dependency_mapping"
-      - "label_assignment"
+      - 'work_breakdown'
+      - 'issue_templating'
+      - 'dependency_mapping'
+      - 'label_assignment'
 
     io:
       inputs:
@@ -433,19 +433,19 @@ agents:
       avg_issues_per_project: 15
 
   controller:
-    id: "controller"
-    name: "Controller Agent"
-    korean_name: "관제 에이전트"
-    description: "Orchestrates work distribution and monitors progress"
-    definition_file: ".claude/agents/controller.md"
-    category: "issue_management"
+    id: 'controller'
+    name: 'Controller Agent'
+    korean_name: '관제 에이전트'
+    description: 'Orchestrates work distribution and monitors progress'
+    definition_file: '.claude/agents/controller.md'
+    category: 'issue_management'
     order: 6
 
     capabilities:
-      - "issue_prioritization"
-      - "worker_management"
-      - "progress_tracking"
-      - "bottleneck_detection"
+      - 'issue_prioritization'
+      - 'worker_management'
+      - 'progress_tracking'
+      - 'bottleneck_detection'
 
     io:
       inputs:
@@ -458,26 +458,26 @@ agents:
         - progress_report.md
 
     metrics:
-      avg_duration_seconds: 30  # Per scheduling cycle
+      avg_duration_seconds: 30 # Per scheduling cycle
       success_rate: 0.98
 
   # ---------------------------------------------------------------------------
   # Execution Agents
   # ---------------------------------------------------------------------------
   worker:
-    id: "worker"
-    name: "Worker Agent"
-    korean_name: "작업 에이전트"
-    description: "Implements assigned issues with code generation"
-    definition_file: ".claude/agents/worker.md"
-    category: "execution"
+    id: 'worker'
+    name: 'Worker Agent'
+    korean_name: '작업 에이전트'
+    description: 'Implements assigned issues with code generation'
+    definition_file: '.claude/agents/worker.md'
+    category: 'execution'
     order: 7
 
     capabilities:
-      - "code_generation"
-      - "test_writing"
-      - "codebase_integration"
-      - "self_verification"
+      - 'code_generation'
+      - 'test_writing'
+      - 'codebase_integration'
+      - 'self_verification'
 
     io:
       inputs:
@@ -498,22 +498,22 @@ agents:
     token_budget:
       default_limit: 150000
       cost_limit_usd: 3.00
-      model_preference: "sonnet"
+      model_preference: 'sonnet'
 
   pr-reviewer:
-    id: "pr-reviewer"
-    name: "PR Review Agent"
-    korean_name: "PR 리뷰 에이전트"
-    description: "Creates and reviews pull requests"
-    definition_file: ".claude/agents/pr-reviewer.md"
-    category: "execution"
+    id: 'pr-reviewer'
+    name: 'PR Review Agent'
+    korean_name: 'PR 리뷰 에이전트'
+    description: 'Creates and reviews pull requests'
+    definition_file: '.claude/agents/pr-reviewer.md'
+    category: 'execution'
     order: 8
 
     capabilities:
-      - "pr_creation"
-      - "code_review"
-      - "quality_gate"
-      - "feedback_loop"
+      - 'pr_creation'
+      - 'code_review'
+      - 'quality_gate'
+      - 'feedback_loop'
 
     io:
       inputs:
@@ -530,21 +530,21 @@ agents:
   # Analysis Pipeline Agents
   # ---------------------------------------------------------------------------
   code-reader:
-    id: "code-reader"
-    name: "Code Reader Agent"
-    korean_name: "코드 분석 에이전트"
-    description: "Analyzes source code structure, modules, and implementations for gap detection"
-    definition_file: ".claude/agents/code-reader.md"
-    category: "analysis_pipeline"
+    id: 'code-reader'
+    name: 'Code Reader Agent'
+    korean_name: '코드 분석 에이전트'
+    description: 'Analyzes source code structure, modules, and implementations for gap detection'
+    definition_file: '.claude/agents/code-reader.md'
+    category: 'analysis_pipeline'
     order: 9
 
     capabilities:
-      - "ast_parsing"
-      - "module_discovery"
-      - "class_extraction"
-      - "function_extraction"
-      - "interface_extraction"
-      - "dependency_analysis"
+      - 'ast_parsing'
+      - 'module_discovery'
+      - 'class_extraction'
+      - 'function_extraction'
+      - 'interface_extraction'
+      - 'dependency_analysis'
 
     io:
       inputs:
@@ -557,20 +557,20 @@ agents:
       success_rate: 0.95
 
   doc-code-comparator:
-    id: "doc-code-comparator"
-    name: "Doc-Code Comparator Agent"
-    korean_name: "문서-코드 비교 에이전트"
-    description: "Compares documentation specifications against code implementations to identify gaps"
-    definition_file: ".claude/agents/doc-code-comparator.md"
-    category: "analysis_pipeline"
+    id: 'doc-code-comparator'
+    name: 'Doc-Code Comparator Agent'
+    korean_name: '문서-코드 비교 에이전트'
+    description: 'Compares documentation specifications against code implementations to identify gaps'
+    definition_file: '.claude/agents/doc-code-comparator.md'
+    category: 'analysis_pipeline'
     order: 10
 
     capabilities:
-      - "document_code_mapping"
-      - "gap_detection"
-      - "match_scoring"
-      - "issue_generation"
-      - "priority_assignment"
+      - 'document_code_mapping'
+      - 'gap_detection'
+      - 'match_scoring'
+      - 'issue_generation'
+      - 'priority_assignment'
 
     io:
       inputs:
@@ -588,19 +588,19 @@ agents:
   # Enhancement Pipeline Agents
   # ---------------------------------------------------------------------------
   document-reader:
-    id: "document-reader"
-    name: "Document Reader Agent"
-    korean_name: "문서 분석 에이전트"
-    description: "Parses and analyzes existing PRD/SRS/SDS documents to understand current project state"
-    definition_file: ".claude/agents/document-reader.md"
-    category: "enhancement_pipeline"
+    id: 'document-reader'
+    name: 'Document Reader Agent'
+    korean_name: '문서 분석 에이전트'
+    description: 'Parses and analyzes existing PRD/SRS/SDS documents to understand current project state'
+    definition_file: '.claude/agents/document-reader.md'
+    category: 'enhancement_pipeline'
     order: 1
 
     capabilities:
-      - "document_parsing"
-      - "version_tracking"
-      - "requirement_extraction"
-      - "traceability_mapping"
+      - 'document_parsing'
+      - 'version_tracking'
+      - 'requirement_extraction'
+      - 'traceability_mapping'
 
     io:
       inputs:
@@ -615,19 +615,19 @@ agents:
       success_rate: 0.95
 
   codebase-analyzer:
-    id: "codebase-analyzer"
-    name: "Codebase Analyzer Agent"
-    korean_name: "코드베이스 분석 에이전트"
-    description: "Analyzes existing code structure, architecture patterns, and dependencies"
-    definition_file: ".claude/agents/codebase-analyzer.md"
-    category: "enhancement_pipeline"
+    id: 'codebase-analyzer'
+    name: 'Codebase Analyzer Agent'
+    korean_name: '코드베이스 분석 에이전트'
+    description: 'Analyzes existing code structure, architecture patterns, and dependencies'
+    definition_file: '.claude/agents/codebase-analyzer.md'
+    category: 'enhancement_pipeline'
     order: 2
 
     capabilities:
-      - "architecture_analysis"
-      - "dependency_graphing"
-      - "pattern_recognition"
-      - "code_metrics"
+      - 'architecture_analysis'
+      - 'dependency_graphing'
+      - 'pattern_recognition'
+      - 'code_metrics'
 
     io:
       inputs:
@@ -645,19 +645,19 @@ agents:
       success_rate: 0.93
 
   impact-analyzer:
-    id: "impact-analyzer"
-    name: "Impact Analyzer Agent"
-    korean_name: "영향 분석 에이전트"
-    description: "Assesses implications of proposed changes on existing codebase and documentation"
-    definition_file: ".claude/agents/impact-analyzer.md"
-    category: "enhancement_pipeline"
+    id: 'impact-analyzer'
+    name: 'Impact Analyzer Agent'
+    korean_name: '영향 분석 에이전트'
+    description: 'Assesses implications of proposed changes on existing codebase and documentation'
+    definition_file: '.claude/agents/impact-analyzer.md'
+    category: 'enhancement_pipeline'
     order: 3
 
     capabilities:
-      - "change_scope_analysis"
-      - "affected_module_detection"
-      - "risk_assessment"
-      - "regression_prediction"
+      - 'change_scope_analysis'
+      - 'affected_module_detection'
+      - 'risk_assessment'
+      - 'regression_prediction'
 
     io:
       inputs:
@@ -673,20 +673,20 @@ agents:
       success_rate: 0.92
 
   regression-tester:
-    id: "regression-tester"
-    name: "Regression Tester Agent"
-    korean_name: "회귀 테스트 에이전트"
-    description: "Validates that existing functionality is not broken by new changes through test mapping, execution, and compatibility analysis"
-    definition_file: ".claude/agents/regression-tester.md"
-    category: "enhancement_pipeline"
+    id: 'regression-tester'
+    name: 'Regression Tester Agent'
+    korean_name: '회귀 테스트 에이전트'
+    description: 'Validates that existing functionality is not broken by new changes through test mapping, execution, and compatibility analysis'
+    definition_file: '.claude/agents/regression-tester.md'
+    category: 'enhancement_pipeline'
     order: 11
 
     capabilities:
-      - "affected_test_identification"
-      - "regression_test_execution"
-      - "coverage_impact_analysis"
-      - "compatibility_verification"
-      - "test_mapping"
+      - 'affected_test_identification'
+      - 'regression_test_execution'
+      - 'coverage_impact_analysis'
+      - 'compatibility_verification'
+      - 'test_mapping'
 
     io:
       inputs:
@@ -704,20 +704,20 @@ agents:
       success_rate: 0.95
 
   ci-fixer:
-    id: "ci-fixer"
-    name: "CI Fixer Agent"
-    korean_name: "CI 수정 에이전트"
-    description: "Automatically diagnoses and fixes CI/CD failures including lint errors, type errors, test failures, and build failures"
-    definition_file: ".claude/agents/ci-fixer.md"
-    category: "execution"
+    id: 'ci-fixer'
+    name: 'CI Fixer Agent'
+    korean_name: 'CI 수정 에이전트'
+    description: 'Automatically diagnoses and fixes CI/CD failures including lint errors, type errors, test failures, and build failures'
+    definition_file: '.claude/agents/ci-fixer.md'
+    category: 'execution'
     order: 8.5
 
     capabilities:
-      - "ci_failure_diagnosis"
-      - "lint_error_fix"
-      - "type_error_fix"
-      - "test_failure_fix"
-      - "build_failure_fix"
+      - 'ci_failure_diagnosis'
+      - 'lint_error_fix'
+      - 'type_error_fix'
+      - 'test_failure_fix'
+      - 'build_failure_fix'
 
     io:
       inputs:
@@ -727,7 +727,7 @@ agents:
         - fixed_files
         - ci_fix_report.yaml
 
-    model_preference: "sonnet"
+    model_preference: 'sonnet'
     max_fix_attempts: 3
     parallelizable: false
     max_instances: 1
@@ -737,18 +737,18 @@ agents:
       success_rate: 0.85
 
   repo-detector:
-    id: "repo-detector"
-    name: "Repo Detector Agent"
-    korean_name: "저장소 감지 에이전트"
-    description: "Automatically determines whether the project uses an existing GitHub repository or requires a new one"
-    definition_file: ".claude/agents/repo-detector.md"
-    category: "infrastructure"
+    id: 'repo-detector'
+    name: 'Repo Detector Agent'
+    korean_name: '저장소 감지 에이전트'
+    description: 'Automatically determines whether the project uses an existing GitHub repository or requires a new one'
+    definition_file: '.claude/agents/repo-detector.md'
+    category: 'infrastructure'
     order: 2.5
 
     capabilities:
-      - "local_git_detection"
-      - "remote_repo_detection"
-      - "repo_metadata_extraction"
+      - 'local_git_detection'
+      - 'remote_repo_detection'
+      - 'repo_metadata_extraction'
 
     io:
       inputs:
@@ -756,7 +756,7 @@ agents:
       outputs:
         - repo_detection_result.yaml
 
-    model_preference: "haiku"
+    model_preference: 'haiku'
     parallelizable: false
     max_instances: 1
 
@@ -765,19 +765,19 @@ agents:
       success_rate: 0.98
 
   analysis-orchestrator:
-    id: "analysis-orchestrator"
-    name: "Analysis Orchestrator Agent"
-    korean_name: "분석 오케스트레이터"
-    description: "Coordinates the Enhancement analysis sub-pipeline: DocumentReader → CodeReader → Comparator → IssueGenerator"
-    definition_file: ".claude/agents/analysis-orchestrator.md"
-    category: "analysis_pipeline"
+    id: 'analysis-orchestrator'
+    name: 'Analysis Orchestrator Agent'
+    korean_name: '분석 오케스트레이터'
+    description: 'Coordinates the Enhancement analysis sub-pipeline: DocumentReader → CodeReader → Comparator → IssueGenerator'
+    definition_file: '.claude/agents/analysis-orchestrator.md'
+    category: 'analysis_pipeline'
     order: 0
 
     capabilities:
-      - "pipeline_coordination"
-      - "document_code_analysis"
-      - "gap_detection"
-      - "issue_generation"
+      - 'pipeline_coordination'
+      - 'document_code_analysis'
+      - 'gap_detection'
+      - 'issue_generation'
 
     io:
       inputs:
@@ -788,7 +788,7 @@ agents:
         - impact_report.yaml
         - generated_issues
 
-    model_preference: "sonnet"
+    model_preference: 'sonnet'
     parallelizable: false
     max_instances: 1
 
@@ -796,83 +796,183 @@ agents:
       avg_duration_seconds: 600
       success_rate: 0.90
 
+  # ---------------------------------------------------------------------------
+  # V&V (Verification & Validation) Agents
+  # ---------------------------------------------------------------------------
+  stage-verifier:
+    id: 'stage-verifier'
+    name: 'Stage Verifier Agent'
+    korean_name: '단계 검증 에이전트'
+    description: 'Verifies stage output content, structure, and traceability'
+    definition_file: '.claude/agents/stage-verifier.md'
+    category: 'vnv'
+    order: 12
+
+    capabilities:
+      - 'artifact_content_validation'
+      - 'structural_conformance_check'
+      - 'traceability_coverage_check'
+      - 'cross_document_consistency'
+
+    io:
+      inputs:
+        - stage_result
+        - verification_context
+      outputs:
+        - stage_verification_result.yaml
+        - consistency_check_result.yaml
+
+    model_preference: 'haiku'
+    parallelizable: false
+    max_instances: 1
+
+    metrics:
+      avg_duration_seconds: 30
+      success_rate: 0.95
+
+  rtm-builder:
+    id: 'rtm-builder'
+    name: 'RTM Builder Agent'
+    korean_name: 'RTM 빌더 에이전트'
+    description: 'Builds and validates Requirements Traceability Matrix'
+    definition_file: '.claude/agents/rtm-builder.md'
+    category: 'vnv'
+    order: 13
+
+    capabilities:
+      - 'requirement_extraction'
+      - 'traceability_mapping'
+      - 'coverage_calculation'
+      - 'gap_identification'
+
+    io:
+      inputs:
+        - prd.md
+        - srs.md
+        - sds.md
+        - issue_list.json
+        - implementation_results
+      outputs:
+        - rtm.yaml
+        - rtm-report.md
+
+    model_preference: 'haiku'
+    parallelizable: false
+    max_instances: 1
+
+    metrics:
+      avg_duration_seconds: 60
+      success_rate: 0.95
+
+  validation-agent:
+    id: 'validation-agent'
+    name: 'Validation Agent'
+    korean_name: '검증 에이전트'
+    description: 'Validates implementation against requirements and acceptance criteria'
+    definition_file: '.claude/agents/validation.md'
+    category: 'vnv'
+    order: 14
+
+    capabilities:
+      - 'requirement_implementation_verification'
+      - 'acceptance_criteria_validation'
+      - 'rtm_completeness_check'
+      - 'quality_gate_aggregation'
+
+    io:
+      inputs:
+        - rtm.yaml
+        - implementation_results
+        - quality_gate_config
+      outputs:
+        - validation-report.yaml
+        - vnv-report.md
+
+    model_preference: 'sonnet'
+    parallelizable: false
+    max_instances: 1
+
+    metrics:
+      avg_duration_seconds: 120
+      success_rate: 0.92
+
 # =============================================================================
 # Agent Categories
 # =============================================================================
 categories:
   orchestration:
-    name: "Orchestration"
-    description: "Top-level agents that coordinate pipeline execution"
+    name: 'Orchestration'
+    description: 'Top-level agents that coordinate pipeline execution'
     agents:
       - ad-sdlc-orchestrator
-    execution_mode: "sequential"
+    execution_mode: 'sequential'
 
   infrastructure:
-    name: "Infrastructure"
-    description: "Pre-pipeline agents that setup and detect project state, including repo detection"
+    name: 'Infrastructure'
+    description: 'Pre-pipeline agents that setup and detect project state, including repo detection'
     agents:
       - project-initializer
       - mode-detector
       - repo-detector
-    execution_mode: "sequential"
+    execution_mode: 'sequential'
 
   project_setup:
-    name: "Project Setup"
-    description: "Agents that setup project infrastructure"
+    name: 'Project Setup'
+    description: 'Agents that setup project infrastructure'
     agents:
       - github-repo-setup
-    execution_mode: "sequential"
+    execution_mode: 'sequential'
 
   document_pipeline:
-    name: "Document Pipeline"
-    description: "Agents that generate documentation (PRD, SRS, SDS)"
+    name: 'Document Pipeline'
+    description: 'Agents that generate documentation (PRD, SRS, SDS)'
     agents:
       - collector
       - prd-writer
       - srs-writer
       - sds-writer
-    execution_mode: "sequential"
+    execution_mode: 'sequential'
 
   document_update:
-    name: "Document Update"
-    description: "Agents that incrementally update existing documents"
+    name: 'Document Update'
+    description: 'Agents that incrementally update existing documents'
     agents:
       - prd-updater
       - srs-updater
       - sds-updater
-    execution_mode: "on_demand"
+    execution_mode: 'on_demand'
 
   issue_management:
-    name: "Issue Management"
-    description: "Agents that manage GitHub issues and work distribution"
+    name: 'Issue Management'
+    description: 'Agents that manage GitHub issues and work distribution'
     agents:
       - issue-reader
       - issue-generator
       - controller
-    execution_mode: "sequential"
+    execution_mode: 'sequential'
 
   execution:
-    name: "Execution"
-    description: "Agents that implement code and review PRs"
+    name: 'Execution'
+    description: 'Agents that implement code and review PRs'
     agents:
       - worker
       - pr-reviewer
       - ci-fixer
-    execution_mode: "parallel"
+    execution_mode: 'parallel'
 
   analysis_pipeline:
-    name: "Analysis Pipeline"
-    description: "Agents that analyze existing code and documents for gap detection"
+    name: 'Analysis Pipeline'
+    description: 'Agents that analyze existing code and documents for gap detection'
     agents:
       - code-reader
       - document-reader
       - doc-code-comparator
       - analysis-orchestrator
-    execution_mode: "parallel"
+    execution_mode: 'parallel'
 
   enhancement_pipeline:
-    name: "Enhancement Pipeline"
-    description: "Agents that support existing project improvements and regression testing"
+    name: 'Enhancement Pipeline'
+    description: 'Agents that support existing project improvements and regression testing'
     agents:
       - document-reader
       - codebase-analyzer
@@ -881,17 +981,26 @@ categories:
       - srs-updater
       - sds-updater
       - regression-tester
-    execution_mode: "mixed"  # Some parallel, some sequential
+    execution_mode: 'mixed' # Some parallel, some sequential
 
   import_pipeline:
-    name: "Import Pipeline"
-    description: "Agents that process existing GitHub issues without document generation"
+    name: 'Import Pipeline'
+    description: 'Agents that process existing GitHub issues without document generation'
     agents:
       - issue-reader
       - controller
       - worker
       - pr-reviewer
-    execution_mode: "sequential"
+    execution_mode: 'sequential'
+
+  vnv:
+    name: 'V&V (Verification & Validation)'
+    description: 'Agents that verify pipeline stage outputs and validate implementation against requirements'
+    agents:
+      - stage-verifier
+      - rtm-builder
+      - validation-agent
+    execution_mode: 'sequential'
 
 # =============================================================================
 # Agent Relationships
@@ -914,10 +1023,10 @@ relationships:
     issue-generator:
       requires: [sds-writer]
     issue-reader:
-      requires: []  # Alternative entry point, no dependencies
-      alternative_to: [issue-generator]  # Can replace issue-generator in import mode
+      requires: [] # Alternative entry point, no dependencies
+      alternative_to: [issue-generator] # Can replace issue-generator in import mode
     controller:
-      requires: [issue-generator]  # Or issue-reader in import mode
+      requires: [issue-generator] # Or issue-reader in import mode
       alternative_inputs: [issue-reader]
     worker:
       requires: [controller]
@@ -940,10 +1049,17 @@ relationships:
       requires: [mode-detector]
       blocks: [github-repo-setup]
     ci-fixer:
-      requires: [pr-reviewer]  # Triggered on CI failure after PR creation
+      requires: [pr-reviewer] # Triggered on CI failure after PR creation
     analysis-orchestrator:
       requires: [mode-detector]
       orchestrates: [document-reader, code-reader, doc-code-comparator, issue-generator]
+    # V&V Agent Dependencies
+    stage-verifier:
+      requires: [] # Triggered inline after each stage
+    rtm-builder:
+      requires: [prd-writer, srs-writer, sds-writer, issue-generator]
+    validation-agent:
+      requires: [rtm-builder, worker]
 
   data_flow:
     - from: project-initializer
@@ -985,7 +1101,7 @@ relationships:
     - from: issue-reader
       to: controller
       data: [issue_list.json, dependency_graph.json]
-      mode: import  # Alternative data flow for import mode
+      mode: import # Alternative data flow for import mode
 
     - from: controller
       to: worker
@@ -1046,39 +1162,52 @@ relationships:
       data: impact_report.yaml
       mode: enhancement
 
+    # V&V Pipeline Data Flow
+    - from: rtm-builder
+      to: validation-agent
+      data: rtm.yaml
+
+    - from: worker
+      to: validation-agent
+      data: implementation_result.yaml
+
+    - from: validation-agent
+      to: pr-reviewer
+      data: validation-report.yaml
+
 # =============================================================================
 # Model Configurations
 # =============================================================================
 models:
   sonnet:
-    id: "claude-sonnet-4-5-20250929"
+    id: 'claude-sonnet-4-5-20250929'
     context_window: 200000
     max_output: 64000
     cost_per_1k_input: 0.003
     cost_per_1k_output: 0.015
     best_for:
-      - "document_generation"
-      - "code_generation"
-      - "analysis"
+      - 'document_generation'
+      - 'code_generation'
+      - 'analysis'
 
   opus:
-    id: "claude-opus-4-6"
+    id: 'claude-opus-4-6'
     context_window: 200000
     max_output: 32000
     cost_per_1k_input: 0.015
     cost_per_1k_output: 0.075
     best_for:
-      - "complex_reasoning"
-      - "architecture_decisions"
-      - "critical_reviews"
+      - 'complex_reasoning'
+      - 'architecture_decisions'
+      - 'critical_reviews'
 
   haiku:
-    id: "claude-haiku-4-5-20251001"
+    id: 'claude-haiku-4-5-20251001'
     context_window: 200000
     max_output: 8192
     cost_per_1k_input: 0.0008
     cost_per_1k_output: 0.004
     best_for:
-      - "quick_searches"
-      - "simple_transformations"
-      - "status_checks"
+      - 'quick_searches'
+      - 'simple_transformations'
+      - 'status_checks'

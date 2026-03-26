@@ -5,6 +5,8 @@
  * Enhancement, and Import modes. Based on SDS-001 CMP-025 specification.
  */
 
+import type { StageVerificationResult } from '../stage-verifier/types.js';
+
 /**
  * Pipeline execution mode
  */
@@ -25,6 +27,7 @@ export type GreenfieldStageName =
   | 'issue_generation'
   | 'orchestration'
   | 'implementation'
+  | 'validation'
   | 'review';
 
 /**
@@ -43,12 +46,18 @@ export type EnhancementStageName =
   | 'orchestration'
   | 'implementation'
   | 'regression_testing'
+  | 'validation'
   | 'review';
 
 /**
  * Pipeline stage names for Import mode
  */
-export type ImportStageName = 'issue_reading' | 'orchestration' | 'implementation' | 'review';
+export type ImportStageName =
+  | 'issue_reading'
+  | 'orchestration'
+  | 'implementation'
+  | 'validation'
+  | 'review';
 
 /**
  * Union of all stage names
@@ -146,6 +155,14 @@ export interface PipelineResult {
   readonly artifacts: readonly string[];
   /** Warnings during execution */
   readonly warnings: readonly string[];
+  /** V&V stage verification results (one per verified stage) */
+  readonly verificationResults?: readonly StageVerificationResult[];
+  /** V&V validation report (from validation stage) */
+  readonly validationReport?: {
+    readonly reportId: string;
+    readonly overallResult: 'pass' | 'pass_with_warnings' | 'fail';
+    readonly generatedAt: string;
+  };
 }
 
 /**
@@ -354,12 +371,20 @@ export const GREENFIELD_STAGES: readonly PipelineStageDefinition[] = [
     dependsOn: ['orchestration'],
   },
   {
+    name: 'validation',
+    agentType: 'validation',
+    description: 'Validate implementation against requirements and acceptance criteria',
+    parallel: false,
+    approvalRequired: false,
+    dependsOn: ['implementation'],
+  },
+  {
     name: 'review',
     agentType: 'pr-reviewer',
     description: 'Create and review pull requests',
     parallel: false,
     approvalRequired: false,
-    dependsOn: ['implementation'],
+    dependsOn: ['validation'],
   },
 ];
 
@@ -468,12 +493,20 @@ export const ENHANCEMENT_STAGES: readonly PipelineStageDefinition[] = [
     dependsOn: ['implementation'],
   },
   {
+    name: 'validation',
+    agentType: 'validation',
+    description: 'Validate implementation against requirements and acceptance criteria',
+    parallel: false,
+    approvalRequired: false,
+    dependsOn: ['regression_testing'],
+  },
+  {
     name: 'review',
     agentType: 'pr-reviewer',
     description: 'Create and review pull requests',
     parallel: false,
     approvalRequired: false,
-    dependsOn: ['regression_testing'],
+    dependsOn: ['validation'],
   },
 ];
 
@@ -509,12 +542,20 @@ export const IMPORT_STAGES: readonly PipelineStageDefinition[] = [
     dependsOn: ['orchestration'],
   },
   {
+    name: 'validation',
+    agentType: 'validation',
+    description: 'Validate implementation against requirements and acceptance criteria',
+    parallel: false,
+    approvalRequired: false,
+    dependsOn: ['implementation'],
+  },
+  {
     name: 'review',
     agentType: 'pr-reviewer',
     description: 'Create and review pull requests',
     parallel: false,
     approvalRequired: false,
-    dependsOn: ['implementation'],
+    dependsOn: ['validation'],
   },
 ];
 

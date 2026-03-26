@@ -148,6 +148,19 @@ const ScratchpadConfigSchema = z.object({
 });
 
 /**
+ * V&V (Verification & Validation) configuration
+ */
+const VnvConfigSchema = z.object({
+  rigor: z.enum(['strict', 'standard', 'minimal']).optional().default('standard'),
+  halt_on_verification_failure: z.boolean().optional().default(false),
+  generate_vnv_plan: z.boolean().optional().default(true),
+  generate_vnv_report: z.boolean().optional().default(true),
+  generate_rtm: z.boolean().optional().default(true),
+  cross_document_consistency: z.boolean().optional().default(true),
+  acceptance_criteria_validation: z.boolean().optional().default(true),
+});
+
+/**
  * Global settings
  */
 const GlobalSettingsSchema = z.object({
@@ -159,6 +172,7 @@ const GlobalSettingsSchema = z.object({
   approval_gates: ApprovalGatesSchema.optional(),
   retry_policy: RetryPolicySchema.optional(),
   timeouts: TimeoutsSchema.optional(),
+  vnv: VnvConfigSchema.optional(),
 });
 
 /**
@@ -623,6 +637,7 @@ const AgentDefinitionSchema = z
         'execution',
         'analysis_pipeline',
         'enhancement_pipeline',
+        'vnv',
       ])
       .optional(),
     order: z.number().optional(),
@@ -648,7 +663,7 @@ const AgentDefinitionSchema = z
 const AgentCategorySchema = z.object({
   name: z.string().min(1, 'Category name is required'),
   description: z.string().optional(),
-  agents: z.array(z.string()),
+  agents: z.union([z.array(z.string()), z.record(z.string(), z.any())]).optional(),
   execution_mode: z
     .enum(['sequential', 'parallel', 'on_demand', 'mixed'])
     .optional()

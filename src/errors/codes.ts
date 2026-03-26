@@ -369,6 +369,37 @@ export const InfrastructureErrorCodes = {
 } as const;
 
 /**
+ * V&V (Verification & Validation) module error codes (VNV-xxx)
+ */
+export const VnvErrorCodes = {
+  // Verification errors (001-019)
+  VNV_VERIFICATION_FAILED: 'VNV-001',
+  VNV_CONTENT_VALIDATION_ERROR: 'VNV-002',
+  VNV_TRACEABILITY_GAP: 'VNV-003',
+  VNV_CONSISTENCY_VIOLATION: 'VNV-004',
+  VNV_MISSING_ARTIFACT: 'VNV-005',
+  VNV_RULE_EXECUTION_ERROR: 'VNV-006',
+
+  // RTM errors (020-029)
+  VNV_RTM_BUILD_ERROR: 'VNV-020',
+  VNV_RTM_INCOMPLETE: 'VNV-021',
+  VNV_RTM_VALIDATION_ERROR: 'VNV-022',
+
+  // Validation errors (030-039)
+  VNV_VALIDATION_FAILED: 'VNV-030',
+  VNV_ACCEPTANCE_CRITERIA_FAILED: 'VNV-031',
+  VNV_REQUIREMENTS_NOT_MET: 'VNV-032',
+
+  // Report errors (040-049)
+  VNV_REPORT_GENERATION_ERROR: 'VNV-040',
+  VNV_PLAN_GENERATION_ERROR: 'VNV-041',
+
+  // Configuration errors (050-059)
+  VNV_CONFIG_ERROR: 'VNV-050',
+  VNV_RIGOR_UNSUPPORTED: 'VNV-051',
+} as const;
+
+/**
  * Extended Security error codes (SEC-xxx)
  *
  * Extends SecurityErrorCodes with more specific security errors
@@ -446,6 +477,7 @@ export const ErrorCodes = {
   ...InfrastructureErrorCodes,
   ...ExtendedSecurityErrorCodes,
   ...ExternalServiceErrorCodes,
+  ...VnvErrorCodes,
 } as const;
 
 /**
@@ -697,4 +729,22 @@ export const ErrorCodeDescriptions: Record<ErrorCode, string> = {
   [ErrorCodes.EXT_SERVICE_UNAVAILABLE]: 'External service unavailable',
   [ErrorCodes.EXT_SERVICE_TIMEOUT]: 'External service timed out',
   [ErrorCodes.EXT_SERVICE_RESPONSE_ERROR]: 'External service response error',
+
+  // V&V
+  [ErrorCodes.VNV_VERIFICATION_FAILED]: 'Stage verification failed',
+  [ErrorCodes.VNV_CONTENT_VALIDATION_ERROR]: 'Content validation error',
+  [ErrorCodes.VNV_TRACEABILITY_GAP]: 'Traceability gap detected',
+  [ErrorCodes.VNV_CONSISTENCY_VIOLATION]: 'Cross-document consistency violation',
+  [ErrorCodes.VNV_MISSING_ARTIFACT]: 'Required V&V artifact missing',
+  [ErrorCodes.VNV_RULE_EXECUTION_ERROR]: 'Verification rule execution error',
+  [ErrorCodes.VNV_RTM_BUILD_ERROR]: 'Failed to build RTM',
+  [ErrorCodes.VNV_RTM_INCOMPLETE]: 'RTM is incomplete',
+  [ErrorCodes.VNV_RTM_VALIDATION_ERROR]: 'RTM validation error',
+  [ErrorCodes.VNV_VALIDATION_FAILED]: 'Pipeline validation failed',
+  [ErrorCodes.VNV_ACCEPTANCE_CRITERIA_FAILED]: 'Acceptance criteria not met',
+  [ErrorCodes.VNV_REQUIREMENTS_NOT_MET]: 'Requirements not fully implemented',
+  [ErrorCodes.VNV_REPORT_GENERATION_ERROR]: 'V&V report generation failed',
+  [ErrorCodes.VNV_PLAN_GENERATION_ERROR]: 'V&V plan generation failed',
+  [ErrorCodes.VNV_CONFIG_ERROR]: 'V&V configuration error',
+  [ErrorCodes.VNV_RIGOR_UNSUPPORTED]: 'Unsupported V&V rigor level',
 };
