@@ -25,7 +25,8 @@ export const VALID_TRANSITIONS: ReadonlyMap<ProjectState, readonly ProjectState[
   ['sds_approved', ['issues_creating', 'sds_drafting', 'cancelled']],
   ['issues_creating', ['issues_created', 'sds_approved', 'cancelled']],
   ['issues_created', ['implementing', 'issues_creating', 'cancelled']],
-  ['implementing', ['pr_review', 'issues_created', 'cancelled']],
+  ['implementing', ['validating', 'pr_review', 'issues_created', 'cancelled']],
+  ['validating', ['pr_review', 'implementing', 'cancelled']],
   ['pr_review', ['merged', 'implementing', 'cancelled']],
   ['merged', []],
   ['cancelled', []],
@@ -137,11 +138,20 @@ export const ENHANCED_TRANSITIONS: ReadonlyMap<ProjectState, EnhancedTransitionR
   [
     'implementing',
     {
-      normal: ['pr_review'],
+      normal: ['validating', 'pr_review'],
       recovery: ['issues_created', 'issues_creating'],
       skipTo: [],
       required: true,
       minCompletion: 25,
+    },
+  ],
+  [
+    'validating',
+    {
+      normal: ['pr_review'],
+      recovery: ['implementing'],
+      skipTo: [],
+      required: false,
     },
   ],
   [
@@ -188,6 +198,7 @@ export const PIPELINE_STAGES: readonly ProjectState[] = [
   'issues_creating',
   'issues_created',
   'implementing',
+  'validating',
   'pr_review',
   'merged',
 ];

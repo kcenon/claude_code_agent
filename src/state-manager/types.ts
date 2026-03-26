@@ -26,6 +26,7 @@ export type ProjectState =
   | 'issues_creating'
   | 'issues_created'
   | 'implementing'
+  | 'validating'
   | 'pr_review'
   | 'merged'
   | 'cancelled';

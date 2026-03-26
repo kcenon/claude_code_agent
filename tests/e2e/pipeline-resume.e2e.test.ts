@@ -473,7 +473,12 @@ describe('Pipeline Resume E2E', () => {
 
       expect(result.overallStatus).toBe('completed');
       expect(agent.executionOrder).not.toContain('issue_reading');
-      expect(agent.executionOrder).toEqual(['orchestration', 'implementation', 'review']);
+      expect(agent.executionOrder).toEqual([
+        'orchestration',
+        'implementation',
+        'validation',
+        'review',
+      ]);
 
       await agent.dispose();
     });
@@ -618,6 +623,7 @@ describe('Pipeline Resume E2E', () => {
         'issue_reading',
         'orchestration',
         'implementation',
+        'validation',
         'review',
       ]);
 

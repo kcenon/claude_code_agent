@@ -242,6 +242,32 @@ export const AGENT_TYPE_MAP: Readonly<Record<string, AgentTypeEntry>> = {
     requiresWrapper: false,
     importPath: '../analysis-orchestrator/index.js',
   },
+
+  // ── V&V pipeline agents ──────────────────────────────────────────
+
+  'stage-verifier': {
+    agentId: 'stage-verifier-agent',
+    name: 'Stage Verifier Agent',
+    lifecycle: 'singleton',
+    requiresWrapper: false,
+    importPath: '../stage-verifier/index.js',
+  },
+
+  'rtm-builder': {
+    agentId: 'rtm-builder-agent',
+    name: 'RTM Builder Agent',
+    lifecycle: 'singleton',
+    requiresWrapper: false,
+    importPath: '../rtm-builder/index.js',
+  },
+
+  validation: {
+    agentId: 'validation-agent',
+    name: 'Validation Agent',
+    lifecycle: 'singleton',
+    requiresWrapper: false,
+    importPath: '../validation-agent/index.js',
+  },
 } as const;
 
 /**

@@ -117,6 +117,21 @@ export const GREENFIELD_ARTIFACTS: readonly StageArtifactMap[] = [
       },
     ],
   },
+  {
+    stage: 'validation' as StageName,
+    requiredArtifacts: [
+      {
+        pathPattern: '.ad-sdlc/scratchpad/vnv/*/rtm.yaml',
+        description: 'Requirements Traceability Matrix',
+        required: true,
+      },
+      {
+        pathPattern: '.ad-sdlc/scratchpad/vnv/*/validation-report.yaml',
+        description: 'Validation report',
+        required: true,
+      },
+    ],
+  },
 ];
 
 /**
@@ -213,6 +228,42 @@ export const ENHANCEMENT_ARTIFACTS: readonly StageArtifactMap[] = [
       },
     ],
   },
+  {
+    stage: 'validation' as StageName,
+    requiredArtifacts: [
+      {
+        pathPattern: '.ad-sdlc/scratchpad/vnv/*/rtm.yaml',
+        description: 'Requirements Traceability Matrix',
+        required: true,
+      },
+      {
+        pathPattern: '.ad-sdlc/scratchpad/vnv/*/validation-report.yaml',
+        description: 'Validation report',
+        required: true,
+      },
+    ],
+  },
+];
+
+/**
+ * Import pipeline artifact definitions
+ */
+export const IMPORT_ARTIFACTS: readonly StageArtifactMap[] = [
+  {
+    stage: 'validation' as StageName,
+    requiredArtifacts: [
+      {
+        pathPattern: '.ad-sdlc/scratchpad/vnv/*/rtm.yaml',
+        description: 'Requirements Traceability Matrix',
+        required: true,
+      },
+      {
+        pathPattern: '.ad-sdlc/scratchpad/vnv/*/validation-report.yaml',
+        description: 'Validation report',
+        required: true,
+      },
+    ],
+  },
 ];
 
 /**
@@ -290,7 +341,7 @@ export class ArtifactValidator {
       case 'enhancement':
         return ENHANCEMENT_ARTIFACTS;
       case 'import':
-        return [];
+        return IMPORT_ARTIFACTS;
     }
   }
 

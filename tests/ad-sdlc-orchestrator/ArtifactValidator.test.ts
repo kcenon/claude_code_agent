@@ -11,6 +11,7 @@ import {
   ArtifactValidator,
   GREENFIELD_ARTIFACTS,
   ENHANCEMENT_ARTIFACTS,
+  IMPORT_ARTIFACTS,
 } from '../../src/ad-sdlc-orchestrator/ArtifactValidator.js';
 import type { StageName } from '../../src/ad-sdlc-orchestrator/types.js';
 
@@ -40,9 +41,10 @@ describe('ArtifactValidator', () => {
       expect(map.length).toBeGreaterThan(0);
     });
 
-    it('should return empty array for import mode', () => {
+    it('should return import artifacts for import mode', () => {
       const map = validator.getArtifactMap('import');
-      expect(map).toEqual([]);
+      expect(map).toBe(IMPORT_ARTIFACTS);
+      expect(map.length).toBeGreaterThan(0);
     });
   });
 

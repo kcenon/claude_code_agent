@@ -574,6 +574,61 @@ export class MetricsCollector {
   }
 
   /**
+   * Record a stage verification result
+   * @param stageName - Name of the verified stage
+   * @param passed - Whether verification passed
+   * @param durationMs - Verification duration in milliseconds
+   * @param checkCount - Number of checks performed
+   */
+  public recordStageVerification(
+    stageName: string,
+    passed: boolean,
+    durationMs: number,
+    checkCount: number
+  ): void {
+    this.incrementCounter('vnv_stage_verification_total', 1, {
+      stage: stageName,
+      result: passed ? 'passed' : 'failed',
+    });
+    this.recordHistogram('vnv_stage_verification_duration_seconds', durationMs / 1000, {
+      stage: stageName,
+    });
+    this.setGauge('vnv_stage_verification_check_count', checkCount, { stage: stageName });
+  }
+
+  /**
+   * Record a validation result
+   * @param overallResult - Overall validation outcome (pass, pass_with_warnings, fail)
+   * @param requirementCoverage - Percentage of requirements covered (0-100)
+   * @param acPassRate - Acceptance criteria pass rate (0-100)
+   */
+  public recordValidationResult(
+    overallResult: string,
+    requirementCoverage: number,
+    acPassRate: number
+  ): void {
+    this.incrementCounter('vnv_validation_total', 1, { result: overallResult });
+    this.setGauge('vnv_requirement_coverage_percent', requirementCoverage);
+    this.setGauge('vnv_acceptance_criteria_pass_rate_percent', acPassRate);
+  }
+
+  /**
+   * Record RTM coverage metrics
+   * @param forwardCoverage - Forward traceability coverage percentage (0-100)
+   * @param backwardCoverage - Backward traceability coverage percentage (0-100)
+   * @param gapCount - Number of traceability gaps found
+   */
+  public recordRtmCoverage(
+    forwardCoverage: number,
+    backwardCoverage: number,
+    gapCount: number
+  ): void {
+    this.setGauge('vnv_rtm_forward_coverage_percent', forwardCoverage);
+    this.setGauge('vnv_rtm_backward_coverage_percent', backwardCoverage);
+    this.setGauge('vnv_rtm_gap_count', gapCount);
+  }
+
+  /**
    * Reset all metrics (for testing)
    */
   public reset(): void {

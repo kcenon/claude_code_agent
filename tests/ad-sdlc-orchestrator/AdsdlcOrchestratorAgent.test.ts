@@ -932,10 +932,10 @@ describe('AdsdlcOrchestratorAgent', () => {
       const result = await trackingAgent.executePipeline(tempDir, 'Resume from implementation');
 
       expect(result.overallStatus).toBe('completed');
-      // Only implementation and review should be executed
-      expect(executionOrder).toEqual(['implementation', 'review']);
+      // Only implementation, validation, and review should be executed
+      expect(executionOrder).toEqual(['implementation', 'validation', 'review']);
       // But result should contain all stages (prior + new)
-      expect(result.stages).toHaveLength(2);
+      expect(result.stages).toHaveLength(3);
 
       await trackingAgent.dispose();
     });
@@ -1187,8 +1187,8 @@ describe('AdsdlcOrchestratorAgent', () => {
 });
 
 describe('GREENFIELD_STAGES', () => {
-  it('should define 12 stages', () => {
-    expect(GREENFIELD_STAGES).toHaveLength(12);
+  it('should define 13 stages', () => {
+    expect(GREENFIELD_STAGES).toHaveLength(13);
   });
 
   it('should start with initialization and end with review', () => {
@@ -1220,8 +1220,8 @@ describe('GREENFIELD_STAGES', () => {
 });
 
 describe('ENHANCEMENT_STAGES', () => {
-  it('should define 13 stages', () => {
-    expect(ENHANCEMENT_STAGES).toHaveLength(13);
+  it('should define 14 stages', () => {
+    expect(ENHANCEMENT_STAGES).toHaveLength(14);
   });
 
   it('should start with parallel analysis stages', () => {
@@ -1230,10 +1230,11 @@ describe('ENHANCEMENT_STAGES', () => {
     expect(firstThree.every((s) => s.dependsOn.length === 0)).toBe(true);
   });
 
-  it('should end with regression testing and review', () => {
-    const lastTwo = ENHANCEMENT_STAGES.slice(-2);
-    expect(lastTwo[0]!.name).toBe('regression_testing');
-    expect(lastTwo[1]!.name).toBe('review');
+  it('should end with regression testing, validation, and review', () => {
+    const lastThree = ENHANCEMENT_STAGES.slice(-3);
+    expect(lastThree[0]!.name).toBe('regression_testing');
+    expect(lastThree[1]!.name).toBe('validation');
+    expect(lastThree[2]!.name).toBe('review');
   });
 
   it('should have doc_code_comparison depend on all three analysis stages', () => {
@@ -1268,8 +1269,8 @@ describe('ENHANCEMENT_STAGES', () => {
 });
 
 describe('IMPORT_STAGES', () => {
-  it('should define 4 stages', () => {
-    expect(IMPORT_STAGES).toHaveLength(4);
+  it('should define 5 stages', () => {
+    expect(IMPORT_STAGES).toHaveLength(5);
   });
 
   it('should start with issue_reading and end with review', () => {
@@ -1490,7 +1491,13 @@ describe('Pipeline Stage Sequencing — End-to-End', () => {
     const result = await agent.executePipeline(tempDir, 'import test');
 
     expect(result.overallStatus).toBe('completed');
-    expect(executionOrder).toEqual(['issue_reading', 'orchestration', 'implementation', 'review']);
+    expect(executionOrder).toEqual([
+      'issue_reading',
+      'orchestration',
+      'implementation',
+      'validation',
+      'review',
+    ]);
 
     await agent.dispose();
   });
