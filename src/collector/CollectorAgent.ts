@@ -35,6 +35,12 @@ import type {
 } from './types.js';
 import { ProjectInitError, MissingInformationError, SessionStateError } from './errors.js';
 import { getLogger } from '../logging/index.js';
+import { InvestigationEngine } from './InvestigationEngine.js';
+import type {
+  InvestigationRound,
+  InvestigationAnswer,
+  InvestigationState,
+} from './investigation-types.js';
 
 /**
  * Default configuration for CollectorAgent
@@ -47,6 +53,7 @@ const DEFAULT_CONFIG: Required<CollectorAgentConfig> = {
   defaultPriority: 'P2',
   detectLanguage: true,
   scratchpadBasePath: '.ad-sdlc/scratchpad',
+  investigationDepth: 'quick',
 };
 
 /**
@@ -66,6 +73,7 @@ export class CollectorAgent implements IAgent {
   private readonly inputParser: InputParser;
   private readonly extractor: InformationExtractor;
   private readonly llmExtractor: LLMExtractor | null;
+  private readonly investigationEngine: InvestigationEngine;
   private session: CollectionSession | null = null;
   private initialized = false;
 
@@ -82,17 +90,33 @@ export class CollectorAgent implements IAgent {
     this.inputParser = new InputParser(parserOptions);
     this.extractor = new InformationExtractor(extractorOptions);
 
-    if (bridge !== undefined && !this.isStubBridge(bridge)) {
-      this.llmExtractor = new LLMExtractor(bridge, this.extractor, this.config.scratchpadBasePath);
+    const effectiveBridge = bridge !== undefined && !this.isStubBridge(bridge) ? bridge : null;
+
+    if (effectiveBridge !== null) {
+      this.llmExtractor = new LLMExtractor(
+        effectiveBridge,
+        this.extractor,
+        this.config.scratchpadBasePath
+      );
     } else {
       this.llmExtractor = null;
     }
+
+    this.investigationEngine = new InvestigationEngine(
+      {
+        depth: this.config.investigationDepth,
+        maxQuestionsPerRound: this.config.maxQuestionsPerRound,
+        enableLLMQuestions: effectiveBridge !== null,
+      },
+      effectiveBridge
+    );
   }
 
   /**
    * Check if a bridge is a StubBridge (no-op fallback).
    * StubBridge always returns `true` from supports() and outputs start with "Stub execution".
    * We detect it by constructor name to avoid a hard import dependency.
+   * @param bridge
    */
   private isStubBridge(bridge: AgentBridge): boolean {
     return bridge.constructor.name === 'StubBridge';
@@ -467,6 +491,172 @@ export class CollectorAgent implements IAgent {
     return this.session;
   }
 
+  // ===========================================================================
+  // Investigation Methods
+  // ===========================================================================
+
+  /**
+   * Start the investigation phase after initial extraction.
+   * Transitions session to 'investigating' state and returns first round of questions.
+   *
+   * @returns The first investigation round with questions
+   */
+  public async startInvestigation(): Promise<InvestigationRound> {
+    if (this.session === null) {
+      throw new SessionStateError('no session', 'collecting', 'start investigation');
+    }
+
+    // Process inputs first if still in collecting state
+    if (this.session.status === 'collecting' && this.session.sources.length > 0) {
+      await this.processInputsAsync();
+    }
+
+    const currentSession = this.session;
+    // After processInputsAsync, status may be 'completed' or 'clarifying' — both are valid
+    // starting points for investigation. Only reject truly invalid states (e.g. already investigating).
+    if (currentSession.status === 'investigating') {
+      throw new SessionStateError(currentSession.status, 'collecting', 'start investigation');
+    }
+
+    this.investigationEngine.initialize(this.config.investigationDepth);
+    const round = await this.investigationEngine.generateNextRound(currentSession.extraction, []);
+
+    this.session = {
+      ...currentSession,
+      status: 'investigating',
+      investigation: this.investigationEngine.getState(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    return round;
+  }
+
+  /**
+   * Submit answers for the current investigation round.
+   * Returns the next round of questions, or null if investigation is complete.
+   *
+   * @param answers - Answers for the current round
+   * @returns Next investigation round, or null if complete
+   */
+  public async submitInvestigationAnswers(
+    answers: readonly InvestigationAnswer[]
+  ): Promise<InvestigationRound | null> {
+    if (this.session === null || this.session.status !== 'investigating') {
+      throw new SessionStateError(
+        this.session?.status ?? 'no session',
+        'investigating',
+        'submit investigation answers'
+      );
+    }
+
+    const state = this.investigationEngine.getState();
+    this.investigationEngine.submitRoundAnswers(state.currentRound, answers);
+
+    // Enrich extraction with answers
+    const enrichedExtraction = this.investigationEngine.enrichExtraction(
+      this.session.extraction,
+      this.investigationEngine.getState()
+    );
+
+    // Check if investigation should end
+    if (this.investigationEngine.isComplete()) {
+      this.session = {
+        ...this.session,
+        extraction: enrichedExtraction,
+        investigation: this.investigationEngine.getState(),
+        pendingQuestions: enrichedExtraction.clarificationQuestions,
+        status: enrichedExtraction.clarificationQuestions.length > 0 ? 'clarifying' : 'completed',
+        updatedAt: new Date().toISOString(),
+      };
+      return null;
+    }
+
+    // Check early exit
+    if (this.investigationEngine.shouldEarlyExit(enrichedExtraction.overallConfidence)) {
+      this.investigationEngine.skipRemaining();
+      this.session = {
+        ...this.session,
+        extraction: enrichedExtraction,
+        investigation: this.investigationEngine.getState(),
+        pendingQuestions: enrichedExtraction.clarificationQuestions,
+        status: enrichedExtraction.clarificationQuestions.length > 0 ? 'clarifying' : 'completed',
+        updatedAt: new Date().toISOString(),
+      };
+      return null;
+    }
+
+    // Generate next round
+    const allAnswers = this.investigationEngine.getState().rounds.flatMap((r) => r.answers);
+    try {
+      const nextRound = await this.investigationEngine.generateNextRound(
+        enrichedExtraction,
+        allAnswers
+      );
+
+      this.session = {
+        ...this.session,
+        extraction: enrichedExtraction,
+        investigation: this.investigationEngine.getState(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      return nextRound;
+    } catch {
+      // If no more rounds can be generated, investigation is complete
+      this.investigationEngine.skipRemaining();
+      this.session = {
+        ...this.session,
+        extraction: enrichedExtraction,
+        investigation: this.investigationEngine.getState(),
+        pendingQuestions: enrichedExtraction.clarificationQuestions,
+        status: enrichedExtraction.clarificationQuestions.length > 0 ? 'clarifying' : 'completed',
+        updatedAt: new Date().toISOString(),
+      };
+      return null;
+    }
+  }
+
+  /**
+   * Skip remaining investigation rounds and proceed to clarification/completion.
+   *
+   * @returns Updated session
+   */
+  public skipInvestigation(): CollectionSession {
+    if (this.session === null || this.session.status !== 'investigating') {
+      throw new SessionStateError(
+        this.session?.status ?? 'no session',
+        'investigating',
+        'skip investigation'
+      );
+    }
+
+    this.investigationEngine.skipRemaining();
+
+    // Enrich extraction with any answers collected so far
+    const enrichedExtraction = this.investigationEngine.enrichExtraction(
+      this.session.extraction,
+      this.investigationEngine.getState()
+    );
+
+    this.session = {
+      ...this.session,
+      extraction: enrichedExtraction,
+      investigation: this.investigationEngine.getState(),
+      pendingQuestions: enrichedExtraction.clarificationQuestions,
+      status: enrichedExtraction.clarificationQuestions.length > 0 ? 'clarifying' : 'completed',
+      updatedAt: new Date().toISOString(),
+    };
+
+    return this.session;
+  }
+
+  /**
+   * Get the current investigation state, or null if not investigating.
+   */
+  public getInvestigationState(): InvestigationState | null {
+    return this.session?.investigation ?? null;
+  }
+
   /**
    * Finalize collection and generate output
    *
@@ -487,6 +677,12 @@ export class CollectorAgent implements IAgent {
     if (currentSession.status === 'collecting' && currentSession.sources.length > 0) {
       await this.processInputsAsync();
       // Re-read session after processInputsAsync call since it updates this.session
+      currentSession = this.session;
+    }
+
+    // If still investigating, skip remaining investigation and enrich extraction
+    if (currentSession.status === 'investigating') {
+      this.skipInvestigation();
       currentSession = this.session;
     }
 
@@ -527,6 +723,9 @@ export class CollectorAgent implements IAgent {
       questionsAsked: extraction.clarificationQuestions.length,
       questionsAnswered: currentSession.answeredQuestions.length,
       processingTimeMs,
+      investigationRounds: currentSession.investigation?.rounds.length ?? 0,
+      investigationQuestionsAsked:
+        currentSession.investigation?.rounds.reduce((sum, r) => sum + r.questions.length, 0) ?? 0,
     };
 
     return {
@@ -643,6 +842,33 @@ export class CollectorAgent implements IAgent {
         extractedAt: s.extractedAt,
         summary: s.summary,
       })),
+      ...(session.investigation !== undefined
+        ? {
+            investigation: {
+              depth: session.investigation.depth,
+              roundsCompleted: session.investigation.rounds.filter(
+                (r) => r.completedAt !== undefined
+              ).length,
+              totalQuestions: session.investigation.rounds.reduce(
+                (sum, r) => sum + r.questions.length,
+                0
+              ),
+              totalAnswers: session.investigation.rounds.reduce(
+                (sum, r) => sum + r.answers.length,
+                0
+              ),
+              confidenceGain:
+                session.investigation.rounds.length > 0
+                  ? (session.investigation.rounds[session.investigation.rounds.length - 1]
+                      ?.confidenceAfter ?? 0) -
+                    (session.investigation.rounds[0]?.confidenceBefore ?? 0)
+                  : 0,
+              phasesCompleted: session.investigation.rounds
+                .filter((r) => r.completedAt !== undefined)
+                .map((r) => r.phase),
+            },
+          }
+        : {}),
       createdAt: session.startedAt,
       updatedAt: now,
       completedAt: now,
@@ -655,7 +881,9 @@ export class CollectorAgent implements IAgent {
    * @param expectedState - The expected state the session must be in to proceed
    * @returns The current session
    */
-  private ensureSession(expectedState: 'collecting' | 'clarifying'): CollectionSession {
+  private ensureSession(
+    expectedState: 'collecting' | 'investigating' | 'clarifying'
+  ): CollectionSession {
     if (this.session === null) {
       throw new SessionStateError('no session', expectedState, 'perform this action');
     }
@@ -666,6 +894,10 @@ export class CollectorAgent implements IAgent {
 
     if (expectedState === 'clarifying' && this.session.status !== 'clarifying') {
       throw new SessionStateError(this.session.status, expectedState, 'answer questions');
+    }
+
+    if (expectedState === 'investigating' && this.session.status !== 'investigating') {
+      throw new SessionStateError(this.session.status, expectedState, 'perform investigation');
     }
 
     return this.session;

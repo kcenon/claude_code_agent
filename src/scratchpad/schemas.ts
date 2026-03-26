@@ -44,7 +44,12 @@ export type RequirementStatus = z.infer<typeof RequirementStatusSchema>;
 /**
  * Collection status
  */
-export const CollectionStatusSchema = z.enum(['collecting', 'clarifying', 'completed']);
+export const CollectionStatusSchema = z.enum([
+  'collecting',
+  'investigating',
+  'clarifying',
+  'completed',
+]);
 export type CollectionStatus = z.infer<typeof CollectionStatusSchema>;
 
 /**
@@ -204,6 +209,16 @@ export const CollectedInfoSchema = z.object({
   dependencies: z.array(DependencySchema).optional().default([]),
   clarifications: z.array(ClarificationSchema).optional().default([]),
   sources: z.array(SourceReferenceSchema).optional().default([]),
+  investigation: z
+    .object({
+      depth: z.enum(['thorough', 'standard', 'quick']),
+      roundsCompleted: z.number().int().min(0),
+      totalQuestions: z.number().int().min(0),
+      totalAnswers: z.number().int().min(0),
+      confidenceGain: z.number().min(0).max(1),
+      phasesCompleted: z.array(z.string()),
+    })
+    .optional(),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
   completedAt: z.iso.datetime().optional(),
