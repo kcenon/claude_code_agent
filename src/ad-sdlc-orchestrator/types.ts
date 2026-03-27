@@ -260,6 +260,18 @@ export interface OrchestratorConfig {
   readonly maxParallelAgents?: number;
   /** Log level */
   readonly logLevel?: 'DEBUG' | 'INFO' | 'WARN' | 'ERROR';
+  /** Checkpoint configuration for mid-stage persistence */
+  readonly checkpoint?: CheckpointConfig;
+}
+
+/**
+ * Checkpoint configuration for the orchestrator
+ */
+export interface CheckpointConfig {
+  /** Enable mid-stage checkpointing (default: true) */
+  readonly enabled: boolean;
+  /** Maximum number of checkpoints to retain per session (default: 5) */
+  readonly maxCheckpoints: number;
 }
 
 /**
@@ -276,6 +288,10 @@ export const DEFAULT_ORCHESTRATOR_CONFIG: Required<OrchestratorConfig> = {
   maxRetries: 3,
   maxParallelAgents: 3,
   logLevel: 'INFO',
+  checkpoint: {
+    enabled: true,
+    maxCheckpoints: 5,
+  },
 };
 
 /**
@@ -607,4 +623,27 @@ export interface StageSummary {
   readonly status: PipelineStageStatus;
   readonly durationMs: number;
   readonly retryCount: number;
+}
+
+/**
+ * Pipeline checkpoint capturing progress between stages.
+ * Written to disk after each stage completes for crash recovery.
+ */
+export interface PipelineCheckpoint {
+  /** Checkpoint format version */
+  readonly version: 1;
+  /** Session ID this checkpoint belongs to */
+  readonly sessionId: string;
+  /** Pipeline mode */
+  readonly mode: PipelineMode;
+  /** Project directory */
+  readonly projectDir: string;
+  /** User request text */
+  readonly userRequest: string;
+  /** Checkpoint creation timestamp */
+  readonly createdAt: string;
+  /** Stage results accumulated so far */
+  readonly completedStageResults: readonly StageResult[];
+  /** Names of stages confirmed completed */
+  readonly completedStageNames: readonly StageName[];
 }
