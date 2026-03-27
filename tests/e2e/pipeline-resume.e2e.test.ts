@@ -548,7 +548,8 @@ describe('Pipeline Resume E2E', () => {
 
       // Verify the state file is written
       const stateDir = path.join(tempDir, '.ad-sdlc', 'scratchpad', 'pipeline');
-      const files = await fs.readdir(stateDir);
+      const allEntries = await fs.readdir(stateDir);
+      const files = allEntries.filter((f) => f.endsWith('.yaml') || f.endsWith('.yml'));
       expect(files.length).toBeGreaterThan(0);
 
       const content = await fs.readFile(path.join(stateDir, files[0]!), 'utf-8');
