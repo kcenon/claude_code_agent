@@ -27,7 +27,7 @@ import { ArtifactValidator } from '../../src/ad-sdlc-orchestrator/ArtifactValida
  */
 class NoOpArtifactValidator extends ArtifactValidator {
   constructor() {
-    super('/dev/null');
+    super(process.platform === 'win32' ? os.tmpdir() : '/dev/null');
   }
   override async validatePreCompletedStages(): Promise<never[]> {
     return [];
@@ -152,8 +152,9 @@ describe('AdsdlcOrchestratorAgent', () => {
     });
 
     it('should throw InvalidProjectDirError for non-existent directory', async () => {
+      const nonexistentPath = path.join(os.tmpdir(), 'nonexistent-' + Date.now(), 'deep', 'nested');
       const request: PipelineRequest = {
-        projectDir: '/nonexistent/path/12345',
+        projectDir: nonexistentPath,
         userRequest: 'test',
       };
 
@@ -258,7 +259,8 @@ describe('AdsdlcOrchestratorAgent', () => {
 
     it('should throw InvalidProjectDirError for invalid path', async () => {
       await stubAgent.initialize();
-      await expect(stubAgent.executePipeline('/nonexistent/path', 'test')).rejects.toThrow(
+      const nonexistentPath = path.join(os.tmpdir(), 'nonexistent-' + Date.now(), 'deep', 'nested');
+      await expect(stubAgent.executePipeline(nonexistentPath, 'test')).rejects.toThrow(
         InvalidProjectDirError
       );
     });

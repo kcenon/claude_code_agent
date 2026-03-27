@@ -25,9 +25,7 @@ describe('RegressionTesterAgent', () => {
 
   beforeEach(async () => {
     // Create a temporary directory for test files
-    tempDir = await fs.mkdtemp(
-      path.join(os.tmpdir(), 'regression-tester-test-')
-    );
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'regression-tester-test-'));
 
     // Create a basic project structure
     await fs.mkdir(path.join(tempDir, 'src', 'services'), { recursive: true });
@@ -129,12 +127,20 @@ describe('UserController', () => {
       ),
       JSON.stringify({
         nodes: [
-          { id: 'userService', type: 'internal', path: 'src/services/userService.ts', exports: ['UserService'] },
-          { id: 'userController', type: 'internal', path: 'src/controllers/userController.ts', exports: ['UserController'] },
+          {
+            id: 'userService',
+            type: 'internal',
+            path: 'src/services/userService.ts',
+            exports: ['UserService'],
+          },
+          {
+            id: 'userController',
+            type: 'internal',
+            path: 'src/controllers/userController.ts',
+            exports: ['UserController'],
+          },
         ],
-        edges: [
-          { from: 'userController', to: 'userService', type: 'import', weight: 1 },
-        ],
+        edges: [{ from: 'userController', to: 'userService', type: 'import', weight: 1 }],
       })
     );
 
@@ -168,9 +174,7 @@ describe('UserController', () => {
     });
 
     it('should have default configuration values', () => {
-      expect(DEFAULT_REGRESSION_TESTER_CONFIG.scratchpadBasePath).toBe(
-        '.ad-sdlc/scratchpad'
-      );
+      expect(DEFAULT_REGRESSION_TESTER_CONFIG.scratchpadBasePath).toBe('.ad-sdlc/scratchpad');
       expect(DEFAULT_REGRESSION_TESTER_CONFIG.runTests).toBe(true);
       expect(DEFAULT_REGRESSION_TESTER_CONFIG.collectCoverage).toBe(true);
       expect(DEFAULT_REGRESSION_TESTER_CONFIG.testTimeout).toBe(30000);
@@ -236,15 +240,16 @@ describe('UserController', () => {
         { path: 'src/services/userService.ts', changeType: 'modified', linesChanged: 10 },
       ];
 
+      const nonexistentPath = path.join(os.tmpdir(), 'nonexistent-' + Date.now(), 'deep', 'nested');
       await expect(
-        agent.startSession('test-project', '/nonexistent/path', changedFiles)
+        agent.startSession('test-project', nonexistentPath, changedFiles)
       ).rejects.toThrow(InvalidProjectPathError);
     });
 
     it('should throw error for empty changed files', async () => {
-      await expect(
-        agent.startSession('test-project', tempDir, [])
-      ).rejects.toThrow(NoChangedFilesError);
+      await expect(agent.startSession('test-project', tempDir, [])).rejects.toThrow(
+        NoChangedFilesError
+      );
     });
   });
 
@@ -315,7 +320,10 @@ describe('UserController', () => {
       const result = await agent.analyze();
 
       // Check output file exists
-      const outputExists = await fs.access(result.outputPath).then(() => true).catch(() => false);
+      const outputExists = await fs
+        .access(result.outputPath)
+        .then(() => true)
+        .catch(() => false);
       expect(outputExists).toBe(true);
     });
 
@@ -458,7 +466,14 @@ describe('UserController', () => {
     it('should collect warnings during analysis', async () => {
       // Remove dependency graph to trigger warning
       await fs.rm(
-        path.join(tempDir, '.ad-sdlc', 'scratchpad', 'analysis', 'test-project', 'dependency_graph.json')
+        path.join(
+          tempDir,
+          '.ad-sdlc',
+          'scratchpad',
+          'analysis',
+          'test-project',
+          'dependency_graph.json'
+        )
       );
 
       const changedFiles: ChangedFile[] = [

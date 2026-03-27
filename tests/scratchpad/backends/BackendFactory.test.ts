@@ -213,11 +213,16 @@ describe('BackendFactory.createAndInitialize fallback', () => {
     expect(backend).toBeInstanceOf(FileBackend);
   });
 
+  // On Windows, SQLite may auto-create directories; use a truly invalid path
   it('should fall back to FileBackend when SQLite initialization fails', async () => {
+    const invalidPath =
+      process.platform === 'win32'
+        ? '\\\\.\\NUL\\impossible\\db.sqlite'
+        : '/nonexistent/path/that/will/fail/db.sqlite';
     const backend = await BackendFactory.createAndInitialize({
       backend: 'sqlite',
       sqlite: {
-        dbPath: '/nonexistent/path/that/will/fail/db.sqlite',
+        dbPath: invalidPath,
       },
     });
 

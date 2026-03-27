@@ -10,6 +10,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import * as path from 'node:path';
 import {
   getCurrentEnvironment,
   getEnvConfigFilePath,
@@ -62,18 +63,24 @@ describe('Config Loader', () => {
 
   describe('getEnvConfigFilePath', () => {
     it('should construct environment-specific path', () => {
-      const result = getEnvConfigFilePath('/config/workflow.yaml', 'development');
-      expect(result).toBe('/config/workflow.development.yaml');
+      const input = path.resolve('/config/workflow.yaml');
+      const expected = path.resolve('/config/workflow.development.yaml');
+      const result = getEnvConfigFilePath(input, 'development');
+      expect(result).toBe(expected);
     });
 
     it('should handle nested directory paths', () => {
-      const result = getEnvConfigFilePath('/a/b/c/agents.yaml', 'staging');
-      expect(result).toBe('/a/b/c/agents.staging.yaml');
+      const input = path.resolve('/a/b/c/agents.yaml');
+      const expected = path.resolve('/a/b/c/agents.staging.yaml');
+      const result = getEnvConfigFilePath(input, 'staging');
+      expect(result).toBe(expected);
     });
 
     it('should handle production environment', () => {
-      const result = getEnvConfigFilePath('/config/workflow.yaml', 'production');
-      expect(result).toBe('/config/workflow.production.yaml');
+      const input = path.resolve('/config/workflow.yaml');
+      const expected = path.resolve('/config/workflow.production.yaml');
+      const result = getEnvConfigFilePath(input, 'production');
+      expect(result).toBe(expected);
     });
   });
 
@@ -154,8 +161,10 @@ describe('Config Loader', () => {
 
   describe('getConfigDir', () => {
     it('should resolve path with provided baseDir', () => {
-      const result = getConfigDir('/my/project');
-      expect(result).toContain('/my/project');
+      const projectPath = path.resolve('/my/project');
+      const result = getConfigDir(projectPath);
+      expect(result).toContain('my');
+      expect(result).toContain('project');
       expect(result).toContain('.ad-sdlc');
     });
   });

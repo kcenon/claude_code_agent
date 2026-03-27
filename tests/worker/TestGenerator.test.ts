@@ -269,7 +269,11 @@ export class Validator {
 }
 `;
 
-      const suite = edgeCaseGenerator.generateTests('src/Validator.ts', sourceCode, defaultPatterns);
+      const suite = edgeCaseGenerator.generateTests(
+        'src/Validator.ts',
+        sourceCode,
+        defaultPatterns
+      );
       const validateTests = suite.suites[0].nestedSuites.find((s) => s.name === 'validate');
 
       expect(validateTests).toBeDefined();
@@ -287,7 +291,11 @@ export class Validator {
 }
 `;
 
-      const suite = noEdgeCaseGenerator.generateTests('src/Validator.ts', sourceCode, defaultPatterns);
+      const suite = noEdgeCaseGenerator.generateTests(
+        'src/Validator.ts',
+        sourceCode,
+        defaultPatterns
+      );
       const validateTests = suite.suites[0].nestedSuites.find((s) => s.name === 'validate');
 
       const edgeCaseTest = validateTests?.testCases.find((t) => t.category === 'edge_case');
@@ -477,7 +485,7 @@ export class Calculator {
 
       const content = generator.generateTestFileContent(suite, defaultPatterns);
 
-      expect(content).toContain("import { describe, it, expect");
+      expect(content).toContain('import { describe, it, expect');
       expect(content).toContain("describe('MyClass'");
     });
 
@@ -615,7 +623,11 @@ export class Repository {
   }
 }
 `;
-      const suite = comprehensiveGenerator.generateTests('src/Repository.ts', sourceCode, defaultPatterns);
+      const suite = comprehensiveGenerator.generateTests(
+        'src/Repository.ts',
+        sourceCode,
+        defaultPatterns
+      );
 
       const saveTests = suite.suites[0]?.nestedSuites.find((s) => s.name === 'save');
       const hasMocks = saveTests?.testCases.some((t) => t.mocks.length > 0);
@@ -633,7 +645,11 @@ export class Repository {
   }
 }
 `;
-      const suite = minimalGenerator.generateTests('src/Repository.ts', sourceCode, defaultPatterns);
+      const suite = minimalGenerator.generateTests(
+        'src/Repository.ts',
+        sourceCode,
+        defaultPatterns
+      );
 
       const saveTests = suite.suites[0]?.nestedSuites.find((s) => s.name === 'save');
       const allMocksEmpty = saveTests?.testCases.every((t) => t.mocks.length === 0);
@@ -688,7 +704,11 @@ export class ConfigurableService {
   public getConfig(): Config { return this.config; }
 }
 `;
-      const suite = generator.generateTests('src/ConfigurableService.ts', sourceCode, defaultPatterns);
+      const suite = generator.generateTests(
+        'src/ConfigurableService.ts',
+        sourceCode,
+        defaultPatterns
+      );
 
       const initSuite = suite.suites[0]?.nestedSuites.find((s) => s.name === 'initialization');
 
@@ -705,10 +725,14 @@ export class ConfigurableService {
 
     it('should_place_test_file_in_same_directory_with_test_suffix', () => {
       const sourceCode = `export class Test {}`;
-      const suite = generator.generateTests('src/components/Button.ts', sourceCode, defaultPatterns);
+      const suite = generator.generateTests(
+        'src/components/Button.ts',
+        sourceCode,
+        defaultPatterns
+      );
 
       // Test file is placed in same directory structure with .test suffix
-      expect(suite.testFile).toContain('components/Button.test.ts');
+      expect(suite.testFile.replace(/\\/g, '/')).toContain('components/Button.test.ts');
     });
 
     it('should_add_test_suffix_to_filename', () => {

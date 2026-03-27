@@ -16,7 +16,7 @@ export default defineConfig({
         'src/**/types.ts', // Type definitions only - no runtime code
         'src/cli.ts', // CLI entry point - interactive, tested via E2E
         'src/init/InteractiveWizard.ts', // Interactive prompts - tested via E2E
-        'src/config/loader.ts', // File system operations - tested via E2E
+        // src/config/loader.ts is unit tested (tests/config/loader.test.ts)
         'src/config/watcher.ts', // CLI watch mode - tested via E2E
         'src/pr-reviewer/PRCreator.ts', // GitHub CLI operations (gh pr create/list) - tested via E2E/integration
         'src/pr-reviewer/PRReviewerAgent.ts', // GitHub CLI operations + complex async flows - tested via E2E

@@ -307,7 +307,8 @@ describe('SecureFileOps', () => {
     });
   });
 
-  describe('symlink security', () => {
+  // Symlink creation on Windows requires admin privileges (SeCreateSymbolicLinkPrivilege)
+  describe.skipIf(process.platform === 'win32')('symlink security', () => {
     it('should validate symlink targets within project root', () => {
       const targetDir = path.join(tempDir, 'target');
       const linkPath = path.join(tempDir, 'link');

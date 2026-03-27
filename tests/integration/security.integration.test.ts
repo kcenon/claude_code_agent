@@ -81,30 +81,34 @@ describe('Security Module Integration', () => {
   });
 
   describe('InputValidator with SecureFileHandler', () => {
-    it('should validate paths before secure file operations', async () => {
-      const validator = new InputValidator({
-        basePath: tempDir,
-      });
+    // isSecure check relies on Unix file permissions (0o600) which Windows NTFS doesn't support
+    it.skipIf(process.platform === 'win32')(
+      'should validate paths before secure file operations',
+      async () => {
+        const validator = new InputValidator({
+          basePath: tempDir,
+        });
 
-      const fileHandler = new SecureFileHandler({
-        autoCleanup: false,
-      });
+        const fileHandler = new SecureFileHandler({
+          autoCleanup: false,
+        });
 
-      // Valid path within base
-      const validPath = validator.validateFilePath('subdir/file.txt');
-      expect(validPath.startsWith(tempDir)).toBe(true);
+        // Valid path within base
+        const validPath = validator.validateFilePath('subdir/file.txt');
+        expect(validPath.startsWith(tempDir)).toBe(true);
 
-      // Create file securely
-      await fileHandler.writeSecure(validPath, 'secure content');
+        // Create file securely
+        await fileHandler.writeSecure(validPath, 'secure content');
 
-      // Verify file exists with correct permissions
-      const stats = await fileHandler.getSecureStats(validPath);
-      expect(stats.isSecure).toBe(true);
+        // Verify file exists with correct permissions
+        const stats = await fileHandler.getSecureStats(validPath);
+        expect(stats.isSecure).toBe(true);
 
-      // Read file securely
-      const content = await fileHandler.readSecure(validPath);
-      expect(content).toBe('secure content');
-    });
+        // Read file securely
+        const content = await fileHandler.readSecure(validPath);
+        expect(content).toBe('secure content');
+      }
+    );
 
     it('should reject path traversal attempts', () => {
       const validator = new InputValidator({

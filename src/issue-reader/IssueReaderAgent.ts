@@ -708,7 +708,10 @@ export class IssueReaderAgent implements IAgent {
    */
   private saveOutput(repository: string, result: IssueImportResult): void {
     const projectId = repository.replace('/', '_');
-    const outputDir = path.join(process.cwd(), this.config.scratchpadBasePath, 'issues', projectId);
+    const basePath = path.isAbsolute(this.config.scratchpadBasePath)
+      ? this.config.scratchpadBasePath
+      : path.join(process.cwd(), this.config.scratchpadBasePath);
+    const outputDir = path.join(basePath, 'issues', projectId);
 
     try {
       fs.mkdirSync(outputDir, { recursive: true });

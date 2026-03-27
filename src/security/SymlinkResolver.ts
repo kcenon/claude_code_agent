@@ -396,8 +396,9 @@ export class SymlinkResolver {
    * @returns True if targetPath is within basePath
    */
   private isPathWithin(targetPath: string, basePath: string): boolean {
-    let normalizedTarget = path.normalize(targetPath);
-    let normalizedBase = path.normalize(basePath);
+    // Use path.resolve() to fully normalize (resolves .., ., and redundant separators)
+    let normalizedTarget = path.resolve(targetPath);
+    let normalizedBase = path.resolve(basePath);
 
     if (this.caseInsensitive) {
       normalizedTarget = normalizedTarget.toLowerCase();

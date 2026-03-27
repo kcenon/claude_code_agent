@@ -566,10 +566,10 @@ export class Scratchpad {
     const validatedPath = this.validatePath(filePath);
     const { createDirs = true } = options;
 
-    // Create parent directories if needed
+    // Create parent directories if needed (use pre-validated path to avoid double-validation)
     if (createDirs) {
       const dir = path.dirname(validatedPath);
-      await this.ensureDir(dir);
+      await this.ensureDirValidated(dir);
     }
 
     // Use backend for atomic write
@@ -600,7 +600,7 @@ export class Scratchpad {
 
     try {
       if (createDirs) {
-        this.ensureDirSync(dir);
+        this.ensureDirValidatedSync(dir);
       }
 
       fs.writeFileSync(tempPath, content, { encoding, mode });
@@ -638,6 +638,23 @@ export class Scratchpad {
   public ensureDirSync(dirPath: string): void {
     const validatedPath = this.validatePath(dirPath);
     fs.mkdirSync(validatedPath, { recursive: true, mode: this.dirMode });
+  }
+
+  /**
+   * Ensure a directory exists using an already-validated absolute path.
+   * Skips re-validation to avoid double-validation issues with absolute paths.
+   * @param validatedDirPath
+   */
+  private async ensureDirValidated(validatedDirPath: string): Promise<void> {
+    await fs.promises.mkdir(validatedDirPath, { recursive: true, mode: this.dirMode });
+  }
+
+  /**
+   * Ensure a directory exists using an already-validated absolute path (synchronous).
+   * @param validatedDirPath
+   */
+  private ensureDirValidatedSync(validatedDirPath: string): void {
+    fs.mkdirSync(validatedDirPath, { recursive: true, mode: this.dirMode });
   }
 
   // ============================================================
@@ -1517,10 +1534,10 @@ export class Scratchpad {
     const { createDirs = true, format: formatOption } = options;
     const format = this.resolveFormat(validatedPath, formatOption);
 
-    // Create parent directories if needed
+    // Create parent directories if needed (use pre-validated path to avoid double-validation)
     if (createDirs) {
       const dir = path.dirname(validatedPath);
-      await this.ensureDir(dir);
+      await this.ensureDirValidated(dir);
     }
 
     // Serialize and write
@@ -1554,7 +1571,7 @@ export class Scratchpad {
 
     try {
       if (createDirs) {
-        this.ensureDirSync(dir);
+        this.ensureDirValidatedSync(dir);
       }
 
       const content = this.serialize(data, format);

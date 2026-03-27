@@ -24,8 +24,11 @@ describe('SelfVerificationAgent', () => {
   let testDir: string;
 
   beforeEach(async () => {
-    testDir = join(tmpdir(), `self-verification-test-${Date.now()}`);
-    await mkdir(testDir, { recursive: true });
+    const rawDir = join(tmpdir(), `self-verification-test-${Date.now()}`);
+    await mkdir(rawDir, { recursive: true });
+    // Resolve symlinks for consistent path comparison (e.g., macOS /var → /private/var)
+    const { realpathSync } = await import('node:fs');
+    testDir = realpathSync(rawDir);
 
     // Create package.json for npm commands
     await writeFile(

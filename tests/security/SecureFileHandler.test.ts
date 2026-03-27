@@ -35,14 +35,18 @@ describe('SecureFileHandler', () => {
       expect(handler.isTracked(tempDir)).toBe(true);
     });
 
-    it('should create directory with restricted permissions', async () => {
-      const tempDir = await handler.createTempDir();
-      const stats = fs.statSync(tempDir);
-      const mode = stats.mode & 0o777;
+    // Windows NTFS does not support Unix-style permission bits
+    it.skipIf(process.platform === 'win32')(
+      'should create directory with restricted permissions',
+      async () => {
+        const tempDir = await handler.createTempDir();
+        const stats = fs.statSync(tempDir);
+        const mode = stats.mode & 0o777;
 
-      // Owner read/write/execute only (0o700)
-      expect(mode).toBe(0o700);
-    });
+        // Owner read/write/execute only (0o700)
+        expect(mode).toBe(0o700);
+      }
+    );
   });
 
   describe('createTempDirSync', () => {
@@ -69,14 +73,17 @@ describe('SecureFileHandler', () => {
       expect(tempFile.endsWith('.json')).toBe(true);
     });
 
-    it('should create file with restricted permissions', async () => {
-      const tempFile = await handler.createTempFile('secret');
-      const stats = fs.statSync(tempFile);
-      const mode = stats.mode & 0o777;
+    it.skipIf(process.platform === 'win32')(
+      'should create file with restricted permissions',
+      async () => {
+        const tempFile = await handler.createTempFile('secret');
+        const stats = fs.statSync(tempFile);
+        const mode = stats.mode & 0o777;
 
-      // Owner read/write only (0o600)
-      expect(mode).toBe(0o600);
-    });
+        // Owner read/write only (0o600)
+        expect(mode).toBe(0o600);
+      }
+    );
   });
 
   describe('createTempFileSync', () => {
@@ -90,16 +97,19 @@ describe('SecureFileHandler', () => {
   });
 
   describe('writeSecure', () => {
-    it('should write content with secure permissions', async () => {
-      const tempDir = await handler.createTempDir();
-      const filePath = path.join(tempDir, 'secure-file.txt');
+    it.skipIf(process.platform === 'win32')(
+      'should write content with secure permissions',
+      async () => {
+        const tempDir = await handler.createTempDir();
+        const filePath = path.join(tempDir, 'secure-file.txt');
 
-      await handler.writeSecure(filePath, 'Secure content');
+        await handler.writeSecure(filePath, 'Secure content');
 
-      expect(fs.existsSync(filePath)).toBe(true);
-      const stats = fs.statSync(filePath);
-      expect(stats.mode & 0o777).toBe(0o600);
-    });
+        expect(fs.existsSync(filePath)).toBe(true);
+        const stats = fs.statSync(filePath);
+        expect(stats.mode & 0o777).toBe(0o600);
+      }
+    );
 
     it('should create parent directories', async () => {
       const tempDir = await handler.createTempDir();
@@ -189,18 +199,21 @@ describe('SecureFileHandler', () => {
   });
 
   describe('copySecure', () => {
-    it('should copy file with secure permissions', async () => {
-      const tempDir = await handler.createTempDir();
-      const source = path.join(tempDir, 'source.txt');
-      const dest = path.join(tempDir, 'dest.txt');
+    it.skipIf(process.platform === 'win32')(
+      'should copy file with secure permissions',
+      async () => {
+        const tempDir = await handler.createTempDir();
+        const source = path.join(tempDir, 'source.txt');
+        const dest = path.join(tempDir, 'dest.txt');
 
-      fs.writeFileSync(source, 'Original content');
-      await handler.copySecure(source, dest);
+        fs.writeFileSync(source, 'Original content');
+        await handler.copySecure(source, dest);
 
-      expect(fs.existsSync(dest)).toBe(true);
-      expect(fs.readFileSync(dest, 'utf8')).toBe('Original content');
-      expect(fs.statSync(dest).mode & 0o777).toBe(0o600);
-    });
+        expect(fs.existsSync(dest)).toBe(true);
+        expect(fs.readFileSync(dest, 'utf8')).toBe('Original content');
+        expect(fs.statSync(dest).mode & 0o777).toBe(0o600);
+      }
+    );
   });
 
   describe('moveSecure', () => {
@@ -234,16 +247,19 @@ describe('SecureFileHandler', () => {
   });
 
   describe('getSecureStats', () => {
-    it('should return file stats with security info', async () => {
-      const tempFile = await handler.createTempFile('stats test');
+    it.skipIf(process.platform === 'win32')(
+      'should return file stats with security info',
+      async () => {
+        const tempFile = await handler.createTempFile('stats test');
 
-      const stats = await handler.getSecureStats(tempFile);
+        const stats = await handler.getSecureStats(tempFile);
 
-      expect(stats.size).toBeGreaterThan(0);
-      expect(stats.mode).toBe(0o600);
-      expect(stats.isSecure).toBe(true);
-      expect(stats.warnings).toHaveLength(0);
-    });
+        expect(stats.size).toBeGreaterThan(0);
+        expect(stats.mode).toBe(0o600);
+        expect(stats.isSecure).toBe(true);
+        expect(stats.warnings).toHaveLength(0);
+      }
+    );
   });
 
   describe('singleton', () => {

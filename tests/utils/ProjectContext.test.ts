@@ -34,7 +34,7 @@ describe('ProjectContext', () => {
     resetProjectContext();
 
     // Create temp directory for testing
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'project-context-test-'));
+    tempDir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'project-context-test-')));
   });
 
   afterEach(() => {
@@ -60,21 +60,15 @@ describe('ProjectContext', () => {
       expect(() => initializeProject(nonExistentPath, { silent: true })).toThrow(
         ProjectContextError
       );
-      expect(() => initializeProject(nonExistentPath, { silent: true })).toThrow(
-        'does not exist'
-      );
+      expect(() => initializeProject(nonExistentPath, { silent: true })).toThrow('does not exist');
     });
 
     it('should throw ProjectContextError for file path instead of directory', () => {
       const filePath = path.join(tempDir, 'test-file.txt');
       fs.writeFileSync(filePath, 'test content');
 
-      expect(() => initializeProject(filePath, { silent: true })).toThrow(
-        ProjectContextError
-      );
-      expect(() => initializeProject(filePath, { silent: true })).toThrow(
-        'not a directory'
-      );
+      expect(() => initializeProject(filePath, { silent: true })).toThrow(ProjectContextError);
+      expect(() => initializeProject(filePath, { silent: true })).toThrow('not a directory');
     });
 
     it('should resolve relative paths to absolute', () => {
@@ -164,7 +158,7 @@ describe('ProjectContext', () => {
 
     it('should handle absolute paths correctly', () => {
       initializeProject(tempDir, { silent: true });
-      const absolutePath = '/absolute/path';
+      const absolutePath = path.resolve('/absolute/path');
 
       const resolved = resolveProjectPath(absolutePath);
 
@@ -187,7 +181,7 @@ describe('ProjectContext', () => {
     it('should return false for paths outside project', () => {
       initializeProject(tempDir, { silent: true });
 
-      expect(isPathWithinProject('/tmp')).toBe(false);
+      expect(isPathWithinProject(path.resolve(os.tmpdir(), '..', 'nonexistent'))).toBe(false);
       expect(isPathWithinProject(path.join(tempDir, '..', 'other'))).toBe(false);
     });
 
