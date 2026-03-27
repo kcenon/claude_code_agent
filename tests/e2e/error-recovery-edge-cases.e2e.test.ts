@@ -745,12 +745,7 @@ Build a system with special chars.
         }
 
         const projectId = collectionResult.result.projectId;
-        const infoPath = path.join(
-          env.scratchpadPath,
-          'info',
-          projectId,
-          'collected_info.yaml'
-        );
+        const infoPath = path.join(env.scratchpadPath, 'info', projectId, 'collected_info.yaml');
 
         // Record content before reset
         const contentBefore = fs.readFileSync(infoPath, 'utf-8');
@@ -901,7 +896,7 @@ Build a system with special chars.
             });
             return { success: result.success, index: i };
           } finally {
-            await testEnv.cleanup();
+            await testEnv.cleanup().catch(() => {});
           }
         });
 
