@@ -98,4 +98,7 @@ export interface AgentResponse {
 
   /** Error details if success is false */
   error?: string;
+
+  /** Whether response came from StubBridge (no real AI execution) */
+  isStub?: boolean;
 }

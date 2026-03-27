@@ -87,9 +87,13 @@ export class MergeDecision {
    */
   public async checkMergeConflicts(prNumber: number): Promise<MergeConflictInfo> {
     try {
-      const result = await this.executeCommand(
-        `gh pr view ${String(prNumber)} --json mergeable,mergeStateStatus,files`
-      );
+      const result = await this.executeCommand([
+        'pr',
+        'view',
+        String(prNumber),
+        '--json',
+        'mergeable,mergeStateStatus,files',
+      ]);
 
       if (result.exitCode !== 0) {
         return {
@@ -152,7 +156,13 @@ export class MergeDecision {
    */
   public async checkBlockingReviews(prNumber: number): Promise<readonly BlockingReview[]> {
     try {
-      const result = await this.executeCommand(`gh pr view ${String(prNumber)} --json reviews`);
+      const result = await this.executeCommand([
+        'pr',
+        'view',
+        String(prNumber),
+        '--json',
+        'reviews',
+      ]);
 
       if (result.exitCode !== 0) {
         return [];
@@ -485,13 +495,12 @@ export class MergeDecision {
       }
 
       // Build commit subject and body
-      flags.push(`--subject "${this.escapeForParser(message.title)}"`);
+      flags.push('--subject', message.title);
       if (message.body) {
-        flags.push(`--body "${this.escapeForParser(message.body)}"`);
+        flags.push('--body', message.body);
       }
 
-      const command = `gh pr merge ${String(prNumber)} ${flags.join(' ')}`;
-      const result = await this.executeCommand(command);
+      const result = await this.executeCommand(['pr', 'merge', String(prNumber), ...flags]);
 
       if (result.exitCode === 0) {
         // Extract merge commit from output if available
@@ -671,27 +680,21 @@ export class MergeDecision {
   }
 
   /**
-   * Escape content for use within double quotes in command strings
-   * Uses the centralized sanitizer method
-   * @param str - Raw string to escape for safe inclusion in shell commands
-   * @returns Escaped string safe for use within double-quoted command arguments
-   */
-  private escapeForParser(str: string): string {
-    const sanitizer = getCommandSanitizer();
-    return sanitizer.escapeForParser(str);
-  }
-
-  /**
    * Execute a shell command using safe execution
    * Uses execFile to bypass shell and prevent command injection
-   * @param command - Shell command string to parse and execute safely
+   * @param command - Shell command string to parse and execute safely, or gh argument array
    * @returns Command result with stdout, stderr, and exit code
    */
-  private async executeCommand(command: string): Promise<CommandResult> {
+  private async executeCommand(command: string | string[]): Promise<CommandResult> {
     const sanitizer = getCommandSanitizer();
 
+    const cmd = Array.isArray(command)
+      ? 'gh ' +
+        command.map((a) => (/[\s"'\\]/.test(a) ? `"${a.replace(/"/g, '\\"')}"` : a)).join(' ')
+      : command;
+
     try {
-      const result = await sanitizer.execFromString(command, {
+      const result = await sanitizer.execFromString(cmd, {
         cwd: this.config.projectRoot,
         timeout: this.config.commandTimeout,
         maxBuffer: 10 * 1024 * 1024,

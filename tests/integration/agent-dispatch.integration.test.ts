@@ -21,7 +21,10 @@ import { AgentDispatcher, AgentDispatchError } from '../../src/agents/AgentDispa
 import { bootstrapAgents } from '../../src/agents/bootstrapAgents.js';
 import { AGENT_TYPE_MAP, getAgentTypes } from '../../src/agents/AgentTypeMapping.js';
 import { AgentRegistry } from '../../src/agents/AgentRegistry.js';
-import type { PipelineStageDefinition, OrchestratorSession } from '../../src/ad-sdlc-orchestrator/types.js';
+import type {
+  PipelineStageDefinition,
+  OrchestratorSession,
+} from '../../src/ad-sdlc-orchestrator/types.js';
 
 /**
  * Resolve the directory where AgentTypeMapping.ts lives (src/agents/).
@@ -336,10 +339,12 @@ describe('Agent Dispatch Integration', () => {
       }
     });
 
-    it('should fall back to default adapter for agent types without custom adapter', () => {
-      // ci-fixer and analysis-orchestrator do not have custom adapters
-      expect(dispatcher.hasAdapter('ci-fixer')).toBe(false);
-      expect(dispatcher.hasAdapter('analysis-orchestrator')).toBe(false);
+    it('should have explicit adapters for all agent types including execute-pattern agents', () => {
+      // All agents now have explicit adapters — no silent fallback to default
+      expect(dispatcher.hasAdapter('ci-fixer')).toBe(true);
+      expect(dispatcher.hasAdapter('analysis-orchestrator')).toBe(true);
+      expect(dispatcher.hasAdapter('stage-verifier')).toBe(true);
+      expect(dispatcher.hasAdapter('worker')).toBe(true);
     });
   });
 });
