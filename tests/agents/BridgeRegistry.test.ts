@@ -201,19 +201,26 @@ describe('BridgeRegistry', () => {
 });
 
 describe('StubBridge', () => {
-  let stub: StubBridge;
-
-  beforeEach(() => {
-    stub = new StubBridge();
-  });
-
   it('should support all agent types', () => {
+    const stub = new StubBridge();
     expect(stub.supports('collector')).toBe(true);
     expect(stub.supports('worker')).toBe(true);
     expect(stub.supports('unknown-type')).toBe(true);
   });
 
-  it('should return success response with agent type in output', async () => {
+  it('should return stub-tagged response by default', async () => {
+    const stub = new StubBridge();
+    const request = createRequest({ agentType: 'prd-writer' });
+    const response = await stub.execute(request);
+
+    expect(response.success).toBe(true);
+    expect(response.isStub).toBe(true);
+    expect(response.output).toContain('[STUB]');
+    expect(response.output).toContain('prd-writer');
+  });
+
+  it('should return success when allowExecution is true', async () => {
+    const stub = new StubBridge({ allowExecution: true });
     const request = createRequest({ agentType: 'prd-writer' });
     const response = await stub.execute(request);
 
@@ -223,6 +230,7 @@ describe('StubBridge', () => {
   });
 
   it('should dispose without error', async () => {
+    const stub = new StubBridge();
     await expect(stub.dispose()).resolves.toBeUndefined();
   });
 });

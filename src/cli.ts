@@ -36,9 +36,13 @@ import { getLogger } from './logging/index.js';
 import {
   getAdsdlcOrchestratorAgent,
   resetAdsdlcOrchestratorAgent,
-  GREENFIELD_STAGES,
 } from './ad-sdlc-orchestrator/index.js';
 import type { PipelineMode, PipelineRequest } from './ad-sdlc-orchestrator/index.js';
+import {
+  GREENFIELD_STAGES,
+  ENHANCEMENT_STAGES,
+  IMPORT_STAGES,
+} from './ad-sdlc-orchestrator/index.js';
 import { createDefaultBridgeRegistry } from './agents/BridgeRegistry.js';
 import { StatusService } from './status/index.js';
 import type { OutputFormat } from './status/types.js';
@@ -882,6 +886,127 @@ function formatConsentStatus(status: string): string {
 }
 
 /**
+ * Doctor command - Validate environment prerequisites
+ */
+program
+  .command('doctor')
+  .description('Check environment prerequisites for running AD-SDLC pipelines')
+  .option('--project-dir <dir>', 'Target project directory', process.cwd())
+  .action(async (cmdOptions: Record<string, unknown>) => {
+    const projectDir =
+      typeof cmdOptions['projectDir'] === 'string'
+        ? resolve(cmdOptions['projectDir'])
+        : resolve(process.cwd());
+
+    output.info(chalk.blue('\nAD-SDLC Doctor\n'));
+
+    const checks: Array<{ label: string; ok: boolean; detail: string }> = [];
+
+    // 1. Node.js version
+    const nodeVersion = process.version;
+    const nodeMajor = parseInt(nodeVersion.slice(1), 10);
+    checks.push({
+      label: 'Node.js',
+      ok: nodeMajor >= 18,
+      detail: `${nodeVersion} (required: >=18.0.0)`,
+    });
+
+    // 2. Git
+    try {
+      const { execSync } = await import('node:child_process');
+      const gitVersion = execSync('git --version', { encoding: 'utf8' }).trim();
+      checks.push({ label: 'Git', ok: true, detail: gitVersion });
+    } catch {
+      checks.push({ label: 'Git', ok: false, detail: 'not found (required)' });
+    }
+
+    // 3. GitHub CLI (optional)
+    try {
+      const { execSync } = await import('node:child_process');
+      const ghVersion = execSync('gh --version', { encoding: 'utf8' }).trim().split('\n')[0] ?? '';
+      checks.push({ label: 'GitHub CLI', ok: true, detail: `${ghVersion} (optional)` });
+    } catch {
+      checks.push({
+        label: 'GitHub CLI',
+        ok: true,
+        detail: 'not found (optional, for issue/PR management)',
+      });
+    }
+
+    // 4. API key or Claude Code session
+    const registry = createDefaultBridgeRegistry();
+    const hasRealBridge = registry.hasRealBridge();
+    if (hasRealBridge) {
+      const isClaudeCode =
+        (process.env['CLAUDE_CODE_SESSION'] !== undefined &&
+          process.env['CLAUDE_CODE_SESSION'] !== '') ||
+        (process.env['CLAUDE_CODE'] !== undefined && process.env['CLAUDE_CODE'] !== '');
+      const bridgeLabel = isClaudeCode ? 'Claude Code session' : 'ANTHROPIC_API_KEY';
+      checks.push({ label: 'AI Bridge', ok: true, detail: `${bridgeLabel} detected` });
+    } else {
+      checks.push({
+        label: 'AI Bridge',
+        ok: false,
+        detail: 'No ANTHROPIC_API_KEY or Claude Code session detected',
+      });
+    }
+
+    // 5. Config files
+    const configResult = configFilesExist(resolve(projectDir, '.ad-sdlc', 'config'));
+    if (configResult.workflow && configResult.agents) {
+      checks.push({ label: 'Config files', ok: true, detail: 'workflow.yaml + agents.yaml found' });
+    } else {
+      const missing = [
+        !configResult.workflow ? 'workflow.yaml' : null,
+        !configResult.agents ? 'agents.yaml' : null,
+      ]
+        .filter(Boolean)
+        .join(', ');
+      checks.push({
+        label: 'Config files',
+        ok: false,
+        detail: `missing: ${missing} (run ad-sdlc init first)`,
+      });
+    }
+
+    // 6. Disk space
+    try {
+      const { statfsSync } = await import('node:fs');
+      const stats = statfsSync(projectDir);
+      const freeGB = (stats.bfree * stats.bsize) / (1024 * 1024 * 1024);
+      checks.push({
+        label: 'Disk space',
+        ok: freeGB > 0.5,
+        detail: `${freeGB.toFixed(1)} GB available`,
+      });
+    } catch {
+      checks.push({ label: 'Disk space', ok: true, detail: 'check skipped' });
+    }
+
+    // Display results
+    let allRequired = true;
+    for (const check of checks) {
+      const icon = check.ok ? chalk.green('OK') : chalk.red('FAIL');
+      output.info(`  ${icon}  ${check.label}: ${check.detail}`);
+      if (!check.ok && check.label !== 'GitHub CLI' && check.label !== 'Config files') {
+        allRequired = false;
+      }
+    }
+
+    output.blank();
+    if (allRequired && hasRealBridge) {
+      output.info(chalk.green('Ready for pipeline execution.\n'));
+    } else if (allRequired) {
+      output.info(
+        chalk.yellow('Environment OK but no AI bridge configured. Set ANTHROPIC_API_KEY.\n')
+      );
+    } else {
+      output.info(chalk.red('Some required checks failed. Fix the issues above.\n'));
+      process.exit(1);
+    }
+  });
+
+/**
  * Run command - Execute the AD-SDLC pipeline
  */
 program
@@ -892,7 +1017,11 @@ program
   .option('--stop-after <stage>', 'Stop pipeline after specified stage')
   .option('--project-dir <dir>', 'Target project directory', process.cwd())
   .option('--dry-run', 'Validate pipeline configuration without executing agents', false)
-  .option('--strict', 'Fail if any stage would use StubBridge (no silent no-ops)', false)
+  .option(
+    '--allow-stub',
+    'Allow StubBridge for testing (by default, real bridge is required)',
+    false
+  )
   .option('--resume <session-id>', 'Resume a previously interrupted pipeline session')
   .action(async (requirements: string, cmdOptions: Record<string, unknown>) => {
     const modeInput = typeof cmdOptions['mode'] === 'string' ? cmdOptions['mode'] : 'greenfield';
@@ -903,7 +1032,7 @@ program
         ? resolve(cmdOptions['projectDir'])
         : resolve(process.cwd());
     const dryRun = cmdOptions['dryRun'] === true;
-    const strict = cmdOptions['strict'] === true;
+    const allowStub = cmdOptions['allowStub'] === true;
     const resumeSessionId =
       typeof cmdOptions['resume'] === 'string' ? cmdOptions['resume'] : undefined;
 
@@ -951,54 +1080,69 @@ program
       }
       output.blank();
 
+      // Show planned stages
+      const stageMap: Record<
+        string,
+        readonly { name: string; agentType: string; parallel?: boolean }[]
+      > = {
+        greenfield: GREENFIELD_STAGES,
+        enhancement: ENHANCEMENT_STAGES,
+        import: IMPORT_STAGES,
+      };
+      const stages = stageMap[mode] ?? GREENFIELD_STAGES;
+      output.info(chalk.dim(`Pipeline: ${String(stages.length)} stages`));
+      for (let i = 0; i < stages.length; i++) {
+        const s = stages[i];
+        if (s === undefined) continue;
+        const exec = s.parallel === true ? 'parallel' : 'sequential';
+        output.info(
+          chalk.dim(`  ${String(i + 1).padStart(2)}. ${s.name} (${s.agentType}, ${exec})`)
+        );
+      }
+      output.blank();
+
+      // Show bridge info
+      const dryRunRegistry = createDefaultBridgeRegistry();
+      const isClaudeCodeDryRun =
+        (process.env['CLAUDE_CODE_SESSION'] !== undefined &&
+          process.env['CLAUDE_CODE_SESSION'] !== '') ||
+        (process.env['CLAUDE_CODE'] !== undefined && process.env['CLAUDE_CODE'] !== '');
+      const bridgeType = dryRunRegistry.hasRealBridge()
+        ? isClaudeCodeDryRun
+          ? 'ClaudeCodeBridge'
+          : 'AnthropicApiBridge'
+        : 'StubBridge (no real bridge)';
+      output.info(chalk.dim(`Bridge: ${bridgeType}`));
+      output.blank();
+
       try {
         const report = await validateAllConfigs();
         if (report.valid) {
-          output.info(chalk.green('✅ Configuration is valid. Pipeline is ready to execute.\n'));
+          output.info(chalk.green('Configuration valid. Pipeline is ready to execute.\n'));
         } else {
           output.info(
             chalk.red(
-              `❌ Found ${String(report.totalErrors)} configuration error(s). Fix these before running.\n`
+              `Found ${String(report.totalErrors)} configuration error(s). Fix these before running.\n`
             )
           );
           process.exit(1);
         }
       } catch (error) {
         output.error(
-          `${chalk.red('\n❌ Error:')} ${error instanceof Error ? error.message : String(error)}`
+          `${chalk.red('\nError:')} ${error instanceof Error ? error.message : String(error)}`
         );
         process.exit(1);
       }
       return;
     }
 
-    // Strict mode: reject if any stage would use StubBridge
-    if (strict) {
-      const strictRegistry = createDefaultBridgeRegistry();
-      const stages = GREENFIELD_STAGES;
-      const stubAgents = stages
-        .filter((stage) => strictRegistry.isStub(stage.agentType))
-        .map((stage) => stage.agentType);
-      if (stubAgents.length > 0) {
-        output.error(
-          chalk.red(
-            `\nStrict mode: ${String(stubAgents.length)} agent(s) would use StubBridge: ${stubAgents.join(', ')}`
-          )
-        );
-        output.info(
-          chalk.dim('Set ANTHROPIC_API_KEY or run inside Claude Code to enable real execution.\n')
-        );
-        process.exit(1);
-      }
-    }
-
-    // Validate API credentials before starting (fail fast instead of mid-pipeline)
+    // Validate bridge availability — require real bridge unless --allow-stub
     {
       const preCheckRegistry = createDefaultBridgeRegistry();
-      if (preCheckRegistry.isStub('collector')) {
-        output.error(chalk.red('\n❌ No API credentials configured.'));
+      if (!preCheckRegistry.hasRealBridge() && !allowStub) {
+        output.error(chalk.red('\nNo AI bridge available.'));
         output.info(chalk.dim('Set ANTHROPIC_API_KEY or run inside a Claude Code session.'));
-        output.info(chalk.dim('Use --dry-run to validate configuration without execution.\n'));
+        output.info(chalk.dim('Use --allow-stub for testing without a real AI bridge.\n'));
         process.exit(1);
       }
     }

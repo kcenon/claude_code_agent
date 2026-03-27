@@ -803,10 +803,17 @@ describe('PRCreator', () => {
         creator as unknown as { addLabels: (n: number, l: string[]) => Promise<void> }
       ).addLabels(42, ['bug', 'enhancement']);
 
-      expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining('gh pr edit 42'));
-      expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining('--add-label "bug"'));
+      // addLabels now passes structured array to executeCommand
       expect(mockExecute).toHaveBeenCalledWith(
-        expect.stringContaining('--add-label "enhancement"')
+        expect.arrayContaining([
+          'pr',
+          'edit',
+          '42',
+          '--add-label',
+          'bug',
+          '--add-label',
+          'enhancement',
+        ])
       );
     });
   });

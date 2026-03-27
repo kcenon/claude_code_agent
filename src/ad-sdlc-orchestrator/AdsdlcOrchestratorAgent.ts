@@ -18,9 +18,12 @@ import { BridgeRegistry, createDefaultBridgeRegistry } from '../agents/BridgeReg
 import { bootstrapAgents } from '../agents/bootstrapAgents.js';
 import type { IAgent } from '../agents/types.js';
 import { Semaphore } from '../utilities/Semaphore.js';
+import { getLogger } from '../logging/index.js';
+import { PipelineCheckpointManager } from './PipelineCheckpointManager.js';
 import type {
   AgentInvocation,
   ApprovalDecision,
+  CheckpointConfig,
   ExecutionStrategy,
   OrchestratorConfig,
   OrchestratorSession,
@@ -83,6 +86,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
   private abortController: AbortController | null = null;
   private _dispatcher: AgentDispatcher | null = null;
   private _bridgeRegistry: BridgeRegistry | null = null;
+  private readonly checkpointManager: PipelineCheckpointManager | null;
 
   constructor(config: OrchestratorConfig = {}) {
     this.config = {
@@ -93,6 +97,8 @@ export class AdsdlcOrchestratorAgent implements IAgent {
         ...config.timeouts,
       },
     };
+    const ckptConfig: CheckpointConfig = this.config.checkpoint;
+    this.checkpointManager = ckptConfig.enabled ? new PipelineCheckpointManager(ckptConfig) : null;
   }
 
   /**
@@ -181,6 +187,35 @@ export class AdsdlcOrchestratorAgent implements IAgent {
 
     // Resume from prior session if requested
     if (request.resumeSessionId !== undefined && request.resumeSessionId !== '') {
+      // Try checkpoint-based resume first (more recent than session YAML)
+      if (this.checkpointManager !== null && this.checkpointManager.isEnabled()) {
+        const scratchpadDir = path.resolve(request.projectDir, this.config.scratchpadDir);
+        const checkpoint = await this.checkpointManager.loadLatestCheckpoint(
+          request.resumeSessionId,
+          scratchpadDir
+        );
+        if (checkpoint && checkpoint.completedStageNames.length > 0) {
+          getLogger().info('Resuming from pipeline checkpoint', {
+            agent: 'AdsdlcOrchestratorAgent',
+            sessionId: request.resumeSessionId,
+            completedStages: checkpoint.completedStageNames.length,
+          });
+          // Feed checkpoint's completed stages into the existing resume path
+          // by overriding preCompletedStages after loadPriorSession resolves
+          const prior = await this.loadPriorSession(request.resumeSessionId, request.projectDir);
+          if (prior) {
+            this.session = {
+              ...prior,
+              status: 'running',
+              preCompletedStages: checkpoint.completedStageNames,
+              stageResults: checkpoint.completedStageResults,
+            };
+            this.abortController = new AbortController();
+            return this.session;
+          }
+        }
+      }
+
       const prior = await this.loadPriorSession(request.resumeSessionId, request.projectDir);
       if (prior) {
         this.session = { ...prior, status: 'running' };
@@ -302,6 +337,18 @@ export class AdsdlcOrchestratorAgent implements IAgent {
       this.session = { ...this.session, status: overallStatus, stageResults };
 
       await this.persistState(session, result);
+
+      // Clean up checkpoints after successful persistence
+      if (this.checkpointManager !== null && this.checkpointManager.isEnabled()) {
+        try {
+          await this.checkpointManager.deleteSessionCheckpoints(
+            session.sessionId,
+            session.scratchpadDir
+          );
+        } catch {
+          // Best-effort cleanup
+        }
+      }
 
       if (overallStatus === 'failed') {
         throw new PipelineFailedError(
@@ -483,6 +530,26 @@ export class AdsdlcOrchestratorAgent implements IAgent {
             completedStages.add(result.name);
           }
         }
+
+        // Save checkpoint after stage completion
+        if (this.checkpointManager !== null && this.checkpointManager.isEnabled()) {
+          try {
+            await this.checkpointManager.saveCheckpoint(
+              session.sessionId,
+              session.mode,
+              session.projectDir,
+              session.userRequest,
+              session.scratchpadDir,
+              results,
+              [...completedStages]
+            );
+          } catch (err) {
+            getLogger().warn('Checkpoint save failed (non-critical)', {
+              agent: 'AdsdlcOrchestratorAgent',
+              error: err instanceof Error ? err.message : String(err),
+            });
+          }
+        }
       } else if (parallelGroup.length === 1) {
         // Single parallel stage — run sequentially
         const singleStage = parallelGroup[0];
@@ -521,6 +588,26 @@ export class AdsdlcOrchestratorAgent implements IAgent {
 
         if (result.status === 'completed') {
           completedStages.add(stage.name);
+        }
+
+        // Save checkpoint after stage completion
+        if (this.checkpointManager !== null && this.checkpointManager.isEnabled()) {
+          try {
+            await this.checkpointManager.saveCheckpoint(
+              session.sessionId,
+              session.mode,
+              session.projectDir,
+              session.userRequest,
+              session.scratchpadDir,
+              results,
+              [...completedStages]
+            );
+          } catch (err) {
+            getLogger().warn('Checkpoint save failed (non-critical)', {
+              agent: 'AdsdlcOrchestratorAgent',
+              error: err instanceof Error ? err.message : String(err),
+            });
+          }
         }
       }
 

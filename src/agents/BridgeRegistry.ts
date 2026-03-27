@@ -35,6 +35,7 @@ export class BridgeRegistry {
   /**
    * Register a bridge. Bridges are checked in registration order.
    * The first bridge whose `supports()` returns true for an agent type is used.
+   * @param bridge
    */
   register(bridge: AgentBridge): void {
     this.bridges.push(bridge);
@@ -78,9 +79,18 @@ export class BridgeRegistry {
 
   /**
    * Check if any non-stub bridge supports the given agent type.
+   * @param agentType
    */
   hasBridge(agentType: string): boolean {
     return this.bridges.some((b) => b.supports(agentType));
+  }
+
+  /**
+   * Check if at least one real (non-stub) bridge is registered.
+   * Use this to verify the environment is properly configured before running a pipeline.
+   */
+  hasRealBridge(): boolean {
+    return this.bridges.length > 0;
   }
 
   /**

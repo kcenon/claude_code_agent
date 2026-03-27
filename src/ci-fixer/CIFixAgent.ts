@@ -384,9 +384,13 @@ export class CIFixAgent implements IAgent {
    * @returns JSON string of check names, statuses, and conclusions
    */
   private async fetchWorkflowLogs(prNumber: number): Promise<string> {
-    const result = await this.executeCommand(
-      `gh pr checks ${String(prNumber)} --json name,status,conclusion`
-    );
+    const result = await this.executeCommand([
+      'pr',
+      'checks',
+      String(prNumber),
+      '--json',
+      'name,status,conclusion',
+    ]);
     return result.stdout;
   }
 
@@ -631,15 +635,23 @@ Fixes applied by CI Fix Agent for PR #${String(handoff.prNumber)}`;
    */
   private async escalate(handoff: CIFixHandoff, result: CIFixResult): Promise<void> {
     // Add label to PR
-    await this.executeCommand(
-      `gh pr edit ${String(handoff.prNumber)} --add-label "needs-human-review"`
-    );
+    await this.executeCommand([
+      'pr',
+      'edit',
+      String(handoff.prNumber),
+      '--add-label',
+      'needs-human-review',
+    ]);
 
     // Add comment to PR
     const escalationInfo = this.generateEscalationComment(handoff, result);
-    await this.executeCommand(
-      `gh pr comment ${String(handoff.prNumber)} --body "${this.escapeForParser(escalationInfo)}"`
-    );
+    await this.executeCommand([
+      'pr',
+      'comment',
+      String(handoff.prNumber),
+      '--body',
+      escalationInfo,
+    ]);
   }
 
   /**
@@ -708,9 +720,13 @@ _This escalation was generated automatically by the CI Fix Agent._`;
    * @returns Object with the PR's head branch name and current state
    */
   private async getPRInfo(prNumber: number): Promise<{ branch: string; state: string }> {
-    const result = await this.executeCommand(
-      `gh pr view ${String(prNumber)} --json headRefName,state`
-    );
+    const result = await this.executeCommand([
+      'pr',
+      'view',
+      String(prNumber),
+      '--json',
+      'headRefName,state',
+    ]);
     const data = JSON.parse(result.stdout) as {
       headRefName: string;
       state: string;
@@ -724,9 +740,14 @@ _This escalation was generated automatically by the CI Fix Agent._`;
    * @returns Array of CI checks that concluded with failure or error
    */
   private async getFailedChecks(prNumber: number): Promise<CICheck[]> {
-    const result = await this.executeCommand(
-      `gh pr checks ${String(prNumber)} --json name,status,conclusion,detailsUrl --required`
-    );
+    const result = await this.executeCommand([
+      'pr',
+      'checks',
+      String(prNumber),
+      '--json',
+      'name,status,conclusion,detailsUrl',
+      '--required',
+    ]);
 
     try {
       const checks = JSON.parse(result.stdout) as Array<{
@@ -759,9 +780,15 @@ _This escalation was generated automatically by the CI Fix Agent._`;
    * @returns Array of file paths modified in the pull request
    */
   private async getChangedFiles(prNumber: number): Promise<string[]> {
-    const result = await this.executeCommand(
-      `gh pr view ${String(prNumber)} --json files --jq '.files[].path'`
-    );
+    const result = await this.executeCommand([
+      'pr',
+      'view',
+      String(prNumber),
+      '--json',
+      'files',
+      '--jq',
+      '.files[].path',
+    ]);
     return result.stdout.trim().split('\n').filter(Boolean);
   }
 
@@ -770,9 +797,14 @@ _This escalation was generated automatically by the CI Fix Agent._`;
    * @returns Repository identifier in 'owner/name' format
    */
   private async getRepoName(): Promise<string> {
-    const result = await this.executeCommand(
-      'gh repo view --json nameWithOwner --jq .nameWithOwner'
-    );
+    const result = await this.executeCommand([
+      'repo',
+      'view',
+      '--json',
+      'nameWithOwner',
+      '--jq',
+      '.nameWithOwner',
+    ]);
     return result.stdout.trim();
   }
 
@@ -782,12 +814,18 @@ _This escalation was generated automatically by the CI Fix Agent._`;
 
   /**
    * Execute a shell command using safe execution
-   * Uses injected ICommandExecutor for testability
-   * @param command - Shell command string to execute in the project root
+   * Uses injected ICommandExecutor for testability.
+   * When called with a string[], delegates to sanitizer.execGh() for
+   * argument-array based gh invocations (no shell interpolation).
+   * @param command - Shell command string or gh argument array to execute
    * @returns Execution result with stdout, stderr, and exit code
    */
-  private async executeCommand(command: string): Promise<CommandResult> {
-    return this.commandExecutor.execute(command, {
+  private async executeCommand(command: string | string[]): Promise<CommandResult> {
+    const cmd = Array.isArray(command)
+      ? 'gh ' +
+        command.map((a) => (/[\s"'\\]/.test(a) ? `"${a.replace(/"/g, '\\"')}"` : a)).join(' ')
+      : command;
+    return this.commandExecutor.execute(cmd, {
       cwd: this.config.projectRoot,
       timeout: 120000,
       maxBuffer: 10 * 1024 * 1024,

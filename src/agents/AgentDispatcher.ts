@@ -631,6 +631,27 @@ export class AgentDispatcher {
       }
       return this.defaultAdapter(agent, _stage, session);
     });
+
+    // Remaining agents use the execute(session) pattern via defaultAdapter.
+    // Register them explicitly so every agent type has an entry (fail-fast on typos).
+    const executeAdapter = this.createExecuteAdapter();
+    for (const agentType of [
+      'project-initializer',
+      'mode-detector',
+      'issue-generator',
+      'controller',
+      'worker',
+      'pr-reviewer',
+      'code-reader',
+      'doc-code-comparator',
+      'ci-fixer',
+      'analysis-orchestrator',
+      'stage-verifier',
+      'rtm-builder',
+      'validation',
+    ]) {
+      this.callAdapters.set(agentType, executeAdapter);
+    }
   }
 
   /**
@@ -650,6 +671,23 @@ export class AgentDispatcher {
         return JSON.stringify(result);
       }
       return this.defaultAdapter(agent, _stage, session);
+    };
+  }
+
+  /**
+   * Create a call adapter that invokes the execute(session) pattern.
+   * Used for agents that implement the IAgent interface directly.
+   */
+  private createExecuteAdapter(): AgentCallAdapter {
+    return async (agent, stage, session) => {
+      const a = toRecord(agent);
+      if (typeof a['execute'] === 'function') {
+        const result = await (a['execute'] as (s: OrchestratorSession) => Promise<unknown>)(
+          session
+        );
+        return JSON.stringify(result);
+      }
+      return this.defaultAdapter(agent, stage, session);
     };
   }
 
