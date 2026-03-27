@@ -14,6 +14,9 @@ export {
   ADSDLC_ORCHESTRATOR_AGENT_ID,
 } from './AdsdlcOrchestratorAgent.js';
 
+// Pipeline checkpoint manager
+export { PipelineCheckpointManager } from './PipelineCheckpointManager.js';
+
 // Artifact validation
 export {
   ArtifactValidator,
@@ -50,6 +53,9 @@ export type {
   // Configuration types
   OrchestratorConfig,
   StageTimeoutConfig,
+  CheckpointConfig,
+  // Checkpoint types
+  PipelineCheckpoint,
   // Approval and monitoring types
   ApprovalDecision,
   PipelineMonitorSnapshot,

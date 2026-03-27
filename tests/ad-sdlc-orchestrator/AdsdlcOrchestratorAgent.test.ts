@@ -248,7 +248,8 @@ describe('AdsdlcOrchestratorAgent', () => {
       const result = await stubAgent.executePipeline(tempDir, 'test');
 
       const stateDir = path.join(tempDir, '.ad-sdlc', 'scratchpad', 'pipeline');
-      const files = await fs.readdir(stateDir);
+      const entries = await fs.readdir(stateDir, { withFileTypes: true });
+      const files = entries.filter((e) => e.isFile()).map((e) => e.name);
       expect(files.length).toBeGreaterThan(0);
 
       const stateFile = path.join(stateDir, files[0]!);
