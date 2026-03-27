@@ -16,6 +16,8 @@ export { WorkerHealthMonitor } from './WorkerHealthMonitor.js';
 export { StuckWorkerHandler } from './StuckWorkerHandler.js';
 export { BoundedWorkQueue } from './BoundedWorkQueue.js';
 export { WorkerPoolMetrics } from './WorkerPoolMetrics.js';
+export { WorkerProcessManager } from './WorkerProcessManager.js';
+export type { WorkerProcessCallbacks } from './WorkerProcessManager.js';
 export type {
   ZombieWorkerHandler,
   WorkerRestartHandler,
