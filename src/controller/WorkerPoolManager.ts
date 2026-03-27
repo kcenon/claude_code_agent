@@ -142,6 +142,8 @@ export class WorkerPoolManager {
   private readonly metrics: WorkerPoolMetrics | null;
   /** Optional BridgeRegistry for delegating work to real AI execution */
   private _bridgeRegistry: BridgeRegistry | null = null;
+  /** Optional WorkerProcessManager for child process-based execution */
+  _processManager: import('./WorkerProcessManager.js').WorkerProcessManager | null = null;
 
   constructor(config: WorkerPoolConfig = {}, scratchpadOptions?: ScratchpadOptions) {
     // Merge distributed lock options with defaults
@@ -500,6 +502,18 @@ export class WorkerPoolManager {
    */
   public setBridgeRegistry(registry: BridgeRegistry): void {
     this._bridgeRegistry = registry;
+  }
+
+  /**
+   * Set the process manager for child process-based worker execution.
+   * When set, assignWork() will send work orders to spawned child processes
+   * instead of executing in-process.
+   * @param manager
+   */
+  public setProcessManager(
+    manager: import('./WorkerProcessManager.js').WorkerProcessManager
+  ): void {
+    this._processManager = manager;
   }
 
   /**

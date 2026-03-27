@@ -234,7 +234,7 @@ export const DEFAULT_ANALYZER_CONFIG: Required<PriorityAnalyzerConfig> = {
 /**
  * Worker status states
  */
-export type WorkerStatus = 'idle' | 'working' | 'error';
+export type WorkerStatus = 'idle' | 'spawning' | 'working' | 'error' | 'terminated';
 
 /**
  * Information about a single worker
@@ -1201,3 +1201,43 @@ export interface MetricsEvent {
  * Metrics event callback
  */
 export type MetricsEventCallback = (event: MetricsEvent) => void | Promise<void>;
+
+// =============================================================================
+// Worker Process IPC Protocol
+// =============================================================================
+
+/**
+ * IPC message types exchanged between controller and worker processes
+ */
+export type WorkerIPCMessageType =
+  | 'work_order' // Controller → Worker: assign work
+  | 'heartbeat' // Worker → Controller: health signal
+  | 'result' // Worker → Controller: work complete
+  | 'error' // Worker → Controller: fatal error
+  | 'shutdown'; // Controller → Worker: graceful shutdown
+
+/**
+ * IPC message envelope for controller ↔ worker communication
+ */
+export interface WorkerIPCMessage {
+  readonly type: WorkerIPCMessageType;
+  readonly workerId: string;
+  readonly timestamp: number;
+  readonly payload: unknown;
+}
+
+/**
+ * Configuration for spawning worker child processes
+ */
+export interface WorkerSpawnConfig {
+  /** Path to the compiled worker entry script */
+  readonly workerScriptPath: string;
+  /** Environment variables to pass to worker processes */
+  readonly workerEnv?: Record<string, string>;
+  /** Maximum time to wait for worker spawn in ms (default: 30000) */
+  readonly spawnTimeoutMs?: number;
+  /** Node.js args for forked workers (e.g., --max-old-space-size=4096) */
+  readonly nodeArgs?: readonly string[];
+  /** Heartbeat interval in ms for worker processes (default: 5000) */
+  readonly heartbeatIntervalMs?: number;
+}
