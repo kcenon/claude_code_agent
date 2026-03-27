@@ -186,14 +186,20 @@ export class GitHubReviewClient {
       }
 
       // Use gh api to create the comment
-      const result = await this.executeCommand(
-        `gh api repos/${owner}/${repo}/pulls/${String(prNumber)}/comments ` +
-          `-f commit_id="${sha}" ` +
-          `-f path="${this.escapeForShell(comment.path)}" ` +
-          `-F line=${String(comment.line)} ` +
-          `-f side="${comment.side ?? 'RIGHT'}" ` +
-          `-f body="${this.escapeForShell(body)}"`
-      );
+      const result = await this.executeCommand([
+        'api',
+        `repos/${owner}/${repo}/pulls/${String(prNumber)}/comments`,
+        '-f',
+        `commit_id=${sha}`,
+        '-f',
+        `path=${comment.path}`,
+        '-F',
+        `line=${String(comment.line)}`,
+        '-f',
+        `side=${comment.side ?? 'RIGHT'}`,
+        '-f',
+        `body=${body}`,
+      ]);
 
       if (result.exitCode !== 0) {
         throw new Error(result.stderr);
@@ -257,7 +263,8 @@ export class GitHubReviewClient {
 
       // Use gh api with --input for complex JSON body
       const result = await this.executeCommand(
-        `echo '${this.escapeForShell(requestBody)}' | gh api repos/${owner}/${repo}/pulls/${String(request.prNumber)}/reviews --input -`
+        ['api', `repos/${owner}/${repo}/pulls/${String(request.prNumber)}/reviews`, '--input', '-'],
+        { input: requestBody }
       );
 
       if (result.exitCode !== 0) {
@@ -422,17 +429,28 @@ export class GitHubReviewClient {
 
   /**
    * Execute a shell command using safe execution
-   * @param command - Shell command string to execute via the command sanitizer
+   * @param command - Shell command string or gh argument array to execute via the command sanitizer
+   * @param options - Optional execution options (e.g., input for stdin)
+   * @param options.input
    * @returns Command result with stdout, stderr, and exit code
    */
-  private async executeCommand(command: string): Promise<CommandResult> {
+  private async executeCommand(
+    command: string | string[],
+    options?: { input?: string }
+  ): Promise<CommandResult> {
     const sanitizer = getCommandSanitizer();
 
+    const cmd = Array.isArray(command)
+      ? 'gh ' +
+        command.map((a) => (/[\s"'\\]/.test(a) ? `"${a.replace(/"/g, '\\"')}"` : a)).join(' ')
+      : command;
+
     try {
-      const result = await sanitizer.execFromString(command, {
+      const result = await sanitizer.execFromString(cmd, {
         cwd: this.config.projectRoot,
         timeout: 60000,
         maxBuffer: 5 * 1024 * 1024,
+        ...(options?.input !== undefined ? { input: options.input } : {}),
       });
 
       return {

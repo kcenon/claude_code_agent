@@ -370,7 +370,7 @@ export class TemplateProcessor {
   private generateNonFunctionalRequirementsSection(content: string, info: CollectedInfo): string {
     const nfrLines = this.generateNonFunctionalRequirements(info);
     // Replace the NFR template section
-    const nfrPattern = /### NFR-001:[\s\S]*?(?=---\n\n## 7|$)/;
+    const nfrPattern = /### NFR-001:[\s\S]*?(?=---\r?\n\r?\n## 7|$)/;
     if (nfrPattern.test(content)) {
       return content.replace(nfrPattern, nfrLines.join('\n') + '\n\n');
     }
