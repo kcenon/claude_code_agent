@@ -286,7 +286,7 @@ describe.skipIf(!configExists)('Enhancement Pipeline Mode Configuration', () => 
   });
 });
 
-describe('Agents.yaml Enhancement Pipeline Configuration', () => {
+describe.skipIf(!configExists)('Agents.yaml Enhancement Pipeline Configuration', () => {
   let agentsConfig: Record<string, unknown>;
 
   beforeAll(() => {
