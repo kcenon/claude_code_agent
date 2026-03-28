@@ -2,6 +2,17 @@
 
 > **Purpose**: Installing AD-SDLC
 
+## Prerequisites
+
+| Dependency                  | Required | Notes                                                              |
+| --------------------------- | -------- | ------------------------------------------------------------------ |
+| Node.js 18+                 | Yes      | [Download](https://nodejs.org/)                                    |
+| Git 2.30+                   | Yes      |                                                                    |
+| `ANTHROPIC_API_KEY`         | Yes      | Required for all pipeline modes                                    |
+| `GITHUB_TOKEN` / GitHub CLI | No       | Required for GitHub issue/PR operations; not needed with `--local` |
+
+---
+
 ## Installation Methods
 
 ### Method 1: npm Global Install (Recommended)
@@ -45,7 +56,9 @@ npm run sdlc -- init
 npm run sdlc -- run
 ```
 
-### Method 4: From Source
+### Method 4: Build from Source
+
+Use this method when installing from the GitHub repository directly, or when `npm install -g ad-sdlc` is not available.
 
 ```bash
 # Clone repository
@@ -58,7 +71,7 @@ npm install
 # Build
 npm run build
 
-# Link globally
+# Link globally (makes 'ad-sdlc' available as a system command)
 npm link
 
 # Verify
@@ -75,7 +88,7 @@ ad-sdlc --version
 # Required: Anthropic API Key
 export ANTHROPIC_API_KEY="sk-ant-api03-..."
 
-# Required: GitHub Token (for issue/PR operations)
+# Optional: GitHub Token (required for issue/PR operations; not needed with --local)
 export GITHUB_TOKEN="ghp_..."
 ```
 
@@ -84,7 +97,7 @@ Add to shell profile for persistence:
 ```bash
 # ~/.bashrc or ~/.zshrc
 echo 'export ANTHROPIC_API_KEY="sk-ant-..."' >> ~/.zshrc
-echo 'export GITHUB_TOKEN="ghp_..."' >> ~/.zshrc
+echo 'export GITHUB_TOKEN="ghp_..."' >> ~/.zshrc  # optional
 source ~/.zshrc
 ```
 
@@ -96,6 +109,7 @@ ad-sdlc init
 ```
 
 This creates:
+
 ```
 .ad-sdlc/
 ├── config/
@@ -114,6 +128,7 @@ ad-sdlc doctor
 ```
 
 Expected output:
+
 ```
 AD-SDLC Health Check
 ====================
@@ -125,7 +140,7 @@ Environment:
 
 Authentication:
   ✓ ANTHROPIC_API_KEY configured
-  ✓ GITHUB_TOKEN configured
+  ! GITHUB_TOKEN not configured (GitHub features disabled; use --local to run without GitHub)
 
 Configuration:
   ✓ workflow.yaml valid
@@ -133,6 +148,8 @@ Configuration:
 
 Ready to run!
 ```
+
+`GITHUB_TOKEN` is only required for GitHub issue creation and PR operations. When running with `--local`, it can be omitted.
 
 ---
 
@@ -176,4 +193,4 @@ npx ad-sdlc@1.0.0 run
 
 ---
 
-*Part of [Deployment Guide](./README.md)*
+_Part of [Deployment Guide](./README.md)_
