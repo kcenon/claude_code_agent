@@ -57,7 +57,7 @@ export class PRDParser {
    */
   public parse(content: string, projectId: string): ParsedPRD {
     const metadata = this.parseMetadata(content, projectId);
-    const productName = this.extractProductName(content);
+    const productName = this.extractProductName(content, projectId);
     const productDescription = this.extractProductDescription(content);
     const functionalRequirements = this.parseFunctionalRequirements(content);
     const nonFunctionalRequirements = this.parseNonFunctionalRequirements(content);
@@ -100,23 +100,70 @@ export class PRDParser {
   }
 
   /**
+   * Common document title prefixes to strip when extracting product name
+   */
+  private static readonly DOCUMENT_TITLE_PREFIXES = [
+    /^Product\s+Requirements?\s+Document\s*(?:\(PRD\))?\s*[-–:]*\s*/i,
+    /^PRD\s*[-–:]+\s*/i,
+    /^Software\s+Requirements?\s+Specification\s*(?:\(SRS\))?\s*[-–:]*\s*/i,
+    /^SRS\s*[-–:]+\s*/i,
+    /^Requirements?\s+Document\s*[-–:]*\s*/i,
+  ];
+
+  /**
    * Extract product name from PRD
    * @param content - Raw PRD markdown content
-   * @returns Product name extracted from title or metadata table
+   * @param projectId - Project identifier used as fallback
+   * @returns Product name extracted from metadata table, title, or projectId
    */
-  private extractProductName(content: string): string {
-    // Try from title (# PRD: Product Name)
-    const titleMatch = content.match(/^#\s*(?:PRD:?\s*)?(.+)$/m);
-    if (titleMatch !== null && titleMatch[1] !== undefined) {
-      const title = titleMatch[1].trim();
-      // Remove "PRD" prefix if present
-      return title.replace(/^PRD[:\s-]*\s*/i, '').trim();
+  private extractProductName(content: string, projectId: string): string {
+    // 1. Try from metadata table (most explicit source)
+    const productMatch = content.match(
+      /\|\s*\*?\*?(?:Product\s*(?:Name)?|Project)\*?\*?\s*\|\s*([^|]+)\s*\|/i
+    );
+    if (productMatch !== null && productMatch[1] !== undefined) {
+      const value = productMatch[1].trim();
+      if (value.length > 0) {
+        return value;
+      }
     }
 
-    // Try from metadata table
-    const productMatch = content.match(/\|\s*Product\s*(?:Name)?\s*\|\s*([^|]+)\s*\|/i);
-    if (productMatch !== null && productMatch[1] !== undefined) {
-      return productMatch[1].trim();
+    // 2. Try from "# PRD: <name>" format
+    const prdPrefixMatch = content.match(/^#\s*PRD\s*[-–:]+\s*(.+)$/m);
+    if (prdPrefixMatch !== null && prdPrefixMatch[1] !== undefined) {
+      const name = prdPrefixMatch[1].trim();
+      if (name.length > 0) {
+        return name;
+      }
+    }
+
+    // 3. Try heading with common document title prefix stripping
+    const headingMatch = content.match(/^#\s+(.+)$/m);
+    if (headingMatch !== null && headingMatch[1] !== undefined) {
+      const rawTitle = headingMatch[1].trim();
+
+      // Strip known document title prefixes
+      for (const prefix of PRDParser.DOCUMENT_TITLE_PREFIXES) {
+        const stripped = rawTitle.replace(prefix, '').trim();
+        if (stripped.length === 0) {
+          // Entire heading is a document title — fall through to projectId
+          return projectId.length > 0 ? projectId : 'Unknown Product';
+        }
+        if (stripped !== rawTitle) {
+          return stripped;
+        }
+      }
+
+      // If no prefix matched, the heading itself may be the product name
+      // But only if it doesn't look like a generic document title
+      if (!/^(?:Product\s+Requirements?\s+Document|PRD|SRS)\s*$/i.test(rawTitle)) {
+        return rawTitle;
+      }
+    }
+
+    // 4. Fallback to projectId
+    if (projectId.length > 0) {
+      return projectId;
     }
 
     return 'Unknown Product';
