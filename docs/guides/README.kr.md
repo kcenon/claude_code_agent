@@ -4,10 +4,12 @@
 
 ## 사용 가능한 가이드
 
-| 가이드 | 설명 |
-|--------|------|
-| [배포 가이드](deployment.kr.md) | 에이전트 설치, 구성 및 배포 |
-| [Deployment Guide](deployment.md) | Install, configure, and deploy agents (English) |
+| 가이드                                 | 설명                                                    |
+| -------------------------------------- | ------------------------------------------------------- |
+| [배포 가이드](deployment.kr.md)        | 에이전트 설치, 구성 및 배포                             |
+| [Deployment Guide](deployment.md)      | Install, configure, and deploy agents (English)         |
+| [사용 시나리오](usage-scenarios.kr.md) | 모든 실행 환경 및 파이프라인 모드                       |
+| [Usage Scenarios](usage-scenarios.md)  | All execution environments and pipeline modes (English) |
 
 ## 가이드 내용
 
@@ -63,4 +65,4 @@
 
 ---
 
-*[Claude Code Agent 문서](../README.kr.md)의 일부*
+_[Claude Code Agent 문서](../README.kr.md)의 일부_
