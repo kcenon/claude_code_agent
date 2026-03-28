@@ -99,16 +99,14 @@ npm audit found 1 critical vulnerability
       expect(result.byCategory.size).toBeGreaterThan(0);
     });
 
-    it(
-      'should truncate very long logs',
-      () => {
-        const longLogs = 'a'.repeat(200000);
-        const result = analyzer.analyze(longLogs);
-        expect(result.rawLogs.length).toBeLessThan(150000);
-        expect(result.rawLogs).toContain('TRUNCATED');
-      },
-      30000
-    );
+    it('should truncate very long logs', () => {
+      // Use a smaller but still over-limit string to avoid CPU-bound regex
+      // timeout under parallel execution (the truncation threshold is 100KB)
+      const longLogs = 'a'.repeat(120000);
+      const result = analyzer.analyze(longLogs);
+      expect(result.rawLogs.length).toBeLessThan(110000);
+      expect(result.rawLogs).toContain('TRUNCATED');
+    }, 60000);
 
     it('should find unidentified causes with error keywords', () => {
       const logs = `

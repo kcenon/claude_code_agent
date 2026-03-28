@@ -1082,6 +1082,13 @@ export function getCodeReaderAgent(config?: CodeReaderConfig): CodeReaderAgent {
 }
 
 /**
+ * Reset the cached ts-morph module (for testing)
+ */
+export function resetTsMorphCache(): void {
+  _tsMorphModule = null;
+}
+
+/**
  * Reset the global Code Reader Agent instance
  */
 export function resetCodeReaderAgent(): void {

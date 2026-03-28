@@ -1,11 +1,13 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as fs from 'node:fs';
+import * as os from 'node:os';
 import * as path from 'node:path';
 import { ReviewChecks } from '../../src/pr-reviewer/ReviewChecks.js';
+import { resetCommandSanitizer } from '../../src/security/index.js';
 import type { FileChange } from '../../src/pr-reviewer/types.js';
 
 describe('ReviewChecks', () => {
-  const testDir = path.join(process.cwd(), 'tests', 'pr-reviewer', 'test-project');
+  let testDir: string;
 
   const createFileChange = (overrides: Partial<FileChange> = {}): FileChange => ({
     filePath: 'src/test.ts',
@@ -31,12 +33,12 @@ describe('ReviewChecks', () => {
   };
 
   beforeEach(async () => {
-    await cleanupTestDir();
-    await fs.promises.mkdir(testDir, { recursive: true });
+    testDir = fs.mkdtempSync(path.join(os.tmpdir(), 'review-checks-test-'));
   });
 
   afterEach(async () => {
     await cleanupTestDir();
+    resetCommandSanitizer();
   });
 
   describe('constructor', () => {
@@ -67,15 +69,16 @@ describe('ReviewChecks', () => {
         enableTestingChecks: false, // Skip slow testing operations
       });
 
-      await setupTestFile('src/test.ts', `
+      await setupTestFile(
+        'src/test.ts',
+        `
         export function test() {
           return 'hello';
         }
-      `);
+      `
+      );
 
-      const changes: FileChange[] = [
-        createFileChange({ filePath: 'src/test.ts' }),
-      ];
+      const changes: FileChange[] = [createFileChange({ filePath: 'src/test.ts' })];
 
       const result = await checks.runAllChecks(changes);
 
@@ -92,9 +95,7 @@ describe('ReviewChecks', () => {
         enableTestingChecks: false, // Skip slow testing operations
       });
 
-      const changes: FileChange[] = [
-        createFileChange({ changeType: 'delete' }),
-      ];
+      const changes: FileChange[] = [createFileChange({ changeType: 'delete' })];
 
       const result = await checks.runAllChecks(changes);
 
@@ -111,20 +112,22 @@ describe('ReviewChecks', () => {
         enableTestingChecks: false, // Skip slow testing operations
       });
 
-      await setupTestFile('src/config.ts', `
+      await setupTestFile(
+        'src/config.ts',
+        `
         const API_KEY = "sk-1234567890abcdef1234567890abcdef";
         export { API_KEY };
-      `);
+      `
+      );
 
-      const changes: FileChange[] = [
-        createFileChange({ filePath: 'src/config.ts' }),
-      ];
+      const changes: FileChange[] = [createFileChange({ filePath: 'src/config.ts' })];
 
       const result = await checks.runAllChecks(changes);
 
-      const secretComments = result.comments.filter(c =>
-        c.comment.toLowerCase().includes('secret') ||
-        c.comment.toLowerCase().includes('hardcoded')
+      const secretComments = result.comments.filter(
+        (c) =>
+          c.comment.toLowerCase().includes('secret') ||
+          c.comment.toLowerCase().includes('hardcoded')
       );
       expect(secretComments.length).toBeGreaterThan(0);
       expect(secretComments[0].severity).toBe('critical');
@@ -136,20 +139,22 @@ describe('ReviewChecks', () => {
         enableTestingChecks: false, // Skip slow testing operations
       });
 
-      await setupTestFile('src/auth.ts', `
+      await setupTestFile(
+        'src/auth.ts',
+        `
         const password = "supersecret123";
         export { password };
-      `);
+      `
+      );
 
-      const changes: FileChange[] = [
-        createFileChange({ filePath: 'src/auth.ts' }),
-      ];
+      const changes: FileChange[] = [createFileChange({ filePath: 'src/auth.ts' })];
 
       const result = await checks.runAllChecks(changes);
 
-      const secretComments = result.comments.filter(c =>
-        c.comment.toLowerCase().includes('secret') ||
-        c.comment.toLowerCase().includes('hardcoded')
+      const secretComments = result.comments.filter(
+        (c) =>
+          c.comment.toLowerCase().includes('secret') ||
+          c.comment.toLowerCase().includes('hardcoded')
       );
       expect(secretComments.length).toBeGreaterThan(0);
     }, 30000);
@@ -160,22 +165,23 @@ describe('ReviewChecks', () => {
         enableTestingChecks: false, // Skip slow testing operations
       });
 
-      await setupTestFile('src/db.ts', `
+      await setupTestFile(
+        'src/db.ts',
+        `
         async function getUser(id: string) {
           return db.query(\`SELECT * FROM users WHERE id = \${id}\`);
         }
-      `);
+      `
+      );
 
-      const changes: FileChange[] = [
-        createFileChange({ filePath: 'src/db.ts' }),
-      ];
+      const changes: FileChange[] = [createFileChange({ filePath: 'src/db.ts' })];
 
       const result = await checks.runAllChecks(changes);
 
       // SQL injection detection may find patterns or may not depending on exact regex
       // Main assertion is that the check runs without error
       expect(result.checklist.security).toBeDefined();
-      expect(result.checklist.security.some(item => item.name.includes('SQL'))).toBe(true);
+      expect(result.checklist.security.some((item) => item.name.includes('SQL'))).toBe(true);
     }, 45000);
 
     it('should detect XSS patterns', async () => {
@@ -184,21 +190,20 @@ describe('ReviewChecks', () => {
         enableTestingChecks: false, // Skip slow testing operations
       });
 
-      await setupTestFile('src/render.ts', `
+      await setupTestFile(
+        'src/render.ts',
+        `
         function render(html: string) {
           document.body.innerHTML = html;
         }
-      `);
+      `
+      );
 
-      const changes: FileChange[] = [
-        createFileChange({ filePath: 'src/render.ts' }),
-      ];
+      const changes: FileChange[] = [createFileChange({ filePath: 'src/render.ts' })];
 
       const result = await checks.runAllChecks(changes);
 
-      const xssComments = result.comments.filter(c =>
-        c.comment.toLowerCase().includes('xss')
-      );
+      const xssComments = result.comments.filter((c) => c.comment.toLowerCase().includes('xss'));
       expect(xssComments.length).toBeGreaterThan(0);
       expect(xssComments[0].severity).toBe('major');
     }, 45000);
@@ -210,21 +215,22 @@ describe('ReviewChecks', () => {
       });
 
       // Note: .tsx files need to match the pattern for XSS checks
-      await setupTestFile('src/Component.tsx', `
+      await setupTestFile(
+        'src/Component.tsx',
+        `
         function Component({ html }) {
           return <div dangerouslySetInnerHTML={{ __html: html }} />;
         }
-      `);
+      `
+      );
 
-      const changes: FileChange[] = [
-        createFileChange({ filePath: 'src/Component.tsx' }),
-      ];
+      const changes: FileChange[] = [createFileChange({ filePath: 'src/Component.tsx' })];
 
       const result = await checks.runAllChecks(changes);
 
       // The check runs and security checklist is generated
       expect(result.checklist.security).toBeDefined();
-      expect(result.checklist.security.some(item => item.name.includes('XSS'))).toBe(true);
+      expect(result.checklist.security.some((item) => item.name.includes('XSS'))).toBe(true);
     }, 45000);
 
     it('should detect eval usage', async () => {
@@ -233,21 +239,20 @@ describe('ReviewChecks', () => {
         enableTestingChecks: false, // Skip slow testing operations
       });
 
-      await setupTestFile('src/dangerous.ts', `
+      await setupTestFile(
+        'src/dangerous.ts',
+        `
         function execute(code: string) {
           return eval(code);
         }
-      `);
+      `
+      );
 
-      const changes: FileChange[] = [
-        createFileChange({ filePath: 'src/dangerous.ts' }),
-      ];
+      const changes: FileChange[] = [createFileChange({ filePath: 'src/dangerous.ts' })];
 
       const result = await checks.runAllChecks(changes);
 
-      const xssComments = result.comments.filter(c =>
-        c.comment.toLowerCase().includes('xss')
-      );
+      const xssComments = result.comments.filter((c) => c.comment.toLowerCase().includes('xss'));
       expect(xssComments.length).toBeGreaterThan(0);
     }, 45000);
   });
@@ -260,21 +265,22 @@ describe('ReviewChecks', () => {
         enableTestingChecks: false, // Skip slow testing operations
       });
 
-      await setupTestFile('src/handler.ts', `
+      await setupTestFile(
+        'src/handler.ts',
+        `
         function handler() {
           try {
             doSomething();
           } catch (e) {}
         }
-      `);
+      `
+      );
 
-      const changes: FileChange[] = [
-        createFileChange({ filePath: 'src/handler.ts' }),
-      ];
+      const changes: FileChange[] = [createFileChange({ filePath: 'src/handler.ts' })];
 
       const result = await checks.runAllChecks(changes);
 
-      const errorComments = result.comments.filter(c =>
+      const errorComments = result.comments.filter((c) =>
         c.comment.toLowerCase().includes('empty catch')
       );
       expect(errorComments.length).toBeGreaterThan(0);
@@ -290,21 +296,22 @@ describe('ReviewChecks', () => {
 
       // Create a file with a large class (over 300 lines)
       const lines = Array(350).fill('  private method() {}').join('\n');
-      await setupTestFile('src/LargeClass.ts', `
+      await setupTestFile(
+        'src/LargeClass.ts',
+        `
         class LargeClass {
           ${lines}
         }
-      `);
+      `
+      );
 
-      const changes: FileChange[] = [
-        createFileChange({ filePath: 'src/LargeClass.ts' }),
-      ];
+      const changes: FileChange[] = [createFileChange({ filePath: 'src/LargeClass.ts' })];
 
       const result = await checks.runAllChecks(changes);
 
       // Check that SOLID principles are evaluated
       expect(result.checklist.quality).toBeDefined();
-      expect(result.checklist.quality.some(item => item.name.includes('SOLID'))).toBe(true);
+      expect(result.checklist.quality.some((item) => item.name.includes('SOLID'))).toBe(true);
     }, 45000);
   });
 
@@ -315,23 +322,24 @@ describe('ReviewChecks', () => {
         enableTestingChecks: false, // Skip slow testing operations
       });
 
-      await setupTestFile('src/data.ts', `
+      await setupTestFile(
+        'src/data.ts',
+        `
         async function processItems(items) {
           items.forEach(async (item) => {
             await db.save(item);
           });
         }
-      `);
+      `
+      );
 
-      const changes: FileChange[] = [
-        createFileChange({ filePath: 'src/data.ts' }),
-      ];
+      const changes: FileChange[] = [createFileChange({ filePath: 'src/data.ts' })];
 
       const result = await checks.runAllChecks(changes);
 
       // Check that N+1 query pattern is part of performance checks
       expect(result.checklist.performance).toBeDefined();
-      expect(result.checklist.performance.some(item => item.name.includes('N+1'))).toBe(true);
+      expect(result.checklist.performance.some((item) => item.name.includes('N+1'))).toBe(true);
     }, 45000);
   });
 
@@ -342,23 +350,26 @@ describe('ReviewChecks', () => {
         enableTestingChecks: false, // Skip slow testing operations
       });
 
-      await setupTestFile('src/util.ts', `
+      await setupTestFile(
+        'src/util.ts',
+        `
         export function calculateTotal(items: Item[]): number {
           return items.reduce((sum, item) => sum + item.price, 0);
         }
-      `);
+      `
+      );
 
-      const changes: FileChange[] = [
-        createFileChange({ filePath: 'src/util.ts' }),
-      ];
+      const changes: FileChange[] = [createFileChange({ filePath: 'src/util.ts' })];
 
       const result = await checks.runAllChecks(changes);
 
       // Check that documentation checks are included
       expect(result.checklist.documentation).toBeDefined();
-      expect(result.checklist.documentation.some(item =>
-        item.name.includes('API') || item.name.includes('documented')
-      )).toBe(true);
+      expect(
+        result.checklist.documentation.some(
+          (item) => item.name.includes('API') || item.name.includes('documented')
+        )
+      ).toBe(true);
     }, 45000);
 
     it('should not suggest JSDoc when present', async () => {
@@ -367,25 +378,27 @@ describe('ReviewChecks', () => {
         enableTestingChecks: false, // Skip slow testing operations
       });
 
-      await setupTestFile('src/util.ts', `
+      await setupTestFile(
+        'src/util.ts',
+        `
         /**
          * Calculates the total price of items
          */
         export function calculateTotal(items: Item[]): number {
           return items.reduce((sum, item) => sum + item.price, 0);
         }
-      `);
+      `
+      );
 
-      const changes: FileChange[] = [
-        createFileChange({ filePath: 'src/util.ts' }),
-      ];
+      const changes: FileChange[] = [createFileChange({ filePath: 'src/util.ts' })];
 
       const result = await checks.runAllChecks(changes);
 
-      const docComments = result.comments.filter(c =>
-        c.comment.toLowerCase().includes('calculateTotal') &&
-        (c.comment.toLowerCase().includes('jsdoc') ||
-         c.comment.toLowerCase().includes('documentation'))
+      const docComments = result.comments.filter(
+        (c) =>
+          c.comment.toLowerCase().includes('calculateTotal') &&
+          (c.comment.toLowerCase().includes('jsdoc') ||
+            c.comment.toLowerCase().includes('documentation'))
       );
       expect(docComments.length).toBe(0);
     }, 45000);
@@ -401,9 +414,7 @@ describe('ReviewChecks', () => {
 
       await setupTestFile('src/test.ts', 'export const x = 1;');
 
-      const changes: FileChange[] = [
-        createFileChange({ filePath: 'src/test.ts' }),
-      ];
+      const changes: FileChange[] = [createFileChange({ filePath: 'src/test.ts' })];
 
       const result = await checks.runAllChecks(changes);
 
@@ -423,9 +434,7 @@ describe('ReviewChecks', () => {
 
       await setupTestFile('src/test.ts', 'export const x = 1;');
 
-      const changes: FileChange[] = [
-        createFileChange({ filePath: 'src/test.ts' }),
-      ];
+      const changes: FileChange[] = [createFileChange({ filePath: 'src/test.ts' })];
 
       const result = await checks.runAllChecks(changes);
 
@@ -445,7 +454,9 @@ describe('ReviewChecks', () => {
         enableTestingChecks: false, // Skip slow testing operations
       });
 
-      await setupTestFile('src/complex.ts', `
+      await setupTestFile(
+        'src/complex.ts',
+        `
         function complex(a: number, b: number) {
           if (a > 0) {
             if (b > 0) {
@@ -457,11 +468,10 @@ describe('ReviewChecks', () => {
             }
           }
         }
-      `);
+      `
+      );
 
-      const changes: FileChange[] = [
-        createFileChange({ filePath: 'src/complex.ts' }),
-      ];
+      const changes: FileChange[] = [createFileChange({ filePath: 'src/complex.ts' })];
 
       const result = await checks.runAllChecks(changes);
 
@@ -478,9 +488,7 @@ describe('ReviewChecks', () => {
 
       await setupTestFile('src/test.ts', 'export const x = 1;');
 
-      const changes: FileChange[] = [
-        createFileChange({ filePath: 'src/test.ts' }),
-      ];
+      const changes: FileChange[] = [createFileChange({ filePath: 'src/test.ts' })];
 
       const result = await checks.runAllChecks(changes);
 
@@ -500,9 +508,7 @@ describe('ReviewChecks', () => {
         enableTestingChecks: false, // Skip slow testing operations
       });
 
-      const changes: FileChange[] = [
-        createFileChange({ filePath: 'src/nonexistent.ts' }),
-      ];
+      const changes: FileChange[] = [createFileChange({ filePath: 'src/nonexistent.ts' })];
 
       const result = await checks.runAllChecks(changes);
 
@@ -518,9 +524,7 @@ describe('ReviewChecks', () => {
 
       await setupTestFile('docs/README.md', '# Readme\nSome documentation content');
 
-      const changes: FileChange[] = [
-        createFileChange({ filePath: 'docs/README.md' }),
-      ];
+      const changes: FileChange[] = [createFileChange({ filePath: 'docs/README.md' })];
 
       const result = await checks.runAllChecks(changes);
 
@@ -540,7 +544,9 @@ describe('ReviewChecks', () => {
         maxComplexity: 5, // Lower threshold to trigger detection
       });
 
-      await setupTestFile('src/complex.ts', `
+      await setupTestFile(
+        'src/complex.ts',
+        `
         function highComplexity(a: number, b: number, c: number) {
           if (a > 0) {
             if (b > 0) {
@@ -557,11 +563,10 @@ describe('ReviewChecks', () => {
           }
           return a || b || c;
         }
-      `);
+      `
+      );
 
-      const changes: FileChange[] = [
-        createFileChange({ filePath: 'src/complex.ts' }),
-      ];
+      const changes: FileChange[] = [createFileChange({ filePath: 'src/complex.ts' })];
 
       const result = await checks.runAllChecks(changes);
 
@@ -580,20 +585,21 @@ describe('ReviewChecks', () => {
         maxComplexity: 10,
       });
 
-      await setupTestFile('src/simple.ts', `
+      await setupTestFile(
+        'src/simple.ts',
+        `
         function add(a: number, b: number): number {
           return a + b;
         }
-      `);
+      `
+      );
 
-      const changes: FileChange[] = [
-        createFileChange({ filePath: 'src/simple.ts' }),
-      ];
+      const changes: FileChange[] = [createFileChange({ filePath: 'src/simple.ts' })];
 
       const result = await checks.runAllChecks(changes);
 
-      const complexityComments = result.comments.filter((c) =>
-        c.comment.toLowerCase().includes('complexity') && c.file === 'src/simple.ts'
+      const complexityComments = result.comments.filter(
+        (c) => c.comment.toLowerCase().includes('complexity') && c.file === 'src/simple.ts'
       );
       expect(complexityComments.length).toBe(0);
     }, 45000);
@@ -608,18 +614,19 @@ describe('ReviewChecks', () => {
         enableDependencyCheck: false,
       });
 
-      await setupTestFile('src/magic.ts', `
+      await setupTestFile(
+        'src/magic.ts',
+        `
         function calculateDiscount(price: number) {
           if (price > 50) {
             return price * 15;
           }
           return price * 5;
         }
-      `);
+      `
+      );
 
-      const changes: FileChange[] = [
-        createFileChange({ filePath: 'src/magic.ts' }),
-      ];
+      const changes: FileChange[] = [createFileChange({ filePath: 'src/magic.ts' })];
 
       const result = await checks.runAllChecks(changes);
 
@@ -638,24 +645,23 @@ describe('ReviewChecks', () => {
         enableDependencyCheck: false,
       });
 
-      await setupTestFile('src/example.test.ts', `
+      await setupTestFile(
+        'src/example.test.ts',
+        `
         describe('test', () => {
           it('should work', () => {
             expect(calculate(42)).toBe(84);
           });
         });
-      `);
+      `
+      );
 
-      const changes: FileChange[] = [
-        createFileChange({ filePath: 'src/example.test.ts' }),
-      ];
+      const changes: FileChange[] = [createFileChange({ filePath: 'src/example.test.ts' })];
 
       const result = await checks.runAllChecks(changes);
 
       const magicComments = result.comments.filter(
-        (c) =>
-          c.comment.toLowerCase().includes('magic number') &&
-          c.file === 'src/example.test.ts'
+        (c) => c.comment.toLowerCase().includes('magic number') && c.file === 'src/example.test.ts'
       );
       expect(magicComments.length).toBe(0);
     }, 45000);
@@ -668,7 +674,9 @@ describe('ReviewChecks', () => {
         enableDependencyCheck: false,
       });
 
-      await setupTestFile('src/file.ts', `
+      await setupTestFile(
+        'src/file.ts',
+        `
         import * as path from 'path';
         import * as fs from 'fs';
 
@@ -676,11 +684,10 @@ describe('ReviewChecks', () => {
           const filePath = path.join('/uploads', req.body.filename);
           return fs.readFileSync(filePath);
         }
-      `);
+      `
+      );
 
-      const changes: FileChange[] = [
-        createFileChange({ filePath: 'src/file.ts' }),
-      ];
+      const changes: FileChange[] = [createFileChange({ filePath: 'src/file.ts' })];
 
       const result = await checks.runAllChecks(changes);
 
@@ -708,9 +715,7 @@ describe('ReviewChecks', () => {
 
       await setupTestFile('src/god.ts', classContent);
 
-      const changes: FileChange[] = [
-        createFileChange({ filePath: 'src/god.ts' }),
-      ];
+      const changes: FileChange[] = [createFileChange({ filePath: 'src/god.ts' })];
 
       const result = await checks.runAllChecks(changes);
 
@@ -732,16 +737,15 @@ describe('ReviewChecks', () => {
 
       await setupTestFile('src/test.ts', 'export const x = 1;');
 
-      const changes: FileChange[] = [
-        createFileChange({ filePath: 'src/test.ts' }),
-      ];
+      const changes: FileChange[] = [createFileChange({ filePath: 'src/test.ts' })];
 
       const result = await checks.runAllChecks(changes);
 
       // Check that dependency vulnerability check is included in security checklist
-      const depCheck = result.checklist.security.find((item) =>
-        item.name.toLowerCase().includes('dependency') ||
-        item.name.toLowerCase().includes('vulnerabilities')
+      const depCheck = result.checklist.security.find(
+        (item) =>
+          item.name.toLowerCase().includes('dependency') ||
+          item.name.toLowerCase().includes('vulnerabilities')
       );
       expect(depCheck).toBeDefined();
     }, 30000);
@@ -758,16 +762,15 @@ describe('ReviewChecks', () => {
 
       await setupTestFile('src/test.ts', 'export const x = 1;');
 
-      const changes: FileChange[] = [
-        createFileChange({ filePath: 'src/test.ts' }),
-      ];
+      const changes: FileChange[] = [createFileChange({ filePath: 'src/test.ts' })];
 
       const result = await checks.runAllChecks(changes);
 
       // Check that duplicate code check is included
-      const dupCheck = result.checklist.quality.find((item) =>
-        item.name.toLowerCase().includes('duplication') ||
-        item.name.toLowerCase().includes('duplicate')
+      const dupCheck = result.checklist.quality.find(
+        (item) =>
+          item.name.toLowerCase().includes('duplication') ||
+          item.name.toLowerCase().includes('duplicate')
       );
       expect(dupCheck).toBeDefined();
     }, 45000);
@@ -786,9 +789,7 @@ describe('ReviewChecks', () => {
 
       await setupTestFile('src/test.ts', 'export const x = 1;');
 
-      const changes: FileChange[] = [
-        createFileChange({ filePath: 'src/test.ts' }),
-      ];
+      const changes: FileChange[] = [createFileChange({ filePath: 'src/test.ts' })];
 
       const result = await checks.runIncrementalChecks(changes);
 
@@ -910,10 +911,13 @@ describe('ReviewChecks', () => {
 
       // Create test files with issues
       for (let i = 0; i < 4; i++) {
-        await setupTestFile(`src/file${i}.ts`, `
+        await setupTestFile(
+          `src/file${i}.ts`,
+          `
           const apiKey = "secret-key-${i}";
           export const x${i} = apiKey;
-        `);
+        `
+        );
       }
 
       const changes: FileChange[] = [];

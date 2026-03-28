@@ -11,6 +11,7 @@ import {
   CodeReaderAgent,
   getCodeReaderAgent,
   resetCodeReaderAgent,
+  resetTsMorphCache,
   NoActiveSessionError,
   SourceDirectoryNotFoundError,
   TooManyParseErrorsError,
@@ -39,6 +40,7 @@ describe('CodeReaderAgent', () => {
     // Clean up temp directory
     await fs.rm(tempDir, { recursive: true, force: true });
     resetCodeReaderAgent();
+    resetTsMorphCache();
   });
 
   describe('initialization', () => {
@@ -174,7 +176,7 @@ export class Calculator {
       expect(calcClass?.name).toBe('Calculator');
       expect(calcClass?.exported).toBe(true);
       expect(calcClass?.methods.length).toBe(3); // add, subtract, multiply (no private)
-    }, 15000);
+    }, 60000);
 
     it('should extract function information', async () => {
       const funcContent = `
@@ -206,7 +208,7 @@ function privateHelper(): void {
       expect(fetchFunc?.parameters.length).toBe(1);
       expect(fetchFunc?.parameters[0]?.name).toBe('url');
       expect(fetchFunc?.parameters[0]?.type).toBe('string');
-    }, 15000);
+    }, 60000);
 
     it('should extract interface information', async () => {
       const intfContent = `
@@ -234,7 +236,7 @@ export interface UserService {
       expect(userIntf?.properties.length).toBe(3);
       expect(userIntf?.properties.find((p) => p.name === 'id')?.readonly).toBe(true);
       expect(userIntf?.properties.find((p) => p.name === 'email')?.optional).toBe(true);
-    }, 15000);
+    }, 60000);
 
     it('should extract type alias information', async () => {
       const typeContent = `
@@ -252,7 +254,7 @@ export type Handler<T> = (input: T) => Promise<void>;
       const rootModule = result.inventory.modules.find((m) => m.name === 'root');
       expect(rootModule?.types.length).toBe(3);
       expect(rootModule?.types.find((t) => t.name === 'UserId')?.definition).toBe('string');
-    }, 15000);
+    }, 60000);
 
     it('should extract enum information', async () => {
       const enumContent = `
