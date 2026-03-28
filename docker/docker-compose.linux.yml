@@ -3,12 +3,12 @@
 
 services:
   claude-a:
-    user: "${UID}:${GID}"
+    user: "${HOST_UID}:${HOST_GID}"
     environment:
       - HOME=/home/node
 
   claude-b:
-    user: "${UID}:${GID}"
+    user: "${HOST_UID}:${HOST_GID}"
     environment:
       - HOME=/home/node
 

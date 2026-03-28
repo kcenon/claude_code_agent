@@ -155,7 +155,8 @@ ask_auth_method() {
         for ((i=0; i<CONTAINER_COUNT; i++)); do
             local ltr
             ltr=$(idx_letter $i)
-            read -rp "  API key for container $ltr (Enter to skip): " key
+            read -rsp "  API key for container $ltr (Enter to skip): " key
+            echo  # Print newline after silent input
             API_KEYS[$i]="${key:-}"
         done
     fi
@@ -271,6 +272,7 @@ generate_env() {
             echo ""
         fi
     } > "$SCRIPT_DIR/.env"
+    chmod 600 .env
 
     ok ".env"
 }
@@ -380,7 +382,7 @@ HDR
         for ((i=0; i<CONTAINER_COUNT; i++)); do
             cat <<EOF
   claude-$(idx_letter $i):
-    user: "\${UID}:\${GID}"
+    user: "\${HOST_UID}:\${HOST_GID}"
     environment:
       - HOME=/home/node
 
@@ -537,19 +539,20 @@ build_and_start() {
     docker compose build
 
     info "Starting containers..."
-    local cmd="docker compose -f docker-compose.yml"
+    local -a compose_args=("-f" "docker-compose.yml")
 
     if [[ "$PLATFORM" == "linux" || "$PLATFORM" == "wsl" ]]; then
-        export UID GID
-        UID=$(id -u)
-        GID=$(id -g)
-        cmd="$cmd -f docker-compose.linux.yml"
+        export HOST_UID HOST_GID
+        HOST_UID=$(id -u)
+        HOST_GID=$(id -g)
+        compose_args+=("-f" "docker-compose.linux.yml")
     fi
 
-    [[ "$TIER" == "b" ]] && cmd="$cmd -f docker-compose.worktree.yml"
-    [[ -n "$SOURCES_DIR" ]] && cmd="$cmd -f docker-compose.sources.yml"
+    [[ "$TIER" == "b" ]] && compose_args+=("-f" "docker-compose.worktree.yml")
+    [[ -n "${SOURCES_DIR:-}" ]] && compose_args+=("-f" "docker-compose.sources.yml")
+    [[ "$ENABLE_FIREWALL" == "y" ]] && compose_args+=("-f" "docker-compose.firewall.yml")
 
-    eval "$cmd up -d"
+    docker compose "${compose_args[@]}" up -d
     ok "All containers started"
 }
 
@@ -599,6 +602,7 @@ main() {
     AUTH_METHOD="oauth"
     TIER="a"
     SOURCES_DIR=""
+    ENABLE_FIREWALL="n"
     CLAUDE_VERSION=""
     PLATFORM="unknown"
 
@@ -615,9 +619,9 @@ main() {
     generate_env
     generate_compose
     generate_linux_override
-    generate_worktree_override
-    generate_firewall_override
-    generate_sources_override
+    [[ "$TIER" == "b" ]] && generate_worktree_override
+    [[ "$ENABLE_FIREWALL" == "y" ]] && generate_firewall_override
+    [[ -n "${SOURCES_DIR:-}" ]] && generate_sources_override
 
     # Optional setup steps
     setup_oauth
