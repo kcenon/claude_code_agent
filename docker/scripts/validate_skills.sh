@@ -1,19 +1,19 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Claude Configuration Skills Validation Tool
 # ===========================================
-# SKILL.md 파일의 형식과 무결성을 검증하는 스크립트
+# Script to validate the format and integrity of SKILL.md files
 
-set -e
+set -euo pipefail
 
-# 색상 정의
+# Color definitions
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
-# 스크립트 디렉토리
+# Script directory
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 BACKUP_DIR="$(dirname "$SCRIPT_DIR")"
 
@@ -27,19 +27,19 @@ cat << 'EOF'
 EOF
 echo -e "${NC}"
 
-# 함수 정의
+# Function definitions
 info() { echo -e "${BLUE}ℹ️  $1${NC}"; }
 success() { echo -e "${GREEN}✅ $1${NC}"; }
 warning() { echo -e "${YELLOW}⚠️  $1${NC}"; }
 error() { echo -e "${RED}❌ $1${NC}"; }
 
-# 카운터
+# Counters
 TOTAL_CHECKS=0
 PASSED_CHECKS=0
 FAILED_CHECKS=0
 WARNING_CHECKS=0
 
-# 검증 결과 기록
+# Record validation results
 record_pass() {
     TOTAL_CHECKS=$((TOTAL_CHECKS + 1))
     PASSED_CHECKS=$((PASSED_CHECKS + 1))
@@ -54,21 +54,21 @@ record_warning() {
     WARNING_CHECKS=$((WARNING_CHECKS + 1))
 }
 
-# YAML frontmatter 추출
+# Extract YAML frontmatter
 extract_frontmatter() {
     local file="$1"
-    # 첫 번째 --- 와 두 번째 --- 사이의 내용 추출
+    # Extract content between the first --- and second ---
     sed -n '/^---$/,/^---$/p' "$file" | sed '1d;$d'
 }
 
-# 필드 값 추출
+# Extract field value
 get_field() {
     local content="$1"
     local field="$2"
     echo "$content" | grep "^${field}:" | sed "s/^${field}:[[:space:]]*//"
 }
 
-# SKILL.md 파일 검증
+# Validate SKILL.md file
 validate_skill() {
     local skill_file="$1"
     local relative_path="${skill_file#$BACKUP_DIR/}"
@@ -76,122 +76,122 @@ validate_skill() {
 
     echo ""
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    info "검증 중: $relative_path"
+    info "Validating: $relative_path"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-    # 1. YAML frontmatter 존재 확인
+    # 1. Check YAML frontmatter exists
     if ! head -1 "$skill_file" | grep -q "^---$"; then
-        error "YAML frontmatter 없음 (첫 줄이 '---'가 아님)"
+        error "No YAML frontmatter (first line is not '---')"
         record_fail
         skill_errors=$((skill_errors + 1))
     else
-        success "YAML frontmatter 시작 확인"
+        success "YAML frontmatter start confirmed"
         record_pass
     fi
 
-    # frontmatter 종료 확인
+    # Check frontmatter end marker
     local frontmatter_end
     frontmatter_end=$(awk 'NR>1 && /^---$/ {print NR; exit}' "$skill_file")
     if [ -z "$frontmatter_end" ]; then
-        error "YAML frontmatter 종료 마커 없음"
+        error "No YAML frontmatter end marker"
         record_fail
         skill_errors=$((skill_errors + 1))
     else
-        success "YAML frontmatter 종료 확인 (${frontmatter_end}번째 줄)"
+        success "YAML frontmatter end confirmed (line ${frontmatter_end})"
         record_pass
     fi
 
-    # frontmatter 추출
+    # Extract frontmatter
     local frontmatter
     frontmatter=$(extract_frontmatter "$skill_file")
 
-    # 2. name 필드 검증
+    # 2. Validate name field
     local name
     name=$(get_field "$frontmatter" "name")
 
     if [ -z "$name" ]; then
-        error "name 필드 없음"
+        error "Missing name field"
         record_fail
         skill_errors=$((skill_errors + 1))
     else
-        # name 형식 검증: 소문자, 숫자, 하이픈만 허용
+        # Validate name format: only lowercase, digits, and hyphens allowed
         if ! echo "$name" | grep -qE "^[a-z0-9-]+$"; then
-            error "name 형식 오류: '$name' (소문자, 숫자, 하이픈만 허용)"
+            error "Invalid name format: '$name' (only lowercase, digits, and hyphens allowed)"
             record_fail
             skill_errors=$((skill_errors + 1))
         else
-            success "name 형식 유효: '$name'"
+            success "Valid name format: '$name'"
             record_pass
         fi
 
-        # name 길이 검증 (최대 64자)
+        # Validate name length (max 64 chars)
         local name_length=${#name}
         if [ $name_length -gt 64 ]; then
-            error "name 길이 초과: ${name_length}자 (최대 64자)"
+            error "Name too long: ${name_length} chars (max 64)"
             record_fail
             skill_errors=$((skill_errors + 1))
         else
-            success "name 길이 유효: ${name_length}자"
+            success "Valid name length: ${name_length} chars"
             record_pass
         fi
     fi
 
-    # 3. description 필드 검증
+    # 3. Validate description field
     local description
     description=$(get_field "$frontmatter" "description")
 
     if [ -z "$description" ]; then
-        error "description 필드 없음"
+        error "Missing description field"
         record_fail
         skill_errors=$((skill_errors + 1))
     else
-        # description 길이 검증 (최대 1024자)
+        # Validate description length (max 1024 chars)
         local desc_length=${#description}
         if [ $desc_length -gt 1024 ]; then
-            error "description 길이 초과: ${desc_length}자 (최대 1024자)"
+            error "Description too long: ${desc_length} chars (max 1024)"
             record_fail
             skill_errors=$((skill_errors + 1))
         else
-            success "description 유효: ${desc_length}자"
+            success "Valid description: ${desc_length} chars"
             record_pass
         fi
     fi
 
-    # 4. 파일 라인 수 검증 (권장: 500줄 이하)
+    # 4. Validate file line count (recommended: 500 lines or less)
     local line_count
     line_count=$(wc -l < "$skill_file" | tr -d ' ')
     if [ "$line_count" -gt 500 ]; then
-        warning "파일 길이 경고: ${line_count}줄 (권장: 500줄 이하)"
+        warning "File length warning: ${line_count} lines (recommended: 500 or less)"
         record_warning
     else
-        success "파일 길이 적정: ${line_count}줄"
+        success "File length OK: ${line_count} lines"
         record_pass
     fi
 
-    # 5. reference 디렉토리 확인
+    # 5. Check reference directory
     local skill_dir
     skill_dir=$(dirname "$skill_file")
     if [ -d "${skill_dir}/reference" ]; then
         local ref_count
         ref_count=$(find "${skill_dir}/reference" -name "*.md" | wc -l | tr -d ' ')
-        success "reference 디렉토리 존재: ${ref_count}개 문서"
+        success "Reference directory found: ${ref_count} documents"
         record_pass
     else
-        warning "reference 디렉토리 없음"
+        warning "No reference directory"
         record_warning
     fi
 
     return $skill_errors
 }
 
-# 메인 로직
+# Main logic
 echo ""
 echo "======================================================"
-info "Skills 디렉토리 검색"
+info "Searching skills directories"
 echo "======================================================"
 echo ""
 
-# Skills 디렉토리 위치
+# Skills directory locations
 SKILL_DIRS=(
     "$BACKUP_DIR/project/.claude/skills"
     "$BACKUP_DIR/plugin/skills"
@@ -201,7 +201,7 @@ SKILL_DIRS=(
 SKILL_FILES=()
 for dir in "${SKILL_DIRS[@]}"; do
     if [ -d "$dir" ]; then
-        info "디렉토리 발견: ${dir#$BACKUP_DIR/}"
+        info "Directory found: ${dir#$BACKUP_DIR/}"
         while IFS= read -r -d '' file; do
             SKILL_FILES+=("$file")
         done < <(find "$dir" -name "SKILL.md" -print0)
@@ -209,32 +209,32 @@ for dir in "${SKILL_DIRS[@]}"; do
 done
 
 if [ ${#SKILL_FILES[@]} -eq 0 ]; then
-    error "SKILL.md 파일을 찾을 수 없습니다"
+    error "No SKILL.md files found"
     exit 1
 fi
 
-info "총 ${#SKILL_FILES[@]}개의 SKILL.md 파일 발견"
+info "Found ${#SKILL_FILES[@]} SKILL.md file(s)"
 
-# 각 SKILL.md 파일 검증
+# Validate each SKILL.md file
 TOTAL_SKILL_ERRORS=0
 for skill_file in "${SKILL_FILES[@]}"; do
     validate_skill "$skill_file"
     TOTAL_SKILL_ERRORS=$((TOTAL_SKILL_ERRORS + $?))
 done
 
-# YAML 구문 검증 (Python + PyYAML 사용 가능한 경우)
+# YAML syntax validation (if Python + PyYAML available)
 echo ""
 echo "======================================================"
-info "YAML 구문 검증"
+info "YAML syntax validation"
 echo "======================================================"
 echo ""
 
-# PyYAML 사용 가능 여부 확인
+# Check PyYAML availability
 if python3 -c "import yaml" 2>/dev/null; then
     for skill_file in "${SKILL_FILES[@]}"; do
         relative_path="${skill_file#$BACKUP_DIR/}"
 
-        # 파일에서 직접 frontmatter 추출 및 YAML 검증
+        # Extract frontmatter from file and validate YAML
         if python3 -c "
 import yaml
 import sys
@@ -242,7 +242,7 @@ import sys
 with open('$skill_file', 'r') as f:
     content = f.read()
 
-# frontmatter 추출
+# Extract frontmatter
 lines = content.split('\n')
 if lines[0] != '---':
     sys.exit(1)
@@ -259,43 +259,43 @@ if end_idx == -1:
 frontmatter = '\n'.join(lines[1:end_idx])
 yaml.safe_load(frontmatter)
 " 2>/dev/null; then
-            success "$relative_path: YAML 구문 유효"
+            success "$relative_path: Valid YAML syntax"
             record_pass
         else
-            error "$relative_path: YAML 구문 오류"
+            error "$relative_path: YAML syntax error"
             record_fail
         fi
     done
 else
-    warning "PyYAML 모듈을 찾을 수 없어 YAML 구문 검증을 건너뜁니다"
-    info "설치: pip3 install pyyaml"
+    warning "PyYAML module not found, skipping YAML syntax validation"
+    info "Install: pip3 install pyyaml"
 fi
 
-# 검증 결과 요약
+# Results summary
 echo ""
 echo "======================================================"
-info "검증 결과 요약"
+info "Results Summary"
 echo "======================================================"
 echo ""
 
-echo "  총 검사 항목:   $TOTAL_CHECKS"
-echo "  통과:          $PASSED_CHECKS"
-echo "  실패:          $FAILED_CHECKS"
-echo "  경고:          $WARNING_CHECKS"
+echo "  Total checks:   $TOTAL_CHECKS"
+echo "  Passed:         $PASSED_CHECKS"
+echo "  Failed:         $FAILED_CHECKS"
+echo "  Warnings:       $WARNING_CHECKS"
 
 echo ""
 if [ $FAILED_CHECKS -eq 0 ]; then
-    success "모든 검증 통과!"
+    success "All validations passed!"
     if [ $WARNING_CHECKS -gt 0 ]; then
-        warning "${WARNING_CHECKS}개의 경고가 있습니다. 권장사항을 확인하세요."
+        warning "${WARNING_CHECKS} warning(s) found. Please review the recommendations."
     fi
     exit 0
 else
-    error "${FAILED_CHECKS}개의 검증 실패"
+    error "${FAILED_CHECKS} validation(s) failed"
     echo ""
-    info "SKILL.md 형식 요구사항:"
-    echo "  - YAML frontmatter: '---' 로 시작하고 끝나야 함"
-    echo "  - name: 소문자, 숫자, 하이픈만 허용 (최대 64자)"
-    echo "  - description: 비어있지 않아야 함 (최대 1024자)"
+    info "SKILL.md format requirements:"
+    echo "  - YAML frontmatter: must start and end with '---'"
+    echo "  - name: only lowercase, digits, and hyphens allowed (max 64 chars)"
+    echo "  - description: must not be empty (max 1024 chars)"
     exit 1
 fi
