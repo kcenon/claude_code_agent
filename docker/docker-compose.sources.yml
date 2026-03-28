@@ -1,0 +1,11 @@
+# docker-compose.sources.yml
+# Host sources directory mount — Generated manually
+
+services:
+  claude-a:
+    volumes:
+      - "${SOURCES_DIR}:/sources"
+
+  claude-b:
+    volumes:
+      - "${SOURCES_DIR}:/sources"
