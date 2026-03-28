@@ -145,7 +145,11 @@ export class PRDParser {
       // Strip known document title prefixes
       for (const prefix of PRDParser.DOCUMENT_TITLE_PREFIXES) {
         const stripped = rawTitle.replace(prefix, '').trim();
-        if (stripped.length > 0 && stripped !== rawTitle) {
+        if (stripped.length === 0) {
+          // Entire heading is a document title — fall through to projectId
+          return projectId.length > 0 ? projectId : 'Unknown Product';
+        }
+        if (stripped !== rawTitle) {
           return stripped;
         }
       }

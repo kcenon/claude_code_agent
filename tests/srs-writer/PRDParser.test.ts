@@ -575,6 +575,17 @@ This is not a proper list format
       expect(result.productName).toBe('my-project');
     });
 
+    it('should fall back to projectId when heading is "Product Requirements Document (PRD)"', () => {
+      const parser = new PRDParser();
+      const prd = `
+# Product Requirements Document (PRD)
+
+## Functional Requirements
+`;
+      const result = parser.parse(prd, 'my-project');
+      expect(result.productName).toBe('my-project');
+    });
+
     it('should fall back to projectId when heading is just "PRD"', () => {
       const parser = new PRDParser();
       const prd = `
