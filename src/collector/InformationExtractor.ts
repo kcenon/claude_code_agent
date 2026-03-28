@@ -632,7 +632,6 @@ export class InformationExtractor {
    */
   private splitIntoSegments(content: string): string[] {
     const segments: string[] = [];
-    const consumed = new Set<number>();
 
     // Split by bullet points
     const bulletPattern = /^[\s]*[-*•]\s+(.+)$/gm;
@@ -640,7 +639,6 @@ export class InformationExtractor {
     while ((match = bulletPattern.exec(content)) !== null) {
       if (match[1] !== undefined) {
         segments.push(match[1]);
-        consumed.add(match.index);
       }
     }
 
@@ -649,7 +647,6 @@ export class InformationExtractor {
     while ((match = numberedPattern.exec(content)) !== null) {
       if (match[1] !== undefined) {
         segments.push(match[1]);
-        consumed.add(match.index);
       }
     }
 

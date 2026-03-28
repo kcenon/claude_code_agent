@@ -154,10 +154,8 @@ export class CollectorAgent implements IAgent {
    */
   public async startSession(projectName?: string): Promise<CollectionSession> {
     const scratchpad = getScratchpad({ basePath: this.config.scratchpadBasePath });
-    const projectId =
-      projectName !== undefined
-        ? this.sanitizeProjectId(projectName)
-        : await scratchpad.generateProjectId();
+    const sanitized = projectName !== undefined ? this.sanitizeProjectId(projectName) : '';
+    const projectId = sanitized !== '' ? sanitized : await scratchpad.generateProjectId();
     const now = new Date().toISOString();
     let projectInitialized = false;
 
@@ -252,12 +250,10 @@ export class CollectorAgent implements IAgent {
    * @param name
    */
   private sanitizeProjectId(name: string): string {
-    return (
-      name
-        .replace(/[^a-zA-Z0-9._-]/g, '-')
-        .replace(/-+/g, '-')
-        .replace(/^-|-$/g, '') || 'project'
-    );
+    return name
+      .replace(/[^a-zA-Z0-9._-]/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '');
   }
 
   /**

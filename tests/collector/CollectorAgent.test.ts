@@ -68,6 +68,12 @@ describe('CollectorAgent', () => {
       expect(session.projectId).toMatch(/^\d{3}$/);
     });
 
+    it('should fall back to auto-generated ID when name sanitizes to empty', async () => {
+      const session = await agent.startSession('@#$%');
+
+      expect(session.projectId).toMatch(/^\d{3}$/);
+    });
+
     it('should use consistent path between collector and downstream stages', async () => {
       const projectName = 'task-tracker-cli';
       const result = await agent.collectFromText('The system must support user authentication.', {
