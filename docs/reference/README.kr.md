@@ -111,27 +111,27 @@ asyncio.run(main())
 
 ### 코드 분석 에이전트 만들기
 
-- [도구: Read, Glob, Grep](02_tools.md#파일-도구)
-- [패턴: 단일 에이전트](08_patterns.md#단일-에이전트-패턴)
-- [스킬: 코드 리뷰](05_skills.md#1-코드-리뷰-스킬)
+- [도구: Read, Glob, Grep](02_tools.kr.md#파일-도구)
+- [패턴: 단일 에이전트](08_patterns.kr.md#단일-에이전트-패턴)
+- [스킬: 코드 리뷰](05_skills.kr.md#1-코드-리뷰-스킬)
 
 ### 코드 수정 에이전트 만들기
 
 - [도구: Read, Write, Edit, Bash](02_tools.md)
-- [권한 설정](06_configuration.md#권한-시스템)
-- [훅: 자동 포맷팅](03_hooks.md#2-자동-코드-포맷팅)
+- [권한 설정](06_configuration.kr.md#권한-시스템)
+- [훅: 자동 포맷팅](03_hooks.kr.md#2-자동-코드-포맷팅)
 
 ### 외부 시스템 연동
 
-- [MCP 서버 설정](04_mcp.md#설정-방법)
-- [SDK MCP 서버](04_mcp.md#sdk-mcp-서버)
-- [통합 패턴](08_patterns.md#통합-패턴)
+- [MCP 서버 설정](04_mcp.kr.md#설정-방법)
+- [SDK MCP 서버](04_mcp.kr.md#sdk-mcp-서버)
+- [통합 패턴](08_patterns.kr.md#통합-패턴)
 
 ### 프로덕션 배포
 
-- [보안 체크리스트](07_security.md#보안-체크리스트)
-- [격리 전략](07_security.md#격리-전략)
-- [프로덕션 아키텍처](08_patterns.md#프로덕션-아키텍처)
+- [보안 체크리스트](07_security.kr.md#보안-체크리스트)
+- [격리 전략](07_security.kr.md#격리-전략)
+- [프로덕션 아키텍처](08_patterns.kr.md#프로덕션-아키텍처)
 
 ---
 
