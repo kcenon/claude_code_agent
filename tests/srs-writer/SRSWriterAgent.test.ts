@@ -9,6 +9,7 @@ import {
 import {
   SessionStateError,
   PRDNotFoundError,
+  PRDQualityError,
   LowCoverageError,
   GenerationError,
 } from '../../src/srs-writer/errors.js';
@@ -576,6 +577,199 @@ This is a test product for automated SRS generation.
       // Check that NFR references are extracted and included
       expect(srs.content).toContain('NFR-001');
       expect(srs.content).toContain('NFR-002');
+    });
+  });
+
+  describe('PRD quality validation', () => {
+    it('should reject PRD with unsubstituted ${...} variables via startSession', async () => {
+      const badPRD = `# PRD: \${product_name}
+
+| Document ID | \${document_id} |
+
+## Executive Summary
+
+This is a test with \${project_description} that has template variables left over.
+
+## Functional Requirements
+
+### FR-001: \${feature_name}
+**Priority**: P0
+**Description**: A feature described by \${description}
+`;
+      await setupPRDFile('030', badPRD);
+
+      const agent = new SRSWriterAgent({
+        scratchpadBasePath: testBasePath,
+        publicDocsPath: testDocsPath,
+      });
+
+      await expect(agent.startSession('030')).rejects.toThrow(PRDQualityError);
+    });
+
+    it('should reject PRD with unsubstituted {{...}} mustache variables via startSession', async () => {
+      const badPRD = `# PRD: {{PROJECT_NAME}}
+
+| Document ID | {{DOCUMENT_ID}} |
+
+## Executive Summary
+
+A product overview for {{PROJECT_NAME}} with various {{FEATURES}}.
+
+## Functional Requirements
+
+### FR-001: Core Feature
+**Priority**: P0
+**Description**: Some real description here for the feature
+`;
+      await setupPRDFile('031', badPRD);
+
+      const agent = new SRSWriterAgent({
+        scratchpadBasePath: testBasePath,
+        publicDocsPath: testDocsPath,
+      });
+
+      await expect(agent.startSession('031')).rejects.toThrow(PRDQualityError);
+    });
+
+    it('should reject PRD with insufficient content', async () => {
+      const shortPRD = `# PRD: Test
+
+Short.
+`;
+      await setupPRDFile('032', shortPRD);
+
+      const agent = new SRSWriterAgent({
+        scratchpadBasePath: testBasePath,
+        publicDocsPath: testDocsPath,
+      });
+
+      await expect(agent.startSession('032')).rejects.toThrow(PRDQualityError);
+    });
+
+    it('should reject PRD consisting mostly of HTML comments', async () => {
+      const commentPRD = `<!-- This is a template -->
+<!-- Fill in your product name below -->
+<!-- Describe your product -->
+<!-- Add requirements here -->
+<!-- Add non-functional requirements -->
+<!-- These are just placeholder comments that fill up the character count beyond minimum -->
+`;
+      await setupPRDFile('033', commentPRD);
+
+      const agent = new SRSWriterAgent({
+        scratchpadBasePath: testBasePath,
+        publicDocsPath: testDocsPath,
+      });
+
+      await expect(agent.startSession('033')).rejects.toThrow(PRDQualityError);
+    });
+
+    it('should reject PRD with mixed template variables via generateFromPRDContent', async () => {
+      const badPRD = `# PRD: {{PROJECT_NAME}}
+
+| Document ID | \${document_id} |
+
+## Executive Summary
+
+This is a product with {{DESCRIPTION}} and \${project_description} variables.
+
+## Functional Requirements
+
+### FR-001: Core Feature
+**Priority**: P0
+**Description**: A real feature
+`;
+
+      const agent = new SRSWriterAgent({
+        scratchpadBasePath: testBasePath,
+        publicDocsPath: testDocsPath,
+      });
+
+      await expect(agent.generateFromPRDContent(badPRD, '034')).rejects.toThrow(PRDQualityError);
+    });
+
+    it('should include actionable message in PRDQualityError', async () => {
+      const badPRD = `# PRD: {{PROJECT_NAME}}
+
+| Document ID | {{DOCUMENT_ID}} |
+
+## Executive Summary
+
+A product overview for {{PROJECT_NAME}} with enough content to pass length check but template vars remain unfilled.
+
+## Functional Requirements
+
+### FR-001: Feature
+**Priority**: P0
+**Description**: Something
+`;
+      await setupPRDFile('035', badPRD);
+
+      const agent = new SRSWriterAgent({
+        scratchpadBasePath: testBasePath,
+        publicDocsPath: testDocsPath,
+      });
+
+      try {
+        await agent.startSession('035');
+        expect.fail('Should have thrown PRDQualityError');
+      } catch (error) {
+        expect(error).toBeInstanceOf(PRDQualityError);
+        const qualityError = error as PRDQualityError;
+        expect(qualityError.message).toContain('AI bridge');
+        expect(qualityError.message).toContain('manually populate');
+        expect(qualityError.issues.length).toBeGreaterThan(0);
+      }
+    });
+
+    it('should accept well-formed PRD without template variables', async () => {
+      await setupPRDFile('036', createSamplePRD());
+
+      const agent = new SRSWriterAgent({
+        scratchpadBasePath: testBasePath,
+        publicDocsPath: testDocsPath,
+      });
+
+      // Should not throw
+      const session = await agent.startSession('036');
+      expect(session.status).toBe('pending');
+    });
+  });
+
+  describe('validatePRDQuality static method', () => {
+    it('should detect ${...} template variables', () => {
+      const content =
+        '# PRD\n\nThis has ${product_name} and ${version} variables with enough content to pass length check for minimum requirements.';
+      const issues = SRSWriterAgent.validatePRDQuality(content);
+      expect(issues.some((i) => i.includes('template variable'))).toBe(true);
+    });
+
+    it('should detect {{...}} mustache variables', () => {
+      const content =
+        '# PRD\n\nThis has {{PROJECT_NAME}} and {{VERSION}} variables with enough text to pass the minimum content length requirement easily.';
+      const issues = SRSWriterAgent.validatePRDQuality(content);
+      expect(issues.some((i) => i.includes('template variable'))).toBe(true);
+    });
+
+    it('should detect insufficient content', () => {
+      const content = '# PRD\n\nShort.';
+      const issues = SRSWriterAgent.validatePRDQuality(content);
+      expect(
+        issues.some((i) => i.includes('insufficient content') || i.includes('too short'))
+      ).toBe(true);
+    });
+
+    it('should detect HTML-comment-only content', () => {
+      const content =
+        '<!-- comment 1 -->\n<!-- comment 2 -->\n<!-- comment 3 with enough length to test the ratio check -->\n<!-- yet more comments filling the document -->';
+      const issues = SRSWriterAgent.validatePRDQuality(content);
+      expect(issues.some((i) => i.includes('comment') || i.includes('HTML'))).toBe(true);
+    });
+
+    it('should return empty array for valid PRD', () => {
+      const content = createSamplePRD();
+      const issues = SRSWriterAgent.validatePRDQuality(content);
+      expect(issues).toEqual([]);
     });
   });
 

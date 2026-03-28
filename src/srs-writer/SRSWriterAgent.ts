@@ -33,6 +33,7 @@ import type {
 } from './types.js';
 import {
   PRDNotFoundError,
+  PRDQualityError,
   LowCoverageError,
   GenerationError,
   FileWriteError,
@@ -146,6 +147,12 @@ export class SRSWriterAgent implements IAgent {
 
     if (prdContent === null) {
       throw new PRDNotFoundError(projectId, prdPath);
+    }
+
+    // Validate PRD quality before parsing
+    const qualityIssues = SRSWriterAgent.validatePRDQuality(prdContent);
+    if (qualityIssues.length > 0) {
+      throw new PRDQualityError(projectId, qualityIssues);
     }
 
     // Parse PRD
@@ -386,6 +393,12 @@ export class SRSWriterAgent implements IAgent {
   ): Promise<SRSGenerationResult> {
     const startTime = Date.now();
     const now = new Date().toISOString();
+
+    // Validate PRD quality before parsing
+    const qualityIssues = SRSWriterAgent.validatePRDQuality(prdContent);
+    if (qualityIssues.length > 0) {
+      throw new PRDQualityError(projectId, qualityIssues);
+    }
 
     // Parse PRD
     const parsedPRD = this.prdParser.parse(prdContent, projectId);
@@ -819,6 +832,46 @@ export class SRSWriterAgent implements IAgent {
    */
   private async ensureDir(dirPath: string): Promise<void> {
     await fs.promises.mkdir(dirPath, { recursive: true });
+  }
+
+  /**
+   * Validate PRD content quality before attempting to parse it for SRS generation.
+   * Returns an array of issue descriptions; empty array means the PRD is acceptable.
+   * @param content
+   */
+  public static validatePRDQuality(content: string): string[] {
+    const issues: string[] = [];
+
+    // Check for unsubstituted template variables
+    const dollarVars = content.match(/\$\{[^}]+\}/g);
+    const mustacheVars = content.match(/\{\{[^}]+\}\}/g);
+    if (dollarVars !== null || mustacheVars !== null) {
+      const count = (dollarVars?.length ?? 0) + (mustacheVars?.length ?? 0);
+      issues.push(`PRD contains ${String(count)} unsubstituted template variable(s)`);
+    }
+
+    // Check minimum meaningful content (strip markdown formatting and whitespace)
+    const stripped = content
+      .replace(/^#+\s.*$/gm, '') // headings
+      .replace(/\|.*\|/g, '') // table rows
+      .replace(/---+/g, '') // horizontal rules
+      .replace(/<!--[\s\S]*?-->/g, '') // HTML comments
+      .replace(/\[Not yet generated\]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (stripped.length < 100) {
+      issues.push('PRD has insufficient content (less than 100 characters of meaningful text)');
+    }
+
+    // Check if content is mostly HTML comments (template-only)
+    const htmlComments = content.match(/<!--[\s\S]*?-->/g);
+    const htmlCommentLength =
+      htmlComments !== null ? htmlComments.reduce((sum, c) => sum + c.length, 0) : 0;
+    if (htmlCommentLength > content.length * 0.5) {
+      issues.push('PRD consists mostly of HTML comment placeholders');
+    }
+
+    return issues;
   }
 }
 
