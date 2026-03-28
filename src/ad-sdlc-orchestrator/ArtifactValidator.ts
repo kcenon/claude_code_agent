@@ -15,6 +15,18 @@ import * as path from 'node:path';
 import type { PipelineMode, StageName } from './types.js';
 
 /**
+ * Result of content-level quality validation for a completed stage's output
+ */
+export interface ContentValidationResult {
+  /** Stage that was validated */
+  readonly stage: StageName;
+  /** Quality assessment: 'good' means fully usable, 'degraded' means downstream may produce poor output */
+  readonly quality: 'good' | 'degraded';
+  /** Human-readable warnings describing detected quality issues */
+  readonly warnings: string[];
+}
+
+/**
  * Specification for a single artifact produced by a pipeline stage
  */
 export interface ArtifactSpec {
@@ -326,6 +338,177 @@ export class ArtifactValidator {
       stage,
       missing,
       found,
+    };
+  }
+
+  /**
+   * Validate the content quality of a completed stage's output artifacts.
+   *
+   * Performs stage-specific quality checks beyond file existence:
+   * - collection: collected_info.yaml has at least 1 FR with title and description
+   * - prd_generation / prd_update: no unsubstituted template variables, min content length
+   * - srs_generation / srs_update: has features section, product name is not a placeholder
+   *
+   * @param stage - The stage that just completed
+   * @param mode - Pipeline mode for artifact path lookup
+   * @returns Content validation result with quality assessment and warnings
+   */
+  async validateStageOutput(
+    stage: StageName,
+    mode: PipelineMode
+  ): Promise<ContentValidationResult> {
+    switch (stage) {
+      case 'collection':
+        return this.validateCollectionOutput(stage, mode);
+      case 'prd_generation':
+      case 'prd_update':
+        return this.validatePRDOutput(stage, mode);
+      case 'srs_generation':
+      case 'srs_update':
+        return this.validateSRSOutput(stage, mode);
+      default:
+        return { stage, quality: 'good', warnings: [] };
+    }
+  }
+
+  /**
+   * Validate collection stage output: collected_info.yaml must have at least one FR
+   * @param stage
+   * @param mode
+   */
+  private async validateCollectionOutput(
+    stage: StageName,
+    mode: PipelineMode
+  ): Promise<ContentValidationResult> {
+    const warnings: string[] = [];
+    const artifactMap = this.getArtifactMap(mode);
+    const entry = artifactMap.find((e) => e.stage === stage);
+    if (!entry) return { stage, quality: 'good', warnings: [] };
+
+    const yamlFiles = await this.resolveGlob(
+      entry.requiredArtifacts[0]?.pathPattern ?? '.ad-sdlc/scratchpad/info/*/collected_info.yaml'
+    );
+
+    if (yamlFiles.length === 0) {
+      warnings.push('collected_info.yaml not found');
+      return { stage, quality: 'degraded', warnings };
+    }
+
+    try {
+      const content = await fs.readFile(yamlFiles[0] as string, 'utf8');
+
+      // Check for functional requirements with non-empty title and description
+      const hasFR = /title:\s*\S/.test(content) && /description:\s*\S/.test(content);
+      if (!hasFR) {
+        warnings.push('No functional requirement with non-empty title and description found');
+      }
+    } catch {
+      warnings.push('Failed to read collected_info.yaml');
+    }
+
+    return {
+      stage,
+      quality: warnings.length > 0 ? 'degraded' : 'good',
+      warnings,
+    };
+  }
+
+  /**
+   * Validate PRD output: no template variables, minimum content length
+   * @param stage
+   * @param _mode
+   */
+  private async validatePRDOutput(
+    stage: StageName,
+    _mode: PipelineMode
+  ): Promise<ContentValidationResult> {
+    const warnings: string[] = [];
+    const prdFiles = await this.resolveGlob('.ad-sdlc/scratchpad/documents/*/prd.md');
+
+    if (prdFiles.length === 0) {
+      warnings.push('PRD document not found in scratchpad');
+      return { stage, quality: 'degraded', warnings };
+    }
+
+    try {
+      const content = await fs.readFile(prdFiles[0] as string, 'utf8');
+
+      // Check for unsubstituted template variables
+      const dollarVars = content.match(/\$\{[^}]+\}/g);
+      const mustacheVars = content.match(/\{\{[^}]+\}\}/g);
+      if (dollarVars !== null || mustacheVars !== null) {
+        const count = (dollarVars?.length ?? 0) + (mustacheVars?.length ?? 0);
+        warnings.push(`PRD contains ${String(count)} unsubstituted template variable(s)`);
+      }
+
+      // Check minimum meaningful content
+      const stripped = content
+        .replace(/^#+\s.*$/gm, '')
+        .replace(/\|.*\|/g, '')
+        .replace(/---+/g, '')
+        .replace(/<!--[\s\S]*?-->/g, '')
+        .replace(/\[Not yet generated\]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+      if (stripped.length < 100) {
+        warnings.push('PRD has insufficient meaningful content (less than 100 characters)');
+      }
+    } catch {
+      warnings.push('Failed to read PRD document');
+    }
+
+    return {
+      stage,
+      quality: warnings.length > 0 ? 'degraded' : 'good',
+      warnings,
+    };
+  }
+
+  /**
+   * Validate SRS output: has features section, product name is not a placeholder
+   * @param stage
+   * @param _mode
+   */
+  private async validateSRSOutput(
+    stage: StageName,
+    _mode: PipelineMode
+  ): Promise<ContentValidationResult> {
+    const warnings: string[] = [];
+    const srsFiles = await this.resolveGlob('.ad-sdlc/scratchpad/documents/*/srs.md');
+
+    if (srsFiles.length === 0) {
+      warnings.push('SRS document not found in scratchpad');
+      return { stage, quality: 'degraded', warnings };
+    }
+
+    try {
+      const content = await fs.readFile(srsFiles[0] as string, 'utf8');
+
+      // Check for features section
+      if (!/##\s*\d*\.?\s*System Features/i.test(content)) {
+        warnings.push('SRS is missing System Features section');
+      }
+
+      // Check product name is not a placeholder
+      const titleMatch = content.match(/^#\s*SRS:\s*(.+)$/m);
+      if (titleMatch !== null && titleMatch[1] !== undefined) {
+        const productName = titleMatch[1].trim();
+        if (
+          productName === 'Unknown Product' ||
+          /\$\{/.test(productName) ||
+          /\{\{/.test(productName)
+        ) {
+          warnings.push(`SRS has placeholder product name: "${productName}"`);
+        }
+      }
+    } catch {
+      warnings.push('Failed to read SRS document');
+    }
+
+    return {
+      stage,
+      quality: warnings.length > 0 ? 'degraded' : 'good',
+      warnings,
     };
   }
 

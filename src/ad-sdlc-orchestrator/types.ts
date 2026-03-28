@@ -67,7 +67,13 @@ export type StageName = GreenfieldStageName | EnhancementStageName | ImportStage
 /**
  * Pipeline stage status
  */
-export type PipelineStageStatus = 'pending' | 'running' | 'completed' | 'failed' | 'skipped';
+export type PipelineStageStatus =
+  | 'pending'
+  | 'running'
+  | 'completed'
+  | 'degraded'
+  | 'failed'
+  | 'skipped';
 
 /**
  * Overall pipeline status
