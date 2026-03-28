@@ -632,6 +632,7 @@ export class InformationExtractor {
    */
   private splitIntoSegments(content: string): string[] {
     const segments: string[] = [];
+    const consumed = new Set<number>();
 
     // Split by bullet points
     const bulletPattern = /^[\s]*[-*•]\s+(.+)$/gm;
@@ -639,6 +640,7 @@ export class InformationExtractor {
     while ((match = bulletPattern.exec(content)) !== null) {
       if (match[1] !== undefined) {
         segments.push(match[1]);
+        consumed.add(match.index);
       }
     }
 
@@ -647,17 +649,30 @@ export class InformationExtractor {
     while ((match = numberedPattern.exec(content)) !== null) {
       if (match[1] !== undefined) {
         segments.push(match[1]);
+        consumed.add(match.index);
       }
     }
 
-    // Split remaining content by sentences
+    // Split remaining content by newlines first, then by sentences
     const remaining = content.replace(bulletPattern, '').replace(numberedPattern, '');
 
-    const sentences = remaining.split(/(?<=[.!?])\s+/);
-    for (const sentence of sentences) {
-      const trimmed = sentence.trim();
-      if (trimmed.length > 10) {
-        segments.push(trimmed);
+    const lines = remaining.split(/\n+/);
+    for (const line of lines) {
+      const trimmed = line.trim();
+      // Skip metadata-like lines (e.g., "---", "--- Source: ...")
+      if (/^-{2,}\s*/.test(trimmed)) continue;
+      // Skip section headers that are just labels
+      if (/^#+\s/.test(trimmed) || /^[A-Z][a-zA-Z\s]*:\s*$/.test(trimmed)) continue;
+
+      if (trimmed.length <= 10) continue;
+
+      // Further split long lines by sentence boundaries
+      const sentences = trimmed.split(/(?<=[.!?])\s+/);
+      for (const sentence of sentences) {
+        const s = sentence.trim();
+        if (s.length > 10) {
+          segments.push(s);
+        }
       }
     }
 

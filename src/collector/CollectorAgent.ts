@@ -154,7 +154,10 @@ export class CollectorAgent implements IAgent {
    */
   public async startSession(projectName?: string): Promise<CollectionSession> {
     const scratchpad = getScratchpad({ basePath: this.config.scratchpadBasePath });
-    const projectId = await scratchpad.generateProjectId();
+    const projectId =
+      projectName !== undefined
+        ? this.sanitizeProjectId(projectName)
+        : await scratchpad.generateProjectId();
     const now = new Date().toISOString();
     let projectInitialized = false;
 
@@ -240,6 +243,21 @@ export class CollectorAgent implements IAgent {
         });
       }
     }
+  }
+
+  /**
+   * Sanitize a project name for use as a filesystem-safe project ID.
+   * Replaces non-alphanumeric characters (except hyphens, underscores, dots)
+   * with hyphens and collapses consecutive hyphens.
+   * @param name
+   */
+  private sanitizeProjectId(name: string): string {
+    return (
+      name
+        .replace(/[^a-zA-Z0-9._-]/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '') || 'project'
+    );
   }
 
   /**
@@ -930,7 +948,8 @@ export class CollectorAgent implements IAgent {
     // Skip clarification if confidence is high enough
     if (
       this.config.skipClarificationIfConfident &&
-      extraction.overallConfidence >= this.config.confidenceThreshold
+      extraction.overallConfidence >= this.config.confidenceThreshold &&
+      this.session?.status === 'clarifying'
     ) {
       this.skipClarification();
     }
@@ -957,7 +976,8 @@ export class CollectorAgent implements IAgent {
 
     if (
       this.config.skipClarificationIfConfident &&
-      extraction.overallConfidence >= this.config.confidenceThreshold
+      extraction.overallConfidence >= this.config.confidenceThreshold &&
+      this.session?.status === 'clarifying'
     ) {
       this.skipClarification();
     }
@@ -1017,7 +1037,8 @@ export class CollectorAgent implements IAgent {
 
     if (
       this.config.skipClarificationIfConfident &&
-      extraction.overallConfidence >= this.config.confidenceThreshold
+      extraction.overallConfidence >= this.config.confidenceThreshold &&
+      this.session?.status === 'clarifying'
     ) {
       this.skipClarification();
     }
@@ -1099,7 +1120,8 @@ export class CollectorAgent implements IAgent {
 
     if (
       this.config.skipClarificationIfConfident &&
-      extraction.overallConfidence >= this.config.confidenceThreshold
+      extraction.overallConfidence >= this.config.confidenceThreshold &&
+      this.session?.status === 'clarifying'
     ) {
       this.skipClarification();
     }

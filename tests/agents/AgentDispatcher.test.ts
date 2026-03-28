@@ -41,7 +41,10 @@ class MockAgent implements IAgent {
 /**
  * Create a MockAgent that also has generateFromProject for doc-writer testing
  */
-function createDocWriterAgent(agentId: string, name: string): MockAgent & { generateFromProject: (id: string) => Promise<unknown> } {
+function createDocWriterAgent(
+  agentId: string,
+  name: string
+): MockAgent & { generateFromProject: (id: string) => Promise<unknown> } {
   const agent = new MockAgent(agentId, name) as MockAgent & {
     generateFromProject: (id: string) => Promise<unknown>;
   };
@@ -55,13 +58,15 @@ function createDocWriterAgent(agentId: string, name: string): MockAgent & { gene
 /**
  * Create a MockAgent with collectFromText for collector testing
  */
-function createCollectorAgent(): MockAgent & { collectFromText: (text: string, project?: string) => Promise<unknown> } {
+function createCollectorAgent(): MockAgent & {
+  collectFromText: (text: string, options?: { projectName?: string }) => Promise<unknown>;
+} {
   const agent = new MockAgent('collector-agent', 'Collector Agent') as MockAgent & {
-    collectFromText: (text: string, project?: string) => Promise<unknown>;
+    collectFromText: (text: string, options?: { projectName?: string }) => Promise<unknown>;
   };
-  agent.collectFromText = async (text: string, project?: string) => {
-    agent.calls.push({ method: 'collectFromText', args: [text, project] });
-    return { collected: true, text, project };
+  agent.collectFromText = async (text: string, options?: { projectName?: string }) => {
+    agent.calls.push({ method: 'collectFromText', args: [text, options] });
+    return { collected: true, text, project: options?.projectName };
   };
   return agent;
 }
@@ -197,9 +202,7 @@ describe('AgentDispatcher', () => {
       const stage = createStage({ agentType: 'nonexistent-agent' });
       const session = createSession();
 
-      await expect(dispatcher.dispatch(stage, session)).rejects.toThrow(
-        AgentDispatchError
-      );
+      await expect(dispatcher.dispatch(stage, session)).rejects.toThrow(AgentDispatchError);
       await expect(dispatcher.dispatch(stage, session)).rejects.toThrow(
         "Unknown agent type 'nonexistent-agent'"
       );
@@ -281,11 +284,7 @@ describe('AgentDispatcher', () => {
       const parsed = JSON.parse(result);
 
       expect(parsed.result).toBe('setup');
-      expect(agent.calls.map((c) => c.method)).toEqual([
-        'startSession',
-        'setup',
-        'finalize',
-      ]);
+      expect(agent.calls.map((c) => c.method)).toEqual(['startSession', 'setup', 'finalize']);
     });
 
     it('should dispatch document-reader with startSession/readAll/finalize', async () => {
@@ -302,11 +301,7 @@ describe('AgentDispatcher', () => {
       const parsed = JSON.parse(result);
 
       expect(parsed.result).toBe('readAll');
-      expect(agent.calls.map((c) => c.method)).toEqual([
-        'startSession',
-        'readAll',
-        'finalize',
-      ]);
+      expect(agent.calls.map((c) => c.method)).toEqual(['startSession', 'readAll', 'finalize']);
     });
 
     it('should dispatch codebase-analyzer with startSession/analyze/finalize', async () => {
@@ -320,11 +315,7 @@ describe('AgentDispatcher', () => {
       const session = createSession();
 
       const result = await dispatcher.dispatch(stage, session);
-      expect(agent.calls.map((c) => c.method)).toEqual([
-        'startSession',
-        'analyze',
-        'finalize',
-      ]);
+      expect(agent.calls.map((c) => c.method)).toEqual(['startSession', 'analyze', 'finalize']);
     });
 
     it('should dispatch updaters with updateFromProject', async () => {
@@ -361,11 +352,7 @@ describe('AgentDispatcher', () => {
 
       await dispatcher.dispatch(stage, session);
 
-      expect(agent.calls.map((c) => c.method)).toEqual([
-        'startSession',
-        'run',
-        'finalize',
-      ]);
+      expect(agent.calls.map((c) => c.method)).toEqual(['startSession', 'run', 'finalize']);
     });
 
     it('should dispatch issue-reader with startSession/read/finalize', async () => {
@@ -380,11 +367,7 @@ describe('AgentDispatcher', () => {
 
       await dispatcher.dispatch(stage, session);
 
-      expect(agent.calls.map((c) => c.method)).toEqual([
-        'startSession',
-        'read',
-        'finalize',
-      ]);
+      expect(agent.calls.map((c) => c.method)).toEqual(['startSession', 'read', 'finalize']);
     });
 
     it('should wrap dispatch errors in AgentDispatchError', async () => {
@@ -398,9 +381,7 @@ describe('AgentDispatcher', () => {
       const stage = createStage({ agentType: 'collector' });
       const session = createSession();
 
-      await expect(dispatcher.dispatch(stage, session)).rejects.toThrow(
-        AgentDispatchError
-      );
+      await expect(dispatcher.dispatch(stage, session)).rejects.toThrow(AgentDispatchError);
       await expect(dispatcher.dispatch(stage, session)).rejects.toThrow(
         'Agent execution failed: Network timeout'
       );

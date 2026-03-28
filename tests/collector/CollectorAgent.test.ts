@@ -46,14 +46,36 @@ describe('CollectorAgent', () => {
       await agent.startSession('TestProject');
       const session = agent.getSession();
 
-      const projectPath = path.join(
-        testDir,
-        '.ad-sdlc',
-        'scratchpad',
-        'info',
-        session!.projectId
-      );
+      const projectPath = path.join(testDir, '.ad-sdlc', 'scratchpad', 'info', session!.projectId);
       expect(fs.existsSync(projectPath)).toBe(true);
+    });
+
+    it('should use project name as projectId when provided', async () => {
+      const session = await agent.startSession('task-tracker-cli');
+
+      expect(session.projectId).toBe('task-tracker-cli');
+    });
+
+    it('should sanitize project name for filesystem safety', async () => {
+      const session = await agent.startSession('My Project @#$% v2');
+
+      expect(session.projectId).toBe('My-Project-v2');
+    });
+
+    it('should fall back to auto-generated ID when no name provided', async () => {
+      const session = await agent.startSession();
+
+      expect(session.projectId).toMatch(/^\d{3}$/);
+    });
+
+    it('should use consistent path between collector and downstream stages', async () => {
+      const projectName = 'task-tracker-cli';
+      const result = await agent.collectFromText('The system must support user authentication.', {
+        projectName,
+      });
+
+      expect(result.projectId).toBe(projectName);
+      expect(result.outputPath).toContain(projectName);
     });
   });
 
@@ -131,9 +153,7 @@ describe('CollectorAgent', () => {
         const updatedSession = agent.answerQuestion(questionId, 'Project X');
 
         expect(updatedSession.answeredQuestions).toHaveLength(1);
-        expect(
-          updatedSession.pendingQuestions.find((q) => q.id === questionId)
-        ).toBeUndefined();
+        expect(updatedSession.pendingQuestions.find((q) => q.id === questionId)).toBeUndefined();
       }
     });
 
@@ -227,10 +247,7 @@ describe('CollectorAgent', () => {
   describe('collectFromFile', () => {
     it('should collect from file in one call', async () => {
       const filePath = path.join(testDir, 'reqs.md');
-      fs.writeFileSync(
-        filePath,
-        '# Requirements\n\nThe system must authenticate users.'
-      );
+      fs.writeFileSync(filePath, '# Requirements\n\nThe system must authenticate users.');
 
       const result = await agent.collectFromFile(filePath, {
         projectName: 'FileApp',
@@ -282,9 +299,9 @@ describe('CollectorAgent', () => {
       const nonexistent1 = path.join(testDir, 'missing1.md');
       const nonexistent2 = path.join(testDir, 'missing2.md');
 
-      await expect(
-        agent.collectFromFiles([nonexistent1, nonexistent2])
-      ).rejects.toThrow(MissingInformationError);
+      await expect(agent.collectFromFiles([nonexistent1, nonexistent2])).rejects.toThrow(
+        MissingInformationError
+      );
     });
 
     it('should merge information from multiple files', async () => {
@@ -374,11 +391,14 @@ describe('CollectorAgent', () => {
 
     it('should continue on error when continueOnError is true', async () => {
       await agent.startSession();
-      const results = await agent.addBatchInput([
-        { type: 'text', value: 'Valid text input' },
-        { type: 'file', value: '/nonexistent/file.md' },
-        { type: 'text', value: 'Another valid input' },
-      ], { continueOnError: true });
+      const results = await agent.addBatchInput(
+        [
+          { type: 'text', value: 'Valid text input' },
+          { type: 'file', value: '/nonexistent/file.md' },
+          { type: 'text', value: 'Another valid input' },
+        ],
+        { continueOnError: true }
+      );
 
       expect(results).toHaveLength(3);
       expect(results[0].success).toBe(true);
@@ -393,10 +413,15 @@ describe('CollectorAgent', () => {
     it('should stop on first error when continueOnError is false', async () => {
       await agent.startSession();
 
-      await expect(agent.addBatchInput([
-        { type: 'file', value: '/nonexistent/file.md' },
-        { type: 'text', value: 'This should not be processed' },
-      ], { continueOnError: false })).rejects.toThrow();
+      await expect(
+        agent.addBatchInput(
+          [
+            { type: 'file', value: '/nonexistent/file.md' },
+            { type: 'text', value: 'This should not be processed' },
+          ],
+          { continueOnError: false }
+        )
+      ).rejects.toThrow();
     });
 
     it('should respect parallelLimit option', async () => {
@@ -406,12 +431,15 @@ describe('CollectorAgent', () => {
       fs.writeFileSync(file2, '# File 2');
 
       await agent.startSession();
-      const results = await agent.addBatchInput([
-        { type: 'text', value: 'Text 1' },
-        { type: 'text', value: 'Text 2' },
-        { type: 'file', value: file1 },
-        { type: 'file', value: file2 },
-      ], { parallelLimit: 2 });
+      const results = await agent.addBatchInput(
+        [
+          { type: 'text', value: 'Text 1' },
+          { type: 'text', value: 'Text 2' },
+          { type: 'file', value: file1 },
+          { type: 'file', value: file2 },
+        ],
+        { parallelLimit: 2 }
+      );
 
       expect(results).toHaveLength(4);
       expect(results.every((r) => r.success)).toBe(true);
@@ -423,13 +451,16 @@ describe('CollectorAgent', () => {
       const filePath = path.join(testDir, 'batch.md');
       fs.writeFileSync(filePath, '# Requirements\n\nThe system must support login.');
 
-      const result = await agent.collectFromBatch([
-        { type: 'text', value: 'User authentication is required' },
-        { type: 'file', value: filePath },
-      ], {
-        projectName: 'BatchApp',
-        projectDescription: 'Batch collection test',
-      });
+      const result = await agent.collectFromBatch(
+        [
+          { type: 'text', value: 'User authentication is required' },
+          { type: 'file', value: filePath },
+        ],
+        {
+          projectName: 'BatchApp',
+          projectDescription: 'Batch collection test',
+        }
+      );
 
       expect(result.success).toBe(true);
       expect(result.stats.sourcesProcessed).toBe(2);
@@ -444,24 +475,29 @@ describe('CollectorAgent', () => {
       const validFile = path.join(testDir, 'valid-batch.md');
       fs.writeFileSync(validFile, '# Valid\n\nThe system must work.');
 
-      const result = await agent.collectFromBatch([
-        { type: 'text', value: 'Valid text' },
-        { type: 'file', value: '/nonexistent/file.md' },
-        { type: 'file', value: validFile },
-      ], {
-        projectName: 'PartialBatchApp',
-        continueOnError: true,
-      });
+      const result = await agent.collectFromBatch(
+        [
+          { type: 'text', value: 'Valid text' },
+          { type: 'file', value: '/nonexistent/file.md' },
+          { type: 'file', value: validFile },
+        ],
+        {
+          projectName: 'PartialBatchApp',
+          continueOnError: true,
+        }
+      );
 
       expect(result.success).toBe(true);
       expect(result.stats.sourcesProcessed).toBe(2);
     });
 
     it('should throw error when all inputs fail', async () => {
-      await expect(agent.collectFromBatch([
-        { type: 'file', value: '/nonexistent/file1.md' },
-        { type: 'file', value: '/nonexistent/file2.md' },
-      ])).rejects.toThrow(MissingInformationError);
+      await expect(
+        agent.collectFromBatch([
+          { type: 'file', value: '/nonexistent/file1.md' },
+          { type: 'file', value: '/nonexistent/file2.md' },
+        ])
+      ).rejects.toThrow(MissingInformationError);
     });
   });
 
