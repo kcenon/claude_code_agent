@@ -497,4 +497,126 @@ This is not a proper list format
       expect(result.userPersonas[0].goals.length).toBe(2);
     });
   });
+
+  describe('product name extraction', () => {
+    it('should extract name from metadata table with Product Name field', () => {
+      const parser = new PRDParser();
+      const prd = `
+# Product Requirements Document (PRD)
+
+| Field | Value |
+|-------|-------|
+| **Product Name** | TaskTracker Pro |
+| Version | 1.0.0 |
+
+## Functional Requirements
+`;
+      const result = parser.parse(prd, 'task-tracker');
+      expect(result.productName).toBe('TaskTracker Pro');
+    });
+
+    it('should extract name from metadata table with Project field', () => {
+      const parser = new PRDParser();
+      const prd = `
+# Product Requirements Document (PRD)
+
+| Field | Value |
+|-------|-------|
+| **Project** | My App |
+| Version | 1.0.0 |
+
+## Functional Requirements
+`;
+      const result = parser.parse(prd, 'my-app');
+      expect(result.productName).toBe('My App');
+    });
+
+    it('should extract name from PRD: prefix format', () => {
+      const parser = new PRDParser();
+      const prd = `
+# PRD: Task Manager
+
+## Functional Requirements
+`;
+      const result = parser.parse(prd, 'task-mgr');
+      expect(result.productName).toBe('Task Manager');
+    });
+
+    it('should strip "Product Requirements Document (PRD)" from heading', () => {
+      const parser = new PRDParser();
+      const prd = `
+# Product Requirements Document (PRD) - MyProduct
+
+## Functional Requirements
+`;
+      const result = parser.parse(prd, 'my-product');
+      expect(result.productName).toBe('MyProduct');
+    });
+
+    it('should strip "Product Requirements Document" without PRD suffix', () => {
+      const parser = new PRDParser();
+      const prd = `
+# Product Requirements Document: SuperApp
+
+## Functional Requirements
+`;
+      const result = parser.parse(prd, 'super-app');
+      expect(result.productName).toBe('SuperApp');
+    });
+
+    it('should fall back to projectId when heading is generic document title', () => {
+      const parser = new PRDParser();
+      const prd = `
+# Product Requirements Document
+
+## Functional Requirements
+`;
+      const result = parser.parse(prd, 'my-project');
+      expect(result.productName).toBe('my-project');
+    });
+
+    it('should fall back to projectId when heading is just "PRD"', () => {
+      const parser = new PRDParser();
+      const prd = `
+# PRD
+
+## Functional Requirements
+`;
+      const result = parser.parse(prd, 'fallback-name');
+      expect(result.productName).toBe('fallback-name');
+    });
+
+    it('should prefer metadata table over heading', () => {
+      const parser = new PRDParser();
+      const prd = `
+# PRD: Wrong Name
+
+| Field | Value |
+|-------|-------|
+| **Product Name** | Correct Name |
+
+## Functional Requirements
+`;
+      const result = parser.parse(prd, 'proj');
+      expect(result.productName).toBe('Correct Name');
+    });
+
+    it('should use plain heading as product name when no prefix matches', () => {
+      const parser = new PRDParser();
+      const result = parser.parse('# My Product', 'proj');
+      expect(result.productName).toBe('My Product');
+    });
+
+    it('should return projectId when content has no heading or metadata', () => {
+      const parser = new PRDParser();
+      const result = parser.parse('No heading here, just text.', 'some-project');
+      expect(result.productName).toBe('some-project');
+    });
+
+    it('should return Unknown Product when no heading, metadata, or projectId', () => {
+      const parser = new PRDParser();
+      const result = parser.parse('No heading here.', '');
+      expect(result.productName).toBe('Unknown Product');
+    });
+  });
 });
