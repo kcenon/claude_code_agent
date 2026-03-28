@@ -77,8 +77,8 @@ function createCollectorAgent(): MockAgent & {
 function createSessionAgent(agentId: string, name: string, primaryMethod: string): MockAgent {
   const agent = new MockAgent(agentId, name);
   const a = agent as Record<string, unknown>;
-  a['startSession'] = async (dir: string) => {
-    agent.calls.push({ method: 'startSession', args: [dir] });
+  a['startSession'] = async (...args: unknown[]) => {
+    agent.calls.push({ method: 'startSession', args });
   };
   a[primaryMethod] = async () => {
     agent.calls.push({ method: primaryMethod, args: [] });
@@ -265,9 +265,27 @@ describe('AgentDispatcher', () => {
       expect(parsed.result).toBe('detect');
       expect(agent.calls).toHaveLength(3);
       expect(agent.calls[0]!.method).toBe('startSession');
-      expect(agent.calls[0]!.args[0]).toBe('/test/repo');
+      expect(agent.calls[0]!.args[0]).toBe('repo');
+      expect(agent.calls[0]!.args[1]).toBe('/test/repo');
       expect(agent.calls[1]!.method).toBe('detect');
       expect(agent.calls[2]!.method).toBe('finalize');
+    });
+
+    it('should pass projectId and rootPath to repo-detector startSession', async () => {
+      const agent = createSessionAgent('repo-detector-agent', 'Repo Detector', 'detect');
+      dispatcher.setAgent('repo-detector', agent);
+
+      const stage = createStage({
+        name: 'repo_detection',
+        agentType: 'repo-detector',
+      });
+      const session = createSession({ projectDir: '/home/user/my-app' });
+
+      await dispatcher.dispatch(stage, session);
+
+      expect(agent.calls[0]!.method).toBe('startSession');
+      expect(agent.calls[0]!.args[0]).toBe('my-app');
+      expect(agent.calls[0]!.args[1]).toBe('/home/user/my-app');
     });
 
     it('should dispatch github-repo-setup agent with startSession/setup/finalize', async () => {
@@ -284,6 +302,9 @@ describe('AgentDispatcher', () => {
       const parsed = JSON.parse(result);
 
       expect(parsed.result).toBe('setup');
+      expect(agent.calls[0]!.method).toBe('startSession');
+      expect(agent.calls[0]!.args[0]).toBe('repo');
+      expect(agent.calls[0]!.args[1]).toBe('/test/repo');
       expect(agent.calls.map((c) => c.method)).toEqual(['startSession', 'setup', 'finalize']);
     });
 

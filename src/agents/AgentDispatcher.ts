@@ -518,11 +518,15 @@ export class AgentDispatcher {
     // SDS Writer: generateFromProject(projectId)
     this.callAdapters.set('sds-writer', this.createProjectIdAdapter('generateFromProject'));
 
-    // Repo Detector: startSession + detect + finalize pattern
+    // Repo Detector: startSession(projectId, rootPath) + detect + finalize pattern
     this.callAdapters.set('repo-detector', async (agent, _stage, session) => {
       const a = toRecord(agent);
       if (typeof a['startSession'] === 'function') {
-        await (a['startSession'] as (dir: string) => Promise<unknown>)(session.projectDir);
+        const projectId = path.basename(session.projectDir);
+        await (a['startSession'] as (id: string, dir: string) => Promise<unknown>)(
+          projectId,
+          session.projectDir
+        );
       }
       if (typeof a['detect'] === 'function') {
         const result = await (a['detect'] as () => Promise<unknown>)();
@@ -534,11 +538,15 @@ export class AgentDispatcher {
       return this.defaultAdapter(agent, _stage, session);
     });
 
-    // GitHub Repo Setup: similar session pattern
+    // GitHub Repo Setup: startSession(projectName, rootPath) + setup + finalize pattern
     this.callAdapters.set('github-repo-setup', async (agent, _stage, session) => {
       const a = toRecord(agent);
       if (typeof a['startSession'] === 'function') {
-        await (a['startSession'] as (dir: string) => Promise<unknown>)(session.projectDir);
+        const projectName = path.basename(session.projectDir);
+        await (a['startSession'] as (name: string, dir: string) => Promise<unknown>)(
+          projectName,
+          session.projectDir
+        );
       }
       if (typeof a['setup'] === 'function') {
         const result = await (a['setup'] as () => Promise<unknown>)();
@@ -566,11 +574,15 @@ export class AgentDispatcher {
       return this.defaultAdapter(agent, _stage, session);
     });
 
-    // Codebase Analyzer: startSession + analyze + finalize
+    // Codebase Analyzer: startSession(projectId, rootPath) + analyze + finalize
     this.callAdapters.set('codebase-analyzer', async (agent, _stage, session) => {
       const a = toRecord(agent);
       if (typeof a['startSession'] === 'function') {
-        await (a['startSession'] as (dir: string) => Promise<unknown>)(session.projectDir);
+        const projectId = path.basename(session.projectDir);
+        await (a['startSession'] as (id: string, dir: string) => Promise<unknown>)(
+          projectId,
+          session.projectDir
+        );
       }
       if (typeof a['analyze'] === 'function') {
         const result = await (a['analyze'] as () => Promise<unknown>)();
