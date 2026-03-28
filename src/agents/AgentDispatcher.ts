@@ -499,8 +499,11 @@ export class AgentDispatcher {
       if (typeof a['collectFromText'] === 'function') {
         const projectName = path.basename(session.projectDir);
         const result = await (
-          a['collectFromText'] as (text: string, project?: string) => Promise<unknown>
-        )(session.userRequest, projectName);
+          a['collectFromText'] as (
+            text: string,
+            options?: { projectName?: string }
+          ) => Promise<unknown>
+        )(session.userRequest, { projectName });
         return JSON.stringify(result);
       }
       return this.defaultAdapter(agent, _stage, session);

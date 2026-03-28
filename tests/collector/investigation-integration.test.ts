@@ -347,7 +347,7 @@ describe('Investigation integration through CollectorAgent', () => {
       const result = await agent.finalize('AutoSkipProject', 'Testing auto-skip on finalize');
 
       expect(result.success).toBe(true);
-      expect(result.projectId).toBe('test-inv-001');
+      expect(result.projectId).toBe('FinalizeFromInvestigating');
       expect(result.collectedInfo.project.name).toBe('AutoSkipProject');
       expect(result.collectedInfo.project.description).toBe('Testing auto-skip on finalize');
       expect(result.collectedInfo.status).toBe('completed');

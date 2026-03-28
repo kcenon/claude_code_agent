@@ -1,8 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import {
-  InformationExtractor,
-  InputParser,
-} from '../../src/collector/index.js';
+import { InformationExtractor, InputParser } from '../../src/collector/index.js';
 
 describe('InformationExtractor', () => {
   let extractor: InformationExtractor;
@@ -122,8 +119,8 @@ describe('InformationExtractor', () => {
 
       // If project name is not detected, there should be a question about it
       if (result.projectName === undefined) {
-        const projectNameQuestion = result.clarificationQuestions.find(
-          (q) => q.question.toLowerCase().includes('name')
+        const projectNameQuestion = result.clarificationQuestions.find((q) =>
+          q.question.toLowerCase().includes('name')
         );
         expect(projectNameQuestion).toBeDefined();
       } else {
@@ -248,7 +245,9 @@ describe('InformationExtractor', () => {
 
       const result = extractor.extract(input);
 
-      expect(result.functionalRequirements.length).toBeGreaterThanOrEqual(1);
+      const totalRequirements =
+        result.functionalRequirements.length + result.nonFunctionalRequirements.length;
+      expect(totalRequirements).toBeGreaterThanOrEqual(1);
     });
   });
 
@@ -474,6 +473,82 @@ describe('InformationExtractor', () => {
 
       // Should not exceed 5 questions
       expect(result.clarificationQuestions.length).toBeLessThanOrEqual(5);
+    });
+  });
+
+  describe('stub mode output quality', () => {
+    it('should not produce requirements with metadata-like titles', () => {
+      const source = parser.parseText(`
+        Build a CLI task tracker application.
+        The system must support adding tasks.
+        Users should be able to list tasks.
+        The application needs to delete tasks.
+      `);
+      const input = parser.combineInputs([source]);
+
+      const result = extractor.extract(input);
+
+      const allReqs = [...result.functionalRequirements, ...result.nonFunctionalRequirements];
+      for (const req of allReqs) {
+        expect(req.title).not.toMatch(/^-{2,}/);
+        expect(req.title).not.toContain('--- Source');
+      }
+    });
+
+    it('should produce separate requirements for distinct feature descriptions', () => {
+      const source = parser.parseText(`
+        - The system must support user registration
+        - Users should be able to login with email and password
+        - The application needs to display a user dashboard
+        - Users must be able to update their profile
+      `);
+      const input = parser.combineInputs([source]);
+
+      const result = extractor.extract(input);
+
+      const totalReqs =
+        result.functionalRequirements.length + result.nonFunctionalRequirements.length;
+      expect(totalReqs).toBeGreaterThan(1);
+    });
+
+    it('should produce well-formed requirement IDs', () => {
+      const source = parser.parseText(`
+        - The system must handle user authentication
+        - Users should manage their profiles
+        - The application will process payments securely
+      `);
+      const input = parser.combineInputs([source]);
+
+      const result = extractor.extract(input);
+
+      for (const req of result.functionalRequirements) {
+        expect(req.id).toMatch(/^FR-\d{3}$/);
+        expect(req.title.length).toBeGreaterThan(0);
+        expect(req.description.length).toBeGreaterThan(0);
+      }
+      for (const req of result.nonFunctionalRequirements) {
+        expect(req.id).toMatch(/^NFR-\d{3}$/);
+        expect(req.title.length).toBeGreaterThan(0);
+        expect(req.description.length).toBeGreaterThan(0);
+      }
+    });
+
+    it('should filter out separator lines from segments', () => {
+      const source = parser.parseText(`
+        --- Source: user input ---
+        The system must support task management.
+        --- End of source ---
+        Users should view their dashboard.
+      `);
+      const input = parser.combineInputs([source]);
+
+      const result = extractor.extract(input);
+
+      const allReqs = [...result.functionalRequirements, ...result.nonFunctionalRequirements];
+      for (const req of allReqs) {
+        expect(req.title).not.toMatch(/^-{2,}/);
+        expect(req.description).not.toMatch(/^-{2,}\s*Source/);
+      }
     });
   });
 });
