@@ -23,7 +23,8 @@ if [ -n "$REPO_DIR" ] && [ -d "$REPO_DIR/.git" ]; then
             git worktree remove "$wt" --force 2>/dev/null || true
         fi
     done
-    git branch -d worktree-a worktree-b 2>/dev/null || true
+    # Clean up worktree branches dynamically (supports N worktrees)
+    git branch --list 'worktree-*' | xargs -r git branch -d 2>/dev/null || true
 fi
 
 echo "=== Removing state directories ==="
