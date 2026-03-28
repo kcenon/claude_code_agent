@@ -77,14 +77,16 @@ export class LocalReviewAgent implements IAgent {
   /**
    *
    */
-  initialize(): void {
+  // eslint-disable-next-line @typescript-eslint/require-await
+  async initialize(): Promise<void> {
     logger.debug('LocalReviewAgent initialized');
   }
 
   /**
    *
    */
-  dispose(): void {
+  // eslint-disable-next-line @typescript-eslint/require-await
+  async dispose(): Promise<void> {
     this.reviewChecks = null;
     this.qualityGate = null;
     logger.debug('LocalReviewAgent disposed');

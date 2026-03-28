@@ -43,14 +43,16 @@ export class LocalIssueReader implements IAgent {
   /**
    *
    */
-  initialize(): void {
+  // eslint-disable-next-line @typescript-eslint/require-await
+  async initialize(): Promise<void> {
     logger.debug('LocalIssueReader initialized');
   }
 
   /**
    *
    */
-  dispose(): void {
+  // eslint-disable-next-line @typescript-eslint/require-await
+  async dispose(): Promise<void> {
     logger.debug('LocalIssueReader disposed');
   }
 
