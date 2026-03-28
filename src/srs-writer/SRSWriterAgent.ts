@@ -839,7 +839,7 @@ export class SRSWriterAgent implements IAgent {
    * Returns an array of issue descriptions; empty array means the PRD is acceptable.
    * @param content
    */
-  private static validatePRDQuality(content: string): string[] {
+  public static validatePRDQuality(content: string): string[] {
     const issues: string[] = [];
 
     // Check for unsubstituted template variables

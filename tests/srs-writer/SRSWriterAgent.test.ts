@@ -740,26 +740,20 @@ A product overview for {{PROJECT_NAME}} with enough content to pass length check
     it('should detect ${...} template variables', () => {
       const content =
         '# PRD\n\nThis has ${product_name} and ${version} variables with enough content to pass length check for minimum requirements.';
-      const issues = (
-        SRSWriterAgent as unknown as { validatePRDQuality: (c: string) => string[] }
-      ).validatePRDQuality(content);
+      const issues = SRSWriterAgent.validatePRDQuality(content);
       expect(issues.some((i) => i.includes('template variable'))).toBe(true);
     });
 
     it('should detect {{...}} mustache variables', () => {
       const content =
         '# PRD\n\nThis has {{PROJECT_NAME}} and {{VERSION}} variables with enough text to pass the minimum content length requirement easily.';
-      const issues = (
-        SRSWriterAgent as unknown as { validatePRDQuality: (c: string) => string[] }
-      ).validatePRDQuality(content);
+      const issues = SRSWriterAgent.validatePRDQuality(content);
       expect(issues.some((i) => i.includes('template variable'))).toBe(true);
     });
 
     it('should detect insufficient content', () => {
       const content = '# PRD\n\nShort.';
-      const issues = (
-        SRSWriterAgent as unknown as { validatePRDQuality: (c: string) => string[] }
-      ).validatePRDQuality(content);
+      const issues = SRSWriterAgent.validatePRDQuality(content);
       expect(
         issues.some((i) => i.includes('insufficient content') || i.includes('too short'))
       ).toBe(true);
@@ -768,17 +762,13 @@ A product overview for {{PROJECT_NAME}} with enough content to pass length check
     it('should detect HTML-comment-only content', () => {
       const content =
         '<!-- comment 1 -->\n<!-- comment 2 -->\n<!-- comment 3 with enough length to test the ratio check -->\n<!-- yet more comments filling the document -->';
-      const issues = (
-        SRSWriterAgent as unknown as { validatePRDQuality: (c: string) => string[] }
-      ).validatePRDQuality(content);
+      const issues = SRSWriterAgent.validatePRDQuality(content);
       expect(issues.some((i) => i.includes('comment') || i.includes('HTML'))).toBe(true);
     });
 
     it('should return empty array for valid PRD', () => {
       const content = createSamplePRD();
-      const issues = (
-        SRSWriterAgent as unknown as { validatePRDQuality: (c: string) => string[] }
-      ).validatePRDQuality(content);
+      const issues = SRSWriterAgent.validatePRDQuality(content);
       expect(issues).toEqual([]);
     });
   });

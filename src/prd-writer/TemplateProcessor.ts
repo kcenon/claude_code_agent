@@ -88,7 +88,7 @@ export class TemplateProcessor {
     let content = template;
 
     // Replace simple variables ${variable_name}
-    content = content.replace(/\$\{([^}]+)\}/g, (match, varName: string) => {
+    content = content.replace(/\$\{([^}]+)\}/g, (_match, varName: string) => {
       const value = variables.get(varName);
       if (value !== undefined) {
         substitutedVariables.push(varName);
@@ -98,7 +98,7 @@ export class TemplateProcessor {
         if (this.options.removeUnsubstituted) {
           return '';
         }
-        return match;
+        return '[Not yet generated]';
       }
     });
 
