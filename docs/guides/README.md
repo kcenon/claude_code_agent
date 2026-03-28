@@ -4,14 +4,16 @@
 
 ## Available Guides
 
-| Guide | Description |
-|-------|-------------|
-| [Deployment Guide](deployment.md) | Install, configure, and deploy agents |
-| [배포 가이드](deployment.kr.md) | 에이전트 설치, 구성 및 배포 (한글) |
-| [Agent Customization](agent-customization.md) | Create and customize agents |
-| [Enhancement Mode](enhancement-mode.md) | Guide for enhancement pipeline mode |
-| [Testing Guide](testing.md) | Running and writing tests |
-| [Troubleshooting](troubleshooting.md) | Diagnose and resolve common issues |
+| Guide                                         | Description                                   |
+| --------------------------------------------- | --------------------------------------------- |
+| [Deployment Guide](deployment.md)             | Install, configure, and deploy agents         |
+| [배포 가이드](deployment.kr.md)               | 에이전트 설치, 구성 및 배포 (한글)            |
+| [Agent Customization](agent-customization.md) | Create and customize agents                   |
+| [Enhancement Mode](enhancement-mode.md)       | Guide for enhancement pipeline mode           |
+| [Testing Guide](testing.md)                   | Running and writing tests                     |
+| [Troubleshooting](troubleshooting.md)         | Diagnose and resolve common issues            |
+| [Usage Scenarios](usage-scenarios.md)         | All execution environments and pipeline modes |
+| [사용 시나리오](usage-scenarios.kr.md)        | 모든 실행 환경 및 파이프라인 모드 (한글)      |
 
 ## Guide Contents
 
@@ -101,4 +103,4 @@
 
 ---
 
-*Part of [Claude Code Agent Documentation](../README.md)*
+_Part of [Claude Code Agent Documentation](../README.md)_

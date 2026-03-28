@@ -322,6 +322,7 @@ your-project/
 ### Guides
 
 - [Agent Deployment](docs/guides/deployment.md)
+- [Usage Scenarios](docs/guides/usage-scenarios.md) — All execution environments and pipeline modes
 - [Reference Documentation](docs/reference/README.md)
 
 ### Korean Documentation
