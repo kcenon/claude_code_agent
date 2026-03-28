@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# git-safe — flock wrapper for Tier A concurrent git access protection
+# Serializes git operations across containers sharing the same /workspace
+# Usage: Symlink or alias to this script instead of /usr/bin/git
+set -euo pipefail
+exec flock --timeout 30 /tmp/.git-workspace.lock /usr/bin/git "$@"

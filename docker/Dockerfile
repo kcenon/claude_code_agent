@@ -39,6 +39,10 @@ RUN npm install -g @anthropic-ai/claude-code${CLAUDE_CODE_VERSION:+@$CLAUDE_CODE
 # SRS-5.1.5: Memory heap limit
 ENV NODE_OPTIONS=--max-old-space-size=4096
 
+# SRS-Phase6: Tier A git concurrent access protection
+COPY scripts/git-safe /usr/local/bin/git-safe
+RUN chmod +x /usr/local/bin/git-safe
+
 # SRS-5.1.7: Run as non-root user
 # Why: node user (UID 1000) comes pre-created in node:20-slim
 USER node
