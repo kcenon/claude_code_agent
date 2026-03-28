@@ -24,6 +24,10 @@ export {
 
 export { PRCreator, DEFAULT_PR_CREATOR_CONFIG } from './PRCreator.js';
 
+// Local review agent (no GitHub dependency)
+export { LocalReviewAgent, LOCAL_REVIEWER_ID } from './LocalReviewAgent.js';
+export type { LocalReviewResult, LocalReviewOptions } from './LocalReviewAgent.js';
+
 export { QualityGate } from './QualityGate.js';
 export type { QualityGateOptions } from './QualityGate.js';
 

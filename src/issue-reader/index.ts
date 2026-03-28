@@ -15,6 +15,9 @@ export {
   ISSUE_READER_AGENT_ID,
 } from './IssueReaderAgent.js';
 
+// Local issue reader (no GitHub dependency)
+export { LocalIssueReader, LOCAL_ISSUE_READER_ID } from './LocalIssueReader.js';
+
 // Error classes
 export {
   IssueReaderError,
@@ -22,6 +25,7 @@ export {
   RepositoryNotFoundError,
   IssueFetchError,
   CircularDependencyError,
+  LocalIssueFileNotFoundError,
   OutputWriteError,
 } from './errors.js';
 

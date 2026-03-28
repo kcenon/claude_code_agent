@@ -225,6 +225,24 @@ export const AGENT_TYPE_MAP: Readonly<Record<string, AgentTypeEntry>> = {
     importPath: '../issue-reader/index.js',
   },
 
+  // ── Local mode agents (no GitHub dependency) ───────────────────────
+
+  'local-issue-reader': {
+    agentId: 'local-issue-reader',
+    name: 'Local Issue Reader',
+    lifecycle: 'singleton',
+    requiresWrapper: false,
+    importPath: '../issue-reader/index.js',
+  },
+
+  'local-reviewer': {
+    agentId: 'local-reviewer-agent',
+    name: 'Local Review Agent',
+    lifecycle: 'singleton',
+    requiresWrapper: false,
+    importPath: '../pr-reviewer/index.js',
+  },
+
   // ── Cross-pipeline agents ───────────────────────────────────────────
 
   'ci-fixer': {

@@ -12,10 +12,25 @@ import { config as dotenvConfig } from 'dotenv';
 import type { SecretManagerOptions } from './types.js';
 import { SecretNotFoundError } from './errors.js';
 
+/** Secrets required regardless of pipeline mode */
+const CORE_REQUIRED_SECRETS = ['CLAUDE_API_KEY'] as const;
+
+/** Additional secrets required for GitHub integration */
+const GITHUB_REQUIRED_SECRETS = ['GITHUB_TOKEN'] as const;
+
+/** Default required secrets (GitHub mode) */
+const DEFAULT_REQUIRED_SECRETS = [...CORE_REQUIRED_SECRETS, ...GITHUB_REQUIRED_SECRETS] as const;
+
 /**
- * Default required secrets for the AD-SDLC system
+ * Get required secrets based on pipeline mode.
+ * In local mode, only CLAUDE_API_KEY is mandatory.
+ * @param localMode
  */
-const DEFAULT_REQUIRED_SECRETS = ['CLAUDE_API_KEY', 'GITHUB_TOKEN'] as const;
+export function getRequiredSecrets(localMode: boolean): readonly string[] {
+  return localMode
+    ? (CORE_REQUIRED_SECRETS as readonly string[])
+    : (DEFAULT_REQUIRED_SECRETS as readonly string[]);
+}
 
 /**
  * Manages secure access to secrets and API keys

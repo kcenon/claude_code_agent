@@ -207,6 +207,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
             this.session = {
               ...prior,
               status: 'running',
+              localMode: request.localMode ?? prior.localMode,
               preCompletedStages: checkpoint.completedStageNames,
               stageResults: checkpoint.completedStageResults,
             };
@@ -218,7 +219,11 @@ export class AdsdlcOrchestratorAgent implements IAgent {
 
       const prior = await this.loadPriorSession(request.resumeSessionId, request.projectDir);
       if (prior) {
-        this.session = { ...prior, status: 'running' };
+        this.session = {
+          ...prior,
+          status: 'running',
+          localMode: request.localMode ?? prior.localMode,
+        };
         this.abortController = new AbortController();
         return this.session;
       }
@@ -240,6 +245,8 @@ export class AdsdlcOrchestratorAgent implements IAgent {
       preCompletedStages = [...request.preCompletedStages];
     }
 
+    const localMode = request.localMode ?? this.config.localMode;
+
     this.session = {
       sessionId: randomUUID(),
       projectDir: request.projectDir,
@@ -249,6 +256,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
       status: 'pending',
       stageResults: [],
       scratchpadDir,
+      localMode,
       ...(preCompletedStages !== null ? { preCompletedStages } : {}),
     };
 
@@ -456,14 +464,53 @@ export class AdsdlcOrchestratorAgent implements IAgent {
    * @returns The ordered list of stage definitions for the specified mode
    */
   private getStagesForMode(mode: PipelineMode): readonly PipelineStageDefinition[] {
+    let stages: readonly PipelineStageDefinition[];
     switch (mode) {
       case 'greenfield':
-        return GREENFIELD_STAGES;
+        stages = GREENFIELD_STAGES;
+        break;
       case 'enhancement':
-        return ENHANCEMENT_STAGES;
+        stages = ENHANCEMENT_STAGES;
+        break;
       case 'import':
-        return IMPORT_STAGES;
+        stages = IMPORT_STAGES;
+        break;
     }
+
+    return this.session?.localMode === true ? this.adaptStagesForLocalMode(stages) : stages;
+  }
+
+  /**
+   * Adapt pipeline stages for local mode (no GitHub dependency).
+   *
+   * - Removes github_repo_setup stage entirely
+   * - Replaces pr-reviewer with local-reviewer
+   * - Replaces issue-reader with local-issue-reader
+   * - Rewires dependencies that pointed to removed stages
+   * @param stages
+   */
+  private adaptStagesForLocalMode(
+    stages: readonly PipelineStageDefinition[]
+  ): PipelineStageDefinition[] {
+    return stages
+      .filter((s) => s.name !== 'github_repo_setup')
+      .map((s) => {
+        // Rewire dependencies from github_repo_setup to repo_detection
+        const filtered = s.dependsOn.filter((d) => d !== 'github_repo_setup');
+        const needsRewire =
+          s.dependsOn.includes('github_repo_setup' as StageName) &&
+          !s.dependsOn.includes('repo_detection' as StageName);
+        const dependsOn = (
+          needsRewire ? [...filtered, 'repo_detection' as StageName] : [...filtered]
+        ) as typeof s.dependsOn;
+
+        // Substitute GitHub-dependent agent types with local alternatives
+        let { agentType } = s;
+        if (agentType === 'pr-reviewer') agentType = 'local-reviewer';
+        if (agentType === 'issue-reader') agentType = 'local-issue-reader';
+
+        return { ...s, agentType, dependsOn };
+      });
   }
 
   /**
@@ -1243,6 +1290,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
       status: (data['overallStatus'] ?? 'partial') as PipelineStatus,
       stageResults,
       scratchpadDir: path.resolve(projectDir, this.config.scratchpadDir),
+      localMode: (data['localMode'] as boolean | undefined) ?? false,
       resumedFrom: sessionId,
       preCompletedStages: completedStageNames,
     };
