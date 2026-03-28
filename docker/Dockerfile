@@ -18,13 +18,13 @@ RUN apt-get update \
        jq \
        fzf \
        zsh \
-       sudo \
+       tini \
     && rm -rf /var/lib/apt/lists/*
 
 # Install GitHub CLI (gh) — separate layer for cache efficiency
 # Why: gh releases change independently from apt packages
 RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
-      | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
+      | gpg --dearmor -o /usr/share/keyrings/githubcli-archive-keyring.gpg \
     && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
       | tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
     && apt-get update \
@@ -39,9 +39,14 @@ RUN npm install -g @anthropic-ai/claude-code${CLAUDE_CODE_VERSION:+@$CLAUDE_CODE
 # SRS-5.1.5: Memory heap limit
 ENV NODE_OPTIONS=--max-old-space-size=4096
 
+# SRS-Phase6: Tier A git concurrent access protection
+COPY scripts/git-safe /usr/local/bin/git-safe
+RUN chmod +x /usr/local/bin/git-safe
+
 # SRS-5.1.7: Run as non-root user
 # Why: node user (UID 1000) comes pre-created in node:20-slim
 USER node
 
 # Default command keeps container alive for docker compose exec
+ENTRYPOINT ["tini", "--"]
 CMD ["sleep", "infinity"]

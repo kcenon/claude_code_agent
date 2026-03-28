@@ -20,6 +20,16 @@ services:
       - CLAUDE_CONFIG_DIR=/home/node/.claude                # SRS-5.2.7
       - NODE_OPTIONS=--max-old-space-size=4096              # SRS-5.2.8
       - ANTHROPIC_API_KEY=${CLAUDE_API_KEY_A:-}             # SRS-5.2.9
+    healthcheck:
+      test: ["CMD", "node", "--version"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: on-failure
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 30s
     deploy:
       resources:
         limits:
@@ -45,6 +55,16 @@ services:
       - CLAUDE_CONFIG_DIR=/home/node/.claude
       - NODE_OPTIONS=--max-old-space-size=4096
       - ANTHROPIC_API_KEY=${CLAUDE_API_KEY_B:-}
+    healthcheck:
+      test: ["CMD", "node", "--version"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: on-failure
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 30s
     deploy:
       resources:
         limits:
