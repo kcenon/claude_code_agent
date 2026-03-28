@@ -21,11 +21,21 @@ This tutorial walks you through creating your first automated feature with AD-SD
 
 Before starting, ensure you have:
 
-- ✅ AD-SDLC CLI installed (`npm install -g ad-sdlc`)
+- ✅ AD-SDLC CLI installed (see below)
 - ✅ API key configured (`export ANTHROPIC_API_KEY="..."`)
-- ✅ GitHub CLI authenticated (`gh auth login`) - *optional but recommended*
+- ✅ GitHub CLI authenticated (`gh auth login`) - _optional; not required for local mode_
 
-Need to install? See the [Installation Guide](installation.md).
+### Install from Source
+
+```bash
+git clone https://github.com/kcenon/claude_code_agent.git
+cd claude_code_agent
+npm install
+npm run build
+npm link  # makes 'ad-sdlc' available globally
+```
+
+Need more options? See the [Installation Guide](installation.md).
 
 ---
 
@@ -84,6 +94,7 @@ claude "Implement a REST API endpoint for user registration with email and passw
 ```
 
 This starts the automated pipeline. Claude will:
+
 1. Collect and clarify requirements
 2. Generate documentation (PRD, SRS, SDS)
 3. Create GitHub issues
@@ -146,11 +157,13 @@ ls src/
 ### Example Output
 
 **Documents Generated:**
+
 - `docs/PRD-001.md` - Product requirements
 - `docs/SRS-001.md` - Functional requirements
 - `docs/SDS-001.md` - Technical design
 
 **Issues Created:**
+
 - #1: Setup project structure
 - #2: Implement user model
 - #3: Create registration endpoint
@@ -158,10 +171,32 @@ ls src/
 - #5: Write unit tests
 
 **Code Implemented:**
+
 - `src/models/user.ts`
 - `src/routes/auth.ts`
 - `src/validators/user.ts`
 - `tests/auth.test.ts`
+
+---
+
+## Local Mode (No GitHub Required)
+
+Run the pipeline without GitHub integration using the `--local` flag:
+
+```bash
+ad-sdlc run "Your requirements" --local
+```
+
+In local mode, the pipeline skips GitHub issue creation and PR operations. Documents and code are generated locally.
+
+You can also enable local mode via environment variable:
+
+```bash
+export AD_SDLC_LOCAL=1
+ad-sdlc run "Your requirements"
+```
+
+For configuration customization, see the example files in [`examples/config/`](../examples/config/).
 
 ---
 
@@ -232,26 +267,26 @@ See [FAQ](faq.md) for more troubleshooting tips.
 
 ### Essential Commands
 
-| Command | Description |
-|---------|-------------|
-| `ad-sdlc init` | Initialize new project |
-| `ad-sdlc status` | Check pipeline status |
+| Command            | Description            |
+| ------------------ | ---------------------- |
+| `ad-sdlc init`     | Initialize new project |
+| `ad-sdlc status`   | Check pipeline status  |
 | `ad-sdlc validate` | Validate configuration |
-| `ad-sdlc resume` | Resume from checkpoint |
-| `ad-sdlc reset` | Reset pipeline state |
+| `ad-sdlc resume`   | Resume from checkpoint |
+| `ad-sdlc reset`    | Reset pipeline state   |
 
 ### Pipeline Stages
 
-| Stage | Agent | Output |
-|-------|-------|--------|
-| Collection | Collector | Requirements data |
-| PRD | PRD Writer | `docs/PRD-*.md` |
-| SRS | SRS Writer | `docs/SRS-*.md` |
-| SDS | SDS Writer | `docs/SDS-*.md` |
-| Issues | Issue Generator | GitHub Issues |
-| Implementation | Worker(s) | `src/*` |
-| Review | PR Reviewer | Pull Requests |
+| Stage          | Agent           | Output            |
+| -------------- | --------------- | ----------------- |
+| Collection     | Collector       | Requirements data |
+| PRD            | PRD Writer      | `docs/PRD-*.md`   |
+| SRS            | SRS Writer      | `docs/SRS-*.md`   |
+| SDS            | SDS Writer      | `docs/SDS-*.md`   |
+| Issues         | Issue Generator | GitHub Issues     |
+| Implementation | Worker(s)       | `src/*`           |
+| Review         | PR Reviewer     | Pull Requests     |
 
 ---
 
-*Part of [AD-SDLC Documentation](../README.md)*
+_Part of [AD-SDLC Documentation](../README.md)_
