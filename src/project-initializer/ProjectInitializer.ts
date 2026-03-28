@@ -489,40 +489,64 @@ npx ad-sdlc resume
 ### 2.2 Success Metrics
 <!-- Define measurable success criteria -->
 
-## 3. User Requirements
+## 3. Goals & Success Metrics
 
-### 3.1 User Personas
+### 3.1 Primary Goals
+<!-- List primary goals -->
+
+### 3.2 Key Performance Indicators (KPIs)
+<!-- Define measurable success criteria -->
+
+## 4. User Personas
+
+### 4.1 Primary Persona
 <!-- Define target users -->
 
-### 3.2 User Stories
-<!-- List user stories in format: As a [user], I want [goal] so that [benefit] -->
+## 5. Functional Requirements
 
-## 4. Functional Requirements
+<!-- Repeat FR-XXX section for each functional requirement -->
 
-### 4.1 Core Features
-<!-- List core features with IDs: FR-001, FR-002, etc. -->
+## 6. Non-Functional Requirements
 
-### 4.2 Feature Priorities
-<!-- Priority: Must Have, Should Have, Could Have, Won't Have -->
+### NFR-001: Performance
 
-## 5. Non-Functional Requirements
+| Attribute | Value |
+|-----------|-------|
+| **Category** | Performance |
+| **Priority** | High |
 
-### 5.1 Performance
-<!-- Performance requirements -->
+**Description:**
+Performance requirements for the system.
 
-### 5.2 Security
-<!-- Security requirements -->
+**Target Metric:**
+TBD
 
-### 5.3 Scalability
-<!-- Scalability requirements -->
+---
 
-## 6. Constraints and Assumptions
+## 7. Constraints & Assumptions
 
-### 6.1 Constraints
-<!-- Technical, resource, time constraints -->
+### 7.1 Constraints
 
-### 6.2 Assumptions
-<!-- Assumptions made during planning -->
+| ID | Constraint | Reason |
+|----|------------|--------|
+| CON-001 | Constraint description | Reason |
+
+### 7.2 Assumptions
+
+| ID | Assumption | Risk if Wrong |
+|----|------------|---------------|
+| ASM-001 | Assumption description | Risk description |
+
+## 8. Dependencies
+
+### 8.1 External Dependencies
+
+| Name | Type | Version | Purpose |
+|------|------|---------|---------|
+| \${dep_name} | Type | Version | Purpose |
+
+### 8.2 Internal Dependencies
+<!-- Internal module dependencies -->
 `;
   }
 
