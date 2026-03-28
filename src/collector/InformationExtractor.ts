@@ -40,11 +40,55 @@ const NFR_KEYWORDS: Record<string, readonly string[]> = {
     'performance',
     'ms',
     'seconds',
+    'responsive',
+    'efficient',
+    'lightweight',
   ],
-  security: ['secure', 'security', 'auth', 'encrypt', 'protect', 'access control', 'permission'],
-  scalability: ['scale', 'scalable', 'concurrent', 'users', 'load', 'capacity', 'horizontal'],
-  usability: ['easy', 'intuitive', 'user-friendly', 'accessible', 'ux', 'ui', 'interface'],
-  reliability: ['reliable', 'uptime', 'availability', '99.9%', 'fault tolerant', 'backup'],
+  security: [
+    'secure',
+    'security',
+    'auth',
+    'encrypt',
+    'encrypted',
+    'protect',
+    'protected',
+    'access control',
+    'permission',
+    'authentication',
+    'authorization',
+  ],
+  scalability: [
+    'scale',
+    'scalable',
+    'concurrent',
+    'users',
+    'load',
+    'capacity',
+    'horizontal',
+    'distributed',
+  ],
+  usability: [
+    'easy',
+    'intuitive',
+    'user-friendly',
+    'accessible',
+    'ux',
+    'ui',
+    'interface',
+    'simple',
+    'easy-to-use',
+  ],
+  reliability: [
+    'reliable',
+    'uptime',
+    'availability',
+    '99.9%',
+    'fault tolerant',
+    'fault-tolerant',
+    'backup',
+    'resilient',
+    'recovery',
+  ],
   maintainability: ['maintainable', 'modular', 'testable', 'clean', 'documented', 'readable'],
 };
 
@@ -130,24 +174,11 @@ const FR_ACTION_VERBS: readonly string[] = [
 ];
 
 /**
- * Quality keywords indicating non-functional requirements in prose
+ * Pre-compiled word-boundary patterns for action verb detection
  */
-const NFR_QUALITY_KEYWORDS: Record<string, readonly string[]> = {
-  performance: [
-    'fast',
-    'performance',
-    'latency',
-    'speed',
-    'responsive',
-    'efficient',
-    'lightweight',
-  ],
-  security: ['secure', 'security', 'encrypted', 'protected', 'authentication', 'authorization'],
-  scalability: ['scalable', 'concurrent', 'distributed', 'horizontal'],
-  reliability: ['reliable', 'available', 'fault-tolerant', 'resilient', 'backup', 'recovery'],
-  usability: ['user-friendly', 'intuitive', 'accessible', 'simple', 'easy-to-use'],
-  maintainability: ['maintainable', 'modular', 'testable', 'documented', 'readable', 'clean'],
-};
+const FR_ACTION_VERB_PATTERNS: readonly RegExp[] = FR_ACTION_VERBS.map(
+  (verb) => new RegExp(`\\b${verb}\\b`)
+);
 
 /**
  * Acceptance criteria indicator patterns
@@ -442,8 +473,8 @@ export class InformationExtractor {
       for (const clause of proseClauses) {
         const normalized = clause.toLowerCase();
 
-        // Check for NFR quality keywords first
-        const nfrCategory = this.detectProseNfrCategory(normalized);
+        // Check for NFR keywords first (reuse existing detection)
+        const nfrCategory = this.detectNfrCategory(normalized);
         if (nfrCategory !== undefined) {
           nonFunctional.push({
             id: this.nextNfrId(),
@@ -518,41 +549,7 @@ export class InformationExtractor {
    * @returns True if the text contains an action verb
    */
   private hasActionVerb(text: string): boolean {
-    return FR_ACTION_VERBS.some((verb) => {
-      // Match the verb as a whole word to avoid false positives
-      const pattern = new RegExp(`\\b${verb}\\b`);
-      return pattern.test(text);
-    });
-  }
-
-  /**
-   * Detect NFR category from prose using quality keywords
-   *
-   * @param text - Normalized (lowercase) text to check
-   * @returns The detected NFR category or undefined
-   */
-  private detectProseNfrCategory(
-    text: string
-  ):
-    | 'performance'
-    | 'security'
-    | 'scalability'
-    | 'usability'
-    | 'reliability'
-    | 'maintainability'
-    | undefined {
-    for (const [category, keywords] of Object.entries(NFR_QUALITY_KEYWORDS)) {
-      if (keywords.some((keyword) => text.includes(keyword))) {
-        return category as
-          | 'performance'
-          | 'security'
-          | 'scalability'
-          | 'usability'
-          | 'reliability'
-          | 'maintainability';
-      }
-    }
-    return undefined;
+    return FR_ACTION_VERB_PATTERNS.some((pattern) => pattern.test(text));
   }
 
   /**
