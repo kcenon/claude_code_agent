@@ -473,6 +473,105 @@ Version: \${version}
     });
   });
 
+  describe('HTML comment placeholder replacement', () => {
+    it('should replace purpose/overview comments with project description', async () => {
+      const templateContent = `# \${product_name}
+
+## 1. Purpose
+
+<!-- Describe the purpose of this product -->
+
+## 2. Scope
+
+<!-- Describe the scope of this project -->
+`;
+      await fs.promises.writeFile(testTemplatePath, templateContent);
+
+      const processor = new TemplateProcessor({ templatePath: testTemplatePath });
+      const info = createMinimalCollectedInfo({
+        project: {
+          name: 'Bookmark Manager',
+          description:
+            'A CLI tool for managing bookmarks with add, delete, list, and search commands.',
+        },
+      });
+      const metadata = createMetadata();
+
+      const result = processor.process(info, metadata);
+
+      expect(result.content).not.toContain('<!-- Describe the purpose');
+      expect(result.content).not.toContain('<!-- Describe the scope');
+      expect(result.content).toContain('A CLI tool for managing bookmarks');
+    });
+
+    it('should replace non-purpose comments with [To be elaborated]', async () => {
+      const templateContent = `# \${product_name}
+
+## Timeline
+
+<!-- Add timeline details here -->
+`;
+      await fs.promises.writeFile(testTemplatePath, templateContent);
+
+      const processor = new TemplateProcessor({ templatePath: testTemplatePath });
+      const info = createMinimalCollectedInfo();
+      const metadata = createMetadata();
+
+      const result = processor.process(info, metadata);
+
+      expect(result.content).not.toContain('<!-- Add timeline details here -->');
+      expect(result.content).toContain('[To be elaborated]');
+    });
+
+    it('should not modify inline HTML comments within other content', async () => {
+      const templateContent = `# \${product_name}
+
+Some text <!-- inline comment --> more text
+`;
+      await fs.promises.writeFile(testTemplatePath, templateContent);
+
+      const processor = new TemplateProcessor({ templatePath: testTemplatePath });
+      const info = createMinimalCollectedInfo();
+      const metadata = createMetadata();
+
+      const result = processor.process(info, metadata);
+
+      // Inline comments (not the entire line) should be preserved
+      expect(result.content).toContain('Some text <!-- inline comment --> more text');
+    });
+
+    it('should use source summary when project description is empty', async () => {
+      const templateContent = `# \${product_name}
+
+## Overview
+
+<!-- Describe the overview -->
+`;
+      await fs.promises.writeFile(testTemplatePath, templateContent);
+
+      const processor = new TemplateProcessor({ templatePath: testTemplatePath });
+      const info = createMinimalCollectedInfo({
+        project: {
+          name: 'Test',
+          description: '',
+        },
+        sources: [
+          {
+            type: 'conversation',
+            reference: 'user input',
+            summary: 'Build a task tracking CLI with TypeScript',
+          },
+        ],
+      });
+      const metadata = createMetadata();
+
+      const result = processor.process(info, metadata);
+
+      expect(result.content).toContain('Build a task tracking CLI with TypeScript');
+      expect(result.content).not.toContain('<!-- Describe the overview -->');
+    });
+  });
+
   describe('loadTemplate', () => {
     it('should cache loaded template', async () => {
       const templateContent = '# Test Template';

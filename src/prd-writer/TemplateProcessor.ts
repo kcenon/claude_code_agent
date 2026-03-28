@@ -128,6 +128,9 @@ export class TemplateProcessor {
     // Clean up template placeholders
     content = this.cleanupPlaceholders(content);
 
+    // Replace HTML comment placeholders with content from collected info
+    content = this.replaceHtmlCommentPlaceholders(content, collectedInfo);
+
     // Add generation footer
     content = this.addGenerationFooter(content);
 
@@ -804,6 +807,66 @@ export class TemplateProcessor {
     }
 
     return lines;
+  }
+
+  /**
+   * Replace HTML comment placeholders with content derived from collected info.
+   *
+   * Lines that consist solely of an HTML comment are either:
+   * - Replaced with relevant source text (for purpose/overview/scope comments)
+   * - Replaced with '[To be elaborated]' (for other placeholder comments)
+   *
+   * @param content - Template content after variable substitution and section generation
+   * @param info - The collected information
+   * @returns Content with HTML comment placeholders replaced
+   */
+  private replaceHtmlCommentPlaceholders(content: string, info: CollectedInfo): string {
+    // Build descriptive text from available sources
+    const sourceText = this.extractSourceText(info);
+
+    // Keywords in comment text that indicate purpose/overview/scope sections
+    const purposeKeywords = ['purpose', 'overview', 'scope', 'describe', 'background', 'context'];
+
+    return content
+      .split('\n')
+      .map((line) => {
+        const trimmed = line.trim();
+        // Only match lines that are entirely an HTML comment
+        if (!/^<!--\s*.+\s*-->$/.test(trimmed)) {
+          return line;
+        }
+
+        const commentText = trimmed.toLowerCase();
+
+        // For purpose/overview/scope placeholders, use source text if available
+        if (sourceText.length > 0 && purposeKeywords.some((kw) => commentText.includes(kw))) {
+          return sourceText;
+        }
+
+        return '[To be elaborated]';
+      })
+      .join('\n');
+  }
+
+  /**
+   * Extract descriptive text from collected info sources or project description.
+   *
+   * @param info - The collected information
+   * @returns Source text suitable for replacing purpose/overview placeholders
+   */
+  private extractSourceText(info: CollectedInfo): string {
+    // Prefer project description
+    if (info.project.description.length > 0) {
+      return info.project.description;
+    }
+
+    // Fall back to first source summary
+    const sources = info.sources ?? [];
+    if (sources.length > 0 && sources[0]?.summary !== undefined && sources[0].summary.length > 0) {
+      return sources[0].summary;
+    }
+
+    return '';
   }
 
   /**
