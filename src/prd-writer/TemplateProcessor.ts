@@ -102,6 +102,22 @@ export class TemplateProcessor {
       }
     });
 
+    // Replace mustache-style variables {{VARIABLE_NAME}}
+    content = content.replace(/\{\{([^}]+)\}\}/g, (_match, rawName: string) => {
+      const key = this.resolveMustacheKey(rawName.trim());
+      const value = variables.get(key);
+      if (value !== undefined) {
+        substitutedVariables.push(rawName.trim());
+        return value;
+      } else {
+        missingVariables.push(rawName.trim());
+        if (this.options.removeUnsubstituted) {
+          return '';
+        }
+        return '[Not yet generated]';
+      }
+    });
+
     // Generate dynamic sections
     content = this.generateFunctionalRequirementsSection(content, collectedInfo);
     content = this.generateNonFunctionalRequirementsSection(content, collectedInfo);
@@ -347,6 +363,36 @@ export class TemplateProcessor {
     vars.set('project_description', info.project.description);
 
     return vars;
+  }
+
+  /**
+   * Map common mustache-style UPPER_CASE names to internal snake_case keys.
+   */
+  private static readonly MUSTACHE_KEY_MAP: Record<string, string> = {
+    PROJECT_NAME: 'product_name',
+    PRODUCT_NAME: 'product_name',
+    PROJECT_ID: 'project_id',
+    DOCUMENT_ID: 'document_id',
+    VERSION: 'version',
+    STATUS: 'status',
+    DATE: 'created_date',
+    CREATED_DATE: 'created_date',
+    UPDATED_DATE: 'updated_date',
+    AUTHOR: 'author',
+    PROJECT_DESCRIPTION: 'project_description',
+    DESCRIPTION: 'project_description',
+  };
+
+  /**
+   * Resolve a mustache key to the internal variable map key.
+   * Tries the static mapping first, then converts to snake_case.
+   * @param rawName
+   */
+  private resolveMustacheKey(rawName: string): string {
+    const mapped = TemplateProcessor.MUSTACHE_KEY_MAP[rawName];
+    if (mapped !== undefined) return mapped;
+    // Fall back to lowercasing
+    return rawName.toLowerCase().replace(/\s+/g, '_');
   }
 
   /**
@@ -766,13 +812,12 @@ export class TemplateProcessor {
    * @returns Content with unsubstituted placeholder lines removed
    */
   private cleanupPlaceholders(content: string): string {
-    // Remove lines with only placeholders
+    // Remove lines that consist only of unsubstituted placeholders (${...} or {{...}})
     return content
       .split('\n')
       .filter((line) => {
         const trimmed = line.trim();
-        // Keep lines that don't have unsubstituted variables or are not just placeholders
-        return !trimmed.match(/^\$\{[^}]+\}$/);
+        return !trimmed.match(/^(\$\{[^}]+\}|\{\{[^}]+\}\}|\[Not yet generated\])$/);
       })
       .join('\n');
   }

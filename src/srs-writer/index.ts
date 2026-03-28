@@ -43,6 +43,7 @@ export {
 export {
   SRSWriterError,
   PRDNotFoundError,
+  PRDQualityError,
   PRDParseError,
   TemplateNotFoundError,
   TemplateProcessingError,

@@ -9,9 +9,7 @@ describe('TemplateProcessor', () => {
   const testTemplateDir = path.join(process.cwd(), 'tests', 'prd-writer', 'test-templates');
   const testTemplatePath = path.join(testTemplateDir, 'test-template.md');
 
-  const createMinimalCollectedInfo = (
-    overrides: Partial<CollectedInfo> = {}
-  ): CollectedInfo => ({
+  const createMinimalCollectedInfo = (overrides: Partial<CollectedInfo> = {}): CollectedInfo => ({
     schemaVersion: '1.0.0',
     projectId: '001',
     status: 'completed',
@@ -211,9 +209,7 @@ Version: \${version}
               description: 'Allow users to authenticate',
               priority: 'P0',
               status: 'Proposed',
-              acceptanceCriteria: [
-                { id: 'AC-001', description: 'Login works', testable: true },
-              ],
+              acceptanceCriteria: [{ id: 'AC-001', description: 'Login works', testable: true }],
               dependencies: [],
               userStories: [],
             },
@@ -229,9 +225,7 @@ Version: \${version}
             },
           ],
         },
-        constraints: [
-          { id: 'CON-001', description: 'Use TypeScript', reason: 'Standard' },
-        ],
+        constraints: [{ id: 'CON-001', description: 'Use TypeScript', reason: 'Standard' }],
         assumptions: [
           {
             id: 'ASM-001',
@@ -240,9 +234,7 @@ Version: \${version}
             riskIfWrong: 'Offline issues',
           },
         ],
-        dependencies: [
-          { name: 'vitest', type: 'library', required: true, purpose: 'Testing' },
-        ],
+        dependencies: [{ name: 'vitest', type: 'library', required: true, purpose: 'Testing' }],
       });
       const metadata = createMetadata();
 
@@ -412,6 +404,72 @@ Version: \${version}
       expect(content).toContain('Internal Dependencies');
       expect(content).toContain('axios');
       expect(content).toContain('node');
+    });
+  });
+
+  describe('mustache variable substitution', () => {
+    it('should replace {{PROJECT_NAME}} with product name', async () => {
+      const templateContent = '# {{PROJECT_NAME}}\n\nVersion: {{VERSION}}\nDate: {{DATE}}';
+      await fs.promises.writeFile(testTemplatePath, templateContent);
+
+      const processor = new TemplateProcessor({ templatePath: testTemplatePath });
+      const info = createMinimalCollectedInfo();
+      const metadata = createMetadata();
+
+      const result = processor.process(info, metadata);
+
+      expect(result.content).toContain('# Test Project');
+      expect(result.content).toContain('Version: 1.0.0');
+      expect(result.content).toContain('Date: 2024-01-01');
+      expect(result.content).not.toContain('{{PROJECT_NAME}}');
+      expect(result.content).not.toContain('{{VERSION}}');
+    });
+
+    it('should replace unmatched mustache vars with [Not yet generated]', async () => {
+      const templateContent = '# {{PROJECT_NAME}}\n\n{{UNKNOWN_FIELD}}';
+      await fs.promises.writeFile(testTemplatePath, templateContent);
+
+      const processor = new TemplateProcessor({ templatePath: testTemplatePath });
+      const info = createMinimalCollectedInfo();
+      const metadata = createMetadata();
+
+      const result = processor.process(info, metadata);
+
+      expect(result.content).toContain('# Test Project');
+      expect(result.missingVariables).toContain('UNKNOWN_FIELD');
+    });
+
+    it('should remove unmatched mustache vars when removeUnsubstituted is set', async () => {
+      const templateContent = '# {{PROJECT_NAME}}\n{{UNKNOWN_FIELD}}';
+      await fs.promises.writeFile(testTemplatePath, templateContent);
+
+      const processor = new TemplateProcessor({
+        templatePath: testTemplatePath,
+        removeUnsubstituted: true,
+      });
+      const info = createMinimalCollectedInfo();
+      const metadata = createMetadata();
+
+      const result = processor.process(info, metadata);
+
+      expect(result.content).toContain('# Test Project');
+      expect(result.content).not.toContain('UNKNOWN_FIELD');
+      expect(result.content).not.toContain('[Not yet generated]');
+    });
+
+    it('should handle mixed ${...} and {{...}} patterns', async () => {
+      const templateContent = '# {{PROJECT_NAME}}\n\nID: ${project_id}\nDesc: {{DESCRIPTION}}';
+      await fs.promises.writeFile(testTemplatePath, templateContent);
+
+      const processor = new TemplateProcessor({ templatePath: testTemplatePath });
+      const info = createMinimalCollectedInfo();
+      const metadata = createMetadata();
+
+      const result = processor.process(info, metadata);
+
+      expect(result.content).toContain('# Test Project');
+      expect(result.content).toContain('ID: 001');
+      expect(result.content).toContain(info.project.description);
     });
   });
 

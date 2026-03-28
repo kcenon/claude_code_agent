@@ -185,6 +185,26 @@ export class GenerationError extends SRSWriterError {
 }
 
 /**
+ * Error thrown when PRD content quality is too low for SRS generation
+ */
+export class PRDQualityError extends SRSWriterError {
+  /** The project ID */
+  public readonly projectId: string;
+  /** Detected quality issues */
+  public readonly issues: readonly string[];
+
+  constructor(projectId: string, issues: readonly string[]) {
+    super(
+      `PRD quality is insufficient for SRS generation (project "${projectId}"): ${issues.join('; ')}. ` +
+        'Run the pipeline with an AI bridge or manually populate the PRD before generating SRS.'
+    );
+    this.name = 'PRDQualityError';
+    this.projectId = projectId;
+    this.issues = issues;
+  }
+}
+
+/**
  * Error thrown when file write operation fails
  */
 export class FileWriteError extends SRSWriterError {
