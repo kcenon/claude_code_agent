@@ -18,13 +18,13 @@ RUN apt-get update \
        jq \
        fzf \
        zsh \
-       sudo \
+       tini \
     && rm -rf /var/lib/apt/lists/*
 
 # Install GitHub CLI (gh) — separate layer for cache efficiency
 # Why: gh releases change independently from apt packages
 RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
-      | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
+      | gpg --dearmor -o /usr/share/keyrings/githubcli-archive-keyring.gpg \
     && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
       | tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
     && apt-get update \
@@ -44,4 +44,5 @@ ENV NODE_OPTIONS=--max-old-space-size=4096
 USER node
 
 # Default command keeps container alive for docker compose exec
+ENTRYPOINT ["tini", "--"]
 CMD ["sleep", "infinity"]
