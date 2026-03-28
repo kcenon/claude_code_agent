@@ -15,13 +15,23 @@ if [ -n "$REPO_DIR" ] && [ -d "$REPO_DIR/.git" ]; then
     for wt in $(git worktree list --porcelain | grep "^worktree " | awk '{print $2}'); do
         if [ "$wt" != "$(pwd)" ]; then
             echo "  Removing worktree: $wt"
+            if [[ -n $(git -C "$wt" status --porcelain 2>/dev/null) ]]; then
+                echo "WARNING: $wt has uncommitted changes"
+                read -rp "Force remove? (y/N) " force_confirm
+                [[ "$force_confirm" == "y" ]] || continue
+            fi
             git worktree remove "$wt" --force 2>/dev/null || true
         fi
     done
+    git branch -d worktree-a worktree-b 2>/dev/null || true
 fi
 
 echo "=== Removing state directories ==="
-read -p "Remove ~/.claude-state/*? (y/N) " confirm
+if [[ -z "${HOME:-}" || ! -d "$HOME" ]]; then
+    echo "ERROR: HOME is not set or invalid" >&2
+    exit 1
+fi
+read -rp "Remove ~/.claude-state/*? (y/N) " confirm
 if [ "$confirm" = "y" ] || [ "$confirm" = "Y" ]; then
     rm -rf "${HOME}/.claude-state"
     echo "  State directories removed."
