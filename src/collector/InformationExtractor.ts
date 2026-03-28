@@ -81,6 +81,75 @@ export interface InformationExtractorOptions {
 }
 
 /**
+ * Action verbs indicating functional requirements in prose
+ */
+const FR_ACTION_VERBS: readonly string[] = [
+  'add',
+  'create',
+  'delete',
+  'remove',
+  'list',
+  'search',
+  'find',
+  'display',
+  'show',
+  'update',
+  'edit',
+  'modify',
+  'manage',
+  'track',
+  'generate',
+  'export',
+  'import',
+  'send',
+  'receive',
+  'filter',
+  'sort',
+  'store',
+  'save',
+  'load',
+  'download',
+  'upload',
+  'validate',
+  'convert',
+  'process',
+  'notify',
+  'support',
+  'handle',
+  'provide',
+  'allow',
+  'enable',
+  'implement',
+  'build',
+  'configure',
+  'register',
+  'login',
+  'logout',
+  'authenticate',
+  'authorize',
+];
+
+/**
+ * Quality keywords indicating non-functional requirements in prose
+ */
+const NFR_QUALITY_KEYWORDS: Record<string, readonly string[]> = {
+  performance: [
+    'fast',
+    'performance',
+    'latency',
+    'speed',
+    'responsive',
+    'efficient',
+    'lightweight',
+  ],
+  security: ['secure', 'security', 'encrypted', 'protected', 'authentication', 'authorization'],
+  scalability: ['scalable', 'concurrent', 'distributed', 'horizontal'],
+  reliability: ['reliable', 'available', 'fault-tolerant', 'resilient', 'backup', 'recovery'],
+  usability: ['user-friendly', 'intuitive', 'accessible', 'simple', 'easy-to-use'],
+  maintainability: ['maintainable', 'modular', 'testable', 'documented', 'readable', 'clean'],
+};
+
+/**
  * Acceptance criteria indicator patterns
  */
 const AC_INDICATORS: readonly string[] = [
@@ -367,7 +436,123 @@ export class InformationExtractor {
       }
     }
 
+    // Prose fallback: when structured extraction finds nothing, try action-verb detection
+    if (functional.length === 0 && nonFunctional.length === 0) {
+      const proseClauses = this.splitIntoProseClauses(content);
+      for (const clause of proseClauses) {
+        const normalized = clause.toLowerCase();
+
+        // Check for NFR quality keywords first
+        const nfrCategory = this.detectProseNfrCategory(normalized);
+        if (nfrCategory !== undefined) {
+          nonFunctional.push({
+            id: this.nextNfrId(),
+            title: this.extractTitle(clause),
+            description: clause.trim(),
+            priority: this.detectPriority(normalized),
+            source,
+            confidence: 0.5,
+            isFunctional: false,
+            nfrCategory,
+          });
+          continue;
+        }
+
+        // Check for action verbs → FR candidate
+        if (this.hasActionVerb(normalized)) {
+          functional.push({
+            id: this.nextRequirementId(),
+            title: this.extractTitle(clause),
+            description: clause.trim(),
+            priority: this.detectPriority(normalized),
+            source,
+            confidence: 0.5,
+            isFunctional: true,
+          });
+        }
+      }
+    }
+
     return { functional, nonFunctional };
+  }
+
+  /**
+   * Split prose content into clauses for fallback extraction.
+   * Splits on sentence boundaries (period, semicolon) and comma-separated
+   * clauses that start with a capital letter or action verb.
+   *
+   * @param content - The raw prose text
+   * @returns Array of clause strings
+   */
+  private splitIntoProseClauses(content: string): string[] {
+    const clauses: string[] = [];
+
+    // First split by sentence boundaries: period, semicolon, exclamation, question
+    const sentences = content
+      .split(/[.;!?]+/)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 5);
+
+    for (const sentence of sentences) {
+      // Further split by comma when followed by a space and action verb pattern
+      const parts = sentence.split(/,\s+/);
+      if (parts.length > 1) {
+        for (const part of parts) {
+          const trimmed = part.trim();
+          if (trimmed.length > 5) {
+            clauses.push(trimmed);
+          }
+        }
+      } else {
+        clauses.push(sentence);
+      }
+    }
+
+    return clauses;
+  }
+
+  /**
+   * Check if text contains an action verb indicating a functional requirement
+   *
+   * @param text - Normalized (lowercase) text to check
+   * @returns True if the text contains an action verb
+   */
+  private hasActionVerb(text: string): boolean {
+    return FR_ACTION_VERBS.some((verb) => {
+      // Match the verb as a whole word to avoid false positives
+      const pattern = new RegExp(`\\b${verb}\\b`);
+      return pattern.test(text);
+    });
+  }
+
+  /**
+   * Detect NFR category from prose using quality keywords
+   *
+   * @param text - Normalized (lowercase) text to check
+   * @returns The detected NFR category or undefined
+   */
+  private detectProseNfrCategory(
+    text: string
+  ):
+    | 'performance'
+    | 'security'
+    | 'scalability'
+    | 'usability'
+    | 'reliability'
+    | 'maintainability'
+    | undefined {
+    for (const [category, keywords] of Object.entries(NFR_QUALITY_KEYWORDS)) {
+      if (keywords.some((keyword) => text.includes(keyword))) {
+        return category as
+          | 'performance'
+          | 'security'
+          | 'scalability'
+          | 'usability'
+          | 'reliability'
+          | 'maintainability';
+      }
+    }
+    return undefined;
   }
 
   /**
