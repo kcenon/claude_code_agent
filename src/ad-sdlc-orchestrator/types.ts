@@ -203,6 +203,8 @@ export interface OrchestratorSession {
   readonly resumedFrom?: string;
   /** Stages treated as pre-completed when resuming */
   readonly preCompletedStages?: readonly StageName[];
+  /** Whether the pipeline runs in local mode (no GitHub dependency) */
+  readonly localMode: boolean;
 }
 
 /**
@@ -225,6 +227,8 @@ export interface PipelineRequest {
   readonly startFromStage?: StageName;
   /** Stages to treat as already completed (auto-populated from prior session or computed from startFromStage) */
   readonly preCompletedStages?: readonly StageName[];
+  /** Run pipeline without GitHub — use local issue files and local review */
+  readonly localMode?: boolean;
 }
 
 /**
@@ -262,6 +266,8 @@ export interface OrchestratorConfig {
   readonly logLevel?: 'DEBUG' | 'INFO' | 'WARN' | 'ERROR';
   /** Checkpoint configuration for mid-stage persistence */
   readonly checkpoint?: CheckpointConfig;
+  /** Enable local mode by default (no GitHub dependency) */
+  readonly localMode?: boolean;
 }
 
 /**
@@ -292,6 +298,7 @@ export const DEFAULT_ORCHESTRATOR_CONFIG: Required<OrchestratorConfig> = {
     enabled: true,
     maxCheckpoints: 5,
   },
+  localMode: false,
 };
 
 /**

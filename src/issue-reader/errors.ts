@@ -78,6 +78,19 @@ export class CircularDependencyError extends IssueReaderError {
 }
 
 /**
+ * Error thrown when a local issue file is not found (local mode)
+ */
+export class LocalIssueFileNotFoundError extends IssueReaderError {
+  public readonly filePath: string;
+
+  constructor(filePath: string) {
+    super(`Local issue file not found: ${filePath}`, 'LOCAL_FILE_NOT_FOUND', { filePath });
+    this.name = 'LocalIssueFileNotFoundError';
+    this.filePath = filePath;
+  }
+}
+
+/**
  * Error thrown when scratchpad output writing fails
  */
 export class OutputWriteError extends IssueReaderError {
