@@ -101,6 +101,7 @@ interface CommandResult {
  */
 export class ReviewChecks {
   private readonly projectRoot: string;
+  private readonly enableSecurityScan: boolean;
   private readonly enableTestingChecks: boolean;
   private readonly enableStaticAnalysis: boolean;
   private readonly enableDependencyCheck: boolean;
@@ -112,6 +113,7 @@ export class ReviewChecks {
 
   constructor(options: ReviewChecksOptions = {}) {
     this.projectRoot = options.projectRoot ?? tryGetProjectRoot() ?? process.cwd();
+    this.enableSecurityScan = options.enableSecurityScan ?? true;
     this.enableTestingChecks = options.enableTestingChecks ?? true;
     this.enableStaticAnalysis = options.enableStaticAnalysis ?? true;
     this.enableDependencyCheck = options.enableDependencyCheck ?? true;
@@ -135,7 +137,9 @@ export class ReviewChecks {
     const comments: ReviewComment[] = [];
 
     // Run security checks
-    const securityChecks = await this.runSecurityChecks(changes);
+    const securityChecks = this.enableSecurityScan
+      ? await this.runSecurityChecks(changes)
+      : { comments: [] as ReviewComment[], items: [] as SecurityCheckItem[] };
     comments.push(...securityChecks.comments);
 
     // Run dependency vulnerability check
@@ -271,9 +275,11 @@ export class ReviewChecks {
       }
 
       // Run security checks for this batch
-      const securityChecks = await this.runSecurityChecks(batch);
-      securityItems.push(...securityChecks.items);
-      allComments.push(...securityChecks.comments);
+      if (this.enableSecurityScan) {
+        const securityChecks = await this.runSecurityChecks(batch);
+        securityItems.push(...securityChecks.items);
+        allComments.push(...securityChecks.comments);
+      }
 
       // Run static analysis for this batch
       if (this.enableStaticAnalysis) {

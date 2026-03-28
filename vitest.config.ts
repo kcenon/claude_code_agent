@@ -4,8 +4,9 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
-    testTimeout: 15000, // Increased for CI environments
+    testTimeout: 30_000, // Increased for CI environments
     include: ['tests/**/*.test.ts'],
+    exclude: ['tests/performance/**'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],

@@ -6,7 +6,12 @@
  */
 
 // Main classes and singletons
-export { CodeReaderAgent, getCodeReaderAgent, resetCodeReaderAgent } from './CodeReaderAgent.js';
+export {
+  CodeReaderAgent,
+  getCodeReaderAgent,
+  resetCodeReaderAgent,
+  resetTsMorphCache,
+} from './CodeReaderAgent.js';
 
 // Type exports
 export type {
