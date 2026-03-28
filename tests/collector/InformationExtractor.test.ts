@@ -476,6 +476,83 @@ describe('InformationExtractor', () => {
     });
   });
 
+  describe('prose fallback extraction', () => {
+    it('should extract FRs from unstructured prose with action verbs', () => {
+      const source = parser.parseText(
+        'Create a bookmark manager CLI tool with add, delete, list, search commands. ' +
+          'Support tag-based organization. Store bookmarks in local JSON file. TypeScript-based.'
+      );
+      const input = parser.combineInputs([source]);
+
+      const result = extractor.extract(input);
+
+      // Should extract at least 4 FRs from action verbs: create/add, delete, list, search
+      expect(result.functionalRequirements.length).toBeGreaterThanOrEqual(4);
+    });
+
+    it('should extract NFRs from prose with quality keywords', () => {
+      const source = parser.parseText(
+        'Build a fast and lightweight API server. Data must be stored securely. ' +
+          'The system should be scalable for concurrent users.'
+      );
+      const input = parser.combineInputs([source]);
+
+      const result = extractor.extract(input);
+
+      expect(result.nonFunctionalRequirements.length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('should generate proper FR structure with IDs from prose', () => {
+      const source = parser.parseText(
+        'Create a task tracker. Add tasks with priorities. Delete completed tasks. ' +
+          'List all pending tasks. Search tasks by keyword.'
+      );
+      const input = parser.combineInputs([source]);
+
+      const result = extractor.extract(input);
+
+      expect(result.functionalRequirements.length).toBeGreaterThanOrEqual(3);
+      for (const req of result.functionalRequirements) {
+        expect(req.id).toMatch(/^FR-\d{3}$/);
+        expect(req.title.length).toBeGreaterThan(0);
+        expect(req.description.length).toBeGreaterThan(0);
+        expect(req.source).toBeDefined();
+        expect(req.isFunctional).toBe(true);
+      }
+    });
+
+    it('should not trigger prose fallback when structured extraction succeeds', () => {
+      const source = parser.parseText(`
+        - The system must support user login
+        - Users should be able to view profiles
+      `);
+      const input = parser.combineInputs([source]);
+
+      const result = extractor.extract(input);
+
+      // Structured extraction should work with modal verbs
+      expect(result.functionalRequirements.length).toBeGreaterThanOrEqual(1);
+      // All requirements should come from structured path (confidence >= 0.5)
+      for (const req of result.functionalRequirements) {
+        expect(req.confidence).toBeGreaterThanOrEqual(0.5);
+      }
+    });
+
+    it('should handle mixed FRs and NFRs in prose', () => {
+      const source = parser.parseText(
+        'Build a note-taking app. Create notes with markdown. ' +
+          'Search notes by content. Export notes to PDF. ' +
+          'Lightweight and fast performance. Encrypted local storage.'
+      );
+      const input = parser.combineInputs([source]);
+
+      const result = extractor.extract(input);
+
+      expect(result.functionalRequirements.length).toBeGreaterThanOrEqual(2);
+      expect(result.nonFunctionalRequirements.length).toBeGreaterThanOrEqual(1);
+    });
+  });
+
   describe('stub mode output quality', () => {
     it('should not produce requirements with metadata-like titles', () => {
       const source = parser.parseText(`

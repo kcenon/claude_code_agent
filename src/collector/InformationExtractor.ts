@@ -40,11 +40,55 @@ const NFR_KEYWORDS: Record<string, readonly string[]> = {
     'performance',
     'ms',
     'seconds',
+    'responsive',
+    'efficient',
+    'lightweight',
   ],
-  security: ['secure', 'security', 'auth', 'encrypt', 'protect', 'access control', 'permission'],
-  scalability: ['scale', 'scalable', 'concurrent', 'users', 'load', 'capacity', 'horizontal'],
-  usability: ['easy', 'intuitive', 'user-friendly', 'accessible', 'ux', 'ui', 'interface'],
-  reliability: ['reliable', 'uptime', 'availability', '99.9%', 'fault tolerant', 'backup'],
+  security: [
+    'secure',
+    'security',
+    'auth',
+    'encrypt',
+    'encrypted',
+    'protect',
+    'protected',
+    'access control',
+    'permission',
+    'authentication',
+    'authorization',
+  ],
+  scalability: [
+    'scale',
+    'scalable',
+    'concurrent',
+    'users',
+    'load',
+    'capacity',
+    'horizontal',
+    'distributed',
+  ],
+  usability: [
+    'easy',
+    'intuitive',
+    'user-friendly',
+    'accessible',
+    'ux',
+    'ui',
+    'interface',
+    'simple',
+    'easy-to-use',
+  ],
+  reliability: [
+    'reliable',
+    'uptime',
+    'availability',
+    '99.9%',
+    'fault tolerant',
+    'fault-tolerant',
+    'backup',
+    'resilient',
+    'recovery',
+  ],
   maintainability: ['maintainable', 'modular', 'testable', 'clean', 'documented', 'readable'],
 };
 
@@ -79,6 +123,62 @@ export interface InformationExtractorOptions {
   /** Maximum number of clarification questions to generate */
   readonly maxQuestions?: number;
 }
+
+/**
+ * Action verbs indicating functional requirements in prose
+ */
+const FR_ACTION_VERBS: readonly string[] = [
+  'add',
+  'create',
+  'delete',
+  'remove',
+  'list',
+  'search',
+  'find',
+  'display',
+  'show',
+  'update',
+  'edit',
+  'modify',
+  'manage',
+  'track',
+  'generate',
+  'export',
+  'import',
+  'send',
+  'receive',
+  'filter',
+  'sort',
+  'store',
+  'save',
+  'load',
+  'download',
+  'upload',
+  'validate',
+  'convert',
+  'process',
+  'notify',
+  'support',
+  'handle',
+  'provide',
+  'allow',
+  'enable',
+  'implement',
+  'build',
+  'configure',
+  'register',
+  'login',
+  'logout',
+  'authenticate',
+  'authorize',
+];
+
+/**
+ * Pre-compiled word-boundary patterns for action verb detection
+ */
+const FR_ACTION_VERB_PATTERNS: readonly RegExp[] = FR_ACTION_VERBS.map(
+  (verb) => new RegExp(`\\b${verb}\\b`)
+);
 
 /**
  * Acceptance criteria indicator patterns
@@ -367,7 +467,89 @@ export class InformationExtractor {
       }
     }
 
+    // Prose fallback: when structured extraction finds nothing, try action-verb detection
+    if (functional.length === 0 && nonFunctional.length === 0) {
+      const proseClauses = this.splitIntoProseClauses(content);
+      for (const clause of proseClauses) {
+        const normalized = clause.toLowerCase();
+
+        // Check for NFR keywords first (reuse existing detection)
+        const nfrCategory = this.detectNfrCategory(normalized);
+        if (nfrCategory !== undefined) {
+          nonFunctional.push({
+            id: this.nextNfrId(),
+            title: this.extractTitle(clause),
+            description: clause.trim(),
+            priority: this.detectPriority(normalized),
+            source,
+            confidence: 0.5,
+            isFunctional: false,
+            nfrCategory,
+          });
+          continue;
+        }
+
+        // Check for action verbs → FR candidate
+        if (this.hasActionVerb(normalized)) {
+          functional.push({
+            id: this.nextRequirementId(),
+            title: this.extractTitle(clause),
+            description: clause.trim(),
+            priority: this.detectPriority(normalized),
+            source,
+            confidence: 0.5,
+            isFunctional: true,
+          });
+        }
+      }
+    }
+
     return { functional, nonFunctional };
+  }
+
+  /**
+   * Split prose content into clauses for fallback extraction.
+   * Splits on sentence boundaries (period, semicolon) and comma-separated
+   * clauses that start with a capital letter or action verb.
+   *
+   * @param content - The raw prose text
+   * @returns Array of clause strings
+   */
+  private splitIntoProseClauses(content: string): string[] {
+    const clauses: string[] = [];
+
+    // First split by sentence boundaries: period, semicolon, exclamation, question
+    const sentences = content
+      .split(/[.;!?]+/)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 5);
+
+    for (const sentence of sentences) {
+      // Further split by comma when followed by a space and action verb pattern
+      const parts = sentence.split(/,\s+/);
+      if (parts.length > 1) {
+        for (const part of parts) {
+          const trimmed = part.trim();
+          if (trimmed.length > 5) {
+            clauses.push(trimmed);
+          }
+        }
+      } else {
+        clauses.push(sentence);
+      }
+    }
+
+    return clauses;
+  }
+
+  /**
+   * Check if text contains an action verb indicating a functional requirement
+   *
+   * @param text - Normalized (lowercase) text to check
+   * @returns True if the text contains an action verb
+   */
+  private hasActionVerb(text: string): boolean {
+    return FR_ACTION_VERB_PATTERNS.some((pattern) => pattern.test(text));
   }
 
   /**
