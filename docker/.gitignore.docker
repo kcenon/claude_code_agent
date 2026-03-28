@@ -6,3 +6,10 @@
 # Claude Code local settings (personal, do not commit)
 CLAUDE.local.md
 settings.local.json
+
+# Backup and OS files
+*.bak
+.DS_Store
+
+# Session state
+.claude/resume.md

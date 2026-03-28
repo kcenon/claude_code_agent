@@ -7,12 +7,10 @@ services:
       - ${PROJECT_DIR_A}:/workspace
       - ${HOME}/.claude-state/account-a:/home/node/.claude
       - node_modules_a:/workspace/node_modules
-      - "/Volumes/T5 EVO/Sources:/sources"                  # Host sources access
 
   claude-b:
     volumes:
       - ${PROJECT_DIR_B}:/workspace
       - ${HOME}/.claude-state/account-b:/home/node/.claude
       - node_modules_b:/workspace/node_modules
-      - "/Volumes/T5 EVO/Sources:/sources"                  # Host sources access
 
