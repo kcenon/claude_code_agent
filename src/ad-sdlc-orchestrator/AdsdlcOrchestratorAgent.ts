@@ -427,7 +427,9 @@ export class AdsdlcOrchestratorAgent implements IAgent {
     }
 
     const stageResults = this.session.stageResults;
-    const completed = stageResults.filter((s) => s.status === 'completed').length;
+    const completed = stageResults.filter(
+      (s) => s.status === 'completed' || s.status === 'degraded'
+    ).length;
     const failed = stageResults.filter((s) => s.status === 'failed').length;
     const skipped = stageResults.filter((s) => s.status === 'skipped').length;
     const running = stageResults.find((s) => s.status === ('running' as PipelineStageStatus));
@@ -630,10 +632,37 @@ export class AdsdlcOrchestratorAgent implements IAgent {
           }
         }
 
-        const result = await this.executeStageWithRetry(stage, session);
+        let result = await this.executeStageWithRetry(stage, session);
+
+        // Post-stage content quality validation for completed stages
+        if (result.status === 'completed') {
+          try {
+            const validator = this.createArtifactValidator(session.projectDir);
+            const contentResult = await validator.validateStageOutput(stage.name, session.mode);
+            if (contentResult.quality === 'degraded') {
+              result = {
+                ...result,
+                status: 'degraded',
+                warnings: [...(result.warnings ?? []), ...contentResult.warnings],
+              };
+              getLogger().warn('Stage output quality degraded', {
+                agent: 'AdsdlcOrchestratorAgent',
+                stage: stage.name,
+                warnings: contentResult.warnings,
+              });
+            }
+          } catch (err) {
+            getLogger().warn('Content validation failed (non-critical)', {
+              agent: 'AdsdlcOrchestratorAgent',
+              stage: stage.name,
+              error: err instanceof Error ? err.message : String(err),
+            });
+          }
+        }
+
         results.push(result);
 
-        if (result.status === 'completed') {
+        if (result.status === 'completed' || result.status === 'degraded') {
           completedStages.add(stage.name);
         }
 
@@ -1150,7 +1179,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
     if (stages.length === 0) return 'completed';
 
     const hasFailures = stages.some((s) => s.status === 'failed');
-    const hasCompletions = stages.some((s) => s.status === 'completed');
+    const hasCompletions = stages.some((s) => s.status === 'completed' || s.status === 'degraded');
     const allSkipped = stages.every((s) => s.status === 'skipped');
 
     if (allSkipped) return 'failed';

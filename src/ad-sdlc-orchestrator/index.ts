@@ -24,7 +24,12 @@ export {
   ENHANCEMENT_ARTIFACTS,
 } from './ArtifactValidator.js';
 
-export type { ArtifactSpec, StageArtifactMap, ValidationResult } from './ArtifactValidator.js';
+export type {
+  ArtifactSpec,
+  ContentValidationResult,
+  StageArtifactMap,
+  ValidationResult,
+} from './ArtifactValidator.js';
 
 // Type exports
 export type {

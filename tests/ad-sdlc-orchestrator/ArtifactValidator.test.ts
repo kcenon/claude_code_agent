@@ -206,6 +206,193 @@ describe('ArtifactValidator', () => {
       expect(result.found).toHaveLength(2);
     });
   });
+
+  describe('validateStageOutput (content quality)', () => {
+    describe('collection stage', () => {
+      it('should return good quality when collected_info.yaml has FR with title and description', async () => {
+        const infoDir = path.join(tempDir, '.ad-sdlc', 'scratchpad', 'info', 'session-001');
+        await fs.mkdir(infoDir, { recursive: true });
+        await fs.writeFile(
+          path.join(infoDir, 'collected_info.yaml'),
+          'functional_requirements:\n  - title: User Login\n    description: Users can log in with email and password\n'
+        );
+
+        const result = await validator.validateStageOutput('collection', 'greenfield');
+        expect(result.stage).toBe('collection');
+        expect(result.quality).toBe('good');
+        expect(result.warnings).toHaveLength(0);
+      });
+
+      it('should return degraded when collected_info.yaml has no FR content', async () => {
+        const infoDir = path.join(tempDir, '.ad-sdlc', 'scratchpad', 'info', 'session-001');
+        await fs.mkdir(infoDir, { recursive: true });
+        await fs.writeFile(
+          path.join(infoDir, 'collected_info.yaml'),
+          'functional_requirements:\n  - title:\n    description:\n'
+        );
+
+        const result = await validator.validateStageOutput('collection', 'greenfield');
+        expect(result.quality).toBe('degraded');
+        expect(result.warnings.length).toBeGreaterThan(0);
+      });
+
+      it('should return degraded when collected_info.yaml does not exist', async () => {
+        const result = await validator.validateStageOutput('collection', 'greenfield');
+        expect(result.quality).toBe('degraded');
+        expect(result.warnings).toContain('collected_info.yaml not found');
+      });
+    });
+
+    describe('prd_generation stage', () => {
+      it('should return good quality for a well-formed PRD', async () => {
+        const docsDir = path.join(tempDir, '.ad-sdlc', 'scratchpad', 'documents', 'v1');
+        await fs.mkdir(docsDir, { recursive: true });
+        await fs.writeFile(
+          path.join(docsDir, 'prd.md'),
+          '# PRD: My Project\n\n## Overview\n\nThis is a product requirements document that describes the functional and non-functional requirements for the system in sufficient detail.\n'
+        );
+
+        const result = await validator.validateStageOutput('prd_generation', 'greenfield');
+        expect(result.quality).toBe('good');
+        expect(result.warnings).toHaveLength(0);
+      });
+
+      it('should detect unsubstituted ${...} template variables', async () => {
+        const docsDir = path.join(tempDir, '.ad-sdlc', 'scratchpad', 'documents', 'v1');
+        await fs.mkdir(docsDir, { recursive: true });
+        await fs.writeFile(
+          path.join(docsDir, 'prd.md'),
+          '# PRD: ${PROJECT_NAME}\n\nThis project ${DESCRIPTION} provides enough content to pass the length check for meaningful content in the validator.\n'
+        );
+
+        const result = await validator.validateStageOutput('prd_generation', 'greenfield');
+        expect(result.quality).toBe('degraded');
+        expect(result.warnings.some((w) => w.includes('template variable'))).toBe(true);
+      });
+
+      it('should detect unsubstituted {{...}} mustache variables', async () => {
+        const docsDir = path.join(tempDir, '.ad-sdlc', 'scratchpad', 'documents', 'v1');
+        await fs.mkdir(docsDir, { recursive: true });
+        await fs.writeFile(
+          path.join(docsDir, 'prd.md'),
+          '# PRD: {{PROJECT_NAME}}\n\nThe {{DESCRIPTION}} here provides enough meaningful content to pass the minimum length check for the validator.\n'
+        );
+
+        const result = await validator.validateStageOutput('prd_generation', 'greenfield');
+        expect(result.quality).toBe('degraded');
+        expect(result.warnings.some((w) => w.includes('template variable'))).toBe(true);
+      });
+
+      it('should detect insufficient content length', async () => {
+        const docsDir = path.join(tempDir, '.ad-sdlc', 'scratchpad', 'documents', 'v1');
+        await fs.mkdir(docsDir, { recursive: true });
+        await fs.writeFile(path.join(docsDir, 'prd.md'), '# PRD\n\nShort.\n');
+
+        const result = await validator.validateStageOutput('prd_generation', 'greenfield');
+        expect(result.quality).toBe('degraded');
+        expect(result.warnings.some((w) => w.includes('insufficient meaningful content'))).toBe(
+          true
+        );
+      });
+
+      it('should return degraded when PRD file is missing', async () => {
+        const result = await validator.validateStageOutput('prd_generation', 'greenfield');
+        expect(result.quality).toBe('degraded');
+        expect(result.warnings).toContain('PRD document not found in scratchpad');
+      });
+    });
+
+    describe('srs_generation stage', () => {
+      it('should return good quality for a well-formed SRS', async () => {
+        const docsDir = path.join(tempDir, '.ad-sdlc', 'scratchpad', 'documents', 'v1');
+        await fs.mkdir(docsDir, { recursive: true });
+        await fs.writeFile(
+          path.join(docsDir, 'srs.md'),
+          '# SRS: My Application\n\n## 3. System Features\n\n### 3.1 User Management\n'
+        );
+
+        const result = await validator.validateStageOutput('srs_generation', 'greenfield');
+        expect(result.quality).toBe('good');
+        expect(result.warnings).toHaveLength(0);
+      });
+
+      it('should detect missing System Features section', async () => {
+        const docsDir = path.join(tempDir, '.ad-sdlc', 'scratchpad', 'documents', 'v1');
+        await fs.mkdir(docsDir, { recursive: true });
+        await fs.writeFile(
+          path.join(docsDir, 'srs.md'),
+          '# SRS: My Application\n\n## Introduction\n\nSome intro text.\n'
+        );
+
+        const result = await validator.validateStageOutput('srs_generation', 'greenfield');
+        expect(result.quality).toBe('degraded');
+        expect(result.warnings.some((w) => w.includes('System Features'))).toBe(true);
+      });
+
+      it('should detect placeholder product name "Unknown Product"', async () => {
+        const docsDir = path.join(tempDir, '.ad-sdlc', 'scratchpad', 'documents', 'v1');
+        await fs.mkdir(docsDir, { recursive: true });
+        await fs.writeFile(
+          path.join(docsDir, 'srs.md'),
+          '# SRS: Unknown Product\n\n## 3. System Features\n\n### 3.1 Feature A\n'
+        );
+
+        const result = await validator.validateStageOutput('srs_generation', 'greenfield');
+        expect(result.quality).toBe('degraded');
+        expect(result.warnings.some((w) => w.includes('placeholder product name'))).toBe(true);
+      });
+
+      it('should detect template variable in product name', async () => {
+        const docsDir = path.join(tempDir, '.ad-sdlc', 'scratchpad', 'documents', 'v1');
+        await fs.mkdir(docsDir, { recursive: true });
+        await fs.writeFile(
+          path.join(docsDir, 'srs.md'),
+          '# SRS: ${PROJECT_NAME}\n\n## 3. System Features\n\n### 3.1 Feature A\n'
+        );
+
+        const result = await validator.validateStageOutput('srs_generation', 'greenfield');
+        expect(result.quality).toBe('degraded');
+        expect(result.warnings.some((w) => w.includes('placeholder product name'))).toBe(true);
+      });
+
+      it('should return degraded when SRS file is missing', async () => {
+        const result = await validator.validateStageOutput('srs_generation', 'greenfield');
+        expect(result.quality).toBe('degraded');
+        expect(result.warnings).toContain('SRS document not found in scratchpad');
+      });
+    });
+
+    describe('prd_update and srs_update stages', () => {
+      it('should validate prd_update the same as prd_generation', async () => {
+        const docsDir = path.join(tempDir, '.ad-sdlc', 'scratchpad', 'documents', 'v1');
+        await fs.mkdir(docsDir, { recursive: true });
+        await fs.writeFile(path.join(docsDir, 'prd.md'), '# PRD\n\nShort.\n');
+
+        const result = await validator.validateStageOutput('prd_update', 'enhancement');
+        expect(result.quality).toBe('degraded');
+      });
+
+      it('should validate srs_update the same as srs_generation', async () => {
+        const result = await validator.validateStageOutput('srs_update', 'enhancement');
+        expect(result.quality).toBe('degraded');
+        expect(result.warnings).toContain('SRS document not found in scratchpad');
+      });
+    });
+
+    describe('other stages', () => {
+      it('should return good quality for stages without content validation', async () => {
+        const result = await validator.validateStageOutput('initialization', 'greenfield');
+        expect(result.quality).toBe('good');
+        expect(result.warnings).toHaveLength(0);
+      });
+
+      it('should return good quality for sds_generation (no content check yet)', async () => {
+        const result = await validator.validateStageOutput('sds_generation', 'greenfield');
+        expect(result.quality).toBe('good');
+        expect(result.warnings).toHaveLength(0);
+      });
+    });
+  });
 });
 
 describe('Artifact Map Definitions', () => {
