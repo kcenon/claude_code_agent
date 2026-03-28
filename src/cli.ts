@@ -951,7 +951,17 @@ program
       });
     }
 
-    // 5. Config files
+    // 5. Local mode
+    const localModeActive = process.env['AD_SDLC_LOCAL'] === '1';
+    checks.push({
+      label: 'Local Mode',
+      ok: true,
+      detail: localModeActive
+        ? 'active (AD_SDLC_LOCAL=1)'
+        : 'available (use --local flag or AD_SDLC_LOCAL=1)',
+    });
+
+    // 6. Config files
     const configResult = configFilesExist(resolve(projectDir, '.ad-sdlc', 'config'));
     if (configResult.workflow && configResult.agents) {
       checks.push({ label: 'Config files', ok: true, detail: 'workflow.yaml + agents.yaml found' });
@@ -969,7 +979,7 @@ program
       });
     }
 
-    // 6. Disk space
+    // 7. Disk space
     try {
       const { statfsSync } = await import('node:fs');
       const stats = statfsSync(projectDir);
@@ -1023,6 +1033,7 @@ program
     false
   )
   .option('--resume <session-id>', 'Resume a previously interrupted pipeline session')
+  .option('-L, --local', 'Run in local mode without GitHub dependency')
   .action(async (requirements: string, cmdOptions: Record<string, unknown>) => {
     const modeInput = typeof cmdOptions['mode'] === 'string' ? cmdOptions['mode'] : 'greenfield';
     const stopAfter =
@@ -1035,6 +1046,7 @@ program
     const allowStub = cmdOptions['allowStub'] === true;
     const resumeSessionId =
       typeof cmdOptions['resume'] === 'string' ? cmdOptions['resume'] : undefined;
+    const localMode = cmdOptions['local'] === true || process.env['AD_SDLC_LOCAL'] === '1';
 
     // Validate mode
     const validModes = ['greenfield', 'enhancement', 'import'];
@@ -1162,6 +1174,9 @@ program
     if (stopAfter !== undefined) {
       output.info(chalk.dim(`Stop after: ${stopAfter}`));
     }
+    if (localMode) {
+      output.info(chalk.dim('Local mode: enabled (GitHub integration disabled)'));
+    }
     output.blank();
 
     const agent = getAdsdlcOrchestratorAgent();
@@ -1172,6 +1187,7 @@ program
         projectDir,
         userRequest: requirements,
         overrideMode: mode,
+        localMode,
         ...(resumeSessionId !== undefined && {
           resumeMode: 'resume' as const,
           resumeSessionId,
