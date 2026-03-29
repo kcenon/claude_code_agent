@@ -251,14 +251,15 @@ Must use TypeScript and Node.js.
       expect(errors.some((e) => e.includes('document ID'))).toBe(true);
     });
 
-    it('should detect no features', () => {
+    it('should not treat empty features as a validation error', () => {
       const parser = new SRSParser();
       const srs = parser.parse(`
 | **Document ID** | SRS-001 |
       `);
       const errors = parser.validate(srs);
 
-      expect(errors.some((e) => e.includes('No features'))).toBe(true);
+      // Empty features is a warning handled by SDSWriterAgent, not a validation error
+      expect(errors.some((e) => e.includes('No features'))).toBe(false);
     });
 
     it('should throw in strict mode for invalid SRS', () => {

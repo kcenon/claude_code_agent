@@ -177,10 +177,16 @@ export class SDSWriterAgent implements IAgent {
     const srsContent = fs.readFileSync(srsPath, 'utf-8');
     const parsedSRS = this.srsParser.parse(srsContent);
 
-    // Validate SRS
+    // Validate SRS — only critical errors block session creation
     const validationErrors = this.srsParser.validate(parsedSRS);
     if (validationErrors.length > 0) {
       throw new ValidationError(validationErrors);
+    }
+
+    // Collect non-fatal warnings
+    const warnings: string[] = [];
+    if (parsedSRS.features.length === 0) {
+      warnings.push('No features found in SRS');
     }
 
     // Create session
@@ -191,6 +197,7 @@ export class SDSWriterAgent implements IAgent {
       parsedSRS,
       startedAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
+      ...(warnings.length > 0 && { warnings }),
     };
 
     return this.session;
@@ -218,6 +225,11 @@ export class SDSWriterAgent implements IAgent {
       this.updateSession({ status: 'parsing' });
 
       const { parsedSRS } = this.session;
+
+      // When SRS has no features, generate a minimal scaffold SDS
+      if (parsedSRS.features.length === 0) {
+        return await this.generateScaffoldSDS(projectId, parsedSRS, startTime);
+      }
 
       // Design components
       this.updateSession({ status: 'designing' });
@@ -313,6 +325,7 @@ export class SDSWriterAgent implements IAgent {
         publicPath,
         generatedSDS,
         stats,
+        ...(this.session.warnings && { warnings: this.session.warnings }),
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -322,6 +335,103 @@ export class SDSWriterAgent implements IAgent {
       });
       throw error;
     }
+  }
+
+  /**
+   * Generate a minimal scaffold SDS when SRS has no features.
+   * Returns a valid result with placeholder sections instead of throwing.
+   * @param projectId - Project identifier
+   * @param parsedSRS - Parsed SRS document with no features
+   * @param startTime - Timestamp when generation started (for timing stats)
+   * @returns Generation result with scaffold content and warnings
+   */
+  private async generateScaffoldSDS(
+    projectId: string,
+    parsedSRS: ParsedSRS,
+    startTime: number
+  ): Promise<SDSGenerationResult> {
+    this.updateSession({ status: 'generating' });
+
+    const now = new Date().toISOString().split('T')[0] ?? '';
+    const metadata: SDSMetadata = {
+      documentId: `SDS-${projectId}`,
+      sourceSRS: parsedSRS.metadata.documentId,
+      sourcePRD: parsedSRS.metadata.sourcePRD,
+      version: '0.1.0',
+      status: 'Draft',
+      createdDate: now,
+      updatedDate: now,
+    };
+
+    const scaffoldContent = [
+      `# Software Design Specification: ${parsedSRS.productName}`,
+      '',
+      '| **Document ID** | **Source SRS** | **Version** | **Status** |',
+      '|-----------------|----------------|-------------|------------|',
+      `| ${metadata.documentId} | ${metadata.sourceSRS} | ${metadata.version} | ${metadata.status} |`,
+      '',
+      '> **Note:** This is a scaffold SDS generated from an SRS with no features.',
+      '> Populate the SRS with features and regenerate for a complete design.',
+      '',
+      '## 1. Architecture Overview',
+      '',
+      'Architecture to be determined once features are defined.',
+      '',
+      '## 2. Components',
+      '',
+      '*No components — SRS contains no features to design from.*',
+      '',
+      '## 3. Data Model',
+      '',
+      '*Data model to be determined once features are defined.*',
+      '',
+    ].join('\n');
+
+    const emptyMatrix: TraceabilityMatrix = {
+      entries: [],
+      forwardCoverage: 0,
+      orphanComponents: [],
+      uncoveredFeatures: [],
+    };
+
+    const generatedSDS: GeneratedSDS = {
+      metadata,
+      content: scaffoldContent,
+      components: [],
+      technologyStack: [...this.config.defaultTechnologyStack],
+      apis: [],
+      dataModels: [],
+      traceabilityMatrix: emptyMatrix,
+    };
+
+    this.updateSession({
+      status: 'completed',
+      generatedSDS,
+    });
+
+    const { scratchpadPath, publicPath } = await this.writeOutputFiles(projectId, generatedSDS);
+
+    const warnings = [...(this.session?.warnings ?? [])];
+
+    const stats: SDSGenerationStats = {
+      srsFeatureCount: 0,
+      componentsGenerated: 0,
+      interfacesGenerated: 0,
+      apisGenerated: 0,
+      dataModelsGenerated: 0,
+      traceabilityCoverage: 0,
+      processingTimeMs: Date.now() - startTime,
+    };
+
+    return {
+      success: true,
+      projectId,
+      scratchpadPath,
+      publicPath,
+      generatedSDS,
+      stats,
+      warnings,
+    };
   }
 
   /**

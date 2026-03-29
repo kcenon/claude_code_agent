@@ -534,4 +534,72 @@ Must use TypeScript.
       expect(result.stats.traceabilityCoverage).toBe(100);
     });
   });
+
+  describe('graceful degradation', () => {
+    it('should generate scaffold SDS when SRS has no features', async () => {
+      const emptySRS = `
+# Software Requirements Specification: Empty Project
+
+| **Document ID** | SRS-EMPTY |
+| **Source PRD** | PRD-001 |
+| **Version** | 1.0.0 |
+| **Status** | Draft |
+| **Project ID** | empty-project |
+
+---
+
+## 1. Introduction
+
+**Empty Project** has no features yet.
+`;
+      await setupSRSFile('empty-project', emptySRS);
+
+      const agent = new SDSWriterAgent({
+        scratchpadBasePath: testBasePath,
+        publicDocsPath: testDocsPath,
+      });
+
+      const result = await agent.generateFromProject('empty-project');
+
+      // Should succeed instead of throwing
+      expect(result.success).toBe(true);
+      expect(result.projectId).toBe('empty-project');
+
+      // Should include warnings about empty features
+      expect(result.warnings).toBeDefined();
+      expect(result.warnings?.some((w) => w.includes('No features'))).toBe(true);
+
+      // Should have scaffold content
+      expect(result.generatedSDS.content).toContain('scaffold');
+      expect(result.generatedSDS.components).toHaveLength(0);
+      expect(result.generatedSDS.apis).toHaveLength(0);
+      expect(result.generatedSDS.dataModels).toHaveLength(0);
+
+      // Stats should reflect empty generation
+      expect(result.stats.srsFeatureCount).toBe(0);
+      expect(result.stats.componentsGenerated).toBe(0);
+    });
+
+    it('should write scaffold SDS output files', async () => {
+      const emptySRS = `
+# Software Requirements Specification: Empty Project
+
+| **Document ID** | SRS-EMPTY |
+| **Project ID** | empty-project |
+
+---
+`;
+      await setupSRSFile('empty-project', emptySRS);
+
+      const agent = new SDSWriterAgent({
+        scratchpadBasePath: testBasePath,
+        publicDocsPath: testDocsPath,
+      });
+
+      const result = await agent.generateFromProject('empty-project');
+
+      expect(fs.existsSync(result.scratchpadPath)).toBe(true);
+      expect(fs.existsSync(result.publicPath)).toBe(true);
+    });
+  });
 });

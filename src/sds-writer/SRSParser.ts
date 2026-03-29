@@ -869,10 +869,8 @@ export class SRSParser {
       errors.push('Missing document ID in metadata');
     }
 
-    // Check features
-    if (srs.features.length === 0) {
-      errors.push('No features found in SRS');
-    }
+    // Empty features is a quality warning, not a critical error.
+    // The SDS writer will generate a scaffold when features are absent.
 
     // Check for duplicate feature IDs
     const featureIds = new Set<string>();

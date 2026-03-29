@@ -673,6 +673,8 @@ export interface SDSGenerationSession {
   readonly updatedAt: string;
   /** Error message if failed */
   readonly errorMessage?: string;
+  /** Non-fatal warnings accumulated during generation */
+  readonly warnings?: readonly string[];
 }
 
 /**
@@ -715,6 +717,8 @@ export interface SDSGenerationResult {
   readonly generatedSDS: GeneratedSDS;
   /** Generation statistics */
   readonly stats: SDSGenerationStats;
+  /** Non-fatal warnings from generation (e.g., empty features, degraded quality) */
+  readonly warnings?: readonly string[];
 }
 
 /**
