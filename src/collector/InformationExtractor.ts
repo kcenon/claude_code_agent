@@ -181,6 +181,13 @@ const FR_ACTION_VERB_PATTERNS: readonly RegExp[] = FR_ACTION_VERBS.map(
 );
 
 /**
+ * Common label prefixes that precede semicolon-delimited feature lists in prose.
+ * These are stripped before clause splitting so they don't pollute FR titles.
+ */
+const LABEL_PREFIX_PATTERN =
+  /^(?:features|requirements|capabilities|functions|commands|abilities)\s*:\s*/i;
+
+/**
  * Acceptance criteria indicator patterns
  */
 const AC_INDICATORS: readonly string[] = [
@@ -406,6 +413,32 @@ export class InformationExtractor {
   }
 
   /**
+   * Pre-process content to expand label-prefixed semicolon lists into
+   * individual sentences so downstream extraction handles them correctly.
+   *
+   * Example: "Build an app. Features: add X; delete Y; list Z."
+   * becomes: "Build an app. add X. delete Y. list Z."
+   *
+   * @param content - Raw input text
+   * @returns Pre-processed text with label prefixes stripped and semicolons expanded
+   */
+  private preprocessContent(content: string): string {
+    // Match a label prefix followed by a semicolon-delimited list
+    // The label may appear after a sentence boundary or at the start of content
+    return content.replace(
+      /(?:^|(?<=[.!?]\s*))(?:features|requirements|capabilities|functions|commands|abilities)\s*:\s*([^.!?]*(?:;[^.!?]*)*)(?=[.!?]|$)/gi,
+      (_match, list: string) => {
+        // Split the captured list on semicolons and rejoin as separate sentences
+        return list
+          .split(/;/)
+          .map((item: string) => item.trim())
+          .filter((item: string) => item.length > 0)
+          .join('. ');
+      }
+    );
+  }
+
+  /**
    * Extract requirements from content
    * @param content - The text content to analyze for requirements
    * @param source - The source reference for traceability
@@ -418,8 +451,11 @@ export class InformationExtractor {
     const functional: ExtractedRequirement[] = [];
     const nonFunctional: ExtractedRequirement[] = [];
 
+    // Pre-process to expand label-prefixed semicolon lists
+    const processed = this.preprocessContent(content);
+
     // Split content into sentences/bullet points
-    const segments = this.splitIntoSegments(content);
+    const segments = this.splitIntoSegments(processed);
 
     for (let i = 0; i < segments.length; i++) {
       const segment = segments[i];
@@ -467,16 +503,24 @@ export class InformationExtractor {
       }
     }
 
-    // Prose fallback: when structured extraction finds nothing, try action-verb detection
-    if (functional.length === 0 && nonFunctional.length === 0) {
-      const proseClauses = this.splitIntoProseClauses(content);
+    // Prose fallback: when structured extraction finds nothing, or when
+    // the content contains semicolons suggesting a list that the structured
+    // path may have under-extracted, try action-verb detection on prose clauses.
+    const proseClauses = this.splitIntoProseClauses(content);
+    const proseFunctional: ExtractedRequirement[] = [];
+    const proseNonFunctional: ExtractedRequirement[] = [];
+
+    // Only run prose extraction when it might improve results.
+    // Check original content for semicolons (preprocessContent may have replaced them).
+    const structuredTotal = functional.length + nonFunctional.length;
+    if (structuredTotal === 0 || content.includes(';')) {
       for (const clause of proseClauses) {
         const normalized = clause.toLowerCase();
 
         // Check for NFR keywords first (reuse existing detection)
         const nfrCategory = this.detectNfrCategory(normalized);
         if (nfrCategory !== undefined) {
-          nonFunctional.push({
+          proseNonFunctional.push({
             id: this.nextNfrId(),
             title: this.extractTitle(clause),
             description: clause.trim(),
@@ -491,7 +535,7 @@ export class InformationExtractor {
 
         // Check for action verbs → FR candidate
         if (this.hasActionVerb(normalized)) {
-          functional.push({
+          proseFunctional.push({
             id: this.nextRequirementId(),
             title: this.extractProseTitle(clause),
             description: clause.trim(),
@@ -500,6 +544,22 @@ export class InformationExtractor {
             confidence: 0.5,
             isFunctional: true,
           });
+        }
+      }
+
+      // Use prose results if they produced more requirements
+      const proseTotal = proseFunctional.length + proseNonFunctional.length;
+      if (proseTotal > structuredTotal) {
+        functional.length = 0;
+        nonFunctional.length = 0;
+        this.requirementCounter = 0;
+        this.nfrCounter = 0;
+
+        for (const req of proseFunctional) {
+          functional.push({ ...req, id: this.nextRequirementId() });
+        }
+        for (const req of proseNonFunctional) {
+          nonFunctional.push({ ...req, id: this.nextNfrId() });
         }
       }
     }
@@ -518,8 +578,11 @@ export class InformationExtractor {
   private splitIntoProseClauses(content: string): string[] {
     const clauses: string[] = [];
 
+    // Strip label prefixes (e.g., "Features:") before splitting
+    const stripped = content.replace(LABEL_PREFIX_PATTERN, '');
+
     // Split on semicolons first as the primary delimiter
-    const semiParts = content
+    const semiParts = stripped
       .split(/;/)
       .map((s) => s.trim())
       .filter((s) => s.length > 0);
@@ -528,7 +591,7 @@ export class InformationExtractor {
     for (const part of semiParts) {
       const sentences = part
         .split(/[.!?]+/)
-        .map((s) => s.trim())
+        .map((s) => s.trim().replace(LABEL_PREFIX_PATTERN, '').trim())
         .filter((s) => s.length > 5);
 
       for (const sentence of sentences) {
@@ -991,7 +1054,9 @@ export class InformationExtractor {
    * @returns A capitalized verb-object title
    */
   private extractProseTitle(clause: string): string {
-    const words = clause.trim().split(/\s+/);
+    // Strip label prefixes before title extraction
+    const cleaned = clause.replace(LABEL_PREFIX_PATTERN, '').trim();
+    const words = cleaned.split(/\s+/);
     const lowerWords = words.map((w) => w.toLowerCase());
 
     // Find the first action verb
@@ -1042,8 +1107,8 @@ export class InformationExtractor {
       }
     }
 
-    // Fallback to generic extractTitle
-    return this.extractTitle(clause);
+    // Fallback to generic extractTitle on cleaned text
+    return this.extractTitle(cleaned);
   }
 
   /**
