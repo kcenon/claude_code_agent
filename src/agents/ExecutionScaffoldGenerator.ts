@@ -60,6 +60,16 @@ interface IssueEntry {
 }
 
 /**
+ * Sanitize an external ID for safe use in file paths.
+ * Strips path traversal sequences and replaces non-alphanumeric characters
+ * (except hyphens) with underscores.
+ * @param id - Raw ID from external source (e.g. issue_list.json)
+ */
+function sanitizeId(id: string): string {
+  return id.replace(/[^a-zA-Z0-9-]/g, '_');
+}
+
+/**
  * Read issue_list.json and return the issues array.
  * @param issueDir - Directory containing issue_list.json
  */
@@ -106,12 +116,18 @@ async function readWorkOrders(dir: string): Promise<ScaffoldWorkOrder[]> {
 
 /**
  * Read the V&V report from the results directory.
+ * Returns null if the file does not exist or is malformed.
  * @param resultsDir - Directory containing vnv-report.json
  */
-async function readVnvReport(resultsDir: string): Promise<ScaffoldVnvReport> {
+async function readVnvReport(resultsDir: string): Promise<ScaffoldVnvReport | null> {
   const reportPath = join(resultsDir, 'vnv-report.json');
-  const raw = await readFile(reportPath, 'utf-8');
-  return JSON.parse(raw) as ScaffoldVnvReport;
+  try {
+    const raw = await readFile(reportPath, 'utf-8');
+    return JSON.parse(raw) as ScaffoldVnvReport;
+  } catch {
+    logger.warn(`[Scaffold] Could not read V&V report at ${reportPath}`);
+    return null;
+  }
 }
 
 /**
@@ -164,10 +180,11 @@ function extractAcceptanceCriteria(body: string): string[] {
 
 /**
  * Convert issue ID like "ISS-001" to a valid function name like "issueISS001".
- * @param issueId - Issue identifier
+ * Input is expected to be already sanitized via sanitizeId().
+ * @param issueId - Sanitized issue identifier
  */
 function issueIdToFunctionName(issueId: string): string {
-  const cleaned = issueId.replace(/[^a-zA-Z0-9]/g, '');
+  const cleaned = sanitizeId(issueId).replace(/[^a-zA-Z0-9]/g, '');
   return `issue${cleaned.charAt(0).toUpperCase()}${cleaned.slice(1)}`;
 }
 
@@ -205,16 +222,17 @@ export const ExecutionScaffoldGenerator = {
     const workOrders: ScaffoldWorkOrder[] = [];
 
     for (const issue of issues) {
+      const safeId = sanitizeId(issue.id);
       const wo: ScaffoldWorkOrder = {
-        orderId: `WO-${issue.id}`,
-        issueId: issue.id,
+        orderId: `WO-${safeId}`,
+        issueId: safeId,
         title: issue.title,
         priority: priorityToScore(issue.labels?.priority),
         createdAt: new Date().toISOString(),
         acceptanceCriteria: extractAcceptanceCriteria(issue.body ?? ''),
       };
 
-      const woPath = join(workOrderDir, `WO-${issue.id}.json`);
+      const woPath = join(workOrderDir, `WO-${safeId}.json`);
       await writeFile(woPath, JSON.stringify(wo, null, 2), 'utf-8');
       workOrders.push(wo);
     }
@@ -368,7 +386,7 @@ export const ExecutionScaffoldGenerator = {
     const workOrders = await readWorkOrders(workOrderDir).catch(() => []);
 
     const resultsDir = join(session.scratchpadDir, 'progress', projectId, 'results');
-    const vnvReport = await readVnvReport(resultsDir).catch(() => null);
+    const vnvReport = await readVnvReport(resultsDir);
 
     const lines: string[] = [
       `# Review Report`,

@@ -142,6 +142,45 @@ describe('ExecutionScaffoldGenerator', () => {
       expect(result.workOrders).toHaveLength(0);
     });
 
+    it('should sanitize issue IDs to prevent path traversal', async () => {
+      const issueDir = join(scratchpadDir, 'issues', 'test-project');
+      await mkdir(issueDir, { recursive: true });
+
+      const issueList: LocalIssueListFile = {
+        schemaVersion: '1.0.0',
+        projectId: 'test-project',
+        generatedAt: new Date().toISOString(),
+        issues: [
+          {
+            id: '../../../etc/passwd',
+            number: 1,
+            url: 'local://issues/malicious',
+            title: '[Feature] Malicious',
+            body: '',
+            state: 'open',
+            labels: { raw: [], priority: 'P2', type: 'feature', size: 'M' },
+            milestone: null,
+            assignees: [],
+            dependencies: { blocked_by: [], blocks: [] },
+            estimation: { size: 'M', hours: 6 },
+          },
+        ],
+      };
+
+      await writeFile(join(issueDir, 'issue_list.json'), JSON.stringify(issueList), 'utf-8');
+
+      const result = JSON.parse(await ExecutionScaffoldGenerator.controller(session));
+
+      // Sanitized: ../../../etc/passwd → _________etc_passwd (dots and slashes become _)
+      expect(result.workOrders[0].issueId).toBe('_________etc_passwd');
+      expect(result.workOrders[0].orderId).toBe('WO-_________etc_passwd');
+
+      // File should be safely inside the work_orders directory
+      const files = await readdir(result.workOrderDir);
+      expect(files).toHaveLength(1);
+      expect(files[0]).toBe('WO-_________etc_passwd.json');
+    });
+
     it('should map priority labels to correct numeric scores', async () => {
       const issueDir = join(scratchpadDir, 'issues', 'test-project');
       await mkdir(issueDir, { recursive: true });
