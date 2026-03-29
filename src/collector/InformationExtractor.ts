@@ -493,7 +493,7 @@ export class InformationExtractor {
         if (this.hasActionVerb(normalized)) {
           functional.push({
             id: this.nextRequirementId(),
-            title: this.extractTitle(clause),
+            title: this.extractProseTitle(clause),
             description: clause.trim(),
             priority: this.detectPriority(normalized),
             source,
@@ -518,24 +518,33 @@ export class InformationExtractor {
   private splitIntoProseClauses(content: string): string[] {
     const clauses: string[] = [];
 
-    // First split by sentence boundaries: period, semicolon, exclamation, question
-    const sentences = content
-      .split(/[.;!?]+/)
+    // Split on semicolons first as the primary delimiter
+    const semiParts = content
+      .split(/;/)
       .map((s) => s.trim())
-      .filter((s) => s.length > 5);
+      .filter((s) => s.length > 0);
 
-    for (const sentence of sentences) {
-      // Further split by comma when followed by a space and action verb pattern
-      const parts = sentence.split(/,\s+/);
-      if (parts.length > 1) {
-        for (const part of parts) {
-          const trimmed = part.trim();
-          if (trimmed.length > 5) {
-            clauses.push(trimmed);
+    // Then split each part on sentence boundaries (period, exclamation, question)
+    for (const part of semiParts) {
+      const sentences = part
+        .split(/[.!?]+/)
+        .map((s) => s.trim())
+        .filter((s) => s.length > 5);
+
+      for (const sentence of sentences) {
+        // Further split by comma only when parts individually contain action verbs
+        const commaParts = sentence.split(/,\s+/);
+        const partsWithVerbs = commaParts.filter(
+          (p) => p.trim().length > 3 && this.hasActionVerb(p.trim().toLowerCase())
+        );
+
+        if (partsWithVerbs.length > 1) {
+          for (const vp of partsWithVerbs) {
+            clauses.push(vp.trim());
           }
+        } else {
+          clauses.push(sentence);
         }
-      } else {
-        clauses.push(sentence);
       }
     }
 
@@ -970,6 +979,71 @@ export class InformationExtractor {
       return title.slice(0, 57) + '...';
     }
     return title.trim();
+  }
+
+  /**
+   * Extract a concise title from a prose clause by finding the first action verb
+   * and taking the verb plus its direct object (up to 5 words from the verb).
+   *
+   * Example: "add expense with amount, category, and date" → "Add expense"
+   *
+   * @param clause - The prose clause to extract a title from
+   * @returns A capitalized verb-object title
+   */
+  private extractProseTitle(clause: string): string {
+    const words = clause.trim().split(/\s+/);
+    const lowerWords = words.map((w) => w.toLowerCase());
+
+    // Find the first action verb
+    let verbIndex = -1;
+    for (let i = 0; i < lowerWords.length; i++) {
+      const word = lowerWords[i];
+      if (word !== undefined && FR_ACTION_VERBS.includes(word)) {
+        verbIndex = i;
+        break;
+      }
+    }
+
+    if (verbIndex >= 0) {
+      // Take verb + next 1-4 words, stopping at prepositions/conjunctions
+      const stopWords = new Set([
+        'with',
+        'by',
+        'from',
+        'to',
+        'for',
+        'in',
+        'on',
+        'at',
+        'and',
+        'or',
+        'using',
+        'into',
+        'through',
+        'via',
+      ]);
+      const titleWords: string[] = [];
+      const maxWords = Math.min(verbIndex + 5, words.length);
+      for (let i = verbIndex; i < maxWords; i++) {
+        const word = lowerWords[i];
+        if (word === undefined) break;
+        if (i > verbIndex && stopWords.has(word)) break;
+        const original = words[i];
+        if (original !== undefined) {
+          titleWords.push(original);
+        }
+      }
+      if (titleWords.length > 0) {
+        const first = titleWords[0];
+        if (first !== undefined) {
+          titleWords[0] = first.charAt(0).toUpperCase() + first.slice(1);
+        }
+        return titleWords.join(' ');
+      }
+    }
+
+    // Fallback to generic extractTitle
+    return this.extractTitle(clause);
   }
 
   /**

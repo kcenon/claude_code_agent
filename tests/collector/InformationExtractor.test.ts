@@ -538,6 +538,32 @@ describe('InformationExtractor', () => {
       }
     });
 
+    it('should split semicolon-separated clauses into individual FRs', () => {
+      const source = parser.parseText(
+        'add expense with amount, category, and date; delete expense by ID; ' +
+          'list expenses with optional date range filter; show summary grouped by category; ' +
+          'export expenses to CSV file'
+      );
+      const input = parser.combineInputs([source]);
+
+      const result = extractor.extract(input);
+
+      // Should produce 5 individual FRs, one per semicolon-separated clause
+      expect(result.functionalRequirements.length).toBeGreaterThanOrEqual(5);
+
+      const titles = result.functionalRequirements.map((r) => r.title);
+      const descriptions = result.functionalRequirements.map((r) => r.description);
+
+      // Titles should be concise verb-object phrases, not full clauses
+      expect(titles.some((t) => t.toLowerCase().includes('add expense'))).toBe(true);
+      expect(titles.some((t) => t.toLowerCase().includes('delete expense'))).toBe(true);
+      expect(titles.some((t) => t.toLowerCase().includes('export expenses'))).toBe(true);
+
+      // Descriptions should retain the full clause text
+      expect(descriptions.some((d) => d.includes('amount, category, and date'))).toBe(true);
+      expect(descriptions.some((d) => d.includes('CSV file'))).toBe(true);
+    });
+
     it('should handle mixed FRs and NFRs in prose', () => {
       const source = parser.parseText(
         'Build a note-taking app. Create notes with markdown. ' +
