@@ -145,11 +145,18 @@ export function createDefaultBridgeRegistry(): BridgeRegistry {
 
 /**
  * Detect if running inside a Claude Code session.
+ *
+ * Checks four environment variables that Claude Code may set:
+ * - CLAUDE_CODE_SESSION: legacy session marker
+ * - CLAUDE_CODE: legacy presence flag
+ * - CLAUDECODE: runtime flag (set to "1")
+ * - CLAUDE_CODE_ENTRYPOINT: entry point identifier (e.g. "cli")
  */
-function isClaudeCodeSession(): boolean {
+export function isClaudeCodeSession(): boolean {
   return (
-    (process.env['CLAUDE_CODE_SESSION'] !== undefined &&
-      process.env['CLAUDE_CODE_SESSION'] !== '') ||
-    (process.env['CLAUDE_CODE'] !== undefined && process.env['CLAUDE_CODE'] !== '')
+    (process.env['CLAUDE_CODE_SESSION'] ?? '') !== '' ||
+    (process.env['CLAUDE_CODE'] ?? '') !== '' ||
+    process.env['CLAUDECODE'] === '1' ||
+    (process.env['CLAUDE_CODE_ENTRYPOINT'] ?? '') !== ''
   );
 }
