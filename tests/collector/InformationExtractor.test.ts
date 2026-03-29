@@ -577,6 +577,32 @@ describe('InformationExtractor', () => {
       expect(result.functionalRequirements.length).toBeGreaterThanOrEqual(2);
       expect(result.nonFunctionalRequirements.length).toBeGreaterThanOrEqual(1);
     });
+
+    it('should strip label prefixes like "Features:" before splitting (#720)', () => {
+      const source = parser.parseText(
+        'Create a note manager CLI application. Features: create note with title and body; ' +
+          'edit note by ID; delete note by ID; list all notes; show note details; ' +
+          'tag notes with labels; filter notes by tag; export all notes to markdown files.'
+      );
+      const input = parser.combineInputs([source]);
+
+      const result = extractor.extract(input);
+
+      // Should produce 8+ individual FRs, not 2 collapsed ones
+      expect(result.functionalRequirements.length).toBeGreaterThanOrEqual(8);
+
+      // No FR title should be the bare label word "Features"
+      for (const req of result.functionalRequirements) {
+        expect(req.title.toLowerCase()).not.toBe('features');
+      }
+
+      // Spot-check that key action-verb titles appear
+      const titles = result.functionalRequirements.map((r) => r.title.toLowerCase());
+      expect(titles.some((t) => t.includes('create note'))).toBe(true);
+      expect(titles.some((t) => t.includes('edit note'))).toBe(true);
+      expect(titles.some((t) => t.includes('delete note'))).toBe(true);
+      expect(titles.some((t) => t.includes('export'))).toBe(true);
+    });
   });
 
   describe('stub mode output quality', () => {
