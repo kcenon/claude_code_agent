@@ -7,3 +7,4 @@
 export { StubBridge } from './StubBridge.js';
 export { AnthropicApiBridge } from './AnthropicApiBridge.js';
 export { ClaudeCodeBridge } from './ClaudeCodeBridge.js';
+export { ClaudeCliSubprocessBridge } from './ClaudeCliSubprocessBridge.js';

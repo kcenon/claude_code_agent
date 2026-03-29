@@ -67,6 +67,7 @@ export { BridgeRegistry, createDefaultBridgeRegistry } from './BridgeRegistry.js
 export { StubBridge } from './bridges/StubBridge.js';
 export { AnthropicApiBridge } from './bridges/AnthropicApiBridge.js';
 export { ClaudeCodeBridge } from './bridges/ClaudeCodeBridge.js';
+export { ClaudeCliSubprocessBridge } from './bridges/ClaudeCliSubprocessBridge.js';
 
 export type { AgentBridge, AgentRequest, AgentResponse } from './AgentBridge.js';
 
