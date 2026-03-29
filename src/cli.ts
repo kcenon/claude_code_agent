@@ -43,7 +43,7 @@ import {
   ENHANCEMENT_STAGES,
   IMPORT_STAGES,
 } from './ad-sdlc-orchestrator/index.js';
-import { createDefaultBridgeRegistry } from './agents/BridgeRegistry.js';
+import { createDefaultBridgeRegistry, isClaudeCodeSession } from './agents/BridgeRegistry.js';
 import { StatusService } from './status/index.js';
 import type { OutputFormat } from './status/types.js';
 import { initializeProject, isProjectInitialized } from './utils/index.js';
@@ -937,11 +937,7 @@ program
     const registry = createDefaultBridgeRegistry();
     const hasRealBridge = registry.hasRealBridge();
     if (hasRealBridge) {
-      const isClaudeCode =
-        (process.env['CLAUDE_CODE_SESSION'] !== undefined &&
-          process.env['CLAUDE_CODE_SESSION'] !== '') ||
-        (process.env['CLAUDE_CODE'] !== undefined && process.env['CLAUDE_CODE'] !== '');
-      const bridgeLabel = isClaudeCode ? 'Claude Code session' : 'ANTHROPIC_API_KEY';
+      const bridgeLabel = isClaudeCodeSession() ? 'Claude Code session' : 'ANTHROPIC_API_KEY';
       checks.push({ label: 'AI Bridge', ok: true, detail: `${bridgeLabel} detected` });
     } else {
       checks.push({
@@ -1115,12 +1111,8 @@ program
 
       // Show bridge info
       const dryRunRegistry = createDefaultBridgeRegistry();
-      const isClaudeCodeDryRun =
-        (process.env['CLAUDE_CODE_SESSION'] !== undefined &&
-          process.env['CLAUDE_CODE_SESSION'] !== '') ||
-        (process.env['CLAUDE_CODE'] !== undefined && process.env['CLAUDE_CODE'] !== '');
       const bridgeType = dryRunRegistry.hasRealBridge()
-        ? isClaudeCodeDryRun
+        ? isClaudeCodeSession()
           ? 'ClaudeCodeBridge'
           : 'AnthropicApiBridge'
         : 'StubBridge (no real bridge)';

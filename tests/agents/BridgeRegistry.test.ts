@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { BridgeRegistry } from '../../src/agents/BridgeRegistry.js';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { BridgeRegistry, isClaudeCodeSession } from '../../src/agents/BridgeRegistry.js';
 import { StubBridge } from '../../src/agents/bridges/StubBridge.js';
 import type { AgentBridge, AgentRequest, AgentResponse } from '../../src/agents/AgentBridge.js';
 
@@ -232,5 +232,82 @@ describe('StubBridge', () => {
   it('should dispose without error', async () => {
     const stub = new StubBridge();
     await expect(stub.dispose()).resolves.toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// isClaudeCodeSession tests
+// ---------------------------------------------------------------------------
+
+describe('isClaudeCodeSession', () => {
+  const ENV_KEYS = [
+    'CLAUDE_CODE_SESSION',
+    'CLAUDE_CODE',
+    'CLAUDECODE',
+    'CLAUDE_CODE_ENTRYPOINT',
+  ] as const;
+
+  let savedEnv: Record<string, string | undefined>;
+
+  beforeEach(() => {
+    savedEnv = {};
+    for (const key of ENV_KEYS) {
+      savedEnv[key] = process.env[key];
+      delete process.env[key];
+    }
+  });
+
+  afterEach(() => {
+    for (const key of ENV_KEYS) {
+      if (savedEnv[key] === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = savedEnv[key];
+      }
+    }
+  });
+
+  it('should return false when no env vars are set', () => {
+    expect(isClaudeCodeSession()).toBe(false);
+  });
+
+  it('should detect CLAUDE_CODE_SESSION', () => {
+    process.env['CLAUDE_CODE_SESSION'] = '1';
+    expect(isClaudeCodeSession()).toBe(true);
+  });
+
+  it('should detect CLAUDE_CODE', () => {
+    process.env['CLAUDE_CODE'] = '1';
+    expect(isClaudeCodeSession()).toBe(true);
+  });
+
+  it('should detect CLAUDECODE=1', () => {
+    process.env['CLAUDECODE'] = '1';
+    expect(isClaudeCodeSession()).toBe(true);
+  });
+
+  it('should not detect CLAUDECODE when not "1"', () => {
+    process.env['CLAUDECODE'] = 'yes';
+    expect(isClaudeCodeSession()).toBe(false);
+  });
+
+  it('should detect CLAUDE_CODE_ENTRYPOINT', () => {
+    process.env['CLAUDE_CODE_ENTRYPOINT'] = 'cli';
+    expect(isClaudeCodeSession()).toBe(true);
+  });
+
+  it('should ignore empty string values for CLAUDE_CODE_SESSION', () => {
+    process.env['CLAUDE_CODE_SESSION'] = '';
+    expect(isClaudeCodeSession()).toBe(false);
+  });
+
+  it('should ignore empty string values for CLAUDE_CODE', () => {
+    process.env['CLAUDE_CODE'] = '';
+    expect(isClaudeCodeSession()).toBe(false);
+  });
+
+  it('should ignore empty string values for CLAUDE_CODE_ENTRYPOINT', () => {
+    process.env['CLAUDE_CODE_ENTRYPOINT'] = '';
+    expect(isClaudeCodeSession()).toBe(false);
   });
 });
