@@ -7,12 +7,12 @@
  */
 
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { SRSParser } from '../sds-writer/SRSParser.js';
 import type { ParsedSRSFeature } from '../sds-writer/types.js';
-import type { Priority, EffortSize } from './types.js';
+import type { EffortSize, Priority } from './types.js';
+import { EFFORT_HOURS } from '../issue-reader/types.js';
 import { getLogger } from '../logging/index.js';
 
 const logger = getLogger();
@@ -30,17 +30,6 @@ function estimateSize(feature: ParsedSRSFeature): EffortSize {
   if (acCount <= 5) return 'L';
   return 'XL';
 }
-
-/**
- * Estimated hours by effort size
- */
-const EFFORT_HOURS: Readonly<Record<EffortSize, number>> = {
-  XS: 2,
-  S: 4,
-  M: 6,
-  L: 12,
-  XL: 20,
-};
 
 /**
  * Shape of a single issue in issue_list.json
@@ -166,10 +155,14 @@ export class LocalIssueWriter {
    */
   private async readSRS(projectId: string): Promise<string> {
     const srsPath = join(this.scratchpadBasePath, 'documents', projectId, 'srs.md');
-    if (!existsSync(srsPath)) {
-      throw new Error(`SRS file not found at ${srsPath}`);
+    try {
+      return await readFile(srsPath, 'utf-8');
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+        throw new Error(`SRS file not found at ${srsPath}`, { cause: err });
+      }
+      throw err;
     }
-    return readFile(srsPath, 'utf-8');
   }
 
   /**
@@ -200,7 +193,7 @@ export class LocalIssueWriter {
       state: 'open',
       labels: {
         raw: ['type/feature', `priority/${feature.priority.toLowerCase()}`],
-        priority: feature.priority as Priority,
+        priority: feature.priority,
         type: 'feature',
         size,
       },
