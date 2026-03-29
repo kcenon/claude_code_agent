@@ -1,3 +1,4 @@
+import path from 'node:path';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import type { AgentRequest } from '../../../src/agents/AgentBridge.js';
 
@@ -78,7 +79,7 @@ describe('ClaudeCliSubprocessBridge', () => {
       const args = bridge.buildArgs(request);
 
       expect(args).toContain('--system-prompt-file');
-      expect(args).toContain('/test/project/.claude/agents/prd-writer.md');
+      expect(args).toContain(path.join('/test/project', '.claude', 'agents', 'prd-writer.md'));
     });
 
     it('should not include system-prompt-file when agent definition is missing', () => {
