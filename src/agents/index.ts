@@ -64,6 +64,10 @@ export type { AgentCallAdapter } from './AgentDispatcher.js';
 
 export { BridgeRegistry, createDefaultBridgeRegistry } from './BridgeRegistry.js';
 
+export { ExecutionScaffoldGenerator } from './ExecutionScaffoldGenerator.js';
+
+export type { ScaffoldWorkOrder, ScaffoldVnvReport } from './ExecutionScaffoldGenerator.js';
+
 export { StubBridge } from './bridges/StubBridge.js';
 export { AnthropicApiBridge } from './bridges/AnthropicApiBridge.js';
 export { ClaudeCodeBridge } from './bridges/ClaudeCodeBridge.js';
