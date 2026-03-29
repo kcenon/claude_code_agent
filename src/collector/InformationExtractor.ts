@@ -512,16 +512,19 @@ export class InformationExtractor {
 
     // Only run prose extraction when it might improve results.
     // Check original content for semicolons (preprocessContent may have replaced them).
+    // Require at least 2 semicolons to avoid false positives on incidental semicolons.
     const structuredTotal = functional.length + nonFunctional.length;
-    if (structuredTotal === 0 || content.includes(';')) {
+    const semicolonCount = (content.match(/;/g) ?? []).length;
+    if (structuredTotal === 0 || semicolonCount >= 2) {
       for (const clause of proseClauses) {
         const normalized = clause.toLowerCase();
 
         // Check for NFR keywords first (reuse existing detection)
         const nfrCategory = this.detectNfrCategory(normalized);
         if (nfrCategory !== undefined) {
+          // Use placeholder ID; real IDs assigned below if prose path wins
           proseNonFunctional.push({
-            id: this.nextNfrId(),
+            id: '',
             title: this.extractTitle(clause),
             description: clause.trim(),
             priority: this.detectPriority(normalized),
@@ -536,7 +539,7 @@ export class InformationExtractor {
         // Check for action verbs → FR candidate
         if (this.hasActionVerb(normalized)) {
           proseFunctional.push({
-            id: this.nextRequirementId(),
+            id: '',
             title: this.extractProseTitle(clause),
             description: clause.trim(),
             priority: this.detectPriority(normalized),
@@ -552,8 +555,6 @@ export class InformationExtractor {
       if (proseTotal > structuredTotal) {
         functional.length = 0;
         nonFunctional.length = 0;
-        this.requirementCounter = 0;
-        this.nfrCounter = 0;
 
         for (const req of proseFunctional) {
           functional.push({ ...req, id: this.nextRequirementId() });
