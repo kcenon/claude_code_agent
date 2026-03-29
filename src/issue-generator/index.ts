@@ -15,6 +15,15 @@ export {
   ISSUE_GENERATOR_AGENT_ID,
 } from './IssueGeneratorAgentAdapter.js';
 
+// Local issue generation (no GitHub dependency)
+export { LocalIssueWriter } from './LocalIssueWriter.js';
+export type {
+  LocalIssueEntry,
+  LocalIssueListFile,
+  LocalIssueWriterResult,
+  LocalIssueWriterOptions,
+} from './LocalIssueWriter.js';
+
 export { SDSParser } from './SDSParser.js';
 export { IssueTransformer } from './IssueTransformer.js';
 export { EffortEstimator } from './EffortEstimator.js';
