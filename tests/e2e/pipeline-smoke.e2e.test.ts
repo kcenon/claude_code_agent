@@ -233,7 +233,7 @@ describe('Pipeline Smoke E2E', () => {
       expect(result.durationMs).toBeGreaterThanOrEqual(0);
       expect(result.pipelineId).toBeDefined();
       expect(result.projectId).toBe(path.basename(tempDir));
-      expect(result.warnings).toBeDefined();
+      expect(Array.isArray(result.warnings)).toBe(true);
 
       await agent.dispose();
     });
@@ -284,9 +284,12 @@ describe('Pipeline Smoke E2E', () => {
 
       const resumeResult = await agent2.executePipeline(tempDir, 'Continue build');
 
+      // Checkpoints are deleted after successful Phase 1 completion, so Phase 2
+      // falls back to restoreSession which only treats status==='completed' as
+      // pre-completed. Degraded stages are re-executed on resume.
+      const degradedCount = firstResult.stages.filter((s) => s.status === 'degraded').length;
       expect(['completed', 'degraded']).toContain(resumeResult.overallStatus);
-      // Degraded stages may be re-executed on resume
-      expect(agent2.executionOrder.length).toBeLessThanOrEqual(GREENFIELD_STAGES.length);
+      expect(agent2.executionOrder).toHaveLength(degradedCount);
 
       await agent2.dispose();
     });

@@ -120,10 +120,12 @@ describe('Pipeline Resume E2E', () => {
 
       const resumeResult = await agent2.executePipeline(tempDir, 'Continue build');
 
-      // Since all stages were completed in phase 1, no new stages should execute
-      // (degraded stages may be re-executed on resume)
+      // Checkpoints are deleted after successful Phase 1 completion, so Phase 2
+      // falls back to restoreSession which only treats status==='completed' as
+      // pre-completed. Degraded stages are re-executed on resume.
+      const degradedCount = firstResult.stages.filter((s) => s.status === 'degraded').length;
       expect(['completed', 'degraded']).toContain(resumeResult.overallStatus);
-      expect(agent2.executionOrder.length).toBeLessThanOrEqual(GREENFIELD_STAGES.length);
+      expect(agent2.executionOrder).toHaveLength(degradedCount);
 
       await agent2.dispose();
     });
