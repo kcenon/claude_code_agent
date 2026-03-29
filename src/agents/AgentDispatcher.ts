@@ -26,6 +26,7 @@ import { getAgentTypeEntry } from './AgentTypeMapping.js';
 import type { AgentTypeEntry } from './AgentTypeMapping.js';
 import type { AgentRequest } from './AgentBridge.js';
 import { BridgeRegistry } from './BridgeRegistry.js';
+import { ExecutionScaffoldGenerator } from './ExecutionScaffoldGenerator.js';
 import { getLogger } from '../logging/index.js';
 
 /**
@@ -654,19 +655,22 @@ export class AgentDispatcher {
       'project-initializer',
       'mode-detector',
       'issue-generator',
-      'controller',
-      'worker',
-      'pr-reviewer',
       'code-reader',
       'doc-code-comparator',
       'ci-fixer',
       'analysis-orchestrator',
       'stage-verifier',
       'rtm-builder',
-      'validation',
     ]) {
       this.callAdapters.set(agentType, executeAdapter);
     }
+
+    // Execution stages: use scaffold generator in local+stub mode,
+    // otherwise fall through to the standard executeAdapter.
+    this.callAdapters.set('controller', this.createScaffoldAdapter('controller', executeAdapter));
+    this.callAdapters.set('worker', this.createScaffoldAdapter('worker', executeAdapter));
+    this.callAdapters.set('validation', this.createScaffoldAdapter('validation', executeAdapter));
+    this.callAdapters.set('pr-reviewer', this.createScaffoldAdapter('review', executeAdapter));
   }
 
   /**
@@ -703,6 +707,40 @@ export class AgentDispatcher {
         return JSON.stringify(result);
       }
       return this.defaultAdapter(agent, stage, session);
+    };
+  }
+
+  /**
+   * Create a scaffold-aware adapter for execution stages.
+   *
+   * When `session.localMode` is true and the bridge for the agent type is a
+   * stub, the adapter delegates to the appropriate ExecutionScaffoldGenerator
+   * method. Otherwise it falls through to the provided fallback adapter.
+   *
+   * @param scaffoldStage - Which scaffold method to invoke ('controller' | 'worker' | 'validation' | 'review')
+   * @param fallback - Adapter to use when scaffold mode is not active
+   */
+  private createScaffoldAdapter(
+    scaffoldStage: 'controller' | 'worker' | 'validation' | 'review',
+    fallback: AgentCallAdapter
+  ): AgentCallAdapter {
+    return async (agent, stage, session) => {
+      if (session.localMode && this.bridgeRegistry.isStub(stage.agentType)) {
+        getLogger().info(
+          `[Scaffold] Using scaffold generator for ${stage.agentType} (localMode + stub bridge)`
+        );
+        switch (scaffoldStage) {
+          case 'controller':
+            return ExecutionScaffoldGenerator.controller(session);
+          case 'worker':
+            return ExecutionScaffoldGenerator.worker(session);
+          case 'validation':
+            return ExecutionScaffoldGenerator.validation(session);
+          case 'review':
+            return ExecutionScaffoldGenerator.review(session);
+        }
+      }
+      return fallback(agent, stage, session);
     };
   }
 
