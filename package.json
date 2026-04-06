@@ -97,10 +97,10 @@
     "vitest": "^4.0.16"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.81.0",
+    "@anthropic-ai/sdk": "^0.82.0",
     "chalk": "^5.6.2",
     "commander": "^14.0.3",
-    "dotenv": "^17.3.1",
+    "dotenv": "^17.4.1",
     "inquirer": "^13.3.2",
     "js-yaml": "^4.1.1",
     "ts-morph": "^27.0.2",
