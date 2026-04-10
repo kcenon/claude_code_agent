@@ -1,0 +1,13 @@
+# Auto-detect text files and normalize line endings
+* text=auto eol=crlf
+
+# Shell scripts must use LF (CRLF breaks Unix shells)
+*.sh text eol=lf
+.husky/* text eol=lf
+
+# Lock files — treat as generated binary to avoid noisy diffs
+package-lock.json -diff
+yarn.lock -diff
+
+# Source maps — generated, binary-like
+*.map -diff
