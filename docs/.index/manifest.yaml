@@ -143,6 +143,9 @@ components:
   - file: docs/github-repo-setup.md
     title: 'GitHub Repo Setup Agent'
     keywords: [github, repository, setup, initialization]
+  - file: docs/component-generator.md
+    title: 'Component Generator'
+    keywords: [component, generation, scaffolding]
   - file: docs/claude-config-reference.md
     title: 'Claude Config Reference'
     keywords: [claude-config, configuration, integration]
@@ -233,6 +236,14 @@ architecture:
 # Reference Documentation (numbered series)
 # ──────────────────────────────────────────────
 reference:
+  index:
+    - file: docs/reference/README.md
+      title: 'Reference Documentation Index'
+      keywords: [reference, index, table-of-contents]
+    - file: docs/reference/README.kr.md
+      title: 'Reference Documentation Index (Korean)'
+      keywords: [reference, index, korean]
+
   series:
     - file: docs/reference/00_overview.md
       title: '00 Overview'
@@ -317,6 +328,42 @@ reference:
     - file: docs/reference/agents/ko/README.md
       title: 'Agent Reference Index (Korean)'
       keywords: [agents, index, korean]
+    - file: docs/reference/agents/ko/ci-fixer.md
+      title: 'CI Fixer Reference (Korean)'
+      keywords: [ci, fixer, korean]
+    - file: docs/reference/agents/ko/code-reader.md
+      title: 'Code Reader Reference (Korean)'
+      keywords: [code-reader, korean]
+    - file: docs/reference/agents/ko/collector.md
+      title: 'Collector Reference (Korean)'
+      keywords: [collector, korean]
+    - file: docs/reference/agents/ko/controller.md
+      title: 'Controller Reference (Korean)'
+      keywords: [controller, korean]
+    - file: docs/reference/agents/ko/github-repo-setup.md
+      title: 'GitHub Repo Setup Reference (Korean)'
+      keywords: [github, setup, korean]
+    - file: docs/reference/agents/ko/issue-generator.md
+      title: 'Issue Generator Reference (Korean)'
+      keywords: [issue-generator, korean]
+    - file: docs/reference/agents/ko/issue-reader.md
+      title: 'Issue Reader Reference (Korean)'
+      keywords: [issue-reader, korean]
+    - file: docs/reference/agents/ko/pr-reviewer.md
+      title: 'PR Reviewer Reference (Korean)'
+      keywords: [pr-reviewer, korean]
+    - file: docs/reference/agents/ko/prd-writer.md
+      title: 'PRD Writer Reference (Korean)'
+      keywords: [prd-writer, korean]
+    - file: docs/reference/agents/ko/sds-writer.md
+      title: 'SDS Writer Reference (Korean)'
+      keywords: [sds-writer, korean]
+    - file: docs/reference/agents/ko/srs-writer.md
+      title: 'SRS Writer Reference (Korean)'
+      keywords: [srs-writer, korean]
+    - file: docs/reference/agents/ko/worker.md
+      title: 'Worker Reference (Korean)'
+      keywords: [worker, korean]
 
   configuration:
     - file: docs/reference/configuration/README.md
@@ -591,6 +638,9 @@ root:
   - file: CONTRIBUTING.md
     title: 'Contributing Guide'
     keywords: [contributing, guidelines, development]
-  - file: .github/FUNDING.md
-    title: 'Funding Information'
-    keywords: [funding, sponsors]
+  - file: docker/README.md
+    title: 'Docker Deployment'
+    keywords: [docker, container, deployment]
+  - file: .github/pull_request_template.md
+    title: 'Pull Request Template'
+    keywords: [pr-template, github, review]

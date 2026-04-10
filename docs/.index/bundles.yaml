@@ -127,6 +127,7 @@ doc-generation:
     - { file: docs/document-reader.md, note: 'Document Reader agent docs' }
     - { file: docs/srs-writer.md, note: 'SRS Writer agent docs' }
     - { file: docs/architecture-generator.md, note: 'Architecture/SDS Generator docs' }
+    - { file: docs/component-generator.md, note: 'Component Generator docs' }
     - { file: .claude/agents/prd-writer.md, note: 'PRD Writer agent definition' }
     - { file: .claude/agents/srs-writer.md, note: 'SRS Writer agent definition' }
     - { file: .claude/agents/sds-writer.md, note: 'SDS Writer agent definition' }
@@ -221,6 +222,7 @@ getting-started:
     - { file: docs/deployment/verification.md, note: 'Verification' }
     - { file: docs/guides/deployment.md, note: 'Full deployment guide' }
     - { file: docs/guides/troubleshooting.md, note: 'Troubleshooting' }
+    - { file: docker/README.md, note: 'Docker deployment' }
 
 # ──────────────────────────────────────────────
 # Claude Code / Agent SDK Reference
@@ -316,7 +318,19 @@ korean:
     - { file: docs/guides/deployment.kr.md, note: 'Deployment (Korean)' }
     - { file: docs/guides/usage-scenarios.kr.md, note: 'Usage scenarios (Korean)' }
     - { file: docs/reference/README.kr.md, note: 'Reference index (Korean)' }
-    - { file: docs/reference/agents/ko/README.md, note: 'Agent refs (Korean)' }
+    - { file: docs/reference/agents/ko/README.md, note: 'Agent refs index (Korean)' }
+    - { file: docs/reference/agents/ko/ci-fixer.md, note: 'CI Fixer ref (Korean)' }
+    - { file: docs/reference/agents/ko/code-reader.md, note: 'Code Reader ref (Korean)' }
+    - { file: docs/reference/agents/ko/collector.md, note: 'Collector ref (Korean)' }
+    - { file: docs/reference/agents/ko/controller.md, note: 'Controller ref (Korean)' }
+    - { file: docs/reference/agents/ko/github-repo-setup.md, note: 'GitHub Repo Setup ref (Korean)' }
+    - { file: docs/reference/agents/ko/issue-generator.md, note: 'Issue Generator ref (Korean)' }
+    - { file: docs/reference/agents/ko/issue-reader.md, note: 'Issue Reader ref (Korean)' }
+    - { file: docs/reference/agents/ko/pr-reviewer.md, note: 'PR Reviewer ref (Korean)' }
+    - { file: docs/reference/agents/ko/prd-writer.md, note: 'PRD Writer ref (Korean)' }
+    - { file: docs/reference/agents/ko/sds-writer.md, note: 'SDS Writer ref (Korean)' }
+    - { file: docs/reference/agents/ko/srs-writer.md, note: 'SRS Writer ref (Korean)' }
+    - { file: docs/reference/agents/ko/worker.md, note: 'Worker ref (Korean)' }
     - { file: .ad-sdlc/scratchpad/documents/001/srs.kr.md, note: 'Scratchpad SRS (Korean)' }
 
 # ──────────────────────────────────────────────
