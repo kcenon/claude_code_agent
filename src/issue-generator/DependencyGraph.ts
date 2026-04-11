@@ -13,7 +13,7 @@ import type {
   DependencyType,
   ParallelGroup,
 } from './types.js';
-import { CircularDependencyError, ComponentNotFoundError } from './errors.js';
+import { ComponentNotFoundError } from './errors.js';
 
 /**
  * Internal node representation for graph algorithms
@@ -29,11 +29,22 @@ interface InternalNode {
 }
 
 /**
+ * Represents a cycle that was detected and broken in the dependency graph
+ */
+interface BrokenCycle {
+  /** The chain of issue IDs forming the cycle */
+  cycle: readonly string[];
+  /** The edge that was removed to break the cycle (from -> to) */
+  removedEdge: { from: string; to: string };
+}
+
+/**
  * Builds and analyzes dependency graphs
  */
 export class DependencyGraphBuilder {
   private nodes: Map<string, InternalNode> = new Map();
   private componentToIssue: Map<string, string> = new Map();
+  private brokenCycles: BrokenCycle[] = [];
 
   /**
    * Build a dependency graph from SDS components
@@ -87,8 +98,8 @@ export class DependencyGraphBuilder {
       }
     }
 
-    // Detect cycles
-    this.detectCycles();
+    // Detect and break cycles (instead of throwing)
+    this.breakCycles();
 
     // Calculate depths
     this.calculateDepths();
@@ -103,31 +114,50 @@ export class DependencyGraphBuilder {
   private reset(): void {
     this.nodes.clear();
     this.componentToIssue.clear();
+    this.brokenCycles = [];
   }
 
   /**
-   * Detect circular dependencies using DFS
-   * @throws CircularDependencyError if a cycle is detected
+   * Detect and break circular dependencies.
+   *
+   * Instead of throwing on cycles, this method removes back-edges
+   * to produce a valid DAG while recording the broken cycles as warnings.
+   * Mutual dependencies between components are common in real software,
+   * so hard-failing is too aggressive for practical use.
    */
-  private detectCycles(): void {
-    for (const node of this.nodes.values()) {
-      node.visited = false;
-      node.inStack = false;
-    }
+  private breakCycles(): void {
+    this.brokenCycles = [];
+    let hasCycles = true;
 
-    for (const node of this.nodes.values()) {
-      if (!node.visited) {
-        this.dfsDetectCycle(node, []);
+    // Iterate until no more cycles remain (each pass breaks one cycle)
+    while (hasCycles) {
+      hasCycles = false;
+
+      for (const node of this.nodes.values()) {
+        node.visited = false;
+        node.inStack = false;
+      }
+
+      for (const node of this.nodes.values()) {
+        if (!node.visited) {
+          const cycle = this.dfsFindCycle(node, []);
+          if (cycle) {
+            this.removeCycleEdge(cycle);
+            hasCycles = true;
+            break; // restart full DFS after graph mutation
+          }
+        }
       }
     }
   }
 
   /**
-   * DFS helper for cycle detection
-   * @param node - The current node being visited in the DFS traversal
-   * @param path - The current path of node IDs from the DFS root to this node
+   * DFS helper that returns the first cycle found, or null if none.
+   * @param node - Current node in DFS traversal
+   * @param path - Current path from DFS root
+   * @returns Array of node IDs forming the cycle, or null
    */
-  private dfsDetectCycle(node: InternalNode, path: string[]): void {
+  private dfsFindCycle(node: InternalNode, path: string[]): string[] | null {
     node.visited = true;
     node.inStack = true;
     path.push(node.id);
@@ -137,16 +167,42 @@ export class DependencyGraphBuilder {
       if (!depNode) continue;
 
       if (!depNode.visited) {
-        this.dfsDetectCycle(depNode, [...path]);
+        const cycle = this.dfsFindCycle(depNode, [...path]);
+        if (cycle) return cycle;
       } else if (depNode.inStack) {
-        // Found a cycle
         const cycleStart = path.indexOf(depId);
-        const cycle = [...path.slice(cycleStart), depId];
-        throw new CircularDependencyError(cycle);
+        return [...path.slice(cycleStart), depId];
       }
     }
 
     node.inStack = false;
+    return null;
+  }
+
+  /**
+   * Remove the back-edge of a cycle to break it.
+   * Chooses the last edge in the cycle (the back-edge that closes the loop).
+   * @param cycle - Array of node IDs forming the cycle (last element == first element)
+   */
+  private removeCycleEdge(cycle: string[]): void {
+    // Remove the back-edge: from the second-to-last node to the first node
+    const from = cycle[cycle.length - 2]!;
+    const to = cycle[cycle.length - 1]!;
+
+    const fromNode = this.nodes.get(from);
+    const toNode = this.nodes.get(to);
+
+    if (fromNode) {
+      fromNode.dependencies.delete(to);
+    }
+    if (toNode) {
+      toNode.dependents.delete(from);
+    }
+
+    this.brokenCycles.push({
+      cycle,
+      removedEdge: { from, to },
+    });
   }
 
   /**
@@ -210,11 +266,17 @@ export class DependencyGraphBuilder {
     const executionOrder = this.topologicalSort();
     const parallelGroups = this.buildParallelGroups();
 
+    const warnings = this.brokenCycles.map(
+      (bc) =>
+        `Circular dependency broken: ${bc.cycle.join(' -> ')} (removed edge: ${bc.removedEdge.from} -> ${bc.removedEdge.to})`
+    );
+
     return {
       nodes,
       edges,
       executionOrder,
       parallelGroups,
+      warnings,
     };
   }
 

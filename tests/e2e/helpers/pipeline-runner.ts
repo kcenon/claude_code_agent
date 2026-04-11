@@ -156,6 +156,20 @@ export async function runPipeline(
       const issuesStart = Date.now();
       issues = await runIssueGenerationStage(env, projectId);
       timing.issues = Date.now() - issuesStart;
+
+      if (!issues.success) {
+        return {
+          success: false,
+          projectId,
+          collection: collection.result,
+          prd: prd.result,
+          srs: srs.result,
+          sds: sds.result,
+          totalTimeMs: Date.now() - startTime,
+          timing,
+          error: issues.error,
+        };
+      }
     }
 
     return {

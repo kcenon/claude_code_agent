@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import {
   DependencyGraphBuilder,
   SDSComponent,
-  CircularDependencyError,
   ComponentNotFoundError,
 } from '../../src/issue-generator/index.js';
 
@@ -110,7 +109,7 @@ describe('DependencyGraphBuilder', () => {
       expect(node3?.depth).toBe(2);
     });
 
-    it('should throw CircularDependencyError for cycles', () => {
+    it('should break circular dependencies and report warnings', () => {
       const components = [
         createComponent('CMP-001', ['CMP-003']),
         createComponent('CMP-002', ['CMP-001']),
@@ -118,9 +117,14 @@ describe('DependencyGraphBuilder', () => {
       ];
       const mapping = createMapping(components);
 
-      expect(() => builder.build(components, mapping)).toThrow(
-        CircularDependencyError
-      );
+      const graph = builder.build(components, mapping);
+
+      // Should not throw — cycles are broken gracefully
+      expect(graph.nodes.length).toBe(3);
+      expect(graph.warnings.length).toBeGreaterThan(0);
+      expect(graph.warnings[0]).toContain('Circular dependency broken');
+      // Graph should still have a valid execution order
+      expect(graph.executionOrder.length).toBe(3);
     });
 
     it('should throw ComponentNotFoundError for missing mapping', () => {
