@@ -186,8 +186,10 @@ export class DependencyGraphBuilder {
    */
   private removeCycleEdge(cycle: string[]): void {
     // Remove the back-edge: from the second-to-last node to the first node
-    const from = cycle[cycle.length - 2]!;
-    const to = cycle[cycle.length - 1]!;
+    const from = cycle[cycle.length - 2];
+    const to = cycle[cycle.length - 1];
+
+    if (from === undefined || to === undefined) return;
 
     const fromNode = this.nodes.get(from);
     const toNode = this.nodes.get(to);
