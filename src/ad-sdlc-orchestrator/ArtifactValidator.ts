@@ -144,6 +144,31 @@ export const GREENFIELD_ARTIFACTS: readonly StageArtifactMap[] = [
       },
     ],
   },
+  {
+    stage: 'doc_indexing' as StageName,
+    requiredArtifacts: [
+      {
+        pathPattern: 'docs/.index/manifest.yaml',
+        description: 'Document manifest index',
+        required: true,
+      },
+      {
+        pathPattern: 'docs/.index/bundles.yaml',
+        description: 'Document bundles',
+        required: false,
+      },
+      {
+        pathPattern: 'docs/.index/graph.yaml',
+        description: 'Cross-reference graph',
+        required: false,
+      },
+      {
+        pathPattern: 'docs/.index/router.yaml',
+        description: 'Query router',
+        required: false,
+      },
+    ],
+  },
 ];
 
 /**
@@ -251,6 +276,16 @@ export const ENHANCEMENT_ARTIFACTS: readonly StageArtifactMap[] = [
       {
         pathPattern: '.ad-sdlc/scratchpad/vnv/*/validation-report.yaml',
         description: 'Validation report',
+        required: true,
+      },
+    ],
+  },
+  {
+    stage: 'doc_indexing' as StageName,
+    requiredArtifacts: [
+      {
+        pathPattern: 'docs/.index/manifest.yaml',
+        description: 'Document manifest index',
         required: true,
       },
     ],
