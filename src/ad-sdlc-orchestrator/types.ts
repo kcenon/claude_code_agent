@@ -28,7 +28,8 @@ export type GreenfieldStageName =
   | 'orchestration'
   | 'implementation'
   | 'validation'
-  | 'review';
+  | 'review'
+  | 'doc_indexing';
 
 /**
  * Pipeline stage names for Enhancement mode
@@ -47,7 +48,8 @@ export type EnhancementStageName =
   | 'implementation'
   | 'regression_testing'
   | 'validation'
-  | 'review';
+  | 'review'
+  | 'doc_indexing';
 
 /**
  * Pipeline stage names for Import mode
@@ -415,6 +417,14 @@ export const GREENFIELD_STAGES: readonly PipelineStageDefinition[] = [
     approvalRequired: false,
     dependsOn: ['validation'],
   },
+  {
+    name: 'doc_indexing',
+    agentType: 'doc-index-generator',
+    description: 'Generate searchable documentation index from pipeline artifacts',
+    parallel: false,
+    approvalRequired: false,
+    dependsOn: ['review'],
+  },
 ];
 
 /**
@@ -536,6 +546,14 @@ export const ENHANCEMENT_STAGES: readonly PipelineStageDefinition[] = [
     parallel: false,
     approvalRequired: false,
     dependsOn: ['validation'],
+  },
+  {
+    name: 'doc_indexing',
+    agentType: 'doc-index-generator',
+    description: 'Generate searchable documentation index from pipeline artifacts',
+    parallel: false,
+    approvalRequired: false,
+    dependsOn: ['review'],
   },
 ];
 

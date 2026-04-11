@@ -1190,13 +1190,13 @@ describe('AdsdlcOrchestratorAgent', () => {
 });
 
 describe('GREENFIELD_STAGES', () => {
-  it('should define 13 stages', () => {
-    expect(GREENFIELD_STAGES).toHaveLength(13);
+  it('should define 14 stages', () => {
+    expect(GREENFIELD_STAGES).toHaveLength(14);
   });
 
-  it('should start with initialization and end with review', () => {
+  it('should start with initialization and end with doc_indexing', () => {
     expect(GREENFIELD_STAGES[0]!.name).toBe('initialization');
-    expect(GREENFIELD_STAGES[GREENFIELD_STAGES.length - 1]!.name).toBe('review');
+    expect(GREENFIELD_STAGES[GREENFIELD_STAGES.length - 1]!.name).toBe('doc_indexing');
   });
 
   it('should have valid dependency chains', () => {
@@ -1223,8 +1223,8 @@ describe('GREENFIELD_STAGES', () => {
 });
 
 describe('ENHANCEMENT_STAGES', () => {
-  it('should define 14 stages', () => {
-    expect(ENHANCEMENT_STAGES).toHaveLength(14);
+  it('should define 15 stages', () => {
+    expect(ENHANCEMENT_STAGES).toHaveLength(15);
   });
 
   it('should start with parallel analysis stages', () => {
@@ -1233,11 +1233,10 @@ describe('ENHANCEMENT_STAGES', () => {
     expect(firstThree.every((s) => s.dependsOn.length === 0)).toBe(true);
   });
 
-  it('should end with regression testing, validation, and review', () => {
-    const lastThree = ENHANCEMENT_STAGES.slice(-3);
-    expect(lastThree[0]!.name).toBe('regression_testing');
-    expect(lastThree[1]!.name).toBe('validation');
-    expect(lastThree[2]!.name).toBe('review');
+  it('should end with review and doc_indexing', () => {
+    const lastTwo = ENHANCEMENT_STAGES.slice(-2);
+    expect(lastTwo[0]!.name).toBe('review');
+    expect(lastTwo[1]!.name).toBe('doc_indexing');
   });
 
   it('should have doc_code_comparison depend on all three analysis stages', () => {

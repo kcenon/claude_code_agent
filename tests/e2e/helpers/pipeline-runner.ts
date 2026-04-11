@@ -642,6 +642,14 @@ export async function placeMockArtifacts(
       case 'sds_update':
         await placeMockArtifacts(projectDir, ['sds_generation'], projectId);
         break;
+      case 'doc_indexing':
+        await fs.mkdir(path.join(projectDir, 'docs', '.index'), { recursive: true });
+        await fs.writeFile(
+          path.join(projectDir, 'docs', '.index', 'manifest.yaml'),
+          '_meta: {schema: "1.0.0"}\n',
+          'utf-8'
+        );
+        break;
       // Stages without artifact definitions (mode_detection, repo_detection, etc.) — no-op
       default:
         break;
