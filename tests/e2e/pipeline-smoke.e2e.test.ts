@@ -173,7 +173,7 @@ describe('Pipeline Smoke E2E', () => {
       // Execution order should match GREENFIELD_STAGES dependency order
       expect(agent.executionOrder).toHaveLength(GREENFIELD_STAGES.length);
       expect(agent.executionOrder[0]).toBe('initialization');
-      expect(agent.executionOrder[agent.executionOrder.length - 1]).toBe('review');
+      expect(agent.executionOrder[agent.executionOrder.length - 1]).toBe('doc_indexing');
 
       // Verify dependency ordering constraints
       const indexOf = (name: string) => agent.executionOrder.indexOf(name);
@@ -411,8 +411,8 @@ describe('Pipeline Smoke E2E', () => {
     });
 
     it('should report partial status when early stages succeed but later stages fail', async () => {
-      // Fail the review stage (last stage, stage name = 'review') — all others succeed.
-      // Since some stages completed and one failed, overallStatus is 'partial'.
+      // Fail the review stage — since doc_indexing depends on review,
+      // it will be skipped when review fails.
       const agent = new FailingOrchestrator({
         review: 'Review agent unavailable',
       });
@@ -422,11 +422,11 @@ describe('Pipeline Smoke E2E', () => {
 
       expect(result.overallStatus).toBe('partial');
 
-      // All stages except review should be completed or degraded
+      // All stages except review (failed) and doc_indexing (skipped) should succeed
       const succeeded = result.stages.filter(
         (s) => s.status === 'completed' || s.status === 'degraded'
       );
-      expect(succeeded.length).toBe(GREENFIELD_STAGES.length - 1);
+      expect(succeeded.length).toBe(GREENFIELD_STAGES.length - 2);
 
       // Review should be failed
       const failed = result.stages.find((s) => s.name === 'review');
