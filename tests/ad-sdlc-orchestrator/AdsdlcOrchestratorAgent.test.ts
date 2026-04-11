@@ -20,6 +20,7 @@ import {
   SessionCorruptedError,
 } from '../../src/ad-sdlc-orchestrator/errors.js';
 import { ArtifactValidator } from '../../src/ad-sdlc-orchestrator/ArtifactValidator.js';
+import { BridgeRegistry } from '../../src/agents/BridgeRegistry.js';
 
 /**
  * ArtifactValidator subclass that treats all stages as valid.
@@ -60,6 +61,17 @@ class StubOrchestrator extends AdsdlcOrchestratorAgent {
     _session: OrchestratorSession
   ): Promise<string> {
     return `Stage "${stage.name}" executed by ${stage.agentType}`;
+  }
+}
+
+/**
+ * Stub orchestrator that also bypasses BridgeRegistry initialization.
+ * Avoids CLI/API detection delays in coordinateAgents tests.
+ */
+class StubBridgeOrchestrator extends AdsdlcOrchestratorAgent {
+  protected override getBridgeRegistry(): BridgeRegistry {
+    // Empty registry — StubBridge is the auto-fallback for all agent types
+    return new BridgeRegistry();
   }
 }
 
@@ -315,6 +327,16 @@ describe('AdsdlcOrchestratorAgent', () => {
   });
 
   describe('coordinateAgents', () => {
+    let stubBridgeAgent: StubBridgeOrchestrator;
+
+    beforeEach(() => {
+      stubBridgeAgent = new StubBridgeOrchestrator();
+    });
+
+    afterEach(async () => {
+      await stubBridgeAgent.dispose();
+    });
+
     it('should execute agents sequentially', async () => {
       const invocations = [
         {
@@ -331,7 +353,7 @@ describe('AdsdlcOrchestratorAgent', () => {
         },
       ];
 
-      const results = await agent.coordinateAgents(invocations, 'sequential');
+      const results = await stubBridgeAgent.coordinateAgents(invocations, 'sequential');
 
       expect(results).toHaveLength(2);
       expect(results[0]!.agentType).toBe('collector');
@@ -355,7 +377,7 @@ describe('AdsdlcOrchestratorAgent', () => {
         },
       ];
 
-      const results = await agent.coordinateAgents(invocations, 'parallel');
+      const results = await stubBridgeAgent.coordinateAgents(invocations, 'parallel');
 
       expect(results).toHaveLength(2);
       expect(results.every((r) => r.status === 'completed')).toBe(true);
