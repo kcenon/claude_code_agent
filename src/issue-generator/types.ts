@@ -264,6 +264,8 @@ export interface DependencyGraph {
   readonly executionOrder: readonly string[];
   /** Parallelizable groups */
   readonly parallelGroups: readonly ParallelGroup[];
+  /** Warnings about broken cycles or other graph issues */
+  readonly warnings: readonly string[];
 }
 
 /**

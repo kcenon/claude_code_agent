@@ -454,9 +454,12 @@ Build a modular system.
 
         // When: Building dependency graph
         const builder = new DependencyGraphBuilder();
+        const graph = builder.build(components, componentToIssue);
 
-        // Then: Should detect cycle and throw
-        expect(() => builder.build(components, componentToIssue)).toThrow(CircularDependencyError);
+        // Then: Should break cycle gracefully with warnings
+        expect(graph.warnings.length).toBeGreaterThan(0);
+        expect(graph.warnings[0]).toContain('Circular dependency broken');
+        expect(graph.executionOrder.length).toBe(2);
       });
 
       it('should detect complex circular dependency chain', () => {
@@ -500,25 +503,15 @@ Build a modular system.
           ['CMP-003', 'ISSUE-003'],
         ]);
 
-        // When/Then: Should detect cycle and throw
+        // When: Building graph with cycle
         const builder = new DependencyGraphBuilder();
-        let caughtError: Error | undefined;
+        const graph = builder.build(components, componentToIssue);
 
-        try {
-          builder.build(components, componentToIssue);
-        } catch (error) {
-          caughtError = error as Error;
-        }
-
-        // Verify error was caught and is CircularDependencyError
-        expect(caughtError).toBeDefined();
-        expect(caughtError).toBeInstanceOf(CircularDependencyError);
-
-        const cycleError = caughtError as CircularDependencyError;
-        // Cycle should contain at least 2 nodes (the cycle itself)
-        expect(cycleError.cycle.length).toBeGreaterThanOrEqual(2);
-        // Cycle should involve the nodes that form the cycle
-        expect(cycleError.cycle.some((id) => id.includes('ISSUE'))).toBe(true);
+        // Then: Cycle should be broken with warnings
+        expect(graph.warnings.length).toBeGreaterThan(0);
+        expect(graph.warnings[0]).toContain('Circular dependency broken');
+        // All 3 nodes should be in execution order (cycle broken, not removed)
+        expect(graph.executionOrder.length).toBe(3);
       });
 
       it('should handle self-referencing dependency', () => {
@@ -538,9 +531,13 @@ Build a modular system.
 
         const componentToIssue = new Map([['CMP-001', 'ISSUE-001']]);
 
-        // When/Then: Should detect self-cycle
+        // When: Building graph with self-cycle
         const builder = new DependencyGraphBuilder();
-        expect(() => builder.build(components, componentToIssue)).toThrow(CircularDependencyError);
+        const graph = builder.build(components, componentToIssue);
+
+        // Then: Self-cycle should be broken
+        expect(graph.warnings.length).toBeGreaterThan(0);
+        expect(graph.executionOrder.length).toBe(1);
       });
 
       it('should allow valid dependency graph without cycles', () => {
