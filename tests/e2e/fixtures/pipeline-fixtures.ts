@@ -237,6 +237,26 @@ export const validationOutput = JSON.stringify({
  * Complete response map for all Greenfield pipeline agent types.
  * Keys match the agentType field in GREENFIELD_STAGES.
  */
+/**
+ * Output from the doc-index-generator agent.
+ * Generates documentation index YAML files.
+ */
+export const docIndexGeneratorOutput = JSON.stringify({
+  status: 'completed',
+  artifacts: [
+    'docs/.index/manifest.yaml',
+    'docs/.index/bundles.yaml',
+    'docs/.index/graph.yaml',
+    'docs/.index/router.yaml',
+  ],
+  stats: {
+    documentsIndexed: 3,
+    bundlesCreated: 1,
+    crossReferences: 2,
+    processingTimeMs: 150,
+  },
+});
+
 export const GREENFIELD_RESPONSES: Record<string, string> = {
   'project-initializer': initializerOutput,
   'mode-detector': modeDetectorOutput,
@@ -251,4 +271,5 @@ export const GREENFIELD_RESPONSES: Record<string, string> = {
   worker: workerOutput,
   validation: validationOutput,
   'pr-reviewer': prReviewerOutput,
+  'doc-index-generator': docIndexGeneratorOutput,
 };

@@ -243,6 +243,16 @@ export const AGENT_TYPE_MAP: Readonly<Record<string, AgentTypeEntry>> = {
     importPath: '../pr-reviewer/index.js',
   },
 
+  // ── Documentation pipeline agents ───────────────────────────────────
+
+  'doc-index-generator': {
+    agentId: 'doc-index-generator',
+    name: 'Documentation Index Generator',
+    lifecycle: 'singleton',
+    requiresWrapper: true,
+    importPath: '../doc-index-generator/index.js',
+  },
+
   // ── Cross-pipeline agents ───────────────────────────────────────────
 
   'ci-fixer': {
