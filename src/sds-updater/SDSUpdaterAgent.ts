@@ -56,6 +56,8 @@ import {
   SDSOutputWriteError,
 } from './errors.js';
 
+import { appendChangeHistory } from '../utilities/frontmatter.js';
+
 // YAML import with dynamic loading for compatibility
 let yaml: { dump: (obj: unknown) => string } | null = null;
 
@@ -337,6 +339,15 @@ export class SDSUpdaterAgent implements IAgent {
 
       // Update last updated date
       updatedContent = this.updateLastUpdatedDate(updatedContent);
+
+      // Append change history entry to frontmatter
+      const changeDescription = this.summarizeChanges(changes);
+      updatedContent = appendChangeHistory(updatedContent, {
+        version: versionAfter,
+        date: new Date().toISOString().split('T')[0] ?? '',
+        author: 'AD-SDLC SDS Updater Agent',
+        description: changeDescription,
+      });
 
       // Run consistency check
       const consistencyCheck = this.runConsistencyCheck(updatedContent, parsedSDS);
@@ -1459,6 +1470,29 @@ export class SDSUpdaterAgent implements IAgent {
     }
 
     return entry;
+  }
+
+  private summarizeChanges(changes: SDSUpdateChanges): string {
+    const parts: string[] = [];
+    if (changes.componentsAdded.length > 0) {
+      parts.push(`Added ${String(changes.componentsAdded.length)} component(s)`);
+    }
+    if (changes.apisAdded.length > 0) {
+      parts.push(`Added ${String(changes.apisAdded.length)} API(s)`);
+    }
+    if (changes.componentsModified.length > 0) {
+      parts.push(`Modified ${String(changes.componentsModified.length)} component(s)`);
+    }
+    if (changes.apisModified.length > 0) {
+      parts.push(`Modified ${String(changes.apisModified.length)} API(s)`);
+    }
+    if (changes.dataModelsChanged.length > 0) {
+      parts.push(`Changed ${String(changes.dataModelsChanged.length)} data model(s)`);
+    }
+    if (changes.architectureChanges.length > 0) {
+      parts.push(`${String(changes.architectureChanges.length)} architecture change(s)`);
+    }
+    return parts.length > 0 ? parts.join('; ') : 'Document updated';
   }
 
   private async writeUpdatedSDS(sdsPath: string, content: string): Promise<void> {

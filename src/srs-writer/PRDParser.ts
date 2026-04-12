@@ -56,15 +56,17 @@ export class PRDParser {
    * @returns Parsed PRD structure
    */
   public parse(content: string, projectId: string): ParsedPRD {
-    const metadata = this.parseMetadata(content, projectId);
-    const productName = this.extractProductName(content, projectId);
-    const productDescription = this.extractProductDescription(content);
-    const functionalRequirements = this.parseFunctionalRequirements(content);
-    const nonFunctionalRequirements = this.parseNonFunctionalRequirements(content);
-    const constraints = this.parseConstraints(content);
-    const assumptions = this.parseAssumptions(content);
-    const userPersonas = this.options.parsePersonas ? this.parseUserPersonas(content) : [];
-    const goals = this.options.parseGoals ? this.parseGoals(content) : [];
+    // Strip YAML frontmatter (delimited by --- markers) if present
+    const stripped = PRDParser.stripFrontmatter(content);
+    const metadata = this.parseMetadata(stripped, projectId);
+    const productName = this.extractProductName(stripped, projectId);
+    const productDescription = this.extractProductDescription(stripped);
+    const functionalRequirements = this.parseFunctionalRequirements(stripped);
+    const nonFunctionalRequirements = this.parseNonFunctionalRequirements(stripped);
+    const constraints = this.parseConstraints(stripped);
+    const assumptions = this.parseAssumptions(stripped);
+    const userPersonas = this.options.parsePersonas ? this.parseUserPersonas(stripped) : [];
+    const goals = this.options.parseGoals ? this.parseGoals(stripped) : [];
 
     return {
       metadata,
@@ -710,5 +712,22 @@ export class PRDParser {
     }
 
     return goals;
+  }
+
+  /**
+   * Strip YAML frontmatter from content if present.
+   * Frontmatter is delimited by `---` on its own line at the start of the document.
+   * @param content
+   */
+  private static stripFrontmatter(content: string): string {
+    if (!content.startsWith('---')) {
+      return content;
+    }
+    const endIndex = content.indexOf('\n---', 3);
+    if (endIndex === -1) {
+      return content;
+    }
+    const afterFrontmatter = endIndex + 4;
+    return content.slice(afterFrontmatter).replace(/^\n/, '');
   }
 }

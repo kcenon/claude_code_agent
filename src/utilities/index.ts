@@ -355,3 +355,13 @@ export type { ExecutionResult, ExecuteOptions, ICommandExecutor } from './Comman
 
 // Re-export Semaphore utility
 export { Semaphore } from './Semaphore.js';
+
+// Re-export frontmatter utilities
+export {
+  generateFrontmatter,
+  parseFrontmatter,
+  prependFrontmatter,
+  appendChangeHistory,
+} from './frontmatter.js';
+
+export type { GenerateFrontmatterOptions, ParsedFrontmatterResult } from './frontmatter.js';

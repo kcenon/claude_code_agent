@@ -12,12 +12,12 @@ This document defines the formal status semantics used across all AD-SDLC projec
 
 The **Status** field in a document's metadata table tracks the lifecycle of the _document itself_ — whether it has been drafted, reviewed, or approved as a baseline.
 
-| Status | Meaning |
-|--------|---------|
-| **Draft** | Initial authoring in progress; not ready for review |
-| **Review** | Content complete; under stakeholder review |
-| **Approved** | Reviewed and accepted as a project baseline |
-| **Superseded** | Replaced by a newer version of the document |
+| Status         | Meaning                                             |
+| -------------- | --------------------------------------------------- |
+| **Draft**      | Initial authoring in progress; not ready for review |
+| **Review**     | Content complete; under stakeholder review          |
+| **Approved**   | Reviewed and accepted as a project baseline         |
+| **Superseded** | Replaced by a newer version of the document         |
 
 ### Transition Diagram
 
@@ -41,13 +41,13 @@ Draft ──→ Review ──→ Approved ──→ Superseded
 
 The **Implementation** field in a document's metadata table tracks the state of the _system or feature_ described by the document — whether the specified functionality has been built.
 
-| Status | Meaning |
-|--------|---------|
-| **Not Started** | No code has been written for this specification |
-| **In Progress** | Active development underway |
-| **Partial** | Some specified features are implemented; others remain pending |
-| **Complete** | All specified features are implemented and verified |
-| **Deprecated** | Implementation exists but is being phased out |
+| Status          | Meaning                                                        |
+| --------------- | -------------------------------------------------------------- |
+| **Not Started** | No code has been written for this specification                |
+| **In Progress** | Active development underway                                    |
+| **Partial**     | Some specified features are implemented; others remain pending |
+| **Complete**    | All specified features are implemented and verified            |
+| **Deprecated**  | Implementation exists but is being phased out                  |
 
 ### Transition Diagram
 
@@ -72,13 +72,13 @@ Not Started ──→ In Progress ──→ Partial ──→ Complete ──→
 
 The two status fields are **independent** and should not be confused:
 
-| Scenario | Document Status | Implementation |
-|----------|----------------|----------------|
-| New design, not yet built | Review | Not Started |
-| Approved design, being built | Approved | In Progress |
-| Approved design, partially built | Approved | Partial |
-| Approved design, fully built | Approved | Complete |
-| Old design replaced by v2 | Superseded | Deprecated |
+| Scenario                         | Document Status | Implementation |
+| -------------------------------- | --------------- | -------------- |
+| New design, not yet built        | Review          | Not Started    |
+| Approved design, being built     | Approved        | In Progress    |
+| Approved design, partially built | Approved        | Partial        |
+| Approved design, fully built     | Approved        | Complete       |
+| Old design replaced by v2        | Superseded      | Deprecated     |
 
 ### Common Misinterpretation
 
@@ -93,11 +93,11 @@ The two status fields are **independent** and should not be confused:
 For granular tracking, individual requirements or components can include their own implementation status:
 
 ```markdown
-| ID | Feature | Design Status | Implementation |
-|----|---------|---------------|----------------|
-| FR-001 | Information Collection | Approved | Complete |
-| FR-002 | PRD Generation | Approved | Complete |
-| FR-010 | Document Reading | Approved | Not Started |
+| ID     | Feature                | Design Status | Implementation |
+| ------ | ---------------------- | ------------- | -------------- |
+| FR-001 | Information Collection | Approved      | Complete       |
+| FR-002 | PRD Generation         | Approved      | Complete       |
+| FR-010 | Document Reading       | Approved      | Not Started    |
 ```
 
 This approach provides visibility into which parts of a specification are built without conflating the overall document status.
@@ -109,19 +109,23 @@ This approach provides visibility into which parts of a specification are built 
 All AD-SDLC documents must include both fields in their metadata table:
 
 ```markdown
-| Field | Value |
-|-------|-------|
-| **Document ID** | SDS-001 |
-| **Version** | 1.1.0 |
-| **Status** | Review |
-| **Implementation** | Partial |
-| **Created** | 2025-12-27 |
-| **Author** | System Architect |
+| Field              | Value            |
+| ------------------ | ---------------- |
+| **Document ID**    | SDS-001          |
+| **Version**        | 1.1.0            |
+| **Status**         | Review           |
+| **Implementation** | Partial          |
+| **Created**        | 2025-12-27       |
+| **Author**         | System Architect |
 ```
 
 - **Status** always refers to the document lifecycle (see [Section 1](#1-document-status)).
 - **Implementation** always refers to the described system (see [Section 2](#2-implementation-status)).
 
+### YAML Frontmatter
+
+Pipeline-generated documents also include this metadata as structured YAML frontmatter at the top of the file. The frontmatter `status` field corresponds to the Document Status values defined in [Section 1](#1-document-status) (`Draft`, `Review`, `Approved`). See the project [README](../README.md) for the full frontmatter schema.
+
 ---
 
-*Version: 1.0.0 | Created: 2026-02-08*
+_Version: 1.1.0 | Created: 2026-02-08 | Updated: 2026-04-12_

@@ -38,6 +38,7 @@ import {
   SessionStateError,
 } from './errors.js';
 import { getLogger } from '../logging/index.js';
+import { prependFrontmatter } from '../utilities/frontmatter.js';
 
 /**
  * Default configuration for PRDWriterAgent
@@ -265,6 +266,25 @@ export class PRDWriterAgent implements IAgent {
       });
       content = this.templateProcessor.generateWithoutTemplate(session.collectedInfo, metadata);
     }
+
+    // Prepend YAML frontmatter
+    content = prependFrontmatter(content, {
+      docId: metadata.documentId,
+      title: `PRD: ${metadata.productName}`,
+      version: metadata.version,
+      status: metadata.status,
+      generatedBy: 'AD-SDLC PRD Writer Agent',
+      generatedAt: metadata.createdAt,
+      pipelineSession: session.sessionId,
+      changeHistory: [
+        {
+          version: metadata.version,
+          date: metadata.createdAt.split('T')[0] ?? metadata.createdAt,
+          author: 'AD-SDLC PRD Writer Agent',
+          description: 'Initial document generation',
+        },
+      ],
+    });
 
     const generatedPRD: GeneratedPRD = {
       metadata,

@@ -39,6 +39,7 @@ import {
   FileWriteError,
   SessionStateError,
 } from './errors.js';
+import { prependFrontmatter } from '../utilities/frontmatter.js';
 
 /**
  * Default configuration for SRSWriterAgent
@@ -275,7 +276,7 @@ export class SRSWriterAgent implements IAgent {
     const constraints = this.convertConstraints(session.parsedPRD);
 
     // Generate content
-    const content = this.generateContent(
+    let content = this.generateContent(
       session.parsedPRD,
       metadata,
       decompositionResult,
@@ -283,6 +284,26 @@ export class SRSWriterAgent implements IAgent {
       nfrs,
       constraints
     );
+
+    // Prepend YAML frontmatter
+    content = prependFrontmatter(content, {
+      docId: metadata.documentId,
+      title: `SRS: ${metadata.productName}`,
+      version: metadata.version,
+      status: metadata.status as 'Draft' | 'Review' | 'Approved',
+      generatedBy: 'AD-SDLC SRS Writer Agent',
+      generatedAt: new Date().toISOString(),
+      pipelineSession: session.sessionId,
+      sourceDocuments: [metadata.sourcePRD],
+      changeHistory: [
+        {
+          version: metadata.version,
+          date: new Date().toISOString().split('T')[0] ?? '',
+          author: 'AD-SDLC SRS Writer Agent',
+          description: 'Initial document generation',
+        },
+      ],
+    });
 
     const generatedSRS: GeneratedSRS = {
       metadata,
