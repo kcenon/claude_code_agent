@@ -164,7 +164,7 @@ The system consists of 15 specialized agents organized into functional categorie
 - **Collector**: Gathers requirements from multiple sources
 - **PRD Writer**: Generates Product Requirements Document
 - **SRS Writer**: Generates Software Requirements Specification
-- **SDS Writer**: Generates Software Design Specification
+- **SDS Writer**: Generates Software Design Specification (SDS) and a separate Database Schema Specification (DBS)
 - **Threat Model Writer**: Generates STRIDE/DREAD Threat Model from SDS
 
 #### Document Update Agents
@@ -200,7 +200,8 @@ File-based state management for inter-agent communication:
 ├── documents/               # Generated documents
 │   ├── prd.md
 │   ├── srs.md
-│   └── sds.md
+│   ├── sds.md
+│   └── dbs.md               # Database Schema Specification (emitted by SDS Writer)
 ├── issues/                  # Issue definitions
 │   └── issues.json
 ├── progress/                # Execution state

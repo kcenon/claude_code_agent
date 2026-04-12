@@ -28,6 +28,14 @@ export type { APISpecifierOptions, APISpecificationResult } from './APISpecifier
 export { DataDesigner } from './DataDesigner.js';
 export type { DataDesignerOptions, DataDesignResult } from './DataDesigner.js';
 
+export { DataDesignGenerator } from './DataDesignGenerator.js';
+export type {
+  DataDesignGeneratorOptions,
+  DataDesignLanguage,
+  FullDBSInput,
+  SummaryInput,
+} from './DataDesignGenerator.js';
+
 export { DeploymentDesigner } from './DeploymentDesigner.js';
 export type {
   DeploymentDesignerOptions,

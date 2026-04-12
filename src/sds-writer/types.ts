@@ -713,6 +713,14 @@ export interface SDSGenerationResult {
   readonly scratchpadPath: string;
   /** Path to the public SDS document */
   readonly publicPath: string;
+  /** Path to the generated DBS in scratchpad (only when data requirements exist) */
+  readonly dbsScratchpadPath?: string;
+  /** Path to the public DBS document (only when data requirements exist) */
+  readonly dbsPublicPath?: string;
+  /** Path to the Korean DBS variant in scratchpad (only when DBS is generated) */
+  readonly dbsScratchpadPathKorean?: string;
+  /** Path to the public Korean DBS variant (only when DBS is generated) */
+  readonly dbsPublicPathKorean?: string;
   /** Generated SDS content */
   readonly generatedSDS: GeneratedSDS;
   /** Generation statistics */

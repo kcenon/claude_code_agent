@@ -42,6 +42,7 @@ import { ComponentDesigner } from './ComponentDesigner.js';
 import { prependFrontmatter } from '../utilities/frontmatter.js';
 import { APISpecifier } from './APISpecifier.js';
 import { DataDesigner } from './DataDesigner.js';
+import { DataDesignGenerator } from './DataDesignGenerator.js';
 import { TraceabilityMapper } from './TraceabilityMapper.js';
 
 /**
@@ -111,6 +112,8 @@ export class SDSWriterAgent implements IAgent {
   private readonly componentDesigner: ComponentDesigner;
   private readonly apiSpecifier: APISpecifier;
   private readonly dataDesigner: DataDesigner;
+  private readonly dataDesignGeneratorEn: DataDesignGenerator;
+  private readonly dataDesignGeneratorKr: DataDesignGenerator;
   private readonly traceabilityMapper: TraceabilityMapper;
   private session: SDSGenerationSession | null = null;
   private initialized = false;
@@ -121,6 +124,8 @@ export class SDSWriterAgent implements IAgent {
     this.componentDesigner = new ComponentDesigner();
     this.apiSpecifier = new APISpecifier();
     this.dataDesigner = new DataDesigner();
+    this.dataDesignGeneratorEn = new DataDesignGenerator({ language: 'en' });
+    this.dataDesignGeneratorKr = new DataDesignGenerator({ language: 'kr' });
     this.traceabilityMapper = new TraceabilityMapper({
       coverageThreshold: this.config.coverageThreshold,
       failOnLowCoverage: this.config.failOnLowCoverage,
@@ -302,8 +307,11 @@ export class SDSWriterAgent implements IAgent {
         generatedSDS,
       });
 
-      // Write output files
+      // Write SDS output files
       const { scratchpadPath, publicPath } = await this.writeOutputFiles(projectId, generatedSDS);
+
+      // Write DBS output files (only when data requirements exist)
+      const dbsPaths = await this.writeDBSFiles(projectId, parsedSRS, dataModels);
 
       // Calculate stats
       const stats: SDSGenerationStats = {
@@ -324,6 +332,7 @@ export class SDSWriterAgent implements IAgent {
         projectId,
         scratchpadPath,
         publicPath,
+        ...dbsPaths,
         generatedSDS,
         stats,
         ...(this.session.warnings && { warnings: this.session.warnings }),
@@ -845,45 +854,13 @@ export class SDSWriterAgent implements IAgent {
       lines.push('');
     }
 
-    // Section 4: Data Design
+    // Section 4: Data Design (summary + cross-reference to DBS)
     lines.push('## 4. Data Design');
     lines.push('');
-    if (dataModels.length > 0) {
-      lines.push('### 4.1 Data Models');
-      lines.push('');
-      for (const model of dataModels) {
-        lines.push(`#### ${model.id}: ${model.name}`);
-        lines.push('');
-        lines.push(`**Category:** ${model.category}`);
-        lines.push('');
-        lines.push(`**Description:** ${model.description}`);
-        lines.push('');
-        lines.push('**Properties:**');
-        lines.push('');
-        lines.push('| Property | Type | Required | Description |');
-        lines.push('|----------|------|----------|-------------|');
-        for (const prop of model.properties) {
-          lines.push(
-            `| ${prop.name} | ${prop.type} | ${prop.required ? 'Yes' : 'No'} | ${prop.description ?? ''} |`
-          );
-        }
-        lines.push('');
-
-        if (model.relationships.length > 0) {
-          lines.push('**Relationships:**');
-          lines.push('');
-          for (const rel of model.relationships) {
-            lines.push(
-              `- ${rel.type} with ${rel.target}${rel.foreignKey != null && rel.foreignKey !== '' ? ` (FK: ${rel.foreignKey})` : ''}`
-            );
-          }
-          lines.push('');
-        }
-      }
-    } else {
-      lines.push('Data models are defined in external database schema documentation.');
-      lines.push('');
-    }
+    const projectId = metadata.documentId.replace(/^SDS-/, '');
+    lines.push(
+      this.dataDesignGeneratorEn.generateSummarySection({ projectId, models: dataModels })
+    );
 
     // Section 5: Interface Design (APIs)
     lines.push('## 5. Interface Design');
@@ -1031,6 +1008,119 @@ export class SDSWriterAgent implements IAgent {
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       throw new FileWriteError(scratchpadPath, message);
+    }
+  }
+
+  /**
+   * Write DBS (Database Schema Specification) output files.
+   *
+   * Produces four files when data requirements exist: English and Korean
+   * variants, each written to both scratchpad and public docs directories.
+   * Returns an empty object when no data models are provided so the SDS
+   * data section remains "not applicable" without an orphan DBS file.
+   *
+   * @param projectId - Project identifier for file naming
+   * @param srs - Parsed SRS for document metadata and traceability
+   * @param dataModels - Data models produced by DataDesigner
+   * @returns Map of written DBS paths, or empty object when skipped
+   */
+  private async writeDBSFiles(
+    projectId: string,
+    srs: ParsedSRS,
+    dataModels: readonly DataModel[]
+  ): Promise<{
+    dbsScratchpadPath?: string;
+    dbsPublicPath?: string;
+    dbsScratchpadPathKorean?: string;
+    dbsPublicPathKorean?: string;
+  }> {
+    await Promise.resolve();
+
+    // Skip when no data requirements exist — leaves SDS section 4 as "not applicable".
+    if (!this.dataDesignGeneratorEn.isApplicable(dataModels)) {
+      return {};
+    }
+
+    const now = new Date().toISOString().split('T')[0] ?? '';
+    const nowIso = new Date().toISOString();
+    const docId = `DBS-${projectId}`;
+
+    // Render English body + prepend frontmatter
+    const bodyEn = this.dataDesignGeneratorEn.generateFullContent({
+      projectId,
+      models: dataModels,
+      srs,
+    });
+    const contentEn = prependFrontmatter(bodyEn, {
+      docId,
+      title: `DBS: ${srs.productName}`,
+      version: '1.0.0',
+      status: 'Draft',
+      generatedBy: 'AD-SDLC SDS Writer Agent',
+      generatedAt: nowIso,
+      sourceDocuments: [srs.metadata.documentId, srs.metadata.sourcePRD],
+      changeHistory: [
+        {
+          version: '1.0.0',
+          date: now,
+          author: 'AD-SDLC SDS Writer Agent',
+          description: 'Initial DBS generation',
+        },
+      ],
+    });
+
+    // Render Korean body + prepend frontmatter
+    const bodyKr = this.dataDesignGeneratorKr.generateFullContent({
+      projectId,
+      models: dataModels,
+      srs,
+    });
+    const contentKr = prependFrontmatter(bodyKr, {
+      docId,
+      title: `DBS: ${srs.productName}`,
+      version: '1.0.0',
+      status: 'Draft',
+      generatedBy: 'AD-SDLC SDS Writer Agent',
+      generatedAt: nowIso,
+      sourceDocuments: [srs.metadata.documentId, srs.metadata.sourcePRD],
+      changeHistory: [
+        {
+          version: '1.0.0',
+          date: now,
+          author: 'AD-SDLC SDS Writer Agent',
+          description: 'Initial DBS generation',
+        },
+      ],
+    });
+
+    // Scratchpad paths
+    const scratchpadDir = path.join(this.config.scratchpadBasePath, 'documents', projectId);
+    const dbsScratchpadPath = path.join(scratchpadDir, 'dbs.md');
+    const dbsScratchpadPathKorean = path.join(scratchpadDir, 'dbs.kr.md');
+
+    // Public paths — DBS files live in a sibling directory to SDS.
+    const publicDbsDir = path.join(path.dirname(this.config.publicDocsPath), 'dbs');
+    const dbsPublicPath = path.join(publicDbsDir, `${docId}.md`);
+    const dbsPublicPathKorean = path.join(publicDbsDir, `${docId}.kr.md`);
+
+    try {
+      fs.mkdirSync(scratchpadDir, { recursive: true });
+      fs.mkdirSync(publicDbsDir, { recursive: true });
+
+      fs.writeFileSync(dbsScratchpadPath, contentEn, 'utf-8');
+      fs.writeFileSync(dbsPublicPath, contentEn, 'utf-8');
+      fs.writeFileSync(dbsScratchpadPathKorean, contentKr, 'utf-8');
+      fs.writeFileSync(dbsPublicPathKorean, contentKr, 'utf-8');
+
+      return {
+        dbsScratchpadPath,
+        dbsPublicPath,
+        dbsScratchpadPathKorean,
+        dbsPublicPathKorean,
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      throw new FileWriteError(dbsScratchpadPath, message);
     }
   }
 }
