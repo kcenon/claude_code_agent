@@ -62,9 +62,9 @@ AD-SDLC (Agent-Driven Software Development Lifecycle) is an automated software d
     ┌─────────────────────┐               ┌─────────────────────┐
     │  Document Pipeline  │               │  Analysis Pipeline  │
     │  Collector → PRD →  │               │  DocReader →        │
-    │  SRS → SDP → SDS    │               │  CodeAnalyzer →     │
-    └─────────────────────┘               │  ImpactAnalyzer     │
-              │                           └─────────────────────┘
+    │  SRS → SDP → SDS →  │               │  CodeAnalyzer →     │
+    │  Threat Model       │               │  ImpactAnalyzer     │
+    └─────────────────────┘               └─────────────────────┘
               │                                           │
               │                                           ▼
               │                           ┌─────────────────────┐
@@ -165,6 +165,7 @@ The system consists of 15 specialized agents organized into functional categorie
 - **PRD Writer**: Generates Product Requirements Document
 - **SRS Writer**: Generates Software Requirements Specification
 - **SDS Writer**: Generates Software Design Specification
+- **Threat Model Writer**: Generates STRIDE/DREAD Threat Model from SDS
 
 #### Document Update Agents
 
@@ -249,13 +250,16 @@ Stage 3: SRS Generation
 Stage 4: SDS Generation
     └── Create Software Design Specification
 
-Stage 5: Issue Generation
+Stage 5: Threat Model Generation
+    └── Generate STRIDE/DREAD Threat Model from SDS
+
+Stage 6: Issue Generation
     └── Transform SDS components into GitHub issues
 
-Stage 6: Orchestration
+Stage 7: Orchestration
     └── Prioritize and distribute work
 
-Stage 7: Implementation
+Stage 8: Implementation
     └── Workers implement issues in parallel
     └── PR Reviewer merges completed work
 ```

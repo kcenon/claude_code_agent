@@ -16,6 +16,7 @@ flowchart TB
         SRS[SRS Writer Agent]
         SDP[SDP Writer Agent]
         SDS[SDS Writer Agent]
+        TM[Threat Model Writer Agent]
     end
 
     subgraph IssuePipeline["Issue Management Pipeline"]
@@ -54,8 +55,9 @@ flowchart TB
     PRD --> SRS
     SRS --> SDP
     SDP --> SDS
+    SDS --> TM
 
-    SDS --> ISSUE
+    TM --> ISSUE
     ISSUE --> CTRL
 
     CTRL --> WORKER1
@@ -71,6 +73,7 @@ flowchart TB
     SRS -.-> DOCS
     SDP -.-> DOCS
     SDS -.-> DOCS
+    TM -.-> DOCS
     ISSUE -.-> ISSUES
     WORKER1 -.-> CODE
     WORKER2 -.-> CODE
@@ -101,6 +104,7 @@ flowchart TB
         A3[SRS Writer]
         A3B[SDP Writer]
         A4[SDS Writer]
+        A4B[Threat Model Writer]
         A5[Issue Generator]
         A6[Controller]
         A7[Worker]
@@ -116,6 +120,7 @@ flowchart TB
         S3[docs/srs/*.md]
         S3B[docs/sdp/*.md]
         S4[docs/sds/*.md]
+        S4B[docs/tm/*.md]
         S5[issues/*.json]
         S6[progress/*.yaml]
         S7[state/current_state.yaml]
@@ -129,6 +134,7 @@ flowchart TB
     MAIN -->|spawn| A3
     MAIN -->|spawn| A3B
     MAIN -->|spawn| A4
+    MAIN -->|spawn| A4B
     MAIN -->|spawn| A5
     MAIN -->|spawn| A6
     MAIN -->|spawn| A7
@@ -147,7 +153,10 @@ flowchart TB
     A3B -->|write| S3B
     A4 -->|read| S3
     A4 -->|write| S4
+    A4B -->|read| S4
+    A4B -->|write| S4B
     A5 -->|read| S4
+    A5 -->|read| S4B
     A5 -->|write| S5
     A6 -->|read| S5
     A6 -->|write| S6
@@ -172,6 +181,7 @@ flowchart TB
     A3 -.->|result| MAIN
     A3B -.->|result| MAIN
     A4 -.->|result| MAIN
+    A4B -.->|result| MAIN
     A5 -.->|result| MAIN
     A6 -.->|result| MAIN
     A7 -.->|result| MAIN
@@ -385,6 +395,7 @@ claude_code_agent/
 │       ├── srs-writer.md          # SRS 작성 에이전트
 │       ├── sdp-writer.md          # SDP 작성 에이전트
 │       ├── sds-writer.md          # SDS 작성 에이전트
+│       ├── threat-model-writer.md # 위협 모델 작성 에이전트
 │       ├── issue-generator.md     # 이슈 생성 에이전트
 │       ├── controller.md          # 관제 에이전트
 │       ├── worker.md              # 작업 에이전트
@@ -414,6 +425,7 @@ claude_code_agent/
 │   ├── prd/                      # PRD Documents
 │   ├── srs/                      # SRS Documents
 │   ├── sds/                      # SDS Documents
+│   ├── tm/                       # Threat Model Documents
 │   └── architecture/             # Architecture Docs
 │
 └── src/                          # Generated Source Code

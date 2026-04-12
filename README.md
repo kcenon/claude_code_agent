@@ -25,16 +25,16 @@ That's it! The agents will generate documents, create issues, implement code, an
 
 ## What is AD-SDLC?
 
-AD-SDLC is an automated software development pipeline that uses **26 specialized Claude agents** to transform your requirements into production-ready code. It supports three modes:
+AD-SDLC is an automated software development pipeline that uses **27 specialized Claude agents** to transform your requirements into production-ready code. It supports three modes:
 
 ### Greenfield Pipeline (New Projects)
 
 ```
-User Input → Collector → PRD Writer → SRS Writer → SDP Writer → SDS Writer
-                                                                    ↓
-                           Worker ← Controller ← Issue Generator
-                              ↓
-                         PR Reviewer → Merge
+User Input → Collector → PRD Writer → SRS Writer → SDP Writer → SDS Writer → Threat Model Writer
+                                                                                      ↓
+                                       Worker ← Controller ← Issue Generator ←────────┘
+                                          ↓
+                                     PR Reviewer → Merge
 ```
 
 ### Enhancement Pipeline (Existing Projects)
@@ -63,7 +63,7 @@ GitHub Issues → Issue Reader → Controller → Worker → PR Reviewer
                                                  CI Fix (on failure)
 ```
 
-### Agent Pipeline (26 Agents)
+### Agent Pipeline (27 Agents)
 
 | Phase             | Agent                 | Role                                                 |
 | ----------------- | --------------------- | ---------------------------------------------------- |
@@ -79,6 +79,7 @@ GitHub Issues → Issue Reader → Controller → Worker → PR Reviewer
 |                   | SRS Writer            | Generates Software Requirements Specification        |
 |                   | SDP Writer            | Generates Software Development Plan from PRD and SRS |
 |                   | SDS Writer            | Generates Software Design Specification              |
+|                   | Threat Model Writer   | Generates STRIDE/DREAD Threat Model from SDS         |
 | **Planning**      | Issue Generator       | Creates GitHub Issues from SDS components            |
 | **Execution**     | Controller            | Orchestrates work distribution and monitors progress |
 |                   | Worker                | Implements code based on assigned issues             |
@@ -284,7 +285,7 @@ See [Use Cases Guide](docs/use-cases.md) for more examples.
 ```
 your-project/
 ├── .claude/
-│   └── agents/              # Agent definitions (26 agents)
+│   └── agents/              # Agent definitions (27 agents)
 │       ├── *.md             # English versions (used by Claude)
 │       └── *.kr.md          # Korean versions (for reference)
 ├── .ad-sdlc/

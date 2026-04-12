@@ -176,20 +176,21 @@ orchestration_result:
 
 #### Greenfield Pipeline
 
-| Order | Agent             | Description         | Approval Gate |
-| ----- | ----------------- | ------------------- | ------------- |
-| 1     | mode-detector     | Confirm mode        | No            |
-| 2     | collector         | Gather requirements | No            |
-| 3     | prd-writer        | Generate PRD        | Yes           |
-| 4     | srs-writer        | Generate SRS        | Yes           |
-| 5     | sdp-writer        | Generate SDP        | Yes           |
-| 6     | repo-detector     | Check repository    | No            |
-| 7     | github-repo-setup | Create repo         | No            |
-| 8     | sds-writer        | Generate SDS        | Yes           |
-| 9     | issue-generator   | Create issues       | Yes           |
-| 10    | controller        | Assign work         | No            |
-| 11    | worker            | Implement           | No            |
-| 12    | pr-reviewer       | Review PRs          | No            |
+| Order | Agent               | Description           | Approval Gate |
+| ----- | ------------------- | --------------------- | ------------- |
+| 1     | mode-detector       | Confirm mode          | No            |
+| 2     | collector           | Gather requirements   | No            |
+| 3     | prd-writer          | Generate PRD          | Yes           |
+| 4     | srs-writer          | Generate SRS          | Yes           |
+| 5     | sdp-writer          | Generate SDP          | Yes           |
+| 6     | repo-detector       | Check repository      | No            |
+| 7     | github-repo-setup   | Create repo           | No            |
+| 8     | sds-writer          | Generate SDS          | Yes           |
+| 9     | threat-model-writer | Generate Threat Model | Yes           |
+| 10    | issue-generator     | Create issues         | Yes           |
+| 11    | controller          | Assign work           | No            |
+| 12    | worker              | Implement             | No            |
+| 13    | pr-reviewer         | Review PRs            | No            |
 
 #### Enhancement Pipeline
 
@@ -237,7 +238,7 @@ pipelineId: 'a1b2c3d4-...'
 mode: 'greenfield'
 startedAt: '2026-02-18T10:00:00Z'
 overallStatus: 'partial' # "success" | "partial" | "failed"
-totalStages: 12
+totalStages: 13
 completedStages: 7
 stages:
   - name: 'initialization'
@@ -378,7 +379,7 @@ Pipeline Execution
 "Resume the pipeline"
 ```
 
-**Prior State**: Pipeline failed at `sds_generation` (7 of 12 greenfield stages completed)
+**Prior State**: Pipeline failed at `sds_generation` (7 of 13 greenfield stages completed)
 
 **Expected Flow**:
 
@@ -407,29 +408,30 @@ Pipeline Execution
 
 ### Dependencies (Invokes)
 
-| Agent             | Pipeline               | Purpose                       |
-| ----------------- | ---------------------- | ----------------------------- |
-| mode-detector     | All                    | Determine pipeline mode       |
-| collector         | Greenfield             | Gather requirements           |
-| prd-writer        | Greenfield             | Generate PRD                  |
-| srs-writer        | Greenfield             | Generate SRS                  |
-| sdp-writer        | Greenfield             | Generate SDP                  |
-| sds-writer        | Greenfield             | Generate SDS                  |
-| repo-detector     | Greenfield             | Check for existing repo       |
-| github-repo-setup | Greenfield             | Create repository             |
-| issue-generator   | Greenfield/Enhancement | Create GitHub issues          |
-| issue-reader      | Import                 | Import existing GitHub issues |
-| controller        | All                    | Orchestrate work              |
-| worker            | All                    | Implement features            |
-| pr-reviewer       | All                    | Review PRs                    |
-| document-reader   | Enhancement            | Parse existing docs           |
-| codebase-analyzer | Enhancement            | Analyze codebase              |
-| code-reader       | Enhancement            | Extract code structure        |
-| impact-analyzer   | Enhancement            | Assess change impact          |
-| prd-updater       | Enhancement            | Update PRD                    |
-| srs-updater       | Enhancement            | Update SRS                    |
-| sds-updater       | Enhancement            | Update SDS                    |
-| regression-tester | Enhancement            | Verify no regressions         |
+| Agent               | Pipeline               | Purpose                            |
+| ------------------- | ---------------------- | ---------------------------------- |
+| mode-detector       | All                    | Determine pipeline mode            |
+| collector           | Greenfield             | Gather requirements                |
+| prd-writer          | Greenfield             | Generate PRD                       |
+| srs-writer          | Greenfield             | Generate SRS                       |
+| sdp-writer          | Greenfield             | Generate SDP                       |
+| sds-writer          | Greenfield             | Generate SDS                       |
+| threat-model-writer | Greenfield             | Generate STRIDE/DREAD Threat Model |
+| repo-detector       | Greenfield             | Check for existing repo            |
+| github-repo-setup   | Greenfield             | Create repository                  |
+| issue-generator     | Greenfield/Enhancement | Create GitHub issues               |
+| issue-reader        | Import                 | Import existing GitHub issues      |
+| controller          | All                    | Orchestrate work                   |
+| worker              | All                    | Implement features                 |
+| pr-reviewer         | All                    | Review PRs                         |
+| document-reader     | Enhancement            | Parse existing docs                |
+| codebase-analyzer   | Enhancement            | Analyze codebase                   |
+| code-reader         | Enhancement            | Extract code structure             |
+| impact-analyzer     | Enhancement            | Assess change impact               |
+| prd-updater         | Enhancement            | Update PRD                         |
+| srs-updater         | Enhancement            | Update SRS                         |
+| sds-updater         | Enhancement            | Update SDS                         |
+| regression-tester   | Enhancement            | Verify no regressions              |
 
 ### Dependents
 
@@ -507,7 +509,7 @@ The `--start-from` option requires an explicit mode (`greenfield`, `enhancement`
 
 ### Available Stage Names
 
-**Greenfield**: `initialization`, `mode_detection`, `collection`, `prd_generation`, `srs_generation`, `repo_detection`, `github_repo_setup`, `sds_generation`, `issue_generation`, `orchestration`, `implementation`, `review`
+**Greenfield**: `initialization`, `mode_detection`, `collection`, `prd_generation`, `srs_generation`, `repo_detection`, `github_repo_setup`, `sds_generation`, `threat_model_generation`, `issue_generation`, `orchestration`, `implementation`, `review`
 
 **Enhancement**: `document_reading`, `codebase_analysis`, `code_reading`, `doc_code_comparison`, `impact_analysis`, `prd_update`, `srs_update`, `sds_update`, `issue_generation`, `orchestration`, `implementation`, `regression_testing`, `review`
 
