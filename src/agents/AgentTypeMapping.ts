@@ -117,6 +117,14 @@ export const AGENT_TYPE_MAP: Readonly<Record<string, AgentTypeEntry>> = {
     importPath: '../sds-writer/index.js',
   },
 
+  'threat-model-writer': {
+    agentId: 'threat-model-writer-agent',
+    name: 'Threat Model Writer Agent',
+    lifecycle: 'singleton',
+    requiresWrapper: false,
+    importPath: '../threat-model-writer/index.js',
+  },
+
   'issue-generator': {
     agentId: 'issue-generator',
     name: 'Issue Generator',

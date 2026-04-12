@@ -1212,8 +1212,8 @@ describe('AdsdlcOrchestratorAgent', () => {
 });
 
 describe('GREENFIELD_STAGES', () => {
-  it('should define 15 stages', () => {
-    expect(GREENFIELD_STAGES).toHaveLength(15);
+  it('should define 16 stages', () => {
+    expect(GREENFIELD_STAGES).toHaveLength(16);
   });
 
   it('should start with initialization and end with doc_indexing', () => {
@@ -1238,10 +1238,28 @@ describe('GREENFIELD_STAGES', () => {
     expect(stageMap.get('srs_generation')).toBe('srs-writer');
     expect(stageMap.get('sdp_generation')).toBe('sdp-writer');
     expect(stageMap.get('sds_generation')).toBe('sds-writer');
+    expect(stageMap.get('threat_modeling')).toBe('threat-model-writer');
     expect(stageMap.get('issue_generation')).toBe('issue-generator');
     expect(stageMap.get('orchestration')).toBe('controller');
     expect(stageMap.get('implementation')).toBe('worker');
     expect(stageMap.get('review')).toBe('pr-reviewer');
+  });
+
+  it('should place threat_modeling between sds_generation and issue_generation', () => {
+    const stageNames = GREENFIELD_STAGES.map((s) => s.name);
+    const sdsIdx = stageNames.indexOf('sds_generation');
+    const tmIdx = stageNames.indexOf('threat_modeling');
+    const issueIdx = stageNames.indexOf('issue_generation');
+    expect(sdsIdx).toBeGreaterThanOrEqual(0);
+    expect(tmIdx).toBeGreaterThan(sdsIdx);
+    expect(issueIdx).toBeGreaterThan(tmIdx);
+
+    const tmStage = GREENFIELD_STAGES.find((s) => s.name === 'threat_modeling');
+    expect(tmStage?.dependsOn).toContain('sds_generation');
+    expect(tmStage?.approvalRequired).toBe(true);
+
+    const issueStage = GREENFIELD_STAGES.find((s) => s.name === 'issue_generation');
+    expect(issueStage?.dependsOn).toContain('threat_modeling');
   });
 
   it('should place sdp_generation between srs_generation and repo_detection', () => {

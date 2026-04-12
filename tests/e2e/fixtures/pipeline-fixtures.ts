@@ -206,6 +206,68 @@ export const sdsOutput = [
 ].join('\n');
 
 /**
+ * Output from the threat-model-writer agent.
+ * Generates a Threat Model document using STRIDE categorization and
+ * DREAD risk scoring, derived from the SDS components.
+ */
+export const threatModelOutput = [
+  '# Threat Model: smoke-test-project',
+  '',
+  '## 1. System Overview',
+  '- Product: smoke-test-project',
+  '- Source SDS: SDS-smoke-test-project',
+  '- Components analysed: 3',
+  '- API surface detected: Yes',
+  '- Data layer detected: No',
+  '',
+  '### 1.1 Data Flow Diagram',
+  '',
+  '```mermaid',
+  'flowchart LR',
+  '    User([External User])',
+  '    API[API Gateway]',
+  '    User -->|HTTPS| API',
+  '    CMP_001[AuthController]',
+  '    API --> CMP_001',
+  '```',
+  '',
+  '## 2. Threat Identification (STRIDE)',
+  '',
+  '| ID | STRIDE Category | Target | Threat |',
+  '|----|-----------------|--------|--------|',
+  '| T1 | Spoofing | AuthController | Authentication bypass via forged credentials |',
+  '| T2 | Tampering | AuthService | Unauthorized modification of persisted data |',
+  '| T3 | Repudiation | AuthController | Insufficient audit trail for privileged actions |',
+  '| T4 | Information Disclosure | AuthController | Sensitive data exposure in responses or logs |',
+  '| T5 | Denial of Service | Public API | Resource exhaustion via uncontrolled request load |',
+  '| T6 | Elevation of Privilege | AuthController | Privilege escalation through missing authorization checks |',
+  '',
+  '## 3. Risk Assessment (DREAD)',
+  '',
+  '| ID | Damage | Reproducibility | Exploitability | Affected Users | Discoverability | Overall |',
+  '|----|--------|-----------------|----------------|----------------|-----------------|---------|',
+  '| T1 | 8 | 6 | 5 | 8 | 6 | 6.6 |',
+  '| T2 | 7 | 5 | 4 | 7 | 5 | 5.6 |',
+  '| T3 | 5 | 6 | 4 | 6 | 5 | 5.2 |',
+  '| T4 | 8 | 7 | 6 | 8 | 7 | 7.2 |',
+  '| T5 | 6 | 8 | 7 | 9 | 8 | 7.6 |',
+  '| T6 | 9 | 5 | 4 | 7 | 5 | 6.0 |',
+  '',
+  '## 4. Mitigation Strategies',
+  '- Strong authentication with MFA and token rotation',
+  '- Parameterized queries and input validation',
+  '- Append-only audit logging with tamper protection',
+  '- Data classification, masking, encryption at rest and in transit',
+  '- Rate limiting and circuit breakers',
+  '- Role-based access control with deny-by-default',
+  '',
+  '## 5. Residual Risk Summary',
+  '- High: 0',
+  '- Medium: 3',
+  '- Low: 3',
+].join('\n');
+
+/**
  * Output from the issue-generator agent.
  * Generates GitHub issues from the SDS components.
  */
@@ -311,6 +373,7 @@ export const GREENFIELD_RESPONSES: Record<string, string> = {
   'repo-detector': repoDetectorOutput,
   'github-repo-setup': githubRepoSetupOutput,
   'sds-writer': sdsOutput,
+  'threat-model-writer': threatModelOutput,
   'issue-generator': issueGeneratorOutput,
   controller: controllerOutput,
   worker: workerOutput,
