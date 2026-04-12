@@ -120,6 +120,7 @@ flowchart TB
         S3[docs/srs/*.md]
         S3B[docs/sdp/*.md]
         S4[docs/sds/*.md]
+        S4C[docs/dbs/*.md]
         S4B[docs/tm/*.md]
         S5[issues/*.json]
         S6[progress/*.yaml]
@@ -153,6 +154,7 @@ flowchart TB
     A3B -->|write| S3B
     A4 -->|read| S3
     A4 -->|write| S4
+    A4 -->|write| S4C
     A4B -->|read| S4
     A4B -->|write| S4B
     A5 -->|read| S4
@@ -425,6 +427,7 @@ claude_code_agent/
 │   ├── prd/                      # PRD Documents
 │   ├── srs/                      # SRS Documents
 │   ├── sds/                      # SDS Documents
+│   ├── dbs/                      # DBS Documents (SDS Writer가 생성한 Database Schema Specification)
 │   ├── tm/                       # Threat Model Documents
 │   └── architecture/             # Architecture Docs
 │

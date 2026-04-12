@@ -14,7 +14,11 @@ import {
 
 describe('SDSWriterAgent', () => {
   const testBasePath = path.join(process.cwd(), 'tests', 'sds-writer', 'test-scratchpad');
-  const testDocsPath = path.join(process.cwd(), 'tests', 'sds-writer', 'test-docs');
+  // Wrap SDS public path in a container dir so that the sibling DBS output
+  // (computed as dirname(publicDocsPath) + '/dbs') lands inside the same
+  // container and cleanupTestEnvironment() removes everything in one shot.
+  const testDocsContainer = path.join(process.cwd(), 'tests', 'sds-writer', 'test-docs');
+  const testDocsPath = path.join(testDocsContainer, 'sds');
 
   const createSampleSRS = (): string => `
 # Software Requirements Specification: Test Product
@@ -144,7 +148,8 @@ Must use TypeScript.
       // Ignore
     }
     try {
-      await fs.promises.rm(testDocsPath, { recursive: true });
+      // Removes both SDS (test-docs/sds) and DBS (test-docs/dbs) outputs.
+      await fs.promises.rm(testDocsContainer, { recursive: true });
     } catch {
       // Ignore
     }
@@ -600,6 +605,191 @@ Must use TypeScript.
 
       expect(fs.existsSync(result.scratchpadPath)).toBe(true);
       expect(fs.existsSync(result.publicPath)).toBe(true);
+    });
+  });
+
+  describe('DBS generation', () => {
+    it('should generate a separate DBS document alongside SDS when data requirements exist', async () => {
+      await setupSRSFile('test-project', createSampleSRS());
+
+      const agent = new SDSWriterAgent({
+        scratchpadBasePath: testBasePath,
+        publicDocsPath: testDocsPath,
+      });
+
+      const result = await agent.generateFromProject('test-project');
+
+      // DBS paths are populated when data models are produced
+      expect(result.dbsScratchpadPath).toBeDefined();
+      expect(result.dbsPublicPath).toBeDefined();
+      expect(result.dbsScratchpadPathKorean).toBeDefined();
+      expect(result.dbsPublicPathKorean).toBeDefined();
+
+      // All four DBS files exist on disk
+      expect(fs.existsSync(result.dbsScratchpadPath!)).toBe(true);
+      expect(fs.existsSync(result.dbsPublicPath!)).toBe(true);
+      expect(fs.existsSync(result.dbsScratchpadPathKorean!)).toBe(true);
+      expect(fs.existsSync(result.dbsPublicPathKorean!)).toBe(true);
+    });
+
+    it('should write DBS public files under docs/dbs sibling directory', async () => {
+      await setupSRSFile('test-project', createSampleSRS());
+
+      const agent = new SDSWriterAgent({
+        scratchpadBasePath: testBasePath,
+        publicDocsPath: testDocsPath,
+      });
+
+      const result = await agent.generateFromProject('test-project');
+
+      expect(result.dbsPublicPath).toContain(`${path.sep}dbs${path.sep}`);
+      expect(result.dbsPublicPath).toContain('DBS-test-project.md');
+      expect(result.dbsPublicPathKorean).toContain('DBS-test-project.kr.md');
+    });
+
+    it('should NOT generate DBS files when no data requirements exist', async () => {
+      const emptySRS = `
+# Software Requirements Specification: Empty Project
+
+| **Document ID** | SRS-EMPTY |
+| **Source PRD** | PRD-001 |
+| **Version** | 1.0.0 |
+| **Status** | Draft |
+| **Project ID** | empty-project |
+
+---
+
+## 1. Introduction
+
+**Empty Project** has no features yet.
+`;
+      await setupSRSFile('empty-project', emptySRS);
+
+      const agent = new SDSWriterAgent({
+        scratchpadBasePath: testBasePath,
+        publicDocsPath: testDocsPath,
+      });
+
+      const result = await agent.generateFromProject('empty-project');
+
+      expect(result.dbsScratchpadPath).toBeUndefined();
+      expect(result.dbsPublicPath).toBeUndefined();
+      expect(result.dbsScratchpadPathKorean).toBeUndefined();
+      expect(result.dbsPublicPathKorean).toBeUndefined();
+    });
+
+    it('SDS data section is a summary with cross-reference to DBS when data models exist', async () => {
+      await setupSRSFile('test-project', createSampleSRS());
+
+      const agent = new SDSWriterAgent({
+        scratchpadBasePath: testBasePath,
+        publicDocsPath: testDocsPath,
+      });
+
+      const result = await agent.generateFromProject('test-project');
+      const sdsContent = result.generatedSDS.content;
+
+      // The SDS still has Section 4 heading
+      expect(sdsContent).toContain('## 4. Data Design');
+
+      // Summary must contain a cross-reference to the DBS document
+      expect(sdsContent).toContain('DBS-test-project');
+      expect(sdsContent).toContain('../dbs/DBS-test-project.md');
+      expect(sdsContent).toContain('Cross-reference');
+
+      // Summary must NOT contain full column-level table definitions
+      expect(sdsContent).not.toContain('CURRENT_TIMESTAMP');
+      expect(sdsContent).not.toContain('gen_random_uuid()');
+    });
+
+    it('SDS data section says "not applicable" and skips DBS when no data models are generated', async () => {
+      expect.hasAssertions();
+
+      // Use generateDataModels: false to deterministically exercise the
+      // 0-model code path — bypasses DataDesigner heuristics that would
+      // otherwise produce data models for most realistic SRS fixtures.
+      await setupSRSFile('test-project', createSampleSRS());
+
+      const agent = new SDSWriterAgent({
+        scratchpadBasePath: testBasePath,
+        publicDocsPath: testDocsPath,
+        generateDataModels: false,
+      });
+
+      const result = await agent.generateFromProject('test-project');
+
+      // Preconditions: config honored, zero data models produced.
+      expect(result.generatedSDS.dataModels).toHaveLength(0);
+
+      // Assertions run unconditionally — the 0-model path must:
+      // 1. Not produce DBS output paths.
+      expect(result.dbsScratchpadPath).toBeUndefined();
+      expect(result.dbsPublicPath).toBeUndefined();
+      expect(result.dbsScratchpadPathKorean).toBeUndefined();
+      expect(result.dbsPublicPathKorean).toBeUndefined();
+
+      // 2. Render SDS Section 4 as "not applicable" without cross-reference.
+      expect(result.generatedSDS.content).toContain('## 4. Data Design');
+      expect(result.generatedSDS.content).toContain('not applicable');
+      expect(result.generatedSDS.content).not.toContain('Cross-reference');
+
+      // 3. Leave no DBS files on disk under the sibling container.
+      const dbsDir = path.join(testDocsContainer, 'dbs');
+      expect(fs.existsSync(dbsDir)).toBe(false);
+    });
+
+    it('DBS content contains full ERD, table definitions, and frontmatter', async () => {
+      await setupSRSFile('test-project', createSampleSRS());
+
+      const agent = new SDSWriterAgent({
+        scratchpadBasePath: testBasePath,
+        publicDocsPath: testDocsPath,
+      });
+
+      const result = await agent.generateFromProject('test-project');
+      if (result.dbsPublicPath === undefined) {
+        // DataDesigner produced no models -> nothing to assert further.
+        return;
+      }
+
+      const dbsContent = fs.readFileSync(result.dbsPublicPath, 'utf-8');
+
+      // Frontmatter
+      expect(dbsContent.startsWith('---')).toBe(true);
+      expect(dbsContent).toContain('doc_id: DBS-test-project');
+
+      // Full sections
+      expect(dbsContent).toContain('## 1. Overview');
+      expect(dbsContent).toContain('## 2. Entity Relationship Diagram');
+      expect(dbsContent).toContain('## 3. Table Definitions');
+      expect(dbsContent).toContain('## 4. Data Access Patterns');
+      expect(dbsContent).toContain('## 5. Migration Strategy');
+      expect(dbsContent).toContain('## 6. SRS Traceability');
+
+      // Mermaid ERD
+      expect(dbsContent).toContain('```mermaid');
+      expect(dbsContent).toContain('erDiagram');
+    });
+
+    it('Korean DBS variant contains Korean labels and frontmatter', async () => {
+      await setupSRSFile('test-project', createSampleSRS());
+
+      const agent = new SDSWriterAgent({
+        scratchpadBasePath: testBasePath,
+        publicDocsPath: testDocsPath,
+      });
+
+      const result = await agent.generateFromProject('test-project');
+      if (result.dbsPublicPathKorean === undefined) {
+        return;
+      }
+
+      const koreanContent = fs.readFileSync(result.dbsPublicPathKorean, 'utf-8');
+      expect(koreanContent.startsWith('---')).toBe(true);
+      expect(koreanContent).toContain('doc_id: DBS-test-project');
+      expect(koreanContent).toContain('데이터베이스 스키마 명세');
+      expect(koreanContent).toContain('개요');
+      expect(koreanContent).toContain('엔티티 관계 다이어그램');
     });
   });
 });

@@ -65,39 +65,40 @@ GitHub Issues → Issue Reader → Controller → Worker → PR Reviewer
 
 ### Agent Pipeline (27 Agents)
 
-| Phase             | Agent                 | Role                                                 |
-| ----------------- | --------------------- | ---------------------------------------------------- |
-| **Orchestration** | AD-SDLC Orchestrator  | Coordinates the full pipeline lifecycle              |
-|                   | Analysis Orchestrator | Coordinates the analysis sub-pipeline                |
-| **Setup**         | Mode Detector         | Detects Greenfield vs Enhancement vs Import mode     |
-|                   | Project Initializer   | Creates `.ad-sdlc` directory structure and config    |
-|                   | Repo Detector         | Determines if existing repo or new setup needed      |
-|                   | GitHub Repo Setup     | Creates and initializes GitHub repository            |
-| **Collection**    | Collector             | Gathers requirements from text, files, and URLs      |
-|                   | Issue Reader          | Imports existing GitHub Issues for Import pipeline   |
-| **Documentation** | PRD Writer            | Generates Product Requirements Document              |
-|                   | SRS Writer            | Generates Software Requirements Specification        |
-|                   | SDP Writer            | Generates Software Development Plan from PRD and SRS |
-|                   | SDS Writer            | Generates Software Design Specification              |
-|                   | Threat Model Writer   | Generates STRIDE/DREAD Threat Model from SDS         |
-| **Planning**      | Issue Generator       | Creates GitHub Issues from SDS components            |
-| **Execution**     | Controller            | Orchestrates work distribution and monitors progress |
-|                   | Worker                | Implements code based on assigned issues             |
-| **Quality**       | PR Reviewer           | Creates PRs and performs automated code review       |
-|                   | CI Fixer              | Automatically diagnoses and fixes CI failures        |
-|                   | Regression Tester     | Validates existing functionality after changes       |
-| **Enhancement**   | Document Reader       | Parses existing PRD/SRS/SDS documents                |
-|                   | Code Reader           | Extracts source code structure and dependencies      |
-|                   | Codebase Analyzer     | Analyzes current architecture and code structure     |
-|                   | Doc-Code Comparator   | Detects gaps between documentation and code          |
-|                   | Impact Analyzer       | Assesses change implications and risks               |
-|                   | PRD Updater           | Incremental PRD updates (delta changes)              |
-|                   | SRS Updater           | Incremental SRS updates (delta changes)              |
-|                   | SDS Updater           | Incremental SDS updates (delta changes)              |
+| Phase             | Agent                 | Role                                                                                             |
+| ----------------- | --------------------- | ------------------------------------------------------------------------------------------------ |
+| **Orchestration** | AD-SDLC Orchestrator  | Coordinates the full pipeline lifecycle                                                          |
+|                   | Analysis Orchestrator | Coordinates the analysis sub-pipeline                                                            |
+| **Setup**         | Mode Detector         | Detects Greenfield vs Enhancement vs Import mode                                                 |
+|                   | Project Initializer   | Creates `.ad-sdlc` directory structure and config                                                |
+|                   | Repo Detector         | Determines if existing repo or new setup needed                                                  |
+|                   | GitHub Repo Setup     | Creates and initializes GitHub repository                                                        |
+| **Collection**    | Collector             | Gathers requirements from text, files, and URLs                                                  |
+|                   | Issue Reader          | Imports existing GitHub Issues for Import pipeline                                               |
+| **Documentation** | PRD Writer            | Generates Product Requirements Document                                                          |
+|                   | SRS Writer            | Generates Software Requirements Specification                                                    |
+|                   | SDP Writer            | Generates Software Development Plan from PRD and SRS                                             |
+|                   | SDS Writer            | Generates Software Design Specification (SDS) and a separate Database Schema Specification (DBS) |
+|                   | Threat Model Writer   | Generates STRIDE/DREAD Threat Model from SDS                                                     |
+| **Planning**      | Issue Generator       | Creates GitHub Issues from SDS components                                                        |
+| **Execution**     | Controller            | Orchestrates work distribution and monitors progress                                             |
+|                   | Worker                | Implements code based on assigned issues                                                         |
+| **Quality**       | PR Reviewer           | Creates PRs and performs automated code review                                                   |
+|                   | CI Fixer              | Automatically diagnoses and fixes CI failures                                                    |
+|                   | Regression Tester     | Validates existing functionality after changes                                                   |
+| **Enhancement**   | Document Reader       | Parses existing PRD/SRS/SDS documents                                                            |
+|                   | Code Reader           | Extracts source code structure and dependencies                                                  |
+|                   | Codebase Analyzer     | Analyzes current architecture and code structure                                                 |
+|                   | Doc-Code Comparator   | Detects gaps between documentation and code                                                      |
+|                   | Impact Analyzer       | Assesses change implications and risks                                                           |
+|                   | PRD Updater           | Incremental PRD updates (delta changes)                                                          |
+|                   | SRS Updater           | Incremental SRS updates (delta changes)                                                          |
+|                   | SDS Updater           | Incremental SDS updates (delta changes)                                                          |
 
 ## Features
 
-- **Automatic Document Generation**: PRD, SRS, SDS documents from natural language requirements
+- **Automatic Document Generation**: PRD, SRS, SDS, and DBS documents from natural language requirements
+- **Separate Database Schema Specification (DBS)**: SDS Writer emits a dedicated DBS document alongside the SDS, keeping the full database schema decoupled from architectural design
 - **Document Frontmatter Metadata**: YAML frontmatter with doc_id, version, status, and change history on all generated documents
 - **Enhancement Pipeline**: Incremental updates to existing projects without full rewrites
 - **Import Pipeline**: Process existing GitHub Issues directly, skipping document generation
