@@ -146,17 +146,17 @@ describe('adaptStagesForLocalMode', () => {
 });
 
 describe('getRequiredSecrets', () => {
-  it('should return only CLAUDE_API_KEY in local mode', async () => {
+  it('should return only ANTHROPIC_API_KEY in local mode', async () => {
     const { getRequiredSecrets } = await import('../../src/security/SecretManager.js');
     const secrets = getRequiredSecrets(true);
-    expect(secrets).toContain('CLAUDE_API_KEY');
+    expect(secrets).toContain('ANTHROPIC_API_KEY');
     expect(secrets).not.toContain('GITHUB_TOKEN');
   });
 
   it('should return both secrets in GitHub mode', async () => {
     const { getRequiredSecrets } = await import('../../src/security/SecretManager.js');
     const secrets = getRequiredSecrets(false);
-    expect(secrets).toContain('CLAUDE_API_KEY');
+    expect(secrets).toContain('ANTHROPIC_API_KEY');
     expect(secrets).toContain('GITHUB_TOKEN');
   });
 });

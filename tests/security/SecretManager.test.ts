@@ -133,7 +133,10 @@ describe('SecretManager', () => {
         delete process.env['ANTHROPIC_API_KEY'];
 
         const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-        const manager = new SecretManager({ throwOnMissing: true });
+        const manager = new SecretManager({
+          requiredSecrets: ['ANTHROPIC_API_KEY'],
+          throwOnMissing: true,
+        });
         manager.load();
 
         expect(manager.has('ANTHROPIC_API_KEY')).toBe(true);
