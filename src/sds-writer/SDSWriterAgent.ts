@@ -39,6 +39,7 @@ import {
 } from './errors.js';
 import { SRSParser } from './SRSParser.js';
 import { ComponentDesigner } from './ComponentDesigner.js';
+import { prependFrontmatter } from '../utilities/frontmatter.js';
 import { APISpecifier } from './APISpecifier.js';
 import { DataDesigner } from './DataDesigner.js';
 import { TraceabilityMapper } from './TraceabilityMapper.js';
@@ -363,7 +364,7 @@ export class SDSWriterAgent implements IAgent {
       updatedDate: now,
     };
 
-    const scaffoldContent = [
+    const scaffoldBody = [
       `# Software Design Specification: ${parsedSRS.productName}`,
       '',
       '| **Document ID** | **Source SRS** | **Version** | **Status** |',
@@ -386,6 +387,25 @@ export class SDSWriterAgent implements IAgent {
       '*Data model to be determined once features are defined.*',
       '',
     ].join('\n');
+
+    // Prepend YAML frontmatter to scaffold
+    const scaffoldContent = prependFrontmatter(scaffoldBody, {
+      docId: metadata.documentId,
+      title: `SDS: ${parsedSRS.productName}`,
+      version: metadata.version,
+      status: metadata.status,
+      generatedBy: 'AD-SDLC SDS Writer Agent',
+      generatedAt: new Date().toISOString(),
+      sourceDocuments: [metadata.sourceSRS, metadata.sourcePRD],
+      changeHistory: [
+        {
+          version: metadata.version,
+          date: now,
+          author: 'AD-SDLC SDS Writer Agent',
+          description: 'Initial scaffold generation',
+        },
+      ],
+    });
 
     const emptyMatrix: TraceabilityMatrix = {
       entries: [],
@@ -627,7 +647,7 @@ export class SDSWriterAgent implements IAgent {
     };
 
     // Generate markdown content
-    const content = this.generateMarkdownContent(
+    let content = this.generateMarkdownContent(
       metadata,
       srs,
       components,
@@ -637,6 +657,25 @@ export class SDSWriterAgent implements IAgent {
       security,
       deployment
     );
+
+    // Prepend YAML frontmatter
+    content = prependFrontmatter(content, {
+      docId: metadata.documentId,
+      title: `SDS: ${srs.productName}`,
+      version: metadata.version,
+      status: metadata.status,
+      generatedBy: 'AD-SDLC SDS Writer Agent',
+      generatedAt: new Date().toISOString(),
+      sourceDocuments: [metadata.sourceSRS, metadata.sourcePRD],
+      changeHistory: [
+        {
+          version: metadata.version,
+          date: now,
+          author: 'AD-SDLC SDS Writer Agent',
+          description: 'Initial document generation',
+        },
+      ],
+    });
 
     return {
       metadata,

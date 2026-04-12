@@ -91,7 +91,9 @@ export class SRSParser {
    * @throws SRSParseError if parsing fails in strict mode
    */
   public parse(content: string): ParsedSRS {
-    const lines = content.split('\n');
+    // Strip YAML frontmatter (delimited by --- markers) if present
+    const stripped = SRSParser.stripFrontmatter(content);
+    const lines = stripped.split('\n');
     const metadata = this.parseMetadata(lines);
     const { productName, productDescription } = this.parseProductInfo(lines);
     const features = this.parseFeatures(lines);
@@ -902,5 +904,22 @@ export class SRSParser {
     }
 
     return errors;
+  }
+
+  /**
+   * Strip YAML frontmatter from content if present.
+   * Frontmatter is delimited by `---` on its own line at the start of the document.
+   * @param content
+   */
+  private static stripFrontmatter(content: string): string {
+    if (!content.startsWith('---')) {
+      return content;
+    }
+    const endIndex = content.indexOf('\n---', 3);
+    if (endIndex === -1) {
+      return content;
+    }
+    const afterFrontmatter = endIndex + 4;
+    return content.slice(afterFrontmatter).replace(/^\n/, '');
   }
 }

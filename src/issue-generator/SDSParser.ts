@@ -78,7 +78,9 @@ export class SDSParser {
    * @throws SDSParseError if parsing fails in strict mode
    */
   public parse(content: string): ParsedSDS {
-    const lines = content.split('\n');
+    // Strip YAML frontmatter (delimited by --- markers) if present
+    const stripped = SDSParser.stripFrontmatter(content);
+    const lines = stripped.split('\n');
     const metadata = this.parseMetadata(lines);
     const components = this.parseComponents(lines);
     const technologyStack = this.parseTechnologyStack(lines);
@@ -659,5 +661,23 @@ export class SDSParser {
     }
 
     return errors;
+  }
+
+  /**
+   * Strip YAML frontmatter from content if present.
+   * Frontmatter is delimited by `---` on its own line at the start of the document.
+   * @param content
+   */
+  private static stripFrontmatter(content: string): string {
+    if (!content.startsWith('---')) {
+      return content;
+    }
+    const endIndex = content.indexOf('\n---', 3);
+    if (endIndex === -1) {
+      return content;
+    }
+    // Skip past the closing --- and the newline after it
+    const afterFrontmatter = endIndex + 4; // '\n---'.length === 4
+    return content.slice(afterFrontmatter).replace(/^\n/, '');
   }
 }

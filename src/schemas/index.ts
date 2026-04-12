@@ -32,6 +32,23 @@ export type {
   GitHubRunData,
 } from './github.js';
 
+// Document frontmatter schemas
+export {
+  DocumentTypeSchema,
+  DocumentStatusSchema,
+  ApprovalEntrySchema,
+  ChangeHistoryEntrySchema,
+  DocumentFrontmatterSchema,
+} from './document-frontmatter.js';
+
+export type {
+  DocumentType,
+  DocumentStatus,
+  ApprovalEntry,
+  ChangeHistoryEntry,
+  DocumentFrontmatter,
+} from './document-frontmatter.js';
+
 // Common schemas
 export {
   PackageJsonPartialSchema,

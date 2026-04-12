@@ -47,6 +47,8 @@ import {
   RequirementNotFoundError,
 } from './errors.js';
 
+import { appendChangeHistory } from '../utilities/frontmatter.js';
+
 // YAML import with dynamic loading for compatibility
 let yaml: { dump: (obj: unknown) => string } | null = null;
 
@@ -275,6 +277,15 @@ export class PRDUpdaterAgent implements IAgent {
 
       // Update last updated date
       updatedContent = this.updateLastUpdatedDate(updatedContent);
+
+      // Append change history entry to frontmatter
+      const changeDescription = this.summarizeChanges(changes);
+      updatedContent = appendChangeHistory(updatedContent, {
+        version: versionAfter,
+        date: new Date().toISOString().split('T')[0] ?? '',
+        author: 'AD-SDLC PRD Updater Agent',
+        description: changeDescription,
+      });
 
       // Run consistency check
       const consistencyCheck = this.runConsistencyCheck(updatedContent, parsedPRD);
@@ -1060,6 +1071,20 @@ export class PRDUpdaterAgent implements IAgent {
     }
 
     return entry;
+  }
+
+  private summarizeChanges(changes: UpdateChanges): string {
+    const parts: string[] = [];
+    if (changes.added.length > 0) {
+      parts.push(`Added ${String(changes.added.length)} requirement(s)`);
+    }
+    if (changes.modified.length > 0) {
+      parts.push(`Modified ${String(changes.modified.length)} requirement(s)`);
+    }
+    if (changes.deprecated.length > 0) {
+      parts.push(`Deprecated ${String(changes.deprecated.length)} requirement(s)`);
+    }
+    return parts.length > 0 ? parts.join('; ') : 'Document updated';
   }
 
   private calculateTraceabilityImpact(_changes: UpdateChanges): TraceabilityImpact {

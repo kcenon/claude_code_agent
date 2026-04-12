@@ -53,6 +53,8 @@ import {
   UseCaseNotFoundError,
 } from './errors.js';
 
+import { appendChangeHistory } from '../utilities/frontmatter.js';
+
 // YAML import with dynamic loading for compatibility
 let yaml: { dump: (obj: unknown) => string } | null = null;
 
@@ -327,6 +329,15 @@ export class SRSUpdaterAgent implements IAgent {
 
       // Update last updated date
       updatedContent = this.updateLastUpdatedDate(updatedContent);
+
+      // Append change history entry to frontmatter
+      const changeDescription = this.summarizeChanges(changes);
+      updatedContent = appendChangeHistory(updatedContent, {
+        version: versionAfter,
+        date: new Date().toISOString().split('T')[0] ?? '',
+        author: 'AD-SDLC SRS Updater Agent',
+        description: changeDescription,
+      });
 
       // Run consistency check
       const consistencyCheck = this.runConsistencyCheck(updatedContent, parsedSRS);
@@ -1454,6 +1465,26 @@ export class SRSUpdaterAgent implements IAgent {
     }
 
     return entry;
+  }
+
+  private summarizeChanges(changes: SRSUpdateChanges): string {
+    const parts: string[] = [];
+    if (changes.featuresAdded.length > 0) {
+      parts.push(`Added ${String(changes.featuresAdded.length)} feature(s)`);
+    }
+    if (changes.useCasesAdded.length > 0) {
+      parts.push(`Added ${String(changes.useCasesAdded.length)} use case(s)`);
+    }
+    if (changes.featuresModified.length > 0) {
+      parts.push(`Modified ${String(changes.featuresModified.length)} feature(s)`);
+    }
+    if (changes.useCasesModified.length > 0) {
+      parts.push(`Modified ${String(changes.useCasesModified.length)} use case(s)`);
+    }
+    if (changes.interfacesModified.length > 0) {
+      parts.push(`Modified ${String(changes.interfacesModified.length)} interface(s)`);
+    }
+    return parts.length > 0 ? parts.join('; ') : 'Document updated';
   }
 
   private async writeUpdatedSRS(srsPath: string, content: string): Promise<void> {
