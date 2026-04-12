@@ -115,6 +115,50 @@ export const srsOutput = [
 ].join('\n');
 
 /**
+ * Output from the sdp-writer agent.
+ * Generates a Software Development Plan document from PRD and SRS.
+ */
+export const sdpOutput = [
+  '# Software Development Plan',
+  '',
+  '## 1. Project Overview',
+  '- Project: smoke-test-project',
+  '- Stakeholders: Product, Engineering, QA',
+  '',
+  '## 2. Development Lifecycle Model',
+  '- Model: Iterative',
+  '- Sprint length: 2 weeks',
+  '',
+  '## 3. Development Environment',
+  '- Language: TypeScript',
+  '- VCS: Git / GitHub',
+  '- CI: GitHub Actions',
+  '',
+  '## 4. Artifact Definitions',
+  '- PRD, SRS, SDS, Source Code, Test Suite',
+  '',
+  '## 5. Quality Assurance Strategy',
+  '- Code review on every PR',
+  '- Coverage threshold: 80%',
+  '',
+  '## 6. Verification & Validation Strategy',
+  '- Derived from 2 SRS features',
+  '- Unit, integration, and E2E test levels',
+  '',
+  '## 7. Risk Management',
+  '- Schedule risk: medium',
+  '',
+  '## 8. Schedule & Milestones',
+  '- M1: PRD approved',
+  '- M2: SRS approved',
+  '- M3: Implementation complete',
+  '',
+  '## 9. Configuration Management',
+  '- Branch strategy: feature branches from main',
+  '- Release tagging: semver',
+].join('\n');
+
+/**
  * Output from the repo-detector agent.
  * Checks for existing repository presence.
  */
@@ -263,6 +307,7 @@ export const GREENFIELD_RESPONSES: Record<string, string> = {
   collector: collectorOutput,
   'prd-writer': prdOutput,
   'srs-writer': srsOutput,
+  'sdp-writer': sdpOutput,
   'repo-detector': repoDetectorOutput,
   'github-repo-setup': githubRepoSetupOutput,
   'sds-writer': sdsOutput,
