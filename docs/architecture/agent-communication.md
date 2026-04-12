@@ -29,13 +29,13 @@ Agents do not communicate directly. Instead, they:
 
 ### Benefits
 
-| Benefit | Description |
-|---------|-------------|
-| **Persistence** | State survives agent restarts |
+| Benefit          | Description                        |
+| ---------------- | ---------------------------------- |
+| **Persistence**  | State survives agent restarts      |
 | **Transparency** | Human-readable intermediate states |
-| **Debugging** | Easy to inspect and modify state |
-| **Recovery** | Resume from last successful state |
-| **Traceability** | Full audit trail of changes |
+| **Debugging**    | Easy to inspect and modify state   |
+| **Recovery**     | Resume from last successful state  |
+| **Traceability** | Full audit trail of changes        |
 
 ---
 
@@ -73,20 +73,20 @@ Agents do not communicate directly. Instead, they:
 
 Each agent has designated files it reads from and writes to:
 
-| Agent | Reads | Writes |
-|-------|-------|--------|
-| Collector | User input, files, URLs | `info/collected_info.yaml` |
-| PRD Writer | `info/collected_info.yaml` | `documents/prd.md` |
-| SRS Writer | `documents/prd.md` | `documents/srs.md` |
-| GitHub Repo Setup | `documents/prd.md`, `documents/srs.md` | `repo/github_repo.yaml` |
-| SDS Writer | `documents/srs.md`, `repo/github_repo.yaml` | `documents/sds.md` |
-| Issue Generator | `documents/sds.md` | `issues/issues.json` |
-| Controller | `issues/issues.json` | `progress/controller_state.yaml` |
-| Worker | `progress/work_orders.yaml` | Implementation results |
-| PR Reviewer | Worker results | PR status |
-| Document Reader | `docs/*.md` | `state/current_state.yaml` |
-| Codebase Analyzer | Source code | `analysis/architecture_overview.yaml` |
-| Impact Analyzer | State + analysis | `impact/impact_report.yaml` |
+| Agent             | Reads                                       | Writes                                |
+| ----------------- | ------------------------------------------- | ------------------------------------- |
+| Collector         | User input, files, URLs                     | `info/collected_info.yaml`            |
+| PRD Writer        | `info/collected_info.yaml`                  | `documents/prd.md`                    |
+| SRS Writer        | `documents/prd.md`                          | `documents/srs.md`                    |
+| GitHub Repo Setup | `documents/prd.md`, `documents/srs.md`      | `repo/github_repo.yaml`               |
+| SDS Writer        | `documents/srs.md`, `repo/github_repo.yaml` | `documents/sds.md`                    |
+| Issue Generator   | `documents/sds.md`                          | `issues/issues.json`                  |
+| Controller        | `issues/issues.json`                        | `progress/controller_state.yaml`      |
+| Worker            | `progress/work_orders.yaml`                 | Implementation results                |
+| PR Reviewer       | Worker results                              | PR status                             |
+| Document Reader   | `docs/*.md`                                 | `state/current_state.yaml`            |
+| Codebase Analyzer | Source code                                 | `analysis/architecture_overview.yaml` |
+| Impact Analyzer   | State + analysis                            | `impact/impact_report.yaml`           |
 
 ---
 
@@ -97,15 +97,23 @@ Each agent has designated files it reads from and writes to:
 Used in document generation pipeline:
 
 ```
-┌───────────┐    ┌───────────┐    ┌───────────┐    ┌────────────────┐    ┌───────────┐
-│ Collector │───▶│PRD Writer │───▶│SRS Writer │───▶│GitHub Repo Setup│───▶│SDS Writer │
-└───────────┘    └───────────┘    └───────────┘    └────────────────┘    └───────────┘
-      │                │                │                  │                   │
-      ▼                ▼                ▼                  ▼                   ▼
- collected_info    prd.md           srs.md          github_repo.yaml       sds.md
+┌───────────┐    ┌───────────┐    ┌───────────┐    ┌────────────────┐
+│ Collector │───▶│PRD Writer │───▶│SRS Writer │───▶│GitHub Repo Setup│──┐
+└───────────┘    └───────────┘    └───────────┘    └────────────────┘  │
+      │                │                │                  │           │
+      ▼                ▼                ▼                  ▼           │
+ collected_info    prd.md           srs.md          github_repo.yaml   │
+                                                                        │
+                       ┌───────────┐    ┌───────────┐                  │
+                       │SDS Writer │◀───│SDP Writer │◀─────────────────┘
+                       └───────────┘    └───────────┘
+                             │                │
+                             ▼                ▼
+                          sds.md            sdp.md
 ```
 
 **Protocol Steps**:
+
 1. Agent A completes and writes output
 2. Orchestrator validates output
 3. Orchestrator spawns Agent B
@@ -137,6 +145,7 @@ Used in enhancement pipeline analysis:
 ```
 
 **Protocol Steps**:
+
 1. Orchestrator spawns multiple agents in parallel
 2. Each agent writes to its designated file
 3. Orchestrator waits for all completions
@@ -162,16 +171,17 @@ Used by Controller to distribute work:
 ```
 
 **Work Order Format**:
+
 ```yaml
 work_order:
-  id: "WO-001"
+  id: 'WO-001'
   issue_number: 42
-  issue_title: "Implement user authentication"
+  issue_title: 'Implement user authentication'
   priority: P0
   dependencies: []
-  assigned_worker: "worker-1"
-  status: "assigned"
-  created_at: "2025-01-01T00:00:00Z"
+  assigned_worker: 'worker-1'
+  status: 'assigned'
+  created_at: '2025-01-01T00:00:00Z'
 ```
 
 ### 4. Result Aggregation Protocol
@@ -181,15 +191,15 @@ Used when multiple workers complete:
 ```yaml
 # progress/controller_state.yaml
 completed_work:
-  - order_id: "WO-001"
-    status: "success"
+  - order_id: 'WO-001'
+    status: 'success'
     pr_number: 101
-    completed_at: "2025-01-01T01:00:00Z"
+    completed_at: '2025-01-01T01:00:00Z'
 
-  - order_id: "WO-002"
-    status: "success"
+  - order_id: 'WO-002'
+    status: 'success'
     pr_number: 102
-    completed_at: "2025-01-01T01:30:00Z"
+    completed_at: '2025-01-01T01:30:00Z'
 
 pending_review:
   - pr_number: 101
@@ -203,61 +213,64 @@ pending_review:
 ### YAML Schema Examples
 
 #### collected_info.yaml
+
 ```yaml
-schema_version: "1.0"
-project_name: "my-project"
-collected_at: "2025-01-01T00:00:00Z"
+schema_version: '1.0'
+project_name: 'my-project'
+collected_at: '2025-01-01T00:00:00Z'
 
 requirements:
   functional:
-    - id: "REQ-001"
-      description: "User can log in with email"
-      priority: "high"
-      source: "user_input"
+    - id: 'REQ-001'
+      description: 'User can log in with email'
+      priority: 'high'
+      source: 'user_input'
 
   non_functional:
-    - id: "NFR-001"
-      description: "Response time < 200ms"
-      category: "performance"
+    - id: 'NFR-001'
+      description: 'Response time < 200ms'
+      category: 'performance'
 
 constraints:
-  - "Must use existing auth provider"
+  - 'Must use existing auth provider'
 
 assumptions:
-  - "Users have email addresses"
+  - 'Users have email addresses'
 ```
 
 #### current_state.yaml
+
 ```yaml
-schema_version: "1.0"
-analysis_date: "2025-01-01T00:00:00Z"
+schema_version: '1.0'
+analysis_date: '2025-01-01T00:00:00Z'
 
 project:
-  name: "existing-project"
-  version: "2.1.0"
+  name: 'existing-project'
+  version: '2.1.0'
 
 documents:
   prd:
-    path: "docs/PRD.md"
+    path: 'docs/PRD.md'
     exists: true
     requirements_count: 15
   srs:
-    path: "docs/SRS.md"
+    path: 'docs/SRS.md'
     exists: true
     features_count: 23
   sds:
-    path: "docs/SDS.md"
+    path: 'docs/SDS.md'
     exists: false
 
 traceability:
-  - prd_id: "FR-001"
-    srs_ids: ["SF-001", "SF-002"]
-    sds_ids: ["CMP-001"]
+  - prd_id: 'FR-001'
+    srs_ids: ['SF-001', 'SF-002']
+    sds_ids: ['CMP-001']
 ```
 
 ### JSON Schema Examples
 
 #### issues.json
+
 ```json
 {
   "schema_version": "1.0",
@@ -293,7 +306,7 @@ Atomic writes prevent corruption:
 // Scratchpad uses atomic write operations
 await scratchpad.write('data', content, {
   atomic: true,
-  backup: true
+  backup: true,
 });
 ```
 
@@ -302,7 +315,7 @@ await scratchpad.write('data', content, {
 Files include version for compatibility:
 
 ```yaml
-schema_version: "1.0"
+schema_version: '1.0'
 # ... rest of content
 ```
 
@@ -321,11 +334,11 @@ Progress is checkpointed for recovery:
 
 ```yaml
 checkpoint:
-  stage: "srs_generation"
+  stage: 'srs_generation'
   completed_stages:
-    - "collection"
-    - "prd_generation"
-  last_updated: "2025-01-01T00:30:00Z"
+    - 'collection'
+    - 'prd_generation'
+  last_updated: '2025-01-01T00:30:00Z'
 ```
 
 ---
@@ -406,4 +419,4 @@ try {
 
 ---
 
-*Part of [AD-SDLC Architecture Documentation](./overview.md)*
+_Part of [AD-SDLC Architecture Documentation](./overview.md)_

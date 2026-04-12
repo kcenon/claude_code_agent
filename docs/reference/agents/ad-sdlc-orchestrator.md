@@ -182,13 +182,14 @@ orchestration_result:
 | 2     | collector         | Gather requirements | No            |
 | 3     | prd-writer        | Generate PRD        | Yes           |
 | 4     | srs-writer        | Generate SRS        | Yes           |
-| 5     | repo-detector     | Check repository    | No            |
-| 6     | github-repo-setup | Create repo         | No            |
-| 7     | sds-writer        | Generate SDS        | Yes           |
-| 8     | issue-generator   | Create issues       | Yes           |
-| 9     | controller        | Assign work         | No            |
-| 10    | worker            | Implement           | No            |
-| 11    | pr-reviewer       | Review PRs          | No            |
+| 5     | sdp-writer        | Generate SDP        | Yes           |
+| 6     | repo-detector     | Check repository    | No            |
+| 7     | github-repo-setup | Create repo         | No            |
+| 8     | sds-writer        | Generate SDS        | Yes           |
+| 9     | issue-generator   | Create issues       | Yes           |
+| 10    | controller        | Assign work         | No            |
+| 11    | worker            | Implement           | No            |
+| 12    | pr-reviewer       | Review PRs          | No            |
 
 #### Enhancement Pipeline
 
@@ -412,6 +413,7 @@ Pipeline Execution
 | collector         | Greenfield             | Gather requirements           |
 | prd-writer        | Greenfield             | Generate PRD                  |
 | srs-writer        | Greenfield             | Generate SRS                  |
+| sdp-writer        | Greenfield             | Generate SDP                  |
 | sds-writer        | Greenfield             | Generate SDS                  |
 | repo-detector     | Greenfield             | Check for existing repo       |
 | github-repo-setup | Greenfield             | Create repository             |
