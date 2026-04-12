@@ -15,27 +15,27 @@ The `workflow.yaml` file defines how AD-SDLC pipelines execute, including stage 
 # .ad-sdlc/config/workflow.yaml
 
 # Schema version for compatibility
-schema_version: "1.0"
+schema_version: '1.0'
 
 # ============================================
 # GLOBAL SETTINGS
 # ============================================
 global_settings:
   # Project configuration
-  project_root: "."                    # Project root directory
-  output_dir: "docs"                   # Generated documents location
-  scratchpad_dir: ".ad-sdlc/scratchpad" # Inter-agent state
+  project_root: '.' # Project root directory
+  output_dir: 'docs' # Generated documents location
+  scratchpad_dir: '.ad-sdlc/scratchpad' # Inter-agent state
 
   # Execution settings
-  default_model: "sonnet"              # Default Claude model
-  parallel_workers: 5                  # Max concurrent workers
+  default_model: 'sonnet' # Default Claude model
+  parallel_workers: 5 # Max concurrent workers
 
   # Approval mode for pipeline execution
   # - "auto": No prompts, fully automated (default)
   # - "manual": Approval required at every gate
   # - "critical": Only critical stages require approval
   # - "custom": Use individual approval_gates settings
-  approval_mode: "auto"
+  approval_mode: 'auto'
 
   # Individual approval gates (only used when approval_mode is "custom")
   approval_gates:
@@ -49,17 +49,17 @@ global_settings:
 
   # Retry policy
   retry:
-    max_attempts: 3                    # Max retry attempts
-    base_delay_ms: 5000               # Initial backoff delay
-    max_delay_ms: 60000               # Maximum backoff delay
-    exponential_base: 2               # Backoff multiplier
+    max_attempts: 3 # Max retry attempts
+    base_delay_ms: 5000 # Initial backoff delay
+    max_delay_ms: 60000 # Maximum backoff delay
+    exponential_base: 2 # Backoff multiplier
 
   # Timeouts (milliseconds)
   timeouts:
-    document_generation: 300000       # 5 minutes
-    issue_generation: 180000          # 3 minutes
-    implementation: 1800000           # 30 minutes
-    pr_review: 600000                 # 10 minutes
+    document_generation: 300000 # 5 minutes
+    issue_generation: 180000 # 3 minutes
+    implementation: 1800000 # 30 minutes
+    pr_review: 600000 # 10 minutes
 
 # ============================================
 # PIPELINE DEFINITIONS
@@ -68,130 +68,130 @@ pipelines:
   # Greenfield Pipeline (New Projects)
   greenfield:
     enabled: true
-    description: "Full document generation for new projects"
+    description: 'Full document generation for new projects'
 
     stages:
-      - name: "collection"
-        agent: "collector"
-        description: "Gather requirements"
+      - name: 'collection'
+        agent: 'collector'
+        description: 'Gather requirements'
         timeout: 300000
         requires_approval: false
 
-      - name: "prd_generation"
-        agent: "prd-writer"
-        description: "Generate PRD"
+      - name: 'prd_generation'
+        agent: 'prd-writer'
+        description: 'Generate PRD'
         timeout: 300000
         requires_approval: true
-        depends_on: ["collection"]
+        depends_on: ['collection']
 
-      - name: "srs_generation"
-        agent: "srs-writer"
-        description: "Generate SRS"
+      - name: 'srs_generation'
+        agent: 'srs-writer'
+        description: 'Generate SRS'
         timeout: 300000
         requires_approval: true
-        depends_on: ["prd_generation"]
+        depends_on: ['prd_generation']
 
-      - name: "sds_generation"
-        agent: "sds-writer"
-        description: "Generate SDS"
+      - name: 'sds_generation'
+        agent: 'sds-writer'
+        description: 'Generate SDS'
         timeout: 300000
         requires_approval: true
-        depends_on: ["srs_generation"]
+        depends_on: ['srs_generation']
 
-      - name: "issue_generation"
-        agent: "issue-generator"
-        description: "Create GitHub issues"
+      - name: 'issue_generation'
+        agent: 'issue-generator'
+        description: 'Create GitHub issues'
         timeout: 180000
         requires_approval: true
-        depends_on: ["sds_generation"]
+        depends_on: ['sds_generation']
 
-      - name: "orchestration"
-        agent: "controller"
-        description: "Distribute work"
+      - name: 'orchestration'
+        agent: 'controller'
+        description: 'Distribute work'
         timeout: 600000
         requires_approval: false
-        depends_on: ["issue_generation"]
+        depends_on: ['issue_generation']
 
-      - name: "implementation"
-        agent: "worker"
-        description: "Implement issues"
+      - name: 'implementation'
+        agent: 'worker'
+        description: 'Implement issues'
         timeout: 1800000
         parallel: true
         max_parallel: 5
-        depends_on: ["orchestration"]
+        depends_on: ['orchestration']
 
-      - name: "review"
-        agent: "pr-reviewer"
-        description: "Review and merge"
+      - name: 'review'
+        agent: 'pr-reviewer'
+        description: 'Review and merge'
         timeout: 600000
-        depends_on: ["implementation"]
+        depends_on: ['implementation']
 
   # Enhancement Pipeline (Existing Projects)
   enhancement:
     enabled: true
-    description: "Incremental updates for existing projects"
+    description: 'Incremental updates for existing projects'
 
     stages:
-      - name: "analysis"
-        description: "Analyze existing state"
+      - name: 'analysis'
+        description: 'Analyze existing state'
         parallel: true
         agents:
-          - "document-reader"
-          - "codebase-analyzer"
-          - "code-reader"
+          - 'document-reader'
+          - 'codebase-analyzer'
+          - 'code-reader'
         timeout: 300000
 
-      - name: "comparison"
-        agent: "doc-code-comparator"
-        description: "Compare docs vs code"
+      - name: 'comparison'
+        agent: 'doc-code-comparator'
+        description: 'Compare docs vs code'
         timeout: 180000
-        depends_on: ["analysis"]
+        depends_on: ['analysis']
 
-      - name: "impact_analysis"
-        agent: "impact-analyzer"
-        description: "Assess change impact"
+      - name: 'impact_analysis'
+        agent: 'impact-analyzer'
+        description: 'Assess change impact'
         timeout: 300000
         requires_approval: true
-        depends_on: ["comparison"]
+        depends_on: ['comparison']
 
-      - name: "prd_update"
-        agent: "prd-updater"
-        description: "Update PRD incrementally"
+      - name: 'prd_update'
+        agent: 'prd-updater'
+        description: 'Update PRD incrementally'
         timeout: 300000
-        depends_on: ["impact_analysis"]
+        depends_on: ['impact_analysis']
 
-      - name: "srs_update"
-        agent: "srs-updater"
-        description: "Update SRS incrementally"
+      - name: 'srs_update'
+        agent: 'srs-updater'
+        description: 'Update SRS incrementally'
         timeout: 300000
-        depends_on: ["prd_update"]
+        depends_on: ['prd_update']
 
-      - name: "sds_update"
-        agent: "sds-updater"
-        description: "Update SDS incrementally"
+      - name: 'sds_update'
+        agent: 'sds-updater'
+        description: 'Update SDS incrementally'
         timeout: 300000
-        depends_on: ["srs_update"]
+        depends_on: ['srs_update']
 
-      - name: "issue_generation"
-        agent: "issue-generator"
-        description: "Create issues for changes"
+      - name: 'issue_generation'
+        agent: 'issue-generator'
+        description: 'Create issues for changes'
         timeout: 180000
-        depends_on: ["sds_update"]
+        depends_on: ['sds_update']
 
-      - name: "implementation"
-        description: "Implement with regression"
+      - name: 'implementation'
+        description: 'Implement with regression'
         parallel: true
         agents:
-          - "worker"
-          - "regression-tester"
+          - 'worker'
+          - 'regression-tester'
         timeout: 1800000
-        depends_on: ["issue_generation"]
+        depends_on: ['issue_generation']
 
-      - name: "review"
-        agent: "pr-reviewer"
-        description: "Review with regression results"
+      - name: 'review'
+        agent: 'pr-reviewer'
+        description: 'Review with regression results'
         timeout: 600000
-        depends_on: ["implementation"]
+        depends_on: ['implementation']
 
 # ============================================
 # QUALITY GATES
@@ -200,33 +200,33 @@ quality_gates:
   # Document quality
   documents:
     prd:
-      min_requirements: 5           # Minimum functional requirements
-      require_nfr: true             # Require non-functional requirements
-      require_traceability: true    # Require traceability matrix
+      min_requirements: 5 # Minimum functional requirements
+      require_nfr: true # Require non-functional requirements
+      require_traceability: true # Require traceability matrix
 
     srs:
-      require_use_cases: true       # Require use case definitions
-      require_data_model: true      # Require data requirements
-      min_features: 3               # Minimum features
+      require_use_cases: true # Require use case definitions
+      require_data_model: true # Require data requirements
+      min_features: 3 # Minimum features
 
     sds:
-      require_components: true      # Require component definitions
-      require_apis: true            # Require API specifications
-      require_data_models: true     # Require data model definitions
+      require_components: true # Require component definitions
+      require_apis: true # Require API specifications
+      require_data_models: true # Require data model definitions
 
   # Code quality
   code:
-    coverage_threshold: 80          # Minimum test coverage %
-    max_complexity: 10              # Maximum cyclomatic complexity
-    require_tests: true             # Require unit tests
-    require_lint_pass: true         # Require lint pass
-    require_build_pass: true        # Require build pass
+    coverage_threshold: 80 # Minimum test coverage %
+    max_complexity: 10 # Maximum cyclomatic complexity
+    require_tests: true # Require unit tests
+    require_lint_pass: true # Require lint pass
+    require_build_pass: true # Require build pass
 
   # Security
   security:
-    scan_dependencies: true         # Scan for vulnerable deps
-    block_on_high: true            # Block on high severity
-    block_on_critical: true        # Block on critical severity
+    scan_dependencies: true # Scan for vulnerable deps
+    block_on_high: true # Block on high severity
+    block_on_critical: true # Block on critical severity
 
 # ============================================
 # GITHUB INTEGRATION
@@ -234,41 +234,41 @@ quality_gates:
 github:
   # Issue creation
   issues:
-    auto_create: true              # Auto-create issues from SDS
+    auto_create: true # Auto-create issues from SDS
     labels:
-      - "ad-sdlc:auto-generated"   # Default labels
-    assignees: []                  # Default assignees
-    milestone: null               # Default milestone
+      - 'ad-sdlc:auto-generated' # Default labels
+    assignees: [] # Default assignees
+    milestone: null # Default milestone
 
   # Pull requests
   pull_requests:
-    auto_create: true             # Auto-create PRs
-    draft: false                  # Create as draft
+    auto_create: true # Auto-create PRs
+    draft: false # Create as draft
     labels:
-      - "ad-sdlc:auto-generated"
-    reviewers: []                 # Auto-assign reviewers
+      - 'ad-sdlc:auto-generated'
+    reviewers: [] # Auto-assign reviewers
 
     # Merge settings
-    merge_strategy: "squash"      # squash | rebase | merge
-    delete_branch: true           # Delete after merge
-    require_approvals: 0          # Required approvals (0 = auto-merge)
+    merge_strategy: 'squash' # squash | rebase | merge
+    delete_branch: true # Delete after merge
+    require_approvals: 0 # Required approvals (0 = auto-merge)
 
   # Branch naming
   branches:
-    feature_prefix: "feature/"
-    pattern: "{prefix}{issue_number}-{slug}"
+    feature_prefix: 'feature/'
+    pattern: '{prefix}{issue_number}-{slug}'
 
 # ============================================
 # LOGGING & MONITORING
 # ============================================
 logging:
-  level: "info"                   # debug | info | warn | error
-  format: "json"                  # json | text
+  level: 'info' # debug | info | warn | error
+  format: 'json' # json | text
 
   # File logging
   file:
     enabled: true
-    path: ".ad-sdlc/logs/ad-sdlc.log"
+    path: '.ad-sdlc/logs/ad-sdlc.log'
     max_size_mb: 10
     max_files: 5
 
@@ -280,7 +280,7 @@ logging:
 monitoring:
   metrics:
     enabled: true
-    path: ".ad-sdlc/metrics/"
+    path: '.ad-sdlc/metrics/'
 
   # Performance tracking
   track_duration: true
@@ -294,20 +294,20 @@ notifications:
   # Slack integration
   slack:
     enabled: false
-    webhook_url: "${SLACK_WEBHOOK_URL}"
+    webhook_url: '${SLACK_WEBHOOK_URL}'
     events:
-      - "pipeline_complete"
-      - "pipeline_failed"
-      - "approval_required"
+      - 'pipeline_complete'
+      - 'pipeline_failed'
+      - 'approval_required'
 
   # Email notifications
   email:
     enabled: false
-    smtp_host: "${SMTP_HOST}"
-    from: "ad-sdlc@example.com"
+    smtp_host: '${SMTP_HOST}'
+    from: 'ad-sdlc@example.com'
     to: []
     events:
-      - "pipeline_failed"
+      - 'pipeline_failed'
 ```
 
 ---
@@ -316,64 +316,72 @@ notifications:
 
 ### Global Settings
 
-| Setting | Type | Default | Description |
-|---------|------|---------|-------------|
-| `project_root` | string | "." | Project root directory |
-| `output_dir` | string | "docs" | Where to save generated documents |
-| `scratchpad_dir` | string | ".ad-sdlc/scratchpad" | Inter-agent state location |
-| `default_model` | string | "sonnet" | Default Claude model |
-| `parallel_workers` | number | 5 | Max concurrent workers |
-| `approval_mode` | string | "auto" | Pipeline approval mode (see below) |
+| Setting            | Type   | Default               | Description                        |
+| ------------------ | ------ | --------------------- | ---------------------------------- |
+| `project_root`     | string | "."                   | Project root directory             |
+| `output_dir`       | string | "docs"                | Where to save generated documents  |
+| `scratchpad_dir`   | string | ".ad-sdlc/scratchpad" | Inter-agent state location         |
+| `default_model`    | string | "sonnet"              | Default Claude model               |
+| `parallel_workers` | number | 5                     | Max concurrent workers             |
+| `approval_mode`    | string | "auto"                | Pipeline approval mode (see below) |
 
 ### Approval Mode
 
 Controls when the pipeline pauses for human approval:
 
-| Mode | Description | Use Case |
-|------|-------------|----------|
-| `auto` | No approval prompts, fully automated | CI/CD, scripts, automation |
-| `manual` | Approval required at every gate | Interactive development, review-heavy workflows |
-| `critical` | Only critical stages require approval | Balanced automation with key checkpoints |
-| `custom` | Use individual `approval_gates` settings | Fine-grained control |
+| Mode       | Description                                                                                                                                                                                         | Use Case                                        |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| `auto`     | No approval prompts, fully automated                                                                                                                                                                | CI/CD, scripts, automation                      |
+| `manual`   | Prompts the user for interactive approval at each stage requiring approval. In non-interactive environments (no TTY), stages are denied by default. Use `--approval-mode auto` for CI/CD pipelines. | Interactive development, review-heavy workflows |
+| `critical` | Only critical stages require approval                                                                                                                                                               | Balanced automation with key checkpoints        |
+| `custom`   | Use individual `approval_gates` settings                                                                                                                                                            | Fine-grained control                            |
+
+The approval mode can also be set at runtime via the `--approval-mode <auto|manual|critical>` CLI option, which overrides the value in `workflow.yaml`:
+
+```bash
+ad-sdlc run "task" --approval-mode auto      # CI/CD: never prompt
+ad-sdlc run "task" --approval-mode manual    # Local: prompt at every gate (requires TTY)
+ad-sdlc run "task" --approval-mode critical  # Balanced: prompt only at critical gates
+```
 
 **Individual Approval Gates** (used when `approval_mode: "custom"`):
 
-| Gate | Description |
-|------|-------------|
-| `after_collection` | After requirements collection |
-| `after_prd` | After PRD generation |
-| `after_srs` | After SRS generation |
+| Gate                      | Description                   |
+| ------------------------- | ----------------------------- |
+| `after_collection`        | After requirements collection |
+| `after_prd`               | After PRD generation          |
+| `after_srs`               | After SRS generation          |
 | `after_github_repo_setup` | After GitHub repository setup |
-| `after_sds` | After SDS generation |
-| `after_issues` | After issue generation |
-| `before_merge` | Before merging PRs |
+| `after_sds`               | After SDS generation          |
+| `after_issues`            | After issue generation        |
+| `before_merge`            | Before merging PRs            |
 
 ### Retry Policy
 
-| Setting | Type | Default | Description |
-|---------|------|---------|-------------|
-| `max_attempts` | number | 3 | Maximum retry attempts |
-| `base_delay_ms` | number | 5000 | Initial backoff (5s) |
-| `max_delay_ms` | number | 60000 | Maximum backoff (60s) |
-| `exponential_base` | number | 2 | Backoff multiplier |
+| Setting            | Type   | Default | Description            |
+| ------------------ | ------ | ------- | ---------------------- |
+| `max_attempts`     | number | 3       | Maximum retry attempts |
+| `base_delay_ms`    | number | 5000    | Initial backoff (5s)   |
+| `max_delay_ms`     | number | 60000   | Maximum backoff (60s)  |
+| `exponential_base` | number | 2       | Backoff multiplier     |
 
 ### Pipeline Stages
 
 Each stage supports:
 
-| Property | Type | Required | Description |
-|----------|------|----------|-------------|
-| `name` | string | Yes | Stage identifier |
-| `agent` | string | No* | Agent to execute |
-| `agents` | string[] | No* | Agents for parallel |
-| `description` | string | No | Human-readable description |
-| `timeout` | number | No | Timeout in ms |
-| `requires_approval` | boolean | No | Wait for human approval |
-| `depends_on` | string[] | No | Stage dependencies |
-| `parallel` | boolean | No | Run agents in parallel |
-| `max_parallel` | number | No | Max parallel instances |
+| Property            | Type     | Required | Description                |
+| ------------------- | -------- | -------- | -------------------------- |
+| `name`              | string   | Yes      | Stage identifier           |
+| `agent`             | string   | No\*     | Agent to execute           |
+| `agents`            | string[] | No\*     | Agents for parallel        |
+| `description`       | string   | No       | Human-readable description |
+| `timeout`           | number   | No       | Timeout in ms              |
+| `requires_approval` | boolean  | No       | Wait for human approval    |
+| `depends_on`        | string[] | No       | Stage dependencies         |
+| `parallel`          | boolean  | No       | Run agents in parallel     |
+| `max_parallel`      | number   | No       | Max parallel instances     |
 
-*Either `agent` or `agents` required
+\*Either `agent` or `agents` required
 
 ### Quality Gates
 
@@ -382,8 +390,8 @@ Quality gates block pipeline if not met:
 ```yaml
 quality_gates:
   code:
-    coverage_threshold: 80    # Fail if coverage < 80%
-    require_tests: true       # Fail if no tests
+    coverage_threshold: 80 # Fail if coverage < 80%
+    require_tests: true # Fail if no tests
 ```
 
 ---
@@ -393,11 +401,11 @@ quality_gates:
 ### Minimal Configuration (Automated)
 
 ```yaml
-schema_version: "1.0"
+schema_version: '1.0'
 
 global_settings:
-  project_root: "."
-  approval_mode: "auto"  # Default, fully automated
+  project_root: '.'
+  approval_mode: 'auto' # Default, fully automated
 
 pipelines:
   greenfield:
@@ -407,11 +415,11 @@ pipelines:
 ### High-Quality Configuration (Manual Review)
 
 ```yaml
-schema_version: "1.0"
+schema_version: '1.0'
 
 global_settings:
-  default_model: "opus"  # Use best model
-  approval_mode: "manual"  # Review every stage
+  default_model: 'opus' # Use best model
+  approval_mode: 'manual' # Prompt for interactive approval at every stage (requires TTY)
 
 quality_gates:
   code:
@@ -429,10 +437,10 @@ github:
 ### CI/CD Configuration
 
 ```yaml
-schema_version: "1.0"
+schema_version: '1.0'
 
 global_settings:
-  approval_mode: "auto"  # No human intervention
+  approval_mode: 'auto' # No human intervention
   parallel_workers: 10
 
 quality_gates:
@@ -445,18 +453,18 @@ quality_gates:
 ### Custom Approval Gates
 
 ```yaml
-schema_version: "1.0"
+schema_version: '1.0'
 
 global_settings:
-  approval_mode: "custom"  # Use individual gates
+  approval_mode: 'custom' # Use individual gates
   approval_gates:
     after_collection: false
-    after_prd: true         # Review PRD
+    after_prd: true # Review PRD
     after_srs: false
     after_github_repo_setup: false
-    after_sds: true         # Review SDS
+    after_sds: true # Review SDS
     after_issues: false
-    before_merge: true      # Final review before merge
+    before_merge: true # Final review before merge
 
 quality_gates:
   code:
@@ -466,16 +474,16 @@ quality_gates:
 ### Fast Development Configuration
 
 ```yaml
-schema_version: "1.0"
+schema_version: '1.0'
 
 global_settings:
-  default_model: "haiku"  # Fastest model
-  approval_mode: "auto"
+  default_model: 'haiku' # Fastest model
+  approval_mode: 'auto'
   parallel_workers: 10
 
 quality_gates:
   code:
-    coverage_threshold: 60  # Lower threshold
+    coverage_threshold: 60 # Lower threshold
 ```
 
 ---
@@ -494,4 +502,4 @@ ad-sdlc config show
 
 ---
 
-*Part of [Configuration Reference](./README.md)*
+_Part of [Configuration Reference](./README.md)_

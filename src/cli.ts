@@ -191,7 +191,7 @@ program
         output.info(chalk.blue('\n📖 Next steps:\n'));
         output.info(`  1. ${chalk.cyan(`cd ${options.projectName}`)}`);
         output.info(
-          `  2. Set up your Claude API key: ${chalk.cyan('export CLAUDE_API_KEY="your-key"')}`
+          `  2. Set up your API key: ${chalk.cyan('export ANTHROPIC_API_KEY="your-key"')}`
         );
         output.info(`  3. Run AD-SDLC: ${chalk.cyan('npx ad-sdlc run "Your requirements"')}`);
         output.blank();
@@ -1030,6 +1030,11 @@ program
   )
   .option('--resume <session-id>', 'Resume a previously interrupted pipeline session')
   .option('-L, --local', 'Run in local mode without GitHub dependency')
+  .option(
+    '--approval-mode <mode>',
+    'Approval mode for pipeline stages: auto | manual | critical',
+    'auto'
+  )
   .action(async (requirements: string, cmdOptions: Record<string, unknown>) => {
     const modeInput = typeof cmdOptions['mode'] === 'string' ? cmdOptions['mode'] : 'greenfield';
     const stopAfter =
@@ -1043,6 +1048,16 @@ program
     const resumeSessionId =
       typeof cmdOptions['resume'] === 'string' ? cmdOptions['resume'] : undefined;
     const localMode = cmdOptions['local'] === true || process.env['AD_SDLC_LOCAL'] === '1';
+    const approvalModeInput =
+      typeof cmdOptions['approvalMode'] === 'string' ? cmdOptions['approvalMode'] : 'auto';
+    // 'custom' mode excluded from CLI — available only via programmatic API (subclassing)
+    const validApprovalModes = ['auto', 'manual', 'critical'];
+    if (!validApprovalModes.includes(approvalModeInput)) {
+      output.error(chalk.red(`\n❌ Invalid approval mode: ${approvalModeInput}`));
+      output.info(chalk.dim(`Valid modes: ${validApprovalModes.join(', ')}\n`));
+      process.exit(1);
+    }
+    const approvalMode = approvalModeInput as 'auto' | 'manual' | 'critical';
 
     // Validate mode
     const validModes = ['greenfield', 'enhancement', 'import'];
@@ -1171,7 +1186,7 @@ program
     }
     output.blank();
 
-    const agent = getAdsdlcOrchestratorAgent();
+    const agent = getAdsdlcOrchestratorAgent({ approvalMode });
 
     try {
       // Build pipeline request

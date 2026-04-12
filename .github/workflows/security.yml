@@ -37,9 +37,8 @@ jobs:
       - name: Run npm audit (production)
         run: npm audit --omit=dev --audit-level=high
 
-      - name: Run npm audit (all, informational)
+      - name: Run npm audit (all dependencies)
         run: npm audit --audit-level=high
-        continue-on-error: true
 
       - name: Run npm audit (JSON output)
         run: npm audit --json > audit-results.json || true
@@ -127,7 +126,6 @@ jobs:
 
       - name: Check licenses
         run: npx license-checker --production --failOn "GPL;LGPL;AGPL"
-        continue-on-error: true
 
   security-headers-check:
     name: Security Best Practices Check

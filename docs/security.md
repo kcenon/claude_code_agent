@@ -48,7 +48,7 @@ const secrets = getSecretManager();
 await secrets.load();
 
 // Get a secret
-const apiKey = secrets.get('CLAUDE_API_KEY');
+const apiKey = secrets.get('ANTHROPIC_API_KEY');
 
 // Check if secret exists
 if (secrets.has('GITHUB_TOKEN')) {
@@ -82,7 +82,7 @@ safeLog(`Using token: ${token}`); // Automatically masked
 ```typescript
 const secrets = new SecretManager({
   envFilePath: '.env.local',
-  requiredSecrets: ['CLAUDE_API_KEY', 'GITHUB_TOKEN'],
+  requiredSecrets: ['ANTHROPIC_API_KEY', 'GITHUB_TOKEN'],
   throwOnMissing: true, // Throw if required secrets are missing
 });
 ```
@@ -180,7 +180,7 @@ const audit = getAuditLogger({
 audit.log({
   type: 'api_key_used',
   actor: 'collector-agent',
-  resource: 'CLAUDE_API_KEY',
+  resource: 'ANTHROPIC_API_KEY',
   action: 'authenticate',
   result: 'success',
 });
@@ -467,26 +467,23 @@ await sanitizer.execFromString(`git commit -m "${escaped}"`);
 
 By default, only these commands are allowed:
 
-| Command | Subcommands |
-|---------|-------------|
-| git | status, add, commit, push, pull, checkout, branch, log, diff, show, fetch, merge, rebase, stash, reset, tag, init, clone, remote, rev-parse |
-| gh | pr, issue, repo, auth, api, run, workflow |
-| npm | install, ci, run, test, build, audit, version, pack, publish, exec, cache |
-| npx | (any) |
-| node | (any) |
-| tsc | (any) |
-| eslint | (any) |
-| prettier | (any) |
-| vitest | (any) |
-| jest | (any) |
+| Command  | Subcommands                                                                                                                                 |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| git      | status, add, commit, push, pull, checkout, branch, log, diff, show, fetch, merge, rebase, stash, reset, tag, init, clone, remote, rev-parse |
+| gh       | pr, issue, repo, auth, api, run, workflow                                                                                                   |
+| npm      | install, ci, run, test, build, audit, version, pack, publish, exec, cache                                                                   |
+| npx      | (any)                                                                                                                                       |
+| node     | (any)                                                                                                                                       |
+| tsc      | (any)                                                                                                                                       |
+| eslint   | (any)                                                                                                                                       |
+| prettier | (any)                                                                                                                                       |
+| vitest   | (any)                                                                                                                                       |
+| jest     | (any)                                                                                                                                       |
 
 ### Error Handling
 
 ```typescript
-import {
-  CommandInjectionError,
-  CommandNotAllowedError
-} from 'ad-sdlc';
+import { CommandInjectionError, CommandNotAllowedError } from 'ad-sdlc';
 
 try {
   await sanitizer.execFromString('curl http://evil.com');
@@ -622,14 +619,12 @@ Example whitelist.json:
 
 ```typescript
 // Load from remote URL
-const result = await sanitizer.loadWhitelistFromUrl(
-  'https://config.example.com/whitelist.json'
-);
+const result = await sanitizer.loadWhitelistFromUrl('https://config.example.com/whitelist.json');
 
 // With custom timeout
 await sanitizer.loadWhitelistFromUrl(
   'https://config.example.com/whitelist.json',
-  { timeout: 5000 }  // 5 second timeout
+  { timeout: 5000 } // 5 second timeout
 );
 ```
 
@@ -640,7 +635,7 @@ import type { WhitelistSource } from 'ad-sdlc';
 
 // Load from any source type
 const source: WhitelistSource = {
-  type: 'file',  // 'file' | 'url' | 'object'
+  type: 'file', // 'file' | 'url' | 'object'
   path: '/path/to/whitelist.json',
 };
 
@@ -685,7 +680,7 @@ try {
 
 // Validation errors are returned in the result
 const result = await sanitizer.updateWhitelist({
-  badCmd: { allowed: 'not-a-boolean' }
+  badCmd: { allowed: 'not-a-boolean' },
 } as any);
 
 if (!result.success) {
@@ -705,7 +700,7 @@ Direct file operations with user-provided paths can lead to path traversal attac
 ```typescript
 // DANGEROUS - Never do this!
 const userPath = '../../../etc/passwd';
-const content = fs.readFileSync(userPath);  // Path traversal vulnerability!
+const content = fs.readFileSync(userPath); // Path traversal vulnerability!
 ```
 
 ### Solution: SecureFileOps
@@ -721,8 +716,8 @@ const fileOps = createSecureFileOps({
 });
 
 // Safe file operations - validates path before executing
-const content = await fileOps.readFile('src/config.json');  // Safe
-const content2 = await fileOps.readFile('../../../etc/passwd');  // Throws PathTraversalError!
+const content = await fileOps.readFile('src/config.json'); // Safe
+const content2 = await fileOps.readFile('../../../etc/passwd'); // Throws PathTraversalError!
 ```
 
 ### Basic Usage
@@ -733,7 +728,7 @@ import { createSecureFileOps, getSecureFileOps } from 'ad-sdlc';
 // Using factory function with configuration
 const fileOps = createSecureFileOps({
   projectRoot: process.cwd(),
-  allowedExternalDirs: ['/tmp/allowed'],  // Optional: allow specific external directories
+  allowedExternalDirs: ['/tmp/allowed'], // Optional: allow specific external directories
 });
 
 // Or using singleton (uses CWD as project root)
@@ -828,7 +823,7 @@ SecureFileOps validates that symbolic links do not escape the allowed directorie
 ```typescript
 const fileOps = createSecureFileOps({
   projectRoot: '/path/to/project',
-  validateSymlinks: true,  // Default: true
+  validateSymlinks: true, // Default: true
 });
 
 // If 'link.txt' is a symlink pointing to '/etc/passwd'
@@ -837,7 +832,7 @@ await fileOps.readFile('link.txt');
 // Error: Symbolic link target escapes allowed directories
 
 // Safe symlinks (target within project) work normally
-await fileOps.readFile('internal-link.txt');  // Works fine
+await fileOps.readFile('internal-link.txt'); // Works fine
 ```
 
 ### File Watching
@@ -881,8 +876,8 @@ const handle = fileOps.watch('src', callback, {
 
   // Filter by file patterns
   patterns: {
-    include: ['*.ts', '*.tsx'],  // Only watch TypeScript files
-    exclude: ['*.test.ts'],      // Exclude test files
+    include: ['*.ts', '*.tsx'], // Only watch TypeScript files
+    exclude: ['*.test.ts'], // Exclude test files
   },
 
   // Follow symbolic links (default: false for security)
@@ -907,11 +902,11 @@ File watching includes built-in security protections:
 
 ```typescript
 // Attempting to watch outside project root throws PathTraversalError
-fileOps.watch('../../etc', callback);  // Throws!
+fileOps.watch('../../etc', callback); // Throws!
 
 // Watching a symlink that points outside project throws error
 // if validateSymlinkTargets is true
-fileOps.watch('bad-symlink', callback);  // Throws PathTraversalError!
+fileOps.watch('bad-symlink', callback); // Throws PathTraversalError!
 ```
 
 #### Managing Watchers
@@ -943,12 +938,12 @@ const resolver = new PathResolver({
 
 // Resolve path safely
 const resolved = resolver.resolve('src/index.ts');
-console.log(resolved.absolutePath);     // '/path/to/project/src/index.ts'
-console.log(resolved.relativePath);     // 'src/index.ts'
-console.log(resolved.isWithinProject);  // true
+console.log(resolved.absolutePath); // '/path/to/project/src/index.ts'
+console.log(resolved.relativePath); // 'src/index.ts'
+console.log(resolved.isWithinProject); // true
 
 // Path traversal throws error
-resolver.resolve('../../../etc/passwd');  // Throws PathTraversalError
+resolver.resolve('../../../etc/passwd'); // Throws PathTraversalError
 ```
 
 ### Configuration
@@ -956,8 +951,8 @@ resolver.resolve('../../../etc/passwd');  // Throws PathTraversalError
 ```typescript
 const resolver = new PathResolver({
   projectRoot: '/project',
-  allowedExternalDirs: ['/tmp'],  // Allow specific external paths
-  validateSymlinks: true,          // Check symlink targets
+  allowedExternalDirs: ['/tmp'], // Allow specific external paths
+  validateSymlinks: true, // Check symlink targets
 });
 ```
 
@@ -1002,9 +997,11 @@ try {
 
 The project includes automated security scanning:
 
-- **npm audit** - Dependency vulnerability scanning
-- **CodeQL** - Static code analysis
-- **Gitleaks** - Secret detection in commits
-- **License checking** - License compliance verification
+| Check                      | Tool                                                        | CI Behavior                                                                                      |
+| -------------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| Dependency vulnerabilities | `npm audit --audit-level=high`                              | Blocking — high/critical findings fail the build                                                 |
+| License compliance         | `npx license-checker --production --failOn "GPL;LGPL;AGPL"` | Blocking — prohibited licenses fail the build                                                    |
+| Static code analysis       | CodeQL                                                      | Blocking                                                                                         |
+| Secret detection           | Gitleaks                                                    | Non-blocking — requires an external license key; findings are reported but do not fail the build |
 
-See `.github/workflows/security.yml` for configuration.
+See `.github/workflows/security.yml` and `.github/workflows/ci.yml` for configuration.

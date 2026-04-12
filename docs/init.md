@@ -5,6 +5,7 @@ The init module provides project scaffolding and initialization for AD-SDLC proj
 ## Overview
 
 The init module creates a complete AD-SDLC project structure with:
+
 - Configuration files (workflow.yaml, agents.yaml)
 - Document templates (PRD, SRS, SDS, Issue)
 - Agent definitions for all pipeline stages
@@ -19,6 +20,7 @@ npx ad-sdlc init
 ```
 
 This launches an interactive wizard that prompts for:
+
 - Project name
 - Project description (optional)
 - GitHub repository URL (optional)
@@ -32,6 +34,7 @@ npx ad-sdlc init my-project --quick
 ```
 
 Skips interactive prompts and uses defaults:
+
 - Template: standard
 - Tech stack: typescript
 
@@ -45,13 +48,13 @@ npx ad-sdlc init my-project \
   --skip-validation
 ```
 
-| Option | Description |
-|--------|-------------|
-| `-g, --github-repo <url>` | GitHub repository URL |
-| `-t, --tech-stack <stack>` | Technology stack (typescript, python, java, go, rust, other) |
-| `-T, --template <template>` | Project template (minimal, standard, enterprise) |
-| `-q, --quick` | Skip interactive prompts |
-| `--skip-validation` | Skip prerequisite validation |
+| Option                      | Description                                                  |
+| --------------------------- | ------------------------------------------------------------ |
+| `-g, --github-repo <url>`   | GitHub repository URL                                        |
+| `-t, --tech-stack <stack>`  | Technology stack (typescript, python, java, go, rust, other) |
+| `-T, --template <template>` | Project template (minimal, standard, enterprise)             |
+| `-q, --quick`               | Skip interactive prompts                                     |
+| `--skip-validation`         | Skip prerequisite validation                                 |
 
 ## Templates
 
@@ -123,22 +126,19 @@ my-project/
 
 The init command validates the following prerequisites:
 
-| Check | Required | Description |
-|-------|----------|-------------|
-| Node.js Version | Yes | Must be 18 or higher |
-| Git | Yes | Must be installed |
-| Claude API Key | No | CLAUDE_API_KEY or ANTHROPIC_API_KEY |
-| GitHub CLI | No | gh CLI authenticated |
+| Check           | Required | Description          |
+| --------------- | -------- | -------------------- |
+| Node.js Version | Yes      | Must be 18 or higher |
+| Git             | Yes      | Must be installed    |
+| Claude API Key  | No       | ANTHROPIC_API_KEY    |
+| GitHub CLI      | No       | gh CLI authenticated |
 
 Skip validation with `--skip-validation` for offline initialization.
 
 ## Programmatic Usage
 
 ```typescript
-import {
-  createProjectInitializer,
-  getPrerequisiteValidator,
-} from 'ad-sdlc';
+import { createProjectInitializer, getPrerequisiteValidator } from 'ad-sdlc';
 
 // Validate prerequisites
 const validator = getPrerequisiteValidator();
@@ -222,11 +222,7 @@ Templates support semantic versioning (major.minor.patch) for compatibility and 
 ### Checking Compatibility
 
 ```typescript
-import {
-  validateTemplateCompatibility,
-  needsMigration,
-  getCurrentVersion,
-} from 'ad-sdlc';
+import { validateTemplateCompatibility, needsMigration, getCurrentVersion } from 'ad-sdlc';
 
 const config: TemplateConfig = {
   version: { major: 1, minor: 0, patch: 0 },
@@ -263,12 +259,7 @@ if (result.success) {
 ### Version Utilities
 
 ```typescript
-import {
-  parseVersion,
-  formatVersion,
-  compareVersions,
-  versionsEqual,
-} from 'ad-sdlc';
+import { parseVersion, formatVersion, compareVersions, versionsEqual } from 'ad-sdlc';
 
 // Parse version string
 const version = parseVersion('1.2.3');
@@ -308,19 +299,19 @@ registerMigration({
 
 The init module provides specific error types:
 
-| Error | Description |
-|-------|-------------|
-| `PrerequisiteError` | Required prerequisites not met |
-| `ProjectExistsError` | Project with .ad-sdlc already exists |
-| `FileSystemError` | File system operation failed |
-| `ConfigurationError` | Invalid configuration |
-| `TemplateVersionError` | Template version incompatible |
-| `TemplateMigrationError` | Template migration failed |
+| Error                    | Description                          |
+| ------------------------ | ------------------------------------ |
+| `PrerequisiteError`      | Required prerequisites not met       |
+| `ProjectExistsError`     | Project with .ad-sdlc already exists |
+| `FileSystemError`        | File system operation failed         |
+| `ConfigurationError`     | Invalid configuration                |
+| `TemplateVersionError`   | Template version incompatible        |
+| `TemplateMigrationError` | Template migration failed            |
 
 ## Next Steps
 
 After initialization:
 
 1. Navigate to your project: `cd my-project`
-2. Set up your API key: `export CLAUDE_API_KEY="your-key"`
+2. Set up your API key: `export ANTHROPIC_API_KEY="your-key"`
 3. Start the pipeline: `npx ad-sdlc run "Your requirements"`

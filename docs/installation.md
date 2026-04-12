@@ -22,18 +22,18 @@ Before installing AD-SDLC, ensure you have:
 
 ### Required Software
 
-| Software | Minimum Version | Check Command |
-|----------|----------------|---------------|
-| Node.js | 18+ | `node --version` |
-| npm | 9+ | `npm --version` |
-| Git | 2.30+ | `git --version` |
+| Software | Minimum Version | Check Command    |
+| -------- | --------------- | ---------------- |
+| Node.js  | 18+             | `node --version` |
+| npm      | 9+              | `npm --version`  |
+| Git      | 2.30+           | `git --version`  |
 
 ### Optional Software
 
-| Software | Purpose | Check Command |
-|----------|---------|---------------|
-| GitHub CLI (`gh`) | Issue/PR management | `gh --version` |
-| Python | SDK development | `python3 --version` |
+| Software          | Purpose             | Check Command       |
+| ----------------- | ------------------- | ------------------- |
+| GitHub CLI (`gh`) | Issue/PR management | `gh --version`      |
+| Python            | SDK development     | `python3 --version` |
 
 ### API Access
 
@@ -47,12 +47,12 @@ You need one of the following:
 
 ## System Requirements
 
-| Component | Minimum | Recommended |
-|-----------|---------|-------------|
-| CPU | 2 cores | 4+ cores |
-| RAM | 4GB | 8GB+ |
-| Disk | 1GB | 5GB+ |
-| Network | Broadband | Stable connection |
+| Component | Minimum   | Recommended       |
+| --------- | --------- | ----------------- |
+| CPU       | 2 cores   | 4+ cores          |
+| RAM       | 4GB       | 8GB+              |
+| Disk      | 1GB       | 5GB+              |
+| Network   | Broadband | Stable connection |
 
 ### Supported Operating Systems
 
@@ -143,9 +143,6 @@ Choose one of the following methods:
 ```bash
 # Add to your shell profile (~/.bashrc, ~/.zshrc, etc.)
 export ANTHROPIC_API_KEY="sk-ant-api03-..."
-
-# Or use CLAUDE_API_KEY
-export CLAUDE_API_KEY="sk-ant-api03-..."
 
 # Reload your shell
 source ~/.bashrc  # or source ~/.zshrc
@@ -350,4 +347,4 @@ After successful installation:
 
 ---
 
-*Part of [AD-SDLC Documentation](../README.md)*
+_Part of [AD-SDLC Documentation](../README.md)_

@@ -462,12 +462,12 @@ execution:
 
 Available values:
 
-| Mode       | Behavior                                    |
-| ---------- | ------------------------------------------- |
-| `auto`     | All approval gates pass automatically       |
-| `manual`   | Every gate requires explicit human approval |
-| `critical` | Only high-risk gates require approval       |
-| `custom`   | Per-stage configuration in `workflow.yaml`  |
+| Mode       | Behavior                                                                                                                                      |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `auto`     | All approval gates pass automatically                                                                                                         |
+| `manual`   | Prompts for interactive approval at every gate (requires TTY; gates are denied by default in non-interactive environments — do not use in CI) |
+| `critical` | Only high-risk gates require approval                                                                                                         |
+| `custom`   | Per-stage configuration in `workflow.yaml`                                                                                                    |
 
 Use `auto` in CI and `manual` or `critical` during local development when you want to review impact reports before proceeding.
 

@@ -1,6 +1,6 @@
 **AD-SDLC API Reference v0.0.1**
 
-***
+---
 
 # AD-SDLC: Agent-Driven Software Development Lifecycle
 
@@ -59,25 +59,25 @@ Existing Docs + Code → Document Reader → Codebase Analyzer
 
 ### Agent Pipeline
 
-| Phase | Agent | Role |
-|-------|-------|------|
-| **Collection** | Collector | Gathers requirements from text, files, and URLs |
-| **Documentation** | PRD Writer | Generates Product Requirements Document |
-| | SRS Writer | Generates Software Requirements Specification |
-| | SDS Writer | Generates Software Design Specification |
-| **Planning** | Issue Generator | Creates GitHub Issues from SDS components |
-| **Execution** | Controller | Orchestrates work distribution and monitors progress |
-| | Worker | Implements code based on assigned issues |
-| **Quality** | PR Reviewer | Creates PRs and performs automated code review |
-| | CI Fixer | Automatically diagnoses and fixes CI failures |
-| **Enhancement** | Document Reader | Parses existing PRD/SRS/SDS documents |
-| | Codebase Analyzer | Analyzes current architecture and code structure |
-| | Code Reader | Extracts source code structure and dependencies |
-| | Impact Analyzer | Assesses change implications and risks |
-| | PRD/SRS/SDS Updaters | Performs incremental document updates |
-| | Regression Tester | Identifies affected tests for changes |
-| | Mode Detector | Automatically detects Greenfield vs Enhancement |
-| | Analysis Orchestrator | Coordinates the analysis pipeline |
+| Phase             | Agent                 | Role                                                 |
+| ----------------- | --------------------- | ---------------------------------------------------- |
+| **Collection**    | Collector             | Gathers requirements from text, files, and URLs      |
+| **Documentation** | PRD Writer            | Generates Product Requirements Document              |
+|                   | SRS Writer            | Generates Software Requirements Specification        |
+|                   | SDS Writer            | Generates Software Design Specification              |
+| **Planning**      | Issue Generator       | Creates GitHub Issues from SDS components            |
+| **Execution**     | Controller            | Orchestrates work distribution and monitors progress |
+|                   | Worker                | Implements code based on assigned issues             |
+| **Quality**       | PR Reviewer           | Creates PRs and performs automated code review       |
+|                   | CI Fixer              | Automatically diagnoses and fixes CI failures        |
+| **Enhancement**   | Document Reader       | Parses existing PRD/SRS/SDS documents                |
+|                   | Codebase Analyzer     | Analyzes current architecture and code structure     |
+|                   | Code Reader           | Extracts source code structure and dependencies      |
+|                   | Impact Analyzer       | Assesses change implications and risks               |
+|                   | PRD/SRS/SDS Updaters  | Performs incremental document updates                |
+|                   | Regression Tester     | Identifies affected tests for changes                |
+|                   | Mode Detector         | Automatically detects Greenfield vs Enhancement      |
+|                   | Analysis Orchestrator | Coordinates the analysis pipeline                    |
 
 ## Features
 
@@ -113,9 +113,7 @@ npx ad-sdlc init
 ### Configure
 
 ```bash
-# Set your Claude API key
-export CLAUDE_API_KEY="your-api-key"
-# or
+# Set your Anthropic API key
 export ANTHROPIC_API_KEY="your-api-key"
 
 # For GitHub integration
@@ -144,11 +142,11 @@ ad-sdlc init my-project \
 
 ### Template Options
 
-| Template | Workers | Coverage | Features |
-|----------|---------|----------|----------|
-| **minimal** | 2 | 50% | Basic structure |
-| **standard** | 3 | 70% | Token tracking, dashboard |
-| **enterprise** | 5 | 80% | Audit logging, security scanning |
+| Template       | Workers | Coverage | Features                         |
+| -------------- | ------- | -------- | -------------------------------- |
+| **minimal**    | 2       | 50%      | Basic structure                  |
+| **standard**   | 3       | 70%      | Token tracking, dashboard        |
+| **enterprise** | 5       | 80%      | Audit logging, security scanning |
 
 ### Run the Pipeline
 
@@ -264,6 +262,7 @@ your-project/
 ## Agent Definitions
 
 Each agent is defined in `.claude/agents/` with:
+
 - YAML frontmatter (name, description, tools, model)
 - Markdown body with role, responsibilities, schemas, and workflows
 

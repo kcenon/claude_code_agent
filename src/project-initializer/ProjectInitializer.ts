@@ -434,7 +434,7 @@ This project uses AD-SDLC (Agent-Driven Software Development Lifecycle) for auto
 ### Prerequisites
 
 - Node.js 18+
-- Claude API Key (set \`CLAUDE_API_KEY\` or \`ANTHROPIC_API_KEY\`)
+- Claude API Key (set \`ANTHROPIC_API_KEY\`)
 - GitHub CLI (optional, for issue/PR management)
 
 ### Running AD-SDLC

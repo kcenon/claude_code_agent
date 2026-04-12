@@ -13,7 +13,7 @@ import type { SecretManagerOptions } from './types.js';
 import { SecretNotFoundError } from './errors.js';
 
 /** Secrets required regardless of pipeline mode */
-const CORE_REQUIRED_SECRETS = ['CLAUDE_API_KEY'] as const;
+const CORE_REQUIRED_SECRETS = ['ANTHROPIC_API_KEY'] as const;
 
 /** Additional secrets required for GitHub integration */
 const GITHUB_REQUIRED_SECRETS = ['GITHUB_TOKEN'] as const;
@@ -23,7 +23,7 @@ const DEFAULT_REQUIRED_SECRETS = [...CORE_REQUIRED_SECRETS, ...GITHUB_REQUIRED_S
 
 /**
  * Get required secrets based on pipeline mode.
- * In local mode, only CLAUDE_API_KEY is mandatory.
+ * In local mode, only ANTHROPIC_API_KEY is mandatory.
  * @param localMode
  */
 export function getRequiredSecrets(localMode: boolean): readonly string[] {
@@ -72,6 +72,7 @@ export class SecretManager {
   private loadFromEnvironment(): void {
     // Load all secret-related environment variables
     const secretPatterns = [
+      /^ANTHROPIC_/,
       /^CLAUDE_/,
       /^GITHUB_/,
       /^API_KEY$/,
@@ -99,6 +100,16 @@ export class SecretManager {
 
     for (const key of this.requiredSecrets) {
       if (!this.secrets.has(key)) {
+        // Backward compat: accept CLAUDE_API_KEY as fallback for ANTHROPIC_API_KEY
+        if (key === 'ANTHROPIC_API_KEY' && this.secrets.has('CLAUDE_API_KEY')) {
+          const fallback = this.secrets.get('CLAUDE_API_KEY');
+          if (fallback !== undefined) {
+            this.secrets.set('ANTHROPIC_API_KEY', fallback);
+          }
+          // eslint-disable-next-line no-console -- intentional deprecation warning
+          console.warn('[DEPRECATED] CLAUDE_API_KEY is deprecated. Use ANTHROPIC_API_KEY instead.');
+          continue;
+        }
         missing.push(key);
       }
     }

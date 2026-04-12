@@ -1,0 +1,68 @@
+name: Docker
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'docker/**'
+      - '.github/workflows/docker.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'docker/**'
+      - '.github/workflows/docker.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./docker
+          push: false
+          load: true
+          tags: claude-code-base:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Verify installed tools
+        run: |
+          echo "=== Node.js ==="
+          docker run --rm claude-code-base:test node --version
+          echo "=== Git ==="
+          docker run --rm claude-code-base:test git --version
+          echo "=== GitHub CLI ==="
+          docker run --rm claude-code-base:test gh --version
+
+      - name: Verify non-root user (SRS-5.1.7)
+        run: |
+          USER=$(docker run --rm claude-code-base:test whoami)
+          if [ "$USER" != "node" ]; then
+            echo "::error::Expected non-root user 'node', got '$USER'"
+            exit 1
+          fi
+          echo "Container runs as non-root user: $USER"
+
+      - name: Verify working directory (SRS-5.1.6)
+        run: |
+          WORKDIR=$(docker run --rm claude-code-base:test pwd)
+          if [ "$WORKDIR" != "/workspace" ]; then
+            echo "::error::Expected WORKDIR '/workspace', got '$WORKDIR'"
+            exit 1
+          fi
+          echo "Working directory: $WORKDIR"

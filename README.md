@@ -132,9 +132,7 @@ npx ad-sdlc init
 ### Configure
 
 ```bash
-# Set your Claude API key
-export CLAUDE_API_KEY="your-api-key"
-# or
+# Set your Anthropic API key
 export ANTHROPIC_API_KEY="your-api-key"
 
 # For GitHub integration

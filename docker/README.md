@@ -10,23 +10,23 @@ Run multiple Claude Code instances simultaneously with isolated accounts.
 
 ## Compose Overrides
 
-| File | Purpose | When to use |
-|------|---------|-------------|
-| `docker-compose.yml` | Base config (Tier A) | Always |
-| `docker-compose.linux.yml` | HOST_UID/HOST_GID override | Linux/WSL |
-| `docker-compose.worktree.yml` | Per-container worktree paths | Tier B only |
-| `docker-compose.firewall.yml` | NET_ADMIN/NET_RAW caps | Security hardening |
-| `docker-compose.sources.yml` | Host sources mount | Optional |
+| File                          | Purpose                      | When to use        |
+| ----------------------------- | ---------------------------- | ------------------ |
+| `docker-compose.yml`          | Base config (Tier A)         | Always             |
+| `docker-compose.linux.yml`    | HOST_UID/HOST_GID override   | Linux/WSL          |
+| `docker-compose.worktree.yml` | Per-container worktree paths | Tier B only        |
+| `docker-compose.firewall.yml` | NET_ADMIN/NET_RAW caps       | Security hardening |
+| `docker-compose.sources.yml`  | Host sources mount           | Optional           |
 
 ## Scripts
 
-| Script | Purpose |
-|--------|---------|
-| `install.sh` | Interactive installer |
-| `scripts/cleanup.sh` | Remove containers, volumes, worktrees, state |
-| `scripts/setup-worktrees.sh` | Create N git worktrees for Tier B |
-| `scripts/git-safe` | flock wrapper for Tier A git serialization |
-| `scripts/validate_skills.sh` | SKILL.md validation |
+| Script                       | Purpose                                      |
+| ---------------------------- | -------------------------------------------- |
+| `install.sh`                 | Interactive installer                        |
+| `scripts/cleanup.sh`         | Remove containers, volumes, worktrees, state |
+| `scripts/setup-worktrees.sh` | Create N git worktrees for Tier B            |
+| `scripts/git-safe`           | flock wrapper for Tier A git serialization   |
+| `scripts/validate_skills.sh` | SKILL.md validation                          |
 
 ## Security Notes
 
@@ -40,3 +40,12 @@ Run multiple Claude Code instances simultaneously with isolated accounts.
 ## Phase 6 Hardening
 
 See [Epic #657](https://github.com/kcenon/claude_code_agent/issues/657) for the full production readiness audit.
+
+## CI/CD
+
+The Docker image is automatically built and tested by the `docker.yml` GitHub Actions workflow on pushes to `main`/`develop` and PRs when files in `docker/` change. The workflow verifies:
+
+- Image builds successfully
+- Node.js, Git, and GitHub CLI are installed
+- Container runs as non-root user `node` (SRS-5.1.7)
+- Working directory is `/workspace` (SRS-5.1.6)

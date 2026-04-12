@@ -28,7 +28,7 @@ export class PrerequisiteValidator {
       {
         name: 'Claude API Key',
         check: this.checkClaudeApiKey.bind(this),
-        fix: 'Set CLAUDE_API_KEY environment variable or ANTHROPIC_API_KEY',
+        fix: 'Set ANTHROPIC_API_KEY environment variable',
         required: false,
       },
       {

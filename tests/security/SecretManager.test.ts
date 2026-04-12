@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   SecretManager,
   getSecretManager,
@@ -121,6 +121,39 @@ describe('SecretManager', () => {
 
       expect(secretManager.has('KEY1')).toBe(false);
       expect(secretManager.isInitialized()).toBe(false);
+    });
+  });
+
+  describe('API key backward compatibility', () => {
+    it('should accept CLAUDE_API_KEY as fallback with deprecation warning', () => {
+      const originalEnv = process.env['CLAUDE_API_KEY'];
+      const originalAnthropicEnv = process.env['ANTHROPIC_API_KEY'];
+      try {
+        process.env['CLAUDE_API_KEY'] = 'test-claude-key';
+        delete process.env['ANTHROPIC_API_KEY'];
+
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const manager = new SecretManager({ throwOnMissing: true });
+        manager.load();
+
+        expect(manager.has('ANTHROPIC_API_KEY')).toBe(true);
+        expect(manager.get('ANTHROPIC_API_KEY')).toBe('test-claude-key');
+        expect(warnSpy).toHaveBeenCalledWith(
+          expect.stringContaining('CLAUDE_API_KEY is deprecated')
+        );
+
+        warnSpy.mockRestore();
+        manager.clear();
+      } finally {
+        if (originalEnv !== undefined) {
+          process.env['CLAUDE_API_KEY'] = originalEnv;
+        } else {
+          delete process.env['CLAUDE_API_KEY'];
+        }
+        if (originalAnthropicEnv !== undefined) {
+          process.env['ANTHROPIC_API_KEY'] = originalAnthropicEnv;
+        }
+      }
     });
   });
 

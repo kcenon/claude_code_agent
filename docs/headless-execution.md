@@ -27,15 +27,17 @@ By default, the Claude CLI runs in interactive mode, waiting for user input and 
 - Limits execution turns
 - Provides structured output for parsing
 
+> **Approval mode in non-interactive environments**: When the pipeline's `approval_mode` is set to `manual`, it requires an interactive TTY to prompt the user. If no TTY is available (CI/CD runners, Docker containers, cron jobs), `manual` mode **denies approval by default** and the pipeline will not proceed past approval gates. Always use `--approval-mode auto` (or set `approval_mode: "auto"` in `workflow.yaml`) when running without a terminal.
+
 ### Interactive vs Headless
 
-| Aspect | Interactive | Headless |
-|--------|-------------|----------|
-| User Input | Required | None |
-| Tool Permissions | Prompted | Pre-approved |
-| Exit Behavior | Stays open | Auto-exits |
-| Output | Rich console | Text/JSON |
-| Use Case | Development | Automation |
+| Aspect           | Interactive  | Headless     |
+| ---------------- | ------------ | ------------ |
+| User Input       | Required     | None         |
+| Tool Permissions | Prompted     | Pre-approved |
+| Exit Behavior    | Stays open   | Auto-exits   |
+| Output           | Rich console | Text/JSON    |
+| Use Case         | Development  | Automation   |
 
 ---
 
@@ -69,20 +71,20 @@ claude -p "Initialize AD-SDLC" \
 
 ### Essential Flags
 
-| Flag | Alias | Purpose | Example |
-|------|-------|---------|---------|
-| `--print` | `-p` | Non-interactive mode (auto-exit) | `claude -p "task"` |
-| `--allowedTools` | | Pre-approve specific tools | `--allowedTools "Read,Write"` |
-| `--output-format` | | Output format (text/json) | `--output-format json` |
+| Flag              | Alias | Purpose                          | Example                       |
+| ----------------- | ----- | -------------------------------- | ----------------------------- |
+| `--print`         | `-p`  | Non-interactive mode (auto-exit) | `claude -p "task"`            |
+| `--allowedTools`  |       | Pre-approve specific tools       | `--allowedTools "Read,Write"` |
+| `--output-format` |       | Output format (text/json)        | `--output-format json`        |
 
 ### Additional Flags
 
-| Flag | Purpose | Example |
-|------|---------|---------|
-| `--continue` / `-c` | Continue previous session | `claude -p -c "continue"` |
-| `--dangerously-skip-permissions` | Approve all permissions | Use in trusted environments only |
-| `--model` | Specify Claude model | `--model claude-sonnet-4-20250514` |
-| `--resume` | Resume specific session | `--resume session-id` |
+| Flag                             | Purpose                   | Example                            |
+| -------------------------------- | ------------------------- | ---------------------------------- |
+| `--continue` / `-c`              | Continue previous session | `claude -p -c "continue"`          |
+| `--dangerously-skip-permissions` | Approve all permissions   | Use in trusted environments only   |
+| `--model`                        | Specify Claude model      | `--model claude-sonnet-4-20250514` |
+| `--resume`                       | Resume specific session   | `--resume session-id`              |
 
 ### Tool Permission Patterns
 
@@ -109,13 +111,13 @@ AD-SDLC provides ready-to-use scripts in `.ad-sdlc/scripts/`:
 
 ### Script Overview
 
-| Script | Purpose |
-|--------|---------|
-| `ad-sdlc-init.sh` | Initialize AD-SDLC for a project |
-| `ad-sdlc-analyze-docs.sh` | Analyze existing documents |
-| `ad-sdlc-generate-issues.sh` | Generate GitHub issues from SDS |
-| `ad-sdlc-implement.sh` | Implement specific or all issues |
-| `ad-sdlc-full-pipeline.sh` | Run complete pipeline |
+| Script                       | Purpose                          |
+| ---------------------------- | -------------------------------- |
+| `ad-sdlc-init.sh`            | Initialize AD-SDLC for a project |
+| `ad-sdlc-analyze-docs.sh`    | Analyze existing documents       |
+| `ad-sdlc-generate-issues.sh` | Generate GitHub issues from SDS  |
+| `ad-sdlc-implement.sh`       | Implement specific or all issues |
+| `ad-sdlc-full-pipeline.sh`   | Run complete pipeline            |
 
 ### Usage Examples
 
@@ -199,6 +201,8 @@ export GH_TOKEN="ghp_..."
 
 ## CI/CD Integration
 
+CI/CD environments do not have an interactive TTY. Set `--approval-mode auto` on the command line or `approval_mode: "auto"` in `workflow.yaml` so the pipeline never blocks waiting for user input. Using `manual` mode in CI will cause all approval gates to be denied by default.
+
 ### GitHub Actions
 
 ```yaml
@@ -266,7 +270,7 @@ ad-sdlc-pipeline:
     - ./.ad-sdlc/scripts/ad-sdlc-full-pipeline.sh . auto
   variables:
     ANTHROPIC_API_KEY: $ANTHROPIC_API_KEY
-    SKIP_CONFIRMATION: "true"
+    SKIP_CONFIRMATION: 'true'
   artifacts:
     paths:
       - docs/
@@ -463,4 +467,4 @@ run: |
 
 ---
 
-*Part of [AD-SDLC Documentation](../README.md)*
+_Part of [AD-SDLC Documentation](../README.md)_

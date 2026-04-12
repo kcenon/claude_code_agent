@@ -1039,15 +1039,19 @@ export class AdsdlcOrchestratorAgent implements IAgent {
       case 'auto':
         return { approved: true, reason: 'Auto-approved', decidedBy: 'system', decidedAt: now };
 
-      case 'manual':
-        // In a real implementation, this would prompt the user.
-        // For now, return approved since there is no interactive prompt mechanism.
-        return {
-          approved: true,
-          reason: 'Manual mode (auto-approved in non-interactive)',
-          decidedBy: 'system',
-          decidedAt: now,
-        };
+      case 'manual': {
+        if (!process.stdout.isTTY) {
+          return {
+            approved: false,
+            reason:
+              'Manual approval required but no interactive terminal available. ' +
+              'Use --approval-mode auto or run in an interactive terminal.',
+            decidedBy: 'system',
+            decidedAt: now,
+          };
+        }
+        return this.promptManualApproval(stage, priorResults);
+      }
 
       case 'critical': {
         const hasPriorFailures = priorResults.some((r) => r.status === 'failed');
@@ -1070,6 +1074,38 @@ export class AdsdlcOrchestratorAgent implements IAgent {
       case 'custom':
         return this.approveStage(stage, priorResults);
     }
+  }
+
+  /**
+   * Prompt the user for manual approval of a pipeline stage via interactive terminal.
+   * @param stage - The stage awaiting approval
+   * @param priorResults - Results from previously executed stages
+   * @returns The approval decision based on user input
+   */
+  private async promptManualApproval(
+    stage: PipelineStageDefinition,
+    priorResults: readonly StageResult[]
+  ): Promise<ApprovalDecision> {
+    const now = new Date().toISOString();
+    const completedCount = priorResults.filter((r) => r.status === 'completed').length;
+    const failedCount = priorResults.filter((r) => r.status === 'failed').length;
+
+    const { default: inquirer } = await import('inquirer');
+    const { confirm } = await inquirer.prompt<{ confirm: boolean }>([
+      {
+        type: 'confirm',
+        name: 'confirm',
+        message: `Approve stage "${stage.name}" (${stage.agentType})? [${String(completedCount)} completed, ${String(failedCount)} failed]`,
+        default: true,
+      },
+    ]);
+
+    return {
+      approved: confirm,
+      reason: confirm ? 'Manually approved by user' : 'Manually rejected by user',
+      decidedBy: 'user',
+      decidedAt: now,
+    };
   }
 
   /**
