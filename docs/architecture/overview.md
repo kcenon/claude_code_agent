@@ -29,13 +29,13 @@ AD-SDLC (Agent-Driven Software Development Lifecycle) is an automated software d
 
 ### Key Capabilities
 
-| Capability | Description |
-|------------|-------------|
-| Document Generation | PRD, SRS, SDS automatic generation |
-| Issue Management | GitHub issue creation from design documents |
-| Code Implementation | Automated code generation with tests |
-| PR Management | Automated PR creation, review, and merge |
-| Impact Analysis | Change impact assessment for existing projects |
+| Capability          | Description                                    |
+| ------------------- | ---------------------------------------------- |
+| Document Generation | PRD, SRS, SDS automatic generation             |
+| Issue Management    | GitHub issue creation from design documents    |
+| Code Implementation | Automated code generation with tests           |
+| PR Management       | Automated PR creation, review, and merge       |
+| Impact Analysis     | Change impact assessment for existing projects |
 
 ---
 
@@ -62,7 +62,7 @@ AD-SDLC (Agent-Driven Software Development Lifecycle) is an automated software d
     ┌─────────────────────┐               ┌─────────────────────┐
     │  Document Pipeline  │               │  Analysis Pipeline  │
     │  Collector → PRD →  │               │  DocReader →        │
-    │  SRS → SDS          │               │  CodeAnalyzer →     │
+    │  SRS → SDP → SDS    │               │  CodeAnalyzer →     │
     └─────────────────────┘               │  ImpactAnalyzer     │
               │                           └─────────────────────┘
               │                                           │
@@ -112,44 +112,44 @@ AD-SDLC (Agent-Driven Software Development Lifecycle) is an automated software d
 
 ### Runtime Environment
 
-| Component | Version | Purpose |
-|-----------|---------|---------|
-| **Node.js** | 18+ | Runtime environment |
-| **TypeScript** | 5.3+ | Primary language |
-| **ES2022** | - | Module system (ESM) |
+| Component      | Version | Purpose             |
+| -------------- | ------- | ------------------- |
+| **Node.js**    | 18+     | Runtime environment |
+| **TypeScript** | 5.3+    | Primary language    |
+| **ES2022**     | -       | Module system (ESM) |
 
 ### Core Dependencies
 
-| Package | Version | Purpose |
-|---------|---------|---------|
-| `commander` | ^14.0.2 | CLI framework |
-| `chalk` | ^5.6.2 | Terminal output styling |
-| `inquirer` | ^13.1.0 | Interactive CLI prompts |
-| `js-yaml` | ^4.1.1 | YAML parsing |
-| `zod` | ^4.2.1 | Schema validation |
-| `ts-morph` | ^27.0.2 | TypeScript AST manipulation |
-| `dotenv` | ^17.2.3 | Environment configuration |
-| `mammoth` | ^1.11.0 | DOCX file parsing |
-| `pdf-parse` | ^2.4.5 | PDF file parsing |
+| Package     | Version | Purpose                     |
+| ----------- | ------- | --------------------------- |
+| `commander` | ^14.0.2 | CLI framework               |
+| `chalk`     | ^5.6.2  | Terminal output styling     |
+| `inquirer`  | ^13.1.0 | Interactive CLI prompts     |
+| `js-yaml`   | ^4.1.1  | YAML parsing                |
+| `zod`       | ^4.2.1  | Schema validation           |
+| `ts-morph`  | ^27.0.2 | TypeScript AST manipulation |
+| `dotenv`    | ^17.2.3 | Environment configuration   |
+| `mammoth`   | ^1.11.0 | DOCX file parsing           |
+| `pdf-parse` | ^2.4.5  | PDF file parsing            |
 
 ### Development Tools
 
-| Tool | Version | Purpose |
-|------|---------|---------|
-| `vitest` | ^4.0.16 | Test runner |
-| `@vitest/coverage-v8` | ^4.0.16 | Code coverage |
-| `eslint` | ^9.0.0 | Code linting |
-| `prettier` | ^3.0.0 | Code formatting |
-| `@typescript-eslint` | ^8.0.0 | TypeScript linting rules |
+| Tool                  | Version | Purpose                  |
+| --------------------- | ------- | ------------------------ |
+| `vitest`              | ^4.0.16 | Test runner              |
+| `@vitest/coverage-v8` | ^4.0.16 | Code coverage            |
+| `eslint`              | ^9.0.0  | Code linting             |
+| `prettier`            | ^3.0.0  | Code formatting          |
+| `@typescript-eslint`  | ^8.0.0  | TypeScript linting rules |
 
 ### External Integrations
 
-| Service | Purpose |
-|---------|---------|
-| **GitHub** | Issue tracking, PR management |
-| **Claude API** | AI agent backbone |
-| **Codecov** | Coverage reporting |
-| **CodeQL** | Security analysis |
+| Service        | Purpose                       |
+| -------------- | ----------------------------- |
+| **GitHub**     | Issue tracking, PR management |
+| **Claude API** | AI agent backbone             |
+| **Codecov**    | Coverage reporting            |
+| **CodeQL**     | Security analysis             |
 
 ---
 
@@ -160,17 +160,20 @@ AD-SDLC (Agent-Driven Software Development Lifecycle) is an automated software d
 The system consists of 15 specialized agents organized into functional categories:
 
 #### Document Generation Agents
+
 - **Collector**: Gathers requirements from multiple sources
 - **PRD Writer**: Generates Product Requirements Document
 - **SRS Writer**: Generates Software Requirements Specification
 - **SDS Writer**: Generates Software Design Specification
 
 #### Document Update Agents
+
 - **PRD Updater**: Incremental PRD modifications
 - **SRS Updater**: Incremental SRS modifications
 - **SDS Updater**: Incremental SDS modifications
 
 #### Analysis Agents
+
 - **Document Reader**: Parses existing documentation
 - **Codebase Analyzer**: Analyzes code structure
 - **Code Reader**: Extracts code inventory
@@ -178,6 +181,7 @@ The system consists of 15 specialized agents organized into functional categorie
 - **Doc-Code Comparator**: Identifies documentation gaps
 
 #### Execution Agents
+
 - **Issue Generator**: Creates GitHub issues from SDS
 - **Controller**: Orchestrates work distribution
 - **Worker**: Implements issues with code
@@ -296,12 +300,14 @@ Stage 9: Review & Merge
 Agents communicate through file-based state rather than direct messaging:
 
 **Benefits**:
+
 - Persistence across agent invocations
 - Human-readable intermediate states
 - Easy debugging and inspection
 - Recovery from failures
 
 **Implementation**:
+
 ```typescript
 // Write state
 await scratchpad.write('collected_info', data);
@@ -321,6 +327,7 @@ PRD (FR-001) ←→ SRS (SF-001, SF-002) ←→ SDS (CMP-001) ←→ Issue #1
 ### 3. Pipeline Stage Pattern
 
 Each pipeline stage:
+
 1. Reads input from scratchpad
 2. Processes with specialized agent
 3. Writes output to scratchpad
@@ -329,6 +336,7 @@ Each pipeline stage:
 ### 4. Worker Pool Pattern
 
 Controller manages a pool of workers:
+
 - Maximum 5 concurrent workers
 - Dependency-aware scheduling
 - Priority-based ordering
@@ -337,6 +345,7 @@ Controller manages a pool of workers:
 ### 5. Quality Gate Pattern
 
 Gates enforce standards at transitions:
+
 - Document completeness validation
 - Code coverage thresholds (80%)
 - Security scanning
@@ -408,4 +417,4 @@ claude_code_agent/
 
 ---
 
-*Part of [AD-SDLC Documentation](../README.md)*
+_Part of [AD-SDLC Documentation](../README.md)_

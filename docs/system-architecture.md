@@ -14,6 +14,7 @@ flowchart TB
         COLLECT[Collector Agent]
         PRD[PRD Writer Agent]
         SRS[SRS Writer Agent]
+        SDP[SDP Writer Agent]
         SDS[SDS Writer Agent]
     end
 
@@ -53,7 +54,8 @@ flowchart TB
 
     COLLECT --> PRD
     PRD --> SRS
-    SRS --> SDS
+    SRS --> SDP
+    SDP --> SDS
 
     SDS --> ISSUE
     ISSUE --> CTRL
@@ -69,6 +71,7 @@ flowchart TB
     COLLECT -.-> DOCS
     PRD -.-> DOCS
     SRS -.-> DOCS
+    SDP -.-> DOCS
     SDS -.-> DOCS
     ISSUE -.-> ISSUES
     WORKER1 -.-> CODE
@@ -101,6 +104,7 @@ flowchart TB
         A1[Collector]
         A2[PRD Writer]
         A3[SRS Writer]
+        A3B[SDP Writer]
         A4[SDS Writer]
         A5[Issue Generator]
         A6[Controller]
@@ -117,6 +121,7 @@ flowchart TB
         S1[info/*.yaml]
         S2[docs/prd/*.md]
         S3[docs/srs/*.md]
+        S3B[docs/sdp/*.md]
         S4[docs/sds/*.md]
         S5[issues/*.json]
         S6[progress/*.yaml]
@@ -132,6 +137,7 @@ flowchart TB
     MAIN -->|spawn| A1
     MAIN -->|spawn| A2
     MAIN -->|spawn| A3
+    MAIN -->|spawn| A3B
     MAIN -->|spawn| A4
     MAIN -->|spawn| A5
     MAIN -->|spawn| A6
@@ -148,6 +154,9 @@ flowchart TB
     A2 -->|write| S2
     A3 -->|read| S2
     A3 -->|write| S3
+    A3B -->|read| S2
+    A3B -->|read| S3
+    A3B -->|write| S3B
     A4 -->|read| S3
     A4 -->|write| S4
     A5 -->|read| S4
@@ -185,6 +194,7 @@ flowchart TB
     A1 -.->|result| MAIN
     A2 -.->|result| MAIN
     A3 -.->|result| MAIN
+    A3B -.->|result| MAIN
     A4 -.->|result| MAIN
     A5 -.->|result| MAIN
     A6 -.->|result| MAIN
@@ -399,6 +409,7 @@ claude_code_agent/
 │       ├── collector.md           # Information Collector Agent
 │       ├── prd-writer.md          # PRD Writer Agent
 │       ├── srs-writer.md          # SRS Writer Agent
+│       ├── sdp-writer.md          # SDP Writer Agent
 │       ├── sds-writer.md          # SDS Writer Agent
 │       ├── issue-generator.md     # Issue Generator Agent
 │       ├── controller.md          # Controller Agent

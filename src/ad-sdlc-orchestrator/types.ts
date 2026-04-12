@@ -21,6 +21,7 @@ export type GreenfieldStageName =
   | 'collection'
   | 'prd_generation'
   | 'srs_generation'
+  | 'sdp_generation'
   | 'repo_detection'
   | 'github_repo_setup'
   | 'sds_generation'
@@ -354,12 +355,20 @@ export const GREENFIELD_STAGES: readonly PipelineStageDefinition[] = [
     dependsOn: ['prd_generation'],
   },
   {
+    name: 'sdp_generation',
+    agentType: 'sdp-writer',
+    description: 'Generate SDP from PRD and SRS',
+    parallel: false,
+    approvalRequired: true,
+    dependsOn: ['srs_generation'],
+  },
+  {
     name: 'repo_detection',
     agentType: 'repo-detector',
     description: 'Detect existing GitHub repository presence',
     parallel: false,
     approvalRequired: false,
-    dependsOn: ['srs_generation'],
+    dependsOn: ['sdp_generation'],
   },
   {
     name: 'github_repo_setup',

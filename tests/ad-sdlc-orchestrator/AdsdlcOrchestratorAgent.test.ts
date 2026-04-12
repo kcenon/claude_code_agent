@@ -1212,8 +1212,8 @@ describe('AdsdlcOrchestratorAgent', () => {
 });
 
 describe('GREENFIELD_STAGES', () => {
-  it('should define 14 stages', () => {
-    expect(GREENFIELD_STAGES).toHaveLength(14);
+  it('should define 15 stages', () => {
+    expect(GREENFIELD_STAGES).toHaveLength(15);
   });
 
   it('should start with initialization and end with doc_indexing', () => {
@@ -1236,11 +1236,28 @@ describe('GREENFIELD_STAGES', () => {
     expect(stageMap.get('collection')).toBe('collector');
     expect(stageMap.get('prd_generation')).toBe('prd-writer');
     expect(stageMap.get('srs_generation')).toBe('srs-writer');
+    expect(stageMap.get('sdp_generation')).toBe('sdp-writer');
     expect(stageMap.get('sds_generation')).toBe('sds-writer');
     expect(stageMap.get('issue_generation')).toBe('issue-generator');
     expect(stageMap.get('orchestration')).toBe('controller');
     expect(stageMap.get('implementation')).toBe('worker');
     expect(stageMap.get('review')).toBe('pr-reviewer');
+  });
+
+  it('should place sdp_generation between srs_generation and repo_detection', () => {
+    const stageNames = GREENFIELD_STAGES.map((s) => s.name);
+    const srsIdx = stageNames.indexOf('srs_generation');
+    const sdpIdx = stageNames.indexOf('sdp_generation');
+    const repoIdx = stageNames.indexOf('repo_detection');
+    expect(srsIdx).toBeGreaterThanOrEqual(0);
+    expect(sdpIdx).toBeGreaterThan(srsIdx);
+    expect(repoIdx).toBeGreaterThan(sdpIdx);
+
+    const sdpStage = GREENFIELD_STAGES.find((s) => s.name === 'sdp_generation');
+    expect(sdpStage?.dependsOn).toContain('srs_generation');
+
+    const repoStage = GREENFIELD_STAGES.find((s) => s.name === 'repo_detection');
+    expect(repoStage?.dependsOn).toContain('sdp_generation');
   });
 });
 

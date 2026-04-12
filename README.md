@@ -25,13 +25,13 @@ That's it! The agents will generate documents, create issues, implement code, an
 
 ## What is AD-SDLC?
 
-AD-SDLC is an automated software development pipeline that uses **25 specialized Claude agents** to transform your requirements into production-ready code. It supports three modes:
+AD-SDLC is an automated software development pipeline that uses **26 specialized Claude agents** to transform your requirements into production-ready code. It supports three modes:
 
 ### Greenfield Pipeline (New Projects)
 
 ```
-User Input → Collector → PRD Writer → SRS Writer → SDS Writer
-                                                       ↓
+User Input → Collector → PRD Writer → SRS Writer → SDP Writer → SDS Writer
+                                                                    ↓
                            Worker ← Controller ← Issue Generator
                               ↓
                          PR Reviewer → Merge
@@ -63,7 +63,7 @@ GitHub Issues → Issue Reader → Controller → Worker → PR Reviewer
                                                  CI Fix (on failure)
 ```
 
-### Agent Pipeline (25 Agents)
+### Agent Pipeline (26 Agents)
 
 | Phase             | Agent                 | Role                                                 |
 | ----------------- | --------------------- | ---------------------------------------------------- |
@@ -77,6 +77,7 @@ GitHub Issues → Issue Reader → Controller → Worker → PR Reviewer
 |                   | Issue Reader          | Imports existing GitHub Issues for Import pipeline   |
 | **Documentation** | PRD Writer            | Generates Product Requirements Document              |
 |                   | SRS Writer            | Generates Software Requirements Specification        |
+|                   | SDP Writer            | Generates Software Development Plan from PRD and SRS |
 |                   | SDS Writer            | Generates Software Design Specification              |
 | **Planning**      | Issue Generator       | Creates GitHub Issues from SDS components            |
 | **Execution**     | Controller            | Orchestrates work distribution and monitors progress |
@@ -283,7 +284,7 @@ See [Use Cases Guide](docs/use-cases.md) for more examples.
 ```
 your-project/
 ├── .claude/
-│   └── agents/              # Agent definitions (25 agents)
+│   └── agents/              # Agent definitions (26 agents)
 │       ├── *.md             # English versions (used by Claude)
 │       └── *.kr.md          # Korean versions (for reference)
 ├── .ad-sdlc/

@@ -85,6 +85,14 @@ export const AGENT_TYPE_MAP: Readonly<Record<string, AgentTypeEntry>> = {
     importPath: '../srs-writer/index.js',
   },
 
+  'sdp-writer': {
+    agentId: 'sdp-writer-agent',
+    name: 'SDP Writer Agent',
+    lifecycle: 'singleton',
+    requiresWrapper: false,
+    importPath: '../sdp-writer/index.js',
+  },
+
   'repo-detector': {
     agentId: 'repo-detector-agent',
     name: 'Repo Detector',
