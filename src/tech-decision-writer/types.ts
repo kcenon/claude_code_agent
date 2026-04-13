@@ -206,6 +206,8 @@ export interface GeneratedTechDecision {
   readonly metadata: TechDecisionMetadata;
   /** Rendered markdown content (English) */
   readonly content: string;
+  /** Rendered markdown content (Korean) */
+  readonly contentKorean: string;
 }
 
 // ============================================================================
@@ -256,10 +258,14 @@ export interface TechDecisionGenerationResult {
   readonly success: boolean;
   /** Project identifier */
   readonly projectId: string;
-  /** Paths written under the scratchpad, one per decision */
+  /** Paths written under the scratchpad, one per decision (English) */
   readonly scratchpadPaths: readonly string[];
-  /** Paths written under the public docs directory, one per decision */
+  /** Paths written under the public docs directory, one per decision (English) */
   readonly publicPaths: readonly string[];
+  /** Paths written under the scratchpad, one per decision (Korean .kr.md) */
+  readonly scratchpadPathsKorean: readonly string[];
+  /** Paths written under the public docs directory, one per decision (Korean .kr.md) */
+  readonly publicPathsKorean: readonly string[];
   /** Generated decision documents */
   readonly generatedDocuments: readonly GeneratedTechDecision[];
   /** Generation statistics */

@@ -199,6 +199,8 @@ export class TechDecisionWriterAgent implements IAgent {
         projectId,
         scratchpadPaths: paths.scratchpadPaths,
         publicPaths: paths.publicPaths,
+        scratchpadPathsKorean: paths.scratchpadPathsKorean,
+        publicPathsKorean: paths.publicPathsKorean,
         generatedDocuments,
         stats,
         ...(warnings.length > 0 && { warnings }),
@@ -243,6 +245,8 @@ export class TechDecisionWriterAgent implements IAgent {
       projectId: this.session.projectId,
       scratchpadPaths: paths.scratchpadPaths,
       publicPaths: paths.publicPaths,
+      scratchpadPathsKorean: paths.scratchpadPathsKorean,
+      publicPathsKorean: paths.publicPathsKorean,
       generatedDocuments: this.session.generatedDocuments,
       stats,
     };
@@ -278,8 +282,9 @@ export class TechDecisionWriterAgent implements IAgent {
     };
 
     let content = this.renderEnglishMarkdown(sds, decision, metadata);
+    let contentKorean = this.renderKoreanMarkdown(sds, decision, metadata);
 
-    content = prependFrontmatter(content, {
+    const frontmatter = {
       docId: metadata.documentId,
       title: `Tech Decision ${paddedNumber}: ${decision.topic}`,
       version: metadata.version,
@@ -295,9 +300,12 @@ export class TechDecisionWriterAgent implements IAgent {
           description: 'Initial document generation',
         },
       ],
-    });
+    };
 
-    return { decision, metadata, content };
+    content = prependFrontmatter(content, frontmatter);
+    contentKorean = prependFrontmatter(contentKorean, frontmatter);
+
+    return { decision, metadata, content, contentKorean };
   }
 
   private renderEnglishMarkdown(
@@ -368,6 +376,174 @@ export class TechDecisionWriterAgent implements IAgent {
     lines.push('');
     lines.push(this.renderReferences(decision.references));
 
+    return lines.join('\n');
+  }
+
+  private renderKoreanMarkdown(
+    sds: ParsedSDSForDecisions,
+    decision: TechDecision,
+    metadata: TechDecisionMetadata
+  ): string {
+    const lines: string[] = [];
+    const paddedNumber = String(decision.number).padStart(3, '0');
+
+    lines.push(`# 기술 결정 ${paddedNumber}: ${decision.topic}`);
+    lines.push('');
+    lines.push('| **문서 ID** | **출처 SDS** | **버전** | **상태** |');
+    lines.push('|-------------|--------------|----------|----------|');
+    lines.push(
+      `| ${metadata.documentId} | ${metadata.sourceSDS} | ${metadata.version} | ${metadata.status} |`
+    );
+    lines.push('');
+    lines.push(`> 제품: ${sds.productName}`);
+    lines.push('');
+    lines.push('---');
+    lines.push('');
+
+    lines.push('## 목차');
+    lines.push('');
+    lines.push('1. [배경](#1-배경)');
+    lines.push('2. [후보](#2-후보)');
+    lines.push('3. [평가 기준](#3-평가-기준)');
+    lines.push('4. [평가 매트릭스](#4-평가-매트릭스)');
+    lines.push('5. [결정](#5-결정)');
+    lines.push('6. [결과](#6-결과)');
+    lines.push('7. [참조](#7-참조)');
+    lines.push('');
+
+    lines.push('## 1. 배경');
+    lines.push('');
+    lines.push(decision.context);
+    lines.push('');
+
+    lines.push('## 2. 후보');
+    lines.push('');
+    lines.push(this.renderCandidatesTableKorean(decision.candidates));
+
+    lines.push('## 3. 평가 기준');
+    lines.push('');
+    lines.push(this.renderCriteriaTableKorean(decision.matrix.criteria));
+
+    lines.push('## 4. 평가 매트릭스');
+    lines.push('');
+    lines.push(this.renderMatrixKorean(decision.matrix));
+
+    lines.push('## 5. 결정');
+    lines.push('');
+    lines.push(this.renderDecisionKorean(decision.decision));
+
+    lines.push('## 6. 결과');
+    lines.push('');
+    lines.push(this.renderConsequencesKorean(decision.consequences));
+
+    lines.push('## 7. 참조');
+    lines.push('');
+    lines.push(this.renderReferences(decision.references));
+
+    return lines.join('\n');
+  }
+
+  private renderCandidatesTableKorean(candidates: readonly Candidate[]): string {
+    if (candidates.length === 0) {
+      return '_이 결정에 대한 후보를 찾지 못했습니다._\n';
+    }
+    const lines: string[] = [];
+    lines.push('| 이름 | 분류 | 라이선스 | 성숙도 | 설명 |');
+    lines.push('|------|------|----------|--------|------|');
+    for (const c of candidates) {
+      lines.push(`| ${c.name} | ${c.category} | ${c.license} | ${c.maturity} | ${c.description} |`);
+    }
+    lines.push('');
+    return lines.join('\n');
+  }
+
+  private renderCriteriaTableKorean(criteria: readonly EvaluationCriterion[]): string {
+    const lines: string[] = [];
+    lines.push('| 기준 | 가중치 | 설명 |');
+    lines.push('|------|--------|------|');
+    for (const c of criteria) {
+      const pct = `${(c.weight * 100).toFixed(0)}%`;
+      lines.push(`| ${c.name} | ${pct} | ${c.description} |`);
+    }
+    lines.push('');
+    return lines.join('\n');
+  }
+
+  private renderMatrixKorean(matrix: EvaluationMatrix): string {
+    if (matrix.rows.length === 0) {
+      return '_평가 결과가 없습니다._\n';
+    }
+    const lines: string[] = [];
+    const criterionNames = matrix.criteria.map((c) => c.name);
+
+    const header = ['후보', ...criterionNames, '가중 합계'];
+    lines.push(`| ${header.join(' | ')} |`);
+    lines.push(`|${header.map(() => '---').join('|')}|`);
+
+    for (const row of matrix.rows) {
+      const scoreCells = criterionNames.map((name) => {
+        const score = row.scores[name];
+        return score !== undefined ? String(score) : '-';
+      });
+      lines.push(
+        `| ${row.candidate} | ${scoreCells.join(' | ')} | ${row.weightedTotal.toFixed(1)} |`
+      );
+    }
+    lines.push('');
+    lines.push(
+      '> 점수는 1-10 척도이며, 가중 합계는 각 점수와 해당 기준 가중치를 곱한 값의 총합입니다.'
+    );
+    lines.push('');
+    return lines.join('\n');
+  }
+
+  private renderDecisionKorean(decision: Decision): string {
+    const lines: string[] = [];
+    lines.push(`**선택:** ${decision.selected}`);
+    lines.push('');
+    lines.push(`**결정일:** ${decision.decidedAt}`);
+    lines.push('');
+    lines.push('**근거:**');
+    lines.push('');
+    lines.push(decision.rationale);
+    lines.push('');
+    return lines.join('\n');
+  }
+
+  private renderConsequencesKorean(consequences: Consequences): string {
+    const lines: string[] = [];
+    lines.push('### 긍정적 결과');
+    lines.push('');
+    if (consequences.positive.length === 0) {
+      lines.push('_식별된 항목이 없습니다._');
+    } else {
+      for (const item of consequences.positive) {
+        lines.push(`- ${item}`);
+      }
+    }
+    lines.push('');
+
+    lines.push('### 부정적 결과');
+    lines.push('');
+    if (consequences.negative.length === 0) {
+      lines.push('_식별된 항목이 없습니다._');
+    } else {
+      for (const item of consequences.negative) {
+        lines.push(`- ${item}`);
+      }
+    }
+    lines.push('');
+
+    lines.push('### 리스크');
+    lines.push('');
+    if (consequences.risks.length === 0) {
+      lines.push('_식별된 항목이 없습니다._');
+    } else {
+      for (const item of consequences.risks) {
+        lines.push(`- ${item}`);
+      }
+    }
+    lines.push('');
     return lines.join('\n');
   }
 
@@ -508,7 +684,12 @@ export class TechDecisionWriterAgent implements IAgent {
   private async writeOutputFiles(
     projectId: string,
     documents: readonly GeneratedTechDecision[]
-  ): Promise<{ scratchpadPaths: readonly string[]; publicPaths: readonly string[] }> {
+  ): Promise<{
+    scratchpadPaths: readonly string[];
+    publicPaths: readonly string[];
+    scratchpadPathsKorean: readonly string[];
+    publicPathsKorean: readonly string[];
+  }> {
     await Promise.resolve();
 
     const scratchpadDir = path.join(
@@ -521,24 +702,35 @@ export class TechDecisionWriterAgent implements IAgent {
 
     const scratchpadPaths: string[] = [];
     const publicPaths: string[] = [];
+    const scratchpadPathsKorean: string[] = [];
+    const publicPathsKorean: string[] = [];
 
     try {
       fs.mkdirSync(scratchpadDir, { recursive: true });
       fs.mkdirSync(publicDir, { recursive: true });
 
       for (const doc of documents) {
-        const filename = `${doc.metadata.documentId}.md`;
+        const baseName = doc.metadata.documentId;
+        const filename = `${baseName}.md`;
+        const filenameKorean = `${baseName}.kr.md`;
+
         const scratchpadPath = path.join(scratchpadDir, filename);
         const publicPath = path.join(publicDir, filename);
+        const scratchpadPathKorean = path.join(scratchpadDir, filenameKorean);
+        const publicPathKorean = path.join(publicDir, filenameKorean);
 
         fs.writeFileSync(scratchpadPath, doc.content, 'utf-8');
         fs.writeFileSync(publicPath, doc.content, 'utf-8');
+        fs.writeFileSync(scratchpadPathKorean, doc.contentKorean, 'utf-8');
+        fs.writeFileSync(publicPathKorean, doc.contentKorean, 'utf-8');
 
         scratchpadPaths.push(scratchpadPath);
         publicPaths.push(publicPath);
+        scratchpadPathsKorean.push(scratchpadPathKorean);
+        publicPathsKorean.push(publicPathKorean);
       }
 
-      return { scratchpadPaths, publicPaths };
+      return { scratchpadPaths, publicPaths, scratchpadPathsKorean, publicPathsKorean };
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       const firstPath = scratchpadPaths[0] ?? scratchpadDir;

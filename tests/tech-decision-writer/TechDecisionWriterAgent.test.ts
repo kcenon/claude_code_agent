@@ -333,6 +333,8 @@ describe('TechDecisionWriterAgent', () => {
       expect(result.generatedDocuments).toHaveLength(5);
       expect(result.scratchpadPaths).toHaveLength(5);
       expect(result.publicPaths).toHaveLength(5);
+      expect(result.scratchpadPathsKorean).toHaveLength(5);
+      expect(result.publicPathsKorean).toHaveLength(5);
 
       // Files actually exist on disk with expected naming.
       for (const scratchpadPath of result.scratchpadPaths) {
@@ -342,6 +344,34 @@ describe('TechDecisionWriterAgent', () => {
       for (const publicPath of result.publicPaths) {
         expect(fs.existsSync(publicPath)).toBe(true);
       }
+      for (const scratchpadPath of result.scratchpadPathsKorean) {
+        expect(fs.existsSync(scratchpadPath)).toBe(true);
+        expect(path.basename(scratchpadPath)).toMatch(/^TD-\d{3}-[a-z0-9-]+\.kr\.md$/);
+      }
+      for (const publicPath of result.publicPathsKorean) {
+        expect(fs.existsSync(publicPath)).toBe(true);
+      }
+    });
+
+    it('renders Korean variant with translated section headings', async () => {
+      writeSampleSDS();
+      const agent = createAgent();
+      const result = await agent.generateFromProject(projectId);
+
+      const firstDoc = result.generatedDocuments[0]!;
+      expect(firstDoc.contentKorean).toContain('## 1. 배경');
+      expect(firstDoc.contentKorean).toContain('## 2. 후보');
+      expect(firstDoc.contentKorean).toContain('## 3. 평가 기준');
+      expect(firstDoc.contentKorean).toContain('## 4. 평가 매트릭스');
+      expect(firstDoc.contentKorean).toContain('## 5. 결정');
+      expect(firstDoc.contentKorean).toContain('## 6. 결과');
+      expect(firstDoc.contentKorean).toContain('## 7. 참조');
+      expect(firstDoc.contentKorean).toContain('**선택:**');
+
+      // Korean file on disk mirrors the in-memory contentKorean.
+      const koreanDiskContent = fs.readFileSync(result.publicPathsKorean[0]!, 'utf-8');
+      expect(koreanDiskContent).toContain('## 1. 배경');
+      expect(koreanDiskContent).toContain('**선택:**');
     });
 
     it('writes public docs under docs/decisions by default structure', async () => {
