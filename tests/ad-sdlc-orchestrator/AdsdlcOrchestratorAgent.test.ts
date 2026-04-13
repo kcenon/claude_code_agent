@@ -1212,8 +1212,8 @@ describe('AdsdlcOrchestratorAgent', () => {
 });
 
 describe('GREENFIELD_STAGES', () => {
-  it('should define 18 stages', () => {
-    expect(GREENFIELD_STAGES).toHaveLength(18);
+  it('should define 19 stages', () => {
+    expect(GREENFIELD_STAGES).toHaveLength(19);
   });
 
   it('should start with initialization and end with doc_indexing', () => {
