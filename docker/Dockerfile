@@ -13,6 +13,7 @@ WORKDIR /workspace
 # SRS-5.1.8: apt cache removed in same RUN to avoid layer bloat
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
+       ca-certificates \
        git \
        curl \
        jq \
