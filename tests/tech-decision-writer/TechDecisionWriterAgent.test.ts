@@ -8,10 +8,14 @@ import {
   TECH_DECISION_WRITER_AGENT_ID,
 } from '../../src/tech-decision-writer/TechDecisionWriterAgent.js';
 import {
+  FileWriteError,
+  GenerationError,
   SDSNotFoundError,
   SessionStateError,
   InvalidCriteriaError,
+  TechDecisionWriterError,
 } from '../../src/tech-decision-writer/errors.js';
+import type { GeneratedTechDecision } from '../../src/tech-decision-writer/types.js';
 import {
   slugifyTopic,
   parseTechnologyStack,
@@ -237,6 +241,76 @@ describe('generateDecisions', () => {
     const extract = detectDecisions('# No tech stack', 'empty-project');
     const decisions = generateDecisions(extract);
     expect(decisions).toHaveLength(0);
+  });
+
+  it('produces a single candidate when the layer has no fallback catalog entry', () => {
+    const unknownLayerSDS =
+      '---\ndoc_id: SDS-unknown-project\ntitle: Unknown Project\n---\n\n' +
+      '# Software Design Specification: Unknown Project\n\n' +
+      '### 2.3 Technology Stack\n\n' +
+      '| Layer | Technology | Version | Rationale |\n' +
+      '|-------|------------|---------|-----------|\n' +
+      '| Blockchain | Hyperledger | 2.5 | Permissioned ledger |\n';
+    const extract = detectDecisions(unknownLayerSDS, 'unknown-project');
+    const decisions = generateDecisions(extract);
+    expect(decisions).toHaveLength(1);
+    expect(decisions[0]!.candidates).toHaveLength(1);
+    expect(decisions[0]!.candidates[0]!.name).toBe('Hyperledger');
+    expect(decisions[0]!.candidates[0]!.category).toBe('Blockchain');
+  });
+
+  it('dedupes the SDS pick when it already appears in the fallback catalog', () => {
+    // PostgreSQL is in the Database fallback — verify no duplicate row is emitted.
+    const dedupSDS =
+      '---\ndoc_id: SDS-dedup-project\ntitle: Dedup Project\n---\n\n' +
+      '# Software Design Specification: Dedup Project\n\n' +
+      '### 2.3 Technology Stack\n\n' +
+      '| Layer | Technology | Version | Rationale |\n' +
+      '|-------|------------|---------|-----------|\n' +
+      '| Database | PostgreSQL | 15.x | ACID |\n';
+    const extract = detectDecisions(dedupSDS, 'dedup-project');
+    const decisions = generateDecisions(extract);
+    expect(decisions).toHaveLength(1);
+    const names = decisions[0]!.candidates.map((c) => c.name.toLowerCase());
+    const postgresOccurrences = names.filter((n) => n === 'postgresql').length;
+    expect(postgresOccurrences).toBe(1);
+    // SDS pick should be listed first.
+    expect(decisions[0]!.candidates[0]!.name.toLowerCase()).toBe('postgresql');
+  });
+
+  it('prepends the SDS pick when the layer has a fallback catalog but the pick is not in it', () => {
+    // Runtime fallback catalog is Node.js/Deno/Bun — "Elixir" is not there.
+    const elixirSDS =
+      '---\ndoc_id: SDS-elixir-project\ntitle: Elixir Project\n---\n\n' +
+      '# Software Design Specification: Elixir Project\n\n' +
+      '### 2.3 Technology Stack\n\n' +
+      '| Layer | Technology | Version | Rationale |\n' +
+      '|-------|------------|---------|-----------|\n' +
+      '| Runtime | Elixir | 1.15 | BEAM VM fault-tolerance |\n';
+    const extract = detectDecisions(elixirSDS, 'elixir-project');
+    const decisions = generateDecisions(extract);
+    expect(decisions).toHaveLength(1);
+    const candidateNames = decisions[0]!.candidates.map((c) => c.name);
+    expect(candidateNames[0]).toBe('Elixir');
+    expect(candidateNames).toContain('Node.js'); // fallback still appended
+    expect(candidateNames.length).toBeGreaterThan(1);
+  });
+
+  it('falls back to a generic rationale when the SDS row has no rationale text', () => {
+    const noRationaleSDS =
+      '---\ndoc_id: SDS-no-rationale\ntitle: No Rationale\n---\n\n' +
+      '# Software Design Specification: No Rationale\n\n' +
+      '### 2.3 Technology Stack\n\n' +
+      '| Layer | Technology | Version | Rationale |\n' +
+      '|-------|------------|---------|-----------|\n' +
+      '| Runtime | Node.js | 20.x |  |\n';
+    const extract = detectDecisions(noRationaleSDS, 'no-rationale');
+    const decisions = generateDecisions(extract);
+    expect(decisions).toHaveLength(1);
+    // Generic rationale should reference the declared technology.
+    expect(decisions[0]!.decision.rationale).toContain('Node.js');
+    // Generic context should NOT include any extra rationale sentence.
+    expect(decisions[0]!.context.endsWith('.')).toBe(true);
   });
 });
 
@@ -505,5 +579,176 @@ describe('TechDecisionWriterAgent', () => {
       const b = getTechDecisionWriterAgent();
       expect(a).not.toBe(b);
     });
+  });
+
+  describe('warning accumulation', () => {
+    it('accumulates multiple warnings when SDS lacks tech stack, components, and NFRs', async () => {
+      const dir = path.join(testBasePath, 'documents', projectId);
+      fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(
+        path.join(dir, 'sds.md'),
+        '---\ndoc_id: SDS-bare\ntitle: Bare Project\n---\n\n# Software Design Specification: Bare Project\n',
+        'utf-8'
+      );
+
+      const agent = createAgent();
+      const session = await agent.startSession(projectId);
+
+      expect(session.warnings).toBeDefined();
+      expect(session.warnings!.length).toBeGreaterThanOrEqual(3);
+      expect(session.warnings!.some((w) => w.includes('technology stack'))).toBe(true);
+      expect(session.warnings!.some((w) => w.includes('components'))).toBe(true);
+      expect(session.warnings!.some((w) => w.includes('NFR'))).toBe(true);
+    });
+
+    it('passes warnings through to generateFromProject result', async () => {
+      const dir = path.join(testBasePath, 'documents', projectId);
+      fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(
+        path.join(dir, 'sds.md'),
+        '---\ndoc_id: SDS-bare\ntitle: Bare\n---\n\n# Software Design Specification: Bare\n',
+        'utf-8'
+      );
+
+      const agent = createAgent();
+      const result = await agent.generateFromProject(projectId);
+
+      expect(result.success).toBe(true);
+      expect(result.generatedDocuments).toHaveLength(0);
+      expect(result.warnings).toBeDefined();
+      expect(result.warnings!.length).toBeGreaterThanOrEqual(3);
+      // No technology stack → no decisions → no output files.
+      expect(result.scratchpadPaths).toHaveLength(0);
+      expect(result.publicPaths).toHaveLength(0);
+      expect(result.scratchpadPathsKorean).toHaveLength(0);
+      expect(result.publicPathsKorean).toHaveLength(0);
+    });
+  });
+
+  describe('empty-collection rendering branches', () => {
+    // These tests reach into the agent's private renderers to cover the
+    // empty-list branches that never fire in the happy path (consequences
+    // and references always get populated by buildConsequences/buildReferences).
+    type InternalRenderer = {
+      renderConsequences: (c: {
+        positive: readonly string[];
+        negative: readonly string[];
+        risks: readonly string[];
+      }) => string;
+      renderConsequencesKorean: (c: {
+        positive: readonly string[];
+        negative: readonly string[];
+        risks: readonly string[];
+      }) => string;
+      renderReferences: (refs: readonly string[]) => string;
+    };
+
+    it('renders empty consequences as placeholder text (English)', () => {
+      const agent = createAgent() as unknown as InternalRenderer;
+      const out = agent.renderConsequences({ positive: [], negative: [], risks: [] });
+      const noneMatches = out.match(/_None identified\._/g) ?? [];
+      expect(noneMatches.length).toBe(3);
+    });
+
+    it('renders empty consequences as placeholder text (Korean)', () => {
+      const agent = createAgent() as unknown as InternalRenderer;
+      const out = agent.renderConsequencesKorean({ positive: [], negative: [], risks: [] });
+      const noneMatches = out.match(/_식별된 항목이 없습니다\._/g) ?? [];
+      expect(noneMatches.length).toBe(3);
+    });
+
+    it('renders empty references as placeholder text', () => {
+      const agent = createAgent() as unknown as InternalRenderer;
+      const out = agent.renderReferences([]);
+      expect(out).toContain('_No references available._');
+    });
+  });
+
+  describe('file write failure', () => {
+    it('wraps filesystem errors in FileWriteError', async () => {
+      writeSampleSDS();
+      // Point publicDocsPath at an existing FILE so mkdirSync fails with ENOTDIR.
+      const collisionFile = path.join(testBasePath, 'collision-file');
+      fs.mkdirSync(testBasePath, { recursive: true });
+      fs.writeFileSync(collisionFile, 'not a directory', 'utf-8');
+
+      const agent = new TechDecisionWriterAgent({
+        scratchpadBasePath: testBasePath,
+        publicDocsPath: path.join(collisionFile, 'nested'),
+      });
+
+      await expect(agent.generateFromProject(projectId)).rejects.toBeInstanceOf(FileWriteError);
+    });
+  });
+
+  describe('finalize edge cases', () => {
+    it('throws GenerationError when the completed session has no generated documents', async () => {
+      writeSampleSDS();
+      const agent = createAgent();
+      // Drive the session into `completed` with an empty documents array by
+      // calling startSession and then mutating via reflection.
+      const session = await agent.startSession(projectId);
+      // The session object is readonly from the public surface, so we round
+      // through a cast here. This exercises the defensive branch inside
+      // finalize() that guards against a completed-but-empty session.
+      const mutable = session as {
+        status: string;
+        generatedDocuments: readonly GeneratedTechDecision[];
+      };
+      mutable.status = 'completed';
+      mutable.generatedDocuments = [];
+      await expect(agent.finalize()).rejects.toBeInstanceOf(GenerationError);
+    });
+  });
+});
+
+describe('Tech Decision Writer error classes', () => {
+  it('SDSNotFoundError captures project and path', () => {
+    const err = new SDSNotFoundError('proj-a', '/tmp/missing/sds.md');
+    expect(err).toBeInstanceOf(TechDecisionWriterError);
+    expect(err.name).toBe('SDSNotFoundError');
+    expect(err.projectId).toBe('proj-a');
+    expect(err.searchedPath).toBe('/tmp/missing/sds.md');
+    expect(err.message).toContain('proj-a');
+    expect(err.message).toContain('/tmp/missing/sds.md');
+  });
+
+  it('SessionStateError captures state transition details', () => {
+    const err = new SessionStateError('pending', 'completed', 'finalize');
+    expect(err).toBeInstanceOf(TechDecisionWriterError);
+    expect(err.name).toBe('SessionStateError');
+    expect(err.currentState).toBe('pending');
+    expect(err.expectedState).toBe('completed');
+    expect(err.message).toContain('finalize');
+    expect(err.message).toContain('pending');
+    expect(err.message).toContain('completed');
+  });
+
+  it('GenerationError captures project and phase', () => {
+    const err = new GenerationError('proj-b', 'parsing', 'bad table');
+    expect(err).toBeInstanceOf(TechDecisionWriterError);
+    expect(err.name).toBe('GenerationError');
+    expect(err.projectId).toBe('proj-b');
+    expect(err.phase).toBe('parsing');
+    expect(err.message).toContain('proj-b');
+    expect(err.message).toContain('parsing');
+    expect(err.message).toContain('bad table');
+  });
+
+  it('FileWriteError captures file path', () => {
+    const err = new FileWriteError('/tmp/out/TD-001.md', 'EACCES');
+    expect(err).toBeInstanceOf(TechDecisionWriterError);
+    expect(err.name).toBe('FileWriteError');
+    expect(err.filePath).toBe('/tmp/out/TD-001.md');
+    expect(err.message).toContain('/tmp/out/TD-001.md');
+    expect(err.message).toContain('EACCES');
+  });
+
+  it('InvalidCriteriaError reports the observed weight sum', () => {
+    const err = new InvalidCriteriaError(0.9);
+    expect(err).toBeInstanceOf(TechDecisionWriterError);
+    expect(err.name).toBe('InvalidCriteriaError');
+    expect(err.weightSum).toBe(0.9);
+    expect(err.message).toContain('0.900');
   });
 });
