@@ -17,6 +17,7 @@ flowchart TB
         SDP[SDP Writer Agent]
         SDS[SDS Writer Agent]
         TM[Threat Model Writer Agent]
+        TD[Tech Decision Writer Agent]
     end
 
     subgraph IssuePipeline["Issue Management Pipeline"]
@@ -59,8 +60,10 @@ flowchart TB
     SRS --> SDP
     SDP --> SDS
     SDS --> TM
+    SDS --> TD
 
     TM --> ISSUE
+    TD --> ISSUE
     ISSUE --> SVP
     SVP --> CTRL
 
@@ -78,6 +81,7 @@ flowchart TB
     SDP -.-> DOCS
     SDS -.-> DOCS
     TM -.-> DOCS
+    TD -.-> DOCS
     SVP -.-> DOCS
     ISSUE -.-> ISSUES
     WORKER1 -.-> CODE
@@ -113,6 +117,7 @@ flowchart TB
         A3B[SDP Writer]
         A4[SDS Writer]
         A4B[Threat Model Writer]
+        A4C[Tech Decision Writer]
         A5[Issue Generator]
         A5B[SVP Writer]
         A6[Controller]
@@ -133,6 +138,7 @@ flowchart TB
         S4[docs/sds/*.md]
         S4C[docs/dbs/*.md]
         S4B[docs/tm/*.md]
+        S4D[docs/decisions/*.md]
         S5[issues/*.json]
         S5B[docs/svp/*.md]
         S6[progress/*.yaml]
@@ -151,6 +157,7 @@ flowchart TB
     MAIN -->|spawn| A3B
     MAIN -->|spawn| A4
     MAIN -->|spawn| A4B
+    MAIN -->|spawn| A4C
     MAIN -->|spawn| A5
     MAIN -->|spawn| A5B
     MAIN -->|spawn| A6
@@ -175,8 +182,13 @@ flowchart TB
     A4 -->|write| S4C
     A4B -->|read| S4
     A4B -->|write| S4B
+    A4C -->|read| S2
+    A4C -->|read| S3
+    A4C -->|read| S4
+    A4C -->|write| S4D
     A5 -->|read| S4
     A5 -->|read| S4B
+    A5 -->|read| S4D
     A5 -->|write| S5
     A5B -->|read| S3
     A5B -->|read| S5
@@ -217,6 +229,7 @@ flowchart TB
     A3B -.->|result| MAIN
     A4 -.->|result| MAIN
     A4B -.->|result| MAIN
+    A4C -.->|result| MAIN
     A5 -.->|result| MAIN
     A6 -.->|result| MAIN
     A7 -.->|result| MAIN
@@ -433,6 +446,7 @@ claude_code_agent/
 │       ├── sdp-writer.md          # SDP Writer Agent
 │       ├── sds-writer.md          # SDS Writer Agent
 │       ├── threat-model-writer.md # Threat Model Writer Agent
+│       ├── tech-decision-writer.md # Tech Decision Writer Agent
 │       ├── issue-generator.md     # Issue Generator Agent
 │       ├── svp-writer.md          # SVP Writer Agent
 │       ├── controller.md          # Controller Agent
@@ -467,6 +481,7 @@ claude_code_agent/
 │   ├── sds/                      # SDS Documents
 │   ├── dbs/                      # DBS Documents (Database Schema Specifications emitted by SDS Writer)
 │   ├── tm/                       # Threat Model Documents
+│   ├── decisions/                # Technology Decision Documents (emitted by Tech Decision Writer)
 │   ├── svp/                      # SVP Documents (Software Verification Plans emitted by SVP Writer)
 │   └── architecture/             # Architecture Docs
 │

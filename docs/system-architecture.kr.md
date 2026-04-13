@@ -17,6 +17,7 @@ flowchart TB
         SDP[SDP Writer Agent]
         SDS[SDS Writer Agent]
         TM[Threat Model Writer Agent]
+        TD[Tech Decision Writer Agent]
     end
 
     subgraph IssuePipeline["Issue Management Pipeline"]
@@ -57,8 +58,10 @@ flowchart TB
     SRS --> SDP
     SDP --> SDS
     SDS --> TM
+    SDS --> TD
 
     TM --> ISSUE
+    TD --> ISSUE
     ISSUE --> SVP
     SVP --> CTRL
 
@@ -76,6 +79,7 @@ flowchart TB
     SDP -.-> DOCS
     SDS -.-> DOCS
     TM -.-> DOCS
+    TD -.-> DOCS
     SVP -.-> DOCS
     ISSUE -.-> ISSUES
     WORKER1 -.-> CODE
@@ -108,6 +112,7 @@ flowchart TB
         A3B[SDP Writer]
         A4[SDS Writer]
         A4B[Threat Model Writer]
+        A4C[Tech Decision Writer]
         A5[Issue Generator]
         A5B[SVP Writer]
         A6[Controller]
@@ -126,6 +131,7 @@ flowchart TB
         S4[docs/sds/*.md]
         S4C[docs/dbs/*.md]
         S4B[docs/tm/*.md]
+        S4D[docs/decisions/*.md]
         S5[issues/*.json]
         S5B[docs/svp/*.md]
         S6[progress/*.yaml]
@@ -141,6 +147,7 @@ flowchart TB
     MAIN -->|spawn| A3B
     MAIN -->|spawn| A4
     MAIN -->|spawn| A4B
+    MAIN -->|spawn| A4C
     MAIN -->|spawn| A5
     MAIN -->|spawn| A5B
     MAIN -->|spawn| A6
@@ -163,8 +170,13 @@ flowchart TB
     A4 -->|write| S4C
     A4B -->|read| S4
     A4B -->|write| S4B
+    A4C -->|read| S2
+    A4C -->|read| S3
+    A4C -->|read| S4
+    A4C -->|write| S4D
     A5 -->|read| S4
     A5 -->|read| S4B
+    A5 -->|read| S4D
     A5 -->|write| S5
     A5B -->|read| S3
     A5B -->|read| S5
@@ -193,6 +205,7 @@ flowchart TB
     A3B -.->|result| MAIN
     A4 -.->|result| MAIN
     A4B -.->|result| MAIN
+    A4C -.->|result| MAIN
     A5 -.->|result| MAIN
     A6 -.->|result| MAIN
     A7 -.->|result| MAIN
@@ -407,6 +420,7 @@ claude_code_agent/
 │       ├── sdp-writer.md          # SDP 작성 에이전트
 │       ├── sds-writer.md          # SDS 작성 에이전트
 │       ├── threat-model-writer.md # 위협 모델 작성 에이전트
+│       ├── tech-decision-writer.md # 기술 결정 작성 에이전트
 │       ├── issue-generator.md     # 이슈 생성 에이전트
 │       ├── svp-writer.md          # SVP 작성 에이전트
 │       ├── controller.md          # 관제 에이전트
@@ -439,6 +453,7 @@ claude_code_agent/
 │   ├── sds/                      # SDS Documents
 │   ├── dbs/                      # DBS Documents (SDS Writer가 생성한 Database Schema Specification)
 │   ├── tm/                       # Threat Model Documents
+│   ├── decisions/                # Tech Decision Writer가 생성한 Technology Decision 문서
 │   ├── svp/                      # SVP Documents (SVP Writer가 생성한 Software Verification Plan)
 │   └── architecture/             # Architecture Docs
 │

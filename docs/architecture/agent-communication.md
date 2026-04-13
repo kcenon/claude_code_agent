@@ -73,22 +73,23 @@ Agents do not communicate directly. Instead, they:
 
 Each agent has designated files it reads from and writes to:
 
-| Agent               | Reads                                           | Writes                                |
-| ------------------- | ----------------------------------------------- | ------------------------------------- |
-| Collector           | User input, files, URLs                         | `info/collected_info.yaml`            |
-| PRD Writer          | `info/collected_info.yaml`                      | `documents/prd.md`                    |
-| SRS Writer          | `documents/prd.md`                              | `documents/srs.md`                    |
-| GitHub Repo Setup   | `documents/prd.md`, `documents/srs.md`          | `repo/github_repo.yaml`               |
-| SDS Writer          | `documents/srs.md`, `repo/github_repo.yaml`     | `documents/sds.md`                    |
-| Threat Model Writer | `documents/sds.md`                              | `documents/threat-model.md`           |
-| Issue Generator     | `documents/sds.md`, `documents/threat-model.md` | `issues/issues.json`                  |
-| SVP Writer          | `documents/srs.md`, `issues/issues.json`        | `documents/svp.md`                    |
-| Controller          | `issues/issues.json`                            | `progress/controller_state.yaml`      |
-| Worker              | `progress/work_orders.yaml`                     | Implementation results                |
-| PR Reviewer         | Worker results                                  | PR status                             |
-| Document Reader     | `docs/*.md`                                     | `state/current_state.yaml`            |
-| Codebase Analyzer   | Source code                                     | `analysis/architecture_overview.yaml` |
-| Impact Analyzer     | State + analysis                                | `impact/impact_report.yaml`           |
+| Agent                | Reads                                                                               | Writes                                    |
+| -------------------- | ----------------------------------------------------------------------------------- | ----------------------------------------- |
+| Collector            | User input, files, URLs                                                             | `info/collected_info.yaml`                |
+| PRD Writer           | `info/collected_info.yaml`                                                          | `documents/prd.md`                        |
+| SRS Writer           | `documents/prd.md`                                                                  | `documents/srs.md`                        |
+| GitHub Repo Setup    | `documents/prd.md`, `documents/srs.md`                                              | `repo/github_repo.yaml`                   |
+| SDS Writer           | `documents/srs.md`, `repo/github_repo.yaml`                                         | `documents/sds.md`                        |
+| Threat Model Writer  | `documents/sds.md`                                                                  | `documents/threat-model.md`               |
+| Tech Decision Writer | `documents/sds.md`                                                                  | `documents/{projectId}/decisions/TD-*.md` |
+| Issue Generator      | `documents/sds.md`, `documents/threat-model.md`, `documents/{projectId}/decisions/` | `issues/issues.json`                      |
+| SVP Writer           | `documents/srs.md`, `issues/issues.json`                                            | `documents/svp.md`                        |
+| Controller           | `issues/issues.json`                                                                | `progress/controller_state.yaml`          |
+| Worker               | `progress/work_orders.yaml`                                                         | Implementation results                    |
+| PR Reviewer          | Worker results                                                                      | PR status                                 |
+| Document Reader      | `docs/*.md`                                                                         | `state/current_state.yaml`                |
+| Codebase Analyzer    | Source code                                                                         | `analysis/architecture_overview.yaml`     |
+| Impact Analyzer      | State + analysis                                                                    | `impact/impact_report.yaml`               |
 
 ---
 
@@ -109,11 +110,17 @@ Used in document generation pipeline:
   ┌────────────────────┐   ┌───────────┐    ┌───────────┐              │
   │Threat Model Writer │◀──│SDS Writer │◀───│SDP Writer │◀─────────────┘
   └────────────────────┘   └───────────┘    └───────────┘
-           │                     │                │
-           ▼                     ▼                ▼
-    threat-model.md           sds.md            sdp.md
-           │
-           ▼
+           │                     │   │            │
+           │                     │   ▼            ▼
+           │                     │ ┌────────────────────┐
+           │                     │ │Tech Decision Writer│
+           │                     │ └────────────────────┘
+           │                     │            │
+           ▼                     ▼            ▼
+    threat-model.md           sds.md     decisions/TD-*.md
+           │                     │            │
+           └──────────┬──────────┴────────────┘
+                      ▼
   ┌────────────────────┐    ┌────────────┐
   │  Issue Generator   │───▶│ SVP Writer │
   └────────────────────┘    └────────────┘
@@ -121,6 +128,8 @@ Used in document generation pipeline:
            ▼                      ▼
       issues.json               svp.md
 ```
+
+**Parallel Stage**: Threat Model Writer and Tech Decision Writer both consume the finalized SDS and run concurrently. Issue Generator depends on both completing.
 
 **Protocol Steps**:
 
