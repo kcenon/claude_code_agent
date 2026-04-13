@@ -25,6 +25,7 @@ export type GreenfieldStageName =
   | 'repo_detection'
   | 'github_repo_setup'
   | 'sds_generation'
+  | 'ui_spec_generation'
   | 'threat_modeling'
   | 'tech_decisions'
   | 'issue_generation'
@@ -390,6 +391,15 @@ export const GREENFIELD_STAGES: readonly PipelineStageDefinition[] = [
     dependsOn: ['github_repo_setup'],
   },
   {
+    name: 'ui_spec_generation',
+    agentType: 'ui-spec-writer',
+    description:
+      'Generate UI screen specifications and user flow documents from SRS (skipped for CLI/API/library)',
+    parallel: true,
+    approvalRequired: true,
+    dependsOn: ['sds_generation'],
+  },
+  {
     name: 'threat_modeling',
     agentType: 'threat-model-writer',
     description: 'Generate Threat Model (STRIDE + DREAD) from SDS',
@@ -411,7 +421,7 @@ export const GREENFIELD_STAGES: readonly PipelineStageDefinition[] = [
     description: 'Generate GitHub issues from SDS',
     parallel: false,
     approvalRequired: true,
-    dependsOn: ['threat_modeling', 'tech_decisions'],
+    dependsOn: ['ui_spec_generation', 'threat_modeling', 'tech_decisions'],
   },
   {
     name: 'svp_generation',
