@@ -164,14 +164,19 @@ export class CodeReaderAgent {
       // Discover and add source files
       const sourceFiles = await this.discoverSourceFiles(sourceRootPath);
 
-      // Check for too many parse errors (category 1 = Error)
-      // Only count errors from discovered source files, not auto-resolved node_modules
+      // Check for too many syntax errors (diagnostic codes 1xxx)
+      // Only count syntax/parser errors from discovered source files;
+      // semantic errors (2xxx: unresolved types/modules) are expected when
+      // analyzing code without its full dependency tree.
       const threshold = this.config.parseErrorThreshold;
       const sourceFilePaths = new Set(sourceFiles.map((f) => f.getFilePath()));
       const parseErrors = this.project.getPreEmitDiagnostics().filter((d) => {
         const filePath = d.getSourceFile()?.getFilePath();
+        const code = d.getCode();
         return (
           (d.getCategory() as number) === 1 &&
+          code >= 1000 &&
+          code < 2000 &&
           filePath !== undefined &&
           sourceFilePaths.has(filePath)
         );
