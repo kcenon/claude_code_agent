@@ -457,8 +457,8 @@ export class F {}`
         parseErrorThreshold: 0.0,
       });
 
-      // A file that will produce TypeScript diagnostics (referencing undefined type)
-      await fs.writeFile(path.join(tempDir, 'src', 'broken.ts'), 'const x: NonExistentType = 42;');
+      // A file with a syntax error (missing closing brace) to trigger threshold
+      await fs.writeFile(path.join(tempDir, 'src', 'broken.ts'), 'export const x = {;');
 
       await strictAgent.startSession('test-project');
       await expect(strictAgent.analyzeCode()).rejects.toThrow(TooManyParseErrorsError);
@@ -471,7 +471,7 @@ export class F {}`
         parseErrorThreshold: 0.0,
       });
 
-      await fs.writeFile(path.join(tempDir, 'src', 'bad.ts'), 'const x: UndefinedType = 1;');
+      await fs.writeFile(path.join(tempDir, 'src', 'bad.ts'), 'export const x = {;');
 
       await strictAgent.startSession('test-project');
       try {
