@@ -133,6 +133,14 @@ export const AGENT_TYPE_MAP: Readonly<Record<string, AgentTypeEntry>> = {
     importPath: '../issue-generator/index.js',
   },
 
+  'svp-writer': {
+    agentId: 'svp-writer-agent',
+    name: 'SVP Writer Agent',
+    lifecycle: 'singleton',
+    requiresWrapper: false,
+    importPath: '../svp-writer/index.js',
+  },
+
   controller: {
     agentId: 'controller',
     name: 'Controller',

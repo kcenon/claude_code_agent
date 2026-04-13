@@ -22,6 +22,7 @@ flowchart TB
     subgraph IssuePipeline["Issue Management Pipeline"]
         direction LR
         ISSUE[Issue Generator Agent]
+        SVP[SVP Writer Agent]
         CTRL[Controller Agent]
     end
 
@@ -58,7 +59,8 @@ flowchart TB
     SDS --> TM
 
     TM --> ISSUE
-    ISSUE --> CTRL
+    ISSUE --> SVP
+    SVP --> CTRL
 
     CTRL --> WORKER1
     CTRL --> WORKER2
@@ -74,6 +76,7 @@ flowchart TB
     SDP -.-> DOCS
     SDS -.-> DOCS
     TM -.-> DOCS
+    SVP -.-> DOCS
     ISSUE -.-> ISSUES
     WORKER1 -.-> CODE
     WORKER2 -.-> CODE
@@ -106,6 +109,7 @@ flowchart TB
         A4[SDS Writer]
         A4B[Threat Model Writer]
         A5[Issue Generator]
+        A5B[SVP Writer]
         A6[Controller]
         A7[Worker]
         A8[PR Reviewer]
@@ -123,6 +127,7 @@ flowchart TB
         S4C[docs/dbs/*.md]
         S4B[docs/tm/*.md]
         S5[issues/*.json]
+        S5B[docs/svp/*.md]
         S6[progress/*.yaml]
         S7[state/current_state.yaml]
         S8[analysis/architecture_overview.yaml]
@@ -137,6 +142,7 @@ flowchart TB
     MAIN -->|spawn| A4
     MAIN -->|spawn| A4B
     MAIN -->|spawn| A5
+    MAIN -->|spawn| A5B
     MAIN -->|spawn| A6
     MAIN -->|spawn| A7
     MAIN -->|spawn| A8
@@ -160,6 +166,9 @@ flowchart TB
     A5 -->|read| S4
     A5 -->|read| S4B
     A5 -->|write| S5
+    A5B -->|read| S3
+    A5B -->|read| S5
+    A5B -->|write| S5B
     A6 -->|read| S5
     A6 -->|write| S6
     A7 -->|read| S5
@@ -399,6 +408,7 @@ claude_code_agent/
 │       ├── sds-writer.md          # SDS 작성 에이전트
 │       ├── threat-model-writer.md # 위협 모델 작성 에이전트
 │       ├── issue-generator.md     # 이슈 생성 에이전트
+│       ├── svp-writer.md          # SVP 작성 에이전트
 │       ├── controller.md          # 관제 에이전트
 │       ├── worker.md              # 작업 에이전트
 │       ├── pr-reviewer.md         # PR 리뷰 에이전트
@@ -429,6 +439,7 @@ claude_code_agent/
 │   ├── sds/                      # SDS Documents
 │   ├── dbs/                      # DBS Documents (SDS Writer가 생성한 Database Schema Specification)
 │   ├── tm/                       # Threat Model Documents
+│   ├── svp/                      # SVP Documents (SVP Writer가 생성한 Software Verification Plan)
 │   └── architecture/             # Architecture Docs
 │
 └── src/                          # Generated Source Code

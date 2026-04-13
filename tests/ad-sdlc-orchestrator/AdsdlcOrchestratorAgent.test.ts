@@ -1212,8 +1212,8 @@ describe('AdsdlcOrchestratorAgent', () => {
 });
 
 describe('GREENFIELD_STAGES', () => {
-  it('should define 16 stages', () => {
-    expect(GREENFIELD_STAGES).toHaveLength(16);
+  it('should define 17 stages', () => {
+    expect(GREENFIELD_STAGES).toHaveLength(17);
   });
 
   it('should start with initialization and end with doc_indexing', () => {
@@ -1240,6 +1240,7 @@ describe('GREENFIELD_STAGES', () => {
     expect(stageMap.get('sds_generation')).toBe('sds-writer');
     expect(stageMap.get('threat_modeling')).toBe('threat-model-writer');
     expect(stageMap.get('issue_generation')).toBe('issue-generator');
+    expect(stageMap.get('svp_generation')).toBe('svp-writer');
     expect(stageMap.get('orchestration')).toBe('controller');
     expect(stageMap.get('implementation')).toBe('worker');
     expect(stageMap.get('review')).toBe('pr-reviewer');
