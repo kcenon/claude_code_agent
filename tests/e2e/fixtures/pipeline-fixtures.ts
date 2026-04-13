@@ -467,6 +467,27 @@ export const techDecisionOutput = [
 ].join('\n');
 
 /**
+ * Output from the ui-spec-writer agent.
+ * Generates UI screen specifications and user flow documents from SRS.
+ */
+export const uiSpecWriterOutput = JSON.stringify({
+  success: true,
+  skipped: false,
+  projectId: 'smoke-test-project',
+  screenPaths: ['docs/ui/screens/SCR-001-login.md', 'docs/ui/screens/SCR-002-dashboard.md'],
+  flowPaths: ['docs/ui/flows/FLW-001-user-login.md'],
+  designSystemPath: 'docs/ui/design-system.md',
+  readmePath: 'docs/ui/README.md',
+  stats: {
+    useCasesProcessed: 2,
+    screensGenerated: 2,
+    flowsGenerated: 1,
+    designTokensGenerated: 12,
+    processingTimeMs: 80,
+  },
+});
+
+/**
  * Complete response map for all Greenfield pipeline agent types.
  * Keys match the agentType field in GREENFIELD_STAGES.
  */
@@ -500,6 +521,7 @@ export const GREENFIELD_RESPONSES: Record<string, string> = {
   'repo-detector': repoDetectorOutput,
   'github-repo-setup': githubRepoSetupOutput,
   'sds-writer': sdsOutput,
+  'ui-spec-writer': uiSpecWriterOutput,
   'threat-model-writer': threatModelOutput,
   'tech-decision-writer': techDecisionOutput,
   'issue-generator': issueGeneratorOutput,

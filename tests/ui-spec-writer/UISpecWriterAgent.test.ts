@@ -550,10 +550,16 @@ This is a web application with no defined features yet.
       const projectId = 'test-project';
       setupSRS(projectId);
 
+      // Create a regular file at the output path so mkdirSync fails
+      // when trying to create subdirectories under it (cross-platform).
+      const blockerFile = path.join(testDocsPath, 'blocker');
+      fs.mkdirSync(testDocsPath, { recursive: true });
+      fs.writeFileSync(blockerFile, 'not-a-directory', 'utf-8');
+
       const agent = new UISpecWriterAgent({
         scratchpadBasePath: testBasePath,
-        // Point to a read-only path to trigger write error
-        publicDocsPath: '/proc/nonexistent/ui',
+        // mkdirSync will fail: can't create dirs inside a regular file
+        publicDocsPath: path.join(blockerFile, 'ui'),
       });
       await agent.initialize();
 
