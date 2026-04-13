@@ -26,6 +26,7 @@ export type GreenfieldStageName =
   | 'github_repo_setup'
   | 'sds_generation'
   | 'threat_modeling'
+  | 'tech_decisions'
   | 'issue_generation'
   | 'svp_generation'
   | 'orchestration'
@@ -392,7 +393,15 @@ export const GREENFIELD_STAGES: readonly PipelineStageDefinition[] = [
     name: 'threat_modeling',
     agentType: 'threat-model-writer',
     description: 'Generate Threat Model (STRIDE + DREAD) from SDS',
-    parallel: false,
+    parallel: true,
+    approvalRequired: true,
+    dependsOn: ['sds_generation'],
+  },
+  {
+    name: 'tech_decisions',
+    agentType: 'tech-decision-writer',
+    description: 'Generate Technology Decision comparison documents from SDS',
+    parallel: true,
     approvalRequired: true,
     dependsOn: ['sds_generation'],
   },
@@ -402,7 +411,7 @@ export const GREENFIELD_STAGES: readonly PipelineStageDefinition[] = [
     description: 'Generate GitHub issues from SDS',
     parallel: false,
     approvalRequired: true,
-    dependsOn: ['threat_modeling'],
+    dependsOn: ['threat_modeling', 'tech_decisions'],
   },
   {
     name: 'svp_generation',

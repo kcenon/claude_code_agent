@@ -1212,8 +1212,8 @@ describe('AdsdlcOrchestratorAgent', () => {
 });
 
 describe('GREENFIELD_STAGES', () => {
-  it('should define 17 stages', () => {
-    expect(GREENFIELD_STAGES).toHaveLength(17);
+  it('should define 18 stages', () => {
+    expect(GREENFIELD_STAGES).toHaveLength(18);
   });
 
   it('should start with initialization and end with doc_indexing', () => {
@@ -1239,6 +1239,7 @@ describe('GREENFIELD_STAGES', () => {
     expect(stageMap.get('sdp_generation')).toBe('sdp-writer');
     expect(stageMap.get('sds_generation')).toBe('sds-writer');
     expect(stageMap.get('threat_modeling')).toBe('threat-model-writer');
+    expect(stageMap.get('tech_decisions')).toBe('tech-decision-writer');
     expect(stageMap.get('issue_generation')).toBe('issue-generator');
     expect(stageMap.get('svp_generation')).toBe('svp-writer');
     expect(stageMap.get('orchestration')).toBe('controller');
@@ -1261,6 +1262,26 @@ describe('GREENFIELD_STAGES', () => {
 
     const issueStage = GREENFIELD_STAGES.find((s) => s.name === 'issue_generation');
     expect(issueStage?.dependsOn).toContain('threat_modeling');
+  });
+
+  it('should place tech_decisions in parallel with threat_modeling after sds_generation', () => {
+    const stageNames = GREENFIELD_STAGES.map((s) => s.name);
+    const sdsIdx = stageNames.indexOf('sds_generation');
+    const tdIdx = stageNames.indexOf('tech_decisions');
+    const issueIdx = stageNames.indexOf('issue_generation');
+    expect(tdIdx).toBeGreaterThan(sdsIdx);
+    expect(issueIdx).toBeGreaterThan(tdIdx);
+
+    const tdStage = GREENFIELD_STAGES.find((s) => s.name === 'tech_decisions');
+    expect(tdStage?.dependsOn).toContain('sds_generation');
+    expect(tdStage?.parallel).toBe(true);
+    expect(tdStage?.approvalRequired).toBe(true);
+
+    const tmStage = GREENFIELD_STAGES.find((s) => s.name === 'threat_modeling');
+    expect(tmStage?.parallel).toBe(true);
+
+    const issueStage = GREENFIELD_STAGES.find((s) => s.name === 'issue_generation');
+    expect(issueStage?.dependsOn).toContain('tech_decisions');
   });
 
   it('should place sdp_generation between srs_generation and repo_detection', () => {
