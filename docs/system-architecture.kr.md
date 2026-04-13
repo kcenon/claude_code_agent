@@ -4,6 +4,14 @@
 
 ```mermaid
 flowchart TB
+    subgraph SetupPipeline["Setup Pipeline"]
+        direction LR
+        MODE[Mode Detector]
+        INIT[Project Initializer]
+        REPOD[Repo Detector]
+        GHSETUP[GitHub Repo Setup]
+    end
+
     subgraph Input["User Input Layer"]
         UI[User Input]
         FILES[Files/URLs]
@@ -18,6 +26,7 @@ flowchart TB
         SDS[SDS Writer Agent]
         TM[Threat Model Writer Agent]
         TD[Tech Decision Writer Agent]
+        UISPEC[UI Spec Writer Agent]
     end
 
     subgraph IssuePipeline["Issue Management Pipeline"]
@@ -32,13 +41,17 @@ flowchart TB
         WORKER1[Worker Agent 1]
         WORKER2[Worker Agent 2]
         WORKERN[Worker Agent N]
+        VAL[Validation Agent]
         PR[PR Review Agent]
+        DOCIDX[Doc Index Generator]
     end
 
     subgraph EnhancementPipeline["Enhancement Pipeline"]
         direction LR
+        ORCH[Analysis Orchestrator Agent]
         DOCREAD[Document Reader Agent]
         CODEBASE[Codebase Analyzer Agent]
+        COMP[Comparator Agent]
         IMPACT[Impact Analyzer Agent]
         REGTEST[Regression Tester Agent]
     end
@@ -50,7 +63,13 @@ flowchart TB
         PRS[Pull Requests]
     end
 
-    UI --> COLLECT
+    %% Setup flow
+    UI --> MODE
+    MODE --> INIT
+    INIT --> REPOD
+    REPOD --> GHSETUP
+    GHSETUP --> COLLECT
+
     FILES --> COLLECT
 
     COLLECT --> PRD
@@ -59,9 +78,11 @@ flowchart TB
     SDP --> SDS
     SDS --> TM
     SDS --> TD
+    SDS --> UISPEC
 
     TM --> ISSUE
     TD --> ISSUE
+    UISPEC --> ISSUE
     ISSUE --> SVP
     SVP --> CTRL
 
@@ -69,9 +90,12 @@ flowchart TB
     CTRL --> WORKER2
     CTRL --> WORKERN
 
-    WORKER1 --> PR
-    WORKER2 --> PR
-    WORKERN --> PR
+    WORKER1 --> VAL
+    WORKER2 --> VAL
+    WORKERN --> VAL
+    VAL --> PR
+
+    PR --> DOCIDX
 
     COLLECT -.-> DOCS
     PRD -.-> DOCS
@@ -80,19 +104,24 @@ flowchart TB
     SDS -.-> DOCS
     TM -.-> DOCS
     TD -.-> DOCS
+    UISPEC -.-> DOCS
     SVP -.-> DOCS
     ISSUE -.-> ISSUES
     WORKER1 -.-> CODE
     WORKER2 -.-> CODE
     WORKERN -.-> CODE
     PR -.-> PRS
+    DOCIDX -.-> DOCS
 
-    %% Enhancement Pipeline connections
-    DOCS --> DOCREAD
-    CODE --> CODEBASE
-    DOCREAD --> IMPACT
-    CODEBASE --> IMPACT
+    %% Enhancement Pipeline connections (Analysis Orchestrator coordinates sub-agents)
+    DOCS --> ORCH
+    CODE --> ORCH
+    ORCH --> DOCREAD
+    ORCH --> CODEBASE
+    DOCREAD --> COMP
+    CODEBASE --> COMP
     CODEBASE --> REGTEST
+    COMP --> IMPACT
     IMPACT -.-> CTRL
     REGTEST -.-> PR
 ```
@@ -113,14 +142,27 @@ flowchart TB
         A4[SDS Writer]
         A4B[Threat Model Writer]
         A4C[Tech Decision Writer]
+        A_UISPEC[UI Spec Writer]
         A5[Issue Generator]
         A5B[SVP Writer]
         A6[Controller]
         A7[Worker]
         A8[PR Reviewer]
+        A_VALID[Validation]
+        A_DOCIDX[Doc Index Generator]
         A9[Document Reader]
+        A_CODERD[Code Reader]
         A10[Codebase Analyzer]
         A11[Impact Analyzer]
+        A12[Analysis Orchestrator]
+        A13[Comparator]
+        A_CI[CI Fixer]
+        A_STGV[Stage Verifier]
+        A_RTM[RTM Builder]
+        A_MODE[Mode Detector]
+        A_INIT[Project Initializer]
+        A_REPO[Repo Detector]
+        A_GHSETUP[GitHub Repo Setup]
     end
 
     subgraph Scratchpad["File-based State (Scratchpad)"]
@@ -139,6 +181,9 @@ flowchart TB
         S8[analysis/architecture_overview.yaml]
         S9[analysis/dependency_graph.json]
         S10[impact/impact_report.yaml]
+        S11[analysis/pipeline_state.yaml]
+        S12[analysis/analysis_report.yaml]
+        S13[analysis/comparison_result.yaml]
     end
 
     MAIN -->|spawn| A1
@@ -148,14 +193,27 @@ flowchart TB
     MAIN -->|spawn| A4
     MAIN -->|spawn| A4B
     MAIN -->|spawn| A4C
+    MAIN -->|spawn| A_UISPEC
     MAIN -->|spawn| A5
     MAIN -->|spawn| A5B
     MAIN -->|spawn| A6
     MAIN -->|spawn| A7
     MAIN -->|spawn| A8
+    MAIN -->|spawn| A_VALID
+    MAIN -->|spawn| A_DOCIDX
     MAIN -->|spawn| A9
+    MAIN -->|spawn| A_CODERD
     MAIN -->|spawn| A10
     MAIN -->|spawn| A11
+    MAIN -->|spawn| A12
+    MAIN -->|spawn| A13
+    MAIN -->|spawn| A_CI
+    MAIN -->|spawn| A_STGV
+    MAIN -->|spawn| A_RTM
+    MAIN -->|spawn| A_MODE
+    MAIN -->|spawn| A_INIT
+    MAIN -->|spawn| A_REPO
+    MAIN -->|spawn| A_GHSETUP
 
     A1 -->|write| S1
     A2 -->|read| S1
@@ -199,6 +257,18 @@ flowchart TB
     A11 -->|read| S9
     A11 -->|write| S10
 
+    %% Analysis Orchestrator coordinates pipeline
+    A12 -->|write| S11
+    A12 -->|write| S12
+    A12 -->|read| S7
+    A12 -->|read| S8
+    A12 -->|read| S13
+
+    %% Comparator compares documents and code
+    A13 -->|read| S7
+    A13 -->|read| S8
+    A13 -->|write| S13
+
     A1 -.->|result| MAIN
     A2 -.->|result| MAIN
     A3 -.->|result| MAIN
@@ -206,13 +276,27 @@ flowchart TB
     A4 -.->|result| MAIN
     A4B -.->|result| MAIN
     A4C -.->|result| MAIN
+    A_UISPEC -.->|result| MAIN
     A5 -.->|result| MAIN
+    A5B -.->|result| MAIN
     A6 -.->|result| MAIN
     A7 -.->|result| MAIN
     A8 -.->|result| MAIN
+    A_VALID -.->|result| MAIN
+    A_DOCIDX -.->|result| MAIN
     A9 -.->|result| MAIN
+    A_CODERD -.->|result| MAIN
     A10 -.->|result| MAIN
     A11 -.->|result| MAIN
+    A12 -.->|result| MAIN
+    A13 -.->|result| MAIN
+    A_CI -.->|result| MAIN
+    A_STGV -.->|result| MAIN
+    A_RTM -.->|result| MAIN
+    A_MODE -.->|result| MAIN
+    A_INIT -.->|result| MAIN
+    A_REPO -.->|result| MAIN
+    A_GHSETUP -.->|result| MAIN
 ```
 
 ## 3. Document Traceability Flow
@@ -408,27 +492,62 @@ sequenceDiagram
     PR-->>User: Project Complete
 ```
 
-## 8. Directory Structure
+## 8. Verification & Validation (V&V) Pipeline
+
+The V&V pipeline ensures that pipeline outputs are complete and that the final implementation conforms to its requirements.
+
+### Stage Verifier
+
+The Stage Verifier agent checks the outputs of each pipeline stage for completeness and correctness before the workflow advances to the next stage. It validates that all required artifacts (documents, issues, code) have been produced and meet structural expectations.
+
+### RTM Builder
+
+The RTM (Requirements Traceability Matrix) Builder agent creates and maintains a traceability matrix that links requirements from PRD through SRS, SDS, issues, and implementation. This matrix provides end-to-end visibility into requirement coverage and identifies any gaps.
+
+### Validation Agent
+
+The Validation agent validates the final implementation against the original requirements. It runs after all workers have completed their tasks and before PR review, ensuring that the delivered code satisfies the acceptance criteria defined in the upstream documents.
+
+## 9. Directory Structure
 
 ```
 claude_code_agent/
 ├── .claude/
-│   └── agents/                    # Agent Definitions
-│       ├── collector.md           # 정보 수집 에이전트
-│       ├── prd-writer.md          # PRD 작성 에이전트
-│       ├── srs-writer.md          # SRS 작성 에이전트
-│       ├── sdp-writer.md          # SDP 작성 에이전트
-│       ├── sds-writer.md          # SDS 작성 에이전트
-│       ├── threat-model-writer.md # 위협 모델 작성 에이전트
-│       ├── tech-decision-writer.md # 기술 결정 작성 에이전트
-│       ├── issue-generator.md     # 이슈 생성 에이전트
-│       ├── svp-writer.md          # SVP 작성 에이전트
-│       ├── controller.md          # 관제 에이전트
-│       ├── worker.md              # 작업 에이전트
-│       ├── pr-reviewer.md         # PR 리뷰 에이전트
-│       ├── document-reader.md     # 문서 리더 에이전트
-│       ├── codebase-analyzer.md   # 코드베이스 분석 에이전트
-│       └── impact-analyzer.md     # 영향 분석 에이전트
+│   └── agents/                    # Agent Definitions (34 files)
+│       ├── ad-sdlc-orchestrator.md # AD-SDLC Orchestrator Agent
+│       ├── analysis-orchestrator.md # Analysis Orchestrator Agent
+│       ├── ci-fixer.md            # CI Fixer Agent
+│       ├── code-reader.md         # Code Reader Agent
+│       ├── codebase-analyzer.md   # Codebase Analyzer Agent
+│       ├── collector.md           # Information Collector Agent
+│       ├── controller.md          # Controller Agent
+│       ├── doc-code-comparator.md # Doc-Code Comparator Agent
+│       ├── doc-index-generator.md # Doc Index Generator Agent
+│       ├── document-reader.md     # Document Reader Agent
+│       ├── github-repo-setup.md   # GitHub Repo Setup Agent
+│       ├── impact-analyzer.md     # Impact Analyzer Agent
+│       ├── issue-generator.md     # Issue Generator Agent
+│       ├── issue-reader.md        # Issue Reader Agent
+│       ├── mode-detector.md       # Mode Detector Agent
+│       ├── pr-reviewer.md         # PR Reviewer Agent
+│       ├── prd-updater.md         # PRD Updater Agent
+│       ├── prd-writer.md          # PRD Writer Agent
+│       ├── project-initializer.md # Project Initializer Agent
+│       ├── regression-tester.md   # Regression Tester Agent
+│       ├── repo-detector.md       # Repo Detector Agent
+│       ├── rtm-builder.md         # RTM Builder Agent
+│       ├── sdp-writer.md          # SDP Writer Agent
+│       ├── sds-updater.md         # SDS Updater Agent
+│       ├── sds-writer.md          # SDS Writer Agent
+│       ├── srs-updater.md         # SRS Updater Agent
+│       ├── srs-writer.md          # SRS Writer Agent
+│       ├── stage-verifier.md      # Stage Verifier Agent
+│       ├── svp-writer.md          # SVP Writer Agent
+│       ├── tech-decision-writer.md # Tech Decision Writer Agent
+│       ├── threat-model-writer.md # Threat Model Writer Agent
+│       ├── ui-spec-writer.md      # UI Spec Writer Agent
+│       ├── validation.md          # Validation Agent
+│       └── worker.md              # Worker Agent
 │
 ├── .ad-sdlc/
 │   ├── scratchpad/               # Inter-agent State
