@@ -364,6 +364,15 @@ Gates enforce standards at transitions:
 - Security scanning
 - Linting compliance
 
+Document completeness is enforced by the **document audit** CLI script
+(`scripts/audit-docs.ts`, invoked via `npm run audit:docs`), which validates
+pipeline-generated PRD/SRS/SDS/SDP/TM/SVP/TD/DBS artifacts for frontmatter,
+required sections, cross-references, and PRD→SRS→SDS traceability. It runs as
+a post-generation quality gate rather than a pipeline stage — the pipeline
+diagrams above intentionally omit it because it inspects outputs, not because
+agents invoke it. See the [Document Audit CLI](../doc-audit.md) guide for the
+full check list and CI integration.
+
 ---
 
 ## Directory Structure

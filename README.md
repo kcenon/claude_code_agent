@@ -116,6 +116,7 @@ GitHub Issues → Issue Reader → Controller → Worker → PR Reviewer
 - **Progress Tracking**: Real-time visibility into pipeline status
 - **Regression Testing**: Identifies affected tests when modifying existing code
 - **Doc-Code Gap Analysis**: Detects discrepancies between documentation and implementation
+- **Document Audit**: CLI script (`npm run audit:docs`) that validates pipeline-generated PRD/SRS/SDS/SDP/TM/SVP/TD/DBS documents for frontmatter, required sections, cross-references, and PRD→SRS→SDS traceability; see [Document Audit CLI](docs/doc-audit.md)
 - **Customizable Workflows**: Configure agents, templates, and quality gates
 
 ## Installation
@@ -211,6 +212,30 @@ ad-sdlc analyze [--project <path>] [--scope full|documents_only|code_only]
 # Generate shell completion script
 ad-sdlc completion --shell <bash|zsh|fish>
 ```
+
+### Document Audit
+
+Once the pipeline has generated documents, validate them with the document audit CLI:
+
+```bash
+# Audit the current project (writes reports to .ad-sdlc/audit/)
+npm run audit:docs -- --project-dir .
+
+# Audit a different project and pick the output directory
+npm run audit:docs -- --project-dir ./my-project --output audit-reports
+
+# Or run the script directly with tsx
+npx tsx scripts/audit-docs.ts --project-dir ./my-project
+```
+
+The auditor runs frontmatter, required-section, cross-reference, PRD→SRS→SDS
+traceability, orphan, Mermaid, and relative-link checks across PRD, SRS, SDS,
+SDP, TM, SVP, TD, and DBS documents. It writes both a machine-readable
+`audit-report.json` and a human-readable `audit-report.md`, and exits with a
+non-zero status on any error-severity finding — making it suitable as a local
+pre-merge check or as a CI quality gate. See the
+[Document Audit CLI](docs/doc-audit.md) guide for the full list of checks,
+report format, exit codes, and CI integration.
 
 ### Full Pipeline Script
 
@@ -321,6 +346,7 @@ your-project/
 
 - [System Architecture](docs/system-architecture.md)
 - [Document Status Definitions](docs/DOCUMENT_STATUS_DEFINITIONS.md)
+- [Document Audit CLI](docs/doc-audit.md) — validate generated PRD/SRS/SDS/... documents for integrity and traceability
 - [PRD-001: Agent-Driven SDLC](docs/PRD-001-agent-driven-sdlc.md)
 - [SRS-001: Agent-Driven SDLC](docs/SRS-001-agent-driven-sdlc.md)
 - [SDS-001: Agent-Driven SDLC](docs/SDS-001-agent-driven-sdlc.md)
