@@ -149,6 +149,14 @@ export const AGENT_TYPE_MAP: Readonly<Record<string, AgentTypeEntry>> = {
     importPath: '../tech-decision-writer/index.js',
   },
 
+  'ui-spec-writer': {
+    agentId: 'ui-spec-writer-agent',
+    name: 'UI Specification Writer Agent',
+    lifecycle: 'singleton',
+    requiresWrapper: false,
+    importPath: '../ui-spec-writer/index.js',
+  },
+
   controller: {
     agentId: 'controller',
     name: 'Controller',
