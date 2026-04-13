@@ -104,10 +104,8 @@ GitHub Issues → Issue Reader → Controller → Worker → Validation → PR R
 |                   | PRD Updater           | Incremental PRD updates (delta changes)                                                             |
 |                   | SRS Updater           | Incremental SRS updates (delta changes)                                                             |
 |                   | SDS Updater           | Incremental SDS updates (delta changes)                                                             |
-| **Doc Indexing**  | Doc Index Generator   | Generates structured documentation index (manifest, bundles, graph, router) from pipeline artifacts |
-| **Local Mode**    | Local Reviewer        | Local-mode PR review variant (no GitHub dependency, shares PR Reviewer implementation)              |
 
-> **Note**: `local-issue-reader` shares the Issue Reader implementation and is used automatically in local mode.
+> **Note**: Local mode agents (`local-issue-reader`, `local-reviewer`) share their GitHub counterparts' implementations and are used automatically with the `--local` flag.
 
 ## How it Works
 
