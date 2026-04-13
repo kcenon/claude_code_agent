@@ -82,6 +82,7 @@ Each agent has designated files it reads from and writes to:
 | SDS Writer          | `documents/srs.md`, `repo/github_repo.yaml`     | `documents/sds.md`                    |
 | Threat Model Writer | `documents/sds.md`                              | `documents/threat-model.md`           |
 | Issue Generator     | `documents/sds.md`, `documents/threat-model.md` | `issues/issues.json`                  |
+| SVP Writer          | `documents/srs.md`, `issues/issues.json`        | `documents/svp.md`                    |
 | Controller          | `issues/issues.json`                            | `progress/controller_state.yaml`      |
 | Worker              | `progress/work_orders.yaml`                     | Implementation results                |
 | PR Reviewer         | Worker results                                  | PR status                             |
@@ -111,6 +112,14 @@ Used in document generation pipeline:
            │                     │                │
            ▼                     ▼                ▼
     threat-model.md           sds.md            sdp.md
+           │
+           ▼
+  ┌────────────────────┐    ┌────────────┐
+  │  Issue Generator   │───▶│ SVP Writer │
+  └────────────────────┘    └────────────┘
+           │                      │
+           ▼                      ▼
+      issues.json               svp.md
 ```
 
 **Protocol Steps**:

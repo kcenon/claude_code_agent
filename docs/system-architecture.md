@@ -22,6 +22,7 @@ flowchart TB
     subgraph IssuePipeline["Issue Management Pipeline"]
         direction LR
         ISSUE[Issue Generator Agent]
+        SVP[SVP Writer Agent]
         CTRL[Controller Agent]
     end
 
@@ -60,7 +61,8 @@ flowchart TB
     SDS --> TM
 
     TM --> ISSUE
-    ISSUE --> CTRL
+    ISSUE --> SVP
+    SVP --> CTRL
 
     CTRL --> WORKER1
     CTRL --> WORKER2
@@ -76,6 +78,7 @@ flowchart TB
     SDP -.-> DOCS
     SDS -.-> DOCS
     TM -.-> DOCS
+    SVP -.-> DOCS
     ISSUE -.-> ISSUES
     WORKER1 -.-> CODE
     WORKER2 -.-> CODE
@@ -111,6 +114,7 @@ flowchart TB
         A4[SDS Writer]
         A4B[Threat Model Writer]
         A5[Issue Generator]
+        A5B[SVP Writer]
         A6[Controller]
         A7[Worker]
         A8[PR Reviewer]
@@ -130,6 +134,7 @@ flowchart TB
         S4C[docs/dbs/*.md]
         S4B[docs/tm/*.md]
         S5[issues/*.json]
+        S5B[docs/svp/*.md]
         S6[progress/*.yaml]
         S7[state/current_state.yaml]
         S8[analysis/architecture_overview.yaml]
@@ -147,6 +152,7 @@ flowchart TB
     MAIN -->|spawn| A4
     MAIN -->|spawn| A4B
     MAIN -->|spawn| A5
+    MAIN -->|spawn| A5B
     MAIN -->|spawn| A6
     MAIN -->|spawn| A7
     MAIN -->|spawn| A8
@@ -172,6 +178,9 @@ flowchart TB
     A5 -->|read| S4
     A5 -->|read| S4B
     A5 -->|write| S5
+    A5B -->|read| S3
+    A5B -->|read| S5
+    A5B -->|write| S5B
     A6 -->|read| S5
     A6 -->|write| S6
     A7 -->|read| S5
@@ -425,6 +434,7 @@ claude_code_agent/
 │       ├── sds-writer.md          # SDS Writer Agent
 │       ├── threat-model-writer.md # Threat Model Writer Agent
 │       ├── issue-generator.md     # Issue Generator Agent
+│       ├── svp-writer.md          # SVP Writer Agent
 │       ├── controller.md          # Controller Agent
 │       ├── worker.md              # Worker Agent
 │       ├── pr-reviewer.md         # PR Reviewer Agent
@@ -457,6 +467,7 @@ claude_code_agent/
 │   ├── sds/                      # SDS Documents
 │   ├── dbs/                      # DBS Documents (Database Schema Specifications emitted by SDS Writer)
 │   ├── tm/                       # Threat Model Documents
+│   ├── svp/                      # SVP Documents (Software Verification Plans emitted by SVP Writer)
 │   └── architecture/             # Architecture Docs
 │
 └── src/                          # Generated Source Code

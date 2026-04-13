@@ -25,16 +25,16 @@ That's it! The agents will generate documents, create issues, implement code, an
 
 ## What is AD-SDLC?
 
-AD-SDLC is an automated software development pipeline that uses **27 specialized Claude agents** to transform your requirements into production-ready code. It supports three modes:
+AD-SDLC is an automated software development pipeline that uses **28 specialized Claude agents** to transform your requirements into production-ready code. It supports three modes:
 
 ### Greenfield Pipeline (New Projects)
 
 ```
 User Input → Collector → PRD Writer → SRS Writer → SDP Writer → SDS Writer → Threat Model Writer
                                                                                       ↓
-                                       Worker ← Controller ← Issue Generator ←────────┘
-                                          ↓
-                                     PR Reviewer → Merge
+                           Worker ← Controller ← SVP Writer ← Issue Generator ←───────┘
+                              ↓
+                        PR Reviewer → Merge
 ```
 
 ### Enhancement Pipeline (Existing Projects)
@@ -63,7 +63,7 @@ GitHub Issues → Issue Reader → Controller → Worker → PR Reviewer
                                                  CI Fix (on failure)
 ```
 
-### Agent Pipeline (27 Agents)
+### Agent Pipeline (28 Agents)
 
 | Phase             | Agent                 | Role                                                                                             |
 | ----------------- | --------------------- | ------------------------------------------------------------------------------------------------ |
@@ -81,6 +81,7 @@ GitHub Issues → Issue Reader → Controller → Worker → PR Reviewer
 |                   | SDS Writer            | Generates Software Design Specification (SDS) and a separate Database Schema Specification (DBS) |
 |                   | Threat Model Writer   | Generates STRIDE/DREAD Threat Model from SDS                                                     |
 | **Planning**      | Issue Generator       | Creates GitHub Issues from SDS components                                                        |
+|                   | SVP Writer            | Generates Software Verification Plan with test cases from SRS and issues                         |
 | **Execution**     | Controller            | Orchestrates work distribution and monitors progress                                             |
 |                   | Worker                | Implements code based on assigned issues                                                         |
 | **Quality**       | PR Reviewer           | Creates PRs and performs automated code review                                                   |
@@ -97,7 +98,7 @@ GitHub Issues → Issue Reader → Controller → Worker → PR Reviewer
 
 ## Features
 
-- **Automatic Document Generation**: PRD, SRS, SDS, and DBS documents from natural language requirements
+- **Automatic Document Generation**: PRD, SRS, SDS, DBS, and SVP documents from natural language requirements
 - **Separate Database Schema Specification (DBS)**: SDS Writer emits a dedicated DBS document alongside the SDS, keeping the full database schema decoupled from architectural design
 - **Document Frontmatter Metadata**: YAML frontmatter with doc_id, version, status, and change history on all generated documents
 - **Enhancement Pipeline**: Incremental updates to existing projects without full rewrites

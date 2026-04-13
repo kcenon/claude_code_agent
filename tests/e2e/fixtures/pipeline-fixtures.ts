@@ -268,6 +268,68 @@ export const threatModelOutput = [
 ].join('\n');
 
 /**
+ * Output from the svp-writer agent.
+ * Generates a Software Verification Plan with derived test cases from the SRS.
+ */
+export const svpOutput = [
+  '# Software Verification Plan: smoke-test-project',
+  '',
+  '| **Document ID** | **Source SRS** | **Source SDS** | **Version** | **Status** |',
+  '|-----------------|----------------|----------------|-------------|------------|',
+  '| SVP-smoke-test-project | SRS-smoke-test-project | SDS-smoke-test-project | 1.0.0 | Draft |',
+  '',
+  '## 1. Verification Strategy',
+  '',
+  'Standard testing pyramid: unit, integration, system.',
+  '',
+  '## 2. Test Environment',
+  '',
+  '- Source SRS: SRS-smoke-test-project',
+  '- Source SDS: SDS-smoke-test-project',
+  '- Use cases analysed: 2',
+  '- NFRs analysed: 1',
+  '',
+  '## 3. Unit Verification',
+  '',
+  '| ID | Source | Title | Priority | Expected |',
+  '|----|--------|-------|----------|----------|',
+  '| TC-003 | UC-001 | Login — precondition #1 violated | P1 | System rejects the request |',
+  '',
+  '## 4. Integration Verification',
+  '',
+  '| ID | Source | Title | Priority | Expected |',
+  '|----|--------|-------|----------|----------|',
+  '| TC-002 | UC-001 | Login — alt #1 | P1 | System handles failure gracefully |',
+  '| TC-005 | NFR-001 | Performance verification | P1 | Latency target satisfied |',
+  '',
+  '## 5. System Verification',
+  '',
+  '| ID | Source | Title | Priority | Expected |',
+  '|----|--------|-------|----------|----------|',
+  '| TC-001 | UC-001 | Login — happy path | P1 | Session is established |',
+  '| TC-004 | UC-002 | Logout — happy path | P1 | Session no longer exists |',
+  '',
+  '## 6. Traceability Matrix',
+  '',
+  '| Source ID | Kind | Test Cases |',
+  '|-----------|------|------------|',
+  '| UC-001 | Use Case | TC-001, TC-002, TC-003 |',
+  '| UC-002 | Use Case | TC-004 |',
+  '| NFR-001 | NFR | TC-005 |',
+  '',
+  '## 7. Coverage Summary',
+  '',
+  '| Metric | Count |',
+  '|--------|-------|',
+  '| Total test cases | 5 |',
+  '| Unit tests | 1 |',
+  '| Integration tests | 2 |',
+  '| System tests | 2 |',
+  '| Use cases covered | 2 |',
+  '| NFRs covered | 1 |',
+].join('\n');
+
+/**
  * Output from the issue-generator agent.
  * Generates GitHub issues from the SDS components.
  */
@@ -375,6 +437,7 @@ export const GREENFIELD_RESPONSES: Record<string, string> = {
   'sds-writer': sdsOutput,
   'threat-model-writer': threatModelOutput,
   'issue-generator': issueGeneratorOutput,
+  'svp-writer': svpOutput,
   controller: controllerOutput,
   worker: workerOutput,
   validation: validationOutput,

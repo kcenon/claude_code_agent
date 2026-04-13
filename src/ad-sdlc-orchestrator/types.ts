@@ -27,6 +27,7 @@ export type GreenfieldStageName =
   | 'sds_generation'
   | 'threat_modeling'
   | 'issue_generation'
+  | 'svp_generation'
   | 'orchestration'
   | 'implementation'
   | 'validation'
@@ -404,12 +405,20 @@ export const GREENFIELD_STAGES: readonly PipelineStageDefinition[] = [
     dependsOn: ['threat_modeling'],
   },
   {
+    name: 'svp_generation',
+    agentType: 'svp-writer',
+    description: 'Generate Software Verification Plan with derived test cases from SRS',
+    parallel: false,
+    approvalRequired: true,
+    dependsOn: ['issue_generation'],
+  },
+  {
     name: 'orchestration',
     agentType: 'controller',
     description: 'Orchestrate work distribution',
     parallel: false,
     approvalRequired: false,
-    dependsOn: ['issue_generation'],
+    dependsOn: ['svp_generation'],
   },
   {
     name: 'implementation',

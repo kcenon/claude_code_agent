@@ -188,9 +188,10 @@ orchestration_result:
 | 8     | sds-writer          | Generate SDS          | Yes           |
 | 9     | threat-model-writer | Generate Threat Model | Yes           |
 | 10    | issue-generator     | Create issues         | Yes           |
-| 11    | controller          | Assign work           | No            |
-| 12    | worker              | Implement             | No            |
-| 13    | pr-reviewer         | Review PRs            | No            |
+| 11    | svp-writer          | Generate SVP          | Yes           |
+| 12    | controller          | Assign work           | No            |
+| 13    | worker              | Implement             | No            |
+| 14    | pr-reviewer         | Review PRs            | No            |
 
 #### Enhancement Pipeline
 
@@ -408,30 +409,31 @@ Pipeline Execution
 
 ### Dependencies (Invokes)
 
-| Agent               | Pipeline               | Purpose                            |
-| ------------------- | ---------------------- | ---------------------------------- |
-| mode-detector       | All                    | Determine pipeline mode            |
-| collector           | Greenfield             | Gather requirements                |
-| prd-writer          | Greenfield             | Generate PRD                       |
-| srs-writer          | Greenfield             | Generate SRS                       |
-| sdp-writer          | Greenfield             | Generate SDP                       |
-| sds-writer          | Greenfield             | Generate SDS                       |
-| threat-model-writer | Greenfield             | Generate STRIDE/DREAD Threat Model |
-| repo-detector       | Greenfield             | Check for existing repo            |
-| github-repo-setup   | Greenfield             | Create repository                  |
-| issue-generator     | Greenfield/Enhancement | Create GitHub issues               |
-| issue-reader        | Import                 | Import existing GitHub issues      |
-| controller          | All                    | Orchestrate work                   |
-| worker              | All                    | Implement features                 |
-| pr-reviewer         | All                    | Review PRs                         |
-| document-reader     | Enhancement            | Parse existing docs                |
-| codebase-analyzer   | Enhancement            | Analyze codebase                   |
-| code-reader         | Enhancement            | Extract code structure             |
-| impact-analyzer     | Enhancement            | Assess change impact               |
-| prd-updater         | Enhancement            | Update PRD                         |
-| srs-updater         | Enhancement            | Update SRS                         |
-| sds-updater         | Enhancement            | Update SDS                         |
-| regression-tester   | Enhancement            | Verify no regressions              |
+| Agent               | Pipeline               | Purpose                             |
+| ------------------- | ---------------------- | ----------------------------------- |
+| mode-detector       | All                    | Determine pipeline mode             |
+| collector           | Greenfield             | Gather requirements                 |
+| prd-writer          | Greenfield             | Generate PRD                        |
+| srs-writer          | Greenfield             | Generate SRS                        |
+| sdp-writer          | Greenfield             | Generate SDP                        |
+| sds-writer          | Greenfield             | Generate SDS                        |
+| threat-model-writer | Greenfield             | Generate STRIDE/DREAD Threat Model  |
+| repo-detector       | Greenfield             | Check for existing repo             |
+| github-repo-setup   | Greenfield             | Create repository                   |
+| issue-generator     | Greenfield/Enhancement | Create GitHub issues                |
+| svp-writer          | Greenfield             | Generate Software Verification Plan |
+| issue-reader        | Import                 | Import existing GitHub issues       |
+| controller          | All                    | Orchestrate work                    |
+| worker              | All                    | Implement features                  |
+| pr-reviewer         | All                    | Review PRs                          |
+| document-reader     | Enhancement            | Parse existing docs                 |
+| codebase-analyzer   | Enhancement            | Analyze codebase                    |
+| code-reader         | Enhancement            | Extract code structure              |
+| impact-analyzer     | Enhancement            | Assess change impact                |
+| prd-updater         | Enhancement            | Update PRD                          |
+| srs-updater         | Enhancement            | Update SRS                          |
+| sds-updater         | Enhancement            | Update SDS                          |
+| regression-tester   | Enhancement            | Verify no regressions               |
 
 ### Dependents
 
