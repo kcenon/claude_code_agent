@@ -176,22 +176,23 @@ orchestration_result:
 
 #### Greenfield Pipeline
 
-| Order | Agent               | Description           | Approval Gate |
-| ----- | ------------------- | --------------------- | ------------- |
-| 1     | mode-detector       | Confirm mode          | No            |
-| 2     | collector           | Gather requirements   | No            |
-| 3     | prd-writer          | Generate PRD          | Yes           |
-| 4     | srs-writer          | Generate SRS          | Yes           |
-| 5     | sdp-writer          | Generate SDP          | Yes           |
-| 6     | repo-detector       | Check repository      | No            |
-| 7     | github-repo-setup   | Create repo           | No            |
-| 8     | sds-writer          | Generate SDS          | Yes           |
-| 9     | threat-model-writer | Generate Threat Model | Yes           |
-| 10    | issue-generator     | Create issues         | Yes           |
-| 11    | svp-writer          | Generate SVP          | Yes           |
-| 12    | controller          | Assign work           | No            |
-| 13    | worker              | Implement             | No            |
-| 14    | pr-reviewer         | Review PRs            | No            |
+| Order | Agent                | Description                                                       | Approval Gate |
+| ----- | -------------------- | ----------------------------------------------------------------- | ------------- |
+| 1     | mode-detector        | Confirm mode                                                      | No            |
+| 2     | collector            | Gather requirements                                               | No            |
+| 3     | prd-writer           | Generate PRD                                                      | Yes           |
+| 4     | srs-writer           | Generate SRS                                                      | Yes           |
+| 5     | sdp-writer           | Generate SDP                                                      | Yes           |
+| 6     | repo-detector        | Check repository                                                  | No            |
+| 7     | github-repo-setup    | Create repo                                                       | No            |
+| 8     | sds-writer           | Generate SDS                                                      | Yes           |
+| 9     | threat-model-writer  | Generate Threat Model (parallel with tech-decision-writer)        | Yes           |
+| 9     | tech-decision-writer | Generate Technology Decisions (parallel with threat-model-writer) | Yes           |
+| 10    | issue-generator      | Create issues                                                     | Yes           |
+| 11    | svp-writer           | Generate SVP                                                      | Yes           |
+| 12    | controller           | Assign work                                                       | No            |
+| 13    | worker               | Implement                                                         | No            |
+| 14    | pr-reviewer          | Review PRs                                                        | No            |
 
 #### Enhancement Pipeline
 
@@ -409,31 +410,32 @@ Pipeline Execution
 
 ### Dependencies (Invokes)
 
-| Agent               | Pipeline               | Purpose                             |
-| ------------------- | ---------------------- | ----------------------------------- |
-| mode-detector       | All                    | Determine pipeline mode             |
-| collector           | Greenfield             | Gather requirements                 |
-| prd-writer          | Greenfield             | Generate PRD                        |
-| srs-writer          | Greenfield             | Generate SRS                        |
-| sdp-writer          | Greenfield             | Generate SDP                        |
-| sds-writer          | Greenfield             | Generate SDS                        |
-| threat-model-writer | Greenfield             | Generate STRIDE/DREAD Threat Model  |
-| repo-detector       | Greenfield             | Check for existing repo             |
-| github-repo-setup   | Greenfield             | Create repository                   |
-| issue-generator     | Greenfield/Enhancement | Create GitHub issues                |
-| svp-writer          | Greenfield             | Generate Software Verification Plan |
-| issue-reader        | Import                 | Import existing GitHub issues       |
-| controller          | All                    | Orchestrate work                    |
-| worker              | All                    | Implement features                  |
-| pr-reviewer         | All                    | Review PRs                          |
-| document-reader     | Enhancement            | Parse existing docs                 |
-| codebase-analyzer   | Enhancement            | Analyze codebase                    |
-| code-reader         | Enhancement            | Extract code structure              |
-| impact-analyzer     | Enhancement            | Assess change impact                |
-| prd-updater         | Enhancement            | Update PRD                          |
-| srs-updater         | Enhancement            | Update SRS                          |
-| sds-updater         | Enhancement            | Update SDS                          |
-| regression-tester   | Enhancement            | Verify no regressions               |
+| Agent                | Pipeline               | Purpose                                |
+| -------------------- | ---------------------- | -------------------------------------- |
+| mode-detector        | All                    | Determine pipeline mode                |
+| collector            | Greenfield             | Gather requirements                    |
+| prd-writer           | Greenfield             | Generate PRD                           |
+| srs-writer           | Greenfield             | Generate SRS                           |
+| sdp-writer           | Greenfield             | Generate SDP                           |
+| sds-writer           | Greenfield             | Generate SDS                           |
+| threat-model-writer  | Greenfield             | Generate STRIDE/DREAD Threat Model     |
+| tech-decision-writer | Greenfield             | Generate Technology Decision documents |
+| repo-detector        | Greenfield             | Check for existing repo                |
+| github-repo-setup    | Greenfield             | Create repository                      |
+| issue-generator      | Greenfield/Enhancement | Create GitHub issues                   |
+| svp-writer           | Greenfield             | Generate Software Verification Plan    |
+| issue-reader         | Import                 | Import existing GitHub issues          |
+| controller           | All                    | Orchestrate work                       |
+| worker               | All                    | Implement features                     |
+| pr-reviewer          | All                    | Review PRs                             |
+| document-reader      | Enhancement            | Parse existing docs                    |
+| codebase-analyzer    | Enhancement            | Analyze codebase                       |
+| code-reader          | Enhancement            | Extract code structure                 |
+| impact-analyzer      | Enhancement            | Assess change impact                   |
+| prd-updater          | Enhancement            | Update PRD                             |
+| srs-updater          | Enhancement            | Update SRS                             |
+| sds-updater          | Enhancement            | Update SDS                             |
+| regression-tester    | Enhancement            | Verify no regressions                  |
 
 ### Dependents
 
@@ -511,7 +513,9 @@ The `--start-from` option requires an explicit mode (`greenfield`, `enhancement`
 
 ### Available Stage Names
 
-**Greenfield**: `initialization`, `mode_detection`, `collection`, `prd_generation`, `srs_generation`, `repo_detection`, `github_repo_setup`, `sds_generation`, `threat_model_generation`, `issue_generation`, `orchestration`, `implementation`, `review`
+**Greenfield**: `initialization`, `mode_detection`, `collection`, `prd_generation`, `srs_generation`, `repo_detection`, `github_repo_setup`, `sds_generation`, `threat_model_generation`, `tech_decision_generation`, `issue_generation`, `orchestration`, `implementation`, `review`
+
+> **Parallel stages**: `threat_model_generation` and `tech_decision_generation` both depend on `sds_generation` and run concurrently. `issue_generation` depends on both.
 
 **Enhancement**: `document_reading`, `codebase_analysis`, `code_reading`, `doc_code_comparison`, `impact_analysis`, `prd_update`, `srs_update`, `sds_update`, `issue_generation`, `orchestration`, `implementation`, `regression_testing`, `review`
 

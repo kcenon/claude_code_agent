@@ -141,6 +141,14 @@ export const AGENT_TYPE_MAP: Readonly<Record<string, AgentTypeEntry>> = {
     importPath: '../svp-writer/index.js',
   },
 
+  'tech-decision-writer': {
+    agentId: 'tech-decision-writer-agent',
+    name: 'Tech Decision Writer Agent',
+    lifecycle: 'singleton',
+    requiresWrapper: false,
+    importPath: '../tech-decision-writer/index.js',
+  },
+
   controller: {
     agentId: 'controller',
     name: 'Controller',

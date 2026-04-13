@@ -25,14 +25,16 @@ That's it! The agents will generate documents, create issues, implement code, an
 
 ## What is AD-SDLC?
 
-AD-SDLC is an automated software development pipeline that uses **28 specialized Claude agents** to transform your requirements into production-ready code. It supports three modes:
+AD-SDLC is an automated software development pipeline that uses **29 specialized Claude agents** to transform your requirements into production-ready code. It supports three modes:
 
 ### Greenfield Pipeline (New Projects)
 
 ```
-User Input → Collector → PRD Writer → SRS Writer → SDP Writer → SDS Writer → Threat Model Writer
-                                                                                      ↓
-                           Worker ← Controller ← SVP Writer ← Issue Generator ←───────┘
+User Input → Collector → PRD Writer → SRS Writer → SDP Writer → SDS Writer ─┬─▶ Threat Model Writer ─┐
+                                                                             │                        │
+                                                                             └─▶ Tech Decision Writer ─┤
+                                                                                                      ↓
+                           Worker ← Controller ← SVP Writer ← Issue Generator ←──────────────────────┘
                               ↓
                         PR Reviewer → Merge
 ```
@@ -63,7 +65,7 @@ GitHub Issues → Issue Reader → Controller → Worker → PR Reviewer
                                                  CI Fix (on failure)
 ```
 
-### Agent Pipeline (28 Agents)
+### Agent Pipeline (29 Agents)
 
 | Phase             | Agent                 | Role                                                                                             |
 | ----------------- | --------------------- | ------------------------------------------------------------------------------------------------ |
@@ -80,6 +82,7 @@ GitHub Issues → Issue Reader → Controller → Worker → PR Reviewer
 |                   | SDP Writer            | Generates Software Development Plan from PRD and SRS                                             |
 |                   | SDS Writer            | Generates Software Design Specification (SDS) and a separate Database Schema Specification (DBS) |
 |                   | Threat Model Writer   | Generates STRIDE/DREAD Threat Model from SDS                                                     |
+|                   | Tech Decision Writer  | Generates Technology Decision documents with alternatives analysis from the SDS technology stack |
 | **Planning**      | Issue Generator       | Creates GitHub Issues from SDS components                                                        |
 |                   | SVP Writer            | Generates Software Verification Plan with test cases from SRS and issues                         |
 | **Execution**     | Controller            | Orchestrates work distribution and monitors progress                                             |
