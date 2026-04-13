@@ -25,20 +25,18 @@ That's it! The agents will generate documents, create issues, implement code, an
 
 ## What is AD-SDLC?
 
-AD-SDLC is an automated software development pipeline that uses **30 specialized Claude agents** to transform your requirements into production-ready code. It supports three modes:
+AD-SDLC is an automated software development pipeline that uses **35 specialized Claude agent types** to transform your requirements into production-ready code. It supports three modes:
 
 ### Greenfield Pipeline (New Projects)
 
 ```
-User Input → Collector → PRD Writer → SRS Writer → SDP Writer → SDS Writer ─┬─▶ Threat Model Writer ─┐
-                                                                             │                        │
-                                                                             ├─▶ Tech Decision Writer ─┤
-                                                                             │                        │
-                                                                             └─▶ UI Spec Writer ──────┤
-                                                                                                      ↓
-                           Worker ← Controller ← SVP Writer ← Issue Generator ←──────────────────────┘
-                              ↓
-                        PR Reviewer → Merge
+User Input → Mode Detection → Collector → PRD Writer → SRS Writer → SDP Writer
+         → Repo Detection → GitHub Repo Setup → SDS Writer
+         ─┬─▶ Threat Model Writer ─┐
+          ├─▶ Tech Decision Writer ─┤
+          └─▶ UI Spec Writer ──────┤
+                                    ↓
+   Doc Indexing ← PR Reviewer ← Validation ← Worker ← Controller ← SVP Writer ← Issue Generator
 ```
 
 ### Enhancement Pipeline (Existing Projects)
@@ -54,57 +52,82 @@ Existing Docs + Code → Document Reader → Codebase Analyzer → Code Reader
                                                                   ↓
                                          Issue Generator + Regression Tester
                                                                   ↓
-                                            Controller → Worker → PR Reviewer
+                            Controller → Worker → Validation → PR Reviewer
                                                                       ↓
-                                                              CI Fix (on failure)
+                                                    Doc Indexing + CI Fix (on failure)
 ```
 
 ### Import Pipeline (Existing GitHub Issues)
 
 ```
-GitHub Issues → Issue Reader → Controller → Worker → PR Reviewer
-                                                         ↓
-                                                 CI Fix (on failure)
+GitHub Issues → Issue Reader → Controller → Worker → Validation → PR Reviewer
+                                                                       ↓
+                                                               Doc Indexing + CI Fix (on failure)
 ```
 
-### Agent Pipeline (30 Agents)
+### Agent Pipeline (35 Agent Types)
 
-| Phase             | Agent                 | Role                                                                                             |
-| ----------------- | --------------------- | ------------------------------------------------------------------------------------------------ |
-| **Orchestration** | AD-SDLC Orchestrator  | Coordinates the full pipeline lifecycle                                                          |
-|                   | Analysis Orchestrator | Coordinates the analysis sub-pipeline                                                            |
-| **Setup**         | Mode Detector         | Detects Greenfield vs Enhancement vs Import mode                                                 |
-|                   | Project Initializer   | Creates `.ad-sdlc` directory structure and config                                                |
-|                   | Repo Detector         | Determines if existing repo or new setup needed                                                  |
-|                   | GitHub Repo Setup     | Creates and initializes GitHub repository                                                        |
-| **Collection**    | Collector             | Gathers requirements from text, files, and URLs                                                  |
-|                   | Issue Reader          | Imports existing GitHub Issues for Import pipeline                                               |
-| **Documentation** | PRD Writer            | Generates Product Requirements Document                                                          |
-|                   | SRS Writer            | Generates Software Requirements Specification                                                    |
-|                   | SDP Writer            | Generates Software Development Plan from PRD and SRS                                             |
-|                   | SDS Writer            | Generates Software Design Specification (SDS) and a separate Database Schema Specification (DBS) |
-|                   | Threat Model Writer   | Generates STRIDE/DREAD Threat Model from SDS                                                     |
-|                   | Tech Decision Writer  | Generates Technology Decision documents with alternatives analysis from the SDS technology stack |
-|                   | UI Spec Writer        | Generates UI screen specifications, user flow documents, and design system references from SRS   |
-| **Planning**      | Issue Generator       | Creates GitHub Issues from SDS components                                                        |
-|                   | SVP Writer            | Generates Software Verification Plan with test cases from SRS and issues                         |
-| **Execution**     | Controller            | Orchestrates work distribution and monitors progress                                             |
-|                   | Worker                | Implements code based on assigned issues                                                         |
-| **Quality**       | PR Reviewer           | Creates PRs and performs automated code review                                                   |
-|                   | CI Fixer              | Automatically diagnoses and fixes CI failures                                                    |
-|                   | Regression Tester     | Validates existing functionality after changes                                                   |
-| **Enhancement**   | Document Reader       | Parses existing PRD/SRS/SDS documents                                                            |
-|                   | Code Reader           | Extracts source code structure and dependencies                                                  |
-|                   | Codebase Analyzer     | Analyzes current architecture and code structure                                                 |
-|                   | Doc-Code Comparator   | Detects gaps between documentation and code                                                      |
-|                   | Impact Analyzer       | Assesses change implications and risks                                                           |
-|                   | PRD Updater           | Incremental PRD updates (delta changes)                                                          |
-|                   | SRS Updater           | Incremental SRS updates (delta changes)                                                          |
-|                   | SDS Updater           | Incremental SDS updates (delta changes)                                                          |
+| Phase             | Agent                 | Role                                                                                                |
+| ----------------- | --------------------- | --------------------------------------------------------------------------------------------------- |
+| **Orchestration** | AD-SDLC Orchestrator  | Coordinates the full pipeline lifecycle                                                             |
+|                   | Analysis Orchestrator | Coordinates the analysis sub-pipeline                                                               |
+| **Setup**         | Mode Detector         | Detects Greenfield vs Enhancement vs Import mode                                                    |
+|                   | Project Initializer   | Creates `.ad-sdlc` directory structure and config                                                   |
+|                   | Repo Detector         | Determines if existing repo or new setup needed                                                     |
+|                   | GitHub Repo Setup     | Creates and initializes GitHub repository                                                           |
+| **Collection**    | Collector             | Gathers requirements from text, files, and URLs                                                     |
+|                   | Issue Reader          | Imports existing GitHub Issues for Import pipeline                                                  |
+| **Documentation** | PRD Writer            | Generates Product Requirements Document                                                             |
+|                   | SRS Writer            | Generates Software Requirements Specification                                                       |
+|                   | SDP Writer            | Generates Software Development Plan from PRD and SRS                                                |
+|                   | SDS Writer            | Generates Software Design Specification (SDS) and a separate Database Schema Specification (DBS)    |
+|                   | Threat Model Writer   | Generates STRIDE/DREAD Threat Model from SDS                                                        |
+|                   | Tech Decision Writer  | Generates Technology Decision documents with alternatives analysis from the SDS technology stack    |
+|                   | UI Spec Writer        | Generates UI screen specifications, user flow documents, and design system references from SRS      |
+|                   | Doc Index Generator   | Generates structured documentation index (manifest, bundles, graph, router) from pipeline artifacts |
+| **Planning**      | Issue Generator       | Creates GitHub Issues from SDS components                                                           |
+|                   | SVP Writer            | Generates Software Verification Plan with test cases from SRS and issues                            |
+| **Execution**     | Controller            | Orchestrates work distribution and monitors progress                                                |
+|                   | Worker                | Implements code based on assigned issues                                                            |
+|                   | Local Reviewer        | Local-mode PR review variant (no GitHub dependency)                                                 |
+| **Quality**       | PR Reviewer           | Creates PRs and performs automated code review                                                      |
+|                   | CI Fixer              | Automatically diagnoses and fixes CI failures                                                       |
+|                   | Regression Tester     | Validates existing functionality after changes                                                      |
+| **V&V**           | Stage Verifier        | Verifies pipeline stage outputs for content completeness and traceability                           |
+|                   | RTM Builder           | Builds Requirements Traceability Matrix from requirements to implementation                         |
+|                   | Validation Agent      | Validates final implementation against requirements and acceptance criteria                         |
+| **Enhancement**   | Document Reader       | Parses existing PRD/SRS/SDS documents                                                               |
+|                   | Code Reader           | Extracts source code structure and dependencies                                                     |
+|                   | Codebase Analyzer     | Analyzes current architecture and code structure                                                    |
+|                   | Doc-Code Comparator   | Detects gaps between documentation and code                                                         |
+|                   | Impact Analyzer       | Assesses change implications and risks                                                              |
+|                   | PRD Updater           | Incremental PRD updates (delta changes)                                                             |
+|                   | SRS Updater           | Incremental SRS updates (delta changes)                                                             |
+|                   | SDS Updater           | Incremental SDS updates (delta changes)                                                             |
+
+> **Note**: Local mode agents (`local-issue-reader`, `local-reviewer`) share their GitHub counterparts' implementations and are used automatically with the `--local` flag.
+
+## How it Works
+
+AD-SDLC automates the full software development lifecycle through a coordinated agent pipeline:
+
+1. **Mode Detection**: The system analyzes your project to determine the appropriate pipeline -- Greenfield (new project), Enhancement (existing project), or Import (existing GitHub issues).
+
+2. **Document Generation**: A cascade of writer agents produces structured documents from your requirements. In Greenfield mode: PRD, SRS, SDP, SDS, followed by parallel generation of Threat Model, Technology Decisions, and UI Specifications (when applicable).
+
+3. **Planning**: The Issue Generator transforms design specifications into actionable GitHub Issues with dependencies and labels. The SVP Writer creates a Software Verification Plan with derived test cases.
+
+4. **Implementation**: The Controller distributes issues to Worker agents, which implement code, write tests, and create pull requests. Multiple workers operate in parallel for faster delivery.
+
+5. **Verification & Validation**: Stage Verifier checks each pipeline output for completeness. The RTM Builder traces requirements to implementation. The Validation Agent confirms all acceptance criteria are met.
+
+6. **Review & Indexing**: The PR Reviewer performs automated code review with quality gates. Finally, the Doc Index Generator creates a searchable documentation index from all pipeline artifacts.
+
+Each agent reads and writes to a shared scratchpad, enabling seamless inter-agent communication. The pipeline supports resume (`--resume`) and start-from (`--start-from <stage>`) for interrupted sessions.
 
 ## Features
 
-- **Automatic Document Generation**: PRD, SRS, SDS, DBS, SVP, and UI specification documents from natural language requirements
+- **Automatic Document Generation**: PRD, SRS, SDP, SDS, DBS, TM, SVP, TD, and UI specification documents from natural language requirements
 - **UI Specification Generation**: Screen specifications, user flow documents, and design system references from SRS use cases; auto-skips for CLI/API/library projects
 - **Separate Database Schema Specification (DBS)**: SDS Writer emits a dedicated DBS document alongside the SDS, keeping the full database schema decoupled from architectural design
 - **Document Frontmatter Metadata**: YAML frontmatter with doc_id, version, status, and change history on all generated documents
@@ -120,6 +143,7 @@ GitHub Issues → Issue Reader → Controller → Worker → PR Reviewer
 - **Progress Tracking**: Real-time visibility into pipeline status
 - **Regression Testing**: Identifies affected tests when modifying existing code
 - **Doc-Code Gap Analysis**: Detects discrepancies between documentation and implementation
+- **V&V Framework**: Stage verification gates, RTM building, and final validation ensure traceability from requirements to implementation
 - **Document Audit**: CLI script (`npm run audit:docs`) that validates pipeline-generated PRD/SRS/SDS/SDP/TM/SVP/TD/DBS documents for frontmatter, required sections, cross-references, and PRD→SRS→SDS traceability; see [Document Audit CLI](docs/doc-audit.md)
 - **Customizable Workflows**: Configure agents, templates, and quality gates
 
@@ -319,9 +343,8 @@ See [Use Cases Guide](docs/use-cases.md) for more examples.
 ```
 your-project/
 ├── .claude/
-│   └── agents/              # Agent definitions (27 agents)
-│       ├── *.md             # English versions (used by Claude)
-│       └── *.kr.md          # Korean versions (for reference)
+│   └── agents/              # Agent definitions (34 prompt files, 35 registered types)
+│       └── *.md             # Agent prompts (English, used by Claude)
 ├── .ad-sdlc/
 │   ├── config/              # Configuration files
 │   │   ├── agents.yaml      # Agent registry
@@ -374,12 +397,11 @@ Each agent is defined in `.claude/agents/` with:
 - YAML frontmatter (name, description, tools, model)
 - Markdown body with role, responsibilities, schemas, and workflows
 
-English versions (`.md`) are used by Claude during execution.
-Korean versions (`.kr.md`) are provided for developer reference.
+Agent prompt files (`.md`) are in English and used by Claude during execution.
 
 ## Document Frontmatter
 
-All documents generated by the pipeline (PRD, SRS, SDS) include structured YAML frontmatter for machine-readable metadata:
+All documents generated by the pipeline (PRD, SRS, SDP, SDS, DBS, TM, SVP, TD, UI) include structured YAML frontmatter for machine-readable metadata:
 
 ```yaml
 ---

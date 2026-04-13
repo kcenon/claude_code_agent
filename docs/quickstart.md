@@ -95,40 +95,67 @@ claude "Implement a REST API endpoint for user registration with email and passw
 
 This starts the automated pipeline. Claude will:
 
-1. Collect and clarify requirements
-2. Generate documentation (PRD, SRS, SDS)
-3. Create GitHub issues
-4. Implement the code
-5. Create and review PRs
+1. Detect project mode (Greenfield, Enhancement, or Import)
+2. Collect and clarify requirements
+3. Generate documentation (PRD, SRS, SDP, SDS, DBS, TM, SVP, TD, UI Specs)
+4. Create GitHub issues from design components
+5. Implement the code in parallel
+6. Validate and review the results
 
 ---
 
 ## Step 4: Watch the Pipeline (2+ minutes)
 
-The pipeline runs through these stages:
+The Greenfield pipeline runs through 19 stages, grouped into logical phases.
+Here is a simplified view of the key phases:
 
 ```
-Stage                    Status
-─────────────────────────────────
-[1/7] Collecting         ✅ Complete
-[2/7] Writing PRD        ✅ Complete
-[3/7] Writing SRS        ✅ Complete
-[4/7] Writing SDS        ✅ Complete
-[5/7] Creating Issues    ✅ Complete
-[6/7] Implementing       🔄 In Progress (3/5 issues)
-[7/7] Reviewing PRs      ⏳ Pending
+Phase                         Status
+──────────────────────────────────────────
+[Setup]
+  Initialization              Done
+  Mode Detection              Done
+[Requirements]
+  Collection                  Done
+  PRD Generation              Done
+  SRS Generation              Done
+[Design]
+  SDP Generation              Done
+  SDS + DBS Generation        Done
+  Parallel Analysis (TM/TD/UI) Done
+[Planning]
+  Issue Generation            Done
+  SVP Generation              Done
+[Execution]
+  Implementation              In Progress (3/5 issues)
+  Validation                  Pending
+  Review                      Pending
+  Doc Indexing                Pending
 ```
 
 ### What's Happening?
 
-1. **Collector Agent** analyzes your requirements
-2. **PRD Writer** creates a Product Requirements Document
-3. **SRS Writer** creates a Software Requirements Specification
-4. **SDS Writer** creates a Software Design Specification
-5. **Issue Generator** breaks down work into GitHub issues
-6. **Controller** assigns work to Worker agents
-7. **Workers** implement code for each issue
-8. **PR Reviewer** creates PRs and performs code review
+The pipeline coordinates specialized agents across each phase:
+
+**Setup** -- The **Project Initializer** creates the project structure, then the
+**Mode Detector** identifies whether this is a Greenfield, Enhancement, or Import project.
+
+**Requirements** -- The **Collector** gathers requirements from text, files, and URLs.
+The **PRD Writer** produces a Product Requirements Document, and the **SRS Writer**
+produces a Software Requirements Specification.
+
+**Design** -- The **SDP Writer** generates a Software Development Plan. The **SDS Writer**
+generates a Software Design Specification along with a Database Specification (DBS).
+Then the **TM Writer**, **TD Writer**, and **UI Writer** run in parallel to produce a
+Threat Model, Tech Decisions document, and UI Specs.
+
+**Planning** -- The **Issue Generator** creates GitHub Issues from the SDS components.
+The **SVP Writer** creates a Software Verification Plan.
+
+**Execution** -- The **Controller** distributes work to **Worker** agents that implement
+code in parallel. The **Validation Agent** checks the implementation against requirements.
+The **PR Reviewer** performs automated code review. Finally, the **Doc Index Generator**
+creates a searchable documentation index.
 
 ---
 
@@ -139,7 +166,8 @@ When the pipeline completes, review what was created:
 ```bash
 # View generated documents
 ls docs/
-# PRD-001.md  SRS-001.md  SDS-001.md
+# PRD-001.md  SRS-001.md  SDP-001.md  SDS-001.md  DBS-001.md
+# TM-001.md   SVP-001.md  TD-001.md   UI-001.md
 
 # View the PRD
 cat docs/PRD-001.md
@@ -156,11 +184,17 @@ ls src/
 
 ### Example Output
 
-**Documents Generated:**
+**Documents Generated (up to 9 types):**
 
-- `docs/PRD-001.md` - Product requirements
-- `docs/SRS-001.md` - Functional requirements
-- `docs/SDS-001.md` - Technical design
+- `docs/PRD-001.md` - Product Requirements Document
+- `docs/SRS-001.md` - Software Requirements Specification
+- `docs/SDP-001.md` - Software Development Plan
+- `docs/SDS-001.md` - Software Design Specification
+- `docs/DBS-001.md` - Database Specification
+- `docs/TM-001.md` - Threat Model
+- `docs/SVP-001.md` - Software Verification Plan
+- `docs/TD-001.md` - Tech Decisions
+- `docs/UI-001.md` - UI Specs
 
 **Issues Created:**
 
@@ -275,17 +309,24 @@ See [FAQ](faq.md) for more troubleshooting tips.
 | `ad-sdlc resume`   | Resume from checkpoint |
 | `ad-sdlc reset`    | Reset pipeline state   |
 
-### Pipeline Stages
+### Pipeline Stages (Greenfield -- 19 stages)
 
-| Stage          | Agent           | Output            |
-| -------------- | --------------- | ----------------- |
-| Collection     | Collector       | Requirements data |
-| PRD            | PRD Writer      | `docs/PRD-*.md`   |
-| SRS            | SRS Writer      | `docs/SRS-*.md`   |
-| SDS            | SDS Writer      | `docs/SDS-*.md`   |
-| Issues         | Issue Generator | GitHub Issues     |
-| Implementation | Worker(s)       | `src/*`           |
-| Review         | PR Reviewer     | Pull Requests     |
+| Stage             | Agent                | What it Does                                      |
+| ----------------- | -------------------- | ------------------------------------------------- |
+| Initialization    | Project Initializer  | Sets up project structure                         |
+| Mode Detection    | Mode Detector        | Detects Greenfield/Enhancement/Import             |
+| Collection        | Collector            | Gathers requirements from text, files, URLs       |
+| PRD Generation    | PRD Writer           | Generates Product Requirements Document           |
+| SRS Generation    | SRS Writer           | Generates Software Requirements Specification     |
+| SDP Generation    | SDP Writer           | Generates Software Development Plan               |
+| SDS Generation    | SDS Writer           | Generates Software Design Specification + DBS     |
+| Parallel Analysis | TM/TD/UI Writers     | Threat Model, Tech Decisions, UI Specs (parallel) |
+| Issue Generation  | Issue Generator      | Creates GitHub Issues from SDS components         |
+| SVP Generation    | SVP Writer           | Creates Software Verification Plan                |
+| Implementation    | Controller + Workers | Distributes and implements work in parallel       |
+| Validation        | Validation Agent     | Validates implementation against requirements     |
+| Review            | PR Reviewer          | Automated code review and quality gates           |
+| Doc Indexing      | Doc Index Generator  | Creates searchable documentation index            |
 
 ---
 
