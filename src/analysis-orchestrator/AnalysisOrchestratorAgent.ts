@@ -504,7 +504,7 @@ export class AnalysisOrchestratorAgent implements IAgent {
       await loadYaml();
       const parsed = yaml?.load(content);
       if (parsed !== null && typeof parsed === 'object' && 'pipeline_state' in parsed) {
-        return this.parsePipelineState((parsed).pipeline_state);
+        return this.parsePipelineState(parsed.pipeline_state);
       }
       throw new StateReadError(statePath, 'Invalid state format');
     } catch (error) {

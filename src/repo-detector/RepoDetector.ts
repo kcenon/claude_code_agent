@@ -373,7 +373,7 @@ export class RepoDetector implements IAgent {
           owner: owner ?? null,
           name: name ?? null,
           url: repoInfo.url ?? null,
-          visibility: (repoInfo.isPrivate === true ? 'private' : 'public'),
+          visibility: repoInfo.isPrivate === true ? 'private' : 'public',
           defaultBranch: repoInfo.defaultBranchRef?.name ?? null,
         };
       }

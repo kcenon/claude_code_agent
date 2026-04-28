@@ -500,8 +500,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
         // Rewire dependencies from github_repo_setup to repo_detection
         const filtered = s.dependsOn.filter((d) => d !== 'github_repo_setup');
         const needsRewire =
-          s.dependsOn.includes('github_repo_setup') &&
-          !s.dependsOn.includes('repo_detection');
+          s.dependsOn.includes('github_repo_setup') && !s.dependsOn.includes('repo_detection');
         const dependsOn = (
           needsRewire ? [...filtered, 'repo_detection'] : [...filtered]
         ) as typeof s.dependsOn;

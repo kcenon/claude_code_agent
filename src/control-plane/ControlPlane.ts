@@ -310,9 +310,7 @@ export class ControlPlane {
    */
   async startAnalysis(input: AnalysisInput): Promise<AnalysisSession> {
     try {
-      const orchestrator = getAnalysisOrchestratorAgent(
-        this.options.orchestrator
-      );
+      const orchestrator = getAnalysisOrchestratorAgent(this.options.orchestrator);
       return await orchestrator.startAnalysis(input);
     } catch (error) {
       throw this.wrapError(
@@ -338,9 +336,7 @@ export class ControlPlane {
     retryFailed: boolean = true
   ): Promise<AnalysisSession> {
     try {
-      const orchestrator = getAnalysisOrchestratorAgent(
-        this.options.orchestrator
-      );
+      const orchestrator = getAnalysisOrchestratorAgent(this.options.orchestrator);
       return await orchestrator.resume(analysisId, rootPath, retryFailed);
     } catch (error) {
       throw this.wrapError(
@@ -361,9 +357,7 @@ export class ControlPlane {
    */
   async getAnalysisStatus(analysisId: string, rootPath: string): Promise<PipelineState> {
     try {
-      const orchestrator = getAnalysisOrchestratorAgent(
-        this.options.orchestrator
-      );
+      const orchestrator = getAnalysisOrchestratorAgent(this.options.orchestrator);
       return await orchestrator.getStatus(analysisId, rootPath);
     } catch (error) {
       throw this.wrapError(

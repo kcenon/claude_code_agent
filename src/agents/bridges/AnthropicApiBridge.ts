@@ -474,9 +474,8 @@ export class AnthropicApiBridge implements AgentBridge {
       return this.client;
     }
 
-     
     const module = await import('@anthropic-ai/sdk');
-     
+
     const AnthropicConstructor = module.default as new (opts: { apiKey?: string }) => unknown;
     this.client = new AnthropicConstructor({
       ...(this.apiKey !== undefined && { apiKey: this.apiKey }),

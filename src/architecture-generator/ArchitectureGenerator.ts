@@ -101,9 +101,7 @@ export class ArchitectureGenerator implements IAgent {
     };
 
     this.srsParser = new SRSParser(parserOptions);
-    this.analyzer = new ArchitectureAnalyzer(
-      this.config.defaultOptions.defaultPattern
-    );
+    this.analyzer = new ArchitectureAnalyzer(this.config.defaultOptions.defaultPattern);
     this.diagramGenerator = new DiagramGenerator(
       this.config.defaultOptions.generateAllDiagrams ?? false
     );
