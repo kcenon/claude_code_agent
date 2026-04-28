@@ -504,7 +504,7 @@ export class AnalysisOrchestratorAgent implements IAgent {
       await loadYaml();
       const parsed = yaml?.load(content);
       if (parsed !== null && typeof parsed === 'object' && 'pipeline_state' in parsed) {
-        return this.parsePipelineState((parsed as { pipeline_state: unknown }).pipeline_state);
+        return this.parsePipelineState((parsed).pipeline_state);
       }
       throw new StateReadError(statePath, 'Invalid state format');
     } catch (error) {
@@ -901,7 +901,7 @@ export class AnalysisOrchestratorAgent implements IAgent {
         if (stageName === undefined) {
           // This should never happen, but handle it gracefully
           return {
-            stage: 'document_reader' as PipelineStageName,
+            stage: 'document_reader',
             status: 'rejected' as const,
             result: null,
             error: 'Internal error: stage index out of bounds',

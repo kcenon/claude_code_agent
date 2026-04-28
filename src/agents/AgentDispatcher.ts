@@ -387,8 +387,8 @@ export class AgentDispatcher {
     // Strategy 3: Default export
     if (mod['default'] !== undefined) {
       const defaultExport = mod['default'];
-      if (isAgent(defaultExport as Record<string, unknown>)) {
-        return defaultExport as IAgent;
+      if (isAgent(defaultExport)) {
+        return defaultExport;
       }
       if (typeof defaultExport === 'function') {
         try {
@@ -480,7 +480,7 @@ export class AgentDispatcher {
 
       // Preserve access to the wrapped instance for adapters
       ...({ _wrapped: instance } as Record<string, unknown>),
-    } as IAgent;
+    };
   }
 
   // ---------------------------------------------------------------------------

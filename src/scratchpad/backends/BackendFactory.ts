@@ -72,7 +72,7 @@ export class BackendFactory {
 
       default:
         throw new BackendCreationError(
-          backendType as BackendType,
+          backendType,
           `Unknown backend type: ${String(backendType)}. Supported types: file, sqlite, redis`
         );
     }

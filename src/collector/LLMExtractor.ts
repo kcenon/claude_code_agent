@@ -83,6 +83,8 @@ export class LLMExtractor {
 
   /**
    * Build the prompt sent to the LLM for extraction.
+   * @param text
+   * @param context
    */
   private buildExtractionPrompt(text: string, context?: string): string {
     const contextBlock =
@@ -121,6 +123,7 @@ ${text}${contextBlock}`;
 
   /**
    * Parse and validate LLM output, converting it to ExtractionResult format.
+   * @param output
    */
   private parseExtraction(output: string): ExtractionResult {
     const jsonMatch = output.match(/\{[\s\S]*\}/);
@@ -136,6 +139,7 @@ ${text}${contextBlock}`;
 
   /**
    * Convert validated LLM output to the ExtractionResult format used by the collector pipeline.
+   * @param llmResult
    */
   private toExtractionResult(llmResult: LLMExtractionResult): ExtractionResult {
     let frIndex = 0;
@@ -224,6 +228,7 @@ ${text}${contextBlock}`;
 
   /**
    * Map a free-form category string to a known NFR category.
+   * @param category
    */
   private mapCategory(
     category: string
@@ -253,6 +258,7 @@ ${text}${contextBlock}`;
 
   /**
    * Map a free-form category string to a known constraint type.
+   * @param category
    */
   private mapConstraintType(
     category: string

@@ -207,7 +207,7 @@ export class StateWatcherManager implements IStateWatcher {
         const callback = this.watcherCallbacks.get(watcherId);
         if (callback) {
           try {
-            callback(event as StateChangeEvent);
+            callback(event);
           } catch (error) {
             getLogger().debug('State change notification callback error', {
               agent: 'StateWatcher',

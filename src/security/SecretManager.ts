@@ -28,8 +28,8 @@ const DEFAULT_REQUIRED_SECRETS = [...CORE_REQUIRED_SECRETS, ...GITHUB_REQUIRED_S
  */
 export function getRequiredSecrets(localMode: boolean): readonly string[] {
   return localMode
-    ? (CORE_REQUIRED_SECRETS as readonly string[])
-    : (DEFAULT_REQUIRED_SECRETS as readonly string[]);
+    ? (CORE_REQUIRED_SECRETS)
+    : (DEFAULT_REQUIRED_SECRETS);
 }
 
 /**

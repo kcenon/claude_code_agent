@@ -113,7 +113,7 @@ export class AgentRegistry {
       };
     }
 
-    this.agents.set(metadata.agentId, metadata as AgentMetadata);
+    this.agents.set(metadata.agentId, metadata);
 
     return {
       success: true,

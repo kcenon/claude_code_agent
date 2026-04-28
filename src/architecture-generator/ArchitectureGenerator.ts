@@ -25,7 +25,6 @@ import type {
   ArchitectureDesign,
   ArchitectureGeneratorOptions,
   SRSParserOptions,
-  ArchitecturePattern,
 } from './types.js';
 import { ARCHITECTURE_SCHEMA_VERSION } from './schemas.js';
 
@@ -103,7 +102,7 @@ export class ArchitectureGenerator implements IAgent {
 
     this.srsParser = new SRSParser(parserOptions);
     this.analyzer = new ArchitectureAnalyzer(
-      this.config.defaultOptions.defaultPattern as ArchitecturePattern
+      this.config.defaultOptions.defaultPattern
     );
     this.diagramGenerator = new DiagramGenerator(
       this.config.defaultOptions.generateAllDiagrams ?? false

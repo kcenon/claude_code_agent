@@ -61,6 +61,16 @@ interface MermaidBlock {
  * @param lines
  * @param lines
  * @param lines
+ * @param lines
+ * @param lines
+ * @param lines
+ * @param lines
+ * @param lines
+ * @param lines
+ * @param lines
+ * @param lines
+ * @param lines
+ * @param lines
  */
 export function findMermaidBlocks(lines: readonly string[]): readonly MermaidBlock[] {
   const blocks: MermaidBlock[] = [];

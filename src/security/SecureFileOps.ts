@@ -745,7 +745,7 @@ export class SecureFileOps {
           watcherId,
           changedRelativePath,
           changedPath,
-          eventType as 'change' | 'rename',
+          eventType,
           debounceMs
         );
       }

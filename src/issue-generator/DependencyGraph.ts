@@ -10,7 +10,6 @@ import type {
   DependencyGraph as DependencyGraphType,
   DependencyNode,
   DependencyEdge,
-  DependencyType,
   ParallelGroup,
 } from './types.js';
 import { ComponentNotFoundError } from './errors.js';
@@ -260,7 +259,7 @@ export class DependencyGraphBuilder {
         edges.push({
           from: node.id,
           to: depId,
-          type: 'blocked_by' as DependencyType,
+          type: 'blocked_by',
         });
       }
     }

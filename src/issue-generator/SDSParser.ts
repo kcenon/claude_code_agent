@@ -213,7 +213,7 @@ export class SDSParser {
       id: '',
       name: '',
       sourceFeature: null,
-      priority: 'P1' as Priority,
+      priority: 'P1',
     };
   }
 

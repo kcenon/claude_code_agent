@@ -133,7 +133,7 @@ function generateUserFriendlyMessage(issue: ZodIssue, path: string): string {
 
   switch (code) {
     case 'invalid_type': {
-      const typedIssue = issue as core.$ZodIssueInvalidType;
+      const typedIssue = issue;
       const expected = typedIssue.expected;
       const inputType = detectInputType(typedIssue.input);
       if (inputType === 'undefined') {
@@ -147,7 +147,7 @@ function generateUserFriendlyMessage(issue: ZodIssue, path: string): string {
     }
 
     case 'invalid_value': {
-      const typedIssue = issue as core.$ZodIssueInvalidValue;
+      const typedIssue = issue;
       const values = typedIssue.values.slice(0, 5).map(String).join(', ');
       const more =
         typedIssue.values.length > 5 ? `, ... (${String(typedIssue.values.length - 5)} more)` : '';
@@ -155,7 +155,7 @@ function generateUserFriendlyMessage(issue: ZodIssue, path: string): string {
     }
 
     case 'too_small': {
-      const typedIssue = issue as core.$ZodIssueTooSmall;
+      const typedIssue = issue;
       const origin = typedIssue.origin;
       if (origin === 'array') {
         return `${fieldDesc} must have at least ${String(typedIssue.minimum)} item(s)`;
@@ -170,7 +170,7 @@ function generateUserFriendlyMessage(issue: ZodIssue, path: string): string {
     }
 
     case 'too_big': {
-      const typedIssue = issue as core.$ZodIssueTooBig;
+      const typedIssue = issue;
       const origin = typedIssue.origin;
       if (origin === 'array') {
         return `${fieldDesc} must have at most ${String(typedIssue.maximum)} item(s)`;
@@ -248,7 +248,7 @@ function generateSuggestion(issue: ZodIssue, path: string): string | undefined {
 
   switch (code) {
     case 'invalid_type': {
-      const typedIssue = issue as core.$ZodIssueInvalidType;
+      const typedIssue = issue;
       const inputType = detectInputType(typedIssue.input);
       if (inputType === 'undefined') {
         return `Add the required field '${path}' to your configuration`;
@@ -257,7 +257,7 @@ function generateSuggestion(issue: ZodIssue, path: string): string | undefined {
     }
 
     case 'invalid_value': {
-      const typedIssue = issue as core.$ZodIssueInvalidValue;
+      const typedIssue = issue;
       if (typedIssue.values.length <= 5) {
         return `Use one of: ${typedIssue.values.map(String).join(', ')}`;
       }
@@ -265,7 +265,7 @@ function generateSuggestion(issue: ZodIssue, path: string): string | undefined {
     }
 
     case 'too_small': {
-      const typedIssue = issue as core.$ZodIssueTooSmall;
+      const typedIssue = issue;
       if (typedIssue.origin === 'array') {
         return `Add at least ${String(typedIssue.minimum)} item(s) to the list`;
       }

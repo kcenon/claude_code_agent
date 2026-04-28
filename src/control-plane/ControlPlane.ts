@@ -275,7 +275,7 @@ export class ControlPlane {
     overrideMode?: PipelineMode
   ): Promise<ModeDetectionResult> {
     try {
-      const detector = getModeDetector(this.options.modeDetector as ModeDetectorConfig | undefined);
+      const detector = getModeDetector(this.options.modeDetector);
       detector.startSession(projectId, rootPath, userInput);
       return await detector.detect(overrideMode);
     } catch (error) {
@@ -294,7 +294,7 @@ export class ControlPlane {
    * @returns Active session or null
    */
   getModeDetectionSession(): ModeDetectionSession | null {
-    const detector = getModeDetector(this.options.modeDetector as ModeDetectorConfig | undefined);
+    const detector = getModeDetector(this.options.modeDetector);
     return detector.getSession();
   }
 
@@ -311,7 +311,7 @@ export class ControlPlane {
   async startAnalysis(input: AnalysisInput): Promise<AnalysisSession> {
     try {
       const orchestrator = getAnalysisOrchestratorAgent(
-        this.options.orchestrator as AnalysisOrchestratorConfig | undefined
+        this.options.orchestrator
       );
       return await orchestrator.startAnalysis(input);
     } catch (error) {
@@ -339,7 +339,7 @@ export class ControlPlane {
   ): Promise<AnalysisSession> {
     try {
       const orchestrator = getAnalysisOrchestratorAgent(
-        this.options.orchestrator as AnalysisOrchestratorConfig | undefined
+        this.options.orchestrator
       );
       return await orchestrator.resume(analysisId, rootPath, retryFailed);
     } catch (error) {
@@ -362,7 +362,7 @@ export class ControlPlane {
   async getAnalysisStatus(analysisId: string, rootPath: string): Promise<PipelineState> {
     try {
       const orchestrator = getAnalysisOrchestratorAgent(
-        this.options.orchestrator as AnalysisOrchestratorConfig | undefined
+        this.options.orchestrator
       );
       return await orchestrator.getStatus(analysisId, rootPath);
     } catch (error) {
