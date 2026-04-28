@@ -232,7 +232,7 @@ export class ElasticsearchTransport extends BaseTransport {
     }
 
     const response = await this.client.bulk({
-      operations: operations as unknown[],
+      operations: operations,
       refresh: false,
     });
 

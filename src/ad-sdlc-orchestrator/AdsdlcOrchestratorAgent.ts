@@ -500,10 +500,9 @@ export class AdsdlcOrchestratorAgent implements IAgent {
         // Rewire dependencies from github_repo_setup to repo_detection
         const filtered = s.dependsOn.filter((d) => d !== 'github_repo_setup');
         const needsRewire =
-          s.dependsOn.includes('github_repo_setup' as StageName) &&
-          !s.dependsOn.includes('repo_detection' as StageName);
+          s.dependsOn.includes('github_repo_setup') && !s.dependsOn.includes('repo_detection');
         const dependsOn = (
-          needsRewire ? [...filtered, 'repo_detection' as StageName] : [...filtered]
+          needsRewire ? [...filtered, 'repo_detection'] : [...filtered]
         ) as typeof s.dependsOn;
 
         // Substitute GitHub-dependent agent types with local alternatives
@@ -924,7 +923,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
       return {
         name: invocation.stageName,
         agentType: invocation.agentType,
-        status: 'failed' as PipelineStageStatus,
+        status: 'failed',
         durationMs: 0,
         output: '',
         artifacts: [...invocation.outputs],

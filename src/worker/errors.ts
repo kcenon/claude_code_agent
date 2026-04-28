@@ -908,7 +908,7 @@ export function createWorkerErrorInfo(
     category: errorInfo.category,
     code: errorInfo.code,
     message: errorInfo.message,
-    context: errorInfo.context as Record<string, unknown>,
+    context: errorInfo.context,
     retryable: errorInfo.retryable,
     suggestedAction: errorInfo.suggestedAction,
   };

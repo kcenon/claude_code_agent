@@ -37,6 +37,7 @@ export class ClaudeCodeBridge implements AgentBridge {
 
   /**
    * Check if the agent definition file exists for this type.
+   * @param _agentType
    */
   supports(_agentType: string): boolean {
     // All types are supported when inside a Claude Code session.
@@ -44,6 +45,10 @@ export class ClaudeCodeBridge implements AgentBridge {
     return true;
   }
 
+  /**
+   *
+   * @param request
+   */
   async execute(request: AgentRequest): Promise<AgentResponse> {
     const sessionDir = this.getSessionDir(request);
     const inputPath = path.join(sessionDir, 'input', `${request.agentType}.json`);
@@ -69,6 +74,9 @@ export class ClaudeCodeBridge implements AgentBridge {
     }
   }
 
+  /**
+   *
+   */
   dispose(): Promise<void> {
     // No persistent resources to clean up
     return Promise.resolve();
@@ -76,6 +84,7 @@ export class ClaudeCodeBridge implements AgentBridge {
 
   /**
    * Determine the session-specific directory for agent I/O.
+   * @param request
    */
   private getSessionDir(request: AgentRequest): string {
     return path.join(request.scratchpadDir, 'bridge');
@@ -83,6 +92,8 @@ export class ClaudeCodeBridge implements AgentBridge {
 
   /**
    * Write agent input to the scratchpad for the sub-agent to consume.
+   * @param inputPath
+   * @param request
    */
   private async writeAgentInput(inputPath: string, request: AgentRequest): Promise<void> {
     await fs.mkdir(path.dirname(inputPath), { recursive: true });
@@ -102,6 +113,7 @@ export class ClaudeCodeBridge implements AgentBridge {
 
   /**
    * Poll for the output file with configurable timeout.
+   * @param outputPath
    */
   private async waitForAgentOutput(outputPath: string): Promise<string> {
     const deadline = Date.now() + this.timeoutMs;
@@ -128,6 +140,7 @@ export class ClaudeCodeBridge implements AgentBridge {
 
   /**
    * Parse the output file content into an AgentResponse.
+   * @param content
    */
   private parseOutput(content: string): AgentResponse {
     try {

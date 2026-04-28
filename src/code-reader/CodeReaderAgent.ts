@@ -51,7 +51,6 @@ import type {
   EnumInfo,
   EnumMemberInfo,
   ExportInfo,
-  ExportType,
   ExternalDependency,
   FunctionInfo,
   ImportInfo,
@@ -174,7 +173,7 @@ export class CodeReaderAgent {
         const filePath = d.getSourceFile()?.getFilePath();
         const code = d.getCode();
         return (
-          (d.getCategory() as number) === 1 &&
+          d.getCategory() === tsMorph.DiagnosticCategory.Error &&
           code >= 1000 &&
           code < 2000 &&
           filePath !== undefined &&
@@ -454,7 +453,7 @@ export class CodeReaderAgent {
         for (const namedExport of exportDecl.getNamedExports()) {
           exports.push({
             name: namedExport.getName(),
-            type: 'const' as ExportType, // Default, actual type determined elsewhere
+            type: 'const', // Default, actual type determined elsewhere
             isDefault: false,
             isReExport: moduleSpecifier !== undefined,
             sourceModule: moduleSpecifier,

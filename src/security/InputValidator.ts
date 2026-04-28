@@ -105,7 +105,7 @@ export class InputValidator {
     }
     if (options.symlinkPolicy !== undefined) {
       (symlinkResolverOptions as { symlinkPolicy: SymlinkPolicy }).symlinkPolicy =
-        options.symlinkPolicy as SymlinkPolicy;
+        options.symlinkPolicy;
     }
     if (options.caseInsensitive !== undefined) {
       (symlinkResolverOptions as { caseInsensitive: boolean }).caseInsensitive =

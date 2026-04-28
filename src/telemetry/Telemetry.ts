@@ -479,7 +479,7 @@ export class Telemetry {
           parsed !== null &&
           typeof parsed === 'object' &&
           'status' in parsed &&
-          typeof (parsed as { status: unknown }).status === 'string' &&
+          typeof parsed.status === 'string' &&
           VALID_CONSENT_STATUSES.includes((parsed as { status: string }).status as ConsentStatus)
         ) {
           this.consentRecord = parsed as ConsentRecord;

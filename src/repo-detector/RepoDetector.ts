@@ -26,7 +26,6 @@ import type {
   DetectionRecommendation,
   RepositoryMode,
   RemoteType,
-  RepositoryVisibility,
   DetectionStats,
 } from './types.js';
 
@@ -374,7 +373,7 @@ export class RepoDetector implements IAgent {
           owner: owner ?? null,
           name: name ?? null,
           url: repoInfo.url ?? null,
-          visibility: (repoInfo.isPrivate === true ? 'private' : 'public') as RepositoryVisibility,
+          visibility: repoInfo.isPrivate === true ? 'private' : 'public',
           defaultBranch: repoInfo.defaultBranchRef?.name ?? null,
         };
       }

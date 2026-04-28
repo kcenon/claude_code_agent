@@ -130,7 +130,7 @@ export const GREENFIELD_ARTIFACTS: readonly StageArtifactMap[] = [
     ],
   },
   {
-    stage: 'validation' as StageName,
+    stage: 'validation',
     requiredArtifacts: [
       {
         pathPattern: '.ad-sdlc/scratchpad/vnv/*/rtm.yaml',
@@ -145,7 +145,7 @@ export const GREENFIELD_ARTIFACTS: readonly StageArtifactMap[] = [
     ],
   },
   {
-    stage: 'doc_indexing' as StageName,
+    stage: 'doc_indexing',
     requiredArtifacts: [
       {
         pathPattern: 'docs/.index/manifest.yaml',
@@ -266,7 +266,7 @@ export const ENHANCEMENT_ARTIFACTS: readonly StageArtifactMap[] = [
     ],
   },
   {
-    stage: 'validation' as StageName,
+    stage: 'validation',
     requiredArtifacts: [
       {
         pathPattern: '.ad-sdlc/scratchpad/vnv/*/rtm.yaml',
@@ -281,7 +281,7 @@ export const ENHANCEMENT_ARTIFACTS: readonly StageArtifactMap[] = [
     ],
   },
   {
-    stage: 'doc_indexing' as StageName,
+    stage: 'doc_indexing',
     requiredArtifacts: [
       {
         pathPattern: 'docs/.index/manifest.yaml',
@@ -297,7 +297,7 @@ export const ENHANCEMENT_ARTIFACTS: readonly StageArtifactMap[] = [
  */
 export const IMPORT_ARTIFACTS: readonly StageArtifactMap[] = [
   {
-    stage: 'validation' as StageName,
+    stage: 'validation',
     requiredArtifacts: [
       {
         pathPattern: '.ad-sdlc/scratchpad/vnv/*/rtm.yaml',

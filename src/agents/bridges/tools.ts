@@ -129,6 +129,7 @@ export const ALL_TOOL_DEFINITIONS: readonly BridgeToolDefinition[] = [
 
 /**
  * Get tool definitions filtered by allowed tool names.
+ * @param allowedTools
  */
 export function getToolDefinitions(allowedTools?: readonly string[]): BridgeToolDefinition[] {
   if (!allowedTools || allowedTools.length === 0) {
@@ -142,6 +143,9 @@ export function getToolDefinitions(allowedTools?: readonly string[]): BridgeTool
  *
  * All file paths are resolved relative to `projectDir` and validated
  * to prevent path traversal.
+ * @param toolName
+ * @param input
+ * @param projectDir
  */
 export async function executeTool(
   toolName: string,
@@ -204,6 +208,7 @@ async function executeWriteFile(
 /**
  * Convert a simple glob pattern to a RegExp.
  * Supports: `*` (any non-slash), `**(slash)` (any directory depth), `?` (single char).
+ * @param pattern
  */
 function globToRegex(pattern: string): RegExp {
   let re = '';
@@ -236,6 +241,7 @@ function globToRegex(pattern: string): RegExp {
 /**
  * List all files recursively under projectDir, excluding dotfiles,
  * and return paths relative to projectDir.
+ * @param projectDir
  */
 async function listAllFiles(projectDir: string): Promise<string[]> {
   const entries = await fs.readdir(projectDir, { recursive: true });

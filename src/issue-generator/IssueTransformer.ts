@@ -16,8 +16,6 @@ import type {
   IssueEstimation,
   IssueGeneratorOptions,
   TraceabilityEntry,
-  IssueType,
-  EffortSize,
 } from './types.js';
 import { EffortEstimator } from './EffortEstimator.js';
 import { IssueTransformError } from './errors.js';
@@ -136,7 +134,7 @@ export class IssueTransformer {
     // Create a parent issue for tracking
     const parentId = this.generateIssueId();
     const parentEstimation: IssueEstimation = {
-      size: 'L' as EffortSize,
+      size: 'L',
       hours: 16,
       factors: {
         complexity: 7,
@@ -156,7 +154,7 @@ export class IssueTransformer {
       githubNumber: null,
       title: `[Epic] ${this.generateTitle(component)}`,
       body: this.generateEpicBody(component, suggestions, parentTraceability),
-      labels: { ...parentLabels, type: 'feature' as IssueType },
+      labels: { ...parentLabels, type: 'feature' },
       milestone: this.options.milestone || null,
       assignees: [],
       dependencies: parentDependencies,
@@ -172,7 +170,7 @@ export class IssueTransformer {
 
       const subIssueId = this.generateIssueId();
       const subEstimation: IssueEstimation = {
-        size: 'S' as EffortSize,
+        size: 'S',
         hours: 4,
         factors: {
           complexity: 3,

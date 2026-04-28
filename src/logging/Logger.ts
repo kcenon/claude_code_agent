@@ -26,8 +26,6 @@ import type {
   LogLevel,
   TransportLogEntry,
   TransportConfig,
-  ConsoleTransportConfig,
-  FileTransportConfig,
   ElasticsearchTransportConfig,
   CloudWatchTransportConfig,
   MaskingPattern,
@@ -1452,7 +1450,7 @@ function createTransportConfigFromEnv(
         type: 'console',
         format: (process.env[`${prefix}_CONSOLE_FORMAT`] ?? 'pretty') as 'json' | 'pretty',
         colors: process.env[`${prefix}_CONSOLE_COLORS`] !== 'false',
-      } as ConsoleTransportConfig;
+      };
 
     case 'file':
       return {
@@ -1460,7 +1458,7 @@ function createTransportConfigFromEnv(
         path: process.env[`${prefix}_FILE_PATH`] ?? getPath('logs'),
         maxFileSize: parseInt(process.env[`${prefix}_FILE_MAX_SIZE`] ?? '10485760', 10),
         maxFiles: parseInt(process.env[`${prefix}_FILE_MAX_FILES`] ?? '5', 10),
-      } as FileTransportConfig;
+      };
 
     case 'elasticsearch': {
       const nodes = process.env[`${prefix}_ES_NODES`];

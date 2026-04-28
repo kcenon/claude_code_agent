@@ -11,7 +11,7 @@ import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import yaml from 'js-yaml';
-import type { ScratchpadBackendConfig, BackendType } from './types.js';
+import type { ScratchpadBackendConfig } from './types.js';
 import { tryGetProjectRoot } from '../../utils/index.js';
 import { DEFAULT_PATHS } from '../../config/paths.js';
 
@@ -230,7 +230,7 @@ function convertToBackendConfig(raw: RawScratchpadConfig): ScratchpadBackendConf
     raw.backend !== '' &&
     ['file', 'sqlite', 'redis'].includes(raw.backend)
   ) {
-    config.backend = raw.backend as BackendType;
+    config.backend = raw.backend;
   }
 
   // File backend config
@@ -310,7 +310,7 @@ function convertToBackendConfig(raw: RawScratchpadConfig): ScratchpadBackendConf
     }
   }
 
-  return config as ScratchpadBackendConfig;
+  return config;
 }
 
 /**
@@ -328,7 +328,7 @@ function applyEnvVarOverrides(config: ScratchpadBackendConfig): ScratchpadBacken
     backendType !== '' &&
     ['file', 'sqlite', 'redis'].includes(backendType)
   ) {
-    result.backend = backendType as BackendType;
+    result.backend = backendType;
   }
 
   // Apply Redis env vars
@@ -367,7 +367,7 @@ function applyEnvVarOverrides(config: ScratchpadBackendConfig): ScratchpadBacken
     result.file = { ...existingFile, basePath: filePath };
   }
 
-  return result as ScratchpadBackendConfig;
+  return result;
 }
 
 // ============================================================

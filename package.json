@@ -64,7 +64,7 @@
     "node": ">=18.0.0"
   },
   "devDependencies": {
-    "@aws-sdk/client-cloudwatch-logs": "^3.1032.0",
+    "@aws-sdk/client-cloudwatch-logs": "^3.1038.0",
     "@elastic/elasticsearch": "^9.3.4",
     "@eslint/js": "^10.0.1",
     "@opentelemetry/api": "^1.9.1",
@@ -78,9 +78,9 @@
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^25.6.0",
     "@types/pdf-parse": "^1.1.5",
-    "@typescript-eslint/eslint-plugin": "^8.58.2",
-    "@typescript-eslint/parser": "^8.58.2",
-    "@vitest/coverage-v8": "^4.1.4",
+    "@typescript-eslint/eslint-plugin": "^8.59.1",
+    "@typescript-eslint/parser": "^8.59.1",
+    "@vitest/coverage-v8": "^4.1.5",
     "better-sqlite3": "^12.9.0",
     "eslint": "^10.2.1",
     "eslint-config-prettier": "^10.1.8",
@@ -95,7 +95,7 @@
     "typedoc": "^0.28.19",
     "typedoc-plugin-markdown": "^4.11.0",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.58.2",
+    "typescript-eslint": "^8.59.1",
     "vitest": "^4.0.16"
   },
   "dependencies": {

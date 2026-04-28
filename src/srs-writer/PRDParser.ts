@@ -294,7 +294,7 @@ export class PRDParser {
   private normalizePriority(priority: string): Priority {
     const upper = priority.toUpperCase();
     if (upper === 'P0' || upper === 'P1' || upper === 'P2' || upper === 'P3') {
-      return upper as Priority;
+      return upper;
     }
     return 'P2';
   }

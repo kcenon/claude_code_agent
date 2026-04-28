@@ -73,7 +73,10 @@ export interface ApiCallMetrics {
   totalTimeouts: number;
 }
 
-/** Returns true for errors that warrant a retry (429, 529, 5xx, connection). */
+/**
+ * Returns true for errors that warrant a retry (429, 529, 5xx, connection).
+ * @param error
+ */
 function isRetryableAnthropicError(error: unknown): boolean {
   if (!(error instanceof Error)) return false;
   const status = (error as { status?: number }).status;
@@ -146,11 +149,19 @@ export class AnthropicApiBridge implements AgentBridge {
     return { ...this.apiMetrics };
   }
 
+  /**
+   *
+   * @param _agentType
+   */
   supports(_agentType: string): boolean {
     // Supports all agent types — universal bridge when API key is available
     return true;
   }
 
+  /**
+   *
+   * @param request
+   */
   async execute(request: AgentRequest): Promise<AgentResponse> {
     const client = await this.getClient();
 
@@ -280,6 +291,9 @@ export class AnthropicApiBridge implements AgentBridge {
 
   /**
    * Execute tool_use blocks from an API response and return results.
+   * @param content
+   * @param request
+   * @param artifacts
    */
   private async executeToolBlocks(
     content: readonly ContentBlock[],
@@ -314,6 +328,9 @@ export class AnthropicApiBridge implements AgentBridge {
     return results;
   }
 
+  /**
+   *
+   */
   dispose(): Promise<void> {
     this.client = null;
     return Promise.resolve();
@@ -362,6 +379,9 @@ export class AnthropicApiBridge implements AgentBridge {
   /**
    * Run a single API call with a hard per-call timeout.
    * Rejects with an error flagged as `.isTimeout = true` on expiry.
+   * @param createFn
+   * @param timeoutMs
+   * @param signal
    */
   private withCallTimeout(
     createFn: () => Promise<Record<string, unknown>>,
@@ -406,6 +426,9 @@ export class AnthropicApiBridge implements AgentBridge {
   /**
    * Call the Anthropic API with rate limiting and exponential backoff.
    * Retries on 429/529/5xx errors up to MAX_API_RETRIES times.
+   * @param createFn
+   * @param callTimeoutMs
+   * @param signal
    */
   private async callWithBackoff(
     createFn: () => Promise<Record<string, unknown>>,
@@ -451,9 +474,8 @@ export class AnthropicApiBridge implements AgentBridge {
       return this.client;
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const module = await import('@anthropic-ai/sdk');
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+
     const AnthropicConstructor = module.default as new (opts: { apiKey?: string }) => unknown;
     this.client = new AnthropicConstructor({
       ...(this.apiKey !== undefined && { apiKey: this.apiKey }),
@@ -465,6 +487,7 @@ export class AnthropicApiBridge implements AgentBridge {
   /**
    * Load agent definition from .claude/agents/<agentType>.md
    * Strips YAML frontmatter, returning only the markdown body.
+   * @param agentType
    */
   private async loadAgentDefinition(agentType: string): Promise<string> {
     const defPath = path.resolve(this.agentDefsDir, `${agentType}.md`);
@@ -484,6 +507,7 @@ export class AnthropicApiBridge implements AgentBridge {
 
   /**
    * Strip YAML frontmatter (---\n...\n---) from markdown content.
+   * @param content
    */
   private stripFrontmatter(content: string): string {
     const match = content.match(/^---\r?\n[\s\S]*?\r?\n---\r?\n/);
@@ -495,6 +519,8 @@ export class AnthropicApiBridge implements AgentBridge {
 
   /**
    * Build the system prompt combining agent definition with context.
+   * @param agentDefinition
+   * @param request
    */
   private buildSystemPrompt(agentDefinition: string, request: AgentRequest): string {
     const parts = [agentDefinition];
@@ -514,6 +540,8 @@ export class AnthropicApiBridge implements AgentBridge {
    * Window the message history to keep token costs bounded across multi-turn conversations.
    * Always preserves the first user message (the task description).
    * Returns the last windowSize turn-pairs plus the initial message.
+   * @param messages
+   * @param windowSize
    */
   private windowMessages(
     messages: ConversationMessage[],
@@ -529,6 +557,8 @@ export class AnthropicApiBridge implements AgentBridge {
    * Build the prior stage outputs section with an aggregate size limit.
    * Each stage's output is individually capped at 10KB; the aggregate is capped
    * at maxAggregateBytes. Appends an omission notice if stages are excluded.
+   * @param priorOutputs
+   * @param maxAggregateBytes
    */
   private buildPriorOutputContext(
     priorOutputs: Record<string, string>,
@@ -564,6 +594,7 @@ export class AnthropicApiBridge implements AgentBridge {
 
   /**
    * Build the user message from request input and prior stage outputs.
+   * @param request
    */
   private buildUserMessage(request: AgentRequest): string {
     const parts = [request.input];
@@ -582,6 +613,7 @@ export class AnthropicApiBridge implements AgentBridge {
 
   /**
    * Resolve model preference string to Anthropic model ID.
+   * @param preference
    */
   private resolveModel(preference?: string): string {
     if (preference === undefined || preference === '') return DEFAULT_MODEL;
