@@ -68,7 +68,7 @@ export class MockExecutionAdapter implements ExecutionAdapter {
     if (this.disposed) {
       throw new Error('MockExecutionAdapter: execute called after dispose');
     }
-    if (req.signal?.aborted) {
+    if (req.signal?.aborted === true) {
       return this.abortResult(req);
     }
     this.calls.push(req);
@@ -96,6 +96,7 @@ export class MockExecutionAdapter implements ExecutionAdapter {
     this.calls.length = 0;
   }
 
+  // eslint-disable-next-line @typescript-eslint/require-await
   async dispose(): Promise<void> {
     this.disposed = true;
   }

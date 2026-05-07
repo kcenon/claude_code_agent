@@ -23,7 +23,6 @@
 
 import { AppError } from '../errors/AppError.js';
 import { ErrorSeverity } from '../errors/types.js';
-import type { HookPipeline } from './hooks.js';
 import type {
   ArtifactRef,
   ExecutionAdapter,
@@ -46,7 +45,6 @@ export interface SdkQueryOptions {
     maxTurns?: number;
     resume?: string;
     signal?: AbortSignal;
-    hooks?: HookPipeline;
   };
 }
 
@@ -79,52 +77,39 @@ export interface SdkLike {
 export type SdkLoader = () => Promise<SdkLike>;
 
 const defaultLoader: SdkLoader = async () => {
-  const mod: unknown = await import(/* @vite-ignore */ '@anthropic-ai/claude-agent-sdk');
-  const candidate = mod as SdkLike | null | undefined;
-  if (candidate === null || candidate === undefined || typeof candidate.query !== 'function') {
+  const moduleSpecifier = '@anthropic-ai/claude-agent-sdk';
+  const mod = (await import(/* @vite-ignore */ moduleSpecifier)) as Partial<SdkLike>;
+  if (typeof mod.query !== 'function') {
     throw new AppError(
       'EXEC-001',
       '@anthropic-ai/claude-agent-sdk did not export a `query` function',
       { severity: ErrorSeverity.CRITICAL }
     );
   }
-  return candidate;
+  return mod as SdkLike;
 };
 
 export interface SdkExecutionAdapterOptions {
   /** Override the SDK loader for tests / alternative endpoints. */
   readonly loader?: SdkLoader;
-  /**
-   * Optional hook pipeline forwarded to the SDK. Built via
-   * `buildHookPipeline()` from `./hooks.ts`. When omitted, the adapter
-   * issues queries with no hooks (current default for tests / pilot).
-   */
-  readonly hooks?: HookPipeline;
 }
 
-/**
- *
- */
 export class SdkExecutionAdapter implements ExecutionAdapter {
   private readonly loader: SdkLoader;
-  private readonly hooks: HookPipeline | undefined;
   private sdkPromise: Promise<SdkLike> | null = null;
   private disposed = false;
 
   constructor(options: SdkExecutionAdapterOptions = {}) {
     this.loader = options.loader ?? defaultLoader;
-    this.hooks = options.hooks;
   }
 
-  /**
-   *
-   * @param req
-   */
   async execute(req: StageExecutionRequest): Promise<StageExecutionResult> {
     if (this.disposed) {
-      throw new AppError('EXEC-002', 'SdkExecutionAdapter: execute called after dispose', {
-        severity: ErrorSeverity.HIGH,
-      });
+      throw new AppError(
+        'EXEC-002',
+        'SdkExecutionAdapter: execute called after dispose',
+        { severity: ErrorSeverity.HIGH }
+      );
     }
     if (req.signal?.aborted === true) {
       return abortedResult(req.resume);
@@ -138,7 +123,6 @@ export class SdkExecutionAdapter implements ExecutionAdapter {
       maxTurns: req.maxTurns,
       resume: req.resume,
       signal: req.signal,
-      ...(this.hooks !== undefined ? { hooks: this.hooks } : {}),
     };
 
     let sessionId = req.resume ?? 'unknown';
@@ -180,13 +164,10 @@ export class SdkExecutionAdapter implements ExecutionAdapter {
     };
   }
 
-  /**
-   *
-   */
-  dispose(): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/require-await
+  async dispose(): Promise<void> {
     this.disposed = true;
     this.sdkPromise = null;
-    return Promise.resolve();
   }
 
   private getSdk(): Promise<SdkLike> {
@@ -199,7 +180,6 @@ export class SdkExecutionAdapter implements ExecutionAdapter {
  * Render a prompt that includes the work order and every prior output verbatim.
  * The format is intentionally simple — downstream agents parse the section
  * headers to retrieve specific upstream outputs.
- * @param req
  */
 export function renderPrompt(req: StageExecutionRequest): string {
   const blocks: string[] = [`# Stage: ${req.agentType}`, '', '## Work order', '', req.workOrder];
@@ -214,7 +194,8 @@ export function renderPrompt(req: StageExecutionRequest): string {
 }
 
 function mapUsage(usage: NonNullable<SdkMessage['usage']>): TokenUsage {
-  const cache = (usage.cache_read_input_tokens ?? 0) + (usage.cache_creation_input_tokens ?? 0);
+  const cache =
+    (usage.cache_read_input_tokens ?? 0) + (usage.cache_creation_input_tokens ?? 0);
   return {
     input: usage.input_tokens ?? 0,
     output: usage.output_tokens ?? 0,
@@ -226,7 +207,6 @@ function mapUsage(usage: NonNullable<SdkMessage['usage']>): TokenUsage {
  * Lift any `path:` annotations the agent emitted into ArtifactRefs. The agent
  * convention is one per line as `<path>: <description>`. Lines without that
  * shape are ignored.
- * @param resultText
  */
 function extractArtifacts(resultText: string): ArtifactRef[] {
   const out: ArtifactRef[] = [];
