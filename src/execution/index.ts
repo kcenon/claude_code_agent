@@ -17,10 +17,7 @@ export type {
 } from './types.js';
 
 export { MockExecutionAdapter } from './MockExecutionAdapter.js';
-export type {
-  MockExecutionAdapterOptions,
-  MockExecutionHandler,
-} from './MockExecutionAdapter.js';
+export type { MockExecutionAdapterOptions, MockExecutionHandler } from './MockExecutionAdapter.js';
 
 export { SdkExecutionAdapter, renderPrompt } from './SdkExecutionAdapter.js';
 export type {
@@ -30,3 +27,14 @@ export type {
   SdkMessage,
   SdkQueryOptions,
 } from './SdkExecutionAdapter.js';
+
+export { buildHookPipeline } from './hooks.js';
+export type {
+  ArtifactCaptureEntry,
+  ArtifactSink,
+  BuildHookPipelineOptions,
+  HookPipeline,
+  SdkHookCallback,
+  SdkHookEntry,
+  SdkToolUseEvent,
+} from './hooks.js';
