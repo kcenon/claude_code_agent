@@ -17,11 +17,7 @@
  * @packageDocumentation
  */
 
-import type {
-  ExecutionAdapter,
-  StageExecutionRequest,
-  StageExecutionResult,
-} from './types.js';
+import type { ExecutionAdapter, StageExecutionRequest, StageExecutionResult } from './types.js';
 
 /**
  * Predicate-driven handler. Return null to defer to the next handler.
