@@ -17,6 +17,15 @@ import type { AgentRequest } from '../agents/AgentBridge.js';
 import { BridgeRegistry, createDefaultBridgeRegistry } from '../agents/BridgeRegistry.js';
 import { bootstrapAgents } from '../agents/bootstrapAgents.js';
 import type { IAgent } from '../agents/types.js';
+import {
+  buildHookPipeline,
+  type ArtifactCaptureEntry,
+  type ArtifactSink,
+  type ExecutionAdapter,
+  type StageExecutionRequest,
+  type StageExecutionResult,
+} from '../execution/index.js';
+import { SdkExecutionAdapter } from '../execution/index.js';
 import { Semaphore } from '../utilities/Semaphore.js';
 import { getLogger } from '../logging/index.js';
 import { PipelineCheckpointManager } from './PipelineCheckpointManager.js';
@@ -68,6 +77,36 @@ async function loadYaml(): Promise<void> {
  * Agent identifier constant
  */
 export const ADSDLC_ORCHESTRATOR_AGENT_ID = 'ad-sdlc-orchestrator-agent';
+
+/**
+ * Environment flag enabling the worker-stage ExecutionAdapter pilot path.
+ *
+ * Issue #793: when set to `'1'`, `worker` stage agent invocations route through
+ * the new {@link ExecutionAdapter} (default: {@link SdkExecutionAdapter}) with
+ * the AD-07 hook pipeline. Any other value keeps the existing AgentBridge path
+ * untouched, preserving regression-zero for the non-pilot scenario.
+ *
+ * Issue #795 will replace this raw env lookup with `FeatureFlagsResolver`.
+ */
+export const WORKER_PILOT_ENV_FLAG = 'AD_SDLC_USE_SDK_FOR_WORKER';
+
+/**
+ * Agent type that the pilot routes through the ExecutionAdapter. Kept narrow on
+ * purpose — broadening to other stages is the P3 scope (issue #798).
+ */
+const WORKER_PILOT_AGENT_TYPE = 'worker';
+
+/**
+ * Determine whether the worker-pilot SDK adapter path is enabled.
+ *
+ * Reads {@link WORKER_PILOT_ENV_FLAG} from `process.env`. The check is
+ * intentionally a function (not a module-level constant) so tests can flip the
+ * variable between cases without restarting the module.
+ * @returns `true` if the env flag is set to `'1'`, otherwise `false`.
+ */
+function isWorkerPilotEnabled(): boolean {
+  return process.env[WORKER_PILOT_ENV_FLAG] === '1';
+}
 
 /**
  * AD-SDLC Orchestrator Agent
@@ -833,8 +872,17 @@ export class AdsdlcOrchestratorAgent implements IAgent {
   /**
    * Invoke an agent for a pipeline stage
    *
-   * Delegates to AgentDispatcher which resolves the agentType to a real
-   * agent instance and calls the appropriate adapter.
+   * Default routing goes through {@link AgentDispatcher} (the
+   * "AgentBridge path") which resolves the agentType to a real agent
+   * instance and calls the appropriate adapter.
+   *
+   * Worker-pilot branch (issue #793): when {@link WORKER_PILOT_ENV_FLAG}
+   * is set to `'1'` AND the stage is the `worker` agent type, the call
+   * is rerouted through {@link executeViaAdapter} which drives the
+   * {@link ExecutionAdapter} (SDK path) with the AD-07 hook pipeline.
+   * For every other (stage, flag) combination behaviour is identical to
+   * before — the AgentBridge path is preserved verbatim.
+   *
    * Override this method in tests to bypass real agent execution.
    *
    * @param stage - The stage definition identifying which agent to invoke
@@ -845,8 +893,165 @@ export class AdsdlcOrchestratorAgent implements IAgent {
     stage: PipelineStageDefinition,
     session: OrchestratorSession
   ): Promise<string> {
+    if (stage.agentType === WORKER_PILOT_AGENT_TYPE && isWorkerPilotEnabled()) {
+      return this.executeViaAdapter(stage, session);
+    }
+    return this.executeViaBridge(stage, session);
+  }
+
+  /**
+   * Legacy AgentBridge execution path.
+   *
+   * Wraps the original `invokeAgent` body so the dispatch logic stays in
+   * one place and the new pilot branch in {@link invokeAgent} keeps
+   * regression-zero semantics for every non-pilot call. Behaviour is the
+   * same as before issue #793: delegate to {@link AgentDispatcher}.
+   *
+   * @param stage - The stage definition.
+   * @param session - The current orchestrator session.
+   * @returns The agent output string from the dispatcher.
+   */
+  protected async executeViaBridge(
+    stage: PipelineStageDefinition,
+    session: OrchestratorSession
+  ): Promise<string> {
     const dispatcher = this.getDispatcher();
     return dispatcher.dispatch(stage, session);
+  }
+
+  /**
+   * Worker-pilot ExecutionAdapter execution path (issue #793).
+   *
+   * Builds a {@link StageExecutionRequest} from the orchestrator session
+   * (mapping `userRequest` → `workOrder` and accumulated stage outputs →
+   * `priorOutputs`), wires an {@link ExecutionAdapter} configured with
+   * the AD-07 {@link buildHookPipeline} so `Edit`/`Write` artifacts flow
+   * into the scratchpad, executes the request, and returns a JSON string
+   * describing the result so the orchestrator's existing string-based
+   * stage output contract is preserved.
+   *
+   * Token usage is included verbatim in the JSON output to satisfy the
+   * AC-5 observability requirement (tokenUsage populated).
+   *
+   * @param stage - The stage definition (must be the worker stage).
+   * @param session - The current orchestrator session.
+   * @returns JSON-serialised summary of the adapter execution.
+   * @throws Error when the adapter reports a non-success status.
+   */
+  protected async executeViaAdapter(
+    stage: PipelineStageDefinition,
+    session: OrchestratorSession
+  ): Promise<string> {
+    const adapter = this.createExecutionAdapter(session);
+    try {
+      const request = this.buildStageExecutionRequest(stage, session);
+      const result = await adapter.execute(request);
+      return this.toStageOutput(result);
+    } finally {
+      await adapter.dispose().catch((error: unknown) => {
+        getLogger().debug('ExecutionAdapter dispose failed', {
+          agent: 'AdsdlcOrchestratorAgent',
+          error: error instanceof Error ? error.message : String(error),
+        });
+      });
+    }
+  }
+
+  /**
+   * Construct the {@link ExecutionAdapter} used by the worker-pilot path.
+   *
+   * Default implementation returns an {@link SdkExecutionAdapter} wired
+   * with the AD-07 hook pipeline that funnels `Edit`/`Write` artifacts
+   * into a session-scoped {@link ArtifactSink}. Tests override this
+   * method to inject a {@link MockExecutionAdapter}.
+   *
+   * @param session - The current orchestrator session (used to scope
+   *   the artifact sink to the session's scratchpad).
+   * @returns An {@link ExecutionAdapter} ready for a single execution.
+   */
+  protected createExecutionAdapter(session: OrchestratorSession): ExecutionAdapter {
+    const sink: ArtifactSink = {
+      recordArtifact: (entry: ArtifactCaptureEntry): void => {
+        getLogger().debug('Worker-pilot adapter captured artifact', {
+          agent: 'AdsdlcOrchestratorAgent',
+          sessionId: session.sessionId,
+          filePath: entry.filePath,
+          toolName: entry.toolName,
+          capturedAt: entry.capturedAt,
+        });
+      },
+    };
+    const hooks = buildHookPipeline(sink);
+    return new SdkExecutionAdapter({ hooks });
+  }
+
+  /**
+   * Translate orchestrator state into a {@link StageExecutionRequest}.
+   *
+   * Maps `session.userRequest` to `workOrder` and the completed prior
+   * stages' outputs to `priorOutputs` so downstream agents pick them up
+   * via the SDK adapter's `priorOutputs` mechanism. The shape mirrors
+   * what {@link AgentDispatcher.buildAgentRequest} produces for the
+   * AgentBridge path so equivalence holds across both routes.
+   *
+   * The system prompt itself is sourced by the SDK from
+   * `.claude/agents/<agentType>.md` (same file the AgentBridge reads via
+   * the shared `loadAgentDefinition` helper).
+   *
+   * @param stage - The stage definition.
+   * @param session - The current orchestrator session.
+   * @returns The execution-adapter request payload.
+   */
+  protected buildStageExecutionRequest(
+    stage: PipelineStageDefinition,
+    session: OrchestratorSession
+  ): StageExecutionRequest {
+    const priorOutputs: Record<string, string> = {};
+    for (const result of session.stageResults) {
+      if (result.status === 'completed' && result.output) {
+        priorOutputs[result.name] = result.output;
+      }
+    }
+
+    const request: StageExecutionRequest = {
+      agentType: stage.agentType,
+      workOrder: session.userRequest,
+      priorOutputs,
+      ...(this.abortController !== null ? { signal: this.abortController.signal } : {}),
+    };
+    return request;
+  }
+
+  /**
+   * Convert a {@link StageExecutionResult} into the string output the
+   * orchestrator's stage contract expects.
+   *
+   * The serialised payload includes the artifact list, sessionId,
+   * tokenUsage and toolCallCount so the AC-5 observability requirement
+   * is met. Non-success statuses are surfaced as thrown errors so the
+   * existing retry / failure handling in
+   * {@link executeStageWithRetry} kicks in unchanged.
+   *
+   * @param result - The result from the execution adapter.
+   * @returns JSON-serialised summary string.
+   * @throws Error when `result.status !== 'success'`.
+   */
+  protected toStageOutput(result: StageExecutionResult): string {
+    if (result.status !== 'success') {
+      const message = result.error?.message ?? `ExecutionAdapter status=${result.status}`;
+      throw new Error(`Worker-pilot ExecutionAdapter failed: ${message}`);
+    }
+    return JSON.stringify({
+      stage: 'worker',
+      via: 'execution-adapter',
+      sessionId: result.sessionId,
+      toolCallCount: result.toolCallCount,
+      tokenUsage: result.tokenUsage,
+      artifacts: result.artifacts.map((a) => ({
+        path: a.path,
+        ...(a.description !== undefined ? { description: a.description } : {}),
+      })),
+    });
   }
 
   // ---------------------------------------------------------------------------
