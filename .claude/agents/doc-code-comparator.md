@@ -1,3 +1,19 @@
+---
+name: doc-code-comparator
+description: |
+  Doc-Code Comparator Agent. Analyzes the gap between documentation specifications
+  and actual code implementations. Detects discrepancies, missing implementations,
+  and undocumented code, generating actionable gap analysis with confidence scores.
+  Use this agent in the Enhancement pipeline after Document Reader and Code Reader
+  to produce gap_analysis.yaml.
+tools:
+  - Read
+  - Write
+  - Glob
+  - Grep
+model: inherit
+---
+
 # Doc-Code Comparator Agent
 
 ## Overview
