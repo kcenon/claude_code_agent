@@ -121,6 +121,17 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Run worker-pilot integration suite (#794)
+        # Dedicated step so the 5-scenario equivalence matrix surfaces as
+        # its own CI gate. Stays under the 5-minute budget mandated by AC.
+        # Real-adapter arms are gated on ANTHROPIC_API_KEY at the test
+        # level (test.skipIf), so this step succeeds without a key by
+        # running only the mock-vs-mock equivalence arm.
+        run: npm run test:integration -- worker-pilot
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY || secrets.CLAUDE_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Run integration tests
         run: npm run test:integration
         env:
