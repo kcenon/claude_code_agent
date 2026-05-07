@@ -10,8 +10,9 @@
  *
  * Equivalence is asserted against the *artifact set* both paths produce.
  * For this issue the comparison is intentionally narrow (one synthetic
- * scenario); issue #794 will expand the suite to five scenarios using
- * the same {@link assertEquivalentArtifacts} helper exported here.
+ * scenario); issue #794 broadens it to five scenarios under the same
+ * directory using {@link assertEquivalentArtifacts} (now sourced from
+ * `_helpers.ts` so all six tests share the helper).
  *
  * The acceptance criteria mapping:
  *   AC-1  Flag on  → adapter path is used.        Covered by `routes worker via adapter when flag is on`.
@@ -23,140 +24,25 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
-import {
-  AdsdlcOrchestratorAgent,
-  WORKER_PILOT_ENV_FLAG,
-} from '../../../src/ad-sdlc-orchestrator/AdsdlcOrchestratorAgent.js';
-import type {
-  OrchestratorSession,
-  PipelineStageDefinition,
-} from '../../../src/ad-sdlc-orchestrator/types.js';
 import { MockExecutionAdapter } from '../../../src/execution/MockExecutionAdapter.js';
 import type {
   ArtifactRef,
-  ExecutionAdapter,
   StageExecutionRequest,
   StageExecutionResult,
 } from '../../../src/execution/types.js';
 
-/**
- * Test subclass exposing protected hooks and recording bridge calls so
- * the test can prove the routing decision without monkey-patching.
- */
-class TestOrchestrator extends AdsdlcOrchestratorAgent {
-  bridgeCalls: PipelineStageDefinition[] = [];
-  adapterCalls: PipelineStageDefinition[] = [];
-  bridgeArtifacts: readonly string[] = [];
-  injectedAdapter: MockExecutionAdapter | null = null;
+import {
+  TestOrchestrator,
+  WORKER_PILOT_ENV_FLAG,
+  assertEquivalentArtifacts,
+  buildSession,
+  parseStageOutput,
+  workerStage,
+} from './_helpers.js';
 
-  override async invokeAgent(
-    stage: PipelineStageDefinition,
-    session: OrchestratorSession
-  ): Promise<string> {
-    return super.invokeAgent(stage, session);
-  }
-
-  protected override async executeViaBridge(
-    stage: PipelineStageDefinition,
-    _session: OrchestratorSession
-  ): Promise<string> {
-    this.bridgeCalls.push(stage);
-    // Simulate a worker AgentBridge that produced two artifacts.
-    return JSON.stringify({
-      stage: 'worker',
-      via: 'agent-bridge',
-      artifacts: [...this.bridgeArtifacts],
-    });
-  }
-
-  protected override async executeViaAdapter(
-    stage: PipelineStageDefinition,
-    session: OrchestratorSession
-  ): Promise<string> {
-    this.adapterCalls.push(stage);
-    return super.executeViaAdapter(stage, session);
-  }
-
-  protected override createExecutionAdapter(_session: OrchestratorSession): ExecutionAdapter {
-    if (!this.injectedAdapter) {
-      throw new Error('TestOrchestrator: injectedAdapter must be set before adapter path runs');
-    }
-    return this.injectedAdapter;
-  }
-
-  setInjectedAdapter(adapter: MockExecutionAdapter): void {
-    this.injectedAdapter = adapter;
-  }
-}
-
-/**
- * Build a minimal worker stage definition.
- */
-function workerStage(): PipelineStageDefinition {
-  return {
-    name: 'worker',
-    agentType: 'worker',
-    description: 'Worker stage under pilot',
-    parallel: false,
-    approvalRequired: false,
-    dependsOn: [],
-  };
-}
-
-/**
- * Build a minimal session for the worker stage.
- */
-function buildSession(overrides: Partial<OrchestratorSession> = {}): OrchestratorSession {
-  return {
-    sessionId: 'test-session-793',
-    projectDir: '/tmp/worker-pilot-test',
-    userRequest: 'Implement the function described by issue #793',
-    mode: 'greenfield',
-    startedAt: new Date().toISOString(),
-    status: 'running',
-    stageResults: [],
-    scratchpadDir: '/tmp/worker-pilot-test/.ad-sdlc/scratchpad',
-    localMode: true,
-    ...overrides,
-  };
-}
-
-/**
- * Compare two artifact lists for set equality on the `path` field. Order
- * is intentionally ignored — the worker may emit files in different
- * orders across runs, which is expected.
- *
- * Exposed so issue #794 can reuse it across the wider scenario matrix.
- */
-export function assertEquivalentArtifacts(
-  a: readonly { path: string }[],
-  b: readonly { path: string }[]
-): void {
-  const sortedA = [...a].map((x) => x.path).sort();
-  const sortedB = [...b].map((x) => x.path).sort();
-  expect(sortedA).toEqual(sortedB);
-}
-
-/**
- * Parse the JSON output produced by either path into a compact summary
- * the test can assert against.
- */
-function parseStageOutput(output: string): {
-  via: string;
-  artifacts: readonly { path: string; description?: string }[];
-  tokenUsage?: { input: number; output: number; cache: number };
-} {
-  const parsed = JSON.parse(output) as {
-    via: string;
-    artifacts?: readonly { path: string; description?: string }[];
-    tokenUsage?: { input: number; output: number; cache: number };
-  };
-  return {
-    via: parsed.via,
-    artifacts: parsed.artifacts ?? [],
-    ...(parsed.tokenUsage !== undefined ? { tokenUsage: parsed.tokenUsage } : {}),
-  };
-}
+// Re-export so existing imports (downstream tooling, fixtures) keep working
+// after the helper was extracted into `_helpers.ts` for issue #794.
+export { assertEquivalentArtifacts };
 
 describe('worker-pilot integration (#793)', () => {
   let originalFlag: string | undefined;
@@ -236,7 +122,10 @@ describe('worker-pilot integration (#793)', () => {
       });
       agent.setInjectedAdapter(adapter);
 
-      const output = await agent.invokeAgent(workerStage(), buildSession());
+      const output = await agent.invokeAgent(
+        workerStage(),
+        buildSession({ userRequest: 'Implement the function described by issue #793' })
+      );
       const parsed = parseStageOutput(output);
 
       expect(parsed.via).toBe('execution-adapter');
