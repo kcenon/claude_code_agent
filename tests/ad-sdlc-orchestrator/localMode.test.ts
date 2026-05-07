@@ -77,7 +77,7 @@ describe('adaptStagesForLocalMode', () => {
         'issue_generation',
         'orchestration',
         'implementation',
-        'validation',
+        'validation-agent',
         'review',
       ];
       const stageNames = localStages.map((s) => s.name);

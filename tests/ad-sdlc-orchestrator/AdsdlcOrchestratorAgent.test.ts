@@ -958,7 +958,7 @@ describe('AdsdlcOrchestratorAgent', () => {
 
       expect(result.overallStatus).toBe('completed');
       // Only implementation, validation, and review should be executed
-      expect(executionOrder).toEqual(['implementation', 'validation', 'review']);
+      expect(executionOrder).toEqual(['implementation', 'validation-agent', 'review']);
       // But result should contain all stages (prior + new)
       expect(result.stages).toHaveLength(3);
 
@@ -1576,7 +1576,7 @@ describe('Pipeline Stage Sequencing — End-to-End', () => {
       'issue_reading',
       'orchestration',
       'implementation',
-      'validation',
+      'validation-agent',
       'review',
     ]);
 

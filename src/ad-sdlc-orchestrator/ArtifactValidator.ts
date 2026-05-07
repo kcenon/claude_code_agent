@@ -130,7 +130,7 @@ export const GREENFIELD_ARTIFACTS: readonly StageArtifactMap[] = [
     ],
   },
   {
-    stage: 'validation',
+    stage: 'validation-agent',
     requiredArtifacts: [
       {
         pathPattern: '.ad-sdlc/scratchpad/vnv/*/rtm.yaml',
@@ -266,7 +266,7 @@ export const ENHANCEMENT_ARTIFACTS: readonly StageArtifactMap[] = [
     ],
   },
   {
-    stage: 'validation',
+    stage: 'validation-agent',
     requiredArtifacts: [
       {
         pathPattern: '.ad-sdlc/scratchpad/vnv/*/rtm.yaml',
@@ -297,7 +297,7 @@ export const ENHANCEMENT_ARTIFACTS: readonly StageArtifactMap[] = [
  */
 export const IMPORT_ARTIFACTS: readonly StageArtifactMap[] = [
   {
-    stage: 'validation',
+    stage: 'validation-agent',
     requiredArtifacts: [
       {
         pathPattern: '.ad-sdlc/scratchpad/vnv/*/rtm.yaml',

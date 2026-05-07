@@ -304,7 +304,7 @@ describe('ExecutionScaffoldGenerator', () => {
 
       const result = JSON.parse(await ExecutionScaffoldGenerator.validation(session));
 
-      expect(result.stage).toBe('validation');
+      expect(result.stage).toBe('validation-agent');
       expect(result.scaffold).toBe(true);
       expect(result.overallResult).toBe('pass_with_warnings');
 

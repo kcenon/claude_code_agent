@@ -94,7 +94,7 @@ describe('isDocumentStage', () => {
     'initialization',
     'mode_detection',
     'orchestration',
-    'validation',
+    'validation-agent',
   ];
 
   for (const stage of nonDocumentStages) {
