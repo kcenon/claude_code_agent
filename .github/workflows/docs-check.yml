@@ -31,7 +31,9 @@ jobs:
           missing=()
           for f in .claude/agents/*.md; do
             [ -f "$f" ] || continue
-            if [ "$(head -1 "$f")" != "---" ]; then
+            # tr -d '\r' handles CRLF normalization from .gitattributes (eol=crlf)
+            first=$(head -1 "$f" | tr -d '\r')
+            if [ "$first" != "---" ]; then
               missing+=("$f")
             fi
           done
@@ -48,7 +50,8 @@ jobs:
           violations=()
           for f in .claude/agents/*.md; do
             [ -f "$f" ] || continue
-            block=$(awk '/^---$/{c++; next} c==1{print} c==2{exit}' "$f")
+            # Strip CR before pattern matching to be CRLF-safe
+            block=$(tr -d '\r' < "$f" | awk '/^---$/{c++; next} c==1{print} c==2{exit}')
             if ! echo "$block" | grep -q '^name:'; then
               violations+=("$f: missing 'name'")
             fi
