@@ -8,8 +8,6 @@
  * @packageDocumentation
  */
 
-import fs from 'node:fs/promises';
-import path from 'node:path';
 import type { AgentBridge, AgentRequest, AgentResponse } from '../AgentBridge.js';
 import {
   getToolDefinitions,
@@ -18,7 +16,11 @@ import {
   type ConversationMessage,
   type ToolResultBlock,
 } from './tools.js';
-import { getLogger } from '../../logging/index.js';
+import {
+  DEFAULT_AGENT_DEFS_DIR,
+  loadAgentDefinition,
+  stripFrontmatter,
+} from './agentDefinition.js';
 
 /** Model ID mapping from agents.yaml model_preference to Anthropic API model IDs */
 const MODEL_MAP: Record<string, string> = {
@@ -139,7 +141,7 @@ export class AnthropicApiBridge implements AgentBridge {
     baseBackoffMs?: number;
   }) {
     this.apiKey = options?.apiKey;
-    this.agentDefsDir = options?.agentDefsDir ?? path.join('.claude', 'agents');
+    this.agentDefsDir = options?.agentDefsDir ?? DEFAULT_AGENT_DEFS_DIR;
     this.rateLimitConfig = { ...DEFAULT_RATE_LIMIT_CONFIG, ...options?.rateLimitConfig };
     this.baseBackoffMs = options?.baseBackoffMs ?? 1_000;
   }
@@ -485,36 +487,25 @@ export class AnthropicApiBridge implements AgentBridge {
   }
 
   /**
-   * Load agent definition from .claude/agents/<agentType>.md
-   * Strips YAML frontmatter, returning only the markdown body.
+   * Load agent definition from `<agentDefsDir>/<agentType>.md`.
+   *
+   * Delegates to the shared {@link loadAgentDefinition} helper so the SDK
+   * adapter path produces a byte-identical system prompt — see
+   * {@link ./agentDefinition.ts}.
    * @param agentType
    */
   private async loadAgentDefinition(agentType: string): Promise<string> {
-    const defPath = path.resolve(this.agentDefsDir, `${agentType}.md`);
-
-    try {
-      const content = await fs.readFile(defPath, 'utf-8');
-      return this.stripFrontmatter(content);
-    } catch (error) {
-      getLogger().debug(`Agent definition not found at ${defPath}, using fallback prompt`, {
-        agent: 'AnthropicApiBridge',
-        agentType,
-        error: error instanceof Error ? error.message : String(error),
-      });
-      return `You are the ${agentType} agent. Complete the requested task.`;
-    }
+    return loadAgentDefinition(agentType, this.agentDefsDir);
   }
 
   /**
-   * Strip YAML frontmatter (---\n...\n---) from markdown content.
+   * Strip YAML frontmatter from markdown content. Thin wrapper around the
+   * shared {@link stripFrontmatter} helper to keep the public surface of
+   * this class unchanged.
    * @param content
    */
   private stripFrontmatter(content: string): string {
-    const match = content.match(/^---\r?\n[\s\S]*?\r?\n---\r?\n/);
-    if (match) {
-      return content.slice(match[0].length).trim();
-    }
-    return content.trim();
+    return stripFrontmatter(content);
   }
 
   /**
