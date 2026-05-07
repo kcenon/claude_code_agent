@@ -5,17 +5,64 @@ on:
     paths:
       - 'docs/**'
       - 'doc-sync-points.yaml'
+      - '.claude/agents/**'
   push:
     branches: [main]
     paths:
       - 'docs/**'
       - 'doc-sync-points.yaml'
+      - '.claude/agents/**'
 
 permissions:
   contents: read
   pull-requests: write
 
 jobs:
+  validate-agent-frontmatter:
+    name: Validate .claude/agents Frontmatter
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Verify YAML frontmatter on every agent file
+        run: |
+          set -euo pipefail
+          missing=()
+          for f in .claude/agents/*.md; do
+            [ -f "$f" ] || continue
+            if [ "$(head -1 "$f")" != "---" ]; then
+              missing+=("$f")
+            fi
+          done
+          if [ ${#missing[@]} -ne 0 ]; then
+            echo "::error::Missing YAML frontmatter in:"
+            printf '::error::  %s\n' "${missing[@]}"
+            exit 1
+          fi
+          echo "All $(ls .claude/agents/*.md | wc -l) agent files have frontmatter."
+
+      - name: Verify required fields (name, description)
+        run: |
+          set -euo pipefail
+          violations=()
+          for f in .claude/agents/*.md; do
+            [ -f "$f" ] || continue
+            block=$(awk '/^---$/{c++; next} c==1{print} c==2{exit}' "$f")
+            if ! echo "$block" | grep -q '^name:'; then
+              violations+=("$f: missing 'name'")
+            fi
+            if ! echo "$block" | grep -q '^description:'; then
+              violations+=("$f: missing 'description'")
+            fi
+          done
+          if [ ${#violations[@]} -ne 0 ]; then
+            echo "::error::Frontmatter field violations:"
+            printf '::error::  %s\n' "${violations[@]}"
+            exit 1
+          fi
+          echo "All agent files have name + description."
+
   validate-traceability:
     name: Validate Traceability Matrix
     runs-on: ubuntu-latest
