@@ -105,11 +105,9 @@ export class SdkExecutionAdapter implements ExecutionAdapter {
 
   async execute(req: StageExecutionRequest): Promise<StageExecutionResult> {
     if (this.disposed) {
-      throw new AppError(
-        'EXEC-002',
-        'SdkExecutionAdapter: execute called after dispose',
-        { severity: ErrorSeverity.HIGH }
-      );
+      throw new AppError('EXEC-002', 'SdkExecutionAdapter: execute called after dispose', {
+        severity: ErrorSeverity.HIGH,
+      });
     }
     if (req.signal?.aborted === true) {
       return abortedResult(req.resume);
@@ -194,8 +192,7 @@ export function renderPrompt(req: StageExecutionRequest): string {
 }
 
 function mapUsage(usage: NonNullable<SdkMessage['usage']>): TokenUsage {
-  const cache =
-    (usage.cache_read_input_tokens ?? 0) + (usage.cache_creation_input_tokens ?? 0);
+  const cache = (usage.cache_read_input_tokens ?? 0) + (usage.cache_creation_input_tokens ?? 0);
   return {
     input: usage.input_tokens ?? 0,
     output: usage.output_tokens ?? 0,
