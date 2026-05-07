@@ -1197,7 +1197,8 @@ program
 
     const agent = getAdsdlcOrchestratorAgent({
       approvalMode,
-      featureFlagsCli: { useSdkForWorker: useSdkForWorkerCli },
+      featureFlagsCli:
+        useSdkForWorkerCli === undefined ? {} : { useSdkForWorker: useSdkForWorkerCli },
       featureFlagsBaseDir: projectDir,
     });
 

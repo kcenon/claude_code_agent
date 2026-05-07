@@ -261,13 +261,17 @@ export class FeatureFlagsResolver {
    * @returns A ready-to-use resolver.
    */
   static fromSources(options: FeatureFlagsResolverOptions = {}): FeatureFlagsResolver {
-    let config = options.config;
-    if (config === undefined) {
-      const filePath = getFeatureFlagsFilePath(options.baseDir);
-      const fileContents = loadFeatureFlagsFile(filePath);
-      config = fileContents?.flags ?? {};
+    if (options.config !== undefined) {
+      return new FeatureFlagsResolver(options);
     }
-    return new FeatureFlagsResolver({ ...options, config });
+    const filePath = getFeatureFlagsFilePath(options.baseDir);
+    const fileContents = loadFeatureFlagsFile(filePath);
+    const flags = fileContents?.flags;
+    const resolved: FeatureFlagsConfig = {};
+    if (flags?.useSdkForWorker !== undefined) {
+      (resolved as { useSdkForWorker?: boolean }).useSdkForWorker = flags.useSdkForWorker;
+    }
+    return new FeatureFlagsResolver({ ...options, config: resolved });
   }
 
   /**
