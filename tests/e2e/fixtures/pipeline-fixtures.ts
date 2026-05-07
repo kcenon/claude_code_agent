@@ -528,7 +528,7 @@ export const GREENFIELD_RESPONSES: Record<string, string> = {
   'svp-writer': svpOutput,
   controller: controllerOutput,
   worker: workerOutput,
-  validation: validationOutput,
+  'validation-agent': validationOutput,
   'pr-reviewer': prReviewerOutput,
   'doc-index-generator': docIndexGeneratorOutput,
 };
