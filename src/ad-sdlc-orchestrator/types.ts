@@ -32,7 +32,7 @@ export type GreenfieldStageName =
   | 'svp_generation'
   | 'orchestration'
   | 'implementation'
-  | 'validation'
+  | 'validation-agent'
   | 'review'
   | 'doc_indexing';
 
@@ -52,7 +52,7 @@ export type EnhancementStageName =
   | 'orchestration'
   | 'implementation'
   | 'regression_testing'
-  | 'validation'
+  | 'validation-agent'
   | 'review'
   | 'doc_indexing';
 
@@ -63,7 +63,7 @@ export type ImportStageName =
   | 'issue_reading'
   | 'orchestration'
   | 'implementation'
-  | 'validation'
+  | 'validation-agent'
   | 'review';
 
 /**
@@ -448,8 +448,8 @@ export const GREENFIELD_STAGES: readonly PipelineStageDefinition[] = [
     dependsOn: ['orchestration'],
   },
   {
-    name: 'validation',
-    agentType: 'validation',
+    name: 'validation-agent',
+    agentType: 'validation-agent',
     description: 'Validate implementation against requirements and acceptance criteria',
     parallel: false,
     approvalRequired: false,
@@ -461,7 +461,7 @@ export const GREENFIELD_STAGES: readonly PipelineStageDefinition[] = [
     description: 'Create and review pull requests',
     parallel: false,
     approvalRequired: false,
-    dependsOn: ['validation'],
+    dependsOn: ['validation-agent'],
   },
   {
     name: 'doc_indexing',
@@ -578,8 +578,8 @@ export const ENHANCEMENT_STAGES: readonly PipelineStageDefinition[] = [
     dependsOn: ['implementation'],
   },
   {
-    name: 'validation',
-    agentType: 'validation',
+    name: 'validation-agent',
+    agentType: 'validation-agent',
     description: 'Validate implementation against requirements and acceptance criteria',
     parallel: false,
     approvalRequired: false,
@@ -591,7 +591,7 @@ export const ENHANCEMENT_STAGES: readonly PipelineStageDefinition[] = [
     description: 'Create and review pull requests',
     parallel: false,
     approvalRequired: false,
-    dependsOn: ['validation'],
+    dependsOn: ['validation-agent'],
   },
   {
     name: 'doc_indexing',
@@ -635,8 +635,8 @@ export const IMPORT_STAGES: readonly PipelineStageDefinition[] = [
     dependsOn: ['orchestration'],
   },
   {
-    name: 'validation',
-    agentType: 'validation',
+    name: 'validation-agent',
+    agentType: 'validation-agent',
     description: 'Validate implementation against requirements and acceptance criteria',
     parallel: false,
     approvalRequired: false,
@@ -648,7 +648,7 @@ export const IMPORT_STAGES: readonly PipelineStageDefinition[] = [
     description: 'Create and review pull requests',
     parallel: false,
     approvalRequired: false,
-    dependsOn: ['validation'],
+    dependsOn: ['validation-agent'],
   },
 ];
 

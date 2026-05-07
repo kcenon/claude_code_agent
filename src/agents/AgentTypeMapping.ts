@@ -329,7 +329,7 @@ export const AGENT_TYPE_MAP: Readonly<Record<string, AgentTypeEntry>> = {
     importPath: '../rtm-builder/index.js',
   },
 
-  validation: {
+  'validation-agent': {
     agentId: 'validation-agent',
     name: 'Validation Agent',
     lifecycle: 'singleton',

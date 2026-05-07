@@ -360,7 +360,7 @@ export const ExecutionScaffoldGenerator = {
     logger.info(`[Scaffold:Validation] Generated V&V report at ${reportPath}`);
 
     return JSON.stringify({
-      stage: 'validation',
+      stage: 'validation-agent',
       scaffold: true,
       reportPath,
       overallResult: report.overallResult,

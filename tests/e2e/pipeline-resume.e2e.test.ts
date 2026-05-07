@@ -479,7 +479,7 @@ describe('Pipeline Resume E2E', () => {
       expect(agent.executionOrder).toEqual([
         'orchestration',
         'implementation',
-        'validation',
+        'validation-agent',
         'review',
       ]);
 
@@ -627,7 +627,7 @@ describe('Pipeline Resume E2E', () => {
         'issue_reading',
         'orchestration',
         'implementation',
-        'validation',
+        'validation-agent',
         'review',
       ]);
 

@@ -121,15 +121,15 @@ describe('AgentDispatcher scaffold adapter integration', () => {
       initialize: async () => {},
       dispose: async () => {},
     };
-    dispatcher.setAgent('validation', mockAgent);
+    dispatcher.setAgent('validation-agent', mockAgent);
 
     const session = makeSession(projectDir, scratchpadDir, true);
-    const stage = makeStage('validation', 'validation');
+    const stage = makeStage('validation-agent', 'validation-agent');
 
     const output = await dispatcher.dispatch(stage, session);
     const result = JSON.parse(output);
 
-    expect(result.stage).toBe('validation');
+    expect(result.stage).toBe('validation-agent');
     expect(result.scaffold).toBe(true);
   });
 
