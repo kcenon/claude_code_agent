@@ -1035,8 +1035,17 @@ program
     'Approval mode for pipeline stages: auto | manual | critical',
     'auto'
   )
+  .option(
+    '--use-sdk-for-worker',
+    'Route the worker stage through the SDK ExecutionAdapter (feature flag, default: off). Equivalent to AD_SDLC_USE_SDK_FOR_WORKER=1.'
+  )
   .action(async (requirements: string, cmdOptions: Record<string, unknown>) => {
     const modeInput = typeof cmdOptions['mode'] === 'string' ? cmdOptions['mode'] : 'greenfield';
+    // Issue #795: surface --use-sdk-for-worker as a tri-state. `undefined`
+    // means the user did not pass the flag, so the resolver falls through
+    // to YAML / default. `true` means the flag was supplied (boolean opt
+    // with no `--no-` form, so commander only sets it when present).
+    const useSdkForWorkerCli = cmdOptions['useSdkForWorker'] === true ? true : undefined;
     const stopAfter =
       typeof cmdOptions['stopAfter'] === 'string' ? cmdOptions['stopAfter'] : undefined;
     const projectDir =
@@ -1186,7 +1195,11 @@ program
     }
     output.blank();
 
-    const agent = getAdsdlcOrchestratorAgent({ approvalMode });
+    const agent = getAdsdlcOrchestratorAgent({
+      approvalMode,
+      featureFlagsCli: { useSdkForWorker: useSdkForWorkerCli },
+      featureFlagsBaseDir: projectDir,
+    });
 
     try {
       // Build pipeline request
