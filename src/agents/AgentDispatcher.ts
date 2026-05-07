@@ -669,7 +669,10 @@ export class AgentDispatcher {
     // otherwise fall through to the standard executeAdapter.
     this.callAdapters.set('controller', this.createScaffoldAdapter('controller', executeAdapter));
     this.callAdapters.set('worker', this.createScaffoldAdapter('worker', executeAdapter));
-    this.callAdapters.set('validation-agent', this.createScaffoldAdapter('validation', executeAdapter));
+    this.callAdapters.set(
+      'validation-agent',
+      this.createScaffoldAdapter('validation', executeAdapter)
+    );
     this.callAdapters.set('pr-reviewer', this.createScaffoldAdapter('review', executeAdapter));
   }
 
