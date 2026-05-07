@@ -16,11 +16,7 @@ import {
   type ConversationMessage,
   type ToolResultBlock,
 } from './tools.js';
-import {
-  DEFAULT_AGENT_DEFS_DIR,
-  loadAgentDefinition,
-  stripFrontmatter,
-} from './agentDefinition.js';
+import { DEFAULT_AGENT_DEFS_DIR, loadAgentDefinition } from './agentDefinition.js';
 
 /** Model ID mapping from agents.yaml model_preference to Anthropic API model IDs */
 const MODEL_MAP: Record<string, string> = {
@@ -496,16 +492,6 @@ export class AnthropicApiBridge implements AgentBridge {
    */
   private async loadAgentDefinition(agentType: string): Promise<string> {
     return loadAgentDefinition(agentType, this.agentDefsDir);
-  }
-
-  /**
-   * Strip YAML frontmatter from markdown content. Thin wrapper around the
-   * shared {@link stripFrontmatter} helper to keep the public surface of
-   * this class unchanged.
-   * @param content
-   */
-  private stripFrontmatter(content: string): string {
-    return stripFrontmatter(content);
   }
 
   /**
