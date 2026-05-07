@@ -101,6 +101,25 @@ export type {
   ConfigManagerOptions,
 } from './ConfigManager.js';
 
+// Feature flags resolver (Issue #795)
+export {
+  FeatureFlagsResolver,
+  ENV_USE_SDK_FOR_WORKER,
+  FEATURE_FLAGS_FILE_NAME,
+  DEFAULT_FEATURE_FLAGS,
+  FeatureFlagsBlockSchema,
+  FeatureFlagsFileSchema,
+  parseBooleanEnv,
+  getFeatureFlagsFilePath,
+  loadFeatureFlagsFile,
+} from './featureFlags.js';
+export type {
+  FeatureFlagsFile,
+  FeatureFlagsConfig,
+  CliFeatureFlags,
+  FeatureFlagsResolverOptions,
+} from './featureFlags.js';
+
 // Paths
 export {
   getProjectPaths,

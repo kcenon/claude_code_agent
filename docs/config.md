@@ -62,9 +62,9 @@ Creates and initializes a ConfigManager instance.
 
 ```typescript
 const config = await ConfigManager.create({
-  baseDir: '/path/to/project',  // Base directory for config files
-  validate: true,                // Whether to validate configs (default: true)
-  resolveEnvVars: true,          // Resolve ${VAR} patterns (default: true)
+  baseDir: '/path/to/project', // Base directory for config files
+  validate: true, // Whether to validate configs (default: true)
+  resolveEnvVars: true, // Resolve ${VAR} patterns (default: true)
 });
 ```
 
@@ -75,12 +75,12 @@ Returns global configuration settings with defaults applied.
 ```typescript
 const global = config.getGlobalConfig();
 
-console.log(global.projectRoot);      // e.g., '/path/to/project'
-console.log(global.scratchpadDir);    // e.g., '.ad-sdlc/scratchpad'
-console.log(global.logLevel);         // 'DEBUG' | 'INFO' | 'WARN' | 'ERROR'
-console.log(global.approvalGates);    // Approval gates configuration
-console.log(global.retryPolicy);      // Retry policy settings
-console.log(global.timeouts);         // Timeout settings
+console.log(global.projectRoot); // e.g., '/path/to/project'
+console.log(global.scratchpadDir); // e.g., '.ad-sdlc/scratchpad'
+console.log(global.logLevel); // 'DEBUG' | 'INFO' | 'WARN' | 'ERROR'
+console.log(global.approvalGates); // Approval gates configuration
+console.log(global.retryPolicy); // Retry policy settings
+console.log(global.timeouts); // Timeout settings
 ```
 
 #### getRetryPolicy()
@@ -90,10 +90,10 @@ Returns retry policy configuration.
 ```typescript
 const retry = config.getRetryPolicy();
 
-console.log(retry.maxAttempts);       // e.g., 3
-console.log(retry.backoff);           // 'linear' | 'exponential'
-console.log(retry.baseDelaySeconds);  // e.g., 5
-console.log(retry.maxDelaySeconds);   // e.g., 60
+console.log(retry.maxAttempts); // e.g., 3
+console.log(retry.backoff); // 'linear' | 'exponential'
+console.log(retry.baseDelaySeconds); // e.g., 5
+console.log(retry.maxDelaySeconds); // e.g., 60
 ```
 
 #### getPipelineStages()
@@ -104,13 +104,13 @@ Returns ordered array of pipeline stages.
 const stages = config.getPipelineStages();
 
 for (const stage of stages) {
-  console.log(stage.name);            // Stage name
-  console.log(stage.agent);           // Agent ID
-  console.log(stage.inputs);          // Input file patterns
-  console.log(stage.outputs);         // Output file patterns
-  console.log(stage.next);            // Next stage name or null
+  console.log(stage.name); // Stage name
+  console.log(stage.agent); // Agent ID
+  console.log(stage.inputs); // Input file patterns
+  console.log(stage.outputs); // Output file patterns
+  console.log(stage.next); // Next stage name or null
   console.log(stage.approvalRequired); // Whether approval is needed
-  console.log(stage.parallel);        // Whether can run in parallel
+  console.log(stage.parallel); // Whether can run in parallel
 }
 ```
 
@@ -133,12 +133,12 @@ Returns workflow configuration for a specific agent.
 const agentConfig = config.getAgentConfig('collector');
 
 if (agentConfig) {
-  console.log(agentConfig.model);       // 'sonnet' | 'opus' | 'haiku'
-  console.log(agentConfig.tools);       // ['Read', 'Write', 'Bash', ...]
-  console.log(agentConfig.template);    // Template file path
+  console.log(agentConfig.model); // 'sonnet' | 'opus' | 'haiku'
+  console.log(agentConfig.tools); // ['Read', 'Write', 'Bash', ...]
+  console.log(agentConfig.template); // Template file path
   console.log(agentConfig.maxQuestions); // Max clarification questions
-  console.log(agentConfig.github);      // GitHub settings
-  console.log(agentConfig.coding);      // Coding settings
+  console.log(agentConfig.github); // GitHub settings
+  console.log(agentConfig.coding); // Coding settings
   console.log(agentConfig.verification); // Verification settings
 }
 ```
@@ -151,11 +151,11 @@ Returns agent definition from agents.yaml.
 const definition = config.getAgentDefinition('collector');
 
 if (definition) {
-  console.log(definition.id);           // Agent ID
-  console.log(definition.name);         // Agent name
-  console.log(definition.description);  // Description
+  console.log(definition.id); // Agent ID
+  console.log(definition.name); // Agent name
+  console.log(definition.description); // Description
   console.log(definition.capabilities); // Capability list
-  console.log(definition.io);           // Input/output specs
+  console.log(definition.io); // Input/output specs
 }
 ```
 
@@ -191,10 +191,10 @@ Returns GitHub integration settings.
 ```typescript
 const github = config.getGitHubConfig();
 
-console.log(github.repo);              // e.g., 'owner/repo'
-console.log(github.defaultBranch);     // e.g., 'main'
-console.log(github.issueLabels);       // Default issue labels
-console.log(github.prLabels);          // Default PR labels
+console.log(github.repo); // e.g., 'owner/repo'
+console.log(github.defaultBranch); // e.g., 'main'
+console.log(github.issueLabels); // Default issue labels
+console.log(github.prLabels); // Default PR labels
 ```
 
 #### getLoggingConfig()
@@ -204,19 +204,15 @@ Returns logging configuration.
 ```typescript
 const logging = config.getLoggingConfig();
 
-console.log(logging.level);            // Log level
-console.log(logging.format);           // 'json' | 'text'
-console.log(logging.outputs);          // Output configurations
+console.log(logging.level); // Log level
+console.log(logging.format); // 'json' | 'text'
+console.log(logging.outputs); // Output configurations
 ```
 
 ### Singleton Management
 
 ```typescript
-import {
-  getConfigManager,
-  resetConfigManager,
-  isConfigManagerInitialized,
-} from 'ad-sdlc';
+import { getConfigManager, resetConfigManager, isConfigManagerInitialized } from 'ad-sdlc';
 
 // Get or create singleton instance
 const config = await getConfigManager();
@@ -255,8 +251,8 @@ const resolved = resolveEnvVars('${HOME}/projects');
 Main workflow configuration file located at `.ad-sdlc/config/workflow.yaml`:
 
 ```yaml
-version: "1.0.0"
-name: "my-project"
+version: '1.0.0'
+name: 'my-project'
 
 global:
   project_root: ${PWD}
@@ -288,7 +284,7 @@ agents:
 Agent definitions file located at `.ad-sdlc/config/agents.yaml`:
 
 ```yaml
-version: "1.0.0"
+version: '1.0.0'
 
 agents:
   collector:
@@ -308,11 +304,7 @@ The loader module includes built-in caching to avoid repeated file reads. Cache 
 ### Cache Management
 
 ```typescript
-import {
-  clearConfigCache,
-  invalidateConfigCache,
-  getConfigCacheStats,
-} from 'ad-sdlc';
+import { clearConfigCache, invalidateConfigCache, getConfigCacheStats } from 'ad-sdlc';
 
 // Clear all cached configurations
 clearConfigCache();
@@ -339,11 +331,7 @@ The caching is transparent to normal usage - `loadWorkflowConfig()` and `loadAge
 For direct file loading without ConfigManager:
 
 ```typescript
-import {
-  loadWorkflowConfig,
-  loadAgentsConfig,
-  loadAllConfigs,
-} from 'ad-sdlc';
+import { loadWorkflowConfig, loadAgentsConfig, loadAllConfigs } from 'ad-sdlc';
 
 // Load individual configs
 const workflow = await loadWorkflowConfig({ baseDir: '/path/to/project' });
@@ -358,11 +346,7 @@ const { workflow, agents } = await loadAllConfigs();
 For validating configuration data:
 
 ```typescript
-import {
-  validateWorkflowConfig,
-  validateAgentsConfig,
-  ConfigValidationError,
-} from 'ad-sdlc';
+import { validateWorkflowConfig, validateAgentsConfig, ConfigValidationError } from 'ad-sdlc';
 
 const result = validateWorkflowConfig(data);
 
@@ -412,11 +396,7 @@ await watcher.start();
 ## Error Handling
 
 ```typescript
-import {
-  ConfigNotFoundError,
-  ConfigParseError,
-  ConfigValidationError,
-} from 'ad-sdlc';
+import { ConfigNotFoundError, ConfigParseError, ConfigValidationError } from 'ad-sdlc';
 
 try {
   const config = await getConfigManager();
@@ -447,4 +427,64 @@ import type {
   ValidationResult,
   FieldError,
 } from 'ad-sdlc';
+```
+
+## Feature Flags
+
+Feature flags toggle optional code paths that are still being piloted. The
+`FeatureFlagsResolver` consults the following sources, picking the first that
+provides a value:
+
+1. **Environment variable** (highest priority)
+2. **CLI option**
+3. **YAML config** at `.ad-sdlc/config/feature-flags.yaml` (opt-in only)
+4. **Built-in default**
+
+The YAML file is **never auto-created** by AD-SDLC — users must opt in by
+creating it manually. Missing or empty files are silently treated as
+"not configured".
+
+### Recognized Flags
+
+| Flag              | Type    | Default | Env variable                 | CLI flag               | YAML path               | Description                                                                                                                                                                                                    |
+| ----------------- | ------- | ------- | ---------------------------- | ---------------------- | ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `useSdkForWorker` | boolean | `false` | `AD_SDLC_USE_SDK_FOR_WORKER` | `--use-sdk-for-worker` | `flags.useSdkForWorker` | Routes the `worker` pipeline stage through the SDK `ExecutionAdapter` (with the AD-07 hook pipeline) instead of the legacy AgentBridge path. Default flip is tracked separately under P3 cutover (issue #798). |
+
+### Environment Variable Tokens
+
+Boolean environment variables accept the following tokens (case-insensitive,
+whitespace-trimmed):
+
+- **Truthy**: `1`, `true`, `yes`, `on`
+- **Falsy**: `0`, `false`, `no`, `off`, `` (empty)
+
+Any other value raises a readable error rather than silently coercing to
+`false`.
+
+### YAML Schema
+
+`.ad-sdlc/config/feature-flags.yaml` is validated against
+[`schemas/feature-flags.schema.json`](../schemas/feature-flags.schema.json)
+with Zod. Unknown keys are rejected (strict mode). Example:
+
+```yaml
+# Optional. Reserved for future schema migrations.
+version: '1.0.0'
+flags:
+  useSdkForWorker: true
+```
+
+### Programmatic Use
+
+```typescript
+import { FeatureFlagsResolver } from 'ad-sdlc';
+
+const resolver = FeatureFlagsResolver.fromSources({
+  cli: { useSdkForWorker: true },
+  baseDir: '/path/to/project',
+});
+
+if (resolver.useSdkForWorker()) {
+  // Route worker stage through ExecutionAdapter
+}
 ```

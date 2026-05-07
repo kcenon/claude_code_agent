@@ -260,6 +260,18 @@ export interface StageTimeoutConfig {
 }
 
 /**
+ * CLI-supplied feature flag overrides (Issue #795).
+ *
+ * Mirrors the `CliFeatureFlags` shape from `src/config/featureFlags.ts`
+ * but kept as a local interface so the orchestrator does not have to
+ * import the resolver module just for the type.
+ */
+export interface OrchestratorFeatureFlagsCli {
+  /** CLI override for `--use-sdk-for-worker` (`undefined` = not provided). */
+  readonly useSdkForWorker?: boolean;
+}
+
+/**
  * Orchestrator configuration
  */
 export interface OrchestratorConfig {
@@ -281,6 +293,17 @@ export interface OrchestratorConfig {
   readonly checkpoint?: CheckpointConfig;
   /** Enable local mode by default (no GitHub dependency) */
   readonly localMode?: boolean;
+  /**
+   * CLI-supplied feature flag values forwarded to FeatureFlagsResolver.
+   * Issue #795: priority is env > CLI > YAML > default.
+   */
+  readonly featureFlagsCli?: OrchestratorFeatureFlagsCli;
+  /**
+   * Base directory used by FeatureFlagsResolver to locate
+   * `.ad-sdlc/config/feature-flags.yaml`. Defaults to the detected
+   * project root or `process.cwd()`.
+   */
+  readonly featureFlagsBaseDir?: string;
 }
 
 /**
@@ -312,6 +335,8 @@ export const DEFAULT_ORCHESTRATOR_CONFIG: Required<OrchestratorConfig> = {
     maxCheckpoints: 5,
   },
   localMode: false,
+  featureFlagsCli: {},
+  featureFlagsBaseDir: '',
 };
 
 /**

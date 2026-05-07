@@ -28,6 +28,7 @@ import {
 import { SdkExecutionAdapter } from '../execution/index.js';
 import { Semaphore } from '../utilities/Semaphore.js';
 import { getLogger } from '../logging/index.js';
+import { ENV_USE_SDK_FOR_WORKER, FeatureFlagsResolver } from '../config/featureFlags.js';
 import { PipelineCheckpointManager } from './PipelineCheckpointManager.js';
 import type {
   AgentInvocation,
@@ -81,32 +82,19 @@ export const ADSDLC_ORCHESTRATOR_AGENT_ID = 'ad-sdlc-orchestrator-agent';
 /**
  * Environment flag enabling the worker-stage ExecutionAdapter pilot path.
  *
- * Issue #793: when set to `'1'`, `worker` stage agent invocations route through
- * the new {@link ExecutionAdapter} (default: {@link SdkExecutionAdapter}) with
- * the AD-07 hook pipeline. Any other value keeps the existing AgentBridge path
- * untouched, preserving regression-zero for the non-pilot scenario.
- *
- * Issue #795 will replace this raw env lookup with `FeatureFlagsResolver`.
+ * Issue #793 introduced this raw env-var read directly in the orchestrator.
+ * Issue #795 promotes the toggle to a first-class config surface via
+ * {@link FeatureFlagsResolver} (priority: env > CLI > YAML > default). The
+ * exported constant is preserved as an alias so existing tests and callers
+ * referencing `WORKER_PILOT_ENV_FLAG` continue to compile.
  */
-export const WORKER_PILOT_ENV_FLAG = 'AD_SDLC_USE_SDK_FOR_WORKER';
+export const WORKER_PILOT_ENV_FLAG = ENV_USE_SDK_FOR_WORKER;
 
 /**
  * Agent type that the pilot routes through the ExecutionAdapter. Kept narrow on
  * purpose — broadening to other stages is the P3 scope (issue #798).
  */
 const WORKER_PILOT_AGENT_TYPE = 'worker';
-
-/**
- * Determine whether the worker-pilot SDK adapter path is enabled.
- *
- * Reads {@link WORKER_PILOT_ENV_FLAG} from `process.env`. The check is
- * intentionally a function (not a module-level constant) so tests can flip the
- * variable between cases without restarting the module.
- * @returns `true` if the env flag is set to `'1'`, otherwise `false`.
- */
-function isWorkerPilotEnabled(): boolean {
-  return process.env[WORKER_PILOT_ENV_FLAG] === '1';
-}
 
 /**
  * AD-SDLC Orchestrator Agent
@@ -126,6 +114,12 @@ export class AdsdlcOrchestratorAgent implements IAgent {
   private _dispatcher: AgentDispatcher | null = null;
   private _bridgeRegistry: BridgeRegistry | null = null;
   private readonly checkpointManager: PipelineCheckpointManager | null;
+  /**
+   * Lazy-initialized feature-flags resolver (Issue #795). Built on first
+   * use from CLI overrides + YAML config; subsequent calls reuse the same
+   * instance so YAML / env lookups do not happen on every stage dispatch.
+   */
+  private _featureFlags: FeatureFlagsResolver | null = null;
 
   constructor(config: OrchestratorConfig = {}) {
     this.config = {
@@ -138,6 +132,29 @@ export class AdsdlcOrchestratorAgent implements IAgent {
     };
     const ckptConfig: CheckpointConfig = this.config.checkpoint;
     this.checkpointManager = ckptConfig.enabled ? new PipelineCheckpointManager(ckptConfig) : null;
+  }
+
+  /**
+   * Get or lazily build the feature-flags resolver.
+   *
+   * The resolver is constructed once per orchestrator instance using the
+   * CLI overrides supplied via `OrchestratorConfig.featureFlagsCli` and
+   * the optional `feature-flags.yaml` file under
+   * `featureFlagsBaseDir/.ad-sdlc/config/`. Tests override this method
+   * (or pass an explicit `featureFlagsCli`) to drive deterministic
+   * behaviour without touching the live environment.
+   *
+   * @returns The cached feature-flags resolver.
+   */
+  protected getFeatureFlags(): FeatureFlagsResolver {
+    if (this._featureFlags === null) {
+      const baseDir = this.config.featureFlagsBaseDir;
+      this._featureFlags = FeatureFlagsResolver.fromSources({
+        cli: this.config.featureFlagsCli,
+        ...(baseDir !== '' && { baseDir }),
+      });
+    }
+    return this._featureFlags;
   }
 
   /**
@@ -876,12 +893,14 @@ export class AdsdlcOrchestratorAgent implements IAgent {
    * "AgentBridge path") which resolves the agentType to a real agent
    * instance and calls the appropriate adapter.
    *
-   * Worker-pilot branch (issue #793): when {@link WORKER_PILOT_ENV_FLAG}
-   * is set to `'1'` AND the stage is the `worker` agent type, the call
-   * is rerouted through {@link executeViaAdapter} which drives the
-   * {@link ExecutionAdapter} (SDK path) with the AD-07 hook pipeline.
-   * For every other (stage, flag) combination behaviour is identical to
-   * before — the AgentBridge path is preserved verbatim.
+   * Worker-pilot branch (issue #793, formalized in #795): when the
+   * {@link FeatureFlagsResolver} reports `useSdkForWorker = true` AND
+   * the stage is the `worker` agent type, the call is rerouted through
+   * {@link executeViaAdapter} which drives the {@link ExecutionAdapter}
+   * (SDK path) with the AD-07 hook pipeline. The resolver consults
+   * env > CLI > YAML > default, so the env-only behaviour from #793
+   * remains supported and tests that set
+   * `process.env.AD_SDLC_USE_SDK_FOR_WORKER` keep working unchanged.
    *
    * Override this method in tests to bypass real agent execution.
    *
@@ -893,7 +912,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
     stage: PipelineStageDefinition,
     session: OrchestratorSession
   ): Promise<string> {
-    if (stage.agentType === WORKER_PILOT_AGENT_TYPE && isWorkerPilotEnabled()) {
+    if (stage.agentType === WORKER_PILOT_AGENT_TYPE && this.getFeatureFlags().useSdkForWorker()) {
       return this.executeViaAdapter(stage, session);
     }
     return this.executeViaBridge(stage, session);
