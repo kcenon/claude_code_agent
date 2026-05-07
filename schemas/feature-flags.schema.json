@@ -1,0 +1,26 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/kcenon/claude_code_agent/schemas/feature-flags.schema.json",
+  "title": "AD-SDLC Feature Flags Configuration",
+  "description": "Schema for .ad-sdlc/config/feature-flags.yaml. The file is opt-in: AD-SDLC never auto-creates it. Each flag may be omitted; missing flags fall through to lower-priority sources (env, CLI, default).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Schema version (semver). Optional; reserved for future migrations."
+    },
+    "flags": {
+      "type": "object",
+      "description": "Feature flag values. Currently only useSdkForWorker is recognized.",
+      "additionalProperties": false,
+      "properties": {
+        "useSdkForWorker": {
+          "type": "boolean",
+          "description": "When true, route the worker stage through ExecutionAdapter (SDK path). Default: false. See AD_SDLC_USE_SDK_FOR_WORKER."
+        }
+      }
+    }
+  }
+}
