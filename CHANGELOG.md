@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Separate Database Schema Specification (DBS) from SDS into standalone document (#760)
 - Cut over the eight Doc Writers stages (PRD, SRS, SDP, SDS, UI Spec, Threat Model, Tech Decision, SVP) from `AgentDispatcher` to the SDK `ExecutionAdapter`; routing for these stages no longer consults the `AD_SDLC_USE_SDK_FOR_WORKER` feature flag (#823, AD-13-A, part of #797)
 - Cut over the four Doc Updater + Reader stages (PRD Updater, SRS Updater, SDS Updater, Document Reader) from `AgentDispatcher` to the SDK `ExecutionAdapter`; routing is independent of the `AD_SDLC_USE_SDK_FOR_WORKER` feature flag and disjoint from the AD-13-A Doc Writers cutover set (#824, AD-13-B, part of #797)
+- Cut over the four Analyzer stages (Code Reader, Codebase Analyzer, Doc-Code Comparator, Impact Analyzer) from `AgentDispatcher` to the SDK `ExecutionAdapter`; routing is independent of the `AD_SDLC_USE_SDK_FOR_WORKER` feature flag and disjoint from the AD-13-A and AD-13-B cutover sets (#825, AD-13-C, part of #797)
 
 ## [0.0.1] - 2025-12-27
 

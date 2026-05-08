@@ -140,6 +140,31 @@ export const DOC_UPDATERS_READER_ADAPTER_AGENT_TYPES: ReadonlySet<string> = Obje
 );
 
 /**
+ * Analyzer stages cut over to the ExecutionAdapter unconditionally
+ * (issue #825, AD-13-C — sub-PR of AD-13 meta #797).
+ *
+ * Sibling of {@link DOC_WRITERS_ADAPTER_AGENT_TYPES} (AD-13-A) and
+ * {@link DOC_UPDATERS_READER_ADAPTER_AGENT_TYPES} (AD-13-B). These four
+ * Analyzer agent types always route through {@link executeViaAdapter};
+ * the legacy {@link executeViaBridge} path is no longer reachable for
+ * them. The Analyzer stages share `grep` / `Read` heavy tool patterns,
+ * making them a coherent group for one PR.
+ *
+ * Note: Issue #825 originally listed six Analyzer stages including
+ * "Architecture Analyzer" and "Component Analyzer", but those names do
+ * not correspond to existing orchestrator agent types — only the four
+ * Analyzer-class stages defined in {@link ENHANCEMENT_STAGES} are
+ * cut over here. The remaining stages handled by sibling sub-PRs
+ * (AD-13-D, AD-13-E) still flow through the bridge until those PRs
+ * land.
+ *
+ * The set is frozen so a typo cannot silently re-enable the bridge path.
+ */
+export const ANALYZERS_ADAPTER_AGENT_TYPES: ReadonlySet<string> = Object.freeze(
+  new Set<string>(['code-reader', 'codebase-analyzer', 'doc-code-comparator', 'impact-analyzer'])
+);
+
+/**
  * AD-SDLC Orchestrator Agent
  *
  * Coordinates the full AD-SDLC pipeline execution by invoking subagents
@@ -957,8 +982,14 @@ export class AdsdlcOrchestratorAgent implements IAgent {
    * agent types listed in {@link DOC_UPDATERS_READER_ADAPTER_AGENT_TYPES}
    * (`prd-updater`, `srs-updater`, `sds-updater`, `document-reader`)
    * are routed to {@link executeViaAdapter} unconditionally on the
-   * same terms. The remaining 21 stages will be cut over by sibling
-   * sub-PRs AD-13-C..E.
+   * same terms.
+   *
+   * Analyzer cutover (issue #825, AD-13-C): the four agent types listed
+   * in {@link ANALYZERS_ADAPTER_AGENT_TYPES} (`code-reader`,
+   * `codebase-analyzer`, `doc-code-comparator`, `impact-analyzer`) are
+   * routed to {@link executeViaAdapter} unconditionally on the same
+   * terms. The remaining stages will be cut over by sibling sub-PRs
+   * AD-13-D and AD-13-E.
    *
    * Override this method in tests to bypass real agent execution.
    *
@@ -974,6 +1005,9 @@ export class AdsdlcOrchestratorAgent implements IAgent {
       return this.executeViaAdapter(stage, session);
     }
     if (DOC_UPDATERS_READER_ADAPTER_AGENT_TYPES.has(stage.agentType)) {
+      return this.executeViaAdapter(stage, session);
+    }
+    if (ANALYZERS_ADAPTER_AGENT_TYPES.has(stage.agentType)) {
       return this.executeViaAdapter(stage, session);
     }
     if (stage.agentType === WORKER_PILOT_AGENT_TYPE && this.getFeatureFlags().useSdkForWorker()) {
