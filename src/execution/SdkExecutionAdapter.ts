@@ -125,12 +125,14 @@ export class SdkExecutionAdapter implements ExecutionAdapter {
 
     const sdk = await this.getSdk();
     const prompt = renderPrompt(req);
-    const sdkOptions: SdkQueryOptions['options'] = {
-      skills: req.skills,
-      mcpServers: req.mcpServers,
-      maxTurns: req.maxTurns,
-      resume: req.resume,
-      signal: req.signal,
+    // Build options with conditional spreads so undefined fields are absent
+    // entirely (required by tsconfig `exactOptionalPropertyTypes: true`).
+    const sdkOptions: NonNullable<SdkQueryOptions['options']> = {
+      ...(req.skills !== undefined && { skills: req.skills }),
+      ...(req.mcpServers !== undefined && { mcpServers: req.mcpServers }),
+      ...(req.maxTurns !== undefined && { maxTurns: req.maxTurns }),
+      ...(req.resume !== undefined && { resume: req.resume }),
+      ...(req.signal !== undefined && { signal: req.signal }),
       ...(this.hooks !== undefined && { hooks: this.hooks }),
     };
 
@@ -156,7 +158,10 @@ export class SdkExecutionAdapter implements ExecutionAdapter {
         }
       }
     } catch (err) {
-      if (req.signal?.aborted === true) return abortedResult(sessionId);
+      // The signal may have flipped to aborted between the early-return guard
+      // above and this point; widen the type so TS does not collapse the check.
+      const signal: AbortSignal | undefined = req.signal;
+      if (signal?.aborted === true) return abortedResult(sessionId);
       return failedResult(sessionId, err);
     }
 
@@ -192,11 +197,11 @@ export class SdkExecutionAdapter implements ExecutionAdapter {
  */
 export function renderPrompt(req: StageExecutionRequest): string {
   const blocks: string[] = [`# Stage: ${req.agentType}`, '', '## Work order', '', req.workOrder];
-  const keys = Object.keys(req.priorOutputs);
-  if (keys.length > 0) {
+  const entries = Object.entries(req.priorOutputs);
+  if (entries.length > 0) {
     blocks.push('', '## Prior outputs');
-    for (const key of keys) {
-      blocks.push('', `### ${key}`, '', req.priorOutputs[key]);
+    for (const [key, value] of entries) {
+      blocks.push('', `### ${key}`, '', value);
     }
   }
   return blocks.join('\n');
@@ -220,7 +225,11 @@ function extractArtifacts(resultText: string): ArtifactRef[] {
   const out: ArtifactRef[] = [];
   for (const raw of resultText.split('\n')) {
     const match = raw.match(/^\s*([\w./\-_]+):\s*(.+)$/);
-    if (match) out.push({ path: match[1], description: match[2].trim() });
+    if (match === null) continue;
+    const path = match[1];
+    const description = match[2];
+    if (path === undefined || description === undefined) continue;
+    out.push({ path, description: description.trim() });
   }
   return out;
 }
