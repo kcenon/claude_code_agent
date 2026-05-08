@@ -27,9 +27,8 @@
  */
 
 import { join, normalize, resolve, relative, isAbsolute } from 'node:path';
-import { mkdir, writeFile as fsWriteFile, unlink } from 'node:fs/promises';
 import type { IAgent } from '../agents/types.js';
-import type { AgentBridge, AgentRequest } from '../agents/AgentBridge.js';
+import type { ExecutionAdapter, StageExecutionRequest } from '../execution/index.js';
 import { getLogger } from '../logging/index.js';
 
 import type {
@@ -141,7 +140,7 @@ export class WorkerAgent implements IAgent {
   private lastTestGenerationResult: TestGenerationResult | null;
   private currentBranchName: string | null;
   private initialized = false;
-  private bridge?: AgentBridge;
+  private executionAdapter?: ExecutionAdapter;
 
   constructor(
     config: WorkerAgentConfig = {},
@@ -191,12 +190,14 @@ export class WorkerAgent implements IAgent {
   }
 
   /**
-   * Set the AgentBridge for AI-backed code generation.
-   * When set, generateCode() delegates to the bridge instead of using stub behavior.
-   * @param bridge - The AgentBridge implementation to use
+   * Set the ExecutionAdapter for AI-backed code generation.
+   * When set, generateCode() delegates to the adapter instead of using stub behavior.
+   * The adapter's underlying SDK writes file changes directly via Edit/Write tools;
+   * the WorkerAgent records the resulting artifacts as file changes.
+   * @param adapter - The ExecutionAdapter implementation to use
    */
-  public setBridge(bridge: AgentBridge): void {
-    this.bridge = bridge;
+  public setExecutionAdapter(adapter: ExecutionAdapter): void {
+    this.executionAdapter = adapter;
   }
 
   /**
@@ -726,11 +727,12 @@ export class WorkerAgent implements IAgent {
   /**
    * Generate code based on work order.
    *
-   * When an AgentBridge is configured (via setBridge()), delegates code
-   * generation to the AI backend. The bridge response is parsed for file
-   * changes which are then applied to disk and recorded.
+   * When an ExecutionAdapter is configured (via setExecutionAdapter()),
+   * delegates code generation to the AI backend. The adapter's underlying
+   * SDK writes files directly via Edit/Write tools; the returned artifacts
+   * are recorded as file changes.
    *
-   * When no bridge is set, falls back to stub behavior: records the target
+   * When no adapter is set, falls back to stub behavior: records the target
    * files from the work order context so that subsequent pipeline steps
    * (test generation, verification) have awareness of the intended scope.
    *
@@ -739,41 +741,40 @@ export class WorkerAgent implements IAgent {
   public async generateCode(context: ExecutionContext): Promise<void> {
     const { workOrder, codeContext } = context;
 
-    // Delegate to bridge when available
-    if (this.bridge) {
-      const request: AgentRequest = {
+    // Delegate to ExecutionAdapter when available
+    if (this.executionAdapter) {
+      const request: StageExecutionRequest = {
         agentType: 'worker',
-        input: this.buildCodeGenPrompt(workOrder, codeContext),
-        scratchpadDir: this.config.resultsPath,
-        projectDir: this.config.projectRoot,
-        priorStageOutputs: {
+        workOrder: this.buildCodeGenPrompt(workOrder, codeContext),
+        priorOutputs: {
           issue: JSON.stringify(workOrder),
           codeContext: JSON.stringify(codeContext),
         },
       };
 
-      const response = await this.bridge.execute(request);
-      if (!response.success) {
-        throw new CodeGenerationError(
-          workOrder.issueId,
-          new Error(response.error ?? 'Unknown code generation error')
-        );
+      const result = await this.executionAdapter.execute(request);
+      if (result.status !== 'success') {
+        const cause = result.error?.message ?? `ExecutionAdapter status=${result.status}`;
+        throw new CodeGenerationError(workOrder.issueId, new Error(cause));
       }
 
-      const changes = this.parseCodeGenOutput(response.output);
-      for (const change of changes) {
-        await this.applyFileChange(change);
+      // SDK has already written files via Edit/Write tools captured in artifacts.
+      // Record each artifact as a file change. We treat artifacts as "modify"
+      // unless the path did not exist before — but determining that retroactively
+      // is unreliable, so we conservatively record as 'modify' (the SDK does
+      // not distinguish Edit vs Write here).
+      for (const artifact of result.artifacts) {
+        const relativePath = this.toProjectRelativePath(artifact.path);
+        if (relativePath === null) {
+          // Skip artifacts outside project root rather than record them.
+          continue;
+        }
         this.recordFileChange({
-          filePath: change.filePath,
-          changeType:
-            change.action === 'delete'
-              ? 'delete'
-              : change.action === 'create'
-                ? 'create'
-                : 'modify',
-          description: change.description,
-          linesAdded: change.linesAdded,
-          linesRemoved: change.linesRemoved,
+          filePath: relativePath,
+          changeType: 'modify',
+          description: artifact.description ?? `Updated by worker: ${relativePath}`,
+          linesAdded: 0,
+          linesRemoved: 0,
         });
       }
       return;
@@ -1517,44 +1518,29 @@ export class WorkerAgent implements IAgent {
   }
 
   /**
-   * Apply a file change to disk, respecting project root boundaries.
-   * Creates parent directories as needed. Validates path traversal.
-   * @param change - The code change to apply
-   * @throws CodeGenerationError if path escapes project root
+   * Normalize an artifact path returned by the ExecutionAdapter into a
+   * project-root-relative path. Returns null when the artifact escapes the
+   * project root (path traversal protection).
+   * @param artifactPath - Path as returned by the adapter (absolute or relative)
+   * @returns Project-relative path, or null if the path is outside the project
    */
-  private async applyFileChange(change: CodeChange): Promise<void> {
-    // Validate file path stays within project root
+  private toProjectRelativePath(artifactPath: string): string | null {
     const projectRoot = resolve(this.config.projectRoot);
-    const targetPath = isAbsolute(change.filePath)
-      ? resolve(change.filePath)
-      : resolve(projectRoot, change.filePath);
+    const targetPath = isAbsolute(artifactPath)
+      ? resolve(artifactPath)
+      : resolve(projectRoot, artifactPath);
     const normalizedTarget = normalize(targetPath);
     const relativePath = relative(projectRoot, normalizedTarget);
 
     if (relativePath.startsWith('..') || isAbsolute(relativePath)) {
-      throw new CodeGenerationError(
-        `path-traversal:${change.filePath}`,
-        new Error(`File path "${change.filePath}" escapes project root`)
-      );
+      getLogger().warn('Artifact path escapes project root, skipping', {
+        agent: 'WorkerAgent',
+        artifactPath,
+      });
+      return null;
     }
 
-    if (change.action === 'delete') {
-      try {
-        await unlink(normalizedTarget);
-      } catch (error) {
-        getLogger().debug('File to delete not found, skipping', {
-          agent: 'WorkerAgent',
-          filePath: change.filePath,
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
-      return;
-    }
-
-    // create or modify
-    const dir = join(normalizedTarget, '..');
-    await mkdir(dir, { recursive: true });
-    await fsWriteFile(normalizedTarget, change.content ?? '', 'utf-8');
+    return relativePath;
   }
 
   /**
