@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- **Breaking**: Delete the dead Bridge / Dispatcher / Registry stack now that all consumer subsystems have migrated to `ExecutionAdapter`. Removed source modules: `src/agents/AgentBridge.ts`, `src/agents/AgentDispatcher.ts`, `src/agents/AgentRegistry.ts`, `src/agents/AgentTypeMapping.ts`, `src/agents/AgentFactory.ts`, `src/agents/bootstrapAgents.ts`, `src/agents/BridgeRegistry.ts`, `src/agents/ExecutionScaffoldGenerator.ts`, and the entire `src/agents/bridges/` directory (`AnthropicApiBridge`, `ClaudeCliSubprocessBridge`, `ClaudeCodeBridge`, `StubBridge`, `agentDefinition`, `index`, `tools`). External consumers importing `AgentBridge`, `AgentDispatcher`, `AgentRegistry`, `AgentFactory`, `BridgeRegistry`, `bootstrapAgents`, `ExecutionScaffoldGenerator`, or any of the four concrete bridge classes from `@ad-sdlc/agents` must migrate to the `ExecutionAdapter` API in `src/execution/`. The `IAgent` interface and per-agent module re-exports remain available. Also removed the `@anthropic-ai/sdk` runtime dependency now that `AnthropicApiBridge` is gone (#798)
+
 ### Added
 
 - `PipelineCheckpointManager` records the SDK `session_id` per stage so a mid-stage crash can resume via the SDK's `resume: sessionId` and recover its tool-loop context. Checkpoint schema is bumped from v1 to v2 with backward-compatible auto-migration (v1 fixtures load as v2 with `sdkSessionId` undefined); adapters that do not surface a session id (e.g. Bedrock/Vertex) gracefully fall back to a clean stage restart (#800)

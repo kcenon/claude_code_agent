@@ -2,11 +2,10 @@
  * Doc Index Generator module
  *
  * The actual indexing logic is defined in the agent prompt
- * (.claude/agents/doc-index-generator.md) and executed via
- * StubBridge or ClaudeCodeBridge at runtime.
+ * (.claude/agents/doc-index-generator.md) and executed via the
+ * runtime ExecutionAdapter backend (claude-code session or stub).
  *
  * This module provides:
- * - AgentTypeMapping import target (constants)
  * - Zod schemas for validating generated index files
  * - TypeScript types inferred from schemas
  * - Validation utility function

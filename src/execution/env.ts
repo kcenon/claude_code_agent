@@ -2,10 +2,7 @@
  * Execution environment detection helpers.
  *
  * Standalone utilities for inspecting the runtime environment to decide
- * whether a real {@link ExecutionAdapter} backend is available. These
- * functions intentionally do not depend on the legacy bridge stack so
- * that consumers can migrate off `BridgeRegistry` without losing the
- * detection semantics it previously provided.
+ * whether a real {@link ExecutionAdapter} backend is available.
  *
  * @packageDocumentation
  */
@@ -55,8 +52,8 @@ export function hasRealExecutionEnvironment(): boolean {
  * Identifier for the detected execution backend. Used for diagnostic
  * display in CLI commands like `doctor` and `pipeline --dry-run`.
  *
- * `'claude-code'` takes precedence over `'anthropic-api'` to mirror the
- * priority order of the legacy bridge registry.
+ * `'claude-code'` takes precedence over `'anthropic-api'` so that an
+ * active session is always preferred when both markers are present.
  */
 export type ExecutionEnvironmentLabel = 'claude-code' | 'anthropic-api' | 'none';
 

@@ -1025,7 +1025,7 @@ program
   .option('--dry-run', 'Validate pipeline configuration without executing agents', false)
   .option(
     '--allow-stub',
-    'Allow StubBridge for testing (by default, real bridge is required)',
+    'Allow stub execution backend for testing (by default, a real backend is required)',
     false
   )
   .option('--resume <session-id>', 'Resume a previously interrupted pipeline session')
@@ -1135,13 +1135,13 @@ program
 
       // Show execution backend info
       const envLabel = describeExecutionEnvironment();
-      const bridgeType =
+      const backendLabel =
         envLabel === 'claude-code'
-          ? 'ClaudeCodeBridge'
+          ? 'claude-code session'
           : envLabel === 'anthropic-api'
-            ? 'AnthropicApiBridge'
-            : 'StubBridge (no real bridge)';
-      output.info(chalk.dim(`Bridge: ${bridgeType}`));
+            ? 'Anthropic API'
+            : 'stub (no real backend)';
+      output.info(chalk.dim(`Execution backend: ${backendLabel}`));
       output.blank();
 
       try {
