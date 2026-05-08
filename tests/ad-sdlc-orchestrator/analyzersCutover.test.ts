@@ -1,29 +1,33 @@
 /**
- * Doc Updaters + Reader ExecutionAdapter cutover tests
- * (issue #824, AD-13-B).
+ * Analyzer ExecutionAdapter cutover tests
+ * (issue #825, AD-13-C).
  *
- * Verifies that the four target stages always route through
+ * Verifies that the four target Analyzer stages always route through
  * {@link AdsdlcOrchestratorAgent.executeViaAdapter} and never through
  * {@link AdsdlcOrchestratorAgent.executeViaBridge}, regardless of the
  * `AD_SDLC_USE_SDK_FOR_WORKER` feature flag.
  *
- * Stages in scope (4): PRD Updater, SRS Updater, SDS Updater, Document
- * Reader. The 8 Doc Writers stages cut over by AD-13-A (#823) must keep
- * routing through the adapter; the remaining 21 stages handled by
- * sibling sub-PRs AD-13-C..E must still flow through the bridge path.
+ * Stages in scope (4): Code Reader, Codebase Analyzer, Doc-Code
+ * Comparator, Impact Analyzer. The 8 Doc Writers stages cut over by
+ * AD-13-A (#823) and the 4 Doc Updater + Reader stages cut over by
+ * AD-13-B (#824) must keep routing through the adapter; the remaining
+ * stages handled by sibling sub-PRs AD-13-D and AD-13-E must still flow
+ * through the bridge path.
  *
  * Acceptance Criteria mapping:
- *   AC-1  All 4 stages route exclusively through ExecutionAdapter.
+ *   AC-1  All 4 Analyzer stages route exclusively through ExecutionAdapter.
  *   AC-2  No `executeViaBridge` call site for these 4 stages.
  *   AC-3  Other stages (e.g. `collector`) still use the bridge path.
  *   AC-4  Routing decision does not depend on the worker feature flag.
- *   AC-5  Doc Writers (AD-13-A) regression-zero: still adapter-routed.
+ *   AC-5  Doc Writers (AD-13-A) and Doc Updaters + Reader (AD-13-B)
+ *         regression-zero: still adapter-routed.
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
 import {
   AdsdlcOrchestratorAgent,
+  ANALYZERS_ADAPTER_AGENT_TYPES,
   DOC_UPDATERS_READER_ADAPTER_AGENT_TYPES,
   DOC_WRITERS_ADAPTER_AGENT_TYPES,
   WORKER_PILOT_ENV_FLAG,
@@ -70,7 +74,7 @@ class RoutingProbeOrchestrator extends AdsdlcOrchestratorAgent {
   }
 }
 
-function buildStage(agentType: string, name = 'doc-updater-stage'): PipelineStageDefinition {
+function buildStage(agentType: string, name = 'analyzer-stage'): PipelineStageDefinition {
   return {
     name: name as PipelineStageDefinition['name'],
     agentType,
@@ -83,32 +87,32 @@ function buildStage(agentType: string, name = 'doc-updater-stage'): PipelineStag
 
 function buildSession(): OrchestratorSession {
   return {
-    sessionId: 'doc-updaters-reader-cutover-test',
-    projectDir: '/tmp/doc-updaters-test',
-    userRequest: 'Update documentation artifacts',
+    sessionId: 'analyzers-cutover-test',
+    projectDir: '/tmp/analyzers-test',
+    userRequest: 'Analyze codebase and documentation',
     mode: 'brownfield',
     startedAt: new Date().toISOString(),
     status: 'running',
     stageResults: [],
-    scratchpadDir: '/tmp/doc-updaters-test/.ad-sdlc/scratchpad',
+    scratchpadDir: '/tmp/analyzers-test/.ad-sdlc/scratchpad',
     localMode: true,
   };
 }
 
-// The full set the AD-13-B cutover applies to. Hard-coded here so the
-// test catches accidental drift in `DOC_UPDATERS_READER_ADAPTER_AGENT_TYPES`.
-const EXPECTED_DOC_UPDATERS_READER = [
-  'prd-updater',
-  'srs-updater',
-  'sds-updater',
-  'document-reader',
+// The full set the AD-13-C cutover applies to. Hard-coded here so the
+// test catches accidental drift in `ANALYZERS_ADAPTER_AGENT_TYPES`.
+const EXPECTED_ANALYZERS = [
+  'code-reader',
+  'codebase-analyzer',
+  'doc-code-comparator',
+  'impact-analyzer',
 ] as const;
 
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
-describe('Doc Updaters + Reader ExecutionAdapter cutover (#824)', () => {
+describe('Analyzer ExecutionAdapter cutover (#825)', () => {
   let originalFlag: string | undefined;
   let orchestrator: RoutingProbeOrchestrator;
 
@@ -130,28 +134,32 @@ describe('Doc Updaters + Reader ExecutionAdapter cutover (#824)', () => {
   });
 
   describe('Constant integrity', () => {
-    it('exports the expected set of 4 Doc Updater + Reader agent types', () => {
-      expect(DOC_UPDATERS_READER_ADAPTER_AGENT_TYPES.size).toBe(
-        EXPECTED_DOC_UPDATERS_READER.length
-      );
-      for (const agentType of EXPECTED_DOC_UPDATERS_READER) {
-        expect(DOC_UPDATERS_READER_ADAPTER_AGENT_TYPES.has(agentType)).toBe(true);
+    it('exports the expected set of 4 Analyzer agent types', () => {
+      expect(ANALYZERS_ADAPTER_AGENT_TYPES.size).toBe(EXPECTED_ANALYZERS.length);
+      for (const agentType of EXPECTED_ANALYZERS) {
+        expect(ANALYZERS_ADAPTER_AGENT_TYPES.has(agentType)).toBe(true);
       }
     });
 
     it('does not include the worker agent type (worker is feature-flag gated)', () => {
-      expect(DOC_UPDATERS_READER_ADAPTER_AGENT_TYPES.has('worker')).toBe(false);
+      expect(ANALYZERS_ADAPTER_AGENT_TYPES.has('worker')).toBe(false);
     });
 
     it('is disjoint from the Doc Writers cutover set (AD-13-A)', () => {
-      for (const agentType of DOC_UPDATERS_READER_ADAPTER_AGENT_TYPES) {
+      for (const agentType of ANALYZERS_ADAPTER_AGENT_TYPES) {
         expect(DOC_WRITERS_ADAPTER_AGENT_TYPES.has(agentType)).toBe(false);
+      }
+    });
+
+    it('is disjoint from the Doc Updaters + Reader cutover set (AD-13-B)', () => {
+      for (const agentType of ANALYZERS_ADAPTER_AGENT_TYPES) {
+        expect(DOC_UPDATERS_READER_ADAPTER_AGENT_TYPES.has(agentType)).toBe(false);
       }
     });
   });
 
-  describe('AC-1: all 4 Doc Updaters + Reader route through the ExecutionAdapter', () => {
-    for (const agentType of EXPECTED_DOC_UPDATERS_READER) {
+  describe('AC-1: all 4 Analyzers route through the ExecutionAdapter', () => {
+    for (const agentType of EXPECTED_ANALYZERS) {
       it(`routes ${agentType} via executeViaAdapter (flag unset)`, async () => {
         const stage = buildStage(agentType);
         const session = buildSession();
@@ -170,25 +178,25 @@ describe('Doc Updaters + Reader ExecutionAdapter cutover (#824)', () => {
 
   describe('AC-4: routing is independent of AD_SDLC_USE_SDK_FOR_WORKER', () => {
     for (const flagValue of ['1', '0', 'true', 'false']) {
-      it(`routes prd-updater via adapter when flag is "${flagValue}"`, async () => {
+      it(`routes code-reader via adapter when flag is "${flagValue}"`, async () => {
         process.env[WORKER_PILOT_ENV_FLAG] = flagValue;
-        const stage = buildStage('prd-updater');
+        const stage = buildStage('code-reader');
         const session = buildSession();
 
         await orchestrator.callInvokeAgent(stage, session);
 
-        expect(orchestrator.adapterCalls).toEqual(['prd-updater']);
+        expect(orchestrator.adapterCalls).toEqual(['code-reader']);
         expect(orchestrator.bridgeCalls).toEqual([]);
       });
 
-      it(`routes document-reader via adapter when flag is "${flagValue}"`, async () => {
+      it(`routes impact-analyzer via adapter when flag is "${flagValue}"`, async () => {
         process.env[WORKER_PILOT_ENV_FLAG] = flagValue;
-        const stage = buildStage('document-reader');
+        const stage = buildStage('impact-analyzer');
         const session = buildSession();
 
         await orchestrator.callInvokeAgent(stage, session);
 
-        expect(orchestrator.adapterCalls).toEqual(['document-reader']);
+        expect(orchestrator.adapterCalls).toEqual(['impact-analyzer']);
         expect(orchestrator.bridgeCalls).toEqual([]);
       });
     }
@@ -215,16 +223,13 @@ describe('Doc Updaters + Reader ExecutionAdapter cutover (#824)', () => {
       expect(orchestrator.adapterCalls).toEqual([]);
     });
 
-    // Note: `code-reader` was cut over to the ExecutionAdapter by AD-13-C
-    // (issue #825). Use a still-bridged stage as the regression-zero
-    // probe instead.
-    it('still routes the regression-tester stage via the bridge path', async () => {
-      const stage = buildStage('regression-tester', 'regression_testing');
+    it('still routes the controller stage via the bridge path', async () => {
+      const stage = buildStage('controller', 'orchestration');
       const session = buildSession();
 
       await orchestrator.callInvokeAgent(stage, session);
 
-      expect(orchestrator.bridgeCalls).toEqual(['regression-tester']);
+      expect(orchestrator.bridgeCalls).toEqual(['controller']);
       expect(orchestrator.adapterCalls).toEqual([]);
     });
 
@@ -254,6 +259,20 @@ describe('Doc Updaters + Reader ExecutionAdapter cutover (#824)', () => {
   describe('AC-5: AD-13-A Doc Writers regression-zero', () => {
     for (const agentType of DOC_WRITERS_ADAPTER_AGENT_TYPES) {
       it(`Doc Writer ${agentType} still routes via the adapter`, async () => {
+        const stage = buildStage(agentType);
+        const session = buildSession();
+
+        await orchestrator.callInvokeAgent(stage, session);
+
+        expect(orchestrator.adapterCalls).toEqual([agentType]);
+        expect(orchestrator.bridgeCalls).toEqual([]);
+      });
+    }
+  });
+
+  describe('AC-5: AD-13-B Doc Updaters + Reader regression-zero', () => {
+    for (const agentType of DOC_UPDATERS_READER_ADAPTER_AGENT_TYPES) {
+      it(`Doc Updater/Reader ${agentType} still routes via the adapter`, async () => {
         const stage = buildStage(agentType);
         const session = buildSession();
 
