@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Separate Database Schema Specification (DBS) from SDS into standalone document (#760)
+- Cut over the eight Doc Writers stages (PRD, SRS, SDP, SDS, UI Spec, Threat Model, Tech Decision, SVP) from `AgentDispatcher` to the SDK `ExecutionAdapter`; routing for these stages no longer consults the `AD_SDLC_USE_SDK_FOR_WORKER` feature flag (#823, AD-13-A, part of #797)
 
 ## [0.0.1] - 2025-12-27
 
