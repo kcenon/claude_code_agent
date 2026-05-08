@@ -17,7 +17,10 @@
  * Acceptance Criteria mapping:
  *   AC-1  All 4 Analyzer stages route exclusively through ExecutionAdapter.
  *   AC-2  No `executeViaBridge` call site for these 4 stages.
- *   AC-3  Other stages (e.g. `collector`) still use the bridge path.
+ *   AC-3  Other stages (e.g. `regression-tester`) still use the bridge
+ *         path. (After AD-13-D landed, the previously-bridge `collector`
+ *         stage is now adapter-routed, so the regression probe was
+ *         retargeted at a still-bridge stage.)
  *   AC-4  Routing decision does not depend on the worker feature flag.
  *   AC-5  Doc Writers (AD-13-A) and Doc Updaters + Reader (AD-13-B)
  *         regression-zero: still adapter-routed.
@@ -203,13 +206,13 @@ describe('Analyzer ExecutionAdapter cutover (#825)', () => {
   });
 
   describe('AC-3: regression-zero for non-cutover stages', () => {
-    it('still routes the collector stage via the bridge path', async () => {
-      const stage = buildStage('collector', 'collection');
+    it('still routes the regression-tester stage via the bridge path', async () => {
+      const stage = buildStage('regression-tester', 'regression');
       const session = buildSession();
 
       await orchestrator.callInvokeAgent(stage, session);
 
-      expect(orchestrator.bridgeCalls).toEqual(['collector']);
+      expect(orchestrator.bridgeCalls).toEqual(['regression-tester']);
       expect(orchestrator.adapterCalls).toEqual([]);
     });
 

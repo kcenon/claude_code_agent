@@ -26,11 +26,15 @@ import { AgentDispatcher } from '../../src/agents/AgentDispatcher.js';
 
 /**
  * Minimal stage definition for testing invokeAgent()
+ *
+ * Uses `regression-tester` so the dispatcher path is exercised; the
+ * previously-used `collector` stage is now adapter-routed after AD-13-D
+ * (#826) and would bypass the dispatcher this suite is validating.
  */
 function createStage(overrides?: Partial<PipelineStageDefinition>): PipelineStageDefinition {
   return {
-    name: 'collection',
-    agentType: 'collector',
+    name: 'regression',
+    agentType: 'regression-tester',
     description: 'Test stage',
     parallel: false,
     approvalRequired: false,
@@ -222,9 +226,7 @@ describe('invokeAgent() dispatcher wiring', () => {
       }
 
       const dispatcher = orchestrator.getInternalDispatcher()!;
-      vi.spyOn(dispatcher, 'dispatch').mockRejectedValue(
-        new Error('Agent execution failed')
-      );
+      vi.spyOn(dispatcher, 'dispatch').mockRejectedValue(new Error('Agent execution failed'));
 
       await expect(orchestrator.callInvokeAgent(stage, session)).rejects.toThrow(
         'Agent execution failed'

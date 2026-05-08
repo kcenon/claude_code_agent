@@ -165,6 +165,36 @@ export const ANALYZERS_ADAPTER_AGENT_TYPES: ReadonlySet<string> = Object.freeze(
 );
 
 /**
+ * Setup and Collection stages cut over to the ExecutionAdapter
+ * unconditionally (issue #826, AD-13-D — sub-PR of AD-13 meta #797).
+ *
+ * Sibling of {@link DOC_WRITERS_ADAPTER_AGENT_TYPES} (AD-13-A),
+ * {@link DOC_UPDATERS_READER_ADAPTER_AGENT_TYPES} (AD-13-B), and
+ * {@link ANALYZERS_ADAPTER_AGENT_TYPES} (AD-13-C). These six agent
+ * types always route through {@link executeViaAdapter}; the legacy
+ * {@link executeViaBridge} path is no longer reachable for them. They
+ * cover the early pipeline phases (project initialization, mode
+ * detection, repository detection, GitHub repository setup, project
+ * collection, and issue reading) that prepare the orchestrator's
+ * inputs before document generation begins.
+ *
+ * The remaining stages handled by the final sibling sub-PR (AD-13-E)
+ * still flow through the bridge until that PR lands.
+ *
+ * The set is frozen so a typo cannot silently re-enable the bridge path.
+ */
+export const SETUP_COLLECTION_ADAPTER_AGENT_TYPES: ReadonlySet<string> = Object.freeze(
+  new Set<string>([
+    'project-initializer',
+    'mode-detector',
+    'repo-detector',
+    'github-repo-setup',
+    'collector',
+    'issue-reader',
+  ])
+);
+
+/**
  * AD-SDLC Orchestrator Agent
  *
  * Coordinates the full AD-SDLC pipeline execution by invoking subagents
@@ -988,8 +1018,15 @@ export class AdsdlcOrchestratorAgent implements IAgent {
    * in {@link ANALYZERS_ADAPTER_AGENT_TYPES} (`code-reader`,
    * `codebase-analyzer`, `doc-code-comparator`, `impact-analyzer`) are
    * routed to {@link executeViaAdapter} unconditionally on the same
-   * terms. The remaining stages will be cut over by sibling sub-PRs
-   * AD-13-D and AD-13-E.
+   * terms.
+   *
+   * Setup + Collection cutover (issue #826, AD-13-D): the six agent
+   * types listed in {@link SETUP_COLLECTION_ADAPTER_AGENT_TYPES}
+   * (`project-initializer`, `mode-detector`, `repo-detector`,
+   * `github-repo-setup`, `collector`, `issue-reader`) are routed to
+   * {@link executeViaAdapter} unconditionally on the same terms. The
+   * remaining stages will be cut over by the final sibling sub-PR
+   * AD-13-E.
    *
    * Override this method in tests to bypass real agent execution.
    *
@@ -1008,6 +1045,9 @@ export class AdsdlcOrchestratorAgent implements IAgent {
       return this.executeViaAdapter(stage, session);
     }
     if (ANALYZERS_ADAPTER_AGENT_TYPES.has(stage.agentType)) {
+      return this.executeViaAdapter(stage, session);
+    }
+    if (SETUP_COLLECTION_ADAPTER_AGENT_TYPES.has(stage.agentType)) {
       return this.executeViaAdapter(stage, session);
     }
     if (stage.agentType === WORKER_PILOT_AGENT_TYPE && this.getFeatureFlags().useSdkForWorker()) {
