@@ -10,17 +10,17 @@
 
 AD-SDLC uses a **dual-layer architecture** where each specialized agent exists in two complementary forms. This separation isolates deterministic infrastructure concerns from non-deterministic AI reasoning, making each layer independently testable and maintainable.
 
-| Layer | Location | Responsibility |
-|-------|----------|----------------|
-| **Infrastructure** | `src/<agent>/` | State management, file I/O, validation, security, error handling |
-| **Intelligence** | `.claude/agents/<agent>.md` | AI reasoning, content generation, decision making, prompt definitions |
+| Layer              | Location                    | Responsibility                                                        |
+| ------------------ | --------------------------- | --------------------------------------------------------------------- |
+| **Infrastructure** | `src/<agent>/`              | State management, file I/O, validation, security, error handling      |
+| **Intelligence**   | `.claude/agents/<agent>.md` | AI reasoning, content generation, decision making, prompt definitions |
 
 ### Why Two Layers?
 
 The dual-layer design addresses a fundamental tension in AI-augmented systems:
 
 - **Infrastructure code** must be deterministic, testable, and type-safe. It handles file operations, schema validation, state persistence, and error recovery -- concerns that benefit from TypeScript's type system and conventional unit testing.
-- **Intelligence definitions** must be flexible, declarative, and model-aware. They define what an agent *should do* (its role, reasoning strategy, output format) rather than *how* the underlying system executes it.
+- **Intelligence definitions** must be flexible, declarative, and model-aware. They define what an agent _should do_ (its role, reasoning strategy, output format) rather than _how_ the underlying system executes it.
 
 By separating these concerns, a developer can modify AI behavior (adjusting prompts, changing reasoning strategies) without touching infrastructure code, and vice versa.
 
@@ -135,24 +135,24 @@ flowchart LR
 
 This matrix clarifies which layer owns each concern. When deciding where to make a change, consult this table.
 
-| Concern | Infrastructure Layer | Intelligence Layer |
-|---------|:-------------------:|:-----------------:|
-| State management / persistence | X | |
-| File I/O (read/write scratchpad) | X | |
-| Input validation / schema enforcement | X | |
-| Error handling / retry logic | X | |
-| Security (path traversal, secrets) | X | |
-| Agent lifecycle (init/dispose) | X | |
-| Singleton caching | X | |
-| Pipeline stage coordination | X | |
-| AI reasoning strategy | | X |
-| Content generation prompts | | X |
-| Output format instructions | | X |
-| Decision-making heuristics | | X |
-| Tool selection (Read, Write, Bash, etc.) | | X |
-| Few-shot examples | | X |
-| Quality/acceptance criteria | | X |
-| Model preference (opus/sonnet/haiku) | | X |
+| Concern                                  | Infrastructure Layer | Intelligence Layer |
+| ---------------------------------------- | :------------------: | :----------------: |
+| State management / persistence           |          X           |                    |
+| File I/O (read/write scratchpad)         |          X           |                    |
+| Input validation / schema enforcement    |          X           |                    |
+| Error handling / retry logic             |          X           |                    |
+| Security (path traversal, secrets)       |          X           |                    |
+| Agent lifecycle (init/dispose)           |          X           |                    |
+| Singleton caching                        |          X           |                    |
+| Pipeline stage coordination              |          X           |                    |
+| AI reasoning strategy                    |                      |         X          |
+| Content generation prompts               |                      |         X          |
+| Output format instructions               |                      |         X          |
+| Decision-making heuristics               |                      |         X          |
+| Tool selection (Read, Write, Bash, etc.) |                      |         X          |
+| Few-shot examples                        |                      |         X          |
+| Quality/acceptance criteria              |                      |         X          |
+| Model preference (opus/sonnet/haiku)     |                      |         X          |
 
 ---
 
@@ -160,47 +160,47 @@ This matrix clarifies which layer owns each concern. When deciding where to make
 
 All 25 dual-layer agents with their file locations in both layers:
 
-| # | Agent | Infrastructure (`src/`) | Intelligence (`.claude/agents/`) |
-|---|-------|------------------------|----------------------------------|
-| 1 | ad-sdlc-orchestrator | `src/ad-sdlc-orchestrator/index.ts` | `.claude/agents/ad-sdlc-orchestrator.md` |
-| 2 | analysis-orchestrator | `src/analysis-orchestrator/index.ts` | `.claude/agents/analysis-orchestrator.md` |
-| 3 | ci-fixer | `src/ci-fixer/index.ts` | `.claude/agents/ci-fixer.md` |
-| 4 | code-reader | `src/code-reader/index.ts` | `.claude/agents/code-reader.md` |
-| 5 | codebase-analyzer | `src/codebase-analyzer/index.ts` | `.claude/agents/codebase-analyzer.md` |
-| 6 | collector | `src/collector/index.ts` | `.claude/agents/collector.md` |
-| 7 | controller | `src/controller/index.ts` | `.claude/agents/controller.md` |
-| 8 | doc-code-comparator | `src/doc-code-comparator/index.ts` | `.claude/agents/doc-code-comparator.md` |
-| 9 | document-reader | `src/document-reader/index.ts` | `.claude/agents/document-reader.md` |
-| 10 | github-repo-setup | `src/github-repo-setup/index.ts` | `.claude/agents/github-repo-setup.md` |
-| 11 | impact-analyzer | `src/impact-analyzer/index.ts` | `.claude/agents/impact-analyzer.md` |
-| 12 | issue-generator | `src/issue-generator/index.ts` | `.claude/agents/issue-generator.md` |
-| 13 | issue-reader | `src/issue-reader/index.ts` | `.claude/agents/issue-reader.md` |
-| 14 | mode-detector | `src/mode-detector/index.ts` | `.claude/agents/mode-detector.md` |
-| 15 | pr-reviewer | `src/pr-reviewer/index.ts` | `.claude/agents/pr-reviewer.md` |
-| 16 | prd-updater | `src/prd-updater/index.ts` | `.claude/agents/prd-updater.md` |
-| 17 | prd-writer | `src/prd-writer/index.ts` | `.claude/agents/prd-writer.md` |
-| 18 | project-initializer | `src/project-initializer/index.ts` | `.claude/agents/project-initializer.md` |
-| 19 | regression-tester | `src/regression-tester/index.ts` | `.claude/agents/regression-tester.md` |
-| 20 | repo-detector | `src/repo-detector/index.ts` | `.claude/agents/repo-detector.md` |
-| 21 | sds-updater | `src/sds-updater/index.ts` | `.claude/agents/sds-updater.md` |
-| 22 | sds-writer | `src/sds-writer/index.ts` | `.claude/agents/sds-writer.md` |
-| 23 | srs-updater | `src/srs-updater/index.ts` | `.claude/agents/srs-updater.md` |
-| 24 | srs-writer | `src/srs-writer/index.ts` | `.claude/agents/srs-writer.md` |
-| 25 | worker | `src/worker/index.ts` | `.claude/agents/worker.md` |
+| #   | Agent                 | Infrastructure (`src/`)              | Intelligence (`.claude/agents/`)          |
+| --- | --------------------- | ------------------------------------ | ----------------------------------------- |
+| 1   | ad-sdlc-orchestrator  | `src/ad-sdlc-orchestrator/index.ts`  | `.claude/agents/ad-sdlc-orchestrator.md`  |
+| 2   | analysis-orchestrator | `src/analysis-orchestrator/index.ts` | `.claude/agents/analysis-orchestrator.md` |
+| 3   | ci-fixer              | `src/ci-fixer/index.ts`              | `.claude/agents/ci-fixer.md`              |
+| 4   | code-reader           | `src/code-reader/index.ts`           | `.claude/agents/code-reader.md`           |
+| 5   | codebase-analyzer     | `src/codebase-analyzer/index.ts`     | `.claude/agents/codebase-analyzer.md`     |
+| 6   | collector             | `src/collector/index.ts`             | `.claude/agents/collector.md`             |
+| 7   | controller            | `src/controller/index.ts`            | `.claude/agents/controller.md`            |
+| 8   | doc-code-comparator   | `src/doc-code-comparator/index.ts`   | `.claude/agents/doc-code-comparator.md`   |
+| 9   | document-reader       | `src/document-reader/index.ts`       | `.claude/agents/document-reader.md`       |
+| 10  | github-repo-setup     | `src/github-repo-setup/index.ts`     | `.claude/agents/github-repo-setup.md`     |
+| 11  | impact-analyzer       | `src/impact-analyzer/index.ts`       | `.claude/agents/impact-analyzer.md`       |
+| 12  | issue-generator       | `src/issue-generator/index.ts`       | `.claude/agents/issue-generator.md`       |
+| 13  | issue-reader          | `src/issue-reader/index.ts`          | `.claude/agents/issue-reader.md`          |
+| 14  | mode-detector         | `src/mode-detector/index.ts`         | `.claude/agents/mode-detector.md`         |
+| 15  | pr-reviewer           | `src/pr-reviewer/index.ts`           | `.claude/agents/pr-reviewer.md`           |
+| 16  | prd-updater           | `src/prd-updater/index.ts`           | `.claude/agents/prd-updater.md`           |
+| 17  | prd-writer            | `src/prd-writer/index.ts`            | `.claude/agents/prd-writer.md`            |
+| 18  | project-initializer   | `src/project-initializer/index.ts`   | `.claude/agents/project-initializer.md`   |
+| 19  | regression-tester     | `src/regression-tester/index.ts`     | `.claude/agents/regression-tester.md`     |
+| 20  | repo-detector         | `src/repo-detector/index.ts`         | `.claude/agents/repo-detector.md`         |
+| 21  | sds-updater           | `src/sds-updater/index.ts`           | `.claude/agents/sds-updater.md`           |
+| 22  | sds-writer            | `src/sds-writer/index.ts`            | `.claude/agents/sds-writer.md`            |
+| 23  | srs-updater           | `src/srs-updater/index.ts`           | `.claude/agents/srs-updater.md`           |
+| 24  | srs-writer            | `src/srs-writer/index.ts`            | `.claude/agents/srs-writer.md`            |
+| 25  | worker                | `src/worker/index.ts`                | `.claude/agents/worker.md`                |
 
 ### Infrastructure-Only Modules
 
 These `src/` modules provide shared infrastructure without corresponding `.md` definitions:
 
-| Category | Modules |
-|----------|---------|
-| **Core dispatch** | `agents/` (Dispatcher, BridgeRegistry), `cli/`, `config/` |
-| **Pipeline control** | `control-plane/`, `data-plane/`, `state-manager/`, `status/`, `completion/` |
-| **Data and validation** | `schemas/`, `scratchpad/`, `agent-validator/` |
-| **Cross-cutting** | `security/`, `logging/`, `monitoring/`, `telemetry/` |
-| **Error handling** | `errors/`, `error-handler/` |
-| **Utilities** | `utilities/`, `utils/` |
-| **Generators** | `architecture-generator/`, `component-generator/` |
+| Category                | Modules                                                                     |
+| ----------------------- | --------------------------------------------------------------------------- |
+| **Core dispatch**       | `agents/` (Dispatcher, BridgeRegistry), `cli/`, `config/`                   |
+| **Pipeline control**    | `control-plane/`, `data-plane/`, `state-manager/`, `status/`, `completion/` |
+| **Data and validation** | `schemas/`, `scratchpad/`, `agent-validator/`                               |
+| **Cross-cutting**       | `security/`, `logging/`, `monitoring/`, `telemetry/`                        |
+| **Error handling**      | `errors/`, `error-handler/`                                                 |
+| **Utilities**           | `utilities/`, `utils/`                                                      |
+| **Generators**          | `architecture-generator/`, `component-generator/`                           |
 
 ---
 
@@ -231,15 +231,46 @@ flowchart TD
 
 ### Common Scenarios
 
-| Scenario | Layer to Modify | Example |
-|----------|----------------|---------|
-| Change how an agent reasons about input | Intelligence | Edit `.claude/agents/collector.md` to refine extraction instructions |
-| Change output file format or location | Infrastructure | Edit `src/collector/CollectorAgent.ts` to change YAML output path |
-| Add a new validation rule | Infrastructure | Add Zod schema check in `src/collector/InputParser.ts` |
-| Change which tools an agent can use | Intelligence | Update `tools:` list in the `.md` frontmatter |
-| Fix a file write bug | Infrastructure | Fix the write logic in `src/<agent>/` TypeScript code |
-| Improve content quality | Intelligence | Refine instructions and examples in the `.md` definition |
-| Add error recovery logic | Infrastructure | Add try/catch and retry in the TypeScript module |
-| Change model preference | Intelligence | Update `model:` in the `.md` frontmatter |
-| Add a new agent | Both | Create `src/<agent>/index.ts` AND `.claude/agents/<agent>.md` |
-| Change pipeline stage order | Infrastructure | Update stage definitions in `src/ad-sdlc-orchestrator/types.ts` |
+| Scenario                                | Layer to Modify | Example                                                              |
+| --------------------------------------- | --------------- | -------------------------------------------------------------------- |
+| Change how an agent reasons about input | Intelligence    | Edit `.claude/agents/collector.md` to refine extraction instructions |
+| Change output file format or location   | Infrastructure  | Edit `src/collector/CollectorAgent.ts` to change YAML output path    |
+| Add a new validation rule               | Infrastructure  | Add Zod schema check in `src/collector/InputParser.ts`               |
+| Change which tools an agent can use     | Intelligence    | Update `tools:` list in the `.md` frontmatter                        |
+| Fix a file write bug                    | Infrastructure  | Fix the write logic in `src/<agent>/` TypeScript code                |
+| Improve content quality                 | Intelligence    | Refine instructions and examples in the `.md` definition             |
+| Add error recovery logic                | Infrastructure  | Add try/catch and retry in the TypeScript module                     |
+| Change model preference                 | Intelligence    | Update `model:` in the `.md` frontmatter                             |
+| Add a new agent                         | Both            | Create `src/<agent>/index.ts` AND `.claude/agents/<agent>.md`        |
+| Change pipeline stage order             | Infrastructure  | Update stage definitions in `src/ad-sdlc-orchestrator/types.ts`      |
+
+---
+
+## Stage Knowledge-Layer Hints
+
+Each `PipelineStageDefinition` may carry optional Knowledge Layer hints that
+the orchestrator forwards verbatim through `ExecutionAdapter` to the Claude
+Agent SDK `query()` options. They are infrastructure-level configuration —
+they tell the SDK _how_ to run the stage, not _what_ to reason about — so
+they belong in `src/ad-sdlc-orchestrator/types.ts` rather than in any
+`.claude/agents/*.md` frontmatter.
+
+| Field            | Type                                   | SDK option               | Purpose                                                                         |
+| ---------------- | -------------------------------------- | ------------------------ | ------------------------------------------------------------------------------- |
+| `skills`         | `readonly string[]`                    | `options.skills`         | Plugin skills the SDK preloads for this stage (e.g. `['coding-guidelines']`)    |
+| `mcpServers`     | `Record<string, McpServerConfig>`      | `options.mcpServers`     | Inline MCP server definitions; override project-wide `.mcp.json` for this stage |
+| `maxTurns`       | `number`                               | `options.maxTurns`       | Cap the SDK tool-loop turns before the stage is forced to terminate             |
+| `permissionMode` | `'default' \| 'acceptEdits' \| 'plan'` | `options.permissionMode` | Permission posture: prompt (`default`), auto-approve edits, or planning-only    |
+
+All four fields are optional. When omitted (the current case for every
+shipped stage), the orchestrator builds the `StageExecutionRequest`
+without those keys and the SDK uses its built-in defaults — runtime
+behaviour is identical to the pre-AD-18 pipeline. Populating values is
+the scope of follow-up work (see issues AD-19 / AD-21).
+
+The wire is single-direction: `PipelineStageDefinition` →
+`AdsdlcOrchestratorAgent.buildStageExecutionRequest` →
+`StageExecutionRequest` → `SdkExecutionAdapter.execute` →
+`SdkQueryOptions.options`. Each step uses conditional spreads so that
+`undefined` values never appear as keys (required by tsconfig
+`exactOptionalPropertyTypes: true`).

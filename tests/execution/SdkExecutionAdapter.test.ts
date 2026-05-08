@@ -8,7 +8,10 @@ import {
 } from '../../src/execution/SdkExecutionAdapter.js';
 import type { StageExecutionRequest } from '../../src/execution/types.js';
 
-function fakeSdk(messages: readonly SdkMessage[], opts: { onCall?: (q: SdkQueryOptions) => void } = {}): SdkLike {
+function fakeSdk(
+  messages: readonly SdkMessage[],
+  opts: { onCall?: (q: SdkQueryOptions) => void } = {}
+): SdkLike {
   return {
     query(q) {
       opts.onCall?.(q);
@@ -91,6 +94,80 @@ describe('SdkExecutionAdapter', () => {
       expect(captured?.options?.maxTurns).toBe(7);
       expect(captured?.options?.resume).toBe('prior-session');
       expect(captured?.options?.signal).toBe(controller.signal);
+    });
+
+    it('forwards skills only when provided and omits the option otherwise', async () => {
+      let withCaptured: SdkQueryOptions | undefined;
+      let withoutCaptured: SdkQueryOptions | undefined;
+
+      const adapterWith = new SdkExecutionAdapter({
+        loader: async () => fakeSdk(successMessages, { onCall: (q) => (withCaptured = q) }),
+      });
+      await adapterWith.execute({ ...baseRequest, skills: ['coding-guidelines'] });
+      expect(withCaptured?.options?.skills).toEqual(['coding-guidelines']);
+
+      const adapterWithout = new SdkExecutionAdapter({
+        loader: async () => fakeSdk(successMessages, { onCall: (q) => (withoutCaptured = q) }),
+      });
+      await adapterWithout.execute(baseRequest);
+      expect(withoutCaptured?.options).toBeDefined();
+      expect(withoutCaptured?.options).not.toHaveProperty('skills');
+    });
+
+    it('forwards mcpServers only when provided and omits the option otherwise', async () => {
+      let withCaptured: SdkQueryOptions | undefined;
+      let withoutCaptured: SdkQueryOptions | undefined;
+
+      const adapterWith = new SdkExecutionAdapter({
+        loader: async () => fakeSdk(successMessages, { onCall: (q) => (withCaptured = q) }),
+      });
+      await adapterWith.execute({
+        ...baseRequest,
+        mcpServers: { docs: { type: 'http', url: 'https://example.com/mcp' } },
+      });
+      expect(withCaptured?.options?.mcpServers).toEqual({
+        docs: { type: 'http', url: 'https://example.com/mcp' },
+      });
+
+      const adapterWithout = new SdkExecutionAdapter({
+        loader: async () => fakeSdk(successMessages, { onCall: (q) => (withoutCaptured = q) }),
+      });
+      await adapterWithout.execute(baseRequest);
+      expect(withoutCaptured?.options).not.toHaveProperty('mcpServers');
+    });
+
+    it('forwards maxTurns only when provided and omits the option otherwise', async () => {
+      let withCaptured: SdkQueryOptions | undefined;
+      let withoutCaptured: SdkQueryOptions | undefined;
+
+      const adapterWith = new SdkExecutionAdapter({
+        loader: async () => fakeSdk(successMessages, { onCall: (q) => (withCaptured = q) }),
+      });
+      await adapterWith.execute({ ...baseRequest, maxTurns: 12 });
+      expect(withCaptured?.options?.maxTurns).toBe(12);
+
+      const adapterWithout = new SdkExecutionAdapter({
+        loader: async () => fakeSdk(successMessages, { onCall: (q) => (withoutCaptured = q) }),
+      });
+      await adapterWithout.execute(baseRequest);
+      expect(withoutCaptured?.options).not.toHaveProperty('maxTurns');
+    });
+
+    it('forwards permissionMode only when provided and omits the option otherwise', async () => {
+      let withCaptured: SdkQueryOptions | undefined;
+      let withoutCaptured: SdkQueryOptions | undefined;
+
+      const adapterWith = new SdkExecutionAdapter({
+        loader: async () => fakeSdk(successMessages, { onCall: (q) => (withCaptured = q) }),
+      });
+      await adapterWith.execute({ ...baseRequest, permissionMode: 'acceptEdits' });
+      expect(withCaptured?.options?.permissionMode).toBe('acceptEdits');
+
+      const adapterWithout = new SdkExecutionAdapter({
+        loader: async () => fakeSdk(successMessages, { onCall: (q) => (withoutCaptured = q) }),
+      });
+      await adapterWithout.execute(baseRequest);
+      expect(withoutCaptured?.options).not.toHaveProperty('permissionMode');
     });
 
     it('embeds priorOutputs in the prompt forwarded to the SDK (priorOutputs contract)', async () => {

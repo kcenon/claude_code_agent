@@ -5,6 +5,7 @@
  * Enhancement, and Import modes. Based on SDS-001 CMP-025 specification.
  */
 
+import type { McpServerConfig } from '../execution/types.js';
 import type { StageVerificationResult } from '../stage-verifier/types.js';
 
 /**
@@ -107,7 +108,13 @@ export type ExecutionStrategy = 'sequential' | 'parallel';
 export type ResumeMode = 'fresh' | 'resume' | 'start_from';
 
 /**
- * Pipeline stage definition
+ * Pipeline stage definition.
+ *
+ * The `skills`, `mcpServers`, `maxTurns`, and `permissionMode` fields are
+ * optional Knowledge Layer hints forwarded by `ExecutionAdapter` to the
+ * Claude Agent SDK `query()` options. Existing stage definitions do not
+ * need to populate them — runtime behaviour is unchanged when omitted
+ * (see ARCH-RFC-001 §4.2 and `docs/architecture/dual-layer-design.md`).
  */
 export interface PipelineStageDefinition {
   /** Stage name identifier */
@@ -122,6 +129,29 @@ export interface PipelineStageDefinition {
   readonly approvalRequired: boolean;
   /** Stages that must complete before this one */
   readonly dependsOn: readonly StageName[];
+  /**
+   * Plugin skills the SDK should preload for this stage (e.g.
+   * `['coding-guidelines']`). Forwarded as `options.skills`.
+   */
+  readonly skills?: readonly string[];
+  /**
+   * MCP servers to expose to the SDK during this stage. Forwarded as
+   * `options.mcpServers`. Inline definitions take precedence over
+   * project-wide `.mcp.json` entries.
+   */
+  readonly mcpServers?: Record<string, McpServerConfig>;
+  /**
+   * Maximum tool-loop turns the SDK may take before terminating the
+   * stage. Forwarded as `options.maxTurns`.
+   */
+  readonly maxTurns?: number;
+  /**
+   * Permission posture passed to the SDK. `'default'` honours the
+   * existing prompt flow, `'acceptEdits'` auto-approves edits, and
+   * `'plan'` enables planning-only mode. Forwarded as
+   * `options.permissionMode`.
+   */
+  readonly permissionMode?: 'default' | 'acceptEdits' | 'plan';
 }
 
 /**
