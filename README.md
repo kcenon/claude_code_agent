@@ -1,9 +1,12 @@
 # AD-SDLC: Agent-Driven Software Development Lifecycle
 
-> **Automate your software development from requirements to deployment using Claude-powered agents.**
+> **Automate your software development from requirements to deployment, built on the [Claude Agent SDK](https://www.npmjs.com/package/@anthropic-ai/claude-agent-sdk).**
 
 [![License: BSD-3-Clause](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 [![Node.js](https://img.shields.io/badge/Node.js-18%2B-green.svg)](https://nodejs.org/)
+[![Built with Claude Agent SDK](https://img.shields.io/badge/Built%20with-Claude%20Agent%20SDK-blueviolet)](https://www.npmjs.com/package/@anthropic-ai/claude-agent-sdk)
+
+Every agent stage runs through a single Claude Agent SDK entry point (`ExecutionAdapter`). The 35-stage pipeline, V&V gates, and traceability matrix are AD-SDLC's domain layer on top of the SDK; tool use, sub-agent delegation, and session management are handled by the SDK itself.
 
 ## Quick Start
 
@@ -109,6 +112,30 @@ GitHub Issues → Issue Reader → Controller → Worker → Validation → PR R
 
 ## How it Works
 
+### 3-Tier Architecture
+
+AD-SDLC is structured as three cooperating tiers. The orchestrator owns the pipeline DAG and V&V gates, the execution layer is a single Claude Agent SDK entry point, and the knowledge layer (`.claude/`, MCP servers, claude-config plugin) is consumed by the SDK rather than wired through custom bridges.
+
+```mermaid
+flowchart TB
+    Orch[T1 Orchestrator] -->|stage 단위| Adapter[T2 ExecutionAdapter]
+    Adapter --> SDK[Agent SDK query]
+    Adapter --> Hooks[Hook Pipeline]
+    SDK -.reads.-> Knowledge[T3 .claude/ + plugin]
+    Hooks --> Scratchpad
+    Hooks --> Telemetry
+```
+
+| Tier                          | Responsibility                                    | Implementation                                   |
+| ----------------------------- | ------------------------------------------------- | ------------------------------------------------ |
+| **T1 Pipeline Control Plane** | Stage DAG, checkpoints, V&V gates, domain writers | `src/ad-sdlc-orchestrator/`, `*-writer/`, `vnv/` |
+| **T2 Agent Execution Layer**  | Single SDK entry point, hooks, telemetry bridge   | `src/execution/`                                 |
+| **T3 Knowledge Layer**        | Agent definitions, skills, commands, MCP servers  | `.claude/`, `.mcp.json`, claude-config plugin    |
+
+See [`docs/architecture/v0.1-hybrid-pipeline-rfc.md`](docs/architecture/v0.1-hybrid-pipeline-rfc.md) for the full architecture RFC and [`docs/architecture/v0.1-migration-guide.md`](docs/architecture/v0.1-migration-guide.md) for the v0.0.1 → v0.1.0 migration steps.
+
+### Pipeline Flow
+
 AD-SDLC automates the full software development lifecycle through a coordinated agent pipeline:
 
 1. **Mode Detection**: The system analyzes your project to determine the appropriate pipeline -- Greenfield (new project), Enhancement (existing project), or Import (existing GitHub issues).
@@ -177,6 +204,22 @@ gh auth login
 ```
 
 See [Installation Guide](docs/installation.md) for detailed setup instructions.
+
+### Dependencies
+
+AD-SDLC v0.1 standardizes on the official Claude Agent SDK as the only AI runtime dependency. The legacy raw `@anthropic-ai/sdk` client and the in-tree `AgentBridge`/`AgentDispatcher`/`AgentRegistry` stack were removed in v0.1.0 (#798).
+
+| Package                          | Version    | Role                                                                         |
+| -------------------------------- | ---------- | ---------------------------------------------------------------------------- |
+| `@anthropic-ai/claude-agent-sdk` | `^0.2.132` | Single Agent SDK entry point used by `ExecutionAdapter` for every stage      |
+| `commander`                      | `^14.0.3`  | `ad-sdlc` CLI argument parsing                                               |
+| `inquirer`                       | `^13.4.2`  | Interactive prompts for `ad-sdlc init`                                       |
+| `js-yaml`                        | `^4.1.1`   | Pipeline config and document frontmatter parsing                             |
+| `zod`                            | `^4.4.2`   | Runtime schema validation for agent registry, configs, and checkpoint schema |
+| `ts-morph`                       | `^28.0.0`  | TypeScript AST analysis for the Code Reader / Codebase Analyzer agents       |
+| `chalk`, `dotenv`                | latest     | CLI output and environment loading                                           |
+
+Optional integrations (logging backends, OpenTelemetry exporters, `better-sqlite3`, `ioredis`, `mammoth`, `pdf-parse`) are declared as **optional peer dependencies** so the runtime install stays lean; consumers pull them in only when the matching scratchpad backend or document parser is enabled.
 
 ## Usage
 
@@ -372,6 +415,8 @@ your-project/
 ### Reference
 
 - [System Architecture](docs/system-architecture.md)
+- [v0.1 Hybrid Pipeline RFC](docs/architecture/v0.1-hybrid-pipeline-rfc.md) — 3-tier architecture and Claude Agent SDK adoption rationale
+- [v0.1 Migration Guide](docs/architecture/v0.1-migration-guide.md) — v0.0.1 → v0.1.0 contributor and consumer migration steps
 - [Document Status Definitions](docs/DOCUMENT_STATUS_DEFINITIONS.md)
 - [Document Audit CLI](docs/doc-audit.md) — validate generated PRD/SRS/SDS/... documents for integrity and traceability
 - [PRD-001: Agent-Driven SDLC](docs/PRD-001-agent-driven-sdlc.md)
