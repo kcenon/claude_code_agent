@@ -195,6 +195,44 @@ export const SETUP_COLLECTION_ADAPTER_AGENT_TYPES: ReadonlySet<string> = Object.
 );
 
 /**
+ * Execution, QA, and V&V stages cut over to the ExecutionAdapter
+ * unconditionally (issue #827, AD-13-E — final sub-PR of AD-13 meta
+ * #797).
+ *
+ * Sibling of {@link DOC_WRITERS_ADAPTER_AGENT_TYPES} (AD-13-A),
+ * {@link DOC_UPDATERS_READER_ADAPTER_AGENT_TYPES} (AD-13-B),
+ * {@link ANALYZERS_ADAPTER_AGENT_TYPES} (AD-13-C), and
+ * {@link SETUP_COLLECTION_ADAPTER_AGENT_TYPES} (AD-13-D). These nine
+ * agent types always route through {@link executeViaAdapter}; the
+ * legacy {@link executeViaBridge} path is no longer reachable for
+ * them. They cover the implementation, quality assurance, and
+ * verification & validation phases of the pipeline (orchestration
+ * controller, issue generation, PR review, CI repair, regression
+ * testing, stage verification, requirements traceability, validation,
+ * and documentation indexing).
+ *
+ * After this PR merges, all 33 cutover-target stages route through
+ * ExecutionAdapter and the AD-13 cutover (#797) is complete. The
+ * `worker` agent type remains feature-flag gated (#795) until its
+ * pilot is promoted separately.
+ *
+ * The set is frozen so a typo cannot silently re-enable the bridge path.
+ */
+export const EXEC_QA_VV_ADAPTER_AGENT_TYPES: ReadonlySet<string> = Object.freeze(
+  new Set<string>([
+    'controller',
+    'issue-generator',
+    'pr-reviewer',
+    'ci-fixer',
+    'regression-tester',
+    'stage-verifier',
+    'rtm-builder',
+    'validation-agent',
+    'doc-index-generator',
+  ])
+);
+
+/**
  * AD-SDLC Orchestrator Agent
  *
  * Coordinates the full AD-SDLC pipeline execution by invoking subagents
@@ -1024,9 +1062,17 @@ export class AdsdlcOrchestratorAgent implements IAgent {
    * types listed in {@link SETUP_COLLECTION_ADAPTER_AGENT_TYPES}
    * (`project-initializer`, `mode-detector`, `repo-detector`,
    * `github-repo-setup`, `collector`, `issue-reader`) are routed to
-   * {@link executeViaAdapter} unconditionally on the same terms. The
-   * remaining stages will be cut over by the final sibling sub-PR
-   * AD-13-E.
+   * {@link executeViaAdapter} unconditionally on the same terms.
+   *
+   * Execution + QA + V&V cutover (issue #827, AD-13-E — final sub-PR):
+   * the nine agent types listed in {@link EXEC_QA_VV_ADAPTER_AGENT_TYPES}
+   * (`controller`, `issue-generator`, `pr-reviewer`, `ci-fixer`,
+   * `regression-tester`, `stage-verifier`, `rtm-builder`,
+   * `validation-agent`, `doc-index-generator`) are routed to
+   * {@link executeViaAdapter} unconditionally on the same terms. With
+   * this final cutover, all 33 cutover-target stages flow through the
+   * adapter; only the feature-flag-gated `worker` pilot retains a
+   * conditional bridge fallback until #795 promotes it.
    *
    * Override this method in tests to bypass real agent execution.
    *
@@ -1048,6 +1094,9 @@ export class AdsdlcOrchestratorAgent implements IAgent {
       return this.executeViaAdapter(stage, session);
     }
     if (SETUP_COLLECTION_ADAPTER_AGENT_TYPES.has(stage.agentType)) {
+      return this.executeViaAdapter(stage, session);
+    }
+    if (EXEC_QA_VV_ADAPTER_AGENT_TYPES.has(stage.agentType)) {
       return this.executeViaAdapter(stage, session);
     }
     if (stage.agentType === WORKER_PILOT_AGENT_TYPE && this.getFeatureFlags().useSdkForWorker()) {

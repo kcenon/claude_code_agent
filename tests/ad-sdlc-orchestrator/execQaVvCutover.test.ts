@@ -1,27 +1,29 @@
 /**
- * Analyzer ExecutionAdapter cutover tests
- * (issue #825, AD-13-C).
+ * Execution + QA + V&V ExecutionAdapter cutover tests
+ * (issue #827, AD-13-E — final sub-PR of AD-13 meta #797).
  *
- * Verifies that the four target Analyzer stages always route through
- * {@link AdsdlcOrchestratorAgent.executeViaAdapter} and never through
- * {@link AdsdlcOrchestratorAgent.executeViaBridge}, regardless of the
- * `AD_SDLC_USE_SDK_FOR_WORKER` feature flag.
+ * Verifies that the nine target Execution, QA, and V&V stages always
+ * route through {@link AdsdlcOrchestratorAgent.executeViaAdapter} and
+ * never through {@link AdsdlcOrchestratorAgent.executeViaBridge},
+ * regardless of the `AD_SDLC_USE_SDK_FOR_WORKER` feature flag.
  *
- * Stages in scope (4): Code Reader, Codebase Analyzer, Doc-Code
- * Comparator, Impact Analyzer. The 8 Doc Writers stages cut over by
- * AD-13-A (#823) and the 4 Doc Updater + Reader stages cut over by
- * AD-13-B (#824) must keep routing through the adapter; the remaining
- * stages handled by sibling sub-PRs AD-13-D and AD-13-E must still flow
- * through the bridge path.
+ * Stages in scope (9): Controller, Issue Generator, PR Reviewer, CI
+ * Fixer, Regression Tester, Stage Verifier, RTM Builder, Validation
+ * Agent, Doc Index Generator. With this final cutover all 33
+ * cutover-target stages route through the adapter and AD-13 (#797) is
+ * complete. The Doc Writers (AD-13-A), Doc Updaters + Reader (AD-13-B),
+ * Analyzers (AD-13-C), and Setup + Collection (AD-13-D) sets must keep
+ * routing through the adapter. Only the feature-flag-gated `worker`
+ * pilot retains a conditional bridge fallback until #795 promotes it.
  *
  * Acceptance Criteria mapping:
- *   AC-1  All 4 Analyzer stages route exclusively through ExecutionAdapter.
- *   AC-2  No `executeViaBridge` call site for these 4 stages.
- *   AC-3  Worker stage continues to respect the feature flag (the
- *         remaining bridge fallback after AD-13-E #827).
- *   AC-4  Routing decision does not depend on the worker feature flag.
- *   AC-5  Doc Writers (AD-13-A) and Doc Updaters + Reader (AD-13-B)
- *         regression-zero: still adapter-routed.
+ *   AC-1  All 9 Exec + QA + V&V stages route exclusively through
+ *         ExecutionAdapter.
+ *   AC-2  No `executeViaBridge` call site for these 9 stages.
+ *   AC-3  Worker stage still respects the feature flag (gated cutover).
+ *   AC-4  Routing decision does not depend on the worker feature flag
+ *         for the AD-13-E set.
+ *   AC-5  AD-13-A/B/C/D regression-zero: still adapter-routed.
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
@@ -31,6 +33,8 @@ import {
   ANALYZERS_ADAPTER_AGENT_TYPES,
   DOC_UPDATERS_READER_ADAPTER_AGENT_TYPES,
   DOC_WRITERS_ADAPTER_AGENT_TYPES,
+  EXEC_QA_VV_ADAPTER_AGENT_TYPES,
+  SETUP_COLLECTION_ADAPTER_AGENT_TYPES,
   WORKER_PILOT_ENV_FLAG,
 } from '../../src/ad-sdlc-orchestrator/AdsdlcOrchestratorAgent.js';
 import type {
@@ -75,7 +79,7 @@ class RoutingProbeOrchestrator extends AdsdlcOrchestratorAgent {
   }
 }
 
-function buildStage(agentType: string, name = 'analyzer-stage'): PipelineStageDefinition {
+function buildStage(agentType: string, name = 'exec-qa-vv-stage'): PipelineStageDefinition {
   return {
     name: name as PipelineStageDefinition['name'],
     agentType,
@@ -88,32 +92,37 @@ function buildStage(agentType: string, name = 'analyzer-stage'): PipelineStageDe
 
 function buildSession(): OrchestratorSession {
   return {
-    sessionId: 'analyzers-cutover-test',
-    projectDir: '/tmp/analyzers-test',
-    userRequest: 'Analyze codebase and documentation',
-    mode: 'brownfield',
+    sessionId: 'exec-qa-vv-cutover-test',
+    projectDir: '/tmp/exec-qa-vv-test',
+    userRequest: 'Execute pipeline implementation, QA, and validation',
+    mode: 'greenfield',
     startedAt: new Date().toISOString(),
     status: 'running',
     stageResults: [],
-    scratchpadDir: '/tmp/analyzers-test/.ad-sdlc/scratchpad',
+    scratchpadDir: '/tmp/exec-qa-vv-test/.ad-sdlc/scratchpad',
     localMode: true,
   };
 }
 
-// The full set the AD-13-C cutover applies to. Hard-coded here so the
-// test catches accidental drift in `ANALYZERS_ADAPTER_AGENT_TYPES`.
-const EXPECTED_ANALYZERS = [
-  'code-reader',
-  'codebase-analyzer',
-  'doc-code-comparator',
-  'impact-analyzer',
+// The full set the AD-13-E cutover applies to. Hard-coded here so the
+// test catches accidental drift in `EXEC_QA_VV_ADAPTER_AGENT_TYPES`.
+const EXPECTED_EXEC_QA_VV = [
+  'controller',
+  'issue-generator',
+  'pr-reviewer',
+  'ci-fixer',
+  'regression-tester',
+  'stage-verifier',
+  'rtm-builder',
+  'validation-agent',
+  'doc-index-generator',
 ] as const;
 
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
-describe('Analyzer ExecutionAdapter cutover (#825)', () => {
+describe('Execution + QA + V&V ExecutionAdapter cutover (#827)', () => {
   let originalFlag: string | undefined;
   let orchestrator: RoutingProbeOrchestrator;
 
@@ -135,32 +144,44 @@ describe('Analyzer ExecutionAdapter cutover (#825)', () => {
   });
 
   describe('Constant integrity', () => {
-    it('exports the expected set of 4 Analyzer agent types', () => {
-      expect(ANALYZERS_ADAPTER_AGENT_TYPES.size).toBe(EXPECTED_ANALYZERS.length);
-      for (const agentType of EXPECTED_ANALYZERS) {
-        expect(ANALYZERS_ADAPTER_AGENT_TYPES.has(agentType)).toBe(true);
+    it('exports the expected set of 9 Execution + QA + V&V agent types', () => {
+      expect(EXEC_QA_VV_ADAPTER_AGENT_TYPES.size).toBe(EXPECTED_EXEC_QA_VV.length);
+      for (const agentType of EXPECTED_EXEC_QA_VV) {
+        expect(EXEC_QA_VV_ADAPTER_AGENT_TYPES.has(agentType)).toBe(true);
       }
     });
 
     it('does not include the worker agent type (worker is feature-flag gated)', () => {
-      expect(ANALYZERS_ADAPTER_AGENT_TYPES.has('worker')).toBe(false);
+      expect(EXEC_QA_VV_ADAPTER_AGENT_TYPES.has('worker')).toBe(false);
     });
 
     it('is disjoint from the Doc Writers cutover set (AD-13-A)', () => {
-      for (const agentType of ANALYZERS_ADAPTER_AGENT_TYPES) {
+      for (const agentType of EXEC_QA_VV_ADAPTER_AGENT_TYPES) {
         expect(DOC_WRITERS_ADAPTER_AGENT_TYPES.has(agentType)).toBe(false);
       }
     });
 
     it('is disjoint from the Doc Updaters + Reader cutover set (AD-13-B)', () => {
-      for (const agentType of ANALYZERS_ADAPTER_AGENT_TYPES) {
+      for (const agentType of EXEC_QA_VV_ADAPTER_AGENT_TYPES) {
         expect(DOC_UPDATERS_READER_ADAPTER_AGENT_TYPES.has(agentType)).toBe(false);
+      }
+    });
+
+    it('is disjoint from the Analyzer cutover set (AD-13-C)', () => {
+      for (const agentType of EXEC_QA_VV_ADAPTER_AGENT_TYPES) {
+        expect(ANALYZERS_ADAPTER_AGENT_TYPES.has(agentType)).toBe(false);
+      }
+    });
+
+    it('is disjoint from the Setup + Collection cutover set (AD-13-D)', () => {
+      for (const agentType of EXEC_QA_VV_ADAPTER_AGENT_TYPES) {
+        expect(SETUP_COLLECTION_ADAPTER_AGENT_TYPES.has(agentType)).toBe(false);
       }
     });
   });
 
-  describe('AC-1: all 4 Analyzers route through the ExecutionAdapter', () => {
-    for (const agentType of EXPECTED_ANALYZERS) {
+  describe('AC-1: all 9 Exec + QA + V&V stages route through the ExecutionAdapter', () => {
+    for (const agentType of EXPECTED_EXEC_QA_VV) {
       it(`routes ${agentType} via executeViaAdapter (flag unset)`, async () => {
         const stage = buildStage(agentType);
         const session = buildSession();
@@ -179,32 +200,43 @@ describe('Analyzer ExecutionAdapter cutover (#825)', () => {
 
   describe('AC-4: routing is independent of AD_SDLC_USE_SDK_FOR_WORKER', () => {
     for (const flagValue of ['1', '0', 'true', 'false']) {
-      it(`routes code-reader via adapter when flag is "${flagValue}"`, async () => {
+      it(`routes controller via adapter when flag is "${flagValue}"`, async () => {
         process.env[WORKER_PILOT_ENV_FLAG] = flagValue;
-        const stage = buildStage('code-reader');
+        const stage = buildStage('controller');
         const session = buildSession();
 
         await orchestrator.callInvokeAgent(stage, session);
 
-        expect(orchestrator.adapterCalls).toEqual(['code-reader']);
+        expect(orchestrator.adapterCalls).toEqual(['controller']);
         expect(orchestrator.bridgeCalls).toEqual([]);
       });
 
-      it(`routes impact-analyzer via adapter when flag is "${flagValue}"`, async () => {
+      it(`routes issue-generator via adapter when flag is "${flagValue}"`, async () => {
         process.env[WORKER_PILOT_ENV_FLAG] = flagValue;
-        const stage = buildStage('impact-analyzer');
+        const stage = buildStage('issue-generator');
         const session = buildSession();
 
         await orchestrator.callInvokeAgent(stage, session);
 
-        expect(orchestrator.adapterCalls).toEqual(['impact-analyzer']);
+        expect(orchestrator.adapterCalls).toEqual(['issue-generator']);
+        expect(orchestrator.bridgeCalls).toEqual([]);
+      });
+
+      it(`routes validation-agent via adapter when flag is "${flagValue}"`, async () => {
+        process.env[WORKER_PILOT_ENV_FLAG] = flagValue;
+        const stage = buildStage('validation-agent');
+        const session = buildSession();
+
+        await orchestrator.callInvokeAgent(stage, session);
+
+        expect(orchestrator.adapterCalls).toEqual(['validation-agent']);
         expect(orchestrator.bridgeCalls).toEqual([]);
       });
     }
   });
 
   describe('AC-3: worker stage still respects the feature flag', () => {
-    it('routes worker via bridge when feature flag is unset (regression-zero)', async () => {
+    it('routes worker via bridge when feature flag is unset', async () => {
       delete process.env[WORKER_PILOT_ENV_FLAG];
       const stage = buildStage('worker', 'implementation');
       const session = buildSession();
@@ -215,7 +247,7 @@ describe('Analyzer ExecutionAdapter cutover (#825)', () => {
       expect(orchestrator.adapterCalls).toEqual([]);
     });
 
-    it('routes worker via adapter when feature flag is on (existing #795 behaviour)', async () => {
+    it('routes worker via adapter when feature flag is on', async () => {
       process.env[WORKER_PILOT_ENV_FLAG] = '1';
       const stage = buildStage('worker', 'implementation');
       const session = buildSession();
@@ -244,6 +276,34 @@ describe('Analyzer ExecutionAdapter cutover (#825)', () => {
   describe('AC-5: AD-13-B Doc Updaters + Reader regression-zero', () => {
     for (const agentType of DOC_UPDATERS_READER_ADAPTER_AGENT_TYPES) {
       it(`Doc Updater/Reader ${agentType} still routes via the adapter`, async () => {
+        const stage = buildStage(agentType);
+        const session = buildSession();
+
+        await orchestrator.callInvokeAgent(stage, session);
+
+        expect(orchestrator.adapterCalls).toEqual([agentType]);
+        expect(orchestrator.bridgeCalls).toEqual([]);
+      });
+    }
+  });
+
+  describe('AC-5: AD-13-C Analyzers regression-zero', () => {
+    for (const agentType of ANALYZERS_ADAPTER_AGENT_TYPES) {
+      it(`Analyzer ${agentType} still routes via the adapter`, async () => {
+        const stage = buildStage(agentType);
+        const session = buildSession();
+
+        await orchestrator.callInvokeAgent(stage, session);
+
+        expect(orchestrator.adapterCalls).toEqual([agentType]);
+        expect(orchestrator.bridgeCalls).toEqual([]);
+      });
+    }
+  });
+
+  describe('AC-5: AD-13-D Setup + Collection regression-zero', () => {
+    for (const agentType of SETUP_COLLECTION_ADAPTER_AGENT_TYPES) {
+      it(`Setup + Collection ${agentType} still routes via the adapter`, async () => {
         const stage = buildStage(agentType);
         const session = buildSession();
 

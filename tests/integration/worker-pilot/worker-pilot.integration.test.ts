@@ -30,6 +30,7 @@ import type {
   StageExecutionRequest,
   StageExecutionResult,
 } from '../../../src/execution/types.js';
+import type { PipelineStageDefinition } from '../../../src/ad-sdlc-orchestrator/types.js';
 
 import {
   TestOrchestrator,
@@ -91,16 +92,31 @@ describe('worker-pilot integration (#793)', () => {
       expect(agent.adapterCalls).toHaveLength(0);
     });
 
-    it('does not route non-worker stages via the adapter even when flag is on', async () => {
-      process.env[WORKER_PILOT_ENV_FLAG] = '1';
+    it('routes non-worker cutover stages via the adapter regardless of the worker flag (post AD-13-E #827)', async () => {
+      // After AD-13-E (#827), the `controller` stage (and the rest of
+      // the AD-13-E set) routes through the adapter unconditionally.
+      // The worker flag only governs the worker stage; flipping it
+      // must not change controller routing.
+      process.env[WORKER_PILOT_ENV_FLAG] = '0';
+      const adapter = new MockExecutionAdapter({
+        defaultResult: {
+          status: 'success',
+          artifacts: [],
+          sessionId: 'controller-session-001',
+          toolCallCount: 0,
+          tokenUsage: { input: 0, output: 0, cache: 0 },
+        },
+      });
+      agent.setInjectedAdapter(adapter);
       const stage: PipelineStageDefinition = {
         ...workerStage(),
         name: 'controller',
         agentType: 'controller',
       };
       const output = await agent.invokeAgent(stage, buildSession());
-      expect(parseStageOutput(output).via).toBe('agent-bridge');
-      expect(agent.adapterCalls).toHaveLength(0);
+      expect(parseStageOutput(output).via).toBe('execution-adapter');
+      expect(agent.bridgeCalls).toHaveLength(0);
+      expect(agent.adapterCalls).toHaveLength(1);
     });
   });
 

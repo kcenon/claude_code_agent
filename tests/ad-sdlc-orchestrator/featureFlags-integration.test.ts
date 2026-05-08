@@ -149,12 +149,13 @@ describe('Orchestrator + FeatureFlagsResolver integration (#795)', () => {
     expect(orch.lastRoute).toBe('bridge');
   });
 
-  it('non-worker non-cutover stages always go through bridge regardless of flag', async () => {
-    process.env[ENV_USE_SDK_FOR_WORKER] = '1';
+  it('all cutover stages route through adapter regardless of flag (post AD-13-E #827)', async () => {
+    // After AD-13-E (#827) cut over the final 9 stages, every stage
+    // except the feature-flag-gated `worker` pilot routes through the
+    // adapter regardless of the worker flag. Probe a previously-bridge
+    // stage (`regression-tester`) to verify the new invariant.
+    process.env[ENV_USE_SDK_FOR_WORKER] = '0';
     const orch = new RouteCapturingOrchestrator({ featureFlagsBaseDir: tmpRoot });
-    // Note: `collector` is now adapter-routed after AD-13-D (#826), so
-    // probe a still-bridge stage to verify the flag-independent bridge
-    // path is preserved for non-cutover, non-worker stages.
     const stage: PipelineStageDefinition = {
       name: 'regression',
       agentType: 'regression-tester',
@@ -165,6 +166,6 @@ describe('Orchestrator + FeatureFlagsResolver integration (#795)', () => {
     };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (orch as any).invokeAgent(stage, createSession(tmpRoot));
-    expect(orch.lastRoute).toBe('bridge');
+    expect(orch.lastRoute).toBe('adapter');
   });
 });

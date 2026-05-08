@@ -15,10 +15,8 @@
  * Acceptance Criteria mapping:
  *   AC-1  All 4 stages route exclusively through ExecutionAdapter.
  *   AC-2  No `executeViaBridge` call site for these 4 stages.
- *   AC-3  Other stages (e.g. `regression-tester`) still use the bridge
- *         path. (After AD-13-D landed, the previously-bridge `collector`
- *         stage is now adapter-routed, so the regression probe was
- *         retargeted at a still-bridge stage.)
+ *   AC-3  Worker stage continues to respect the feature flag (the
+ *         remaining bridge fallback after AD-13-E #827).
  *   AC-4  Routing decision does not depend on the worker feature flag.
  *   AC-5  Doc Writers (AD-13-A) regression-zero: still adapter-routed.
  */
@@ -197,40 +195,7 @@ describe('Doc Updaters + Reader ExecutionAdapter cutover (#824)', () => {
     }
   });
 
-  describe('AC-3: regression-zero for non-cutover stages', () => {
-    it('still routes the regression-tester stage via the bridge path', async () => {
-      const stage = buildStage('regression-tester', 'regression');
-      const session = buildSession();
-
-      await orchestrator.callInvokeAgent(stage, session);
-
-      expect(orchestrator.bridgeCalls).toEqual(['regression-tester']);
-      expect(orchestrator.adapterCalls).toEqual([]);
-    });
-
-    it('still routes the issue-generator stage via the bridge path', async () => {
-      const stage = buildStage('issue-generator', 'issue_generation');
-      const session = buildSession();
-
-      await orchestrator.callInvokeAgent(stage, session);
-
-      expect(orchestrator.bridgeCalls).toEqual(['issue-generator']);
-      expect(orchestrator.adapterCalls).toEqual([]);
-    });
-
-    // Note: `code-reader` was cut over to the ExecutionAdapter by AD-13-C
-    // (issue #825). Use a still-bridged stage as the regression-zero
-    // probe instead.
-    it('still routes the regression-tester stage via the bridge path', async () => {
-      const stage = buildStage('regression-tester', 'regression_testing');
-      const session = buildSession();
-
-      await orchestrator.callInvokeAgent(stage, session);
-
-      expect(orchestrator.bridgeCalls).toEqual(['regression-tester']);
-      expect(orchestrator.adapterCalls).toEqual([]);
-    });
-
+  describe('AC-3: worker stage still respects the feature flag', () => {
     it('routes worker via bridge when feature flag is unset (regression-zero)', async () => {
       delete process.env[WORKER_PILOT_ENV_FLAG];
       const stage = buildStage('worker', 'implementation');
