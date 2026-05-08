@@ -243,7 +243,16 @@ export class IssueReaderAgent implements IAgent {
   }
 
   /**
-   * Fetch issues from GitHub using gh CLI
+   * Fetch issues from GitHub using gh CLI.
+   *
+   * TODO(#805 follow-up): migrate to github MCP via ExecutionAdapter
+   * `mcpServers` wiring. The shared `GITHUB_MCP_SERVER` definition and the
+   * stage-level `mcpServers` field on `pr-reviewer`/`issue-generator` are
+   * already in place (see `src/ad-sdlc-orchestrator/types.ts`); this site is
+   * the architectural seam where a typed MCP `list_issues` call should
+   * replace the gh subprocess. Tracked separately to avoid bundling a
+   * substantial rework into the wiring PR.
+   *
    * @param repository - The GitHub repository identifier (owner/repo format)
    * @param options - Filtering and pagination options for issue fetching
    * @returns Array of raw GitHub issues from gh CLI

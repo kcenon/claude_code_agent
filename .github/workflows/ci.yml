@@ -70,10 +70,14 @@ jobs:
       - name: Run tests with coverage (Ubuntu)
         if: matrix.os == 'ubuntu-latest'
         run: npm test -- --coverage
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run tests (Windows)
         if: matrix.os == 'windows-latest'
         run: npm test
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload coverage to Codecov
         if: matrix.os == 'ubuntu-latest'
