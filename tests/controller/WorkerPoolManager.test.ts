@@ -17,6 +17,8 @@ import type {
   WorkOrder,
   WorkOrderResult,
 } from '../../src/controller/index.js';
+import { MockExecutionAdapter } from '../../src/execution/MockExecutionAdapter.js';
+import { ErrorSeverity } from '../../src/errors/types.js';
 
 describe('WorkerPoolManager', () => {
   let manager: WorkerPoolManager;
@@ -226,9 +228,7 @@ describe('WorkerPoolManager', () => {
     it('should throw WorkerNotFoundError for invalid worker', async () => {
       const order = await manager.createWorkOrder(createIssueNode('ISS-001'));
 
-      expect(() => manager.assignWork('worker-999', order)).toThrow(
-        WorkerNotFoundError
-      );
+      expect(() => manager.assignWork('worker-999', order)).toThrow(WorkerNotFoundError);
     });
 
     it('should throw WorkerNotAvailableError for busy worker', async () => {
@@ -237,9 +237,7 @@ describe('WorkerPoolManager', () => {
 
       manager.assignWork('worker-1', order1);
 
-      expect(() => manager.assignWork('worker-1', order2)).toThrow(
-        WorkerNotAvailableError
-      );
+      expect(() => manager.assignWork('worker-1', order2)).toThrow(WorkerNotAvailableError);
     });
 
     it('should update pool status after assignment', async () => {
@@ -1028,6 +1026,82 @@ describe('WorkerPoolManager', () => {
 
         expect(collector).toBeNull();
       });
+    });
+  });
+
+  describe('execution adapter integration', () => {
+    it('returns a stub success result when no adapter is configured', async () => {
+      const order = await manager.createWorkOrder(createIssueNode('ISS-001'));
+
+      const result = await manager.executeWithAdapter(order);
+
+      expect(result.status).toBe('success');
+      expect(result.artifacts).toEqual([]);
+      expect(result.sessionId).toBe('');
+      expect(result.toolCallCount).toBe(0);
+      expect(result.tokenUsage).toEqual({ input: 0, output: 0, cache: 0 });
+    });
+
+    it('delegates to the configured ExecutionAdapter with the worker agent type', async () => {
+      const adapter = new MockExecutionAdapter();
+      manager.setExecutionAdapter(adapter);
+
+      const order = await manager.createWorkOrder(createIssueNode('ISS-042'));
+      const result = await manager.executeWithAdapter(order);
+
+      expect(adapter.calls).toHaveLength(1);
+      const recorded = adapter.calls[0];
+      expect(recorded?.agentType).toBe('worker');
+      expect(recorded?.workOrder).toBe('ISS-042');
+      expect(recorded?.priorOutputs).toEqual({});
+      expect(result.status).toBe('success');
+      expect(result.sessionId).toBe('mock-session');
+    });
+
+    it('forwards adapter-supplied artifacts and token usage to the caller', async () => {
+      const adapter = new MockExecutionAdapter({
+        defaultResult: {
+          status: 'success',
+          artifacts: [{ path: 'src/feature.ts' }],
+          sessionId: 'sess-1',
+          toolCallCount: 7,
+          tokenUsage: { input: 100, output: 200, cache: 0 },
+        },
+      });
+      manager.setExecutionAdapter(adapter);
+
+      const order = await manager.createWorkOrder(createIssueNode('ISS-100'));
+      const result = await manager.executeWithAdapter(order);
+
+      expect(result.artifacts).toEqual([{ path: 'src/feature.ts' }]);
+      expect(result.toolCallCount).toBe(7);
+      expect(result.tokenUsage).toEqual({ input: 100, output: 200, cache: 0 });
+    });
+
+    it('propagates adapter failures via the StageExecutionResult', async () => {
+      const adapter = new MockExecutionAdapter({
+        defaultResult: {
+          status: 'failed',
+          artifacts: [],
+          sessionId: 'sess-err',
+          toolCallCount: 0,
+          tokenUsage: { input: 0, output: 0, cache: 0 },
+          error: {
+            code: 'WRK-001',
+            message: 'adapter failure',
+            severity: ErrorSeverity.HIGH,
+            context: {},
+            timestamp: new Date().toISOString(),
+          },
+        },
+      });
+      manager.setExecutionAdapter(adapter);
+
+      const order = await manager.createWorkOrder(createIssueNode('ISS-200'));
+      const result = await manager.executeWithAdapter(order);
+
+      expect(result.status).toBe('failed');
+      expect(result.error?.message).toBe('adapter failure');
     });
   });
 });

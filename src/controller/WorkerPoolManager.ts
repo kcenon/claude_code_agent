@@ -73,8 +73,11 @@ import {
   ControllerStatePersistenceError,
 } from './errors.js';
 import { BoundedWorkQueue } from './BoundedWorkQueue.js';
-import type { AgentBridge, AgentRequest, AgentResponse } from '../agents/AgentBridge.js';
-import type { BridgeRegistry } from '../agents/BridgeRegistry.js';
+import type {
+  ExecutionAdapter,
+  StageExecutionRequest,
+  StageExecutionResult,
+} from '../execution/index.js';
 
 /**
  * Internal mutable worker state
@@ -140,8 +143,8 @@ export class WorkerPoolManager {
   private readonly sharedStatePath: string;
   /** Metrics collector for observability */
   private readonly metrics: WorkerPoolMetrics | null;
-  /** Optional BridgeRegistry for delegating work to real AI execution */
-  private _bridgeRegistry: BridgeRegistry | null = null;
+  /** Optional ExecutionAdapter for delegating work to real AI execution */
+  private _executionAdapter: ExecutionAdapter | null = null;
   /** Optional WorkerProcessManager for child process-based execution */
   _processManager: import('./WorkerProcessManager.js').WorkerProcessManager | null = null;
 
@@ -493,15 +496,16 @@ export class WorkerPoolManager {
   }
 
   /**
-   * Set the BridgeRegistry for delegating work to real AI execution.
+   * Set the ExecutionAdapter for delegating work to real AI execution.
    *
-   * When a registry is set, `assignWork` will asynchronously execute the
-   * work order through the resolved bridge after updating worker state.
+   * When an adapter is set, `executeWithAdapter` will execute the
+   * work order through the adapter and return the resulting status,
+   * artifacts, and token usage.
    *
-   * @param registry - The BridgeRegistry to use for agent execution
+   * @param adapter - The ExecutionAdapter implementation to use
    */
-  public setBridgeRegistry(registry: BridgeRegistry): void {
-    this._bridgeRegistry = registry;
+  public setExecutionAdapter(adapter: ExecutionAdapter): void {
+    this._executionAdapter = adapter;
   }
 
   /**
@@ -517,34 +521,34 @@ export class WorkerPoolManager {
   }
 
   /**
-   * Execute a work order through the bridge registry.
+   * Execute a work order through the configured ExecutionAdapter.
    *
-   * Resolves the appropriate bridge for the 'worker' agent type
-   * and delegates execution. Returns the bridge response.
+   * Delegates execution to the adapter using the 'worker' agent type.
+   * Returns the structured stage execution result. When no adapter is
+   * configured, returns a stubbed success result so callers can run
+   * without a live SDK backend.
    *
    * @param workOrder - The work order to execute
-   * @param projectDir - Project directory for file operations
-   * @returns The agent response from bridge execution
+   * @returns The stage execution result from adapter execution
    */
-  public async executeWithBridge(workOrder: WorkOrder, projectDir = ''): Promise<AgentResponse> {
-    if (this._bridgeRegistry === null) {
+  public async executeWithAdapter(workOrder: WorkOrder): Promise<StageExecutionResult> {
+    if (this._executionAdapter === null) {
       return {
-        output: `No bridge registry configured for ${workOrder.issueId}`,
+        status: 'success',
         artifacts: [],
-        success: true,
+        sessionId: '',
+        toolCallCount: 0,
+        tokenUsage: { input: 0, output: 0, cache: 0 },
       };
     }
 
-    const bridge: AgentBridge = this._bridgeRegistry.resolve('worker');
-    const request: AgentRequest = {
+    const request: StageExecutionRequest = {
       agentType: 'worker',
-      input: workOrder.issueId,
-      scratchpadDir: this.config.workOrdersPath,
-      projectDir,
-      priorStageOutputs: {},
+      workOrder: workOrder.issueId,
+      priorOutputs: {},
     };
 
-    return bridge.execute(request);
+    return this._executionAdapter.execute(request);
   }
 
   /**
