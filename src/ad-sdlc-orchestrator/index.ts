@@ -73,6 +73,9 @@ export {
   GREENFIELD_STAGES,
   ENHANCEMENT_STAGES,
   IMPORT_STAGES,
+  WORKER_SKILLS,
+  PR_REVIEWER_SKILLS,
+  CI_FIXER_SKILLS,
 } from './types.js';
 
 // Error exports

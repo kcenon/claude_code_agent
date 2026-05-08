@@ -380,6 +380,41 @@ export const DEFAULT_ORCHESTRATOR_CONFIG: Required<OrchestratorConfig> = {
 };
 
 /**
+ * Plugin skills the SDK should preload for the `worker` stage agent.
+ *
+ * These names resolve to skills published by the
+ * [`claude-config`](https://github.com/kcenon/claude-config) plugin and are
+ * forwarded to the SDK as `options.skills`. When the plugin is not enabled,
+ * the SDK skips the unknown skill names (graceful degradation) — see
+ * `AdsdlcOrchestratorAgent.warnIfClaudeConfigPluginMissing`.
+ */
+export const WORKER_SKILLS: readonly string[] = ['coding-guidelines', 'security-audit'];
+
+/**
+ * Plugin skills the SDK should preload for the `pr-reviewer` stage agent.
+ *
+ * Provides reviewer-side coverage for code quality, PR review heuristics, and
+ * security scanning. Forwarded to the SDK as `options.skills`. See
+ * {@link WORKER_SKILLS} for graceful-degradation behaviour when the plugin
+ * is not installed.
+ */
+export const PR_REVIEWER_SKILLS: readonly string[] = [
+  'pr-review',
+  'security-audit',
+  'code-quality',
+];
+
+/**
+ * Plugin skills the SDK should preload for the `ci-fixer` agent. The
+ * `ci-fixer` agent is invoked outside the pipeline stage flow (delegated by
+ * `pr-reviewer` on persistent CI failures) and therefore has no
+ * `PipelineStageDefinition` entry. Consumers that drive `ci-fixer` through
+ * the SDK adapter directly should wire this constant into their stage
+ * execution request as `skills`.
+ */
+export const CI_FIXER_SKILLS: readonly string[] = ['ci-debugging'];
+
+/**
  * Greenfield pipeline stage definitions
  */
 export const GREENFIELD_STAGES: readonly PipelineStageDefinition[] = [
@@ -511,6 +546,7 @@ export const GREENFIELD_STAGES: readonly PipelineStageDefinition[] = [
     parallel: true,
     approvalRequired: false,
     dependsOn: ['orchestration'],
+    skills: WORKER_SKILLS,
   },
   {
     name: 'validation-agent',
@@ -527,6 +563,7 @@ export const GREENFIELD_STAGES: readonly PipelineStageDefinition[] = [
     parallel: false,
     approvalRequired: false,
     dependsOn: ['validation-agent'],
+    skills: PR_REVIEWER_SKILLS,
   },
   {
     name: 'doc_indexing',
@@ -633,6 +670,7 @@ export const ENHANCEMENT_STAGES: readonly PipelineStageDefinition[] = [
     parallel: true,
     approvalRequired: false,
     dependsOn: ['orchestration'],
+    skills: WORKER_SKILLS,
   },
   {
     name: 'regression_testing',
@@ -657,6 +695,7 @@ export const ENHANCEMENT_STAGES: readonly PipelineStageDefinition[] = [
     parallel: false,
     approvalRequired: false,
     dependsOn: ['validation-agent'],
+    skills: PR_REVIEWER_SKILLS,
   },
   {
     name: 'doc_indexing',
@@ -698,6 +737,7 @@ export const IMPORT_STAGES: readonly PipelineStageDefinition[] = [
     parallel: true,
     approvalRequired: false,
     dependsOn: ['orchestration'],
+    skills: WORKER_SKILLS,
   },
   {
     name: 'validation-agent',
@@ -714,6 +754,7 @@ export const IMPORT_STAGES: readonly PipelineStageDefinition[] = [
     parallel: false,
     approvalRequired: false,
     dependsOn: ['validation-agent'],
+    skills: PR_REVIEWER_SKILLS,
   },
 ];
 

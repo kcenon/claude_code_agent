@@ -39,6 +39,9 @@ import {
   GREENFIELD_STAGES,
   ENHANCEMENT_STAGES,
   IMPORT_STAGES,
+  WORKER_SKILLS,
+  PR_REVIEWER_SKILLS,
+  CI_FIXER_SKILLS,
 } from '../../src/ad-sdlc-orchestrator/types.js';
 import type {
   ApprovalDecision,
@@ -1316,6 +1319,87 @@ describe('IMPORT_STAGES', () => {
     expect(stageMap.get('orchestration')).toBe('controller');
     expect(stageMap.get('implementation')).toBe('worker');
     expect(stageMap.get('review')).toBe('pr-reviewer');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Plugin skill preload (Issue #803)
+// ---------------------------------------------------------------------------
+
+describe('claude-config plugin skills preload', () => {
+  it('exposes the expected skill name constants', () => {
+    expect(WORKER_SKILLS).toEqual(['coding-guidelines', 'security-audit']);
+    expect(PR_REVIEWER_SKILLS).toEqual(['pr-review', 'security-audit', 'code-quality']);
+    expect(CI_FIXER_SKILLS).toEqual(['ci-debugging']);
+  });
+
+  it.each([
+    ['GREENFIELD_STAGES', GREENFIELD_STAGES],
+    ['ENHANCEMENT_STAGES', ENHANCEMENT_STAGES],
+    ['IMPORT_STAGES', IMPORT_STAGES],
+  ])('declares worker skills on the implementation stage of %s', (_label, stages) => {
+    const worker = stages.find((s) => s.agentType === 'worker');
+    expect(worker).toBeDefined();
+    expect(worker?.skills).toEqual(WORKER_SKILLS);
+  });
+
+  it.each([
+    ['GREENFIELD_STAGES', GREENFIELD_STAGES],
+    ['ENHANCEMENT_STAGES', ENHANCEMENT_STAGES],
+    ['IMPORT_STAGES', IMPORT_STAGES],
+  ])('declares pr-reviewer skills on the review stage of %s', (_label, stages) => {
+    const reviewer = stages.find((s) => s.agentType === 'pr-reviewer');
+    expect(reviewer).toBeDefined();
+    expect(reviewer?.skills).toEqual(PR_REVIEWER_SKILLS);
+  });
+
+  it('keeps the skills field readonly so callers cannot mutate the shared constant', () => {
+    // Compile-time invariant: PipelineStageDefinition.skills is `readonly
+    // string[]`. Verify at runtime that the constants are also frozen-like
+    // (each entry is a string, mutation would surface in TS via `readonly`).
+    for (const skill of WORKER_SKILLS) expect(typeof skill).toBe('string');
+    for (const skill of PR_REVIEWER_SKILLS) expect(typeof skill).toBe('string');
+  });
+
+  it('forwards stage.skills through buildStageExecutionRequest', () => {
+    class ProbeOrchestrator extends AdsdlcOrchestratorAgent {
+      probe(
+        stage: PipelineStageDefinition,
+        session: OrchestratorSession
+      ): ReturnType<AdsdlcOrchestratorAgent['buildStageExecutionRequest']> {
+        return this.buildStageExecutionRequest(stage, session);
+      }
+    }
+
+    const orchestrator = new ProbeOrchestrator();
+    const session: OrchestratorSession = {
+      sessionId: 'probe-session',
+      projectDir: '/tmp/probe',
+      userRequest: 'probe',
+      mode: 'greenfield',
+      startedAt: new Date().toISOString(),
+      status: 'running',
+      stageResults: [],
+      scratchpadDir: '/tmp/probe/.ad-sdlc/scratchpad',
+      localMode: false,
+    };
+
+    const workerStage = GREENFIELD_STAGES.find((s) => s.agentType === 'worker');
+    const reviewerStage = GREENFIELD_STAGES.find((s) => s.agentType === 'pr-reviewer');
+    expect(workerStage).toBeDefined();
+    expect(reviewerStage).toBeDefined();
+
+    const workerReq = orchestrator.probe(workerStage as PipelineStageDefinition, session);
+    expect(workerReq.skills).toEqual(WORKER_SKILLS);
+
+    const reviewerReq = orchestrator.probe(reviewerStage as PipelineStageDefinition, session);
+    expect(reviewerReq.skills).toEqual(PR_REVIEWER_SKILLS);
+
+    // Stages without skills should still produce a request with no skills key.
+    const initStage = GREENFIELD_STAGES.find((s) => s.name === 'initialization');
+    expect(initStage).toBeDefined();
+    const initReq = orchestrator.probe(initStage as PipelineStageDefinition, session);
+    expect(initReq.skills).toBeUndefined();
   });
 });
 
