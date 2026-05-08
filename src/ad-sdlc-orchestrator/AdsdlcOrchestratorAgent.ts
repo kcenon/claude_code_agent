@@ -97,6 +97,32 @@ export const WORKER_PILOT_ENV_FLAG = ENV_USE_SDK_FOR_WORKER;
 const WORKER_PILOT_AGENT_TYPE = 'worker';
 
 /**
+ * Doc Writers stages cut over to the ExecutionAdapter unconditionally
+ * (issue #823, AD-13-A — sub-PR of AD-13 meta #797).
+ *
+ * Unlike the worker stage, which is gated by the
+ * `AD_SDLC_USE_SDK_FOR_WORKER` feature flag during the pilot phase, these
+ * eight Doc Writers always route through {@link executeViaAdapter}. The
+ * legacy {@link executeViaBridge} path is no longer reachable for these
+ * agent types — the AgentDispatcher remains in place only for the
+ * remaining stages handled by sibling sub-PRs (AD-13-B..E).
+ *
+ * The set is frozen so a typo cannot silently re-enable the bridge path.
+ */
+export const DOC_WRITERS_ADAPTER_AGENT_TYPES: ReadonlySet<string> = Object.freeze(
+  new Set<string>([
+    'prd-writer',
+    'srs-writer',
+    'sdp-writer',
+    'sds-writer',
+    'ui-spec-writer',
+    'threat-model-writer',
+    'tech-decision-writer',
+    'svp-writer',
+  ])
+);
+
+/**
  * AD-SDLC Orchestrator Agent
  *
  * Coordinates the full AD-SDLC pipeline execution by invoking subagents
@@ -902,6 +928,14 @@ export class AdsdlcOrchestratorAgent implements IAgent {
    * remains supported and tests that set
    * `process.env.AD_SDLC_USE_SDK_FOR_WORKER` keep working unchanged.
    *
+   * Doc Writers cutover (issue #823, AD-13-A): the eight Doc Writers
+   * agent types listed in {@link DOC_WRITERS_ADAPTER_AGENT_TYPES} are
+   * routed to {@link executeViaAdapter} unconditionally — the bridge
+   * path is no longer reachable for those stages. This is the first of
+   * five sub-PRs that progressively cut every stage over to the adapter
+   * (parent meta-issue #797). The remaining stages still flow through
+   * {@link executeViaBridge} until their respective sub-PRs land.
+   *
    * Override this method in tests to bypass real agent execution.
    *
    * @param stage - The stage definition identifying which agent to invoke
@@ -912,6 +946,9 @@ export class AdsdlcOrchestratorAgent implements IAgent {
     stage: PipelineStageDefinition,
     session: OrchestratorSession
   ): Promise<string> {
+    if (DOC_WRITERS_ADAPTER_AGENT_TYPES.has(stage.agentType)) {
+      return this.executeViaAdapter(stage, session);
+    }
     if (stage.agentType === WORKER_PILOT_AGENT_TYPE && this.getFeatureFlags().useSdkForWorker()) {
       return this.executeViaAdapter(stage, session);
     }
