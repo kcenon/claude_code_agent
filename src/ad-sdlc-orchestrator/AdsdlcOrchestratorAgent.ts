@@ -98,6 +98,12 @@ export class AdsdlcOrchestratorAgent implements IAgent {
   private stageTimers = new Map<StageName, ReturnType<typeof setTimeout>>();
   private abortController: AbortController | null = null;
   private readonly checkpointManager: PipelineCheckpointManager | null;
+  /**
+   * One-shot SDK session id used to resume the FIRST stage of a session
+   * recovered from a v2 checkpoint. Cleared on consumption so subsequent
+   * stages run as fresh SDK sessions (each stage is a different agent).
+   */
+  private pendingResumeSdkSessionId: string | undefined = undefined;
 
   constructor(config: OrchestratorConfig = {}) {
     this.config = {
@@ -173,6 +179,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
             agent: 'AdsdlcOrchestratorAgent',
             sessionId: request.resumeSessionId,
             completedStages: checkpoint.completedStageNames.length,
+            hasSdkSession: checkpoint.sdkSessionId !== undefined,
           });
           // Feed checkpoint's completed stages into the existing resume path
           // by overriding preCompletedStages after loadPriorSession resolves
@@ -184,7 +191,14 @@ export class AdsdlcOrchestratorAgent implements IAgent {
               localMode: request.localMode ?? prior.localMode,
               preCompletedStages: checkpoint.completedStageNames,
               stageResults: checkpoint.completedStageResults,
+              ...(checkpoint.sdkSessionId !== undefined && checkpoint.sdkSessionId !== ''
+                ? { resumeSdkSessionId: checkpoint.sdkSessionId }
+                : {}),
             };
+            this.pendingResumeSdkSessionId =
+              checkpoint.sdkSessionId !== undefined && checkpoint.sdkSessionId !== ''
+                ? checkpoint.sdkSessionId
+                : undefined;
             this.abortController = new AbortController();
             return this.session;
           }
@@ -198,10 +212,15 @@ export class AdsdlcOrchestratorAgent implements IAgent {
           status: 'running',
           localMode: request.localMode ?? prior.localMode,
         };
+        // No checkpoint => no SDK session id to resume from.
+        this.pendingResumeSdkSessionId = undefined;
         this.abortController = new AbortController();
         return this.session;
       }
     }
+
+    // Cold-start session: ensure no stale resume id leaks across runs.
+    this.pendingResumeSdkSessionId = undefined;
 
     const mode = request.overrideMode ?? 'greenfield';
     const scratchpadDir = path.resolve(request.projectDir, this.config.scratchpadDir);
@@ -599,10 +618,26 @@ export class AdsdlcOrchestratorAgent implements IAgent {
       }
     }
 
+    // Consume the one-shot resume id: only the FIRST stage executed in
+    // a checkpoint-resumed session forwards `resume: sessionId` to the
+    // SDK. Subsequent stages run as fresh sessions because each stage
+    // is a different agent persona.
+    let resumeId: string | undefined;
+    if (this.pendingResumeSdkSessionId !== undefined && this.pendingResumeSdkSessionId !== '') {
+      resumeId = this.pendingResumeSdkSessionId;
+      this.pendingResumeSdkSessionId = undefined;
+      getLogger().info('Resuming stage with SDK session id', {
+        agent: 'AdsdlcOrchestratorAgent',
+        stage: stage.name,
+        sdkSessionId: resumeId,
+      });
+    }
+
     const request: StageExecutionRequest = {
       agentType: stage.agentType,
       workOrder: session.userRequest,
       priorOutputs,
+      ...(resumeId !== undefined ? { resume: resumeId } : {}),
       ...(this.abortController !== null ? { signal: this.abortController.signal } : {}),
     };
     return request;

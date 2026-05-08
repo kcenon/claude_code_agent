@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `PipelineCheckpointManager` records the SDK `session_id` per stage so a mid-stage crash can resume via the SDK's `resume: sessionId` and recover its tool-loop context. Checkpoint schema is bumped from v1 to v2 with backward-compatible auto-migration (v1 fixtures load as v2 with `sdkSessionId` undefined); adapters that do not surface a session id (e.g. Bedrock/Vertex) gracefully fall back to a clean stage restart (#800)
 - UI Specification Writer agent for generating screen specifications, user flow documents, and design system references from SRS use cases (#770)
 - Document Audit CLI for generated output integrity verification with frontmatter, cross-reference, and traceability checks (#769)
 - Technology Decision Writer agent with parallel pipeline stage for comparative analysis (#762)

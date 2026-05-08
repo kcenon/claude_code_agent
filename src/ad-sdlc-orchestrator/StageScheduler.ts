@@ -98,6 +98,37 @@ export function checkDependencies(
 }
 
 /**
+ * Extract the SDK session id from the most recent stage result.
+ *
+ * `invokeAgent` returns a JSON-serialised summary (see
+ * {@link AdsdlcOrchestratorAgent.toStageOutput}) whose `sessionId` field
+ * is the SDK's session id. We walk the result list newest-first looking
+ * for a parseable `sessionId`; the first non-empty match wins.
+ *
+ * Returns `undefined` when no parseable id is present (legacy outputs,
+ * adapters that do not surface a session id, parse failures).
+ * @param results
+ */
+function extractLatestSdkSessionId(results: readonly StageResult[]): string | undefined {
+  for (let i = results.length - 1; i >= 0; i--) {
+    const result = results[i];
+    if (result === undefined || result.output === '') {
+      continue;
+    }
+    try {
+      const parsed = JSON.parse(result.output) as Record<string, unknown>;
+      const candidate = parsed['sessionId'];
+      if (typeof candidate === 'string' && candidate !== '' && candidate !== 'unknown') {
+        return candidate;
+      }
+    } catch {
+      // Output is not JSON (legacy bridge path, error stub, etc.) — keep looking.
+    }
+  }
+  return undefined;
+}
+
+/**
  * Best-effort checkpoint persistence. Failures are logged at WARN and
  * never propagated — checkpoint loss must not abort the pipeline.
  * @param host
@@ -115,6 +146,7 @@ async function saveCheckpoint(
     return;
   }
   try {
+    const sdkSessionId = extractLatestSdkSessionId(results);
     await host.checkpointManager.saveCheckpoint(
       session.sessionId,
       session.mode,
@@ -122,7 +154,8 @@ async function saveCheckpoint(
       session.userRequest,
       session.scratchpadDir,
       results,
-      [...completedStages]
+      [...completedStages],
+      sdkSessionId
     );
   } catch (err) {
     getLogger().warn('Checkpoint save failed (non-critical)', {

@@ -218,6 +218,16 @@ export interface OrchestratorSession {
   readonly preCompletedStages?: readonly StageName[];
   /** Whether the pipeline runs in local mode (no GitHub dependency) */
   readonly localMode: boolean;
+  /**
+   * SDK session id loaded from a v2 checkpoint when resuming. Forwarded
+   * as `resume: sessionId` on the FIRST stage executed in the resumed
+   * session so the SDK can recover its tool-loop context. Cleared after
+   * the first invocation; subsequent stages run fresh sessions.
+   *
+   * Absent (or empty) for: cold-start sessions, v1 checkpoint resumes,
+   * and adapters that do not surface a session id (Bedrock/Vertex).
+   */
+  readonly resumeSdkSessionId?: string;
 }
 
 /**
@@ -730,10 +740,19 @@ export interface StageSummary {
 /**
  * Pipeline checkpoint capturing progress between stages.
  * Written to disk after each stage completes for crash recovery.
+ *
+ * Schema versioning:
+ * - `version: 1` is the legacy v0.0.1 layout without `sdkSessionId`.
+ * - `version: 2` adds the optional `sdkSessionId` so resumes can pass
+ *   the SDK's `resume: sessionId` to the ExecutionAdapter and preserve
+ *   tool-loop context across mid-stage crashes.
+ *
+ * Loaders auto-migrate v1 payloads to v2 in memory; persisted writes
+ * always emit v2.
  */
 export interface PipelineCheckpoint {
-  /** Checkpoint format version */
-  readonly version: 1;
+  /** Checkpoint format version (1 = legacy, 2 = adds sdkSessionId) */
+  readonly version: 1 | 2;
   /** Session ID this checkpoint belongs to */
   readonly sessionId: string;
   /** Pipeline mode */
@@ -748,4 +767,11 @@ export interface PipelineCheckpoint {
   readonly completedStageResults: readonly StageResult[];
   /** Names of stages confirmed completed */
   readonly completedStageNames: readonly StageName[];
+  /**
+   * SDK session id from the most recent ExecutionAdapter invocation.
+   * Used as `resume: sessionId` when re-entering an interrupted stage to
+   * preserve the SDK's tool-loop context. Absent for v1 payloads and for
+   * adapters that do not surface a session id (e.g. Bedrock/Vertex).
+   */
+  readonly sdkSessionId?: string;
 }

@@ -30,6 +30,12 @@ const DEFAULT_CONFIG: Required<CheckpointConfig> = {
 };
 
 /**
+ * Latest checkpoint schema version. Save paths always emit this; load
+ * paths auto-migrate older payloads in memory.
+ */
+const CURRENT_CHECKPOINT_VERSION = 2 as const;
+
+/**
  * Manages pipeline checkpoint persistence for crash recovery.
  */
 export class PipelineCheckpointManager {
@@ -56,6 +62,11 @@ export class PipelineCheckpointManager {
    * @param scratchpadDir - Scratchpad directory
    * @param completedResults - Stage results accumulated so far
    * @param completedNames - Names of completed stages
+   * @param sdkSessionId - Optional SDK session id from the most recent
+   *   ExecutionAdapter call. Persisted so a resumed stage can pass
+   *   `resume: sessionId` to the SDK and recover its tool-loop context.
+   *   Pass `undefined` (or omit) when the adapter does not surface a
+   *   session id.
    */
   public async saveCheckpoint(
     sessionId: string,
@@ -64,7 +75,8 @@ export class PipelineCheckpointManager {
     userRequest: string,
     scratchpadDir: string,
     completedResults: readonly StageResult[],
-    completedNames: readonly StageName[]
+    completedNames: readonly StageName[],
+    sdkSessionId?: string
   ): Promise<string> {
     const checkpointDir = this.getCheckpointDir(scratchpadDir);
     await fs.promises.mkdir(checkpointDir, { recursive: true });
@@ -74,7 +86,7 @@ export class PipelineCheckpointManager {
     const filePath = path.join(checkpointDir, filename);
 
     const checkpoint: PipelineCheckpoint = {
-      version: 1,
+      version: CURRENT_CHECKPOINT_VERSION,
       sessionId,
       mode,
       projectDir,
@@ -82,6 +94,7 @@ export class PipelineCheckpointManager {
       createdAt: new Date().toISOString(),
       completedStageResults: completedResults,
       completedStageNames: completedNames,
+      ...(sdkSessionId !== undefined && sdkSessionId !== '' ? { sdkSessionId } : {}),
     };
 
     await fs.promises.writeFile(filePath, yaml.dump(checkpoint), 'utf-8');
@@ -128,17 +141,27 @@ export class PipelineCheckpointManager {
         return null;
       }
       const content = await fs.promises.readFile(path.join(checkpointDir, latestFile), 'utf-8');
-      const raw = yaml.load(content) as Record<string, unknown>;
+      const raw = yaml.load(content) as Record<string, unknown> | null;
 
-      if (raw['version'] !== 1 || raw['sessionId'] !== sessionId) {
+      if (raw === null || typeof raw !== 'object') {
         logger.warn('Invalid checkpoint data', {
           agent: 'PipelineCheckpointManager',
           file: latestFile,
+          reason: 'not an object',
         });
         return null;
       }
 
-      return raw as unknown as PipelineCheckpoint;
+      if (raw['sessionId'] !== sessionId) {
+        logger.warn('Invalid checkpoint data', {
+          agent: 'PipelineCheckpointManager',
+          file: latestFile,
+          reason: 'sessionId mismatch',
+        });
+        return null;
+      }
+
+      return migrateCheckpoint(raw, latestFile);
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
         return null;
@@ -212,4 +235,55 @@ export class PipelineCheckpointManager {
   private getCheckpointDir(scratchpadDir: string): string {
     return path.join(scratchpadDir, 'pipeline', 'checkpoints');
   }
+}
+
+/**
+ * Auto-migrate a raw checkpoint payload to the current schema version.
+ *
+ * v1 → v2: rewrites `version` to 2 and leaves `sdkSessionId` undefined.
+ * v2 → v2: returned as-is.
+ *
+ * Unknown / future versions are rejected (returns `null`) so callers can
+ * fall back to a clean restart.
+ *
+ * The on-disk file is left untouched — migrations happen in memory and
+ * the next `saveCheckpoint` call will persist a v2 record.
+ *
+ * @param raw - YAML-decoded checkpoint payload (already validated to be a
+ *   non-null object whose `sessionId` matches the caller's request).
+ * @param sourceFile - Filename for diagnostic logging.
+ */
+function migrateCheckpoint(
+  raw: Record<string, unknown>,
+  sourceFile: string
+): PipelineCheckpoint | null {
+  const rawVersion = raw['version'];
+
+  // v1 (or missing version): augment to v2 with sdkSessionId undefined.
+  if (rawVersion === undefined || rawVersion === 1) {
+    logger.debug('Migrated v1 checkpoint to v2', {
+      agent: 'PipelineCheckpointManager',
+      file: sourceFile,
+    });
+    const migrated = {
+      ...raw,
+      version: CURRENT_CHECKPOINT_VERSION,
+    };
+    delete (migrated as Record<string, unknown>)['sdkSessionId'];
+    return migrated as unknown as PipelineCheckpoint;
+  }
+
+  // v2 (current): pass through.
+  if (rawVersion === 2) {
+    return raw as unknown as PipelineCheckpoint;
+  }
+
+  // Unknown / future schema — refuse to load so the orchestrator can
+  // fall back to a clean session rather than misinterpret the payload.
+  logger.warn('Unsupported checkpoint schema version', {
+    agent: 'PipelineCheckpointManager',
+    file: sourceFile,
+    version: rawVersion,
+  });
+  return null;
 }
