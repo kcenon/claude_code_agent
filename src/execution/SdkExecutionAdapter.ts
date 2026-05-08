@@ -23,6 +23,7 @@
 
 import { AppError } from '../errors/AppError.js';
 import { ErrorSeverity } from '../errors/types.js';
+import type { HookPipeline } from './hooks.js';
 import type {
   ArtifactRef,
   ExecutionAdapter,
@@ -45,6 +46,7 @@ export interface SdkQueryOptions {
     maxTurns?: number;
     resume?: string;
     signal?: AbortSignal;
+    hooks?: HookPipeline;
   };
 }
 
@@ -92,15 +94,23 @@ const defaultLoader: SdkLoader = async () => {
 export interface SdkExecutionAdapterOptions {
   /** Override the SDK loader for tests / alternative endpoints. */
   readonly loader?: SdkLoader;
+  /**
+   * Optional hook pipeline forwarded to the SDK as `options.hooks`. When
+   * omitted, the adapter does not set the `hooks` key on the SDK options at
+   * all (so the SDK sees no hooks key, not `hooks: undefined`).
+   */
+  readonly hooks?: HookPipeline;
 }
 
 export class SdkExecutionAdapter implements ExecutionAdapter {
   private readonly loader: SdkLoader;
+  private readonly hooks: HookPipeline | undefined;
   private sdkPromise: Promise<SdkLike> | null = null;
   private disposed = false;
 
   constructor(options: SdkExecutionAdapterOptions = {}) {
     this.loader = options.loader ?? defaultLoader;
+    this.hooks = options.hooks;
   }
 
   async execute(req: StageExecutionRequest): Promise<StageExecutionResult> {
@@ -121,6 +131,7 @@ export class SdkExecutionAdapter implements ExecutionAdapter {
       maxTurns: req.maxTurns,
       resume: req.resume,
       signal: req.signal,
+      ...(this.hooks !== undefined && { hooks: this.hooks }),
     };
 
     let sessionId = req.resume ?? 'unknown';
