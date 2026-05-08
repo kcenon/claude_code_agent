@@ -7,8 +7,9 @@
  * @module collector/InvestigationEngine
  */
 
+import { promises as fs } from 'node:fs';
 import { z } from 'zod';
-import type { AgentBridge } from '../agents/AgentBridge.js';
+import type { ExecutionAdapter, StageExecutionResult } from '../execution/index.js';
 import { getLogger } from '../logging/index.js';
 import type {
   InvestigationDepth,
@@ -65,7 +66,7 @@ const LLMQuestionsArraySchema = z.array(LLMQuestionResponseSchema);
  */
 export class InvestigationEngine {
   private readonly config: Required<InvestigationEngineConfig>;
-  private readonly bridge: AgentBridge | null;
+  private readonly adapter: ExecutionAdapter | null;
   private readonly templates: InvestigationTemplates;
   private state: InvestigationState;
   private questionCounter: number;
@@ -74,7 +75,7 @@ export class InvestigationEngine {
 
   constructor(
     config: Partial<InvestigationEngineConfig>,
-    bridge: AgentBridge | null,
+    adapter: ExecutionAdapter | null,
     templates?: InvestigationTemplates
   ) {
     const parsed = InvestigationEngineConfigSchema.parse(config);
@@ -85,7 +86,7 @@ export class InvestigationEngine {
       earlyExitOnHighConfidence: parsed.earlyExitOnHighConfidence,
       enableLLMQuestions: parsed.enableLLMQuestions,
     };
-    this.bridge = bridge;
+    this.adapter = adapter;
     this.templates = templates ?? new InvestigationTemplates();
     this.questionCounter = 0;
     this.totalQuestionsAsked = 0;
@@ -191,7 +192,7 @@ export class InvestigationEngine {
 
     // Generate questions
     let questions: InvestigationQuestion[];
-    if (this.config.enableLLMQuestions && this.bridge !== null) {
+    if (this.config.enableLLMQuestions && this.adapter !== null) {
       questions = await this.generateLLMQuestions(
         phase,
         currentExtraction,
@@ -316,7 +317,7 @@ export class InvestigationEngine {
     try {
       const prompt = this.buildLLMPrompt(phase, extraction, priorAnswers, maxQuestions);
 
-      if (this.bridge === null) {
+      if (this.adapter === null) {
         return this.generateTemplateQuestions(
           phase,
           extraction,
@@ -326,15 +327,13 @@ export class InvestigationEngine {
         );
       }
 
-      const response = await this.bridge.execute({
+      const result = await this.adapter.execute({
         agentType: 'collector',
-        input: prompt,
-        scratchpadDir: '',
-        projectDir: '',
-        priorStageOutputs: {},
+        workOrder: prompt,
+        priorOutputs: {},
       });
 
-      if (!response.success) {
+      if (result.status !== 'success') {
         getLogger().warn('LLM question generation unsuccessful, falling back to templates', {
           agent: 'InvestigationEngine',
           phase,
@@ -348,7 +347,18 @@ export class InvestigationEngine {
         );
       }
 
-      return this.parseLLMQuestions(response.output, phase, roundNumber);
+      const payload = await this.readQuestionsPayload(result);
+      if (payload === null) {
+        return this.generateTemplateQuestions(
+          phase,
+          extraction,
+          priorAnswers,
+          maxQuestions,
+          roundNumber
+        );
+      }
+
+      return this.parseLLMQuestions(payload, phase, roundNumber);
     } catch (error) {
       getLogger().warn('LLM question generation failed, falling back to templates', {
         agent: 'InvestigationEngine',
@@ -464,6 +474,36 @@ Rules:
             : 'requirement',
       };
     });
+  }
+
+  /**
+   * Resolve the JSON questions payload from the adapter result.
+   *
+   * Mirrors the contract used by {@link LLMExtractor.readExtractionPayload}:
+   * the first artifact's `description` (preferred for tests/stubs) holds the
+   * payload inline, otherwise the artifact `path` points to a file written
+   * by the SDK that we read from disk. Returns null when neither channel
+   * produced a payload.
+   * @param result
+   */
+  private async readQuestionsPayload(result: StageExecutionResult): Promise<string | null> {
+    const first = result.artifacts[0];
+    if (first === undefined) {
+      return null;
+    }
+    if (first.description !== undefined && first.description.length > 0) {
+      return first.description;
+    }
+    try {
+      return await fs.readFile(first.path, 'utf8');
+    } catch (error) {
+      getLogger().warn('Failed to read investigation questions artifact from disk', {
+        agent: 'InvestigationEngine',
+        path: first.path,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return null;
+    }
   }
 
   // ===========================================================================
