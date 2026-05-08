@@ -38,3 +38,11 @@ export type {
   SdkHookEntry,
   SdkToolUseEvent,
 } from './hooks.js';
+
+export {
+  describeExecutionEnvironment,
+  hasAnthropicApiKey,
+  hasRealExecutionEnvironment,
+  isClaudeCodeSession,
+} from './env.js';
+export type { ExecutionEnvironmentLabel } from './env.js';
