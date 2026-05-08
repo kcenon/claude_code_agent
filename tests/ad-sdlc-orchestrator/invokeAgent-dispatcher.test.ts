@@ -13,7 +13,10 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import * as os from 'node:os';
 
-import { AdsdlcOrchestratorAgent } from '../../src/ad-sdlc-orchestrator/AdsdlcOrchestratorAgent.js';
+import {
+  AdsdlcOrchestratorAgent,
+  WORKER_PILOT_ENV_FLAG,
+} from '../../src/ad-sdlc-orchestrator/AdsdlcOrchestratorAgent.js';
 import type {
   OrchestratorSession,
   PipelineStageDefinition,
@@ -27,14 +30,16 @@ import { AgentDispatcher } from '../../src/agents/AgentDispatcher.js';
 /**
  * Minimal stage definition for testing invokeAgent()
  *
- * Uses `regression-tester` so the dispatcher path is exercised; the
- * previously-used `collector` stage is now adapter-routed after AD-13-D
- * (#826) and would bypass the dispatcher this suite is validating.
+ * Uses the `worker` stage (with the `AD_SDLC_USE_SDK_FOR_WORKER`
+ * feature flag unset) so the dispatcher / bridge path is exercised.
+ * After AD-13-E (#827) every other stage is adapter-routed, so worker
+ * is the only remaining stage that flows through `AgentDispatcher`
+ * by default.
  */
 function createStage(overrides?: Partial<PipelineStageDefinition>): PipelineStageDefinition {
   return {
-    name: 'regression',
-    agentType: 'regression-tester',
+    name: 'implementation',
+    agentType: 'worker',
     description: 'Test stage',
     parallel: false,
     approvalRequired: false,
@@ -89,13 +94,25 @@ class TestableOrchestrator extends AdsdlcOrchestratorAgent {
 describe('invokeAgent() dispatcher wiring', () => {
   let tempDir: string;
   let orchestrator: TestableOrchestrator;
+  let originalFlag: string | undefined;
 
   beforeEach(async () => {
+    // The worker stage routes through the dispatcher only when the
+    // feature flag is unset. Save and clear it to keep these tests on
+    // the bridge path that they validate.
+    originalFlag = process.env[WORKER_PILOT_ENV_FLAG];
+    delete process.env[WORKER_PILOT_ENV_FLAG];
+
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'invoke-agent-test-'));
     orchestrator = new TestableOrchestrator();
   });
 
   afterEach(async () => {
+    if (originalFlag === undefined) {
+      delete process.env[WORKER_PILOT_ENV_FLAG];
+    } else {
+      process.env[WORKER_PILOT_ENV_FLAG] = originalFlag;
+    }
     await orchestrator.dispose();
     try {
       await fs.rm(tempDir, { recursive: true, force: true });

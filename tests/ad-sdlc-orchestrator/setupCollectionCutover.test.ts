@@ -19,8 +19,8 @@
  *   AC-1  All 6 Setup + Collection stages route exclusively through
  *         ExecutionAdapter.
  *   AC-2  No `executeViaBridge` call site for these 6 stages.
- *   AC-3  Other stages (e.g. `issue-generator`, `controller`) still use
- *         the bridge path.
+ *   AC-3  Worker stage continues to respect the feature flag (the
+ *         remaining bridge fallback after AD-13-E #827).
  *   AC-4  Routing decision does not depend on the worker feature flag.
  *   AC-5  Doc Writers (AD-13-A), Doc Updaters + Reader (AD-13-B), and
  *         Analyzers (AD-13-C) regression-zero: still adapter-routed.
@@ -225,37 +225,7 @@ describe('Setup + Collection ExecutionAdapter cutover (#826)', () => {
     }
   });
 
-  describe('AC-3: regression-zero for non-cutover stages', () => {
-    it('still routes the issue-generator stage via the bridge path', async () => {
-      const stage = buildStage('issue-generator', 'issue_generation');
-      const session = buildSession();
-
-      await orchestrator.callInvokeAgent(stage, session);
-
-      expect(orchestrator.bridgeCalls).toEqual(['issue-generator']);
-      expect(orchestrator.adapterCalls).toEqual([]);
-    });
-
-    it('still routes the controller stage via the bridge path', async () => {
-      const stage = buildStage('controller', 'orchestration');
-      const session = buildSession();
-
-      await orchestrator.callInvokeAgent(stage, session);
-
-      expect(orchestrator.bridgeCalls).toEqual(['controller']);
-      expect(orchestrator.adapterCalls).toEqual([]);
-    });
-
-    it('still routes the validation-agent stage via the bridge path', async () => {
-      const stage = buildStage('validation-agent', 'validation');
-      const session = buildSession();
-
-      await orchestrator.callInvokeAgent(stage, session);
-
-      expect(orchestrator.bridgeCalls).toEqual(['validation-agent']);
-      expect(orchestrator.adapterCalls).toEqual([]);
-    });
-
+  describe('AC-3: worker stage still respects the feature flag', () => {
     it('routes worker via bridge when feature flag is unset (regression-zero)', async () => {
       delete process.env[WORKER_PILOT_ENV_FLAG];
       const stage = buildStage('worker', 'implementation');
