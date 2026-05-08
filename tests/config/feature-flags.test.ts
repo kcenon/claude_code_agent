@@ -221,7 +221,8 @@ describe('FeatureFlagsResolver', () => {
   describe('getFeatureFlagsFilePath', () => {
     it('places the YAML under .ad-sdlc/config/feature-flags.yaml relative to baseDir', () => {
       const baseDir = '/tmp/some-project';
-      const path = getFeatureFlagsFilePath(baseDir);
+      // Normalize Windows backslashes so the assertions stay portable across OSes.
+      const path = getFeatureFlagsFilePath(baseDir).replace(/\\/g, '/');
       expect(path.endsWith('.ad-sdlc/config/feature-flags.yaml')).toBe(true);
       expect(path.startsWith(baseDir)).toBe(true);
     });
