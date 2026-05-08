@@ -2,13 +2,20 @@
  * LLMExtractor - LLM-backed information extraction with keyword fallback
  *
  * Replaces the keyword-based InformationExtractor with LLM analysis
- * via AgentBridge. Falls back to the keyword-based extractor on failure.
+ * via ExecutionAdapter. Falls back to the keyword-based extractor on failure.
+ *
+ * The adapter is expected to drive an SDK that writes the JSON extraction
+ * result either as the first artifact's `description` (preferred for tests
+ * and stub adapters) or to disk at the artifact `path`. The extractor reads
+ * the result and parses it through the same Zod schema used by the legacy
+ * bridge code path.
  *
  * @packageDocumentation
  */
 
+import { promises as fs } from 'node:fs';
 import { z } from 'zod';
-import type { AgentBridge } from '../agents/AgentBridge.js';
+import type { ExecutionAdapter, StageExecutionResult } from '../execution/index.js';
 import type { InformationExtractor } from './InformationExtractor.js';
 import type { ParsedInput, ExtractionResult } from './types.js';
 import { getLogger } from '../logging/index.js';
@@ -38,12 +45,13 @@ const LLMExtractionResultSchema = z.object({
 type LLMExtractionResult = z.infer<typeof LLMExtractionResultSchema>;
 
 /**
- * LLMExtractor delegates information extraction to an LLM via AgentBridge,
- * with graceful fallback to keyword-based InformationExtractor.
+ * LLMExtractor delegates information extraction to an LLM via
+ * {@link ExecutionAdapter}, with graceful fallback to keyword-based
+ * {@link InformationExtractor}.
  */
 export class LLMExtractor {
   constructor(
-    private readonly bridge: AgentBridge,
+    private readonly adapter: ExecutionAdapter,
     private readonly fallback: InformationExtractor,
     private readonly scratchpadDir: string = '',
     private readonly projectDir: string = ''
@@ -59,19 +67,22 @@ export class LLMExtractor {
    */
   async extract(input: ParsedInput, projectContext?: string): Promise<ExtractionResult> {
     try {
-      const response = await this.bridge.execute({
+      const result = await this.adapter.execute({
         agentType: 'collector',
-        input: this.buildExtractionPrompt(input.combinedContent, projectContext),
-        scratchpadDir: this.scratchpadDir,
-        projectDir: this.projectDir,
-        priorStageOutputs: {},
+        workOrder: this.buildExtractionPrompt(input.combinedContent, projectContext),
+        priorOutputs: this.buildPriorOutputs(projectContext),
       });
 
-      if (!response.success) {
+      if (result.status !== 'success') {
         return this.fallback.extract(input);
       }
 
-      return this.parseExtraction(response.output);
+      const extractionJson = await this.readExtractionPayload(result);
+      if (extractionJson === null) {
+        return this.fallback.extract(input);
+      }
+
+      return this.parseExtraction(extractionJson);
     } catch (error) {
       getLogger().warn('LLM extraction failed, falling back to keyword extractor', {
         agent: 'LLMExtractor',
@@ -79,6 +90,60 @@ export class LLMExtractor {
       });
       return this.fallback.extract(input);
     }
+  }
+
+  /**
+   * Resolve the JSON extraction payload from the adapter result.
+   *
+   * The adapter contract does not return free-form text. Implementations
+   * (production SDK, mocks) communicate the extraction JSON via artifacts:
+   *
+   * 1. Preferred for tests and stubs: the first artifact's `description`
+   *    contains the JSON document inline.
+   * 2. Production SDK: the artifact `path` points to a JSON file written by
+   *    the model via Edit/Write tools — read that file from disk.
+   *
+   * Returns null when neither channel produced a payload.
+   * @param result
+   */
+  private async readExtractionPayload(result: StageExecutionResult): Promise<string | null> {
+    const first = result.artifacts[0];
+    if (first === undefined) {
+      return null;
+    }
+    if (first.description !== undefined && first.description.length > 0) {
+      return first.description;
+    }
+    try {
+      return await fs.readFile(first.path, 'utf8');
+    } catch (error) {
+      getLogger().warn('Failed to read extraction artifact from disk', {
+        agent: 'LLMExtractor',
+        path: first.path,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return null;
+    }
+  }
+
+  /**
+   * Build the `priorOutputs` map forwarded to the adapter so downstream
+   * configuration (scratchpad / project paths, project context) is visible
+   * to the SDK without changing the request shape.
+   * @param projectContext
+   */
+  private buildPriorOutputs(projectContext?: string): Record<string, string> {
+    const out: Record<string, string> = {};
+    if (this.scratchpadDir.length > 0) {
+      out['scratchpadDir'] = this.scratchpadDir;
+    }
+    if (this.projectDir.length > 0) {
+      out['projectDir'] = this.projectDir;
+    }
+    if (projectContext !== undefined && projectContext.length > 0) {
+      out['projectContext'] = projectContext;
+    }
+    return out;
   }
 
   /**
