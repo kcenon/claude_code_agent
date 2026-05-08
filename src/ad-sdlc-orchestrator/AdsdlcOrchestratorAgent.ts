@@ -123,6 +123,23 @@ export const DOC_WRITERS_ADAPTER_AGENT_TYPES: ReadonlySet<string> = Object.freez
 );
 
 /**
+ * Doc Updaters and Document Reader stages cut over to the
+ * ExecutionAdapter unconditionally (issue #824, AD-13-B — sub-PR of
+ * AD-13 meta #797).
+ *
+ * Sibling of {@link DOC_WRITERS_ADAPTER_AGENT_TYPES} (AD-13-A). These
+ * four stages always route through {@link executeViaAdapter}; the
+ * legacy {@link executeViaBridge} path is no longer reachable for them.
+ * The remaining 21 stages still flow through the bridge until sibling
+ * sub-PRs (AD-13-C..E) land.
+ *
+ * The set is frozen so a typo cannot silently re-enable the bridge path.
+ */
+export const DOC_UPDATERS_READER_ADAPTER_AGENT_TYPES: ReadonlySet<string> = Object.freeze(
+  new Set<string>(['prd-updater', 'srs-updater', 'sds-updater', 'document-reader'])
+);
+
+/**
  * AD-SDLC Orchestrator Agent
  *
  * Coordinates the full AD-SDLC pipeline execution by invoking subagents
@@ -936,6 +953,13 @@ export class AdsdlcOrchestratorAgent implements IAgent {
    * (parent meta-issue #797). The remaining stages still flow through
    * {@link executeViaBridge} until their respective sub-PRs land.
    *
+   * Doc Updaters + Reader cutover (issue #824, AD-13-B): the four
+   * agent types listed in {@link DOC_UPDATERS_READER_ADAPTER_AGENT_TYPES}
+   * (`prd-updater`, `srs-updater`, `sds-updater`, `document-reader`)
+   * are routed to {@link executeViaAdapter} unconditionally on the
+   * same terms. The remaining 21 stages will be cut over by sibling
+   * sub-PRs AD-13-C..E.
+   *
    * Override this method in tests to bypass real agent execution.
    *
    * @param stage - The stage definition identifying which agent to invoke
@@ -947,6 +971,9 @@ export class AdsdlcOrchestratorAgent implements IAgent {
     session: OrchestratorSession
   ): Promise<string> {
     if (DOC_WRITERS_ADAPTER_AGENT_TYPES.has(stage.agentType)) {
+      return this.executeViaAdapter(stage, session);
+    }
+    if (DOC_UPDATERS_READER_ADAPTER_AGENT_TYPES.has(stage.agentType)) {
       return this.executeViaAdapter(stage, session);
     }
     if (stage.agentType === WORKER_PILOT_AGENT_TYPE && this.getFeatureFlags().useSdkForWorker()) {
