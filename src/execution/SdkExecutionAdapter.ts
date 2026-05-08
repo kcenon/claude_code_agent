@@ -15,6 +15,7 @@
  * | `skills`        | options.skills   |                                                |
  * | `mcpServers`    | options.mcpServers |                                              |
  * | `maxTurns`      | options.maxTurns |                                                |
+ * | `permissionMode`| options.permissionMode | `'default' \| 'acceptEdits' \| 'plan'`   |
  * | `resume`        | options.resume   | Continue an earlier session                    |
  * | `signal`        | options.signal   |                                                |
  *
@@ -44,6 +45,7 @@ export interface SdkQueryOptions {
     skills?: readonly string[];
     mcpServers?: Record<string, McpServerConfig>;
     maxTurns?: number;
+    permissionMode?: 'default' | 'acceptEdits' | 'plan';
     resume?: string;
     signal?: AbortSignal;
     hooks?: HookPipeline;
@@ -102,6 +104,9 @@ export interface SdkExecutionAdapterOptions {
   readonly hooks?: HookPipeline;
 }
 
+/**
+ *
+ */
 export class SdkExecutionAdapter implements ExecutionAdapter {
   private readonly loader: SdkLoader;
   private readonly hooks: HookPipeline | undefined;
@@ -113,6 +118,10 @@ export class SdkExecutionAdapter implements ExecutionAdapter {
     this.hooks = options.hooks;
   }
 
+  /**
+   *
+   * @param req
+   */
   async execute(req: StageExecutionRequest): Promise<StageExecutionResult> {
     if (this.disposed) {
       throw new AppError('EXEC-002', 'SdkExecutionAdapter: execute called after dispose', {
@@ -131,6 +140,7 @@ export class SdkExecutionAdapter implements ExecutionAdapter {
       ...(req.skills !== undefined && { skills: req.skills }),
       ...(req.mcpServers !== undefined && { mcpServers: req.mcpServers }),
       ...(req.maxTurns !== undefined && { maxTurns: req.maxTurns }),
+      ...(req.permissionMode !== undefined && { permissionMode: req.permissionMode }),
       ...(req.resume !== undefined && { resume: req.resume }),
       ...(req.signal !== undefined && { signal: req.signal }),
       ...(this.hooks !== undefined && { hooks: this.hooks }),
@@ -178,10 +188,13 @@ export class SdkExecutionAdapter implements ExecutionAdapter {
     };
   }
 
-  // eslint-disable-next-line @typescript-eslint/require-await
+  /**
+   *
+   */
   async dispose(): Promise<void> {
     this.disposed = true;
     this.sdkPromise = null;
+    await Promise.resolve();
   }
 
   private getSdk(): Promise<SdkLike> {
@@ -194,6 +207,7 @@ export class SdkExecutionAdapter implements ExecutionAdapter {
  * Render a prompt that includes the work order and every prior output verbatim.
  * The format is intentionally simple — downstream agents parse the section
  * headers to retrieve specific upstream outputs.
+ * @param req
  */
 export function renderPrompt(req: StageExecutionRequest): string {
   const blocks: string[] = [`# Stage: ${req.agentType}`, '', '## Work order', '', req.workOrder];
@@ -220,6 +234,7 @@ function mapUsage(usage: NonNullable<SdkMessage['usage']>): TokenUsage {
  * Lift any `path:` annotations the agent emitted into ArtifactRefs. The agent
  * convention is one per line as `<path>: <description>`. Lines without that
  * shape are ignored.
+ * @param resultText
  */
 function extractArtifacts(resultText: string): ArtifactRef[] {
   const out: ArtifactRef[] = [];

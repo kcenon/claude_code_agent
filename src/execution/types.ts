@@ -68,6 +68,7 @@ export interface StageExecutionRequest {
   readonly skills?: readonly string[];
   readonly mcpServers?: Record<string, McpServerConfig>;
   readonly maxTurns?: number;
+  readonly permissionMode?: 'default' | 'acceptEdits' | 'plan';
   readonly resume?: string;
   readonly signal?: AbortSignal;
 }
