@@ -7,35 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Removed
+## [0.1.0] - 2026-05-09
 
-- **Breaking**: Delete the dead Bridge / Dispatcher / Registry stack now that all consumer subsystems have migrated to `ExecutionAdapter`. Removed source modules: `src/agents/AgentBridge.ts`, `src/agents/AgentDispatcher.ts`, `src/agents/AgentRegistry.ts`, `src/agents/AgentTypeMapping.ts`, `src/agents/AgentFactory.ts`, `src/agents/bootstrapAgents.ts`, `src/agents/BridgeRegistry.ts`, `src/agents/ExecutionScaffoldGenerator.ts`, and the entire `src/agents/bridges/` directory (`AnthropicApiBridge`, `ClaudeCliSubprocessBridge`, `ClaudeCodeBridge`, `StubBridge`, `agentDefinition`, `index`, `tools`). External consumers importing `AgentBridge`, `AgentDispatcher`, `AgentRegistry`, `AgentFactory`, `BridgeRegistry`, `bootstrapAgents`, `ExecutionScaffoldGenerator`, or any of the four concrete bridge classes from `@ad-sdlc/agents` must migrate to the `ExecutionAdapter` API in `src/execution/`. The `IAgent` interface and per-agent module re-exports remain available. Also removed the `@anthropic-ai/sdk` runtime dependency now that `AnthropicApiBridge` is gone (#798)
+The v0.1.0 release completes the AD-13 cutover: every pipeline stage now routes through the official Claude Agent SDK via a single `ExecutionAdapter`, and the in-tree `AgentBridge` / `AgentDispatcher` / `AgentRegistry` stack has been removed. The 35-stage SDLC pipeline, V&V gates, and traceability matrix are unchanged; tool use, sub-agent delegation, and session management are now handled by the SDK itself. See [`docs/architecture/v0.1-hybrid-pipeline-rfc.md`](docs/architecture/v0.1-hybrid-pipeline-rfc.md) for the architecture rationale and [`docs/architecture/v0.1-migration-guide.md`](docs/architecture/v0.1-migration-guide.md) for migration steps.
 
 ### Added
 
-- `PipelineCheckpointManager` records the SDK `session_id` per stage so a mid-stage crash can resume via the SDK's `resume: sessionId` and recover its tool-loop context. Checkpoint schema is bumped from v1 to v2 with backward-compatible auto-migration (v1 fixtures load as v2 with `sdkSessionId` undefined); adapters that do not surface a session id (e.g. Bedrock/Vertex) gracefully fall back to a clean stage restart (#800)
-- UI Specification Writer agent for generating screen specifications, user flow documents, and design system references from SRS use cases (#770)
-- Document Audit CLI for generated output integrity verification with frontmatter, cross-reference, and traceability checks (#769)
-- Technology Decision Writer agent with parallel pipeline stage for comparative analysis (#762)
-- SVP Writer agent with automated test case derivation from SRS requirements (#761)
-- Threat Model Writer agent for STRIDE/DREAD analysis from SDS (#759)
-- SDP Writer agent for Software Development Plan generation from PRD and SRS (#758)
-- YAML frontmatter metadata on all generated documents with doc_id, version, status, and change history (#756)
-- Doc Index Generator as post-pipeline stage for structured documentation indexing (#742)
+- `ExecutionAdapter` as the single Claude Agent SDK entry point for every pipeline stage; all 35 stages route through it (#797, #798, #799)
+- Hook pipeline for scratchpad auto-capture and telemetry forwarding from SDK tool calls
+- `PipelineStageDefinition` extension with `skills`, `mcpServers`, `maxTurns`, and `permissionMode` fields so each stage can declare its knowledge-layer needs declaratively
+- Pre-load of `claude-config` plugin skills for the `worker` and `pr-reviewer` stages, enabling shared coding-style and review guidelines across consumer projects
+- `.claude/commands/` entries for ad-sdlc operator workflows (pipeline run, stage retry, session inspection)
+- `.mcp.json` with the GitHub MCP server registered out of the box for issue/PR-handling stages
+- `PipelineCheckpointManager` records the SDK `session_id` per stage so a mid-stage crash can resume via the SDK's `resume: sessionId` and recover its tool-loop context. Checkpoint schema is bumped from v1 to v2 with backward-compatible auto-migration; adapters that do not surface a session id (Bedrock/Vertex) gracefully fall back to a clean stage restart (#800)
+- README "Built with Claude Agent SDK" badge, 3-tier architecture mermaid diagram, and Dependencies section that name the single Agent SDK runtime dependency (#801)
 
 ### Changed
 
-- Migrate `src/cli.ts` off `createDefaultBridgeRegistry`/`isClaudeCodeSession` to the standalone execution-environment helpers in `src/execution/env.ts`. The CLI now uses `hasRealExecutionEnvironment()` and `describeExecutionEnvironment()` for its `doctor`, `pipeline --dry-run`, and pipeline pre-check diagnostics, and no longer imports from `src/agents/BridgeRegistry.ts`. With this change, the CLI is no longer a `BridgeRegistry` consumer — the bridge stack has no live consumers in `src/`, unblocking removal of `AgentBridge`/`BridgeRegistry`/bridges in #798 (#838)
-- Migrate `WorkerPoolManager` (controller subsystem) off `BridgeRegistry`/`AgentBridge` to `ExecutionAdapter`. The `setBridgeRegistry`/`executeWithBridge` public surface is replaced by `setExecutionAdapter`/`executeWithAdapter`; worker resolution now goes through `executionAdapter.execute({ agentType: 'worker', ... })` instead of `bridgeRegistry.resolve('worker').execute(req)`. The controller no longer imports `AgentBridge`, `AgentRequest`, `AgentResponse`, or `BridgeRegistry`; it consumes `ExecutionAdapter`, `StageExecutionRequest`, and `StageExecutionResult` from `src/execution/`. WorkerPoolManager tests use `MockExecutionAdapter`. Prerequisite for #798 (#837)
-- Migrate `CollectorAgent`, `LLMExtractor`, and `InvestigationEngine` off `AgentBridge` to `ExecutionAdapter`. All three classes now accept an `ExecutionAdapter` (instead of `AgentBridge`) for AI-backed extraction and investigation question generation. The legacy `isStubBridge` helper is removed; an absent adapter simply disables LLM-backed paths in favor of keyword extraction and template-based questions. LLM JSON payloads are read from the first artifact's `description` (preferred for stubs/tests) or by reading the artifact `path` from disk, matching how the production SDK surfaces output. Collector tests use `MockExecutionAdapter`. Prerequisite for #798 (#836)
-- Migrate `WorkerAgent` off `AgentBridge` to `ExecutionAdapter`. The `setBridge`/`AgentBridge` typed API on `WorkerAgent` is replaced by `setExecutionAdapter`/`ExecutionAdapter`; code generation now records artifacts returned by the adapter (the SDK writes files directly via Edit/Write tools) instead of parsing JSON output from a bridge response. Worker tests use `MockExecutionAdapter` (#835)
-- Separate Database Schema Specification (DBS) from SDS into standalone document (#760)
-- Cut over the eight Doc Writers stages (PRD, SRS, SDP, SDS, UI Spec, Threat Model, Tech Decision, SVP) from `AgentDispatcher` to the SDK `ExecutionAdapter`; routing for these stages no longer consults the `AD_SDLC_USE_SDK_FOR_WORKER` feature flag (#823, AD-13-A, part of #797)
-- Cut over the four Doc Updater + Reader stages (PRD Updater, SRS Updater, SDS Updater, Document Reader) from `AgentDispatcher` to the SDK `ExecutionAdapter`; routing is independent of the `AD_SDLC_USE_SDK_FOR_WORKER` feature flag and disjoint from the AD-13-A Doc Writers cutover set (#824, AD-13-B, part of #797)
-- Cut over the four Analyzer stages (Code Reader, Codebase Analyzer, Doc-Code Comparator, Impact Analyzer) from `AgentDispatcher` to the SDK `ExecutionAdapter`; routing is independent of the `AD_SDLC_USE_SDK_FOR_WORKER` feature flag and disjoint from the AD-13-A and AD-13-B cutover sets (#825, AD-13-C, part of #797)
-- Cut over the six Setup + Collection stages (Project Initializer, Mode Detector, Repo Detector, GitHub Setup, Collector, Issue Reader) from `AgentDispatcher` to the SDK `ExecutionAdapter`; routing is independent of the `AD_SDLC_USE_SDK_FOR_WORKER` feature flag and disjoint from the AD-13-A, AD-13-B, and AD-13-C cutover sets (#826, AD-13-D, part of #797)
-- Cut over the final nine Execution + QA + V&V stages (Controller, Issue Generator, PR Reviewer, CI Fixer, Regression Tester, Stage Verifier, RTM Builder, Validation Agent, Doc Index Generator) from `AgentDispatcher` to the SDK `ExecutionAdapter`; routing is independent of the `AD_SDLC_USE_SDK_FOR_WORKER` feature flag and disjoint from the AD-13-A, AD-13-B, AD-13-C, and AD-13-D cutover sets. With this PR, all 33 cutover-target stages route through `ExecutionAdapter` and the AD-13 cutover (#797) is complete; only the feature-flag-gated `worker` pilot retains a conditional bridge fallback (#827, AD-13-E, completes #797)
-- Slim `AdsdlcOrchestratorAgent` from ~1,443 lines to <=950 by removing the dead dispatcher / bridge plumbing left over after the AD-13 cutover (`_dispatcher` / `_bridgeRegistry` fields, `getDispatcher()` / `getBridgeRegistry()` methods, `executeViaBridge()` branch, `coordinateAgents` / `executeParallel` / `executeSequential` `BridgeRegistry`-backed helpers). Stage-scheduling and approval-gate logic split out into `StageScheduler.ts` and `ApprovalGate.ts`. Public API (`startSession`, `executePipeline`, `loadPriorSession`, `findLatestSession`) signatures are unchanged; the worker stage now routes through the adapter unconditionally and the orchestrator no longer reads `AD_SDLC_USE_SDK_FOR_WORKER` (the env flag plumbing remains in `FeatureFlagsResolver` for other consumers) (#799)
+- `AdsdlcOrchestratorAgent` slimmed from ~1,443 lines to <=950 by removing the dispatcher / bridge plumbing left over after the AD-13 cutover; stage-scheduling and approval-gate logic split out into `StageScheduler.ts` and `ApprovalGate.ts`. Public API (`startSession`, `executePipeline`, `loadPriorSession`, `findLatestSession`) signatures are unchanged (#799)
+- `WorkerPoolManager`, `WorkerAgent`, `CollectorAgent`, `LLMExtractor`, and `InvestigationEngine` migrated off `AgentBridge`/`BridgeRegistry` to `ExecutionAdapter`; their public surfaces now accept an `ExecutionAdapter` and tests use `MockExecutionAdapter` (#835, #836, #837)
+- `src/cli.ts` migrated off `createDefaultBridgeRegistry`/`isClaudeCodeSession` to `hasRealExecutionEnvironment()` and `describeExecutionEnvironment()` from `src/execution/env.ts` for `doctor`, `pipeline --dry-run`, and pipeline pre-check diagnostics (#838)
+- All 33 cutover-target stages (Doc Writers, Doc Updaters, Document Reader, Analyzers, Setup, Collection, Execution, QA, V&V, Doc Index Generator) routed through `ExecutionAdapter` independent of the `AD_SDLC_USE_SDK_FOR_WORKER` feature flag (#823, #824, #825, #826, #827)
+- README architecture section now matches the actual SDK dependency rather than the v0.0.1 wording that pre-dated AD-13 (#801)
+- Database Schema Specification (DBS) emitted as a standalone document alongside the SDS (#760)
+
+### Removed
+
+- **Breaking**: Bridge / Dispatcher / Registry stack removed now that all consumers route through `ExecutionAdapter`. Removed source modules: `src/agents/AgentBridge.ts`, `src/agents/AgentDispatcher.ts`, `src/agents/AgentRegistry.ts`, `src/agents/AgentTypeMapping.ts`, `src/agents/AgentFactory.ts`, `src/agents/bootstrapAgents.ts`, `src/agents/BridgeRegistry.ts`, `src/agents/ExecutionScaffoldGenerator.ts`, and the entire `src/agents/bridges/` directory (`AnthropicApiBridge`, `ClaudeCliSubprocessBridge`, `ClaudeCodeBridge`, `StubBridge`, `agentDefinition`, `index`, `tools`). External consumers importing any of these symbols from `@ad-sdlc/agents` must migrate to the `ExecutionAdapter` API in `src/execution/`. The `IAgent` interface and per-agent module re-exports remain available (#798)
+- **Breaking**: `@anthropic-ai/sdk` runtime dependency removed; replaced by `@anthropic-ai/claude-agent-sdk@^0.2.132` as the only AI runtime dependency (#798)
+
+### Fixed
+
+- Missing YAML frontmatter on `.claude/agents/doc-code-comparator.md` so the agent registry can resolve the doc-code-comparator stage (#AD-04)
+- Naming alignment between the `validation` agent definition and `src/validation-agent/` so V&V stage routing matches the agent registry id (#AD-05)
+
+### Breaking Changes
+
+- Internal: `AgentBridge`, `AgentDispatcher`, `AgentRegistry`, `AgentFactory`, `BridgeRegistry`, `bootstrapAgents`, and `ExecutionScaffoldGenerator` exports are gone. Migrate to `ExecutionAdapter` in `src/execution/`.
+- Pipeline checkpoint schema migrates from v1 to v2 (auto-migrated on load; v1 fixtures load with `sdkSessionId` undefined).
+- Runtime dependency switch: install Claude Agent SDK >= 0.2.132 (now the only `@anthropic-ai/*` package shipped). Consumers depending on `@anthropic-ai/sdk` directly must remove that dependency.
+
+[Migration Guide](docs/architecture/v0.1-migration-guide.md)
 
 ## [0.0.1] - 2025-12-27
 
