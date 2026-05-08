@@ -76,6 +76,9 @@ export {
   WORKER_SKILLS,
   PR_REVIEWER_SKILLS,
   CI_FIXER_SKILLS,
+  GITHUB_MCP_SERVER,
+  GITHUB_MCP_SERVERS,
+  CI_FIXER_MCP_SERVERS,
 } from './types.js';
 
 // Error exports

@@ -415,6 +415,46 @@ export const PR_REVIEWER_SKILLS: readonly string[] = [
 export const CI_FIXER_SKILLS: readonly string[] = ['ci-debugging'];
 
 /**
+ * Shared github MCP server definition consumed by stage definitions and
+ * direct adapter consumers. Centralised here so the configuration is
+ * defined once for `pr-reviewer`, `issue-generator`, and `ci-fixer`.
+ *
+ * The token is interpolated from `${GITHUB_TOKEN}` at runtime by the SDK;
+ * literal tokens MUST never be embedded in source. See
+ * `docs/configuration/mcp.md` for setup and troubleshooting.
+ *
+ * @see {@link McpServerConfig}
+ */
+export const GITHUB_MCP_SERVER: McpServerConfig = {
+  type: 'stdio',
+  command: 'npx',
+  args: ['-y', '@modelcontextprotocol/server-github@latest'],
+  env: {
+    GITHUB_PERSONAL_ACCESS_TOKEN: '${GITHUB_TOKEN}',
+  },
+};
+
+/**
+ * MCP servers preloaded for stages that interact with GitHub (issues, PRs,
+ * comments). Used by `pr-reviewer` and `issue-generator` stage definitions.
+ */
+export const GITHUB_MCP_SERVERS: Record<string, McpServerConfig> = {
+  github: GITHUB_MCP_SERVER,
+};
+
+/**
+ * MCP servers wired for the `ci-fixer` agent. The `ci-fixer` agent is
+ * invoked outside the pipeline stage flow (delegated by `pr-reviewer` on
+ * persistent CI failures) and therefore has no `PipelineStageDefinition`
+ * entry. Consumers that drive `ci-fixer` through the SDK adapter directly
+ * should wire this constant into their stage execution request as
+ * `mcpServers`, mirroring {@link CI_FIXER_SKILLS}.
+ */
+export const CI_FIXER_MCP_SERVERS: Record<string, McpServerConfig> = {
+  github: GITHUB_MCP_SERVER,
+};
+
+/**
  * Greenfield pipeline stage definitions
  */
 export const GREENFIELD_STAGES: readonly PipelineStageDefinition[] = [
@@ -522,6 +562,7 @@ export const GREENFIELD_STAGES: readonly PipelineStageDefinition[] = [
     parallel: false,
     approvalRequired: true,
     dependsOn: ['ui_spec_generation', 'threat_modeling', 'tech_decisions'],
+    mcpServers: GITHUB_MCP_SERVERS,
   },
   {
     name: 'svp_generation',
@@ -564,6 +605,7 @@ export const GREENFIELD_STAGES: readonly PipelineStageDefinition[] = [
     approvalRequired: false,
     dependsOn: ['validation-agent'],
     skills: PR_REVIEWER_SKILLS,
+    mcpServers: GITHUB_MCP_SERVERS,
   },
   {
     name: 'doc_indexing',
@@ -654,6 +696,7 @@ export const ENHANCEMENT_STAGES: readonly PipelineStageDefinition[] = [
     parallel: false,
     approvalRequired: true,
     dependsOn: ['sds_update'],
+    mcpServers: GITHUB_MCP_SERVERS,
   },
   {
     name: 'orchestration',
@@ -696,6 +739,7 @@ export const ENHANCEMENT_STAGES: readonly PipelineStageDefinition[] = [
     approvalRequired: false,
     dependsOn: ['validation-agent'],
     skills: PR_REVIEWER_SKILLS,
+    mcpServers: GITHUB_MCP_SERVERS,
   },
   {
     name: 'doc_indexing',
@@ -755,6 +799,7 @@ export const IMPORT_STAGES: readonly PipelineStageDefinition[] = [
     approvalRequired: false,
     dependsOn: ['validation-agent'],
     skills: PR_REVIEWER_SKILLS,
+    mcpServers: GITHUB_MCP_SERVERS,
   },
 ];
 
