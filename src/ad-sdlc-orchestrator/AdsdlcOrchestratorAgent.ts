@@ -10,6 +10,7 @@
 
 import { randomUUID } from 'node:crypto';
 import * as fs from 'node:fs/promises';
+import * as os from 'node:os';
 import * as path from 'node:path';
 
 import type { IAgent } from '../agents/types.js';
@@ -124,7 +125,54 @@ export class AdsdlcOrchestratorAgent implements IAgent {
   async initialize(): Promise<void> {
     if (this.initialized) return;
     await loadYaml();
+    await this.warnIfClaudeConfigPluginMissing();
     this.initialized = true;
+  }
+
+  /**
+   * Emit a one-time warning when the `claude-config` plugin directory is not
+   * found in the user's Claude home. Stage definitions preload skills from
+   * that plugin (see `WORKER_SKILLS`, `PR_REVIEWER_SKILLS`); without it, the
+   * SDK silently skips the unknown skill names and pipelines run without
+   * the coding-standards / review heuristics that would otherwise be
+   * injected. The warning surfaces this gap so operators can install the
+   * plugin if they want the full behaviour.
+   *
+   * Failures to stat the directory are themselves logged at debug level
+   * and do not block initialization.
+   */
+  private async warnIfClaudeConfigPluginMissing(): Promise<void> {
+    const pluginDir = path.join(os.homedir(), '.claude', 'plugins', 'claude-config');
+    try {
+      const stat = await fs.stat(pluginDir);
+      if (!stat.isDirectory()) {
+        getLogger().warn('claude-config plugin path exists but is not a directory', {
+          agent: 'AdsdlcOrchestratorAgent',
+          pluginDir,
+        });
+      }
+    } catch (err: unknown) {
+      const code =
+        typeof err === 'object' && err !== null && 'code' in err
+          ? (err as { code?: string }).code
+          : undefined;
+      if (code === 'ENOENT') {
+        getLogger().warn(
+          'claude-config plugin not found; preload skills will be skipped by the SDK',
+          {
+            agent: 'AdsdlcOrchestratorAgent',
+            pluginDir,
+            hint: 'Install via: /plugins install claude-config',
+          }
+        );
+      } else {
+        getLogger().debug('claude-config plugin probe failed', {
+          agent: 'AdsdlcOrchestratorAgent',
+          pluginDir,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
   }
 
   /**
