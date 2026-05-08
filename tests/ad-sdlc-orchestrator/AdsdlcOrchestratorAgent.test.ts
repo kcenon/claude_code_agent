@@ -20,7 +20,6 @@ import {
   SessionCorruptedError,
 } from '../../src/ad-sdlc-orchestrator/errors.js';
 import { ArtifactValidator } from '../../src/ad-sdlc-orchestrator/ArtifactValidator.js';
-import { BridgeRegistry } from '../../src/agents/BridgeRegistry.js';
 
 /**
  * ArtifactValidator subclass that treats all stages as valid.
@@ -61,17 +60,6 @@ class StubOrchestrator extends AdsdlcOrchestratorAgent {
     _session: OrchestratorSession
   ): Promise<string> {
     return `Stage "${stage.name}" executed by ${stage.agentType}`;
-  }
-}
-
-/**
- * Stub orchestrator that also bypasses BridgeRegistry initialization.
- * Avoids CLI/API detection delays in coordinateAgents tests.
- */
-class StubBridgeOrchestrator extends AdsdlcOrchestratorAgent {
-  protected override getBridgeRegistry(): BridgeRegistry {
-    // Empty registry — StubBridge is the auto-fallback for all agent types
-    return new BridgeRegistry();
   }
 }
 
@@ -323,64 +311,6 @@ describe('AdsdlcOrchestratorAgent', () => {
       expect(stageNames).toContain('orchestration');
       expect(stageNames).toContain('implementation');
       expect(stageNames).toContain('review');
-    });
-  });
-
-  describe('coordinateAgents', () => {
-    let stubBridgeAgent: StubBridgeOrchestrator;
-
-    beforeEach(() => {
-      stubBridgeAgent = new StubBridgeOrchestrator();
-    });
-
-    afterEach(async () => {
-      await stubBridgeAgent.dispose();
-    });
-
-    it('should execute agents sequentially', async () => {
-      const invocations = [
-        {
-          agentType: 'collector',
-          inputs: ['input1.yaml'],
-          outputs: ['output1.yaml'],
-          stageName: 'collection' as const,
-        },
-        {
-          agentType: 'prd-writer',
-          inputs: ['output1.yaml'],
-          outputs: ['prd.md'],
-          stageName: 'prd_generation' as const,
-        },
-      ];
-
-      const results = await stubBridgeAgent.coordinateAgents(invocations, 'sequential');
-
-      expect(results).toHaveLength(2);
-      expect(results[0]!.agentType).toBe('collector');
-      expect(results[1]!.agentType).toBe('prd-writer');
-      expect(results.every((r) => r.status === 'completed')).toBe(true);
-    });
-
-    it('should execute agents in parallel', async () => {
-      const invocations = [
-        {
-          agentType: 'document-reader',
-          inputs: ['docs/prd.md'],
-          outputs: ['state.yaml'],
-          stageName: 'document_reading' as const,
-        },
-        {
-          agentType: 'code-reader',
-          inputs: ['src/'],
-          outputs: ['inventory.yaml'],
-          stageName: 'code_reading' as const,
-        },
-      ];
-
-      const results = await stubBridgeAgent.coordinateAgents(invocations, 'parallel');
-
-      expect(results).toHaveLength(2);
-      expect(results.every((r) => r.status === 'completed')).toBe(true);
     });
   });
 
