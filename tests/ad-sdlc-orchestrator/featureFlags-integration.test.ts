@@ -1,16 +1,22 @@
 /**
- * Orchestrator + FeatureFlagsResolver integration tests (Issue #795).
+ * Orchestrator + FeatureFlagsResolver integration tests.
  *
- * Verifies that the worker-pilot dispatch path is selected based on the
- * resolver's priority chain (env > CLI > YAML > default), not on the raw
- * env-var read that #793 introduced.
+ * Pre-#799 these tests asserted that the worker-pilot dispatch path
+ * was selected based on the resolver's priority chain (env > CLI >
+ * YAML > default). After #799 (orchestrator slim-down following the
+ * AD-13 cutover #797) every stage routes through the
+ * {@link ExecutionAdapter}; the orchestrator no longer consults the
+ * resolver, and the legacy bridge path is gone. The remaining
+ * behavioural contract these tests guard is "all stages, including
+ * `worker`, route through the adapter regardless of the flag".
  *
- * The test subclass overrides `executeViaAdapter` and `executeViaBridge`
- * to surface which path was chosen without running real agent code.
+ * The full priority-chain semantics of the resolver continue to be
+ * covered by `tests/config/feature-flags.test.ts` — this file only
+ * exercises the orchestrator's routing decision.
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -23,7 +29,7 @@ import type {
 import { ENV_USE_SDK_FOR_WORKER } from '../../src/config/featureFlags.js';
 
 class RouteCapturingOrchestrator extends AdsdlcOrchestratorAgent {
-  public lastRoute: 'adapter' | 'bridge' | null = null;
+  public lastRoute: 'adapter' | null = null;
 
   constructor(config: OrchestratorConfig = {}) {
     super(config);
@@ -44,11 +50,6 @@ class RouteCapturingOrchestrator extends AdsdlcOrchestratorAgent {
   protected override async executeViaAdapter(): Promise<string> {
     this.lastRoute = 'adapter';
     return '{"route":"adapter"}';
-  }
-
-  protected override async executeViaBridge(): Promise<string> {
-    this.lastRoute = 'bridge';
-    return '{"route":"bridge"}';
   }
 }
 
@@ -76,7 +77,7 @@ function preserveEnvFlag(): () => void {
   };
 }
 
-describe('Orchestrator + FeatureFlagsResolver integration (#795)', () => {
+describe('Orchestrator routing post-#799 cutover', () => {
   let tmpRoot: string;
   let restoreEnv: () => void;
 
@@ -92,20 +93,23 @@ describe('Orchestrator + FeatureFlagsResolver integration (#795)', () => {
     rmSync(tmpRoot, { recursive: true, force: true });
   });
 
-  it('routes through bridge by default (env unset, no CLI, no YAML)', async () => {
+  it('routes the worker stage through the adapter when the env flag is unset', async () => {
     const orch = new RouteCapturingOrchestrator({ featureFlagsBaseDir: tmpRoot });
     await orch.dispatchWorker(createSession(tmpRoot));
-    expect(orch.lastRoute).toBe('bridge');
+    expect(orch.lastRoute).toBe('adapter');
   });
 
-  it('routes through adapter when env AD_SDLC_USE_SDK_FOR_WORKER=1 (regression-zero for #793)', async () => {
+  it('routes the worker stage through the adapter when env flag is "1"', async () => {
     process.env[ENV_USE_SDK_FOR_WORKER] = '1';
     const orch = new RouteCapturingOrchestrator({ featureFlagsBaseDir: tmpRoot });
     await orch.dispatchWorker(createSession(tmpRoot));
     expect(orch.lastRoute).toBe('adapter');
   });
 
-  it('routes through adapter when CLI --use-sdk-for-worker is supplied (env unset)', async () => {
+  it('routes the worker stage through the adapter when env flag is "0"', async () => {
+    // Pre-#799 this would have selected the bridge path; post-cutover the
+    // flag has no effect on orchestrator routing.
+    process.env[ENV_USE_SDK_FOR_WORKER] = '0';
     const orch = new RouteCapturingOrchestrator({
       featureFlagsBaseDir: tmpRoot,
       featureFlagsCli: { useSdkForWorker: true },
@@ -114,20 +118,10 @@ describe('Orchestrator + FeatureFlagsResolver integration (#795)', () => {
     expect(orch.lastRoute).toBe('adapter');
   });
 
-  it('env beats CLI: env=0 forces bridge even if CLI says true', async () => {
-    process.env[ENV_USE_SDK_FOR_WORKER] = '0';
-    const orch = new RouteCapturingOrchestrator({
-      featureFlagsBaseDir: tmpRoot,
-      featureFlagsCli: { useSdkForWorker: true },
-    });
-    await orch.dispatchWorker(createSession(tmpRoot));
-    expect(orch.lastRoute).toBe('bridge');
-  });
-
-  it('routes through adapter when YAML enables it (env and CLI absent)', async () => {
+  it('routes the worker stage through the adapter when YAML disables the flag', async () => {
     writeFileSync(
       join(tmpRoot, '.ad-sdlc', 'config', 'feature-flags.yaml'),
-      'flags:\n  useSdkForWorker: true\n',
+      'flags:\n  useSdkForWorker: false\n',
       'utf8'
     );
     const orch = new RouteCapturingOrchestrator({ featureFlagsBaseDir: tmpRoot });
@@ -135,25 +129,7 @@ describe('Orchestrator + FeatureFlagsResolver integration (#795)', () => {
     expect(orch.lastRoute).toBe('adapter');
   });
 
-  it('CLI beats YAML when env is unset', async () => {
-    writeFileSync(
-      join(tmpRoot, '.ad-sdlc', 'config', 'feature-flags.yaml'),
-      'flags:\n  useSdkForWorker: true\n',
-      'utf8'
-    );
-    const orch = new RouteCapturingOrchestrator({
-      featureFlagsBaseDir: tmpRoot,
-      featureFlagsCli: { useSdkForWorker: false },
-    });
-    await orch.dispatchWorker(createSession(tmpRoot));
-    expect(orch.lastRoute).toBe('bridge');
-  });
-
-  it('all cutover stages route through adapter regardless of flag (post AD-13-E #827)', async () => {
-    // After AD-13-E (#827) cut over the final 9 stages, every stage
-    // except the feature-flag-gated `worker` pilot routes through the
-    // adapter regardless of the worker flag. Probe a previously-bridge
-    // stage (`regression-tester`) to verify the new invariant.
+  it('routes a non-worker stage through the adapter regardless of the flag', async () => {
     process.env[ENV_USE_SDK_FOR_WORKER] = '0';
     const orch = new RouteCapturingOrchestrator({ featureFlagsBaseDir: tmpRoot });
     const stage: PipelineStageDefinition = {

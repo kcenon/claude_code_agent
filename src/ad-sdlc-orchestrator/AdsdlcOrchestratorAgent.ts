@@ -12,10 +12,6 @@ import { randomUUID } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 
-import { AgentDispatcher } from '../agents/AgentDispatcher.js';
-import type { AgentRequest } from '../agents/AgentBridge.js';
-import { BridgeRegistry, createDefaultBridgeRegistry } from '../agents/BridgeRegistry.js';
-import { bootstrapAgents } from '../agents/bootstrapAgents.js';
 import type { IAgent } from '../agents/types.js';
 import {
   buildHookPipeline,
@@ -26,15 +22,12 @@ import {
   type StageExecutionResult,
 } from '../execution/index.js';
 import { SdkExecutionAdapter } from '../execution/index.js';
-import { Semaphore } from '../utilities/Semaphore.js';
 import { getLogger } from '../logging/index.js';
-import { ENV_USE_SDK_FOR_WORKER, FeatureFlagsResolver } from '../config/featureFlags.js';
+import { ENV_USE_SDK_FOR_WORKER } from '../config/featureFlags.js';
 import { PipelineCheckpointManager } from './PipelineCheckpointManager.js';
 import type {
-  AgentInvocation,
   ApprovalDecision,
   CheckpointConfig,
-  ExecutionStrategy,
   OrchestratorConfig,
   OrchestratorSession,
   PipelineMode,
@@ -59,10 +52,11 @@ import {
   PipelineFailedError,
   PipelineInProgressError,
   SessionCorruptedError,
-  StageTimeoutError,
   StatePersistenceError,
 } from './errors.js';
 import { ArtifactValidator } from './ArtifactValidator.js';
+import { checkApprovalGate as evaluateApprovalGate } from './ApprovalGate.js';
+import { runStages as schedulerRunStages, type SchedulerHost } from './StageScheduler.js';
 
 // YAML parser (dynamically loaded)
 let yaml: { dump: (obj: unknown) => string; load: (str: string) => unknown } | null = null;
@@ -80,163 +74,19 @@ async function loadYaml(): Promise<void> {
 export const ADSDLC_ORCHESTRATOR_AGENT_ID = 'ad-sdlc-orchestrator-agent';
 
 /**
- * Environment flag enabling the worker-stage ExecutionAdapter pilot path.
- *
- * Issue #793 introduced this raw env-var read directly in the orchestrator.
- * Issue #795 promotes the toggle to a first-class config surface via
- * {@link FeatureFlagsResolver} (priority: env > CLI > YAML > default). The
- * exported constant is preserved as an alias so existing tests and callers
- * referencing `WORKER_PILOT_ENV_FLAG` continue to compile.
+ * Re-export of the worker-pilot env flag (#793). Kept as an alias of
+ * {@link ENV_USE_SDK_FOR_WORKER} so existing imports keep compiling
+ * after the AD-13 cutover (#797) removed the orchestrator's dependency
+ * on the flag.
  */
 export const WORKER_PILOT_ENV_FLAG = ENV_USE_SDK_FOR_WORKER;
 
 /**
- * Agent type that the pilot routes through the ExecutionAdapter. Kept narrow on
- * purpose — broadening to other stages is the P3 scope (issue #798).
- */
-const WORKER_PILOT_AGENT_TYPE = 'worker';
-
-/**
- * Doc Writers stages cut over to the ExecutionAdapter unconditionally
- * (issue #823, AD-13-A — sub-PR of AD-13 meta #797).
- *
- * Unlike the worker stage, which is gated by the
- * `AD_SDLC_USE_SDK_FOR_WORKER` feature flag during the pilot phase, these
- * eight Doc Writers always route through {@link executeViaAdapter}. The
- * legacy {@link executeViaBridge} path is no longer reachable for these
- * agent types — the AgentDispatcher remains in place only for the
- * remaining stages handled by sibling sub-PRs (AD-13-B..E).
- *
- * The set is frozen so a typo cannot silently re-enable the bridge path.
- */
-export const DOC_WRITERS_ADAPTER_AGENT_TYPES: ReadonlySet<string> = Object.freeze(
-  new Set<string>([
-    'prd-writer',
-    'srs-writer',
-    'sdp-writer',
-    'sds-writer',
-    'ui-spec-writer',
-    'threat-model-writer',
-    'tech-decision-writer',
-    'svp-writer',
-  ])
-);
-
-/**
- * Doc Updaters and Document Reader stages cut over to the
- * ExecutionAdapter unconditionally (issue #824, AD-13-B — sub-PR of
- * AD-13 meta #797).
- *
- * Sibling of {@link DOC_WRITERS_ADAPTER_AGENT_TYPES} (AD-13-A). These
- * four stages always route through {@link executeViaAdapter}; the
- * legacy {@link executeViaBridge} path is no longer reachable for them.
- * The remaining 21 stages still flow through the bridge until sibling
- * sub-PRs (AD-13-C..E) land.
- *
- * The set is frozen so a typo cannot silently re-enable the bridge path.
- */
-export const DOC_UPDATERS_READER_ADAPTER_AGENT_TYPES: ReadonlySet<string> = Object.freeze(
-  new Set<string>(['prd-updater', 'srs-updater', 'sds-updater', 'document-reader'])
-);
-
-/**
- * Analyzer stages cut over to the ExecutionAdapter unconditionally
- * (issue #825, AD-13-C — sub-PR of AD-13 meta #797).
- *
- * Sibling of {@link DOC_WRITERS_ADAPTER_AGENT_TYPES} (AD-13-A) and
- * {@link DOC_UPDATERS_READER_ADAPTER_AGENT_TYPES} (AD-13-B). These four
- * Analyzer agent types always route through {@link executeViaAdapter};
- * the legacy {@link executeViaBridge} path is no longer reachable for
- * them. The Analyzer stages share `grep` / `Read` heavy tool patterns,
- * making them a coherent group for one PR.
- *
- * Note: Issue #825 originally listed six Analyzer stages including
- * "Architecture Analyzer" and "Component Analyzer", but those names do
- * not correspond to existing orchestrator agent types — only the four
- * Analyzer-class stages defined in {@link ENHANCEMENT_STAGES} are
- * cut over here. The remaining stages handled by sibling sub-PRs
- * (AD-13-D, AD-13-E) still flow through the bridge until those PRs
- * land.
- *
- * The set is frozen so a typo cannot silently re-enable the bridge path.
- */
-export const ANALYZERS_ADAPTER_AGENT_TYPES: ReadonlySet<string> = Object.freeze(
-  new Set<string>(['code-reader', 'codebase-analyzer', 'doc-code-comparator', 'impact-analyzer'])
-);
-
-/**
- * Setup and Collection stages cut over to the ExecutionAdapter
- * unconditionally (issue #826, AD-13-D — sub-PR of AD-13 meta #797).
- *
- * Sibling of {@link DOC_WRITERS_ADAPTER_AGENT_TYPES} (AD-13-A),
- * {@link DOC_UPDATERS_READER_ADAPTER_AGENT_TYPES} (AD-13-B), and
- * {@link ANALYZERS_ADAPTER_AGENT_TYPES} (AD-13-C). These six agent
- * types always route through {@link executeViaAdapter}; the legacy
- * {@link executeViaBridge} path is no longer reachable for them. They
- * cover the early pipeline phases (project initialization, mode
- * detection, repository detection, GitHub repository setup, project
- * collection, and issue reading) that prepare the orchestrator's
- * inputs before document generation begins.
- *
- * The remaining stages handled by the final sibling sub-PR (AD-13-E)
- * still flow through the bridge until that PR lands.
- *
- * The set is frozen so a typo cannot silently re-enable the bridge path.
- */
-export const SETUP_COLLECTION_ADAPTER_AGENT_TYPES: ReadonlySet<string> = Object.freeze(
-  new Set<string>([
-    'project-initializer',
-    'mode-detector',
-    'repo-detector',
-    'github-repo-setup',
-    'collector',
-    'issue-reader',
-  ])
-);
-
-/**
- * Execution, QA, and V&V stages cut over to the ExecutionAdapter
- * unconditionally (issue #827, AD-13-E — final sub-PR of AD-13 meta
- * #797).
- *
- * Sibling of {@link DOC_WRITERS_ADAPTER_AGENT_TYPES} (AD-13-A),
- * {@link DOC_UPDATERS_READER_ADAPTER_AGENT_TYPES} (AD-13-B),
- * {@link ANALYZERS_ADAPTER_AGENT_TYPES} (AD-13-C), and
- * {@link SETUP_COLLECTION_ADAPTER_AGENT_TYPES} (AD-13-D). These nine
- * agent types always route through {@link executeViaAdapter}; the
- * legacy {@link executeViaBridge} path is no longer reachable for
- * them. They cover the implementation, quality assurance, and
- * verification & validation phases of the pipeline (orchestration
- * controller, issue generation, PR review, CI repair, regression
- * testing, stage verification, requirements traceability, validation,
- * and documentation indexing).
- *
- * After this PR merges, all 33 cutover-target stages route through
- * ExecutionAdapter and the AD-13 cutover (#797) is complete. The
- * `worker` agent type remains feature-flag gated (#795) until its
- * pilot is promoted separately.
- *
- * The set is frozen so a typo cannot silently re-enable the bridge path.
- */
-export const EXEC_QA_VV_ADAPTER_AGENT_TYPES: ReadonlySet<string> = Object.freeze(
-  new Set<string>([
-    'controller',
-    'issue-generator',
-    'pr-reviewer',
-    'ci-fixer',
-    'regression-tester',
-    'stage-verifier',
-    'rtm-builder',
-    'validation-agent',
-    'doc-index-generator',
-  ])
-);
-
-/**
- * AD-SDLC Orchestrator Agent
- *
- * Coordinates the full AD-SDLC pipeline execution by invoking subagents
- * in sequence based on the detected or specified pipeline mode.
+ * AD-SDLC Orchestrator Agent. Coordinates the full pipeline by invoking
+ * subagents in sequence based on the detected pipeline mode. After the
+ * AD-13 cutover (#797) every stage routes through {@link ExecutionAdapter};
+ * tests that previously stubbed the bridge path should override
+ * {@link invokeAgent} or {@link executeViaAdapter} instead.
  */
 export class AdsdlcOrchestratorAgent implements IAgent {
   readonly agentId = ADSDLC_ORCHESTRATOR_AGENT_ID;
@@ -247,15 +97,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
   private initialized = false;
   private stageTimers = new Map<StageName, ReturnType<typeof setTimeout>>();
   private abortController: AbortController | null = null;
-  private _dispatcher: AgentDispatcher | null = null;
-  private _bridgeRegistry: BridgeRegistry | null = null;
   private readonly checkpointManager: PipelineCheckpointManager | null;
-  /**
-   * Lazy-initialized feature-flags resolver (Issue #795). Built on first
-   * use from CLI overrides + YAML config; subsequent calls reuse the same
-   * instance so YAML / env lookups do not happen on every stage dispatch.
-   */
-  private _featureFlags: FeatureFlagsResolver | null = null;
 
   constructor(config: OrchestratorConfig = {}) {
     this.config = {
@@ -271,29 +113,6 @@ export class AdsdlcOrchestratorAgent implements IAgent {
   }
 
   /**
-   * Get or lazily build the feature-flags resolver.
-   *
-   * The resolver is constructed once per orchestrator instance using the
-   * CLI overrides supplied via `OrchestratorConfig.featureFlagsCli` and
-   * the optional `feature-flags.yaml` file under
-   * `featureFlagsBaseDir/.ad-sdlc/config/`. Tests override this method
-   * (or pass an explicit `featureFlagsCli`) to drive deterministic
-   * behaviour without touching the live environment.
-   *
-   * @returns The cached feature-flags resolver.
-   */
-  protected getFeatureFlags(): FeatureFlagsResolver {
-    if (this._featureFlags === null) {
-      const baseDir = this.config.featureFlagsBaseDir;
-      this._featureFlags = FeatureFlagsResolver.fromSources({
-        cli: this.config.featureFlagsCli,
-        ...(baseDir !== '' && { baseDir }),
-      });
-    }
-    return this._featureFlags;
-  }
-
-  /**
    * Initialize the orchestrator agent
    */
   async initialize(): Promise<void> {
@@ -306,7 +125,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
    * Dispose of the orchestrator and release resources
    * @returns A promise that resolves when all resources are released
    */
-  async dispose(): Promise<void> {
+  dispose(): Promise<void> {
     for (const timer of this.stageTimers.values()) {
       clearTimeout(timer);
     }
@@ -315,46 +134,9 @@ export class AdsdlcOrchestratorAgent implements IAgent {
       this.abortController.abort();
       this.abortController = null;
     }
-    if (this._dispatcher) {
-      await this._dispatcher.disposeAll();
-      this._dispatcher = null;
-    }
-    if (this._bridgeRegistry) {
-      await this._bridgeRegistry.disposeAll();
-      this._bridgeRegistry = null;
-    }
     this.session = null;
     this.initialized = false;
-  }
-
-  /**
-   * Get or create the AgentDispatcher instance (lazy initialization).
-   *
-   * Ensures bootstrapAgents() is called exactly once before the first
-   * dispatch. Subsequent calls return the cached dispatcher.
-   *
-   * @returns The initialized AgentDispatcher instance
-   */
-  private getDispatcher(): AgentDispatcher {
-    if (!this._dispatcher) {
-      bootstrapAgents();
-      this._dispatcher = new AgentDispatcher();
-    }
-    return this._dispatcher;
-  }
-
-  /**
-   * Get or create the BridgeRegistry instance (lazy initialization).
-   *
-   * Override this method in tests to inject a custom registry.
-   *
-   * @returns The BridgeRegistry for resolving agent bridges
-   */
-  protected getBridgeRegistry(): BridgeRegistry {
-    if (!this._bridgeRegistry) {
-      this._bridgeRegistry = createDefaultBridgeRegistry();
-    }
-    return this._bridgeRegistry;
+    return Promise.resolve();
   }
 
   /**
@@ -569,22 +351,6 @@ export class AdsdlcOrchestratorAgent implements IAgent {
   }
 
   /**
-   * Coordinate multiple agents in sequence or parallel
-   * @param agents - The list of agent invocations to execute
-   * @param strategy - The execution strategy ('sequential' or 'parallel')
-   * @returns The results from each agent invocation
-   */
-  async coordinateAgents(
-    agents: readonly AgentInvocation[],
-    strategy: ExecutionStrategy
-  ): Promise<StageResult[]> {
-    if (strategy === 'parallel') {
-      return this.executeParallel(agents);
-    }
-    return this.executeSequential(agents);
-  }
-
-  /**
    * Get the current pipeline status for monitoring
    * @returns The current pipeline status and completed stage results
    */
@@ -707,7 +473,12 @@ export class AdsdlcOrchestratorAgent implements IAgent {
   }
 
   /**
-   * Execute pipeline stages sequentially, respecting dependencies
+   * Execute pipeline stages, honouring dependencies, parallelism,
+   * approvals, retries, content-quality validation, and checkpoint
+   * persistence. Thin delegate to {@link schedulerRunStages}
+   * (`StageScheduler.ts`); this class supplies the {@link SchedulerHost}
+   * facade so the scheduler can call back into private helpers.
+   *
    * @param stages - The stage definitions to execute in dependency order
    * @param session - The current orchestrator session providing execution context
    * @param preCompleted - Optional set of stage names to treat as already completed
@@ -718,430 +489,53 @@ export class AdsdlcOrchestratorAgent implements IAgent {
     session: OrchestratorSession,
     preCompleted?: ReadonlySet<StageName>
   ): Promise<StageResult[]> {
-    const results: StageResult[] = [];
-    const completedStages = new Set<StageName>(preCompleted);
-    const remaining = stages.filter((s) => !completedStages.has(s.name));
-
-    while (remaining.length > 0) {
-      // Check if abort was requested
-      if (this.abortController !== null && this.abortController.signal.aborted) {
-        for (const stage of remaining) {
-          results.push(this.createSkippedResult(stage));
-        }
-        break;
-      }
-
-      // Find stages that are ready to execute (all dependencies satisfied)
-      const ready: PipelineStageDefinition[] = [];
-      const notReady: PipelineStageDefinition[] = [];
-
-      for (const stage of remaining) {
-        const failedDeps = this.checkDependencies(stage, completedStages, results);
-        const allDepsMet = stage.dependsOn.every((dep) => completedStages.has(dep));
-
-        if (failedDeps.length > 0) {
-          // Dependencies failed — skip this stage
-          results.push(this.createSkippedResult(stage));
-        } else if (allDepsMet) {
-          ready.push(stage);
-        } else {
-          notReady.push(stage);
-        }
-      }
-
-      // No more stages can proceed
-      if (ready.length === 0) {
-        for (const stage of notReady) {
-          results.push(this.createSkippedResult(stage));
-        }
-        break;
-      }
-
-      // Separate parallel-eligible and sequential stages
-      const parallelGroup = ready.filter((s) => s.parallel);
-      const sequentialGroup = ready.filter((s) => !s.parallel);
-
-      // Execute parallel stages concurrently
-      if (parallelGroup.length > 1) {
-        const parallelResults = await this.executeParallelStages(parallelGroup, session);
-        for (const result of parallelResults) {
-          results.push(result);
-          if (result.status === 'completed') {
-            completedStages.add(result.name);
-          }
-        }
-
-        // Save checkpoint after stage completion
-        if (this.checkpointManager !== null && this.checkpointManager.isEnabled()) {
-          try {
-            await this.checkpointManager.saveCheckpoint(
-              session.sessionId,
-              session.mode,
-              session.projectDir,
-              session.userRequest,
-              session.scratchpadDir,
-              results,
-              [...completedStages]
-            );
-          } catch (err) {
-            getLogger().warn('Checkpoint save failed (non-critical)', {
-              agent: 'AdsdlcOrchestratorAgent',
-              error: err instanceof Error ? err.message : String(err),
-            });
-          }
-        }
-      } else if (parallelGroup.length === 1) {
-        // Single parallel stage — run sequentially
-        const singleStage = parallelGroup[0];
-        if (singleStage) {
-          sequentialGroup.unshift(singleStage);
-        }
-      }
-
-      // Execute sequential stages one by one
-      for (const stage of sequentialGroup) {
-        if (this.abortController !== null && this.abortController.signal.aborted) {
-          results.push(this.createSkippedResult(stage));
-          continue;
-        }
-
-        // Check approval gate
-        if (stage.approvalRequired) {
-          const decision = await this.checkApprovalGate(stage, results);
-          if (!decision.approved) {
-            results.push({
-              name: stage.name,
-              agentType: stage.agentType,
-              status: 'skipped',
-              durationMs: 0,
-              output: '',
-              artifacts: [],
-              error: `Approval denied: ${decision.reason}`,
-              retryCount: 0,
-            });
-            continue;
-          }
-        }
-
-        let result = await this.executeStageWithRetry(stage, session);
-
-        // Post-stage content quality validation for completed stages
-        if (result.status === 'completed') {
-          try {
-            const validator = this.createArtifactValidator(session.projectDir);
-            const contentResult = await validator.validateStageOutput(stage.name, session.mode);
-            if (contentResult.quality === 'degraded') {
-              result = {
-                ...result,
-                status: 'degraded',
-                warnings: [...(result.warnings ?? []), ...contentResult.warnings],
-              };
-              getLogger().warn('Stage output quality degraded', {
-                agent: 'AdsdlcOrchestratorAgent',
-                stage: stage.name,
-                warnings: contentResult.warnings,
-              });
-            }
-          } catch (err) {
-            getLogger().warn('Content validation failed (non-critical)', {
-              agent: 'AdsdlcOrchestratorAgent',
-              stage: stage.name,
-              error: err instanceof Error ? err.message : String(err),
-            });
-          }
-        }
-
-        results.push(result);
-
-        if (result.status === 'completed' || result.status === 'degraded') {
-          completedStages.add(stage.name);
-        }
-
-        // Save checkpoint after stage completion
-        if (this.checkpointManager !== null && this.checkpointManager.isEnabled()) {
-          try {
-            await this.checkpointManager.saveCheckpoint(
-              session.sessionId,
-              session.mode,
-              session.projectDir,
-              session.userRequest,
-              session.scratchpadDir,
-              results,
-              [...completedStages]
-            );
-          } catch (err) {
-            getLogger().warn('Checkpoint save failed (non-critical)', {
-              agent: 'AdsdlcOrchestratorAgent',
-              error: err instanceof Error ? err.message : String(err),
-            });
-          }
-        }
-      }
-
-      // Update remaining list
-      const processedNames = new Set(results.map((r) => r.name));
-      remaining.length = 0;
-      for (const stage of notReady) {
-        if (!processedNames.has(stage.name)) {
-          remaining.push(stage);
-        }
-      }
-    }
-
-    return results;
+    return schedulerRunStages(this.schedulerHost(), stages, session, preCompleted);
   }
 
   /**
-   * Execute multiple stages in parallel
-   * @param stages - The stage definitions to execute concurrently
-   * @param session - The current orchestrator session providing execution context
-   * @returns The results from all parallel stage executions
+   * Build the {@link SchedulerHost} facade exposing the orchestrator's
+   * private helpers to the {@link schedulerRunStages} loop. Constructed
+   * lazily per call so abort-controller swaps and config tweaks are
+   * picked up without caching stale references.
    */
-  private async executeParallelStages(
-    stages: readonly PipelineStageDefinition[],
-    session: OrchestratorSession
-  ): Promise<StageResult[]> {
-    const promises = stages.map((stage) => this.executeStageWithRetry(stage, session));
-    const settled = await Promise.allSettled(promises);
-
-    return settled.map((outcome, index) => {
-      if (outcome.status === 'fulfilled') {
-        return outcome.value;
-      }
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- index is guaranteed valid
-      const stage = stages[index]!;
-      return {
-        name: stage.name,
-        agentType: stage.agentType,
-        status: 'failed' as const,
-        durationMs: 0,
-        output: '',
-        artifacts: [],
-        error: outcome.reason instanceof Error ? outcome.reason.message : String(outcome.reason),
-        retryCount: 0,
-      };
-    });
-  }
-
-  /**
-   * Execute a single stage with retry logic
-   * @param stage - The stage definition to execute
-   * @param session - The current orchestrator session providing execution context
-   * @returns The stage result after all attempts (success or final failure)
-   */
-  private async executeStageWithRetry(
-    stage: PipelineStageDefinition,
-    session: OrchestratorSession
-  ): Promise<StageResult> {
-    const maxRetries = this.config.maxRetries;
-    const stageTimeoutMs = this.getTimeoutForStage(stage.name);
-    const stageDeadline = Date.now() + stageTimeoutMs;
-    let lastError: string | null = null;
-
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
-      const startTime = Date.now();
-      // Timeout cascade: inner attempt timeout must not exceed remaining stage budget
-      const remainingMs = stageDeadline - Date.now();
-      if (remainingMs <= 0) {
-        lastError = `Stage '${stage.name}' budget exhausted before attempt ${String(attempt + 1)}`;
-        break;
-      }
-      const attemptTimeoutMs = Math.min(remainingMs, stageTimeoutMs);
-
-      try {
-        const output = await this.executeStageAgent(stage, session, attemptTimeoutMs);
-
-        return {
-          name: stage.name,
-          agentType: stage.agentType,
-          status: 'completed',
-          durationMs: Date.now() - startTime,
-          output,
-          artifacts: [],
-          error: null,
-          retryCount: attempt,
-        };
-      } catch (error) {
-        lastError = error instanceof Error ? error.message : String(error);
-
-        if (attempt < maxRetries) {
-          // Exponential backoff
-          const delay = Math.min(5000 * Math.pow(2, attempt), 60_000);
-          await this.sleep(delay);
-        }
-      }
-    }
-
+  private schedulerHost(): SchedulerHost {
     return {
-      name: stage.name,
-      agentType: stage.agentType,
-      status: 'failed',
-      durationMs: 0,
-      output: '',
-      artifacts: [],
-      error: lastError,
-      retryCount: maxRetries,
+      abortController: this.abortController,
+      stageTimers: this.stageTimers,
+      maxRetries: this.config.maxRetries,
+      checkpointManager: this.checkpointManager,
+      getTimeoutForStage: (name) => this.getTimeoutForStage(name),
+      createArtifactValidator: (projectDir) => this.createArtifactValidator(projectDir),
+      invokeAgent: (stage, session) => this.invokeAgent(stage, session),
+      checkApprovalGate: (stage, prior) => this.checkApprovalGate(stage, prior),
+      sleep: (ms) => this.sleep(ms),
     };
   }
 
   /**
-   * Execute the agent for a specific stage
-   *
-   * This delegates to the appropriate agent based on stage.agentType.
-   * The actual agent invocation is abstracted to support testing and
-   * future integration with the AgentFactory.
-   * @param stage - The stage definition identifying which agent to invoke
-   * @param session - The current orchestrator session providing execution context
-   * @param timeoutMs - The maximum time in milliseconds before the stage is aborted
-   * @returns The agent output string upon successful execution
-   */
-  private async executeStageAgent(
-    stage: PipelineStageDefinition,
-    session: OrchestratorSession,
-    timeoutMs: number
-  ): Promise<string> {
-    return new Promise<string>((resolve, reject) => {
-      const timer = setTimeout(() => {
-        reject(new StageTimeoutError(stage.name, timeoutMs));
-      }, timeoutMs);
-
-      this.stageTimers.set(stage.name, timer);
-
-      // Delegate to agent execution via AgentDispatcher
-      this.invokeAgent(stage, session)
-        .then((output) => {
-          clearTimeout(timer);
-          this.stageTimers.delete(stage.name);
-          resolve(output);
-        })
-        .catch((error: unknown) => {
-          clearTimeout(timer);
-          this.stageTimers.delete(stage.name);
-          reject(error instanceof Error ? error : new Error(String(error)));
-        });
-    });
-  }
-
-  /**
-   * Invoke an agent for a pipeline stage
-   *
-   * Default routing goes through {@link AgentDispatcher} (the
-   * "AgentBridge path") which resolves the agentType to a real agent
-   * instance and calls the appropriate adapter.
-   *
-   * Worker-pilot branch (issue #793, formalized in #795): when the
-   * {@link FeatureFlagsResolver} reports `useSdkForWorker = true` AND
-   * the stage is the `worker` agent type, the call is rerouted through
-   * {@link executeViaAdapter} which drives the {@link ExecutionAdapter}
-   * (SDK path) with the AD-07 hook pipeline. The resolver consults
-   * env > CLI > YAML > default, so the env-only behaviour from #793
-   * remains supported and tests that set
-   * `process.env.AD_SDLC_USE_SDK_FOR_WORKER` keep working unchanged.
-   *
-   * Doc Writers cutover (issue #823, AD-13-A): the eight Doc Writers
-   * agent types listed in {@link DOC_WRITERS_ADAPTER_AGENT_TYPES} are
-   * routed to {@link executeViaAdapter} unconditionally — the bridge
-   * path is no longer reachable for those stages. This is the first of
-   * five sub-PRs that progressively cut every stage over to the adapter
-   * (parent meta-issue #797). The remaining stages still flow through
-   * {@link executeViaBridge} until their respective sub-PRs land.
-   *
-   * Doc Updaters + Reader cutover (issue #824, AD-13-B): the four
-   * agent types listed in {@link DOC_UPDATERS_READER_ADAPTER_AGENT_TYPES}
-   * (`prd-updater`, `srs-updater`, `sds-updater`, `document-reader`)
-   * are routed to {@link executeViaAdapter} unconditionally on the
-   * same terms.
-   *
-   * Analyzer cutover (issue #825, AD-13-C): the four agent types listed
-   * in {@link ANALYZERS_ADAPTER_AGENT_TYPES} (`code-reader`,
-   * `codebase-analyzer`, `doc-code-comparator`, `impact-analyzer`) are
-   * routed to {@link executeViaAdapter} unconditionally on the same
-   * terms.
-   *
-   * Setup + Collection cutover (issue #826, AD-13-D): the six agent
-   * types listed in {@link SETUP_COLLECTION_ADAPTER_AGENT_TYPES}
-   * (`project-initializer`, `mode-detector`, `repo-detector`,
-   * `github-repo-setup`, `collector`, `issue-reader`) are routed to
-   * {@link executeViaAdapter} unconditionally on the same terms.
-   *
-   * Execution + QA + V&V cutover (issue #827, AD-13-E — final sub-PR):
-   * the nine agent types listed in {@link EXEC_QA_VV_ADAPTER_AGENT_TYPES}
-   * (`controller`, `issue-generator`, `pr-reviewer`, `ci-fixer`,
-   * `regression-tester`, `stage-verifier`, `rtm-builder`,
-   * `validation-agent`, `doc-index-generator`) are routed to
-   * {@link executeViaAdapter} unconditionally on the same terms. With
-   * this final cutover, all 33 cutover-target stages flow through the
-   * adapter; only the feature-flag-gated `worker` pilot retains a
-   * conditional bridge fallback until #795 promotes it.
-   *
-   * Override this method in tests to bypass real agent execution.
-   *
-   * @param stage - The stage definition identifying which agent to invoke
-   * @param session - The current orchestrator session providing execution context
-   * @returns The agent output string describing the execution result
+   * Invoke an agent for a pipeline stage. Every stage routes through
+   * {@link executeViaAdapter} after the AD-13 cutover (#797) — the
+   * legacy bridge path was removed in #799. Override this method (or
+   * {@link executeViaAdapter} itself) in tests to bypass real agent
+   * execution.
+   * @param stage
+   * @param session
    */
   protected async invokeAgent(
     stage: PipelineStageDefinition,
     session: OrchestratorSession
   ): Promise<string> {
-    if (DOC_WRITERS_ADAPTER_AGENT_TYPES.has(stage.agentType)) {
-      return this.executeViaAdapter(stage, session);
-    }
-    if (DOC_UPDATERS_READER_ADAPTER_AGENT_TYPES.has(stage.agentType)) {
-      return this.executeViaAdapter(stage, session);
-    }
-    if (ANALYZERS_ADAPTER_AGENT_TYPES.has(stage.agentType)) {
-      return this.executeViaAdapter(stage, session);
-    }
-    if (SETUP_COLLECTION_ADAPTER_AGENT_TYPES.has(stage.agentType)) {
-      return this.executeViaAdapter(stage, session);
-    }
-    if (EXEC_QA_VV_ADAPTER_AGENT_TYPES.has(stage.agentType)) {
-      return this.executeViaAdapter(stage, session);
-    }
-    if (stage.agentType === WORKER_PILOT_AGENT_TYPE && this.getFeatureFlags().useSdkForWorker()) {
-      return this.executeViaAdapter(stage, session);
-    }
-    return this.executeViaBridge(stage, session);
+    return this.executeViaAdapter(stage, session);
   }
 
   /**
-   * Legacy AgentBridge execution path.
+   * Execute a stage through the {@link ExecutionAdapter} (SDK path).
+   * Builds a {@link StageExecutionRequest} from the session, runs it,
+   * and returns the JSON-serialised summary so the orchestrator's
+   * string-based stage output contract is preserved.
    *
-   * Wraps the original `invokeAgent` body so the dispatch logic stays in
-   * one place and the new pilot branch in {@link invokeAgent} keeps
-   * regression-zero semantics for every non-pilot call. Behaviour is the
-   * same as before issue #793: delegate to {@link AgentDispatcher}.
-   *
-   * @param stage - The stage definition.
-   * @param session - The current orchestrator session.
-   * @returns The agent output string from the dispatcher.
-   */
-  protected async executeViaBridge(
-    stage: PipelineStageDefinition,
-    session: OrchestratorSession
-  ): Promise<string> {
-    const dispatcher = this.getDispatcher();
-    return dispatcher.dispatch(stage, session);
-  }
-
-  /**
-   * Worker-pilot ExecutionAdapter execution path (issue #793).
-   *
-   * Builds a {@link StageExecutionRequest} from the orchestrator session
-   * (mapping `userRequest` → `workOrder` and accumulated stage outputs →
-   * `priorOutputs`), wires an {@link ExecutionAdapter} configured with
-   * the AD-07 {@link buildHookPipeline} so `Edit`/`Write` artifacts flow
-   * into the scratchpad, executes the request, and returns a JSON string
-   * describing the result so the orchestrator's existing string-based
-   * stage output contract is preserved.
-   *
-   * Token usage is included verbatim in the JSON output to satisfy the
-   * AC-5 observability requirement (tokenUsage populated).
-   *
-   * @param stage - The stage definition (must be the worker stage).
-   * @param session - The current orchestrator session.
-   * @returns JSON-serialised summary of the adapter execution.
+   * @param stage
+   * @param session
    * @throws Error when the adapter reports a non-success status.
    */
   protected async executeViaAdapter(
@@ -1152,7 +546,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
     try {
       const request = this.buildStageExecutionRequest(stage, session);
       const result = await adapter.execute(request);
-      return this.toStageOutput(result);
+      return this.toStageOutput(stage, result);
     } finally {
       await adapter.dispose().catch((error: unknown) => {
         getLogger().debug('ExecutionAdapter dispose failed', {
@@ -1164,21 +558,16 @@ export class AdsdlcOrchestratorAgent implements IAgent {
   }
 
   /**
-   * Construct the {@link ExecutionAdapter} used by the worker-pilot path.
-   *
-   * Default implementation returns an {@link SdkExecutionAdapter} wired
-   * with the AD-07 hook pipeline that funnels `Edit`/`Write` artifacts
-   * into a session-scoped {@link ArtifactSink}. Tests override this
-   * method to inject a {@link MockExecutionAdapter}.
-   *
-   * @param session - The current orchestrator session (used to scope
-   *   the artifact sink to the session's scratchpad).
-   * @returns An {@link ExecutionAdapter} ready for a single execution.
+   * Construct the {@link ExecutionAdapter} used by {@link executeViaAdapter}.
+   * Returns an {@link SdkExecutionAdapter} wired with the AD-07 hook
+   * pipeline that funnels `Edit`/`Write` artifacts into a session-scoped
+   * {@link ArtifactSink}. Tests override this method to inject a mock.
+   * @param session
    */
   protected createExecutionAdapter(session: OrchestratorSession): ExecutionAdapter {
     const sink: ArtifactSink = {
       recordArtifact: (entry: ArtifactCaptureEntry): void => {
-        getLogger().debug('Worker-pilot adapter captured artifact', {
+        getLogger().debug('Adapter captured artifact', {
           agent: 'AdsdlcOrchestratorAgent',
           sessionId: session.sessionId,
           filePath: entry.filePath,
@@ -1193,20 +582,11 @@ export class AdsdlcOrchestratorAgent implements IAgent {
 
   /**
    * Translate orchestrator state into a {@link StageExecutionRequest}.
-   *
-   * Maps `session.userRequest` to `workOrder` and the completed prior
-   * stages' outputs to `priorOutputs` so downstream agents pick them up
-   * via the SDK adapter's `priorOutputs` mechanism. The shape mirrors
-   * what {@link AgentDispatcher.buildAgentRequest} produces for the
-   * AgentBridge path so equivalence holds across both routes.
-   *
-   * The system prompt itself is sourced by the SDK from
-   * `.claude/agents/<agentType>.md` (same file the AgentBridge reads via
-   * the shared `loadAgentDefinition` helper).
-   *
-   * @param stage - The stage definition.
-   * @param session - The current orchestrator session.
-   * @returns The execution-adapter request payload.
+   * Maps `session.userRequest` to `workOrder` and accumulated completed
+   * stage outputs to `priorOutputs`. The system prompt is sourced by
+   * the SDK from `.claude/agents/<agentType>.md`.
+   * @param stage
+   * @param session
    */
   protected buildStageExecutionRequest(
     stage: PipelineStageDefinition,
@@ -1230,25 +610,20 @@ export class AdsdlcOrchestratorAgent implements IAgent {
 
   /**
    * Convert a {@link StageExecutionResult} into the string output the
-   * orchestrator's stage contract expects.
+   * orchestrator's stage contract expects. Non-success statuses become
+   * thrown errors so the scheduler's retry / failure handling kicks in.
    *
-   * The serialised payload includes the artifact list, sessionId,
-   * tokenUsage and toolCallCount so the AC-5 observability requirement
-   * is met. Non-success statuses are surfaced as thrown errors so the
-   * existing retry / failure handling in
-   * {@link executeStageWithRetry} kicks in unchanged.
-   *
-   * @param result - The result from the execution adapter.
-   * @returns JSON-serialised summary string.
+   * @param stage
+   * @param result
    * @throws Error when `result.status !== 'success'`.
    */
-  protected toStageOutput(result: StageExecutionResult): string {
+  protected toStageOutput(stage: PipelineStageDefinition, result: StageExecutionResult): string {
     if (result.status !== 'success') {
       const message = result.error?.message ?? `ExecutionAdapter status=${result.status}`;
-      throw new Error(`Worker-pilot ExecutionAdapter failed: ${message}`);
+      throw new Error(`ExecutionAdapter failed: ${message}`);
     }
     return JSON.stringify({
-      stage: 'worker',
+      stage: stage.name,
       via: 'execution-adapter',
       sessionId: result.sessionId,
       toolCallCount: result.toolCallCount,
@@ -1261,180 +636,15 @@ export class AdsdlcOrchestratorAgent implements IAgent {
   }
 
   // ---------------------------------------------------------------------------
-  // Private: Parallel Execution
-  // ---------------------------------------------------------------------------
-
-  /**
-   * Execute agent invocations in parallel with concurrency limiting.
-   *
-   * Uses a Semaphore to cap the number of concurrent agent executions
-   * at `maxParallelAgents`. Uses `Promise.allSettled` so that individual
-   * agent failures do not abort sibling executions.
-   *
-   * @param agents - The agent invocations to execute concurrently
-   * @returns The results from all parallel agent executions
-   */
-  private async executeParallel(agents: readonly AgentInvocation[]): Promise<StageResult[]> {
-    const semaphore = new Semaphore(this.config.maxParallelAgents);
-    const registry = this.getBridgeRegistry();
-
-    const promises = agents.map(async (invocation): Promise<StageResult> => {
-      await semaphore.acquire();
-      const startTime = Date.now();
-      try {
-        const bridge = registry.resolve(invocation.agentType);
-        const isStub = registry.isStub(invocation.agentType);
-        const request: AgentRequest = {
-          agentType: invocation.agentType,
-          input: invocation.inputs.join('\n'),
-          scratchpadDir: this.session?.scratchpadDir ?? '',
-          projectDir: this.session?.projectDir ?? '',
-          priorStageOutputs: {},
-          ...(this.abortController !== null ? { signal: this.abortController.signal } : {}),
-        };
-
-        const response = await bridge.execute(request);
-
-        return {
-          name: invocation.stageName,
-          agentType: invocation.agentType,
-          status: response.success ? 'completed' : 'failed',
-          durationMs: Date.now() - startTime,
-          output: isStub ? `[STUB] ${response.output}` : response.output,
-          artifacts: [...invocation.outputs, ...response.artifacts.map((a) => a.path)],
-          error: response.error ?? null,
-          retryCount: 0,
-          ...(isStub && { warnings: ['StubBridge used — no real agent execution'] }),
-        };
-      } catch (error) {
-        return {
-          name: invocation.stageName,
-          agentType: invocation.agentType,
-          status: 'failed',
-          durationMs: Date.now() - startTime,
-          output: '',
-          artifacts: [...invocation.outputs],
-          error: error instanceof Error ? error.message : String(error),
-          retryCount: 0,
-        };
-      } finally {
-        semaphore.release();
-      }
-    });
-
-    const settled = await Promise.allSettled(promises);
-
-    return settled.map((outcome, index) => {
-      if (outcome.status === 'fulfilled') {
-        return outcome.value;
-      }
-      // This branch handles unexpected rejections that escape the try/catch above
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- index is guaranteed valid by Promise.allSettled
-      const invocation = agents[index]!;
-      return {
-        name: invocation.stageName,
-        agentType: invocation.agentType,
-        status: 'failed',
-        durationMs: 0,
-        output: '',
-        artifacts: [...invocation.outputs],
-        error: outcome.reason instanceof Error ? outcome.reason.message : String(outcome.reason),
-        retryCount: 0,
-      };
-    });
-  }
-
-  /**
-   * Execute agent invocations sequentially, passing prior stage outputs forward.
-   *
-   * Unlike `executeParallel()`, sequential execution:
-   * - Stops on the first failure (stages are dependent)
-   * - Passes accumulated outputs from completed stages to subsequent stages
-   *
-   * @param agents - The agent invocations to execute one after another
-   * @returns The results from all sequential agent executions
-   */
-  private async executeSequential(agents: readonly AgentInvocation[]): Promise<StageResult[]> {
-    const registry = this.getBridgeRegistry();
-    const results: StageResult[] = [];
-
-    for (const invocation of agents) {
-      const startTime = Date.now();
-      try {
-        const bridge = registry.resolve(invocation.agentType);
-        const isStub = registry.isStub(invocation.agentType);
-        const request: AgentRequest = {
-          agentType: invocation.agentType,
-          input: invocation.inputs.join('\n'),
-          scratchpadDir: this.session?.scratchpadDir ?? '',
-          projectDir: this.session?.projectDir ?? '',
-          priorStageOutputs: this.buildPriorOutputs(results),
-          ...(this.abortController !== null ? { signal: this.abortController.signal } : {}),
-        };
-
-        const response = await bridge.execute(request);
-
-        results.push({
-          name: invocation.stageName,
-          agentType: invocation.agentType,
-          status: response.success ? 'completed' : 'failed',
-          durationMs: Date.now() - startTime,
-          output: isStub ? `[STUB] ${response.output}` : response.output,
-          artifacts: [...invocation.outputs, ...response.artifacts.map((a) => a.path)],
-          error: response.error ?? null,
-          retryCount: 0,
-          ...(isStub && { warnings: ['StubBridge used — no real agent execution'] }),
-        });
-
-        // Stop on failure — sequential stages are dependent
-        if (!response.success) {
-          break;
-        }
-      } catch (error) {
-        results.push({
-          name: invocation.stageName,
-          agentType: invocation.agentType,
-          status: 'failed',
-          durationMs: Date.now() - startTime,
-          output: '',
-          artifacts: [...invocation.outputs],
-          error: error instanceof Error ? error.message : String(error),
-          retryCount: 0,
-        });
-        break; // Sequential: stop on first failure
-      }
-    }
-
-    return results;
-  }
-
-  /**
-   * Build a record of prior stage outputs for sequential pipeline forwarding.
-   *
-   * @param priorResults - Results from previously completed stages
-   * @returns A mapping of agentType to output string
-   */
-  private buildPriorOutputs(priorResults: readonly StageResult[]): Record<string, string> {
-    const outputs: Record<string, string> = {};
-    for (const result of priorResults) {
-      if (result.status === 'completed' && result.output) {
-        outputs[result.agentType] = result.output;
-      }
-    }
-    return outputs;
-  }
-
-  // ---------------------------------------------------------------------------
   // Private: Helpers
   // ---------------------------------------------------------------------------
 
   /**
-   * Check approval gate for a stage based on the configured approval mode
+   * Evaluate the approval gate for a stage. Thin delegate to
+   * {@link evaluateApprovalGate} (`ApprovalGate.ts`) — the actual
+   * mode-specific logic lives in that module so this class stays focused
+   * on pipeline coordination.
    *
-   * - auto: always approve
-   * - manual: always requires user approval (returns denied for now)
-   * - critical: approve unless prior stages have failures
-   * - custom: delegate to overridable approveStage method
    * @param stage - The stage awaiting approval
    * @param priorResults - Results from previously executed stages used for decision-making
    * @returns The approval decision indicating whether the stage may proceed
@@ -1443,79 +653,9 @@ export class AdsdlcOrchestratorAgent implements IAgent {
     stage: PipelineStageDefinition,
     priorResults: readonly StageResult[]
   ): Promise<ApprovalDecision> {
-    const now = new Date().toISOString();
-
-    switch (this.config.approvalMode) {
-      case 'auto':
-        return { approved: true, reason: 'Auto-approved', decidedBy: 'system', decidedAt: now };
-
-      case 'manual': {
-        if (!process.stdout.isTTY) {
-          return {
-            approved: false,
-            reason:
-              'Manual approval required but no interactive terminal available. ' +
-              'Use --approval-mode auto or run in an interactive terminal.',
-            decidedBy: 'system',
-            decidedAt: now,
-          };
-        }
-        return this.promptManualApproval(stage, priorResults);
-      }
-
-      case 'critical': {
-        const hasPriorFailures = priorResults.some((r) => r.status === 'failed');
-        if (hasPriorFailures) {
-          return {
-            approved: false,
-            reason: 'Prior stage failures detected in critical approval mode',
-            decidedBy: 'system',
-            decidedAt: now,
-          };
-        }
-        return {
-          approved: true,
-          reason: 'No prior failures in critical mode',
-          decidedBy: 'system',
-          decidedAt: now,
-        };
-      }
-
-      case 'custom':
-        return this.approveStage(stage, priorResults);
-    }
-  }
-
-  /**
-   * Prompt the user for manual approval of a pipeline stage via interactive terminal.
-   * @param stage - The stage awaiting approval
-   * @param priorResults - Results from previously executed stages
-   * @returns The approval decision based on user input
-   */
-  private async promptManualApproval(
-    stage: PipelineStageDefinition,
-    priorResults: readonly StageResult[]
-  ): Promise<ApprovalDecision> {
-    const now = new Date().toISOString();
-    const completedCount = priorResults.filter((r) => r.status === 'completed').length;
-    const failedCount = priorResults.filter((r) => r.status === 'failed').length;
-
-    const { default: inquirer } = await import('inquirer');
-    const { confirm } = await inquirer.prompt<{ confirm: boolean }>([
-      {
-        type: 'confirm',
-        name: 'confirm',
-        message: `Approve stage "${stage.name}" (${stage.agentType})? [${String(completedCount)} completed, ${String(failedCount)} failed]`,
-        default: true,
-      },
-    ]);
-
-    return {
-      approved: confirm,
-      reason: confirm ? 'Manually approved by user' : 'Manually rejected by user',
-      decidedBy: 'user',
-      decidedAt: now,
-    };
+    return evaluateApprovalGate(this.config.approvalMode, stage, priorResults, (s, prior) =>
+      this.approveStage(s, prior)
+    );
   }
 
   /**
@@ -1566,50 +706,6 @@ export class AdsdlcOrchestratorAgent implements IAgent {
         error instanceof Error ? error.message : 'Cannot access directory'
       );
     }
-  }
-
-  /**
-   * Check if all dependencies for a stage are satisfied
-   * @param stage - The stage whose dependencies to check
-   * @param completedStages - The set of stage names that have completed successfully
-   * @param results - All stage results collected so far for failure detection
-   * @returns The list of dependency stage names that have failed or been skipped
-   */
-  private checkDependencies(
-    stage: PipelineStageDefinition,
-    completedStages: Set<StageName>,
-    results: readonly StageResult[]
-  ): StageName[] {
-    const failedDeps: StageName[] = [];
-
-    for (const dep of stage.dependsOn) {
-      if (!completedStages.has(dep)) {
-        const depResult = results.find((r) => r.name === dep);
-        if (depResult?.status === 'failed' || depResult?.status === 'skipped') {
-          failedDeps.push(dep);
-        }
-      }
-    }
-
-    return failedDeps;
-  }
-
-  /**
-   * Create a skipped stage result
-   * @param stage - The stage definition to create a skipped result for
-   * @returns A StageResult with 'skipped' status and zero duration
-   */
-  private createSkippedResult(stage: PipelineStageDefinition): StageResult {
-    return {
-      name: stage.name,
-      agentType: stage.agentType,
-      status: 'skipped',
-      durationMs: 0,
-      output: '',
-      artifacts: [],
-      error: 'Skipped due to failed or missing dependencies',
-      retryCount: 0,
-    };
   }
 
   /**
