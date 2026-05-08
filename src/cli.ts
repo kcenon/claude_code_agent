@@ -43,7 +43,7 @@ import {
   ENHANCEMENT_STAGES,
   IMPORT_STAGES,
 } from './ad-sdlc-orchestrator/index.js';
-import { createDefaultBridgeRegistry, isClaudeCodeSession } from './agents/BridgeRegistry.js';
+import { describeExecutionEnvironment, hasRealExecutionEnvironment } from './execution/index.js';
 import { StatusService } from './status/index.js';
 import type { OutputFormat } from './status/types.js';
 import { initializeProject, isProjectInitialized } from './utils/index.js';
@@ -934,10 +934,10 @@ program
     }
 
     // 4. API key or Claude Code session
-    const registry = createDefaultBridgeRegistry();
-    const hasRealBridge = registry.hasRealBridge();
+    const envLabel = describeExecutionEnvironment();
+    const hasRealBridge = envLabel !== 'none';
     if (hasRealBridge) {
-      const bridgeLabel = isClaudeCodeSession() ? 'Claude Code session' : 'ANTHROPIC_API_KEY';
+      const bridgeLabel = envLabel === 'claude-code' ? 'Claude Code session' : 'ANTHROPIC_API_KEY';
       checks.push({ label: 'AI Bridge', ok: true, detail: `${bridgeLabel} detected` });
     } else {
       checks.push({
@@ -1133,13 +1133,14 @@ program
       }
       output.blank();
 
-      // Show bridge info
-      const dryRunRegistry = createDefaultBridgeRegistry();
-      const bridgeType = dryRunRegistry.hasRealBridge()
-        ? isClaudeCodeSession()
+      // Show execution backend info
+      const envLabel = describeExecutionEnvironment();
+      const bridgeType =
+        envLabel === 'claude-code'
           ? 'ClaudeCodeBridge'
-          : 'AnthropicApiBridge'
-        : 'StubBridge (no real bridge)';
+          : envLabel === 'anthropic-api'
+            ? 'AnthropicApiBridge'
+            : 'StubBridge (no real bridge)';
       output.info(chalk.dim(`Bridge: ${bridgeType}`));
       output.blank();
 
@@ -1165,14 +1166,11 @@ program
     }
 
     // Validate bridge availability — require real bridge unless --allow-stub
-    {
-      const preCheckRegistry = createDefaultBridgeRegistry();
-      if (!preCheckRegistry.hasRealBridge() && !allowStub) {
-        output.error(chalk.red('\nNo AI bridge available.'));
-        output.info(chalk.dim('Set ANTHROPIC_API_KEY or run inside a Claude Code session.'));
-        output.info(chalk.dim('Use --allow-stub for testing without a real AI bridge.\n'));
-        process.exit(1);
-      }
+    if (!hasRealExecutionEnvironment() && !allowStub) {
+      output.error(chalk.red('\nNo AI bridge available.'));
+      output.info(chalk.dim('Set ANTHROPIC_API_KEY or run inside a Claude Code session.'));
+      output.info(chalk.dim('Use --allow-stub for testing without a real AI bridge.\n'));
+      process.exit(1);
     }
 
     // Display pipeline info
