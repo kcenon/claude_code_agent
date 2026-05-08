@@ -50,7 +50,7 @@ import type {
 } from '../../src/ad-sdlc-orchestrator/types.js';
 
 /**
- * Stub orchestrator that bypasses the AgentDispatcher.
+ * Stub orchestrator that overrides invokeAgent.
  * Used for tests that exercise pipeline mechanics (stage ordering, retries,
  * persistence) without requiring real agent modules.
  */
