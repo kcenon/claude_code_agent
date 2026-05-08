@@ -637,6 +637,10 @@ export class AdsdlcOrchestratorAgent implements IAgent {
       agentType: stage.agentType,
       workOrder: session.userRequest,
       priorOutputs,
+      ...(stage.skills !== undefined ? { skills: stage.skills } : {}),
+      ...(stage.mcpServers !== undefined ? { mcpServers: stage.mcpServers } : {}),
+      ...(stage.maxTurns !== undefined ? { maxTurns: stage.maxTurns } : {}),
+      ...(stage.permissionMode !== undefined ? { permissionMode: stage.permissionMode } : {}),
       ...(resumeId !== undefined ? { resume: resumeId } : {}),
       ...(this.abortController !== null ? { signal: this.abortController.signal } : {}),
     };
