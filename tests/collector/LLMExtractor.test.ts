@@ -1,17 +1,49 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { LLMExtractor } from '../../src/collector/LLMExtractor.js';
 import { InformationExtractor, InputParser } from '../../src/collector/index.js';
-import type { AgentBridge, AgentRequest, AgentResponse } from '../../src/agents/AgentBridge.js';
+import { MockExecutionAdapter } from '../../src/execution/MockExecutionAdapter.js';
+import type { StageExecutionResult } from '../../src/execution/types.js';
+import { ErrorSeverity } from '../../src/errors/types.js';
 
 /**
- * Create a mock AgentBridge that returns a configurable response.
+ * Build a successful StageExecutionResult whose first artifact carries the
+ * extraction JSON inline via its `description` field.
  */
-function createMockBridge(response: AgentResponse): AgentBridge {
+function successResult(jsonPayload: string): StageExecutionResult {
   return {
-    execute: vi.fn().mockResolvedValue(response),
-    supports: vi.fn().mockReturnValue(true),
-    dispose: vi.fn().mockResolvedValue(undefined),
+    status: 'success',
+    artifacts: [{ path: 'mock://collector/extraction.json', description: jsonPayload }],
+    sessionId: 'mock-session',
+    toolCallCount: 0,
+    tokenUsage: { input: 0, output: 0, cache: 0 },
   };
+}
+
+/**
+ * Build a failed StageExecutionResult.
+ */
+function failedResult(): StageExecutionResult {
+  return {
+    status: 'failed',
+    artifacts: [],
+    sessionId: 'mock-session',
+    toolCallCount: 0,
+    tokenUsage: { input: 0, output: 0, cache: 0 },
+    error: {
+      code: 'EXEC-099',
+      message: 'API error',
+      severity: ErrorSeverity.HIGH,
+      context: {},
+      timestamp: new Date().toISOString(),
+    },
+  };
+}
+
+/**
+ * Build a MockExecutionAdapter whose default response carries the given JSON.
+ */
+function adapterReturning(jsonPayload: string): MockExecutionAdapter {
+  return new MockExecutionAdapter({ defaultResult: successResult(jsonPayload) });
 }
 
 /**
@@ -62,13 +94,8 @@ describe('LLMExtractor', () => {
 
   describe('extract', () => {
     it('should return structured extraction from LLM response', async () => {
-      const bridge = createMockBridge({
-        output: validLLMResponse(),
-        artifacts: [],
-        success: true,
-      });
-
-      const extractor = new LLMExtractor(bridge, fallback);
+      const adapter = adapterReturning(validLLMResponse());
+      const extractor = new LLMExtractor(adapter, fallback);
       const input = parser.combineInputs([
         parser.parseText('Build a task management app with user login'),
       ]);
@@ -89,13 +116,8 @@ describe('LLMExtractor', () => {
     });
 
     it('should convert ambiguities to clarification questions', async () => {
-      const bridge = createMockBridge({
-        output: validLLMResponse(),
-        artifacts: [],
-        success: true,
-      });
-
-      const extractor = new LLMExtractor(bridge, fallback);
+      const adapter = adapterReturning(validLLMResponse());
+      const extractor = new LLMExtractor(adapter, fallback);
       const input = parser.combineInputs([parser.parseText('Some text')]);
 
       const result = await extractor.extract(input);
@@ -108,13 +130,8 @@ describe('LLMExtractor', () => {
     });
 
     it('should calculate overall confidence from requirements', async () => {
-      const bridge = createMockBridge({
-        output: validLLMResponse(),
-        artifacts: [],
-        success: true,
-      });
-
-      const extractor = new LLMExtractor(bridge, fallback);
+      const adapter = adapterReturning(validLLMResponse());
+      const extractor = new LLMExtractor(adapter, fallback);
       const input = parser.combineInputs([parser.parseText('Text')]);
 
       const result = await extractor.extract(input);
@@ -123,51 +140,38 @@ describe('LLMExtractor', () => {
       expect(result.overallConfidence).toBe(0.9);
     });
 
-    it('should pass project context to the prompt', async () => {
-      const bridge = createMockBridge({
-        output: validLLMResponse(),
-        artifacts: [],
-        success: true,
-      });
-
-      const extractor = new LLMExtractor(bridge, fallback);
+    it('should pass project context to the prompt and forward it via priorOutputs', async () => {
+      const adapter = adapterReturning(validLLMResponse());
+      const extractor = new LLMExtractor(adapter, fallback);
       const input = parser.combineInputs([parser.parseText('Build a task app')]);
 
       await extractor.extract(input, 'Enterprise environment');
 
-      const call = (bridge.execute as ReturnType<typeof vi.fn>).mock.calls[0] as [AgentRequest];
-      expect(call[0].input).toContain('Enterprise environment');
-      expect(call[0].agentType).toBe('collector');
+      expect(adapter.calls).toHaveLength(1);
+      const request = adapter.calls[0]!;
+      expect(request.agentType).toBe('collector');
+      expect(request.workOrder).toContain('Enterprise environment');
+      expect(request.priorOutputs['projectContext']).toBe('Enterprise environment');
     });
 
-    it('should set scratchpadDir and projectDir on bridge request', async () => {
-      const bridge = createMockBridge({
-        output: validLLMResponse(),
-        artifacts: [],
-        success: true,
-      });
-
-      const extractor = new LLMExtractor(bridge, fallback, '/scratch', '/project');
+    it('should set scratchpadDir and projectDir on adapter request priorOutputs', async () => {
+      const adapter = adapterReturning(validLLMResponse());
+      const extractor = new LLMExtractor(adapter, fallback, '/scratch', '/project');
       const input = parser.combineInputs([parser.parseText('Text')]);
 
       await extractor.extract(input);
 
-      const call = (bridge.execute as ReturnType<typeof vi.fn>).mock.calls[0] as [AgentRequest];
-      expect(call[0].scratchpadDir).toBe('/scratch');
-      expect(call[0].projectDir).toBe('/project');
+      expect(adapter.calls).toHaveLength(1);
+      const request = adapter.calls[0]!;
+      expect(request.priorOutputs['scratchpadDir']).toBe('/scratch');
+      expect(request.priorOutputs['projectDir']).toBe('/project');
     });
   });
 
   describe('fallback behavior', () => {
-    it('should fall back to keyword extractor when bridge returns failure', async () => {
-      const bridge = createMockBridge({
-        output: '',
-        artifacts: [],
-        success: false,
-        error: 'API error',
-      });
-
-      const extractor = new LLMExtractor(bridge, fallback);
+    it('should fall back to keyword extractor when adapter returns failure', async () => {
+      const adapter = new MockExecutionAdapter({ defaultResult: failedResult() });
+      const extractor = new LLMExtractor(adapter, fallback);
       const input = parser.combineInputs([
         parser.parseText('The system must support user authentication.'),
       ]);
@@ -180,14 +184,19 @@ describe('LLMExtractor', () => {
       expect(result.overallConfidence).toBeLessThanOrEqual(1);
     });
 
-    it('should fall back to keyword extractor when bridge throws', async () => {
-      const bridge: AgentBridge = {
-        execute: vi.fn().mockRejectedValue(new Error('Network error')),
-        supports: vi.fn().mockReturnValue(true),
-        dispose: vi.fn().mockResolvedValue(undefined),
-      };
+    it('should fall back to keyword extractor when adapter throws', async () => {
+      const adapter = new MockExecutionAdapter({
+        handlers: [
+          {
+            match: () => true,
+            respond: () => {
+              throw new Error('Network error');
+            },
+          },
+        ],
+      });
 
-      const extractor = new LLMExtractor(bridge, fallback);
+      const extractor = new LLMExtractor(adapter, fallback);
       const input = parser.combineInputs([parser.parseText('The system must support login.')]);
 
       const result = await extractor.extract(input);
@@ -197,13 +206,8 @@ describe('LLMExtractor', () => {
     });
 
     it('should fall back when LLM output is not valid JSON', async () => {
-      const bridge = createMockBridge({
-        output: 'This is not JSON at all',
-        artifacts: [],
-        success: true,
-      });
-
-      const extractor = new LLMExtractor(bridge, fallback);
+      const adapter = adapterReturning('This is not JSON at all');
+      const extractor = new LLMExtractor(adapter, fallback);
       const input = parser.combineInputs([
         parser.parseText('The system must handle user requests.'),
       ]);
@@ -221,18 +225,32 @@ describe('LLMExtractor', () => {
         requirements: [{ id: 'R-1', text: 'Req', type: 'invalid_type' }],
       });
 
-      const bridge = createMockBridge({
-        output: invalidJson,
-        artifacts: [],
-        success: true,
-      });
-
-      const extractor = new LLMExtractor(bridge, fallback);
+      const adapter = adapterReturning(invalidJson);
+      const extractor = new LLMExtractor(adapter, fallback);
       const input = parser.combineInputs([parser.parseText('The system should process data.')]);
 
       const result = await extractor.extract(input);
 
       expect(result).toBeDefined();
+    });
+
+    it('should fall back when adapter result has no artifacts', async () => {
+      const adapter = new MockExecutionAdapter({
+        defaultResult: {
+          status: 'success',
+          artifacts: [],
+          sessionId: 'mock-session',
+          toolCallCount: 0,
+          tokenUsage: { input: 0, output: 0, cache: 0 },
+        },
+      });
+      const extractor = new LLMExtractor(adapter, fallback);
+      const input = parser.combineInputs([parser.parseText('Some content for analysis.')]);
+
+      const result = await extractor.extract(input);
+
+      expect(result).toBeDefined();
+      expect(result.overallConfidence).toBeGreaterThanOrEqual(0);
     });
   });
 
@@ -241,13 +259,8 @@ describe('LLMExtractor', () => {
       const jsonContent = validLLMResponse();
       const wrappedOutput = `Here is the analysis:\n\n\`\`\`json\n${jsonContent}\n\`\`\`\n\nLet me know if you need more details.`;
 
-      const bridge = createMockBridge({
-        output: wrappedOutput,
-        artifacts: [],
-        success: true,
-      });
-
-      const extractor = new LLMExtractor(bridge, fallback);
+      const adapter = adapterReturning(wrappedOutput);
+      const extractor = new LLMExtractor(adapter, fallback);
       const input = parser.combineInputs([parser.parseText('Build a task app')]);
 
       const result = await extractor.extract(input);
@@ -260,13 +273,8 @@ describe('LLMExtractor', () => {
       const jsonContent = validLLMResponse();
       const wrappedOutput = `Based on my analysis:\n${jsonContent}\nEnd of analysis.`;
 
-      const bridge = createMockBridge({
-        output: wrappedOutput,
-        artifacts: [],
-        success: true,
-      });
-
-      const extractor = new LLMExtractor(bridge, fallback);
+      const adapter = adapterReturning(wrappedOutput);
+      const extractor = new LLMExtractor(adapter, fallback);
       const input = parser.combineInputs([parser.parseText('Build a task app')]);
 
       const result = await extractor.extract(input);
@@ -292,8 +300,8 @@ describe('LLMExtractor', () => {
         ],
       });
 
-      const bridge = createMockBridge({ output: response, artifacts: [], success: true });
-      const extractor = new LLMExtractor(bridge, fallback);
+      const adapter = adapterReturning(response);
+      const extractor = new LLMExtractor(adapter, fallback);
       const input = parser.combineInputs([parser.parseText('Secure app')]);
 
       const result = await extractor.extract(input);
@@ -317,8 +325,8 @@ describe('LLMExtractor', () => {
         ],
       });
 
-      const bridge = createMockBridge({ output: response, artifacts: [], success: true });
-      const extractor = new LLMExtractor(bridge, fallback);
+      const adapter = adapterReturning(response);
+      const extractor = new LLMExtractor(adapter, fallback);
       const input = parser.combineInputs([parser.parseText('Budget app')]);
 
       const result = await extractor.extract(input);
@@ -342,8 +350,8 @@ describe('LLMExtractor', () => {
         ],
       });
 
-      const bridge = createMockBridge({ output: response, artifacts: [], success: true });
-      const extractor = new LLMExtractor(bridge, fallback);
+      const adapter = adapterReturning(response);
+      const extractor = new LLMExtractor(adapter, fallback);
       const input = parser.combineInputs([parser.parseText('App')]);
 
       const result = await extractor.extract(input);
@@ -367,8 +375,8 @@ describe('LLMExtractor', () => {
         ],
       });
 
-      const bridge = createMockBridge({ output: response, artifacts: [], success: true });
-      const extractor = new LLMExtractor(bridge, fallback);
+      const adapter = adapterReturning(response);
+      const extractor = new LLMExtractor(adapter, fallback);
       const input = parser.combineInputs([parser.parseText('App')]);
 
       const result = await extractor.extract(input);
@@ -385,8 +393,8 @@ describe('LLMExtractor', () => {
         requirements: [],
       });
 
-      const bridge = createMockBridge({ output: response, artifacts: [], success: true });
-      const extractor = new LLMExtractor(bridge, fallback);
+      const adapter = adapterReturning(response);
+      const extractor = new LLMExtractor(adapter, fallback);
       const input = parser.combineInputs([parser.parseText('Empty')]);
 
       const result = await extractor.extract(input);
@@ -418,8 +426,8 @@ describe('LLMExtractor', () => {
         ],
       });
 
-      const bridge = createMockBridge({ output: response, artifacts: [], success: true });
-      const extractor = new LLMExtractor(bridge, fallback);
+      const adapter = adapterReturning(response);
+      const extractor = new LLMExtractor(adapter, fallback);
       const input = parser.combineInputs([parser.parseText('App')]);
 
       const result = await extractor.extract(input);
@@ -431,13 +439,8 @@ describe('LLMExtractor', () => {
     });
 
     it('should return empty assumptions and dependencies arrays', async () => {
-      const bridge = createMockBridge({
-        output: validLLMResponse(),
-        artifacts: [],
-        success: true,
-      });
-
-      const extractor = new LLMExtractor(bridge, fallback);
+      const adapter = adapterReturning(validLLMResponse());
+      const extractor = new LLMExtractor(adapter, fallback);
       const input = parser.combineInputs([parser.parseText('App')]);
 
       const result = await extractor.extract(input);
@@ -462,8 +465,8 @@ describe('LLMExtractor', () => {
         ],
       });
 
-      const bridge = createMockBridge({ output: response, artifacts: [], success: true });
-      const extractor = new LLMExtractor(bridge, fallback);
+      const adapter = adapterReturning(response);
+      const extractor = new LLMExtractor(adapter, fallback);
       const input = parser.combineInputs([parser.parseText('Clear app')]);
 
       const result = await extractor.extract(input);
