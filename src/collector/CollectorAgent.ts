@@ -15,7 +15,7 @@
 
 import { randomUUID } from 'node:crypto';
 import type { IAgent } from '../agents/types.js';
-import type { AgentBridge } from '../agents/AgentBridge.js';
+import type { ExecutionAdapter } from '../execution/index.js';
 import { getScratchpad, type CollectedInfo } from '../scratchpad/index.js';
 import { InputParser, type InputParserOptions } from './InputParser.js';
 import { InformationExtractor, type InformationExtractorOptions } from './InformationExtractor.js';
@@ -77,7 +77,7 @@ export class CollectorAgent implements IAgent {
   private session: CollectionSession | null = null;
   private initialized = false;
 
-  constructor(config: CollectorAgentConfig = {}, bridge?: AgentBridge) {
+  constructor(config: CollectorAgentConfig = {}, adapter?: ExecutionAdapter) {
     this.config = { ...DEFAULT_CONFIG, ...config };
 
     const parserOptions: InputParserOptions = {};
@@ -90,11 +90,11 @@ export class CollectorAgent implements IAgent {
     this.inputParser = new InputParser(parserOptions);
     this.extractor = new InformationExtractor(extractorOptions);
 
-    const effectiveBridge = bridge !== undefined && !this.isStubBridge(bridge) ? bridge : null;
+    const effectiveAdapter = adapter ?? null;
 
-    if (effectiveBridge !== null) {
+    if (effectiveAdapter !== null) {
       this.llmExtractor = new LLMExtractor(
-        effectiveBridge,
+        effectiveAdapter,
         this.extractor,
         this.config.scratchpadBasePath
       );
@@ -106,20 +106,10 @@ export class CollectorAgent implements IAgent {
       {
         depth: this.config.investigationDepth,
         maxQuestionsPerRound: this.config.maxQuestionsPerRound,
-        enableLLMQuestions: effectiveBridge !== null,
+        enableLLMQuestions: effectiveAdapter !== null,
       },
-      effectiveBridge
+      effectiveAdapter
     );
-  }
-
-  /**
-   * Check if a bridge is a StubBridge (no-op fallback).
-   * StubBridge always returns `true` from supports() and outputs start with "Stub execution".
-   * We detect it by constructor name to avoid a hard import dependency.
-   * @param bridge
-   */
-  private isStubBridge(bridge: AgentBridge): boolean {
-    return bridge.constructor.name === 'StubBridge';
   }
 
   /**
