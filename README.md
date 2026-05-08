@@ -182,6 +182,7 @@ Each agent reads and writes to a shared scratchpad, enabling seamless inter-agen
 - Git 2.30+
 - GitHub CLI 2.0+ (optional, for issue/PR management)
 - Claude API Key
+- `GITHUB_TOKEN` — required for stages that talk to GitHub (`pr-reviewer`, `issue-generator`, `ci-fixer`). Export a Personal Access Token with `repo`-level scope; the team-shared `.mcp.json` interpolates it via `${GITHUB_TOKEN}` and never stores literals. See [docs/configuration/mcp.md](docs/configuration/mcp.md) for setup, scopes, and troubleshooting.
 
 ### Install
 
