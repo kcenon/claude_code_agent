@@ -1,25 +1,52 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { rm, mkdir, readFile } from 'node:fs/promises';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { rm, mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { WorkerAgent, CodeGenerationError } from '../../src/worker/index.js';
-import type { CodeChange } from '../../src/worker/index.js';
 import type { WorkOrder, CodeContext, ExecutionContext } from '../../src/worker/index.js';
-import type { AgentBridge, AgentRequest, AgentResponse } from '../../src/agents/AgentBridge.js';
+import { MockExecutionAdapter } from '../../src/execution/index.js';
+import type {
+  ArtifactRef,
+  StageExecutionRequest,
+  StageExecutionResult,
+} from '../../src/execution/index.js';
+import { ErrorSeverity } from '../../src/errors/types.js';
 
 /**
- * Create a minimal stub bridge for testing.
+ * Build a successful StageExecutionResult with the given artifacts.
  */
-function createStubBridge(response: AgentResponse): AgentBridge {
+function successResult(artifacts: ArtifactRef[]): StageExecutionResult {
   return {
-    execute: vi.fn().mockResolvedValue(response),
-    supports: vi.fn().mockReturnValue(true),
-    dispose: vi.fn().mockResolvedValue(undefined),
+    status: 'success',
+    artifacts,
+    sessionId: 'mock-session',
+    toolCallCount: 0,
+    tokenUsage: { input: 0, output: 0, cache: 0 },
   };
 }
 
-describe('WorkerAgent - generateCode with bridge delegation', () => {
+/**
+ * Build a failed StageExecutionResult with the given error message.
+ */
+function failedResult(message: string): StageExecutionResult {
+  return {
+    status: 'failed',
+    artifacts: [],
+    sessionId: 'mock-session',
+    toolCallCount: 0,
+    tokenUsage: { input: 0, output: 0, cache: 0 },
+    error: {
+      code: 'EXEC-TEST',
+      message,
+      severity: ErrorSeverity.HIGH,
+      context: {},
+      timestamp: new Date().toISOString(),
+    },
+  };
+}
+
+describe('WorkerAgent - generateCode with ExecutionAdapter delegation', () => {
   let agent: WorkerAgent;
   let testDir: string;
 
@@ -81,91 +108,38 @@ describe('WorkerAgent - generateCode with bridge delegation', () => {
     }
   });
 
-  describe('setBridge', () => {
-    it('should allow setting a bridge', () => {
-      const bridge = createStubBridge({
-        output: '[]',
-        artifacts: [],
-        success: true,
-      });
+  describe('setExecutionAdapter', () => {
+    it('should allow setting an execution adapter', () => {
+      const adapter = new MockExecutionAdapter();
       // Should not throw
-      agent.setBridge(bridge);
+      agent.setExecutionAdapter(adapter);
     });
   });
 
-  describe('generateCode with bridge', () => {
-    it('should delegate to bridge when set', async () => {
-      const bridgeResponse: AgentResponse = {
-        output: JSON.stringify([
-          {
-            filePath: 'src/hello.ts',
-            action: 'create',
-            content: 'export const hello = "world";',
-            description: 'Create hello module',
-            linesAdded: 1,
-            linesRemoved: 0,
-          },
-        ]),
-        artifacts: [],
-        success: true,
-      };
-      const bridge = createStubBridge(bridgeResponse);
-      agent.setBridge(bridge);
+  describe('generateCode with adapter', () => {
+    it('should delegate to adapter when set', async () => {
+      const adapter = new MockExecutionAdapter({
+        defaultResult: successResult([]),
+      });
+      agent.setExecutionAdapter(adapter);
 
       const workOrder = createWorkOrder();
       const ctx = createExecutionContext(workOrder);
       await agent.generateCode(ctx);
 
-      expect(bridge.execute).toHaveBeenCalledOnce();
-      const request = (bridge.execute as ReturnType<typeof vi.fn>).mock.calls[0][0] as AgentRequest;
+      expect(adapter.calls).toHaveLength(1);
+      const request = adapter.calls[0] as StageExecutionRequest;
       expect(request.agentType).toBe('worker');
-      expect(request.projectDir).toBe(testDir);
+      expect(request.workOrder).toContain('ISS-001');
     });
 
-    it('should write files to disk on successful bridge response', async () => {
-      const fileContent = 'export const greet = (name: string) => `Hello ${name}`;';
-      const bridgeResponse: AgentResponse = {
-        output: JSON.stringify([
-          {
-            filePath: 'src/greet.ts',
-            action: 'create',
-            content: fileContent,
-            description: 'Create greet module',
-            linesAdded: 1,
-            linesRemoved: 0,
-          },
+    it('should record file changes from adapter artifacts', async () => {
+      const adapter = new MockExecutionAdapter({
+        defaultResult: successResult([
+          { path: 'src/new-file.ts', description: 'Created new file' },
         ]),
-        artifacts: [],
-        success: true,
-      };
-      const bridge = createStubBridge(bridgeResponse);
-      agent.setBridge(bridge);
-
-      const workOrder = createWorkOrder();
-      const ctx = createExecutionContext(workOrder);
-      await agent.generateCode(ctx);
-
-      const written = await readFile(join(testDir, 'src/greet.ts'), 'utf-8');
-      expect(written).toBe(fileContent);
-    });
-
-    it('should record file changes from bridge output', async () => {
-      const bridgeResponse: AgentResponse = {
-        output: JSON.stringify([
-          {
-            filePath: 'src/new-file.ts',
-            action: 'create',
-            content: 'export const x = 1;',
-            description: 'Create new file',
-            linesAdded: 1,
-            linesRemoved: 0,
-          },
-        ]),
-        artifacts: [],
-        success: true,
-      };
-      const bridge = createStubBridge(bridgeResponse);
-      agent.setBridge(bridge);
+      });
+      agent.setExecutionAdapter(adapter);
 
       const workOrder = createWorkOrder();
       const ctx = createExecutionContext(workOrder);
@@ -174,19 +148,14 @@ describe('WorkerAgent - generateCode with bridge delegation', () => {
       const changes = agent.getFileChanges();
       expect(changes.has('src/new-file.ts')).toBe(true);
       const change = changes.get('src/new-file.ts');
-      expect(change?.changeType).toBe('create');
-      expect(change?.linesAdded).toBe(1);
+      expect(change?.changeType).toBe('modify');
     });
 
-    it('should throw CodeGenerationError when bridge returns failure', async () => {
-      const bridgeResponse: AgentResponse = {
-        output: '',
-        artifacts: [],
-        success: false,
-        error: 'LLM returned an error',
-      };
-      const bridge = createStubBridge(bridgeResponse);
-      agent.setBridge(bridge);
+    it('should throw CodeGenerationError when adapter returns failure', async () => {
+      const adapter = new MockExecutionAdapter({
+        defaultResult: failedResult('LLM returned an error'),
+      });
+      agent.setExecutionAdapter(adapter);
 
       const workOrder = createWorkOrder();
       const ctx = createExecutionContext(workOrder);
@@ -194,31 +163,14 @@ describe('WorkerAgent - generateCode with bridge delegation', () => {
       await expect(agent.generateCode(ctx)).rejects.toThrow(CodeGenerationError);
     });
 
-    it('should handle multiple file changes in one response', async () => {
-      const bridgeResponse: AgentResponse = {
-        output: JSON.stringify([
-          {
-            filePath: 'src/a.ts',
-            action: 'create',
-            content: 'export const a = 1;',
-            description: 'Create a',
-            linesAdded: 1,
-            linesRemoved: 0,
-          },
-          {
-            filePath: 'src/b.ts',
-            action: 'create',
-            content: 'export const b = 2;',
-            description: 'Create b',
-            linesAdded: 1,
-            linesRemoved: 0,
-          },
+    it('should handle multiple artifacts in one response', async () => {
+      const adapter = new MockExecutionAdapter({
+        defaultResult: successResult([
+          { path: 'src/a.ts', description: 'Created a' },
+          { path: 'src/b.ts', description: 'Created b' },
         ]),
-        artifacts: [],
-        success: true,
-      };
-      const bridge = createStubBridge(bridgeResponse);
-      agent.setBridge(bridge);
+      });
+      agent.setExecutionAdapter(adapter);
 
       const workOrder = createWorkOrder();
       const ctx = createExecutionContext(workOrder);
@@ -227,89 +179,62 @@ describe('WorkerAgent - generateCode with bridge delegation', () => {
       const changes = agent.getFileChanges();
       expect(changes.has('src/a.ts')).toBe(true);
       expect(changes.has('src/b.ts')).toBe(true);
-
-      const contentA = await readFile(join(testDir, 'src/a.ts'), 'utf-8');
-      expect(contentA).toBe('export const a = 1;');
-      const contentB = await readFile(join(testDir, 'src/b.ts'), 'utf-8');
-      expect(contentB).toBe('export const b = 2;');
     });
 
-    it('should handle delete action', async () => {
-      // Create a file first
-      await mkdir(join(testDir, 'src'), { recursive: true });
-      const { writeFile } = await import('node:fs/promises');
-      await writeFile(join(testDir, 'src/to-delete.ts'), 'old content');
-
-      const bridgeResponse: AgentResponse = {
-        output: JSON.stringify([
-          {
-            filePath: 'src/to-delete.ts',
-            action: 'delete',
-            description: 'Remove deprecated file',
-            linesAdded: 0,
-            linesRemoved: 5,
-          },
-        ]),
-        artifacts: [],
-        success: true,
-      };
-      const bridge = createStubBridge(bridgeResponse);
-      agent.setBridge(bridge);
-
-      const workOrder = createWorkOrder();
-      const ctx = createExecutionContext(workOrder);
-      await agent.generateCode(ctx);
-
-      expect(existsSync(join(testDir, 'src/to-delete.ts'))).toBe(false);
-      const changes = agent.getFileChanges();
-      expect(changes.get('src/to-delete.ts')?.changeType).toBe('delete');
-    });
-
-    it('should pass work order and code context in bridge request', async () => {
-      const bridgeResponse: AgentResponse = {
-        output: '[]',
-        artifacts: [],
-        success: true,
-      };
-      const bridge = createStubBridge(bridgeResponse);
-      agent.setBridge(bridge);
+    it('should pass work order and code context in prior outputs', async () => {
+      const adapter = new MockExecutionAdapter({
+        defaultResult: successResult([]),
+      });
+      agent.setExecutionAdapter(adapter);
 
       const workOrder = createWorkOrder('ISS-042', 'WO-042');
       const ctx = createExecutionContext(workOrder);
       await agent.generateCode(ctx);
 
-      const request = (bridge.execute as ReturnType<typeof vi.fn>).mock.calls[0][0] as AgentRequest;
-      expect(request.priorStageOutputs.issue).toContain('ISS-042');
-      expect(request.priorStageOutputs.codeContext).toBeDefined();
+      const request = adapter.calls[0] as StageExecutionRequest;
+      expect(request.priorOutputs.issue).toContain('ISS-042');
+      expect(request.priorOutputs.codeContext).toBeDefined();
     });
 
-    it('should reject path traversal attempts', async () => {
-      const bridgeResponse: AgentResponse = {
-        output: JSON.stringify([
-          {
-            filePath: '../../../etc/passwd',
-            action: 'create',
-            content: 'malicious',
-            description: 'Attempt path traversal',
-            linesAdded: 1,
-            linesRemoved: 0,
-          },
+    it('should skip artifacts that escape project root', async () => {
+      const adapter = new MockExecutionAdapter({
+        defaultResult: successResult([
+          { path: '../../../etc/passwd', description: 'Escape attempt' },
+          { path: 'src/legit.ts', description: 'Legitimate file' },
         ]),
-        artifacts: [],
-        success: true,
-      };
-      const bridge = createStubBridge(bridgeResponse);
-      agent.setBridge(bridge);
+      });
+      agent.setExecutionAdapter(adapter);
 
       const workOrder = createWorkOrder();
       const ctx = createExecutionContext(workOrder);
+      await agent.generateCode(ctx);
 
-      await expect(agent.generateCode(ctx)).rejects.toThrow(CodeGenerationError);
+      const changes = agent.getFileChanges();
+      // Out-of-project artifact must be silently skipped
+      expect(changes.has('../../../etc/passwd')).toBe(false);
+      // Legitimate artifact is recorded
+      expect(changes.has('src/legit.ts')).toBe(true);
+    });
+
+    it('should normalize absolute artifact paths to project-relative', async () => {
+      const absoluteArtifact = join(testDir, 'src/abs.ts');
+      const adapter = new MockExecutionAdapter({
+        defaultResult: successResult([{ path: absoluteArtifact }]),
+      });
+      agent.setExecutionAdapter(adapter);
+
+      const workOrder = createWorkOrder();
+      const ctx = createExecutionContext(workOrder);
+      await agent.generateCode(ctx);
+
+      const changes = agent.getFileChanges();
+      // Stored as project-relative
+      expect(changes.has(join('src', 'abs.ts'))).toBe(true);
     });
   });
 
-  describe('generateCode without bridge (fallback)', () => {
-    it('should use stub behavior when no bridge is set', async () => {
+  describe('generateCode without adapter (fallback)', () => {
+    it('should use stub behavior when no adapter is set', async () => {
       const workOrder = createWorkOrder();
       const ctx = createExecutionContext(workOrder);
       await agent.generateCode(ctx);
@@ -412,77 +337,65 @@ describe('WorkerAgent - generateCode with bridge delegation', () => {
     });
   });
 
-  describe('buildCodeGenPrompt (via bridge request)', () => {
+  describe('buildCodeGenPrompt (via adapter request)', () => {
     it('should include issue ID and acceptance criteria in prompt', async () => {
-      const bridgeResponse: AgentResponse = {
-        output: '[]',
-        artifacts: [],
-        success: true,
-      };
-      const bridge = createStubBridge(bridgeResponse);
-      agent.setBridge(bridge);
+      const adapter = new MockExecutionAdapter({
+        defaultResult: successResult([]),
+      });
+      agent.setExecutionAdapter(adapter);
 
       const workOrder = createWorkOrder('ISS-099', 'WO-099');
       const ctx = createExecutionContext(workOrder);
       await agent.generateCode(ctx);
 
-      const request = (bridge.execute as ReturnType<typeof vi.fn>).mock.calls[0][0] as AgentRequest;
-      expect(request.input).toContain('ISS-099');
-      expect(request.input).toContain('Implement feature');
-      expect(request.input).toContain('Add tests');
+      const request = adapter.calls[0] as StageExecutionRequest;
+      expect(request.workOrder).toContain('ISS-099');
+      expect(request.workOrder).toContain('Implement feature');
+      expect(request.workOrder).toContain('Add tests');
     });
 
     it('should include code style information in prompt', async () => {
-      const bridgeResponse: AgentResponse = {
-        output: '[]',
-        artifacts: [],
-        success: true,
-      };
-      const bridge = createStubBridge(bridgeResponse);
-      agent.setBridge(bridge);
+      const adapter = new MockExecutionAdapter({
+        defaultResult: successResult([]),
+      });
+      agent.setExecutionAdapter(adapter);
 
       const workOrder = createWorkOrder();
       const ctx = createExecutionContext(workOrder);
       await agent.generateCode(ctx);
 
-      const request = (bridge.execute as ReturnType<typeof vi.fn>).mock.calls[0][0] as AgentRequest;
-      expect(request.input).toContain('single');
-      expect(request.input).toContain('spaces');
+      const request = adapter.calls[0] as StageExecutionRequest;
+      expect(request.workOrder).toContain('single');
+      expect(request.workOrder).toContain('spaces');
     });
 
     it('should include related file content in prompt', async () => {
-      const bridgeResponse: AgentResponse = {
-        output: '[]',
-        artifacts: [],
-        success: true,
-      };
-      const bridge = createStubBridge(bridgeResponse);
-      agent.setBridge(bridge);
+      const adapter = new MockExecutionAdapter({
+        defaultResult: successResult([]),
+      });
+      agent.setExecutionAdapter(adapter);
 
       const workOrder = createWorkOrder();
       const ctx = createExecutionContext(workOrder);
       await agent.generateCode(ctx);
 
-      const request = (bridge.execute as ReturnType<typeof vi.fn>).mock.calls[0][0] as AgentRequest;
-      expect(request.input).toContain('export const foo = 42;');
+      const request = adapter.calls[0] as StageExecutionRequest;
+      expect(request.workOrder).toContain('export const foo = 42;');
     });
 
     it('should include output format instructions', async () => {
-      const bridgeResponse: AgentResponse = {
-        output: '[]',
-        artifacts: [],
-        success: true,
-      };
-      const bridge = createStubBridge(bridgeResponse);
-      agent.setBridge(bridge);
+      const adapter = new MockExecutionAdapter({
+        defaultResult: successResult([]),
+      });
+      agent.setExecutionAdapter(adapter);
 
       const workOrder = createWorkOrder();
       const ctx = createExecutionContext(workOrder);
       await agent.generateCode(ctx);
 
-      const request = (bridge.execute as ReturnType<typeof vi.fn>).mock.calls[0][0] as AgentRequest;
-      expect(request.input).toContain('Output Format');
-      expect(request.input).toContain('JSON array');
+      const request = adapter.calls[0] as StageExecutionRequest;
+      expect(request.workOrder).toContain('Output Format');
+      expect(request.workOrder).toContain('JSON array');
     });
   });
 });
