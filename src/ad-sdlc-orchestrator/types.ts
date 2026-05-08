@@ -218,6 +218,16 @@ export interface OrchestratorSession {
   readonly preCompletedStages?: readonly StageName[];
   /** Whether the pipeline runs in local mode (no GitHub dependency) */
   readonly localMode: boolean;
+  /**
+   * SDK session id loaded from a v2 checkpoint when resuming. Forwarded
+   * as `resume: sessionId` on the FIRST stage executed in the resumed
+   * session so the SDK can recover its tool-loop context. Cleared after
+   * the first invocation; subsequent stages run fresh sessions.
+   *
+   * Absent (or empty) for: cold-start sessions, v1 checkpoint resumes,
+   * and adapters that do not surface a session id (Bedrock/Vertex).
+   */
+  readonly resumeSdkSessionId?: string;
 }
 
 /**
