@@ -149,13 +149,16 @@ describe('Orchestrator + FeatureFlagsResolver integration (#795)', () => {
     expect(orch.lastRoute).toBe('bridge');
   });
 
-  it('non-worker stages always go through bridge regardless of flag', async () => {
+  it('non-worker non-cutover stages always go through bridge regardless of flag', async () => {
     process.env[ENV_USE_SDK_FOR_WORKER] = '1';
     const orch = new RouteCapturingOrchestrator({ featureFlagsBaseDir: tmpRoot });
+    // Note: `collector` is now adapter-routed after AD-13-D (#826), so
+    // probe a still-bridge stage to verify the flag-independent bridge
+    // path is preserved for non-cutover, non-worker stages.
     const stage: PipelineStageDefinition = {
-      name: 'collection',
-      agentType: 'collector',
-      description: 'Collector stage',
+      name: 'regression',
+      agentType: 'regression-tester',
+      description: 'Regression tester stage',
       parallel: false,
       approvalRequired: false,
       dependsOn: [],

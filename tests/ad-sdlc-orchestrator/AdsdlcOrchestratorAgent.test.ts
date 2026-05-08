@@ -554,6 +554,18 @@ describe('AdsdlcOrchestratorAgent', () => {
             decidedAt: new Date().toISOString(),
           });
         }
+
+        // Stub invokeAgent so the import pipeline does not exercise the
+        // real adapter / bridge paths. After AD-13-D (#826) the
+        // `issue-reader` import-pipeline entry stage routes through
+        // ExecutionAdapter, which would trigger real SDK execution
+        // unless overridden here.
+        protected override async invokeAgent(
+          stage: PipelineStageDefinition,
+          _session: OrchestratorSession
+        ): Promise<string> {
+          return `Stage "${stage.name}" executed by ${stage.agentType}`;
+        }
       }
 
       const customAgent = new CustomApprovalOrchestrator({ approvalMode: 'custom' });

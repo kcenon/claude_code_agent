@@ -7,14 +7,18 @@
  * `AD_SDLC_USE_SDK_FOR_WORKER` feature flag.
  *
  * Stages in scope (8): PRD, SRS, SDP, SDS, UI, Threat Model, Tech
- * Decision, SVP Writers. The remaining 25 stages (handled by sibling
+ * Decision, SVP Writers. The remaining stages (handled by sibling
  * sub-PRs AD-13-B..E) must still flow through the bridge path; that
- * regression-zero promise is asserted via the `collector` stage.
+ * regression-zero promise is asserted via a still-bridge stage such as
+ * `regression-tester`. (After AD-13-D landed, the previously-bridge
+ * `collector` stage is now adapter-routed, so the regression probe was
+ * retargeted.)
  *
  * Acceptance Criteria mapping:
  *   AC-1  All 8 stages route exclusively through ExecutionAdapter.
  *   AC-2  No `executeViaBridge` call site for these 8 stages.
- *   AC-3  Other stages (e.g. `collector`) still use the bridge path.
+ *   AC-3  Other stages (e.g. `regression-tester`) still use the bridge
+ *         path.
  *   AC-4  Routing decision does not depend on the worker feature flag.
  */
 
@@ -177,13 +181,13 @@ describe('Doc Writers ExecutionAdapter cutover (#823)', () => {
   });
 
   describe('AC-3: regression-zero for other stages', () => {
-    it('still routes the collector stage via the bridge path', async () => {
-      const stage = buildStage('collector', 'collection');
+    it('still routes the regression-tester stage via the bridge path', async () => {
+      const stage = buildStage('regression-tester', 'regression');
       const session = buildSession();
 
       await orchestrator.callInvokeAgent(stage, session);
 
-      expect(orchestrator.bridgeCalls).toEqual(['collector']);
+      expect(orchestrator.bridgeCalls).toEqual(['regression-tester']);
       expect(orchestrator.adapterCalls).toEqual([]);
     });
 
