@@ -19,6 +19,8 @@ import {
   type ChangedFile,
 } from '../../src/regression-tester/index.js';
 
+import { ENHANCEMENT_STAGES } from '../../src/ad-sdlc-orchestrator/index.js';
+
 describe('RegressionTesterAgent', () => {
   let tempDir: string;
   let agent: RegressionTesterAgent;
@@ -487,5 +489,121 @@ describe('UserController', () => {
         'Dependency graph not found. Using naming-based mapping only.'
       );
     });
+  });
+
+  describe('executeTests — no test framework wired', () => {
+    // These tests use an agent with runTests: true to verify that executeTests
+    // itself never silently returns 'passed' when no real test framework is wired.
+    let runTestsAgent: RegressionTesterAgent;
+
+    beforeEach(() => {
+      runTestsAgent = new RegressionTesterAgent({
+        scratchpadBasePath: '.ad-sdlc/scratchpad',
+        runTests: true, // explicitly enable so executeTests is called
+        collectCoverage: false,
+      });
+    });
+
+    afterEach(() => {
+      resetRegressionTesterAgent();
+    });
+
+    it('should never emit "passed" status when no test framework is wired', async () => {
+      const changedFiles: ChangedFile[] = [
+        { path: 'src/services/userService.ts', changeType: 'modified', linesChanged: 10 },
+      ];
+
+      await runTestsAgent.startSession('test-project', tempDir, changedFiles);
+      const result = await runTestsAgent.analyze();
+
+      // Every result whose test file exists must be 'not-run', never 'passed'
+      for (const r of result.report.testExecution.results) {
+        expect(r.status).not.toBe('passed');
+      }
+    });
+
+    it('should set status to "not-run" for tests whose files exist but have not been executed', async () => {
+      const changedFiles: ChangedFile[] = [
+        { path: 'src/services/userService.ts', changeType: 'modified', linesChanged: 10 },
+      ];
+
+      await runTestsAgent.startSession('test-project', tempDir, changedFiles);
+      const result = await runTestsAgent.analyze();
+
+      // At least one test file exists in tempDir (userService.test.ts) so at
+      // least one result should carry 'not-run'
+      const notRunResults = result.report.testExecution.results.filter(
+        (r) => r.status === 'not-run'
+      );
+      expect(notRunResults.length).toBeGreaterThan(0);
+    });
+
+    it('should count not-run tests in notRun, not in passed', async () => {
+      const changedFiles: ChangedFile[] = [
+        { path: 'src/services/userService.ts', changeType: 'modified', linesChanged: 10 },
+      ];
+
+      await runTestsAgent.startSession('test-project', tempDir, changedFiles);
+      const result = await runTestsAgent.analyze();
+
+      const exec = result.report.testExecution;
+      expect(exec.passed).toBe(0);
+      expect(exec.notRun).toBeGreaterThan(0);
+    });
+
+    it('should produce a "warning" (not "passed") overall status when tests are not-run', async () => {
+      const changedFiles: ChangedFile[] = [
+        { path: 'src/services/userService.ts', changeType: 'modified', linesChanged: 10 },
+      ];
+
+      await runTestsAgent.startSession('test-project', tempDir, changedFiles);
+      const result = await runTestsAgent.analyze();
+
+      // When there are not-run tests the gate must be at least 'warning'
+      expect(result.report.summary.status).not.toBe('passed');
+    });
+
+    it('should include a recommendation explaining that tests were not executed', async () => {
+      const changedFiles: ChangedFile[] = [
+        { path: 'src/services/userService.ts', changeType: 'modified', linesChanged: 10 },
+      ];
+
+      await runTestsAgent.startSession('test-project', tempDir, changedFiles);
+      const result = await runTestsAgent.analyze();
+
+      const notRunRec = result.report.recommendations.find((r) =>
+        r.message.includes('not executed')
+      );
+      expect(notRunRec).toBeDefined();
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// ENHANCEMENT pipeline stage-graph: regression_testing → validation-agent order
+// ---------------------------------------------------------------------------
+describe('ENHANCEMENT_STAGES — regression_testing → validation-agent ordering', () => {
+  it('should include regression_testing in ENHANCEMENT_STAGES', () => {
+    const names = ENHANCEMENT_STAGES.map((s) => s.name);
+    expect(names).toContain('regression_testing');
+  });
+
+  it('should include validation-agent in ENHANCEMENT_STAGES', () => {
+    const names = ENHANCEMENT_STAGES.map((s) => s.name);
+    expect(names).toContain('validation-agent');
+  });
+
+  it('should have validation-agent depend on regression_testing', () => {
+    const validationStage = ENHANCEMENT_STAGES.find((s) => s.name === 'validation-agent');
+    expect(validationStage).toBeDefined();
+    expect(validationStage?.dependsOn).toContain('regression_testing');
+  });
+
+  it('should have regression_testing come before validation-agent in stage order', () => {
+    const regressionIdx = ENHANCEMENT_STAGES.findIndex((s) => s.name === 'regression_testing');
+    const validationIdx = ENHANCEMENT_STAGES.findIndex((s) => s.name === 'validation-agent');
+    expect(regressionIdx).toBeGreaterThanOrEqual(0);
+    expect(validationIdx).toBeGreaterThanOrEqual(0);
+    expect(regressionIdx).toBeLessThan(validationIdx);
   });
 });

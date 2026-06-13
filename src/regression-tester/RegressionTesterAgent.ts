@@ -594,9 +594,10 @@ export class RegressionTesterAgent implements IAgent {
   ): TestExecutionSummary {
     const results: TestResult[] = [];
     const startTime = Date.now();
-    let passed = 0;
+    const passed = 0;
     const failed = 0;
     let skipped = 0;
+    let notRun = 0;
 
     for (const test of affectedTests) {
       if (this.config.maxTests > 0 && results.length >= this.config.maxTests) {
@@ -604,7 +605,7 @@ export class RegressionTesterAgent implements IAgent {
       }
 
       const testStartTime = Date.now();
-      let status: 'passed' | 'failed' | 'skipped' | 'error' = 'passed';
+      let status: 'passed' | 'failed' | 'skipped' | 'error' | 'not-run';
       const errorMessage: string | null = null;
 
       // Check if test file exists in discovered tests
@@ -613,9 +614,11 @@ export class RegressionTesterAgent implements IAgent {
         status = 'skipped';
         skipped++;
       } else {
-        // In real implementation, this would run the actual test
-        // For now, we mark as passed (test framework integration needed)
-        passed++;
+        // No test framework is wired yet. Mark as 'not-run' so callers never
+        // mistake this for a passing result. Real execution will replace this
+        // path once test-framework integration is implemented.
+        status = 'not-run';
+        notRun++;
       }
 
       const durationMs = Date.now() - testStartTime;
@@ -635,6 +638,7 @@ export class RegressionTesterAgent implements IAgent {
       passed,
       failed,
       skipped,
+      notRun,
       durationSeconds: (Date.now() - startTime) / 1000,
       results,
     };
@@ -727,8 +731,25 @@ export class RegressionTesterAgent implements IAgent {
       });
     }
 
-    // All passed
-    if (testExecution.failed === 0 && compatibilityIssues.length === 0) {
+    // Not-run tests: surface explicitly so the outcome is never mistaken for a pass
+    if (testExecution.notRun > 0) {
+      const notRunTests = testExecution.results
+        .filter((r) => r.status === 'not-run')
+        .map((r) => r.testFile);
+      recommendations.push({
+        type: 'review_suggested',
+        priority: 'high',
+        message: `${String(testExecution.notRun)} test(s) were not executed — no test framework is wired. Integrate a test runner to get real regression results.`,
+        relatedTests: notRunTests,
+      });
+    }
+
+    // All passed (only when none are not-run)
+    if (
+      testExecution.failed === 0 &&
+      testExecution.notRun === 0 &&
+      compatibilityIssues.length === 0
+    ) {
       recommendations.push({
         type: 'acceptable',
         priority: 'low',
@@ -790,19 +811,29 @@ export class RegressionTesterAgent implements IAgent {
       compatibilityIssues.filter((i) => i.severity === 'critical' || i.severity === 'high').length +
       testExecution.failed;
 
+    // Tests with 'not-run' status have an unknown outcome and must never produce
+    // an overall 'passed' verdict — surface them as at least 'warning'.
     const status: RegressionSummary['status'] =
-      blockingIssues > 0 ? 'failed' : testExecution.failed > 0 ? 'warning' : 'passed';
+      blockingIssues > 0
+        ? 'failed'
+        : testExecution.failed > 0 || testExecution.notRun > 0
+          ? 'warning'
+          : 'passed';
+
+    const summaryMessage =
+      status === 'passed'
+        ? 'All regression tests passed'
+        : status === 'warning' && testExecution.notRun > 0
+          ? `${String(testExecution.notRun)} test(s) not executed — no test framework wired`
+          : status === 'warning'
+            ? 'Some tests failed but no blocking issues'
+            : `${String(blockingIssues)} blocking issue(s) found`;
 
     const summary: RegressionSummary = {
       status,
       totalIssues: compatibilityIssues.length,
       blockingIssues,
-      message:
-        status === 'passed'
-          ? 'All regression tests passed'
-          : status === 'warning'
-            ? 'Some tests failed but no blocking issues'
-            : `${String(blockingIssues)} blocking issue(s) found`,
+      message: summaryMessage,
     };
 
     return {
@@ -1135,6 +1166,7 @@ export class RegressionTesterAgent implements IAgent {
       passed: 0,
       failed: 0,
       skipped: 0,
+      notRun: 0,
       durationSeconds: 0,
       results: [],
     };

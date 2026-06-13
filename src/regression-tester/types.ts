@@ -7,8 +7,15 @@
 
 /**
  * Test execution status
+ *
+ * - 'passed'  — test ran and succeeded
+ * - 'failed'  — test ran and failed
+ * - 'skipped' — test was intentionally skipped (e.g. file not found)
+ * - 'error'   — test runner encountered an unexpected error
+ * - 'not-run' — no test framework is wired; the test was NOT executed and
+ *               its outcome is unknown. Never treat this as a pass.
  */
-export type TestStatus = 'passed' | 'failed' | 'skipped' | 'error';
+export type TestStatus = 'passed' | 'failed' | 'skipped' | 'error' | 'not-run';
 
 /**
  * Priority levels for affected tests
@@ -195,6 +202,12 @@ export interface TestExecutionSummary {
   readonly failed: number;
   /** Number of skipped tests */
   readonly skipped: number;
+  /**
+   * Number of tests that were NOT executed because no test framework is wired.
+   * These are distinct from skipped: their outcome is unknown and they must
+   * never be counted as passed.
+   */
+  readonly notRun: number;
   /** Total duration in seconds */
   readonly durationSeconds: number;
   /** Individual test results */
