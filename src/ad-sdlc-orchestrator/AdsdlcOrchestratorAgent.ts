@@ -299,6 +299,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
       scratchpadDir,
       localMode,
       ...(preCompletedStages !== null ? { preCompletedStages } : {}),
+      ...(request.stopAfterStage !== undefined ? { stopAfterStage: request.stopAfterStage } : {}),
     };
 
     this.abortController = new AbortController();

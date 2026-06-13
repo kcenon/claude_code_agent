@@ -246,6 +246,12 @@ export interface OrchestratorSession {
   readonly resumedFrom?: string;
   /** Stages treated as pre-completed when resuming */
   readonly preCompletedStages?: readonly StageName[];
+  /**
+   * When set, the pipeline halts after this stage completes (inclusive).
+   * Derived from `PipelineRequest.stopAfterStage` and stored on the
+   * session so the scheduler can honour it without access to the request.
+   */
+  readonly stopAfterStage?: StageName;
   /** Whether the pipeline runs in local mode (no GitHub dependency) */
   readonly localMode: boolean;
   /**
@@ -280,6 +286,12 @@ export interface PipelineRequest {
   readonly startFromStage?: StageName;
   /** Stages to treat as already completed (auto-populated from prior session or computed from startFromStage) */
   readonly preCompletedStages?: readonly StageName[];
+  /**
+   * Stop pipeline after this stage completes (inclusive). Stages that
+   * follow `stopAfterStage` in the DAG are skipped. The named stage
+   * itself IS executed. Unrelated to `resumeMode` / `startFromStage`.
+   */
+  readonly stopAfterStage?: StageName;
   /** Run pipeline without GitHub — use local issue files and local review */
   readonly localMode?: boolean;
 }

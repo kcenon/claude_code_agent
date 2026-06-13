@@ -37,7 +37,7 @@ import {
   getAdsdlcOrchestratorAgent,
   resetAdsdlcOrchestratorAgent,
 } from './ad-sdlc-orchestrator/index.js';
-import type { PipelineMode, PipelineRequest } from './ad-sdlc-orchestrator/index.js';
+import type { PipelineMode, PipelineRequest, StageName } from './ad-sdlc-orchestrator/index.js';
 import {
   GREENFIELD_STAGES,
   ENHANCEMENT_STAGES,
@@ -1212,7 +1212,7 @@ program
           resumeSessionId,
         }),
         ...(stopAfter !== undefined && {
-          resumeMode: 'start_from' as const,
+          stopAfterStage: stopAfter as StageName,
         }),
       };
 
