@@ -79,7 +79,7 @@ import { randomUUID } from 'node:crypto';
 import * as yaml from 'js-yaml';
 import { InputValidator } from '../security/index.js';
 import { tryGetProjectRoot } from '../utils/index.js';
-import { FileBackend } from './backends/FileBackend.js';
+import { BackendFactory } from './backends/BackendFactory.js';
 import type { IScratchpadBackend } from './backends/IScratchpadBackend.js';
 import type {
   ScratchpadOptions,
@@ -95,6 +95,7 @@ import type {
   LockReleaseRequest,
   SerializationFormat,
 } from './types.js';
+import type { ScratchpadBackendConfig } from './backends/types.js';
 import { EXTENSION_TO_FORMAT } from './types.js';
 import { LockContentionError } from './errors.js';
 import { DEFAULT_PATHS } from '../config/paths.js';
@@ -215,8 +216,10 @@ export class Scratchpad {
   private readonly projectRoot: string;
   /** Pending release requests created by this instance */
   private readonly pendingReleaseRequests: Set<string> = new Set();
-  /** File backend for storage operations */
-  private readonly backend: IScratchpadBackend;
+  /** Backend config for lazy initialization (used when backend !== 'file') */
+  private readonly backendConfig: ScratchpadBackendConfig;
+  /** Storage backend instance (null until first use; set during ensureBackendInitialized) */
+  private backend: IScratchpadBackend | null = null;
   /** Whether the backend has been initialized */
   private backendInitialized = false;
 
@@ -249,13 +252,33 @@ export class Scratchpad {
       : path.resolve(this.projectRoot, this.basePath);
     this.validator = new InputValidator({ basePath: resolvedBasePath });
 
-    // Initialize file backend with raw format (no extension manipulation)
-    this.backend = new FileBackend({
-      basePath: resolvedBasePath,
-      fileMode: this.fileMode,
-      dirMode: this.dirMode,
-      format: 'raw',
-    });
+    // Build the backend config to use during lazy initialization.
+    // FileBackend is always available (no optional deps); SQLite/Redis are loaded
+    // lazily via dynamic import() in BackendFactory.create() so that consumers who
+    // never select those backends are not forced to install better-sqlite3 / ioredis.
+    const backendType = options.backend ?? 'file';
+    if (backendType === 'file') {
+      this.backendConfig = {
+        backend: 'file',
+        file: {
+          basePath: resolvedBasePath,
+          fileMode: this.fileMode,
+          dirMode: this.dirMode,
+          format: 'raw',
+        },
+      };
+    } else if (backendType === 'sqlite') {
+      this.backendConfig = {
+        backend: 'sqlite',
+        ...(options.sqlite !== undefined ? { sqlite: options.sqlite } : {}),
+      };
+    } else {
+      // redis
+      this.backendConfig = {
+        backend: 'redis',
+        ...(options.redis !== undefined ? { redis: options.redis } : {}),
+      };
+    }
   }
 
   // ============================================================
@@ -278,13 +301,32 @@ export class Scratchpad {
   // ============================================================
 
   /**
-   * Ensure the backend is initialized
+   * Ensure the backend is created and initialized.
+   *
+   * For the file backend the instance is created synchronously the first time
+   * this is called. For sqlite/redis backends BackendFactory.create() is awaited,
+   * which triggers a lazy dynamic import() of the optional-dependency module.
+   * Subsequent calls are no-ops.
    */
   private async ensureBackendInitialized(): Promise<void> {
     if (!this.backendInitialized) {
+      if (this.backend === null) {
+        this.backend = await BackendFactory.create(this.backendConfig);
+      }
       await this.backend.initialize();
       this.backendInitialized = true;
     }
+  }
+
+  /**
+   * Return the initialized backend instance.
+   * Must only be called after ensureBackendInitialized().
+   */
+  private getBackend(): IScratchpadBackend {
+    if (this.backend === null) {
+      throw new Error('Backend not yet initialized. Call ensureBackendInitialized() first.');
+    }
+    return this.backend;
   }
 
   /**
@@ -575,7 +617,7 @@ export class Scratchpad {
     // Use backend for atomic write
     await this.ensureBackendInitialized();
     const { section, key } = this.pathToSectionKey(validatedPath);
-    await this.backend.write(section, key, content);
+    await this.getBackend().write(section, key, content);
   }
 
   /**
@@ -1459,7 +1501,7 @@ export class Scratchpad {
     try {
       await this.ensureBackendInitialized();
       const { section, key } = this.pathToSectionKey(validatedPath);
-      const content = await this.backend.read<string>(section, key);
+      const content = await this.getBackend().read<string>(section, key);
 
       if (content === null) {
         if (allowMissing) {
@@ -1544,7 +1586,7 @@ export class Scratchpad {
     const content = this.serialize(data, format);
     await this.ensureBackendInitialized();
     const { section, key } = this.pathToSectionKey(validatedPath);
-    await this.backend.write(section, key, content);
+    await this.getBackend().write(section, key, content);
   }
 
   /**
@@ -1611,7 +1653,7 @@ export class Scratchpad {
     try {
       await this.ensureBackendInitialized();
       const { section, key } = this.pathToSectionKey(validatedPath);
-      const content = await this.backend.read<string>(section, key);
+      const content = await this.getBackend().read<string>(section, key);
 
       if (content === null) {
         if (allowMissing) {
@@ -1709,7 +1751,7 @@ export class Scratchpad {
     try {
       await this.ensureBackendInitialized();
       const { section, key } = this.pathToSectionKey(validatedPath);
-      const content = await this.backend.read<string>(section, key);
+      const content = await this.getBackend().read<string>(section, key);
 
       if (content === null) {
         if (allowMissing) {
@@ -1801,7 +1843,7 @@ export class Scratchpad {
     try {
       await this.ensureBackendInitialized();
       const { section, key } = this.pathToSectionKey(validatedPath);
-      const content = await this.backend.read<string>(section, key);
+      const content = await this.getBackend().read<string>(section, key);
 
       if (content === null) {
         if (allowMissing) {
@@ -1888,7 +1930,7 @@ export class Scratchpad {
     const validatedPath = this.validatePath(filePath);
     await this.ensureBackendInitialized();
     const { section, key } = this.pathToSectionKey(validatedPath);
-    return this.backend.exists(section, key);
+    return this.getBackend().exists(section, key);
   }
 
   /**
@@ -1918,7 +1960,7 @@ export class Scratchpad {
     const validatedPath = this.validatePath(filePath);
     await this.ensureBackendInitialized();
     const { section, key } = this.pathToSectionKey(validatedPath);
-    const deleted = await this.backend.delete(section, key);
+    const deleted = await this.getBackend().delete(section, key);
     if (!deleted) {
       const error = new Error(`ENOENT: no such file or directory, unlink '${validatedPath}'`);
       (error as NodeJS.ErrnoException).code = 'ENOENT';
@@ -1973,7 +2015,7 @@ export class Scratchpad {
 
     // Close backend
     if (this.backendInitialized) {
-      await this.backend.close();
+      await this.backend?.close();
       this.backendInitialized = false;
     }
   }

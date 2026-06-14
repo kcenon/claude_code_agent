@@ -95,6 +95,47 @@ export interface ScratchpadOptions {
    * within this duration.
    */
   readonly heartbeatTimeoutMs?: number;
+  /**
+   * Storage backend type to use (default: 'file').
+   * - 'file': File-based storage (default, no optional dependencies)
+   * - 'sqlite': SQLite-based storage (requires better-sqlite3)
+   * - 'redis': Redis-based storage (requires ioredis)
+   */
+  readonly backend?: 'file' | 'sqlite' | 'redis';
+  /**
+   * SQLite backend specific options.
+   * Only used when backend is 'sqlite'.
+   */
+  readonly sqlite?: {
+    /** Path to SQLite database file (default: '.ad-sdlc/scratchpad.db') */
+    readonly dbPath?: string;
+    /** Enable WAL mode for better concurrency (default: true) */
+    readonly walMode?: boolean;
+    /** Busy timeout in milliseconds (default: 5000) */
+    readonly busyTimeout?: number;
+  };
+  /**
+   * Redis backend specific options.
+   * Required when backend is 'redis'.
+   */
+  readonly redis?: {
+    /** Redis host (default: 'localhost') */
+    readonly host?: string;
+    /** Redis port (default: 6379) */
+    readonly port?: number;
+    /** Redis password (optional) */
+    readonly password?: string;
+    /** Redis database number (default: 0) */
+    readonly db?: number;
+    /** Key prefix (default: 'ad-sdlc:scratchpad:') */
+    readonly prefix?: string;
+    /** TTL in seconds for entries (optional, no expiry if not set) */
+    readonly ttl?: number;
+    /** Connection timeout in milliseconds (default: 5000) */
+    readonly connectTimeout?: number;
+    /** Maximum retry attempts on connection failure (default: 3) */
+    readonly maxRetries?: number;
+  };
 }
 
 /**

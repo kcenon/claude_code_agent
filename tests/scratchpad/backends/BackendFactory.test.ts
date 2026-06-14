@@ -12,25 +12,25 @@ import { RedisBackend } from '../../../src/scratchpad/backends/RedisBackend.js';
 
 describe('BackendFactory', () => {
   describe('create', () => {
-    it('should create file backend by default', () => {
-      const backend = BackendFactory.create();
+    it('should create file backend by default', async () => {
+      const backend = await BackendFactory.create();
       expect(backend).toBeInstanceOf(FileBackend);
       expect(backend.name).toBe('file');
     });
 
-    it('should create file backend when specified', () => {
-      const backend = BackendFactory.create({ backend: 'file' });
+    it('should create file backend when specified', async () => {
+      const backend = await BackendFactory.create({ backend: 'file' });
       expect(backend).toBeInstanceOf(FileBackend);
     });
 
-    it('should create sqlite backend when specified', () => {
-      const backend = BackendFactory.create({ backend: 'sqlite' });
+    it('should create sqlite backend when specified', async () => {
+      const backend = await BackendFactory.create({ backend: 'sqlite' });
       expect(backend).toBeInstanceOf(SQLiteBackend);
       expect(backend.name).toBe('sqlite');
     });
 
-    it('should create redis backend when specified with config', () => {
-      const backend = BackendFactory.create({
+    it('should create redis backend when specified with config', async () => {
+      const backend = await BackendFactory.create({
         backend: 'redis',
         redis: {
           host: 'localhost',
@@ -41,36 +41,38 @@ describe('BackendFactory', () => {
       expect(backend.name).toBe('redis');
     });
 
-    it('should throw error for redis without config', () => {
-      expect(() => BackendFactory.create({ backend: 'redis' })).toThrow(BackendCreationError);
-    });
-
-    it('should throw error for unknown backend type', () => {
-      expect(() => BackendFactory.create({ backend: 'unknown' as 'file' })).toThrow(
+    it('should throw error for redis without config', async () => {
+      await expect(BackendFactory.create({ backend: 'redis' })).rejects.toThrow(
         BackendCreationError
       );
     });
 
-    it('should pass file config to FileBackend', () => {
-      const backend = BackendFactory.create({
+    it('should throw error for unknown backend type', async () => {
+      await expect(BackendFactory.create({ backend: 'unknown' as 'file' })).rejects.toThrow(
+        BackendCreationError
+      );
+    });
+
+    it('should pass file config to FileBackend', async () => {
+      const backend = (await BackendFactory.create({
         backend: 'file',
         file: {
           basePath: '/custom/path',
           format: 'json',
         },
-      }) as FileBackend;
+      })) as FileBackend;
 
       expect(backend).toBeInstanceOf(FileBackend);
     });
 
-    it('should pass sqlite config to SQLiteBackend', () => {
-      const backend = BackendFactory.create({
+    it('should pass sqlite config to SQLiteBackend', async () => {
+      const backend = (await BackendFactory.create({
         backend: 'sqlite',
         sqlite: {
           dbPath: '/custom/db.sqlite',
           walMode: false,
         },
-      }) as SQLiteBackend;
+      })) as SQLiteBackend;
 
       expect(backend).toBeInstanceOf(SQLiteBackend);
     });
