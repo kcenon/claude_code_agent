@@ -421,9 +421,11 @@ describe('InputParser', () => {
     });
 
     it('should throw UrlFetchError for HTTP error responses', async () => {
-      globalThis.fetch = vi.fn().mockResolvedValue(
-        createMockResponse('Not Found', { status: 404, statusText: 'Not Found' })
-      );
+      globalThis.fetch = vi
+        .fn()
+        .mockResolvedValue(
+          createMockResponse('Not Found', { status: 404, statusText: 'Not Found' })
+        );
 
       await expect(parser.parseUrl('https://example.com/missing')).rejects.toThrow(UrlFetchError);
     });
@@ -447,12 +449,27 @@ describe('InputParser', () => {
     });
 
     it('should track final URL after redirects', async () => {
-      globalThis.fetch = vi.fn().mockResolvedValue(
-        createMockResponse('Redirected content', {
-          contentType: 'text/plain',
-          url: 'https://example.com/final-page',
-        })
-      );
+      // Simulate a 301 redirect: first call returns 301 with Location header,
+      // second call returns the actual content at the final URL.
+      globalThis.fetch = vi
+        .fn()
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 301,
+          statusText: 'Moved Permanently',
+          headers: new Headers({
+            'content-type': 'text/plain',
+            location: 'https://example.com/final-page',
+          }),
+          text: async () => '',
+          url: 'https://example.com/redirect',
+        } as Response)
+        .mockResolvedValueOnce(
+          createMockResponse('Redirected content', {
+            contentType: 'text/plain',
+            url: 'https://example.com/final-page',
+          })
+        );
 
       const result = await parser.parseUrl('https://example.com/redirect');
 
@@ -624,19 +641,23 @@ describe('InputParser', () => {
     });
 
     it('should include final URL in result', async () => {
+      // Without a redirect, finalUrl equals the requested URL.
+      // The previous implementation used response.url for finalUrl; the new
+      // implementation tracks the URL through the manual redirect loop and
+      // reports currentUrl as finalUrl.
       globalThis.fetch = vi.fn().mockResolvedValue({
         ok: true,
         status: 200,
         statusText: 'OK',
         headers: new Headers({ 'content-type': 'text/plain' }),
         text: async () => 'content',
-        url: 'https://example.com/final',
+        url: 'https://example.com/original',
       } as Response);
 
       const result = await parser.fetchUrlContent('https://example.com/original');
 
       expect(result.success).toBe(true);
-      expect(result.finalUrl).toBe('https://example.com/final');
+      expect(result.finalUrl).toBe('https://example.com/original');
     });
   });
 });
