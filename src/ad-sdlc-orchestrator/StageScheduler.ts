@@ -410,6 +410,30 @@ export async function runStages(
         }
       }
       await saveCheckpoint(host, session, results, [...completedStages]);
+
+      // Stop the pipeline if stopAfterStage was in the parallel group
+      if (
+        session.stopAfterStage !== undefined &&
+        parallelGroup.some((s) => s.name === session.stopAfterStage)
+      ) {
+        const processedSoFar = new Set(results.map((r) => r.name));
+        const toSkip = [...remaining, ...sequentialGroup].filter(
+          (s) => !processedSoFar.has(s.name)
+        );
+        for (const skipped of toSkip) {
+          results.push({
+            name: skipped.name,
+            agentType: skipped.agentType,
+            status: 'skipped',
+            durationMs: 0,
+            output: '',
+            artifacts: [],
+            error: `Skipped: pipeline halted after '${session.stopAfterStage}'`,
+            retryCount: 0,
+          });
+        }
+        return results;
+      }
     } else if (parallelGroup.length === 1) {
       const singleStage = parallelGroup[0];
       if (singleStage) {
@@ -449,6 +473,24 @@ export async function runStages(
       }
 
       await saveCheckpoint(host, session, results, [...completedStages]);
+
+      // Stop the pipeline after this stage if stopAfterStage is set
+      if (session.stopAfterStage !== undefined && stage.name === session.stopAfterStage) {
+        const remainingToSkip = remaining.filter((s) => !results.some((r) => r.name === s.name));
+        for (const skipped of remainingToSkip) {
+          results.push({
+            name: skipped.name,
+            agentType: skipped.agentType,
+            status: 'skipped',
+            durationMs: 0,
+            output: '',
+            artifacts: [],
+            error: `Skipped: pipeline halted after '${session.stopAfterStage}'`,
+            retryCount: 0,
+          });
+        }
+        return results;
+      }
     }
 
     const processedNames = new Set(results.map((r) => r.name));

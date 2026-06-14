@@ -1694,3 +1694,171 @@ describe('Module Registration in agents/index.ts', () => {
     expect(barrelSource).toContain('InvalidProjectDirError');
   });
 });
+
+describe('stopAfterStage — #868 regression', () => {
+  let tempDir: string;
+
+  beforeEach(async () => {
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'adsdlc-stop-after-test-'));
+    resetAdsdlcOrchestratorAgent();
+  });
+
+  afterEach(async () => {
+    try {
+      await fs.rm(tempDir, { recursive: true, force: true });
+    } catch {
+      // ignore
+    }
+    resetAdsdlcOrchestratorAgent();
+  });
+
+  it('should populate stopAfterStage on the request and thread it through startSession', async () => {
+    const executionOrder: string[] = [];
+
+    class TrackingOrchestrator extends AdsdlcOrchestratorAgent {
+      protected override async invokeAgent(
+        stage: { name: string; agentType: string },
+        _session: unknown
+      ): Promise<string> {
+        executionOrder.push(stage.name);
+        return `Stage "${stage.name}" completed`;
+      }
+    }
+
+    const agent = new TrackingOrchestrator();
+    await agent.initialize();
+
+    // (a) stopAfterStage is populated on the request and threads through startSession
+    const session = await agent.startSession({
+      projectDir: tempDir,
+      userRequest: 'test stop after',
+      overrideMode: 'import',
+      stopAfterStage: 'issue_reading',
+    });
+
+    expect(session.stopAfterStage).toBe('issue_reading');
+
+    await agent.dispose();
+  });
+
+  it('should execute the stopAfterStage itself but skip all later stages', async () => {
+    const executionOrder: string[] = [];
+
+    class TrackingOrchestrator extends AdsdlcOrchestratorAgent {
+      protected override async invokeAgent(
+        stage: { name: string; agentType: string },
+        _session: unknown
+      ): Promise<string> {
+        executionOrder.push(stage.name);
+        return `Stage "${stage.name}" completed`;
+      }
+    }
+
+    const agent = new TrackingOrchestrator();
+    await agent.initialize();
+
+    // Use import mode: issue_reading → orchestration → implementation → validation-agent → review
+    // Stop after orchestration (a middle stage)
+    await agent.startSession({
+      projectDir: tempDir,
+      userRequest: 'test stop after orchestration',
+      overrideMode: 'import',
+      stopAfterStage: 'orchestration',
+    });
+
+    // (b) executePipeline consumes the session built by startSession (stopAfterStage flows through)
+    const result = await agent.executePipeline(tempDir, 'test stop after orchestration');
+
+    // (c) stages AFTER orchestration are NOT executed
+    expect(executionOrder).not.toContain('implementation');
+    expect(executionOrder).not.toContain('validation-agent');
+    expect(executionOrder).not.toContain('review');
+
+    // (d) orchestration itself IS executed
+    expect(executionOrder).toContain('orchestration');
+    expect(executionOrder).toContain('issue_reading');
+
+    // Result includes skipped entries for the halted stages
+    const skippedNames = result.stages.filter((s) => s.status === 'skipped').map((s) => s.name);
+    expect(skippedNames).toContain('implementation');
+    expect(skippedNames).toContain('validation-agent');
+    expect(skippedNames).toContain('review');
+
+    await agent.dispose();
+  });
+
+  it('should still thread resumeSessionId through executePipeline via the pre-built session', async () => {
+    const executionOrder: string[] = [];
+
+    class TrackingOrchestrator extends AdsdlcOrchestratorAgent {
+      protected override async invokeAgent(
+        stage: { name: string; agentType: string },
+        _session: unknown
+      ): Promise<string> {
+        executionOrder.push(stage.name);
+        return `Stage "${stage.name}" completed`;
+      }
+    }
+
+    // Run a first pipeline to get a session id
+    const firstAgent = new TrackingOrchestrator();
+    await firstAgent.initialize();
+    const firstResult = await firstAgent.executePipeline(tempDir, 'first run');
+    const firstSessionId = firstResult.pipelineId;
+    await firstAgent.dispose();
+
+    resetAdsdlcOrchestratorAgent();
+
+    // Resume using resumeSessionId — the pre-built session must flow through
+    const resumeAgent = new TrackingOrchestrator();
+    await resumeAgent.initialize();
+    const resumeSession = await resumeAgent.startSession({
+      projectDir: tempDir,
+      userRequest: 'resume',
+      resumeMode: 'resume',
+      resumeSessionId: firstSessionId,
+    });
+
+    expect(resumeSession.resumedFrom ?? resumeSession.sessionId).toBeDefined();
+
+    await resumeAgent.dispose();
+  });
+
+  it('should not execute any stage after stopAfterStage even when earlier stages are pre-completed', async () => {
+    const executionOrder: string[] = [];
+
+    class TrackingOrchestrator extends AdsdlcOrchestratorAgent {
+      protected override async invokeAgent(
+        stage: { name: string; agentType: string },
+        _session: unknown
+      ): Promise<string> {
+        executionOrder.push(stage.name);
+        return `Stage "${stage.name}" completed`;
+      }
+    }
+
+    const agent = new TrackingOrchestrator();
+    await agent.initialize();
+
+    // Pre-complete issue_reading, then stop after orchestration
+    await agent.startSession({
+      projectDir: tempDir,
+      userRequest: 'pre-completed + stop after',
+      overrideMode: 'import',
+      preCompletedStages: ['issue_reading'],
+      stopAfterStage: 'orchestration',
+    });
+
+    const result = await agent.executePipeline(tempDir, 'pre-completed + stop after');
+
+    // Only orchestration should run (issue_reading was pre-completed)
+    expect(executionOrder).toContain('orchestration');
+    expect(executionOrder).not.toContain('implementation');
+    expect(executionOrder).not.toContain('review');
+
+    const skippedNames = result.stages.filter((s) => s.status === 'skipped').map((s) => s.name);
+    expect(skippedNames).toContain('implementation');
+
+    await agent.dispose();
+  });
+});
