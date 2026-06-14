@@ -13,8 +13,6 @@
 import type { IScratchpadBackend } from './IScratchpadBackend.js';
 import type { ScratchpadBackendConfig, BackendType } from './types.js';
 import { FileBackend } from './FileBackend.js';
-import { SQLiteBackend } from './SQLiteBackend.js';
-import { RedisBackend } from './RedisBackend.js';
 import { loadScratchpadConfig } from './configLoader.js';
 import { getLogger } from '../../logging/index.js';
 
@@ -38,37 +36,48 @@ export class BackendCreationError extends Error {
  *
  * @example
  * ```typescript
- * const backend = BackendFactory.create({ backend: 'sqlite' });
+ * const backend = await BackendFactory.create({ backend: 'sqlite' });
  * await backend.initialize();
  * ```
  */
 // eslint-disable-next-line @typescript-eslint/no-extraneous-class
 export class BackendFactory {
   /**
-   * Create a backend instance based on configuration
+   * Create a backend instance based on configuration.
+   *
+   * SQLite and Redis backends are loaded via dynamic import() so that their
+   * optional peer dependencies (better-sqlite3, ioredis) are never required by
+   * consumers who only use the default file backend.
+   * FileBackend is imported eagerly because it is the default and has no optional deps.
    *
    * @param config - Backend configuration
    * @returns Uninitialized backend instance
    * @throws BackendCreationError if backend type is unknown
    */
-  static create(config: ScratchpadBackendConfig = {}): IScratchpadBackend {
+  static async create(config: ScratchpadBackendConfig = {}): Promise<IScratchpadBackend> {
     const backendType = config.backend ?? 'file';
 
     switch (backendType) {
       case 'file':
         return new FileBackend(config.file);
 
-      case 'sqlite':
+      case 'sqlite': {
+        // Lazy-load: better-sqlite3 is only required when SQLite backend is selected
+        const { SQLiteBackend } = await import('./SQLiteBackend.js');
         return new SQLiteBackend(config.sqlite);
+      }
 
-      case 'redis':
+      case 'redis': {
         if (!config.redis) {
           throw new BackendCreationError(
             'redis',
             'Redis configuration is required. Provide host, port, etc.'
           );
         }
+        // Lazy-load: ioredis is only required when Redis backend is selected
+        const { RedisBackend } = await import('./RedisBackend.js');
         return new RedisBackend(config.redis);
+      }
 
       default:
         throw new BackendCreationError(
@@ -90,7 +99,7 @@ export class BackendFactory {
     config: ScratchpadBackendConfig = {}
   ): Promise<IScratchpadBackend> {
     const backendType = config.backend ?? 'file';
-    const backend = BackendFactory.create(config);
+    const backend = await BackendFactory.create(config);
 
     try {
       await backend.initialize();
