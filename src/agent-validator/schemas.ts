@@ -5,6 +5,7 @@
  */
 
 import { z } from 'zod';
+import { CANONICAL_TOOLS, CANONICAL_MODELS } from '../config/allowlist.js';
 
 /**
  * Schema version for agent definitions
@@ -12,27 +13,16 @@ import { z } from 'zod';
 export const AGENT_SCHEMA_VERSION = '1.0.0';
 
 /**
- * Valid tool names
+ * Valid tool names — derived from the canonical allowlist (src/config/allowlist.ts).
+ * Do not add tools here; add them to the canonical module instead.
  */
-export const VALID_TOOLS = [
-  'Read',
-  'Write',
-  'Edit',
-  'Bash',
-  'Glob',
-  'Grep',
-  'WebFetch',
-  'WebSearch',
-  'LSP',
-  'Task',
-  'TodoWrite',
-  'NotebookEdit',
-] as const;
+export const VALID_TOOLS = CANONICAL_TOOLS;
 
 /**
- * Valid model names
+ * Valid model names — derived from the canonical allowlist (src/config/allowlist.ts).
+ * Do not add models here; add them to the canonical module instead.
  */
-export const VALID_MODELS = ['sonnet', 'opus', 'haiku'] as const;
+export const VALID_MODELS = CANONICAL_MODELS;
 
 /**
  * Schema for agent tool

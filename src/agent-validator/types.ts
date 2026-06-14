@@ -4,27 +4,19 @@
  * @module agent-validator/types
  */
 
-/**
- * Valid tool names that can be used by agents
- */
-export type AgentTool =
-  | 'Read'
-  | 'Write'
-  | 'Edit'
-  | 'Bash'
-  | 'Glob'
-  | 'Grep'
-  | 'WebFetch'
-  | 'WebSearch'
-  | 'LSP'
-  | 'Task'
-  | 'TodoWrite'
-  | 'NotebookEdit';
+import type { CanonicalTool, CanonicalModel } from '../config/allowlist.js';
 
 /**
- * Valid model names
+ * Valid tool names that can be used by agents.
+ * Aliased from the canonical allowlist (src/config/allowlist.ts).
  */
-export type AgentModel = 'sonnet' | 'opus' | 'haiku';
+export type AgentTool = CanonicalTool;
+
+/**
+ * Valid model names.
+ * Aliased from the canonical allowlist (src/config/allowlist.ts).
+ */
+export type AgentModel = CanonicalModel;
 
 /**
  * Agent definition frontmatter structure

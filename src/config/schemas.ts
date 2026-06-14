@@ -8,6 +8,7 @@
  */
 
 import { z } from 'zod';
+import { CANONICAL_TOOLS, CANONICAL_MODELS } from './allowlist.js';
 
 // ============================================================
 // Schema Version
@@ -33,23 +34,16 @@ const VersionSchema = z.string().regex(/^\d+\.\d+\.\d+$/, 'Must be in semver for
 const LogLevelSchema = z.enum(['DEBUG', 'INFO', 'WARN', 'ERROR']);
 
 /**
- * Model selection options
+ * Model selection options — derived from the canonical allowlist (allowlist.ts).
+ * Do not add models here; add them to the canonical module instead.
  */
-const ModelSchema = z.enum(['sonnet', 'opus', 'haiku']);
+const ModelSchema = z.enum(CANONICAL_MODELS);
 
 /**
- * Available tools for agents
+ * Available tools for agents — derived from the canonical allowlist (allowlist.ts).
+ * Do not add tools here; add them to the canonical module instead.
  */
-const ToolSchema = z.enum([
-  'Read',
-  'Write',
-  'Edit',
-  'Bash',
-  'Glob',
-  'Grep',
-  'WebFetch',
-  'WebSearch',
-]);
+const ToolSchema = z.enum(CANONICAL_TOOLS);
 
 // ============================================================
 // Workflow Config Schemas
