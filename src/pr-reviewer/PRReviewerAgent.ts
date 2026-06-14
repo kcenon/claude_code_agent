@@ -596,15 +596,27 @@ export class PRReviewerAgent implements IAgent {
         prOptions.base ?? 'main',
         '--head',
         prOptions.head,
-        '--json',
-        'number,url,title,headRefName,baseRefName,createdAt,state',
       ]);
 
       if (result.exitCode !== 0) {
         throw new PRCreationError(branchName, new Error(result.stderr));
       }
 
-      const prData = safeJsonParse(result.stdout, GitHubPRDataSchema, {
+      // gh pr create prints the PR URL to stdout; use it to fetch structured data
+      const prUrl = result.stdout.trim();
+      const viewResult = await this.executeCommand([
+        'pr',
+        'view',
+        prUrl,
+        '--json',
+        'number,url,title,headRefName,baseRefName,createdAt,state',
+      ]);
+
+      if (viewResult.exitCode !== 0) {
+        throw new PRCreationError(branchName, new Error(viewResult.stderr));
+      }
+
+      const prData = safeJsonParse(viewResult.stdout, GitHubPRDataSchema, {
         context: 'gh pr create output',
       });
       return {
