@@ -16,28 +16,57 @@
         "inputs": {
           "type": "array",
           "items": {
-            "oneOf": [
-              { "type": "string" },
-              { "type": "object" }
-            ]
+            "oneOf": [{ "type": "string" }, { "type": "object" }]
           },
           "description": "Input files/patterns (strings or typed objects)"
         },
-        "outputs": { "type": "array", "items": { "type": "string" }, "description": "Output files/patterns" },
+        "outputs": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Output files/patterns"
+        },
         "next": { "type": ["string", "null"], "description": "Next stage name" },
-        "approval_required": { "type": "boolean", "default": false, "description": "Whether approval is required" },
-        "parallel": { "type": "boolean", "default": false, "description": "Whether stage runs in parallel" },
-        "max_parallel": { "type": "integer", "minimum": 1, "maximum": 10, "description": "Max parallel workers" },
-        "conditional": { "type": "boolean", "description": "Whether this stage is conditionally executed" },
+        "approval_required": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether approval is required"
+        },
+        "parallel": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether stage runs in parallel"
+        },
+        "max_parallel": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10,
+          "description": "Max parallel workers"
+        },
+        "conditional": {
+          "type": "boolean",
+          "description": "Whether this stage is conditionally executed"
+        },
         "on_ci_failure": {
           "type": "object",
           "description": "CI failure handling configuration",
           "properties": {
             "agent": { "type": "string", "description": "Agent to handle CI failure" },
             "description": { "type": "string", "description": "Description of failure handler" },
-            "max_attempts": { "type": "integer", "minimum": 1, "description": "Max retry attempts on CI failure" },
-            "inputs": { "type": "array", "items": { "type": "string" }, "description": "Inputs for failure handler" },
-            "outputs": { "type": "array", "items": { "type": "string" }, "description": "Outputs from failure handler" }
+            "max_attempts": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Max retry attempts on CI failure"
+            },
+            "inputs": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Inputs for failure handler"
+            },
+            "outputs": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Outputs from failure handler"
+            }
           }
         },
         "substages": {
@@ -99,7 +128,11 @@
           "description": "Retry policy for agents",
           "properties": {
             "max_attempts": { "type": "integer", "minimum": 1, "maximum": 10, "default": 3 },
-            "backoff": { "type": "string", "enum": ["linear", "exponential"], "default": "exponential" },
+            "backoff": {
+              "type": "string",
+              "enum": ["linear", "exponential"],
+              "default": "exponential"
+            },
             "base_delay_seconds": { "type": "integer", "minimum": 1, "default": 5 },
             "max_delay_seconds": { "type": "integer", "minimum": 1, "default": 60 }
           }
@@ -182,20 +215,37 @@
         "properties": {
           "model": {
             "type": "string",
-            "enum": ["sonnet", "opus", "haiku"],
+            "enum": ["sonnet", "opus", "haiku", "inherit"],
             "default": "sonnet",
-            "description": "Claude model to use"
+            "description": "Claude model to use (inherit = use parent agent model)"
           },
           "tools": {
             "type": "array",
             "items": {
               "type": "string",
-              "enum": ["Read", "Write", "Edit", "Bash", "Glob", "Grep", "WebFetch", "WebSearch"]
+              "enum": [
+                "Read",
+                "Write",
+                "Edit",
+                "Bash",
+                "Glob",
+                "Grep",
+                "WebFetch",
+                "WebSearch",
+                "Task",
+                "LSP",
+                "TodoWrite",
+                "NotebookEdit"
+              ]
             },
             "description": "Tools available to the agent"
           },
           "template": { "type": "string", "description": "Template file path" },
-          "max_questions": { "type": "integer", "minimum": 1, "description": "Max clarifying questions" },
+          "max_questions": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Max clarifying questions"
+          },
           "github": {
             "type": "object",
             "properties": {
@@ -208,7 +258,10 @@
           "scheduling": {
             "type": "object",
             "properties": {
-              "algorithm": { "type": "string", "enum": ["priority_only", "dependency_only", "priority_dependency"] },
+              "algorithm": {
+                "type": "string",
+                "enum": ["priority_only", "dependency_only", "priority_dependency"]
+              },
               "max_workers": { "type": "integer", "minimum": 1, "maximum": 10 },
               "check_interval_seconds": { "type": "integer", "minimum": 10 }
             }
@@ -229,7 +282,12 @@
               "run_tests": { "type": "boolean", "default": true },
               "run_lint": { "type": "boolean", "default": true },
               "run_build": { "type": "boolean", "default": true },
-              "coverage_threshold": { "type": "number", "minimum": 0, "maximum": 100, "default": 80 }
+              "coverage_threshold": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100,
+                "default": 80
+              }
             }
           },
           "review": {
@@ -237,7 +295,12 @@
             "properties": {
               "auto_merge": { "type": "boolean", "default": false },
               "require_all_checks": { "type": "boolean", "default": true },
-              "coverage_threshold": { "type": "number", "minimum": 0, "maximum": 100, "default": 80 },
+              "coverage_threshold": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100,
+                "default": 80
+              },
               "max_complexity": { "type": "integer", "minimum": 1, "default": 10 }
             }
           }
@@ -340,7 +403,11 @@
       "type": "object",
       "description": "Logging configuration",
       "properties": {
-        "level": { "type": "string", "enum": ["DEBUG", "INFO", "WARN", "ERROR"], "default": "INFO" },
+        "level": {
+          "type": "string",
+          "enum": ["DEBUG", "INFO", "WARN", "ERROR"],
+          "default": "INFO"
+        },
         "format": { "type": "string", "enum": ["json", "text"], "default": "json" },
         "output": {
           "type": "array",
@@ -452,16 +519,27 @@
       "properties": {
         "default_model": {
           "type": "string",
-          "enum": ["sonnet", "opus", "haiku"],
-          "description": "Default model for budget calculations"
+          "enum": ["sonnet", "opus", "haiku", "inherit"],
+          "description": "Default model for budget calculations (inherit = use parent agent model)"
         },
         "pipeline": {
           "type": "object",
           "description": "Pipeline-level token budget",
           "properties": {
-            "max_tokens": { "type": "integer", "description": "Maximum tokens for the entire pipeline" },
-            "max_cost_usd": { "type": "number", "description": "Maximum cost in USD for the pipeline" },
-            "warning_threshold": { "type": "number", "minimum": 0, "maximum": 1, "description": "Threshold (0-1) to trigger budget warning" }
+            "max_tokens": {
+              "type": "integer",
+              "description": "Maximum tokens for the entire pipeline"
+            },
+            "max_cost_usd": {
+              "type": "number",
+              "description": "Maximum cost in USD for the pipeline"
+            },
+            "warning_threshold": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "Threshold (0-1) to trigger budget warning"
+            }
           }
         },
         "defaults": {

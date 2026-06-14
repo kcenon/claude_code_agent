@@ -11,6 +11,7 @@
 
 import { loadWorkflowConfig, loadAgentsConfig } from './loader.js';
 import type { WorkflowConfig, AgentsConfig, LoadConfigOptions } from './types.js';
+import type { CanonicalModel } from './allowlist.js';
 
 // ============================================================
 // Types
@@ -70,7 +71,7 @@ export interface PipelineStage {
  * Agent configuration in workflow
  */
 export interface AgentWorkflowConfig {
-  readonly model: 'sonnet' | 'opus' | 'haiku';
+  readonly model: CanonicalModel;
   readonly tools: readonly string[] | undefined;
   readonly template: string | undefined;
   readonly maxQuestions: number | undefined;

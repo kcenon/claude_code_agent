@@ -29,6 +29,8 @@ import type {
 
 const DEFAULT_AGENTS_DIR = '.claude/agents';
 const DEFAULT_REGISTRY_PATH = `${DEFAULT_PATHS.CONFIG_SUBDIR}/agents.yaml`;
+// Matches YAML frontmatter delimited by --- lines.
+// Normalise CRLF to LF before applying so files edited on Windows pass too.
 const FRONTMATTER_REGEX = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/;
 
 // ============================================================
@@ -45,7 +47,9 @@ function parseFrontmatter(
   content: string,
   filePath: string
 ): { frontmatter: unknown; body: string } {
-  const match = content.match(FRONTMATTER_REGEX);
+  // Normalise CRLF line endings so files edited on Windows are handled correctly
+  const normalised = content.replace(/\r\n/g, '\n');
+  const match = normalised.match(FRONTMATTER_REGEX);
   if (!match) {
     throw new FrontmatterParseError(
       filePath,
@@ -56,7 +60,7 @@ function parseFrontmatter(
   const frontmatterYaml = match[1] ?? '';
   const body = match[2] ?? '';
   try {
-    const frontmatter = yaml.load(frontmatterYaml);
+    const frontmatter = yaml.load(frontmatterYaml) as Record<string, unknown>;
     return { frontmatter, body };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown YAML parse error';
