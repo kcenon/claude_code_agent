@@ -25,6 +25,7 @@ import {
   UrlFetchError,
   InputParseError,
 } from './errors.js';
+import { InputValidator } from '../security/InputValidator.js';
 
 /**
  * Supported file extensions and their types
@@ -56,6 +57,11 @@ export interface InputParserOptions {
   readonly urlTimeout?: number;
   /** Whether to follow redirects (default: true) */
   readonly followRedirects?: boolean;
+  /**
+   * Maximum number of redirects to follow when followRedirects is true (default: 10).
+   * Each redirect target is re-validated for SSRF before following.
+   */
+  readonly maxRedirects?: number;
 }
 
 /**
@@ -65,7 +71,18 @@ const DEFAULT_OPTIONS: Required<InputParserOptions> = {
   maxFileSize: 10 * 1024 * 1024, // 10MB
   urlTimeout: 30000,
   followRedirects: true,
+  maxRedirects: 10,
 };
+
+/**
+ * Shared InputValidator instance used by fetchUrlContent for SSRF protection.
+ * Configured to allow http: and https: and block internal hosts.
+ */
+const URL_SSRF_VALIDATOR = new InputValidator({
+  basePath: '/',
+  allowedProtocols: ['http:', 'https:'],
+  blockInternalUrls: true,
+});
 
 /**
  * InputParser class for processing various input sources
@@ -354,84 +371,207 @@ export class InputParser {
   }
 
   /**
-   * Fetch URL content
+   * Fetch URL content with SSRF protection.
+   *
+   * Security measures applied:
+   * 1. Initial URL is validated via InputValidator (blocks internal/private hosts,
+   *    decimal/hex/octal IPv4, link-local 169.254.x.x, IPv4-mapped IPv6, etc.).
+   * 2. Redirects are followed manually (redirect: 'manual') so every Location
+   *    header is re-validated before the next hop is fetched.  A redirect chain
+   *    longer than maxRedirects is rejected.
+   * 3. When followRedirects is false, 3xx responses are returned as errors
+   *    (consistent with previous 'manual' behaviour).
+   *
+   * TODO(SSRF): DNS-rebinding protection — a hostname that passes the string-based
+   * blocklist could resolve to a private IP at fetch time.  Full protection requires
+   * resolving the hostname to an IP address and re-running the blocklist against that
+   * IP before each connection.  Implementing this would require low-level socket
+   * control or a custom DNS resolver, which is out of scope for this issue and should
+   * be addressed as a tracked follow-up.
    *
    * @param url - URL to fetch
    * @returns UrlFetchResult with fetched content
    */
   public async fetchUrlContent(url: string): Promise<UrlFetchResult> {
+    // --- Step 1: Validate the initial URL ---
     try {
-      // Validate URL
-      const parsedUrl = new URL(url);
-      if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
-        return {
-          success: false,
-          content: '',
-          url,
-          error: `Unsupported protocol: ${parsedUrl.protocol}`,
-        };
+      URL_SSRF_VALIDATOR.validateUrl(url);
+    } catch (error) {
+      return {
+        success: false,
+        content: '',
+        url,
+        error: error instanceof Error ? error.message : 'URL validation failed',
+      };
+    }
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      controller.abort();
+    }, this.options.urlTimeout);
+
+    try {
+      return await this.fetchWithRedirectGuard(url, controller, timeoutId);
+    } catch (error) {
+      clearTimeout(timeoutId);
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          return { success: false, content: '', url, error: 'Request timeout' };
+        }
+        return { success: false, content: '', url, error: error.message };
       }
+      throw error;
+    }
+  }
 
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => {
-        controller.abort();
-      }, this.options.urlTimeout);
+  /**
+   * Inner redirect-aware fetch loop with per-hop SSRF re-validation.
+   *
+   * Separated from the public API to keep the outer try/catch minimal and
+   * to avoid the ESLint `no-unnecessary-condition` rule that flags `while(true)`.
+   * The loop is bounded: we perform at most (maxRedirects + 1) fetch calls total.
+   *
+   * @param initialUrl - The already-validated initial URL to fetch
+   * @param controller - AbortController shared with the timeout
+   * @param timeoutId - setTimeout handle so we can clear it on early exit
+   * @returns UrlFetchResult from the final non-redirect response
+   */
+  private async fetchWithRedirectGuard(
+    initialUrl: string,
+    controller: AbortController,
+    timeoutId: ReturnType<typeof setTimeout>
+  ): Promise<UrlFetchResult> {
+    const maxAttempts = this.options.followRedirects ? this.options.maxRedirects + 1 : 1;
+    let currentUrl = initialUrl;
 
+    // --- Step 2: Manual redirect loop, bounded by maxAttempts ---
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      let response: Response;
       try {
-        const response = await fetch(url, {
+        response = await fetch(currentUrl, {
           signal: controller.signal,
-          redirect: this.options.followRedirects ? 'follow' : 'manual',
+          redirect: 'manual', // always manual — we handle redirects ourselves
           headers: {
             'User-Agent': 'AD-SDLC-Collector/1.0',
             Accept: 'text/html,text/plain,application/json,*/*',
           },
         });
-
+      } catch (fetchError) {
         clearTimeout(timeoutId);
+        if (fetchError instanceof Error) {
+          if (fetchError.name === 'AbortError') {
+            return { success: false, content: '', url: initialUrl, error: 'Request timeout' };
+          }
+          return { success: false, content: '', url: initialUrl, error: fetchError.message };
+        }
+        throw fetchError;
+      }
 
-        if (!response.ok) {
+      // Handle redirects (3xx)
+      if (response.status >= 300 && response.status < 400) {
+        // followRedirects === false: treat 3xx as an error
+        if (!this.options.followRedirects) {
+          clearTimeout(timeoutId);
           return {
             success: false,
             content: '',
-            url,
+            url: initialUrl,
             error: `HTTP ${String(response.status)}: ${response.statusText}`,
           };
         }
 
-        const contentType = response.headers.get('content-type') ?? '';
-        const text = await response.text();
-        const content = this.processUrlContent(text, contentType);
-        const title = this.extractTitle(text, contentType);
-
-        return {
-          success: true,
-          content,
-          url,
-          finalUrl: response.url,
-          title,
-        };
-      } finally {
-        clearTimeout(timeoutId);
-      }
-    } catch (error) {
-      if (error instanceof Error) {
-        if (error.name === 'AbortError') {
+        // Exhausted hop budget on this iteration — the next attempt would exceed
+        // maxRedirects, so reject before following further.
+        if (attempt >= this.options.maxRedirects) {
+          clearTimeout(timeoutId);
           return {
             success: false,
             content: '',
-            url,
-            error: 'Request timeout',
+            url: initialUrl,
+            error: `Too many redirects (max ${String(this.options.maxRedirects)})`,
           };
         }
+
+        const location = response.headers.get('location');
+        if (location === null || location.length === 0) {
+          clearTimeout(timeoutId);
+          return {
+            success: false,
+            content: '',
+            url: initialUrl,
+            error: `HTTP ${String(response.status)}: redirect with no Location header`,
+          };
+        }
+
+        // Resolve relative Location against current URL
+        let nextUrl: string;
+        try {
+          nextUrl = new URL(location, currentUrl).href;
+        } catch {
+          clearTimeout(timeoutId);
+          return {
+            success: false,
+            content: '',
+            url: initialUrl,
+            error: `Invalid redirect Location: ${location}`,
+          };
+        }
+
+        // --- Step 3: Re-validate each redirect target ---
+        try {
+          URL_SSRF_VALIDATOR.validateUrl(nextUrl);
+        } catch (validationError) {
+          clearTimeout(timeoutId);
+          return {
+            success: false,
+            content: '',
+            url: initialUrl,
+            error:
+              validationError instanceof Error
+                ? validationError.message
+                : 'Redirect target URL validation failed',
+          };
+        }
+
+        currentUrl = nextUrl;
+        continue; // follow the redirect
+      }
+
+      // Non-redirect response
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
         return {
           success: false,
           content: '',
-          url,
-          error: error.message,
+          url: initialUrl,
+          error: `HTTP ${String(response.status)}: ${response.statusText}`,
         };
       }
-      throw error;
+
+      const contentType = response.headers.get('content-type') ?? '';
+      const text = await response.text();
+      const content = this.processUrlContent(text, contentType);
+      const title = this.extractTitle(text, contentType);
+
+      return {
+        success: true,
+        content,
+        url: initialUrl,
+        finalUrl: currentUrl,
+        title,
+      };
     }
+
+    // Should not be reached under normal circumstances (loop exits via return),
+    // but satisfies TypeScript's control-flow analysis.
+    clearTimeout(timeoutId);
+    return {
+      success: false,
+      content: '',
+      url: initialUrl,
+      error: `Too many redirects (max ${String(this.options.maxRedirects)})`,
+    };
   }
 
   /**

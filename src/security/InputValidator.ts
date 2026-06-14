@@ -23,7 +23,19 @@ import type { AuditLogger } from './AuditLogger.js';
 const DEFAULT_ALLOWED_PROTOCOLS = ['https:'] as const;
 
 /**
- * Internal hostname patterns to block
+ * Internal hostname patterns to block (string-based, no DNS resolution).
+ *
+ * Covers:
+ *  - loopback: localhost, 127.x.x.x, ::1
+ *  - private ranges: 10.x, 172.16-31.x, 192.168.x
+ *  - link-local: 169.254.x.x (incl. cloud-metadata 169.254.169.254), fe80::
+ *  - ULA IPv6: fc00:, fd00:
+ *  - unspecified: 0.0.0.0
+ *  - special TLD suffixes: .local, .internal, .localhost
+ *  - decimal IPv4 (e.g. 2130706433 == 127.0.0.1)
+ *  - hex IPv4 (e.g. 0x7f000001)
+ *  - octal-segment IPv4 (e.g. 0177.0.0.1)
+ *  - IPv4-mapped IPv6 (e.g. ::ffff:127.0.0.1)
  */
 const INTERNAL_HOSTNAME_PATTERNS = [
   /^localhost$/i,
@@ -31,6 +43,7 @@ const INTERNAL_HOSTNAME_PATTERNS = [
   /^10\.\d+\.\d+\.\d+$/,
   /^172\.(1[6-9]|2\d|3[01])\.\d+\.\d+$/,
   /^192\.168\.\d+\.\d+$/,
+  /^169\.254\.\d+\.\d+$/, // link-local (incl. cloud-metadata 169.254.169.254)
   /^0\.0\.0\.0$/,
   /^::1$/,
   /^fe80:/i,
@@ -39,7 +52,98 @@ const INTERNAL_HOSTNAME_PATTERNS = [
   /\.local$/i,
   /\.internal$/i,
   /\.localhost$/i,
+  // IPv4-mapped IPv6: ::ffff:a.b.c.d or ::ffff:0xNN...
+  /^::ffff:/i,
 ];
+
+/**
+ * Maximum numeric IPv4 address (255.255.255.255 as decimal)
+ */
+const MAX_IPV4_DECIMAL = 0xffffffff;
+
+/**
+ * Private/reserved IPv4 ranges encoded as [start, end] inclusive pairs
+ * (32-bit unsigned integers, big-endian).
+ */
+const RESERVED_IPV4_RANGES: ReadonlyArray<readonly [number, number]> = [
+  [0x00000000, 0x00ffffff], // 0.0.0.0/8  (this-network + unspecified)
+  [0x7f000000, 0x7fffffff], // 127.0.0.0/8  loopback
+  [0xa9fe0000, 0xa9feffff], // 169.254.0.0/16  link-local (cloud-metadata)
+  [0x0a000000, 0x0affffff], // 10.0.0.0/8  private
+  [0xac100000, 0xac1fffff], // 172.16.0.0/12  private
+  [0xc0a80000, 0xc0a8ffff], // 192.168.0.0/16  private
+  [0xe0000000, 0xffffffff], // 224.0.0.0/4+  multicast + reserved
+];
+
+/**
+ * Parse a hostname token as a 32-bit IPv4 integer, supporting decimal,
+ * hex (0x…), and octal (0…) representations.
+ * Returns undefined when the token is not a valid single-component IPv4.
+ *
+ * @param token - A single dot-delimited segment from an IPv4 hostname string
+ * @returns The 32-bit unsigned value of the token, or undefined if unparseable
+ */
+function parseSingleComponentIpv4(token: string): number | undefined {
+  if (token.length === 0) return undefined;
+  let value: number;
+  if (/^0x[0-9a-f]+$/i.test(token)) {
+    value = parseInt(token, 16);
+  } else if (token.startsWith('0') && token.length > 1 && /^[0-7]+$/.test(token)) {
+    value = parseInt(token, 8);
+  } else if (/^\d+$/.test(token)) {
+    value = parseInt(token, 10);
+  } else {
+    return undefined;
+  }
+  if (!isFinite(value) || value < 0 || value > MAX_IPV4_DECIMAL) return undefined;
+  return value >>> 0; // treat as unsigned 32-bit
+}
+
+/**
+ * Determine whether a hostname represents a reserved/private IPv4 address,
+ * including decimal (2130706433), hex (0x7f000001), octal (0177.0.0.1),
+ * and mixed-radix dotted forms.
+ *
+ * @param hostname - The hostname string to evaluate (brackets already stripped)
+ * @returns True when the hostname encodes a reserved/private IPv4 address
+ */
+function isReservedIpv4Hostname(hostname: string): boolean {
+  // Strip surrounding brackets (IPv6 literal in URL won't reach here, but guard anyway)
+  const h = hostname.replace(/^\[|\]$/g, '');
+  const parts = h.split('.');
+
+  // Single-component: pure decimal, hex, or octal encoding of full 32-bit address
+  if (parts.length === 1) {
+    const v = parseSingleComponentIpv4(parts[0] as string);
+    if (v === undefined) return false;
+    return RESERVED_IPV4_RANGES.some(([lo, hi]) => v >= lo && v <= hi);
+  }
+
+  // Dotted forms: 1–4 components; last component may carry multiple octets
+  if (parts.length > 4) return false;
+
+  let ip32 = 0;
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i];
+    if (part === undefined) return false;
+    const v = parseSingleComponentIpv4(part);
+    if (v === undefined) return false;
+
+    if (i < parts.length - 1) {
+      // Leading components must be single-octet (0–255)
+      if (v > 0xff) return false;
+      ip32 = (ip32 | (v << (24 - i * 8))) >>> 0;
+    } else {
+      // Last component carries the remaining octets
+      const remainingBits = (4 - parts.length + 1) * 8;
+      const maxVal = (1 << remainingBits) - 1;
+      if (v > maxVal) return false;
+      ip32 = (ip32 | v) >>> 0;
+    }
+  }
+
+  return RESERVED_IPV4_RANGES.some(([lo, hi]) => ip32 >= lo && ip32 <= hi);
+}
 
 /**
  * Extended validation result with additional security information
@@ -318,11 +422,31 @@ export class InputValidator {
   /**
    * Check if a hostname is internal/private
    *
-   * @param hostname - The hostname to check
+   * Checks pattern-based blocklist first (fast), then handles IPv6 literals
+   * (which arrive with surrounding brackets from URL.hostname) and finally
+   * parses alternative IPv4 representations (decimal, hex, octal, mixed-radix)
+   * that bypass naive regex.
+   *
+   * Note on Node.js URL normalisation: the built-in URL parser already
+   * normalises decimal/hex/octal IPv4 addresses to dotted-decimal form, so
+   * e.g. "2130706433", "0x7f000001", and "0177.0.0.1" all become "127.0.0.1"
+   * before reaching this method.  The isReservedIpv4Hostname helper remains as
+   * a defence-in-depth layer for environments where URL normalisation differs.
+   *
+   * @param hostname - The hostname as returned by URL.hostname (may include
+   *   surrounding brackets for IPv6 literals, e.g. "[::ffff:7f00:1]").
    * @returns True if the hostname is internal
    */
   private isInternalHostname(hostname: string): boolean {
-    return INTERNAL_HOSTNAME_PATTERNS.some((pattern) => pattern.test(hostname));
+    // Strip brackets from IPv6 literals: URL.hostname returns "[::1]" etc.
+    const bare =
+      hostname.startsWith('[') && hostname.endsWith(']') ? hostname.slice(1, -1) : hostname;
+
+    if (INTERNAL_HOSTNAME_PATTERNS.some((pattern) => pattern.test(bare))) {
+      return true;
+    }
+    // Catch non-standard IPv4 encodings (decimal, hex, octal, mixed-radix)
+    return isReservedIpv4Hostname(bare);
   }
 
   /**
