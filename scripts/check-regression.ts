@@ -55,29 +55,65 @@ async function loadBaselines(): Promise<Map<string, Baseline>> {
   }
 }
 
+/**
+ * A single benchmark entry as emitted by Vitest's benchmark JSON reporter.
+ * Vitest reports tinybench statistics (mean/median/hz/p75/p99/...), which are not
+ * the p50/p95 keys this checker compares against — map the closest available
+ * percentile. Exact p50/p95 are preferred when a reporter provides them.
+ */
+interface VitestBenchmark {
+  name: string;
+  mean?: number;
+  median?: number;
+  p50?: number;
+  p75?: number;
+  p95?: number;
+  p99?: number;
+  hz?: number;
+}
+
+function normalizeBenchmark(b: VitestBenchmark): BenchmarkResult {
+  return {
+    name: b.name,
+    p50: b.p50 ?? b.median ?? b.mean,
+    p95: b.p95 ?? b.p99 ?? b.p75,
+    hz: b.hz,
+  };
+}
+
 async function loadBenchmarkResults(): Promise<BenchmarkResult[]> {
   const resultsPath = join(rootDir, 'perf-results/benchmark-results.json');
 
+  let data: unknown;
   try {
     const content = await readFile(resultsPath, 'utf-8');
-    const data = JSON.parse(content);
-
-    // Handle vitest bench output format
-    if (data.testResults) {
-      return data.testResults.flatMap((tr: { assertionResults: BenchmarkResult[] }) =>
-        tr.assertionResults.map((ar: BenchmarkResult) => ({
-          name: ar.name,
-          p50: ar.p50,
-          p95: ar.p95,
-        }))
-      );
-    }
-
-    return data as BenchmarkResult[];
+    data = JSON.parse(content);
   } catch {
     console.warn('No benchmark results found. Run benchmarks first.');
     return [];
   }
+
+  // Vitest benchmark JSON reporter: { files: [{ groups: [{ benchmarks: [...] }] }] }.
+  const files = (data as { files?: Array<{ groups?: Array<{ benchmarks?: VitestBenchmark[] }> }> }).files;
+  if (Array.isArray(files)) {
+    return files.flatMap((file) =>
+      (file.groups ?? []).flatMap((group) => (group.benchmarks ?? []).map(normalizeBenchmark))
+    );
+  }
+
+  // Legacy/Jest-style JSON reporter: { testResults: [{ assertionResults: [...] }] }.
+  const testResults = (data as { testResults?: Array<{ assertionResults?: VitestBenchmark[] }> }).testResults;
+  if (Array.isArray(testResults)) {
+    return testResults.flatMap((tr) => (tr.assertionResults ?? []).map(normalizeBenchmark));
+  }
+
+  // Already-normalized flat array.
+  if (Array.isArray(data)) {
+    return (data as VitestBenchmark[]).map(normalizeBenchmark);
+  }
+
+  console.warn('Unrecognized benchmark results format. Skipping regression check.');
+  return [];
 }
 
 function checkRegressions(baselines: Map<string, Baseline>, results: BenchmarkResult[]): Regression[] {

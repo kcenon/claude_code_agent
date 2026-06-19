@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Reconciled `package.json` `version` from `0.0.1` to `0.1.0` to match the released `[0.1.0]` CHANGELOG baseline (the cutover already shipped under `0.1.0`); fixes the stale-version disagreement so future SemVer bumps have a correct baseline (#874)
 
+### Fixed
+
+- Performance-regression gate is now enforced instead of decorative: removed `continue-on-error` from the benchmark and regression-check steps in `performance.yml` so a regression fails the job, and pointed `perf:check` at `tsx scripts/check-regression.ts` (the previous `node dist/scripts/check-regression.js` target was never emitted — `tsconfig` `rootDir`/`include` cover `src/` only, which also mis-resolved the baseline path under `dist/`). `check-regression` now parses Vitest's benchmark JSON shape (`files[].groups[].benchmarks[]`) instead of the Jest-style `testResults` shape it never received. Reconciling the placeholder baseline operation names/metrics with the real benchmarks so an intentional regression actually fires is tracked as a follow-up (#891, #895)
+
 ## [0.1.0] - 2026-05-09
 
 The v0.1.0 release completes the AD-13 cutover: every pipeline stage now routes through the official Claude Agent SDK via a single `ExecutionAdapter`, and the in-tree `AgentBridge` / `AgentDispatcher` / `AgentRegistry` stack has been removed. The 35-stage SDLC pipeline, V&V gates, and traceability matrix are unchanged; tool use, sub-agent delegation, and session management are now handled by the SDK itself. See [`docs/architecture/v0.1-hybrid-pipeline-rfc.md`](docs/architecture/v0.1-hybrid-pipeline-rfc.md) for the architecture rationale and [`docs/architecture/v0.1-migration-guide.md`](docs/architecture/v0.1-migration-guide.md) for migration steps.
