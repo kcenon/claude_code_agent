@@ -44,6 +44,14 @@ import { getLogger } from '../logging/index.js';
 const execFileAsync = promisify(execFileCallback);
 
 /**
+ * Matches GitHub token families (fine-grained PATs, classic PATs, OAuth, server,
+ * refresh, and app tokens). These tokens are variable length, so a fixed
+ * first-3/last-3 mask would leak most of a long token. Any substring matching
+ * this pattern must be fully redacted regardless of length.
+ */
+const GITHUB_TOKEN_PATTERN = /\b(?:github_pat_[A-Za-z0-9_]+|gh[oprs]_[A-Za-z0-9]+)\b/g;
+
+/**
  * Singleton instance of CommandSanitizer
  */
 let sanitizerInstance: CommandSanitizer | null = null;
@@ -827,6 +835,14 @@ export class CommandSanitizer {
    * @returns Masked argument
    */
   private maskSensitiveArg(arg: string): string {
+    // Fully redact GitHub token families before the length-based fallback,
+    // since their variable length would otherwise leak through first3...last3.
+    if (GITHUB_TOKEN_PATTERN.test(arg)) {
+      GITHUB_TOKEN_PATTERN.lastIndex = 0;
+      return arg.replace(GITHUB_TOKEN_PATTERN, '[REDACTED]');
+    }
+    GITHUB_TOKEN_PATTERN.lastIndex = 0;
+
     // Show first and last few characters, mask the middle
     if (arg.length <= 8) {
       return '[REDACTED]';
@@ -878,8 +894,11 @@ export class CommandSanitizer {
    * @returns Masked command string
    */
   private maskCommandForLogging(rawCommand: string): string {
-    // Mask common sensitive patterns like tokens, passwords, keys
+    // Mask common sensitive patterns like tokens, passwords, keys.
+    // Redact GitHub token families first so bare tokens are fully masked
+    // regardless of length or surrounding flag.
     return rawCommand
+      .replace(GITHUB_TOKEN_PATTERN, '[REDACTED]')
       .replace(/(--token[=\s]+)\S+/gi, '$1[REDACTED]')
       .replace(/(--password[=\s]+)\S+/gi, '$1[REDACTED]')
       .replace(/(--key[=\s]+)\S+/gi, '$1[REDACTED]')

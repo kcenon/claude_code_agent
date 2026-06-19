@@ -86,6 +86,29 @@ describe('SecretManager', () => {
       const masked = secretManager.mask(text);
       expect(masked).toBe('First: [TOKEN_REDACTED], Second: [TOKEN_REDACTED]');
     });
+
+    it('should fully redact a long fine-grained GitHub token even when unregistered', () => {
+      const token = `github_pat_${'A1b2C3d4E5'.repeat(8)}`;
+      const masked = secretManager.mask(`Using token: ${token}`);
+      expect(masked).toBe('Using token: [REDACTED]');
+      expect(masked).not.toContain(token);
+    });
+
+    it('should fully redact short classic GitHub tokens', () => {
+      const token = 'ghp_abc123';
+      const masked = secretManager.mask(`Using token: ${token}`);
+      expect(masked).toBe('Using token: [REDACTED]');
+      expect(masked).not.toContain(token);
+    });
+
+    it('should redact all GitHub token family prefixes', () => {
+      const tokens = ['gho_oauth1234', 'ghs_server5678', 'ghr_refresh90', 'ghp_classic12'];
+      for (const token of tokens) {
+        const masked = secretManager.mask(`token=${token}`);
+        expect(masked).toBe('token=[REDACTED]');
+        expect(masked).not.toContain(token);
+      }
+    });
   });
 
   describe('createSafeLogger', () => {

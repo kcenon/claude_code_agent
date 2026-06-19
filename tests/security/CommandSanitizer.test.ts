@@ -90,6 +90,40 @@ describe('CommandSanitizer', () => {
     });
   });
 
+  describe('GitHub token masking', () => {
+    interface MaskAccess {
+      maskSensitiveArg(arg: string): string;
+      maskCommandForLogging(rawCommand: string): string;
+    }
+
+    const access = (s: CommandSanitizer): MaskAccess => s as unknown as MaskAccess;
+
+    it('should fully redact a long fine-grained GitHub token in an argument', () => {
+      const token = `github_pat_${'A1b2C3d4E5'.repeat(8)}`;
+      const masked = access(sanitizer).maskSensitiveArg(token);
+      expect(masked).toBe('[REDACTED]');
+      expect(masked).not.toContain(token);
+    });
+
+    it('should fully redact a short classic GitHub token in an argument', () => {
+      const token = 'ghp_abc123';
+      const masked = access(sanitizer).maskSensitiveArg(token);
+      expect(masked).toBe('[REDACTED]');
+      expect(masked).not.toContain(token);
+    });
+
+    it('should fully redact GitHub tokens embedded in a raw command', () => {
+      const longToken = `github_pat_${'A1b2C3d4E5'.repeat(8)}`;
+      const shortToken = 'ghp_abc123';
+      const masked = access(sanitizer).maskCommandForLogging(
+        `gh auth login --with-token ${longToken} && echo ${shortToken}`
+      );
+      expect(masked).not.toContain(longToken);
+      expect(masked).not.toContain(shortToken);
+      expect(masked).toContain('[REDACTED]');
+    });
+  });
+
   describe('parseCommandString', () => {
     it('should parse simple command', () => {
       const result = sanitizer.parseCommandString('git status');

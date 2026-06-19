@@ -12,6 +12,14 @@ import { config as dotenvConfig } from 'dotenv';
 import type { SecretManagerOptions } from './types.js';
 import { SecretNotFoundError } from './errors.js';
 
+/**
+ * Matches GitHub token families (fine-grained PATs, classic PATs, OAuth, server,
+ * refresh, and app tokens). These tokens are variable length, so any substring
+ * matching this pattern is fully redacted regardless of whether the token is a
+ * registered secret value.
+ */
+const GITHUB_TOKEN_PATTERN = /\b(?:github_pat_[A-Za-z0-9_]+|gh[oprs]_[A-Za-z0-9]+)\b/g;
+
 /** Secrets required regardless of pipeline mode */
 const CORE_REQUIRED_SECRETS = ['ANTHROPIC_API_KEY'] as const;
 
@@ -161,7 +169,10 @@ export class SecretManager {
    * @returns The text with secrets replaced by [REDACTED]
    */
   public mask(text: string): string {
-    let masked = text;
+    // Fully redact GitHub token families first. These tokens are variable
+    // length and may appear in text even when they are not registered secrets,
+    // so the per-secret loop below would otherwise miss them.
+    let masked = text.replace(GITHUB_TOKEN_PATTERN, '[REDACTED]');
 
     for (const [key, value] of this.secrets) {
       // Skip empty or very short values to avoid false positives
