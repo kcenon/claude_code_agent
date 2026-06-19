@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- [ADR-0006](docs/adr/ADR-0006-keep-or-kill-orphaned-public-subsystems.md) recording the keep-or-kill verdict (Proposed; owner ratifies on merge) for orphaned-but-public subsystems on two axes — run-loop reachability and `src/index.ts` public-export status — with a per-subsystem disposition and SemVer impact. No subsystem source is deleted; per-disposition execution is deferred to follow-up issues (#874, part of #866)
+
+### Changed
+
+- Reconciled `package.json` `version` from `0.0.1` to `0.1.0` to match the released `[0.1.0]` CHANGELOG baseline (the cutover already shipped under `0.1.0`); fixes the stale-version disagreement so future SemVer bumps have a correct baseline (#874)
+
 ## [0.1.0] - 2026-05-09
 
 The v0.1.0 release completes the AD-13 cutover: every pipeline stage now routes through the official Claude Agent SDK via a single `ExecutionAdapter`, and the in-tree `AgentBridge` / `AgentDispatcher` / `AgentRegistry` stack has been removed. The 35-stage SDLC pipeline, V&V gates, and traceability matrix are unchanged; tool use, sub-agent delegation, and session management are now handled by the SDK itself. See [`docs/architecture/v0.1-hybrid-pipeline-rfc.md`](docs/architecture/v0.1-hybrid-pipeline-rfc.md) for the architecture rationale and [`docs/architecture/v0.1-migration-guide.md`](docs/architecture/v0.1-migration-guide.md) for migration steps.
