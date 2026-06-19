@@ -1,6 +1,6 @@
 {
   "name": "ad-sdlc",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Agent-Driven Software Development Lifecycle system built with Claude Agent SDK",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

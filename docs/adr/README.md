@@ -20,6 +20,7 @@ An Architecture Decision Record captures an important architectural decision mad
 | [ADR-0003](ADR-0003-file-based-locking.md) | File-based Distributed Locking | Accepted | 2024-02-15 |
 | [ADR-0004](ADR-0004-error-handling-strategy.md) | Error Classification and Retry Strategy | Accepted | 2024-03-01 |
 | [ADR-0005](ADR-0005-layered-architecture.md) | Layered Architecture (Control/Data/Agent) | Accepted | 2024-01-10 |
+| [ADR-0006](ADR-0006-keep-or-kill-orphaned-public-subsystems.md) | Keep-or-Kill Disposition for Orphaned-but-Public Subsystems | Proposed | 2026-06-20 |
 
 ## When to Write an ADR
 
