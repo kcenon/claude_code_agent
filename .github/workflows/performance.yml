@@ -31,17 +31,12 @@ jobs:
 
       - name: Run benchmarks
         run: npm run test:bench
-        continue-on-error: true
 
       - name: Run performance tests
         run: npm run test:perf
 
       - name: Check for regressions
-        id: regression-check
-        run: |
-          npm run perf:check
-          echo "status=$?" >> $GITHUB_OUTPUT
-        continue-on-error: true
+        run: npm run perf:check
 
       - name: Upload benchmark results
         uses: actions/upload-artifact@v7

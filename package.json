@@ -25,7 +25,7 @@
     "test:perf": "vitest run --config vitest.perf.config.ts",
     "test:memory": "vitest run --config vitest.perf.config.ts tests/performance/memory/",
     "test:scalability": "vitest run --config vitest.perf.config.ts tests/performance/scalability/",
-    "perf:check": "node --experimental-specifier-resolution=node dist/scripts/check-regression.js",
+    "perf:check": "tsx scripts/check-regression.ts",
     "perf:update-baseline": "node --experimental-specifier-resolution=node dist/scripts/update-baseline.js",
     "audit:docs": "tsx scripts/audit-docs.ts",
     "lint": "eslint src --ext .ts",
