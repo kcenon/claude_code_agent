@@ -38,7 +38,7 @@
 **Agent-Driven SDLC (AD-SDLC)** - Agent-Based Software Development Lifecycle Automation System
 
 ### 1.2 Overview
-AD-SDLC is a multi-agent system built on the Claude Agent SDK that automates the entire software development lifecycle. The system comprises 25 specialized agents and 3 infrastructure services (28 total components) across three pipeline modes (Greenfield, Enhancement, Import), covering the full process from initial user requirements through PRD, SRS, SDS creation, GitHub Issue generation, code implementation, and PR review.
+AD-SDLC is a multi-agent system built on the Claude Agent SDK that automates the entire software development lifecycle. This product-role catalog defines 25 specialized roles and 3 infrastructure services. The current implementation is larger and uses separate count axes: 36 checked-in prompt definitions, 29 unique pipeline agent types, and 39 mode-specific stage slots across Greenfield, Enhancement, and Import. The source-checked [runtime inventory](architecture/runtime-inventory.md) is authoritative for those implementation counts.
 
 ### 1.3 Key Value Propositions
 - **End-to-End Automation**: Full process automation from requirements gathering to code deployment

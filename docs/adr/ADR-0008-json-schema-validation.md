@@ -1,4 +1,4 @@
-# ADR-003: Runtime JSON Schema Validation with Zod
+# ADR-0008: Runtime JSON Schema Validation with Zod
 
 **Status**: Accepted
 
@@ -27,11 +27,11 @@ This pattern has several problems:
 
 ## Decision
 
-Implement a centralized `SafeJsonParser` utility using Zod schemas for runtime JSON validation.
+Implement centralized safe JSON parser utilities using Zod schemas for runtime JSON validation.
 
 ### Key Components
 
-1. **SafeJsonParser utility** (`src/utils/SafeJsonParser.ts`)
+1. **Safe JSON parser utilities** (`src/utils/SafeJsonParser.ts`)
    - `safeJsonParse<T>()` - Validates JSON against schema, throws on failure
    - `tryJsonParse<T>()` - Returns `undefined` on failure (graceful degradation)
    - `safeJsonParseFile<T>()` / `safeJsonParseFileSync<T>()` - File-based parsing
@@ -56,7 +56,7 @@ import { safeJsonParse } from '../utils/SafeJsonParser.js';
 import { GitHubPRDataSchema } from '../schemas/github.js';
 
 const pr = safeJsonParse(result.stdout, GitHubPRDataSchema, {
-  context: 'gh pr view output'
+  context: 'gh pr view output',
 });
 ```
 
@@ -105,6 +105,7 @@ const pr = safeJsonParse(result.stdout, GitHubPRDataSchema, {
 ### Decision Rationale
 
 Zod was chosen for:
+
 - Excellent TypeScript integration with type inference
 - Simple, fluent API
 - Active community and maintenance
@@ -122,6 +123,7 @@ Zod was chosen for:
 ## Notes
 
 The migration covered:
+
 - PR Reviewer modules (PRCreator, PRReviewerAgent, MergeDecision, ReviewChecks)
 - Controller modules (WorkerPoolManager, ProgressMonitor)
 - Worker modules (RetryHandler)
@@ -140,10 +142,10 @@ The `z.record()` API changed in Zod 4.x:
 
 ```typescript
 // Zod 3.x (deprecated)
-z.record(z.string())  // key type was implicit
+z.record(z.string()); // key type was implicit
 
 // Zod 4.x (current)
-z.record(z.string(), z.string())  // explicit key and value schemas
+z.record(z.string(), z.string()); // explicit key and value schemas
 ```
 
 All schemas using `z.record()` were updated to use the 2-argument form.
@@ -152,12 +154,12 @@ All schemas using `z.record()` were updated to use the 2-argument form.
 
 **Key Distinction**: Schema validation is primarily valuable for **external data** where shape is unknown:
 
-| Data Source | Validation Approach | Rationale |
-|-------------|-------------------|-----------|
-| GitHub CLI output | `safeJsonParse()` with schema | External API, shape may change |
-| npm audit output | `safeJsonParse()` with schema | External tool output |
-| File-based state persistence | `JSON.parse() as T` | Internal data, saved by the same class |
-| Checkpoint files | `JSON.parse() as T` | Internal data format |
+| Data Source                  | Validation Approach           | Rationale                              |
+| ---------------------------- | ----------------------------- | -------------------------------------- |
+| GitHub CLI output            | `safeJsonParse()` with schema | External API, shape may change         |
+| npm audit output             | `safeJsonParse()` with schema | External tool output                   |
+| File-based state persistence | `JSON.parse() as T`           | Internal data, saved by the same class |
+| Checkpoint files             | `JSON.parse() as T`           | Internal data format                   |
 
 For internal data (state files written and read by the same class), schema validation adds overhead without benefit since the data format is controlled by the application.
 

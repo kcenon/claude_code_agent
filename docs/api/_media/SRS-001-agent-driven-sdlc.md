@@ -44,7 +44,7 @@ This Software Requirements Specification (SRS) defines the detailed functional r
 The AD-SDLC system includes the following scope:
 
 **Included Scope:**
-- 25 specialized Claude agents across three pipeline modes:
+- A product-role catalog of 25 specialized Claude agents across three pipeline modes (distinct from the current source inventory of 36 prompt definitions, 29 unique pipeline agent types, and 39 mode-specific stage slots; see the [runtime inventory](architecture/runtime-inventory.md)):
   - **Core (Greenfield)**: Collector, PRD Writer, SRS Writer, SDS Writer, Issue Generator, Controller, Worker, PR Reviewer
   - **Enhancement**: Document Reader, Codebase Analyzer, Impact Analyzer, PRD/SRS/SDS Updaters, Regression Tester, Code Reader, Doc-Code Comparator, CI Fixer
   - **Infrastructure**: AD-SDLC Orchestrator, Analysis Orchestrator, Mode Detector, Project Initializer, Repo Detector, GitHub Repo Setup, Issue Reader

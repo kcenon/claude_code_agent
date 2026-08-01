@@ -1,0 +1,48 @@
+{
+  "liveApiDocuments": [
+    "README.md",
+    "src/agents/README.md",
+    "docs/config.md",
+    "docs/headless-execution.md",
+    "docs/scratchpad-backends.md",
+    "docs/reference/09_api_reference.md"
+  ],
+  "excludedDocuments": [
+    "docs/architecture/dual-layer-design.md",
+    "docs/architecture/v0.1-hybrid-pipeline-rfc.md",
+    "docs/architecture/v0.1-migration-guide.md",
+    "docs/architecture/v0.1-pilot-evaluation.md"
+  ],
+  "ignoredSymbols": [
+    "AbortController",
+    "AbortSignal",
+    "Array",
+    "Boolean",
+    "Buffer",
+    "Date",
+    "Error",
+    "JSON",
+    "Map",
+    "Math",
+    "NodeJS",
+    "Number",
+    "Object",
+    "Partial",
+    "Promise",
+    "Readonly",
+    "ReadonlyArray",
+    "Record",
+    "RegExp",
+    "Set",
+    "String",
+    "URL",
+    "URLSearchParams",
+    "clearInterval",
+    "clearTimeout",
+    "console",
+    "fetch",
+    "process",
+    "setInterval",
+    "setTimeout"
+  ]
+}

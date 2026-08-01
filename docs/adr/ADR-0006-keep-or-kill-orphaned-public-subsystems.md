@@ -2,13 +2,11 @@
 
 ## Status
 
-Proposed
+Accepted
 
-> This ADR records a **decision proposal**. The project owner ratifies it on
-> merge (flip Status to `Accepted`). **No source subsystem code is deleted in
-> this PR.** Per-disposition execution (extract-to-optional-subpath, keep-wire,
-> delete-later) is deferred to follow-up issues filed after ratification — see
-> the Decision and References sections.
+The project owner ratified this decision when the decision PR merged. No source
+subsystem code was deleted by that PR; per-disposition execution remains scoped
+to dedicated follow-up issues.
 
 ## Date
 

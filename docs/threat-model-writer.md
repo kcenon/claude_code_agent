@@ -66,8 +66,8 @@ ad-sdlc generate-threat-model --project 001
 
 ### ThreatModelWriterAgent
 
-Main orchestrator class for Threat Model generation. Implements `IAgent` for unified
-instantiation through `AgentFactory`.
+Main orchestrator class for Threat Model generation. It implements `IAgent` for
+the shared lifecycle contract; pipeline AI execution uses `ExecutionAdapter`.
 
 #### Methods
 
@@ -82,7 +82,10 @@ instantiation through `AgentFactory`.
 
 ### Agent ID
 
-Registered as `threat-model-writer-agent` (`THREAT_MODEL_WRITER_AGENT_ID`) for `AgentFactory`.
+`THREAT_MODEL_WRITER_AGENT_ID` identifies the module as
+`threat-model-writer-agent`. Direct callers can construct
+`ThreatModelWriterAgent` or use its module-local singleton accessor; the
+pipeline `agentType` is `threat-model-writer`.
 
 ## Quality Criteria
 

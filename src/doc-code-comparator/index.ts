@@ -40,6 +40,20 @@ export type { SessionStatus, MatchConfidence } from './types.js';
 // Constants
 export { DEFAULT_DOC_CODE_COMPARATOR_CONFIG } from './types.js';
 
+// Documentation-to-code validation
+export { DocSymbolValidator, validateDocumentSymbols } from './DocSymbolValidator.js';
+export type {
+  DocSymbolConfig,
+  DocSymbolValidationResult,
+  DocSymbolViolation,
+} from './DocSymbolValidator.js';
+export { DocInventoryValidator, validateDocumentInventory } from './DocInventoryValidator.js';
+export type {
+  DocInventoryMetrics,
+  DocInventoryValidationResult,
+  DocInventoryViolation,
+} from './DocInventoryValidator.js';
+
 // Error exports
 export {
   DocCodeComparatorError,

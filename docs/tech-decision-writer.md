@@ -88,7 +88,7 @@ The pipeline stage name is `tech_decision_generation`, and it can be targeted by
 
 ### TechDecisionWriterAgent
 
-Main orchestrator class for Technology Decision document generation. Implements `IAgent` for unified instantiation through `AgentFactory`.
+Main orchestrator class for Technology Decision document generation. It implements `IAgent` for the shared lifecycle contract; pipeline AI execution uses `ExecutionAdapter`.
 
 #### Methods
 
@@ -112,7 +112,7 @@ Exported helpers include `detectDecisions`, `slugifyTopic`, `parseTechnologyStac
 
 ### Agent ID
 
-Registered as `tech-decision-writer-agent` (`TECH_DECISION_WRITER_AGENT_ID`) for `AgentFactory`. The registry mapping key is `tech-decision-writer`. A singleton accessor (`getTechDecisionWriterAgent`) and a reset helper (`resetTechDecisionWriterAgent`) mirror the other writer agents.
+`TECH_DECISION_WRITER_AGENT_ID` identifies the module as `tech-decision-writer-agent`; the pipeline `agentType` is `tech-decision-writer`. A module-local singleton accessor (`getTechDecisionWriterAgent`) and reset helper (`resetTechDecisionWriterAgent`) mirror the other writer agents.
 
 ## Quality Criteria
 

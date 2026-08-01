@@ -24,6 +24,23 @@ documents:
     mirror_path: "docs/api/_media/SDS-001-agent-driven-sdlc.md"
     kr_mirror_path: "docs/api/_media/SDS-001-agent-driven-sdlc.kr.md"
 
+# Source-derived inventory. scripts/ci/validate-doc-inventory.ts compares every
+# value below with the current checkout and fails CI when code or documents
+# change without a coordinated update.
+inventory:
+  expected:
+    agentDefinitionFiles: 36
+    uniquePipelineAgentTypes: 29
+    supportAgentDefinitions: 7
+    greenfieldStageSlots: 19
+    enhancementStageSlots: 15
+    importStageSlots: 5
+    totalStageSlots: 39
+    historicalCutoverTargets: 33
+    functionalRequirements: 33
+    softwareFeatures: 31
+    designComponents: 36
+
 # Cascade propagation rules
 # direction: "downward" means PRD change -> review SRS -> review SDS
 # direction: "upward" means SDS change -> review SRS -> review PRD
@@ -52,7 +69,7 @@ cascade_rules:
 # Sync points: sections that must stay aligned across documents
 sync_points:
   agent_count:
-    description: "Total number of specialized agents and components"
+    description: "Distinct runtime inventory axes; see docs/architecture/runtime-inventory.md"
     severity: "critical"
     locations:
       - file: "PRD-001"
@@ -91,12 +108,12 @@ sync_points:
         description: "Component designs grouped by pipeline"
 
   agent_categories:
-    description: "Agent groupings (Core/Enhancement/Infrastructure) and their counts"
+    description: "Product-role groupings; do not treat these as runtime definition or stage counts"
     severity: "high"
     locations:
       - file: "PRD-001"
         section: "6.2"
-        description: "Core (8), Enhancement (10), Infrastructure (7)"
+        description: "Product-role summary grouped by pipeline responsibility"
       - file: "SRS-001"
         section: "1.2"
         description: "Agent list by category"
@@ -133,7 +150,7 @@ sync_points:
         description: "Traceability matrix summary"
       - file: "SDS-001"
         section: "3"
-        description: "Components (CMP-001 to CMP-028) with SF sources"
+        description: "Components (CMP-001 to CMP-036) with SF sources"
 
   implementation_phases:
     description: "Implementation phase descriptions and timelines"

@@ -4,6 +4,10 @@
 
 Accepted
 
+This canonical record absorbed the former
+`docs/architecture/decisions/ADR-001-scratchpad-pattern.md` during the ADR-tree
+consolidation. The four-digit `docs/adr/` tree is the only current ADR index.
+
 ## Date
 
 2024-01-15

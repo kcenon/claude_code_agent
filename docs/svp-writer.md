@@ -72,8 +72,8 @@ ad-sdlc generate-svp --project 001
 
 ### SVPWriterAgent
 
-Main orchestrator class for SVP generation. Implements `IAgent` for unified
-instantiation through `AgentFactory`.
+Main orchestrator class for SVP generation. It implements `IAgent` for the
+shared lifecycle contract; pipeline AI execution uses `ExecutionAdapter`.
 
 #### Methods
 
@@ -95,7 +95,9 @@ instantiation through `AgentFactory`.
 
 ### Agent ID
 
-Registered as `svp-writer-agent` (`SVP_WRITER_AGENT_ID`) for `AgentFactory`.
+`SVP_WRITER_AGENT_ID` identifies the module as `svp-writer-agent`. Direct
+callers can construct `SVPWriterAgent` or use its module-local singleton
+accessor; the pipeline `agentType` is `svp-writer`.
 
 ## Quality Criteria
 

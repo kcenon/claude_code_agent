@@ -6,7 +6,7 @@
 [![Node.js](https://img.shields.io/badge/Node.js-18%2B-green.svg)](https://nodejs.org/)
 [![Built with Claude Agent SDK](https://img.shields.io/badge/Built%20with-Claude%20Agent%20SDK-blueviolet)](https://www.npmjs.com/package/@anthropic-ai/claude-agent-sdk)
 
-Every agent stage runs through a single Claude Agent SDK entry point (`ExecutionAdapter`). The 35-stage pipeline, V&V gates, and traceability matrix are AD-SDLC's domain layer on top of the SDK; tool use, sub-agent delegation, and session management are handled by the SDK itself.
+Every AI-backed pipeline stage runs through a single Claude Agent SDK entry point (`ExecutionAdapter`). The three modes currently contain 39 stage slots that reuse 29 unique pipeline agent types; the repository also carries 7 support/delegated definitions, for 36 checked-in prompt files. These axes are [tracked separately and checked from source](docs/architecture/runtime-inventory.md).
 
 ## Quick Start
 
@@ -28,7 +28,7 @@ That's it! The agents will generate documents, create issues, implement code, an
 
 ## What is AD-SDLC?
 
-AD-SDLC is an automated software development pipeline that uses **35 specialized Claude agent types** to transform your requirements into production-ready code. It supports three modes:
+AD-SDLC is an automated software development pipeline that uses specialized Claude agents to transform requirements into production-ready code. It supports three modes:
 
 ### Greenfield Pipeline (New Projects)
 
@@ -65,10 +65,10 @@ Existing Docs + Code → Document Reader → Codebase Analyzer → Code Reader
 ```
 GitHub Issues → Issue Reader → Controller → Worker → Validation → PR Reviewer
                                                                        ↓
-                                                               Doc Indexing + CI Fix (on failure)
+                                                        CI Fixer (delegated on failure)
 ```
 
-### Agent Pipeline (35 Agent Types)
+### Agent Definition Inventory (36 Prompt Files)
 
 | Phase             | Agent                 | Role                                                                                                |
 | ----------------- | --------------------- | --------------------------------------------------------------------------------------------------- |
@@ -80,6 +80,7 @@ GitHub Issues → Issue Reader → Controller → Worker → Validation → PR R
 |                   | GitHub Repo Setup     | Creates and initializes GitHub repository                                                           |
 | **Collection**    | Collector             | Gathers requirements from text, files, and URLs                                                     |
 |                   | Issue Reader          | Imports existing GitHub Issues for Import pipeline                                                  |
+|                   | Local Issue Reader    | Local-mode issue import variant without a GitHub dependency                                         |
 | **Documentation** | PRD Writer            | Generates Product Requirements Document                                                             |
 |                   | SRS Writer            | Generates Software Requirements Specification                                                       |
 |                   | SDP Writer            | Generates Software Development Plan from PRD and SRS                                                |
@@ -108,13 +109,13 @@ GitHub Issues → Issue Reader → Controller → Worker → Validation → PR R
 |                   | SRS Updater           | Incremental SRS updates (delta changes)                                                             |
 |                   | SDS Updater           | Incremental SDS updates (delta changes)                                                             |
 
-> **Note**: Local mode agents (`local-issue-reader`, `local-reviewer`) share their GitHub counterparts' implementations and are used automatically with the `--local` flag.
+> **Note**: Only 29 of these definitions are direct `agentType` values in the mode arrays. Local aliases, orchestrators, CI repair, Stage Verifier, and RTM Builder are support/delegated definitions. See the [runtime inventory](docs/architecture/runtime-inventory.md) for source-derived counts.
 
 ## How it Works
 
 ### 3-Tier Architecture
 
-AD-SDLC is structured as three cooperating tiers. The orchestrator owns the pipeline DAG and V&V gates, the execution layer is a single Claude Agent SDK entry point, and the knowledge layer (`.claude/`, MCP servers, claude-config plugin) is consumed by the SDK rather than wired through custom bridges.
+AD-SDLC is structured as three cooperating tiers. The orchestrator owns the pipeline DAG, approval flow, and active validation stage; the execution layer is a single Claude Agent SDK entry point; and the knowledge layer (`.claude/`, MCP servers, claude-config plugin) is consumed by the SDK rather than wired through custom bridges.
 
 ```mermaid
 flowchart TB
@@ -146,7 +147,7 @@ AD-SDLC automates the full software development lifecycle through a coordinated 
 
 4. **Implementation**: The Controller distributes issues to Worker agents, which implement code, write tests, and create pull requests. Multiple workers operate in parallel for faster delivery.
 
-5. **Verification & Validation**: Stage Verifier checks each pipeline output for completeness. The RTM Builder traces requirements to implementation. The Validation Agent confirms all acceptance criteria are met.
+5. **Verification & Validation**: The Validation Agent is an active stage in all three modes and checks the implementation against acceptance criteria. Stage Verifier and RTM Builder exist as auxiliary definitions/modules but are not yet orchestrator-enforced gates; their disposition is tracked in #877.
 
 6. **Review & Indexing**: The PR Reviewer performs automated code review with quality gates. Finally, the Doc Index Generator creates a searchable documentation index from all pipeline artifacts.
 
@@ -170,7 +171,7 @@ Each agent reads and writes to a shared scratchpad, enabling seamless inter-agen
 - **Progress Tracking**: Real-time visibility into pipeline status
 - **Regression Testing**: Identifies affected tests when modifying existing code
 - **Doc-Code Gap Analysis**: Detects discrepancies between documentation and implementation
-- **V&V Framework**: Stage verification gates, RTM building, and final validation ensure traceability from requirements to implementation
+- **V&V Framework**: Final validation is in the live pipeline; Stage Verifier and RTM Builder remain auxiliary until #877 resolves enforce-or-demote
 - **Document Audit**: CLI script (`npm run audit:docs`) that validates pipeline-generated PRD/SRS/SDS/SDP/TM/SVP/TD/DBS documents for frontmatter, required sections, cross-references, and PRD→SRS→SDS traceability; see [Document Audit CLI](docs/doc-audit.md)
 - **Customizable Workflows**: Configure agents, templates, and quality gates
 
@@ -210,15 +211,15 @@ See [Installation Guide](docs/installation.md) for detailed setup instructions.
 
 AD-SDLC v0.1 standardizes on the official Claude Agent SDK as the only AI runtime dependency. The legacy raw `@anthropic-ai/sdk` client and the in-tree `AgentBridge`/`AgentDispatcher`/`AgentRegistry` stack were removed in v0.1.0 (#798).
 
-| Package                          | Version    | Role                                                                         |
-| -------------------------------- | ---------- | ---------------------------------------------------------------------------- |
-| `@anthropic-ai/claude-agent-sdk` | `^0.2.132` | Single Agent SDK entry point used by `ExecutionAdapter` for every stage      |
-| `commander`                      | `^14.0.3`  | `ad-sdlc` CLI argument parsing                                               |
-| `inquirer`                       | `^13.4.2`  | Interactive prompts for `ad-sdlc init`                                       |
-| `js-yaml`                        | `^4.1.1`   | Pipeline config and document frontmatter parsing                             |
-| `zod`                            | `^4.4.2`   | Runtime schema validation for agent registry, configs, and checkpoint schema |
-| `ts-morph`                       | `^28.0.0`  | TypeScript AST analysis for the Code Reader / Codebase Analyzer agents       |
-| `chalk`, `dotenv`                | latest     | CLI output and environment loading                                           |
+| Package                          | Version    | Role                                                                        |
+| -------------------------------- | ---------- | --------------------------------------------------------------------------- |
+| `@anthropic-ai/claude-agent-sdk` | `^0.3.220` | Single Agent SDK entry point used by `ExecutionAdapter` for every stage     |
+| `commander`                      | `^15.0.0`  | `ad-sdlc` CLI argument parsing                                              |
+| `inquirer`                       | `^14.0.2`  | Interactive prompts for `ad-sdlc init`                                      |
+| `js-yaml`                        | `^5.2.2`   | Pipeline config and document frontmatter parsing                            |
+| `zod`                            | `^4.4.3`   | Runtime schema validation for configs, external data, and checkpoint schema |
+| `ts-morph`                       | `^28.0.0`  | TypeScript AST analysis for the Code Reader / Codebase Analyzer agents      |
+| `chalk`, `dotenv`                | latest     | CLI output and environment loading                                          |
 
 Optional integrations (logging backends, OpenTelemetry exporters, `better-sqlite3`, `ioredis`, `mammoth`, `pdf-parse`) are declared as **optional peer dependencies** so the runtime install stays lean; consumers pull them in only when the matching scratchpad backend or document parser is enabled.
 
@@ -387,7 +388,7 @@ See [Use Cases Guide](docs/use-cases.md) for more examples.
 ```
 your-project/
 ├── .claude/
-│   └── agents/              # Agent definitions (34 prompt files, 35 registered types)
+│   └── agents/              # Agent definitions (36 prompt files; see runtime inventory)
 │       └── *.md             # Agent prompts (English, used by Claude)
 ├── .ad-sdlc/
 │   ├── config/              # Configuration files
@@ -416,6 +417,7 @@ your-project/
 ### Reference
 
 - [System Architecture](docs/system-architecture.md)
+- [Runtime Inventory](docs/architecture/runtime-inventory.md) — source-checked agent, stage, and traceability counts
 - [v0.1 Hybrid Pipeline RFC](docs/architecture/v0.1-hybrid-pipeline-rfc.md) — 3-tier architecture and Claude Agent SDK adoption rationale
 - [v0.1 Migration Guide](docs/architecture/v0.1-migration-guide.md) — v0.0.1 → v0.1.0 contributor and consumer migration steps
 - [Document Status Definitions](docs/DOCUMENT_STATUS_DEFINITIONS.md)
@@ -468,7 +470,7 @@ doc_id: PRD-my-project
 title: Product Requirements Document
 version: 1.0.0
 status: Draft
-generated_by: ad-sdlc v0.0.1
+generated_by: ad-sdlc v0.1.0
 generated_at: '2026-04-12T09:00:00.000Z'
 source_documents:
   - collected_info.yaml

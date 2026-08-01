@@ -69,8 +69,8 @@ ad-sdlc generate-sdp --project 001
 
 ### SDPWriterAgent
 
-Main orchestrator class for SDP generation. Implements `IAgent` for unified
-instantiation through `AgentFactory`.
+Main orchestrator class for SDP generation. It implements `IAgent` for the
+shared lifecycle contract; pipeline AI execution uses `ExecutionAdapter`.
 
 #### Methods
 
@@ -85,7 +85,9 @@ instantiation through `AgentFactory`.
 
 ### Agent ID
 
-Registered as `sdp-writer-agent` (`SDP_WRITER_AGENT_ID`) for `AgentFactory`.
+`SDP_WRITER_AGENT_ID` identifies the module as `sdp-writer-agent`. Direct
+callers can construct `SDPWriterAgent` or use its module-local singleton
+accessor; the pipeline `agentType` is `sdp-writer`.
 
 ## Quality Criteria
 

@@ -7,7 +7,7 @@
 | **Document ID** | SDS-001 |
 | **Source SRS** | SRS-001 |
 | **Source PRD** | PRD-001 |
-| **Version** | 1.1.0 |
+| **Version** | 1.2.0 |
 | **Status** | Review |
 | **Implementation** | Partial |
 | **Created** | 2025-12-27 |
@@ -49,7 +49,7 @@
 | Category | Scope |
 |----------|-------|
 | **Architecture** | 멀티 에이전트 오케스트레이션 아키텍처, Scratchpad 패턴 |
-| **Components** | 28개 컴포넌트 설계 (25개 특화 에이전트 + 3개 인프라 서비스) |
+| **Components** | 36개의 `CMP-*` 설계 레코드([runtime inventory](architecture/runtime-inventory.md)의 프롬프트 정의 36개 및 런타임 stage slot 39개와는 별도의 설계 문서 축) |
 | **Data** | 파일 기반 상태 스키마, 데이터 엔티티 정의 |
 | **Interfaces** | 에이전트 간 통신, GitHub API 연동, CLI 인터페이스 |
 | **Security** | 인증, 권한 관리, 민감 정보 보호 |
@@ -381,6 +381,14 @@ project-root/
 | CMP-026 | Analysis Orchestrator Agent | 분석 오케스트레이터 | SF-030 | Enhancement 분석 서브 파이프라인 |
 | CMP-027 | GitHub Repo Setup Agent | GitHub 저장소 설정 에이전트 | SF-029 | GitHub 저장소 생성 및 초기화 |
 | CMP-028 | Issue Reader Agent | 이슈 리더 에이전트 | SF-031 | 기존 GitHub 이슈 가져오기 |
+| CMP-029 | Agent Definition Validator | 에이전트 정의 검증기 | SF-028 | 에이전트 정의 파일 스키마 및 레지스트리 검증 |
+| CMP-030 | Architecture Generator | 아키텍처 생성기 | SF-004 | SRS 문서로부터 아키텍처 설계 생성 |
+| CMP-031 | Component Generator | 컴포넌트 생성기 | SF-004 | 컴포넌트 설계, 인터페이스 사양, API 문서 생성 |
+| CMP-032 | Monitoring Service | 모니터링 서비스 | SF-015 | 관측성, 토큰 예산 관리, 알림, 성능 튜닝 |
+| CMP-033 | Telemetry Service | 텔레메트리 서비스 | SF-015 | 옵트인 익명 사용 분석 및 동의 관리 |
+| CMP-034 | Security Module | 보안 모듈 | Cross-cutting (NFR) | 입력 검증, 명령어 새니타이즈, 감사 로깅, 속도 제한 |
+| CMP-035 | Configuration Manager | 설정 관리자 | SF-028 | 워크플로우/에이전트 설정 로딩, 검증, 감시 |
+| CMP-036 | Completion Generator | 자동완성 생성기 | CLI Tooling | bash, zsh, fish 쉘 자동완성 스크립트 생성 |
 
 ### 3.2 CMP-001: Collector Agent
 
@@ -2681,8 +2689,25 @@ interface OrchestratorSession {
 **사전 완료 단계의 아티팩트 검증 (Artifact Validation)**
 
 나머지 단계를 실행하기 전에, 오케스트레이터는 사전 완료된 단계의 출력 아티팩트가
-디스크에 실제로 존재하는지 검증합니다. `ArtifactValidator` 클래스가 각 단계를
-예상 출력 아티팩트에 매핑하고 glob 매칭을 통해 존재 여부를 확인합니다.
+디스크에 실제로 존재하는지 검증합니다. 이를 통해 아티팩트가 누락된 상태에서
+다운스트림 단계가 실행되어 런타임 오류가 발생하는 것을 방지합니다.
+
+`ArtifactValidator` 클래스가 각 단계를 예상 출력 아티팩트에 매핑합니다:
+
+```typescript
+interface ArtifactSpec {
+  readonly pathPattern: string;   // Glob 패턴 (* 와일드카드 지원)
+  readonly description: string;   // 사람이 읽을 수 있는 레이블
+  readonly required: boolean;     // 다운스트림 단계에 필수 여부
+}
+
+interface ValidationResult {
+  readonly valid: boolean;
+  readonly stage: StageName;
+  readonly missing: readonly ArtifactSpec[];
+  readonly found: readonly string[];
+}
+```
 
 **Graceful degradation 흐름:**
 
@@ -2956,6 +2981,674 @@ interface TelemetryEvent {
 │  └──────────────┘ └──────────┘ └────────────┘ └──────────────┘│
 └─────────────────────────────────────────────────────────────────┘
 ```
+
+### 3.14 지원 컴포넌트
+
+이 컴포넌트들은 핵심 에이전트 파이프라인을 보강하는 특화된 생성, 검증,
+관측 기능을 제공합니다. 위의 인프라 모듈과 달리, `IAgent` 인터페이스를
+구현하여 공통 `IAgent` 수명주기 계약을 따릅니다. 구체 모듈은 직접 생성하거나
+모듈별 접근자를 사용하며, SDK 기반 stage 실행은 `ExecutionAdapter`를 통합니다.
+
+#### 3.14.1 CMP-029: Agent Definition Validator
+
+**Source Features**: SF-028 (UC-039)
+**Responsibility**: 에이전트 정의 파일(`.claude/agents/*.md`)을 Zod 기반 스키마에 대해 검증하고, `agents.yaml` 레지스트리와의 일관성을 확인합니다. 마크다운 파일에서 YAML 프론트매터를 파싱하고, 구조(이름, 설명, 도구, 모델)를 검증하며, 권장 섹션을 확인하고, 오류 및 경고가 포함된 검증 보고서를 생성합니다. 이것은 상태를 유지하지 않는 라이브러리 모듈로(IAgent 구현이 아님) 순수 검증 함수를 노출합니다.
+
+```typescript
+interface IAgentDefinitionValidator {
+  /**
+   * 단일 에이전트 정의 파일 검증
+   * @param filePath 에이전트 정의 마크다운 파일 경로
+   * @param options 검증 옵션
+   * @returns 오류 및 경고가 포함된 검증 결과
+   */
+  validateAgentFile(
+    filePath: string,
+    options?: ValidateAgentOptions
+  ): AgentValidationResult;
+
+  /**
+   * 디렉토리 내 모든 에이전트 정의 파일 검증
+   * @param options 디렉토리 경로를 포함한 검증 옵션
+   * @returns 일괄 검증 보고서
+   */
+  validateAllAgents(
+    options?: ValidateAgentOptions
+  ): AgentValidationReport;
+
+  /**
+   * 검증 보고서를 사람이 읽을 수 있는 문자열로 포맷
+   * @param report 포맷할 검증 보고서
+   * @returns 포맷된 보고서 문자열
+   */
+  formatValidationReport(
+    report: AgentValidationReport
+  ): string;
+}
+
+interface ValidateAgentOptions {
+  /** agents.yaml 레지스트리와 일관성 확인 */
+  readonly checkRegistry?: boolean;
+  /** 출력에 경고 포함 */
+  readonly includeWarnings?: boolean;
+  /** 커스텀 에이전트 디렉토리 경로 */
+  readonly agentsDir?: string;
+  /** 커스텀 레지스트리 파일 경로 */
+  readonly registryPath?: string;
+}
+
+interface AgentValidationResult {
+  /** 검증된 파일 경로 */
+  readonly filePath: string;
+  /** 파일의 유효성 여부 */
+  readonly valid: boolean;
+  /** 검증 오류 */
+  readonly errors: AgentValidationError[];
+  /** 검증 경고 */
+  readonly warnings: AgentValidationError[];
+  /** 파싱된 에이전트 정의 (유효한 경우) */
+  readonly agent?: AgentDefinition;
+}
+
+interface AgentValidationReport {
+  /** 보고서 생성 타임스탬프 */
+  readonly timestamp: string;
+  /** 검증된 총 파일 수 */
+  readonly totalFiles: number;
+  /** 유효한 파일 수 */
+  readonly validCount: number;
+  /** 유효하지 않은 파일 수 */
+  readonly invalidCount: number;
+  /** 경고 수 */
+  readonly warningCount: number;
+  /** 파일별 검증 결과 */
+  readonly results: AgentValidationResult[];
+}
+```
+
+**Output**: `AgentValidationReport` 데이터 구조 (디스크 쓰기 없음)
+**Tools Required**: Read (에이전트 정의 파일, agents.yaml)
+**Dependencies**: `src/utils` (프로젝트 루트 감지), `src/config/paths` (기본 경로)
+
+#### 3.14.2 CMP-030: Architecture Generator
+
+**Source Features**: SF-004 (UC-007)
+**Responsibility**: SRS 문서로부터 종합적인 시스템 아키텍처 설계를 생성합니다. 기능, 유스케이스, 비기능 요구사항, 제약조건을 분석하여 아키텍처 패턴, 기술 스택, Mermaid 다이어그램, 디렉토리 구조를 권장합니다. 마크다운 형식의 SDS 아키텍처 섹션을 출력합니다.
+
+```typescript
+interface IArchitectureGenerator extends IAgent {
+  /**
+   * SRS 파일로부터 아키텍처 설계 생성
+   * @param srsPath SRS 마크다운 파일 경로
+   * @param options 생성 옵션
+   * @returns 완전한 아키텍처 설계
+   */
+  generateFromFile(
+    srsPath: string,
+    options?: ArchitectureGeneratorOptions
+  ): ArchitectureDesign;
+
+  /**
+   * 아키텍처를 생성하고 디스크에 저장
+   * @param srsPath SRS 파일 경로
+   * @param projectId 프로젝트 식별자
+   * @param options 생성 옵션
+   * @returns 설계 및 출력 파일 경로
+   */
+  generateAndSave(
+    srsPath: string,
+    projectId: string,
+    options?: ArchitectureGeneratorOptions
+  ): { design: ArchitectureDesign; outputPath: string };
+
+  /**
+   * 아키텍처 설계를 마크다운으로 변환
+   * @param design 렌더링할 아키텍처 설계
+   * @returns 마크다운 문자열
+   */
+  designToMarkdown(design: ArchitectureDesign): string;
+}
+
+interface ArchitectureDesign {
+  /** 아키텍처 패턴 분석 및 권장사항 */
+  readonly analysis: ArchitectureAnalysis;
+  /** 권장 기술 스택 */
+  readonly technologyStack: TechnologyStack;
+  /** 생성된 Mermaid 다이어그램 */
+  readonly diagrams: MermaidDiagram[];
+  /** 디렉토리 구조 사양 */
+  readonly directoryStructure: DirectoryStructure;
+  /** 생성 메타데이터 */
+  readonly metadata: ArchitectureMetadata;
+}
+
+interface ArchitectureAnalysis {
+  /** 권장 주요 아키텍처 패턴 */
+  readonly primaryPattern: ArchitecturePattern;
+  /** 보조 패턴 */
+  readonly supportingPatterns: ArchitecturePattern[];
+  /** 선택 근거 */
+  readonly rationale: string;
+  /** 패턴별 권장사항 */
+  readonly recommendations: PatternRecommendation[];
+  /** 식별된 아키텍처 관심사 */
+  readonly concerns: ArchitecturalConcern[];
+}
+
+type ArchitecturePattern =
+  | 'hierarchical-multi-agent'
+  | 'pipeline'
+  | 'event-driven'
+  | 'microservices'
+  | 'layered'
+  | 'hexagonal'
+  | 'cqrs'
+  | 'scratchpad';
+```
+
+**Output**: `docs/sds/SDS-{projectId}-architecture.md`
+**Tools Required**: Read (SRS 파일), Write (SDS 출력)
+**Dependencies**: 없음 (자체 포함 모듈)
+
+#### 3.14.3 CMP-031: Component Generator
+
+**Source Features**: SF-004 (UC-007)
+**Responsibility**: 파싱된 SRS 문서를 인터페이스 사양, API 문서, 의존성 분석, 추적성 행렬이 포함된 상세한 컴포넌트 설계로 변환합니다. 유스케이스 분석으로부터 SDS 컴포넌트 섹션과 TypeScript 타입 정의를 생성합니다.
+
+```typescript
+interface IComponentGenerator extends IAgent {
+  /**
+   * 파싱된 SRS로부터 컴포넌트 설계 생성
+   * @param srs 파싱된 SRS 문서
+   * @param options 생성 옵션
+   * @returns 완전한 컴포넌트 설계
+   */
+  generate(
+    srs: ParsedSRS,
+    options?: ComponentGeneratorOptions
+  ): ComponentDesign;
+
+  /**
+   * 컴포넌트 설계를 생성하고 디스크에 저장
+   * @param srs 파싱된 SRS 문서
+   * @param projectId 프로젝트 식별자
+   * @param options 생성 옵션
+   * @returns 설계 및 출력 파일 경로
+   */
+  generateAndSave(
+    srs: ParsedSRS,
+    projectId: string,
+    options?: ComponentGeneratorOptions
+  ): { design: ComponentDesign; outputPath: string };
+
+  /**
+   * 설계로부터 TypeScript 인터페이스 생성
+   * @param design 컴포넌트 설계
+   * @returns TypeScript 인터페이스 선언
+   */
+  generateTypeScriptInterfaces(
+    design: ComponentDesign
+  ): string;
+}
+
+interface ComponentDesign {
+  /** 컴포넌트 정의 */
+  readonly components: ComponentDefinition[];
+  /** API 엔드포인트 사양 */
+  readonly apiSpecification: APIEndpoint[];
+  /** 기능-컴포넌트 추적성 */
+  readonly traceabilityMatrix: TraceabilityEntry[];
+  /** 컴포넌트 간 의존성 */
+  readonly dependencies: ComponentDependency[];
+  /** 생성 메타데이터 */
+  readonly metadata: ComponentDesignMetadata;
+}
+
+interface ComponentDefinition {
+  /** 컴포넌트 식별자 */
+  readonly id: string;
+  /** 컴포넌트 이름 */
+  readonly name: string;
+  /** 컴포넌트 책임 */
+  readonly responsibility: string;
+  /** 소스 기능 참조 */
+  readonly sourceFeature: string;
+  /** 인터페이스 사양 */
+  readonly interfaces: InterfaceSpec[];
+  /** 컴포넌트 의존성 */
+  readonly dependencies: string[];
+  /** 아키텍처 레이어 */
+  readonly layer: 'presentation' | 'application' | 'domain' | 'infrastructure' | 'integration';
+}
+
+interface APIEndpoint {
+  /** 엔드포인트 경로 */
+  readonly endpoint: string;
+  /** HTTP 메서드 */
+  readonly method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+  /** 엔드포인트 설명 */
+  readonly description: string;
+  /** 요청 스키마 */
+  readonly request: Record<string, unknown>;
+  /** 응답 스키마 */
+  readonly response: Record<string, unknown>;
+  /** 인증 필요 여부 */
+  readonly authenticated: boolean;
+  /** 속도 제한 설정 */
+  readonly rateLimit?: string;
+}
+```
+
+**Output**: `docs/sds/SDS-{projectId}-components.md`
+**Tools Required**: Read (SRS 파일), Write (SDS 출력)
+**Dependencies**: `src/architecture-generator` (ParsedSRS 타입), `src/logging` (Logger)
+
+#### 3.14.4 CMP-032: Monitoring Service
+
+**Source Features**: SF-015 (UC-022, UC-023)
+**Responsibility**: AD-SDLC 파이프라인을 위한 종합적인 관측성 및 비용 제어 인프라를 제공합니다. 메트릭 수집, 에스컬레이션이 포함된 알림, 예측 기능이 있는 계층적 토큰 예산 관리, OpenTelemetry를 통한 분산 추적, 지능형 모델 선택, 쿼리 캐싱, 실시간 대시보드 데이터 집계를 포함합니다. 전체 하위 컴포넌트 목록은 Section 3.13.2를 참조하세요.
+
+```typescript
+interface IMetricsCollector {
+  /**
+   * 에이전트 호출 메트릭 기록
+   * @param agentId 에이전트 식별자
+   * @param metrics 호출 메트릭 (토큰, 지속시간, 상태)
+   */
+  recordAgentInvocation(
+    agentId: string,
+    metrics: AgentInvocationMetrics
+  ): void;
+
+  /**
+   * 파이프라인 단계 메트릭 기록
+   * @param stage 파이프라인 단계 이름
+   * @param durationMs 단계 실행 시간
+   * @param status 단계 완료 상태
+   */
+  recordPipelineStage(
+    stage: string,
+    durationMs: number,
+    status: 'success' | 'failure' | 'skipped'
+  ): void;
+
+  /** 버퍼된 메트릭을 디스크에 플러시 */
+  flush(): Promise<void>;
+}
+
+interface ITokenBudgetManager {
+  /**
+   * 에이전트의 토큰 사용량 추적
+   * @param agentId 에이전트 식별자
+   * @param usage 토큰 사용 데이터 (입력, 출력, 모델)
+   * @returns 남은 토큰 및 경고가 포함된 예산 상태
+   */
+  trackUsage(
+    agentId: string,
+    usage: TokenUsage
+  ): BudgetStatus;
+
+  /**
+   * 에이전트 또는 세션의 남은 예산 조회
+   * @param agentId 선택적 에이전트 필터
+   * @returns 예측이 포함된 남은 예산
+   */
+  getRemainingBudget(agentId?: string): BudgetRemaining;
+}
+
+interface IModelSelector {
+  /**
+   * 작업 복잡도 및 제약조건에 기반한 최적 모델 권장
+   * @param task 작업 설명 및 특성
+   * @param constraints 예산 및 지연시간 제약
+   * @returns 근거가 포함된 모델 권장
+   */
+  selectModel(
+    task: TaskCharacteristics,
+    constraints: ModelConstraints
+  ): ModelRecommendation;
+}
+
+interface IAlertManager {
+  /**
+   * 조건에 따른 알림 발생
+   * @param alertId 알림 식별자
+   * @param condition 알림 조건 및 컨텍스트
+   */
+  fireAlert(alertId: string, condition: AlertCondition): void;
+
+  /**
+   * 활성 알림 확인
+   * @param alertId 알림 식별자
+   */
+  acknowledgeAlert(alertId: string): void;
+}
+```
+
+**Output**: `.ad-sdlc/metrics/`, `.ad-sdlc/alerts/`, `.ad-sdlc/budget/`, `.ad-sdlc/cache/`
+**Tools Required**: Read/Write (메트릭 및 예산 영속성)
+**Dependencies**: `src/config/paths` (디렉토리 해석), `src/logging` (Logger)
+
+#### 3.14.5 CMP-033: Telemetry Service
+
+**Source Features**: SF-015 (UC-022)
+**Responsibility**: 명시적 사용자 동의를 기반으로 하는 옵트인 익명 사용 분석 수집을 제공합니다. 동의 수명주기(부여/거부/철회)를 관리하고, 텔레메트리 이벤트를 버퍼링하며, 개인정보 보호 정책 준수를 강제합니다. 개인 데이터는 수집되지 않으며, 모든 데이터 수집은 명시적 옵트인이 필요합니다. 독립 싱글톤 서비스입니다(IAgent 구현이 아님).
+
+```typescript
+interface ITelemetryService {
+  /**
+   * 현재 동의 상태 조회
+   * @returns 'granted' | 'denied' | 'pending'
+   */
+  getConsentStatus(): ConsentStatus;
+
+  /**
+   * 텔레메트리 수집 동의 설정
+   * @param granted 동의 여부
+   * @returns 업데이트된 동의 레코드
+   */
+  setConsent(granted: boolean): ConsentRecord;
+
+  /**
+   * 텔레메트리 동의 철회 및 버퍼 데이터 삭제
+   * @returns 업데이트된 동의 레코드
+   */
+  revokeConsent(): ConsentRecord;
+
+  /**
+   * 텔레메트리 이벤트 기록 (동의 부여 시에만 동작)
+   * @param type 이벤트 유형
+   * @param properties 익명 이벤트 속성
+   * @returns 기록된 이벤트 또는 비활성화 시 null
+   */
+  recordEvent(
+    type: TelemetryEventType,
+    properties: Record<string, string | number | boolean>
+  ): TelemetryEvent | null;
+
+  /**
+   * 버퍼링된 이벤트를 스토리지에 플러시
+   * @returns 플러시된 이벤트 수
+   */
+  flush(): number;
+
+  /**
+   * 텔레메트리 종료 및 보류 이벤트 플러시
+   * @returns 플러시된 이벤트 수
+   */
+  shutdown(): number;
+}
+
+type ConsentStatus = 'granted' | 'denied' | 'pending';
+type TelemetryEventType =
+  | 'command_executed'
+  | 'pipeline_started'
+  | 'pipeline_completed'
+  | 'pipeline_failed'
+  | 'agent_invoked'
+  | 'error_occurred'
+  | 'feature_used';
+
+interface ConsentRecord {
+  readonly status: ConsentStatus;
+  readonly timestamp: string;
+  readonly policyVersion: string;
+}
+
+interface TelemetryEvent {
+  readonly eventId: string;
+  readonly type: TelemetryEventType;
+  readonly timestamp: string;
+  readonly sessionId: string;
+  readonly properties: Readonly<Record<string, string | number | boolean>>;
+}
+```
+
+**Output**: `~/.ad-sdlc/telemetry-consent.json` (동의 상태)
+**Tools Required**: None (파일시스템만 사용)
+**Dependencies**: None (독립 모듈)
+
+#### 3.14.6 CMP-034: Security Module
+
+**Applicability**: Cross-cutting (NFR — 보안 요구사항)
+**Responsibility**: AD-SDLC 시스템을 위한 종합적 보안 인프라를 제공합니다. 입력 검증, 경로 새니타이즈, 심볼릭 링크 해석, 화이트리스트 기반 명령어 새니타이즈, 속도 제한, 감사 로깅, 보안 파일 작업, 시크릿 관리를 포함합니다. 상태를 유지하지 않는 라이브러리 컬렉션입니다(IAgent 구현이 아님).
+
+```typescript
+interface IInputValidator {
+  /**
+   * 보안 규칙에 대해 파일 경로 검증
+   * @param filePath 검증할 경로
+   * @returns 오류 세부 정보가 포함된 검증 결과
+   */
+  validatePath(filePath: string): ValidationResult;
+
+  /**
+   * 허용된 프로토콜 및 호스트에 대해 URL 검증
+   * @param url 검증할 URL
+   * @returns 검증 결과
+   */
+  validateUrl(url: string): ValidationResult;
+
+  /**
+   * 인젝션 시도에 대해 사용자 입력 문자열 검증
+   * @param input 원시 사용자 입력
+   * @returns 새니타이즈된 값이 포함된 검증 결과
+   */
+  validateInput(input: string): ValidationResult;
+}
+
+interface ICommandSanitizer {
+  /**
+   * 안전한 실행을 위해 명령어 새니타이즈 및 검증
+   * @param command 원시 명령어 문자열
+   * @returns 새니타이즈된 명령어 또는 거부
+   */
+  sanitize(command: string): SanitizedCommand;
+
+  /**
+   * 감사 로깅과 함께 새니타이즈된 명령어 실행
+   * @param command 실행할 새니타이즈된 명령어
+   * @returns 실행 결과
+   */
+  execute(command: SanitizedCommand): Promise<CommandExecResult>;
+}
+
+interface IAuditLogger {
+  /**
+   * 보안 관련 감사 이벤트 로깅
+   * @param event 감사 이벤트 데이터
+   */
+  log(event: AuditEvent): void;
+
+  /**
+   * 감사 로그 항목 쿼리
+   * @param filter 필터 기준
+   * @returns 매칭되는 로그 항목
+   */
+  query(filter: AuditQueryFilter): AuditLogEntry[];
+}
+
+interface IRateLimiter {
+  /**
+   * 속도 제한 하에서 요청 허용 여부 확인
+   * @param key 속도 제한 버킷 키
+   * @returns 잔여 횟수가 포함된 속도 제한 상태
+   */
+  check(key: string): RateLimitStatus;
+
+  /**
+   * 속도 제한 토큰 소비
+   * @param key 속도 제한 버킷 키
+   * @returns 업데이트된 상태
+   */
+  consume(key: string): RateLimitStatus;
+}
+
+interface IPathSanitizer {
+  /**
+   * 파일 경로 새니타이즈, 경로 트래버설 시도 거부
+   * @param inputPath 새니타이즈할 원시 경로
+   * @returns 정규화된 경로가 포함된 새니타이즈 결과
+   */
+  sanitize(inputPath: string): SanitizationResult;
+}
+
+interface ISecureFileHandler {
+  /**
+   * 제한된 권한의 보안 임시 파일 생성
+   * @param prefix 파일 이름 접두사
+   * @returns 생성된 임시 파일 경로
+   */
+  createTempFile(prefix: string): Promise<string>;
+
+  /**
+   * 이 핸들러가 생성한 모든 임시 파일 정리
+   */
+  cleanup(): Promise<void>;
+}
+```
+
+**Output**: `.ad-sdlc/audit/` (감사 로그)
+**Tools Required**: Read/Write (파일 작업, 감사 영속성)
+**Dependencies**: `src/config/paths` (디렉토리 해석), `src/logging` (Logger)
+
+#### 3.14.7 CMP-035: Configuration Manager
+
+**Source Features**: SF-028 (UC-039)
+**Responsibility**: 캐싱, Zod 스키마 검증, 환경 변수 치환(`${VAR}` 구문), 핫 리로드를 위한 파일 감시를 통해 워크플로우 및 에이전트 설정에 대한 통합 접근을 제공합니다. `.ad-sdlc/config/`에서 `workflow.yaml`과 `agents.yaml`을 로드하고, 사전 정의된 스키마에 대해 검증하며, 파이프라인 스테이지, 에이전트 설정, 품질 게이트, GitHub 통합을 위한 타입화된 접근자 메서드를 노출합니다. 싱글톤 서비스입니다(IAgent 구현이 아님).
+
+```typescript
+interface IConfigManager {
+  /**
+   * 글로벌 설정 조회 (프로젝트 루트, 타임아웃, 승인 게이트)
+   * @returns 타입화된 글로벌 설정
+   */
+  getGlobalConfig(): GlobalConfig;
+
+  /**
+   * 순서대로 정렬된 파이프라인 스테이지 조회
+   * @returns 실행 순서대로의 파이프라인 스테이지 배열
+   */
+  getPipelineStages(): readonly PipelineStage[];
+
+  /**
+   * 특정 에이전트의 설정 조회
+   * @param agentId 에이전트 식별자
+   * @returns 에이전트 워크플로우 설정 또는 undefined
+   */
+  getAgentConfig(agentId: string): AgentWorkflowConfig | undefined;
+
+  /**
+   * 품질 게이트 규칙 조회
+   * @returns 품질 게이트 설정
+   */
+  getQualityGates(): QualityGates;
+
+  /**
+   * agents.yaml의 모든 에이전트 정의 조회
+   * @returns 에이전트 정의 레코드
+   */
+  getAllAgentDefinitions(): Record<string, AgentDefinition>;
+
+  /**
+   * 재시도 정책 설정 조회
+   * @returns 재시도 정책 설정
+   */
+  getRetryPolicy(): RetryPolicy;
+}
+
+interface GlobalConfig {
+  readonly projectRoot: string;
+  readonly scratchpadDir: string;
+  readonly outputDocsDir: string;
+  readonly logLevel: 'DEBUG' | 'INFO' | 'WARN' | 'ERROR';
+  readonly approvalGates: {
+    readonly afterCollection: boolean;
+    readonly afterPrd: boolean;
+    readonly afterSrs: boolean;
+    readonly afterSds: boolean;
+    readonly afterIssues: boolean;
+    readonly beforeMerge: boolean;
+  };
+  readonly retryPolicy: RetryPolicy;
+  readonly timeouts: {
+    readonly documentGeneration: number;
+    readonly issueCreation: number;
+    readonly implementation: number;
+    readonly prReview: number;
+  };
+}
+
+interface PipelineStage {
+  readonly name: string;
+  readonly agent: string;
+  readonly description: string | undefined;
+  readonly next: string | null;
+  readonly approvalRequired: boolean;
+  readonly parallel: boolean;
+}
+```
+
+**Output**: 인메모리 캐시된 설정 (디스크 쓰기 없음)
+**Tools Required**: Read (YAML 설정 파일)
+**Dependencies**: `src/config/loader` (파일 로딩), `src/config/schemas` (Zod 검증), `src/config/watcher` (핫 리로드)
+
+#### 3.14.8 CMP-036: Completion Generator
+
+**Applicability**: CLI Tooling (독립 유틸리티)
+**Responsibility**: AD-SDLC CLI를 위한 쉘별 자동완성 스크립트를 생성합니다. bash, zsh, fish 쉘을 지원합니다. 등록된 CLI 명령어 정의(서브커맨드, 옵션, 값 열거 포함)를 기반으로 완성 스크립트를 생성합니다. 각 쉘 유형에 대한 설치 지침을 제공합니다. 독립 싱글톤입니다(IAgent 구현이 아님).
+
+```typescript
+interface ICompletionGenerator {
+  /**
+   * 지정된 쉘에 대한 완성 스크립트 생성
+   * @param shell 대상 쉘 유형
+   * @returns 스크립트와 설치 지침이 포함된 완성 결과
+   */
+  generate(shell: ShellType): CompletionResult;
+
+  /**
+   * 지원되는 쉘 유형 목록 조회
+   * @returns 지원되는 쉘 배열
+   */
+  getSupportedShells(): readonly ShellType[];
+
+  /**
+   * 등록된 CLI 명령어 정의 조회
+   * @returns 검사를 위한 명령어 정의 배열
+   */
+  getCommands(): readonly CommandDefinition[];
+}
+
+type ShellType = 'bash' | 'zsh' | 'fish';
+
+interface CompletionResult {
+  readonly success: boolean;
+  readonly script: string;
+  readonly shell: ShellType;
+  readonly instructions: string;
+  readonly error?: string;
+}
+
+interface CommandDefinition {
+  readonly name: string;
+  readonly description: string;
+  readonly options: readonly OptionDefinition[];
+  readonly subcommands?: readonly CommandDefinition[];
+}
+
+interface OptionDefinition {
+  readonly short?: string;
+  readonly long: string;
+  readonly description: string;
+  readonly takesValue: boolean;
+  readonly values?: readonly string[];
+}
+```
+
+**Output**: 생성된 쉘 완성 스크립트 (stdout)
+**Tools Required**: None (순수 생성, 디스크 I/O 없음)
+**Dependencies**: None (독립 모듈)
 
 ---
 
@@ -3829,7 +4522,7 @@ checkpoints:
 | SF-001 (Multi-Source Collection) | CMP-001 (Collector Agent) | 다중 소스 정보 수집 |
 | SF-002 (PRD Generation) | CMP-002 (PRD Writer Agent) | PRD 자동 생성 |
 | SF-003 (SRS Generation) | CMP-003 (SRS Writer Agent) | SRS 자동 생성 |
-| SF-004 (SDS Generation) | CMP-004 (SDS Writer Agent) | SDS 자동 생성 |
+| SF-004 (SDS Generation) | CMP-004 (SDS Writer Agent), CMP-030 (Architecture Generator), CMP-031 (Component Generator) | SDS 자동 생성 및 설계 산출물 생성 |
 | SF-005 (Issue Generation) | CMP-005 (Issue Generator) | GitHub Issue 생성 |
 | SF-006 (Work Prioritization) | CMP-006 (Controller Agent) | 작업 우선순위 결정 |
 | SF-007 (Work Assignment) | CMP-006 (Controller Agent) | 작업 할당 및 모니터링 |
@@ -3840,7 +4533,7 @@ checkpoints:
 | SF-012 (Traceability Matrix) | CMP-025 (AD-SDLC Orchestrator) | 추적성 유지 |
 | SF-013 (Approval Gate) | CMP-025 (AD-SDLC Orchestrator) | 승인 게이트 시스템 |
 | SF-014 (Scratchpad State) | CMP-009 (State Manager) | 상태 관리 |
-| SF-015 (Activity Logging) | CMP-010 (Logger) | 활동 로깅 |
+| SF-015 (Activity Logging) | CMP-010 (Logger), CMP-032 (Monitoring Service), CMP-033 (Telemetry Service) | 활동 로깅, 관측성, 익명 분석 |
 | SF-016 (Error Handling) | CMP-011 (Error Handler) | 오류 처리 및 재시도 |
 | SF-017 (Document Reading) | CMP-012 (Document Reader Agent) | 기존 명세 문서 파싱 및 추적성 맵 구축 |
 | SF-018 (Codebase Analysis) | CMP-013 (Codebase Analyzer Agent) | 아키텍처 패턴 및 의존성 그래프 분석 |
@@ -3853,10 +4546,12 @@ checkpoints:
 | SF-025 (Code Reading) | CMP-020 (Code Reader Agent) | AST 분석 및 의존성 추출 |
 | SF-026 (CI Fixing) | CMP-021 (CI Fixer Agent) | CI 실패 진단 및 자동 수정 적용 |
 | SF-027 (Mode Detection) | CMP-022 (Mode Detector Agent) | 그린필드 vs Enhancement 모드 감지 |
-| SF-028 (Project Initialization) | CMP-023 (Project Initializer Agent) | .ad-sdlc 작업 공간 초기화 |
+| SF-028 (Project Initialization) | CMP-023 (Project Initializer Agent), CMP-029 (Agent Definition Validator), CMP-035 (Configuration Manager) | .ad-sdlc 작업 공간 초기화, 에이전트 정의 검증, 설정 관리 |
 | SF-029 (GitHub Repo Management) | CMP-024 (Repo Detector Agent), CMP-027 (GitHub Repo Setup Agent) | 기존 저장소 감지 및 새 저장소 생성 |
 | SF-030 (Pipeline Orchestration) | CMP-025 (AD-SDLC Orchestrator), CMP-026 (Analysis Orchestrator) | 최상위 및 분석 파이프라인 조율 |
 | SF-031 (Issue Import) | CMP-028 (Issue Reader Agent) | 기존 GitHub 이슈를 AD-SDLC 형식으로 가져오기 |
+| Cross-cutting (NFR) | CMP-034 (Security Module) | 입력 검증, 명령어 새니타이즈, 감사 로깅, 속도 제한 |
+| CLI Tooling | CMP-036 (Completion Generator) | 쉘 자동완성 스크립트 생성 |
 
 ### 9.2 Component → API Mapping
 
@@ -3887,6 +4582,14 @@ checkpoints:
 | CMP-026 | executeAnalysisPipeline | CMP-012, CMP-020, CMP-019, CMP-005 |
 | CMP-027 | createRepository | Bash (gh, git) |
 | CMP-028 | importIssues | Bash (gh) |
+| CMP-029 | validateAgentFile, validateAllAgents, formatValidationReport | Read (에이전트 파일, agents.yaml) |
+| CMP-030 | generateFromFile, generateAndSave | Read (SRS), Write (SDS 섹션) |
+| CMP-031 | generateFromSRS, generateAndSave | Read (SRS), Write (컴포넌트 사양) |
+| CMP-032 | recordAgentInvocation, recordPipelineStage, trackUsage, selectModel, fireAlert | Read/Write (메트릭, 예산, 알림) |
+| CMP-033 | getConsentStatus, setConsent, recordEvent, flush, shutdown | Read/Write (동의 파일) |
+| CMP-034 | validatePath, validateUrl, sanitize, execute, log, check | Read/Write (감사 로그) |
+| CMP-035 | getGlobalConfig, getPipelineStages, getAgentConfig, getQualityGates | Read (YAML 설정 파일) |
+| CMP-036 | generate, getSupportedShells, getCommands | None (stdout 출력) |
 
 ### 9.3 Full Traceability Chain
 
@@ -4021,6 +4724,7 @@ traceability_chain:
 |---------|------|--------|---------|
 | 1.0.0 | 2025-12-27 | System Architect | Initial draft based on SRS-001 |
 | 1.1.0 | 2026-02-07 | System Architect | Enhancement Pipeline (CMP-012~CMP-028), 인프라 모듈 (Security/Monitoring/Telemetry), 추적 매트릭스 갱신, Component→API 매핑 갱신 |
+| 1.2.0 | 2026-02-13 | System Architect | 지원 모듈 컴포넌트 추가 (CMP-029~CMP-036): Agent Validator, Architecture/Component Generator, Monitoring, Telemetry, Security, Config Manager, Completion Generator. 추적 매트릭스 및 API 매핑 갱신. CMP-029 UC 참조 수정 (UC-038→UC-039), CMP-032 UC 참조 수정 (UC-025→UC-022/UC-023). |
 
 ---
 

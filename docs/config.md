@@ -431,7 +431,8 @@ import type {
 
 ## Feature Flags
 
-Feature flags toggle optional code paths that are still being piloted. The
+Feature flags preserve configuration compatibility for optional or retired
+code paths. The
 `FeatureFlagsResolver` consults the following sources, picking the first that
 provides a value:
 
@@ -448,7 +449,7 @@ creating it manually. Missing or empty files are silently treated as
 
 | Flag              | Type    | Default | Env variable                 | CLI flag               | YAML path               | Description                                                                                                                                                                                                    |
 | ----------------- | ------- | ------- | ---------------------------- | ---------------------- | ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `useSdkForWorker` | boolean | `false` | `AD_SDLC_USE_SDK_FOR_WORKER` | `--use-sdk-for-worker` | `flags.useSdkForWorker` | Routes the `worker` pipeline stage through the SDK `ExecutionAdapter` (with the AD-07 hook pipeline) instead of the legacy AgentBridge path. Default flip is tracked separately under P3 cutover (issue #798). |
+| `useSdkForWorker` | boolean | `false` | `AD_SDLC_USE_SDK_FOR_WORKER` | `--use-sdk-for-worker` | `flags.useSdkForWorker` | Deprecated compatibility input. Since v0.1 every worker execution already uses `ExecutionAdapter`; changing this value does not select another runtime path. |
 
 ### Environment Variable Tokens
 
@@ -484,7 +485,6 @@ const resolver = FeatureFlagsResolver.fromSources({
   baseDir: '/path/to/project',
 });
 
-if (resolver.useSdkForWorker()) {
-  // Route worker stage through ExecutionAdapter
-}
+// Compatibility value only; worker execution always uses ExecutionAdapter.
+const legacyWorkerPilotSetting = resolver.useSdkForWorker();
 ```
