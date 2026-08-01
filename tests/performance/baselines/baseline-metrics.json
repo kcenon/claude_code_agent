@@ -1,48 +1,263 @@
 {
   "baselines": [
     {
-      "operation": "analyze-100",
-      "p50": 15,
-      "p95": 30,
-      "maxMemoryMB": 50,
-      "updatedAt": "2026-01-10T00:00:00.000Z"
+      "operation": "tests/performance/benchmarks/graph-analysis.bench.ts > Graph Analysis Benchmarks > analyze() - 100 nodes > full graph analysis",
+      "p50": 0.3472879999999918,
+      "p95": 0.56732599999998,
+      "maxMemoryMB": 0,
+      "updatedAt": "2026-08-01T07:58:39.509Z"
     },
     {
-      "operation": "analyze-500",
-      "p50": 100,
-      "p95": 200,
-      "maxMemoryMB": 100,
-      "updatedAt": "2026-01-10T00:00:00.000Z"
+      "operation": "tests/performance/benchmarks/graph-analysis.bench.ts > Graph Analysis Benchmarks > analyze() - 100 nodes > with custom weights",
+      "p50": 0.3302680000000464,
+      "p95": 0.520685000000185,
+      "maxMemoryMB": 0,
+      "updatedAt": "2026-08-01T07:58:39.509Z"
     },
     {
-      "operation": "analyze-1000",
-      "p50": 350,
-      "p95": 700,
-      "maxMemoryMB": 200,
-      "updatedAt": "2026-01-10T00:00:00.000Z"
+      "operation": "tests/performance/benchmarks/graph-analysis.bench.ts > Graph Analysis Benchmarks > analyze() - 1000 nodes > full graph analysis",
+      "p50": 25.78423850000013,
+      "p95": 26.80385000000024,
+      "maxMemoryMB": 0,
+      "updatedAt": "2026-08-01T07:58:39.509Z"
     },
     {
-      "operation": "scratchpad-write-small",
-      "p50": 2,
-      "p95": 5,
-      "maxMemoryMB": 20,
-      "updatedAt": "2026-01-10T00:00:00.000Z"
+      "operation": "tests/performance/benchmarks/graph-analysis.bench.ts > Graph Analysis Benchmarks > analyze() - 500 nodes > full graph analysis",
+      "p50": 6.641501000000062,
+      "p95": 7.21874600000001,
+      "maxMemoryMB": 0,
+      "updatedAt": "2026-08-01T07:58:39.509Z"
     },
     {
-      "operation": "scratchpad-write-large",
-      "p50": 15,
-      "p95": 30,
-      "maxMemoryMB": 50,
-      "updatedAt": "2026-01-10T00:00:00.000Z"
+      "operation": "tests/performance/benchmarks/graph-analysis.bench.ts > Graph Analysis Benchmarks > Critical Path Calculation > critical path - 100 nodes",
+      "p50": 0.33393999999998414,
+      "p95": 0.5240690000000541,
+      "maxMemoryMB": 0,
+      "updatedAt": "2026-08-01T07:58:39.509Z"
     },
     {
-      "operation": "lock-acquire-release",
-      "p50": 5,
-      "p95": 15,
-      "maxMemoryMB": 10,
-      "updatedAt": "2026-01-10T00:00:00.000Z"
+      "operation": "tests/performance/benchmarks/graph-analysis.bench.ts > Graph Analysis Benchmarks > Critical Path Calculation > critical path - 1000 nodes",
+      "p50": 24.50476400000025,
+      "p95": 25.462666999999783,
+      "maxMemoryMB": 0,
+      "updatedAt": "2026-08-01T07:58:39.509Z"
+    },
+    {
+      "operation": "tests/performance/benchmarks/graph-analysis.bench.ts > Graph Analysis Benchmarks > Critical Path Calculation > critical path - 500 nodes",
+      "p50": 6.845882000000074,
+      "p95": 7.602939999999762,
+      "maxMemoryMB": 0,
+      "updatedAt": "2026-08-01T07:58:39.509Z"
+    },
+    {
+      "operation": "tests/performance/benchmarks/graph-analysis.bench.ts > Graph Analysis Benchmarks > Cycle Detection > detect cycles - 100 nodes no cycle",
+      "p50": 0.33839199999965786,
+      "p95": 0.5002439999998387,
+      "maxMemoryMB": 0,
+      "updatedAt": "2026-08-01T07:58:39.509Z"
+    },
+    {
+      "operation": "tests/performance/benchmarks/graph-analysis.bench.ts > Graph Analysis Benchmarks > Cycle Detection > detect cycles - 100 nodes with cycle",
+      "p50": 0.3407999999999447,
+      "p95": 0.5049870000002556,
+      "maxMemoryMB": 0,
+      "updatedAt": "2026-08-01T07:58:39.509Z"
+    },
+    {
+      "operation": "tests/performance/benchmarks/graph-analysis.bench.ts > Graph Analysis Benchmarks > Dependency Queries > getDependencies",
+      "p50": 0.0007040000000415603,
+      "p95": 0.0009200000004057074,
+      "maxMemoryMB": 0,
+      "updatedAt": "2026-08-01T07:58:39.509Z"
+    },
+    {
+      "operation": "tests/performance/benchmarks/graph-analysis.bench.ts > Graph Analysis Benchmarks > Dependency Queries > getDependents",
+      "p50": 0.0007120000000213622,
+      "p95": 0.0009519999994154205,
+      "maxMemoryMB": 0,
+      "updatedAt": "2026-08-01T07:58:39.509Z"
+    },
+    {
+      "operation": "tests/performance/benchmarks/graph-analysis.bench.ts > Graph Analysis Benchmarks > Dependency Queries > getTransitiveDependencies",
+      "p50": 0.00016800000048533548,
+      "p95": 0.00018400000044493936,
+      "maxMemoryMB": 0,
+      "updatedAt": "2026-08-01T07:58:39.509Z"
+    },
+    {
+      "operation": "tests/performance/benchmarks/graph-analysis.bench.ts > Graph Analysis Benchmarks > Queue Operations > getExecutableIssues",
+      "p50": 6.985980999999811,
+      "p95": 7.7483030000003055,
+      "maxMemoryMB": 0,
+      "updatedAt": "2026-08-01T07:58:39.509Z"
+    },
+    {
+      "operation": "tests/performance/benchmarks/graph-analysis.bench.ts > Graph Analysis Benchmarks > Queue Operations > getNextExecutableIssue",
+      "p50": 7.396314499999789,
+      "p95": 8.032486000000063,
+      "maxMemoryMB": 0,
+      "updatedAt": "2026-08-01T07:58:39.509Z"
+    },
+    {
+      "operation": "tests/performance/benchmarks/scratchpad-io.bench.ts > Scratchpad I/O Benchmarks > JSON Operations > readJson - large payload",
+      "p50": 2.014660000000049,
+      "p95": 3.080352999999832,
+      "maxMemoryMB": 0,
+      "updatedAt": "2026-08-01T07:58:39.509Z"
+    },
+    {
+      "operation": "tests/performance/benchmarks/scratchpad-io.bench.ts > Scratchpad I/O Benchmarks > JSON Operations > readJson - medium payload",
+      "p50": 0.23418900000024223,
+      "p95": 0.31692800000018906,
+      "maxMemoryMB": 0,
+      "updatedAt": "2026-08-01T07:58:39.509Z"
+    },
+    {
+      "operation": "tests/performance/benchmarks/scratchpad-io.bench.ts > Scratchpad I/O Benchmarks > JSON Operations > readJson - small payload",
+      "p50": 0.14779499999986,
+      "p95": 0.21297400000003108,
+      "maxMemoryMB": 0,
+      "updatedAt": "2026-08-01T07:58:39.509Z"
+    },
+    {
+      "operation": "tests/performance/benchmarks/scratchpad-io.bench.ts > Scratchpad I/O Benchmarks > JSON Operations > writeJson - large payload (1000 items)",
+      "p50": 1.8193630000000667,
+      "p95": 4.545068000000356,
+      "maxMemoryMB": 0,
+      "updatedAt": "2026-08-01T07:58:39.509Z"
+    },
+    {
+      "operation": "tests/performance/benchmarks/scratchpad-io.bench.ts > Scratchpad I/O Benchmarks > JSON Operations > writeJson - medium payload (100 items)",
+      "p50": 0.3945210000000543,
+      "p95": 0.5205090000001746,
+      "maxMemoryMB": 0,
+      "updatedAt": "2026-08-01T07:58:39.509Z"
+    },
+    {
+      "operation": "tests/performance/benchmarks/scratchpad-io.bench.ts > Scratchpad I/O Benchmarks > JSON Operations > writeJson - small payload",
+      "p50": 0.32728800000006686,
+      "p95": 0.4320659999999634,
+      "maxMemoryMB": 0,
+      "updatedAt": "2026-08-01T07:58:39.509Z"
+    },
+    {
+      "operation": "tests/performance/benchmarks/scratchpad-io.bench.ts > Scratchpad I/O Benchmarks > Lock Operations > acquireLock + releaseLock",
+      "p50": 0.5449770000000171,
+      "p95": 0.6726159999998345,
+      "maxMemoryMB": 0,
+      "updatedAt": "2026-08-01T07:58:39.509Z"
+    },
+    {
+      "operation": "tests/performance/benchmarks/scratchpad-io.bench.ts > Scratchpad I/O Benchmarks > Lock Operations > withLock - simple operation",
+      "p50": 1.3079109999998764,
+      "p95": 7.381695000000036,
+      "maxMemoryMB": 0,
+      "updatedAt": "2026-08-01T07:58:39.509Z"
+    },
+    {
+      "operation": "tests/performance/benchmarks/scratchpad-io.bench.ts > Scratchpad I/O Benchmarks > Path Operations > getSectionPath (100 calls)",
+      "p50": 0.25452599999971426,
+      "p95": 0.3845769999998083,
+      "maxMemoryMB": 0,
+      "updatedAt": "2026-08-01T07:58:39.509Z"
+    },
+    {
+      "operation": "tests/performance/benchmarks/scratchpad-io.bench.ts > Scratchpad I/O Benchmarks > Path Operations > resolve complex paths",
+      "p50": 0.41578600000048027,
+      "p95": 0.5764460000000327,
+      "maxMemoryMB": 0,
+      "updatedAt": "2026-08-01T07:58:39.509Z"
+    },
+    {
+      "operation": "tests/performance/benchmarks/scratchpad-io.bench.ts > Scratchpad I/O Benchmarks > YAML Operations > readYaml",
+      "p50": 0.2029489999999896,
+      "p95": 0.2818220000008296,
+      "maxMemoryMB": 0,
+      "updatedAt": "2026-08-01T07:58:39.509Z"
+    },
+    {
+      "operation": "tests/performance/benchmarks/scratchpad-io.bench.ts > Scratchpad I/O Benchmarks > YAML Operations > writeYaml",
+      "p50": 0.3961140000001251,
+      "p95": 0.5850140000002284,
+      "maxMemoryMB": 0,
+      "updatedAt": "2026-08-01T07:58:39.509Z"
+    },
+    {
+      "operation": "tests/performance/benchmarks/state-persistence.bench.ts > State Persistence Benchmarks > Concurrent Access Simulation > sequential locked writes (10 ops)",
+      "p50": 92.68439000000035,
+      "p95": 1021.1316490000008,
+      "maxMemoryMB": 0,
+      "updatedAt": "2026-08-01T07:58:39.509Z"
+    },
+    {
+      "operation": "tests/performance/benchmarks/state-persistence.bench.ts > State Persistence Benchmarks > Graph State Persistence > load 100-node graph",
+      "p50": 0.2227935000000798,
+      "p95": 0.29137500000024374,
+      "maxMemoryMB": 0,
+      "updatedAt": "2026-08-01T07:58:39.509Z"
+    },
+    {
+      "operation": "tests/performance/benchmarks/state-persistence.bench.ts > State Persistence Benchmarks > Graph State Persistence > load 1000-node graph",
+      "p50": 0.8400320000002921,
+      "p95": 3.0402570000001106,
+      "maxMemoryMB": 0,
+      "updatedAt": "2026-08-01T07:58:39.509Z"
+    },
+    {
+      "operation": "tests/performance/benchmarks/state-persistence.bench.ts > State Persistence Benchmarks > Graph State Persistence > load 500-node graph",
+      "p50": 0.45145099999990634,
+      "p95": 0.7536740000000464,
+      "maxMemoryMB": 0,
+      "updatedAt": "2026-08-01T07:58:39.509Z"
+    },
+    {
+      "operation": "tests/performance/benchmarks/state-persistence.bench.ts > State Persistence Benchmarks > Graph State Persistence > save 100-node graph",
+      "p50": 0.396417999999926,
+      "p95": 0.5502609999999777,
+      "maxMemoryMB": 0,
+      "updatedAt": "2026-08-01T07:58:39.509Z"
+    },
+    {
+      "operation": "tests/performance/benchmarks/state-persistence.bench.ts > State Persistence Benchmarks > Graph State Persistence > save 1000-node graph",
+      "p50": 0.8846779999998944,
+      "p95": 3.246086000000105,
+      "maxMemoryMB": 0,
+      "updatedAt": "2026-08-01T07:58:39.509Z"
+    },
+    {
+      "operation": "tests/performance/benchmarks/state-persistence.bench.ts > State Persistence Benchmarks > Graph State Persistence > save 500-node graph",
+      "p50": 0.5826660000000174,
+      "p95": 0.7274409999999989,
+      "maxMemoryMB": 0,
+      "updatedAt": "2026-08-01T07:58:39.509Z"
+    },
+    {
+      "operation": "tests/performance/benchmarks/state-persistence.bench.ts > State Persistence Benchmarks > Incremental Updates > incremental update (read-modify-write)",
+      "p50": 19.335856000000604,
+      "p95": 40.85337200000049,
+      "maxMemoryMB": 0,
+      "updatedAt": "2026-08-01T07:58:39.509Z"
+    },
+    {
+      "operation": "tests/performance/benchmarks/state-persistence.bench.ts > State Persistence Benchmarks > Save/Load Cycles > 10 consecutive save/load cycles",
+      "p50": 4.967034999999669,
+      "p95": 5.899508999999853,
+      "maxMemoryMB": 0,
+      "updatedAt": "2026-08-01T07:58:39.509Z"
+    },
+    {
+      "operation": "tests/performance/benchmarks/state-persistence.bench.ts > State Persistence Benchmarks > Save/Load Cycles > complete save/load cycle",
+      "p50": 0.506851999999526,
+      "p95": 0.7001129999998739,
+      "maxMemoryMB": 0,
+      "updatedAt": "2026-08-01T07:58:39.509Z"
     }
   ],
-  "updatedAt": "2026-01-10T00:00:00.000Z",
-  "notes": "Initial baseline metrics. Update after running benchmarks on consistent hardware."
+  "updatedAt": "2026-08-01T07:58:39.509Z",
+  "environment": {
+    "runner": "ubuntu-24.04-arm",
+    "platform": "linux-arm64",
+    "node": "v22.23.1"
+  },
+  "notes": "Generated from Vitest benchmark output on ubuntu-24.04-arm. p50 uses median; p95 uses Vitest/Tinybench p99 as a conservative upper-tail proxy."
 }

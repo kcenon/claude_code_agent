@@ -5,6 +5,7 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     include: ['tests/performance/**/*.test.ts'],
+    exclude: ['**/._*'],
     testTimeout: 120000, // Extended timeout for performance tests
     pool: 'forks', // Use forks for memory isolation
     singleFork: true, // Single fork for consistent memory measurements

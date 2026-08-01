@@ -8,21 +8,11 @@
  * - Cycle detection
  */
 
-import { describe, bench, beforeAll } from 'vitest';
+import { describe, bench } from 'vitest';
 import { PriorityAnalyzer } from '../../../src/controller/index.js';
 import { generateIssueGraph } from '../fixtures/graph-generator.js';
-import type { RawDependencyGraph } from '../../../src/controller/types.js';
 
 describe('Graph Analysis Benchmarks', () => {
-  const graphs: Map<number, RawDependencyGraph> = new Map();
-
-  beforeAll(() => {
-    // Pre-generate graphs to avoid generation overhead in benchmarks
-    for (const size of [100, 500, 1000]) {
-      graphs.set(size, generateIssueGraph(size));
-    }
-  });
-
   describe('analyze() - 100 nodes', () => {
     const graph = generateIssueGraph(100);
 
@@ -79,10 +69,7 @@ describe('Graph Analysis Benchmarks', () => {
       const graph = generateIssueGraph(100);
       // Add a cycle by connecting last to first
       const nodes = graph.nodes;
-      const edges = [
-        ...graph.edges,
-        { from: nodes[0]!.id, to: nodes[nodes.length - 1]!.id },
-      ];
+      const edges = [...graph.edges, { from: nodes[0]!.id, to: nodes[nodes.length - 1]!.id }];
       return { nodes, edges };
     })();
 
