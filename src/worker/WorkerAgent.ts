@@ -29,6 +29,7 @@
 import { join, normalize, resolve, relative, isAbsolute } from 'node:path';
 import type { IAgent } from '../agents/types.js';
 import type { ExecutionAdapter, StageExecutionRequest } from '../execution/index.js';
+import { RetryExecutor } from '../error-handler/RetryExecutor.js';
 import { getLogger } from '../logging/index.js';
 
 import type {
@@ -240,112 +241,147 @@ export class WorkerAgent implements IAgent {
       this.resetState();
     }
 
-    while (attempt < retryPolicy.maxAttempts) {
-      attempt++;
+    const remainingAttempts = retryPolicy.maxAttempts - attempt;
+    if (remainingAttempts <= 0) {
+      await this.checkpointManager.deleteCheckpoint(workOrder.orderId);
+      throw new MaxRetriesExceededError(workOrder.issueId, attempt);
+    }
 
-      try {
-        // Determine starting step based on resume
-        const startStep = resumeStep ?? 'context_analysis';
-        let codeContext: CodeContext;
-        let branchName: string;
+    const retryExecutor = new RetryExecutor({
+      maxAttempts: remainingAttempts,
+      backoffStrategy: retryPolicy.backoff,
+      baseDelayMs: retryPolicy.baseDelayMs,
+      maxDelayMs: retryPolicy.maxDelayMs,
+      multiplier: 2,
+      jitterRatio: 0,
+    });
 
-        // 1. Analyze context (skip if resuming past this step)
-        if (this.shouldExecuteStep('context_analysis', startStep)) {
-          codeContext = await this.analyzeContext(workOrder);
-          await this.saveCheckpoint(workOrder, 'context_analysis', attempt);
-        } else {
-          // Restore context from checkpoint
-          codeContext = await this.analyzeContext(workOrder);
-        }
+    const execution = await retryExecutor.executeWithResult(
+      async () => {
+        attempt++;
 
-        const executionContext: ExecutionContext = {
-          workOrder,
-          codeContext,
-          config: this.config,
-          options,
-          attemptNumber: attempt,
-        };
+        try {
+          // Determine starting step based on resume
+          const startStep = resumeStep ?? 'context_analysis';
+          let codeContext: CodeContext;
+          let branchName: string;
 
-        // 2. Create feature branch (skip if resuming past this step)
-        if (this.shouldExecuteStep('branch_creation', startStep)) {
-          branchName = await this.createBranch(workOrder);
-          this.currentBranchName = branchName;
-          await this.saveCheckpoint(workOrder, 'branch_creation', attempt);
-        } else {
-          branchName = this.currentBranchName ?? (await this.getCurrentBranch());
-        }
-
-        // 3. Generate code (skip if resuming past this step)
-        if (this.shouldExecuteStep('code_generation', startStep)) {
-          await this.generateCode(executionContext);
-          await this.saveCheckpoint(workOrder, 'code_generation', attempt);
-        }
-
-        // 4. Generate tests (if not skipped)
-        if (options.skipTests !== true && this.shouldExecuteStep('test_generation', startStep)) {
-          await this.generateTests(executionContext);
-          await this.saveCheckpoint(workOrder, 'test_generation', attempt);
-        }
-
-        // 5. Run verification (if not skipped)
-        let verification: VerificationResult;
-        if (
-          options.skipVerification !== true &&
-          this.shouldExecuteStep('verification', startStep)
-        ) {
-          verification = await this.runVerification();
-
-          if (!verification.testsPassed || !verification.lintPassed || !verification.buildPassed) {
-            throw new VerificationError(
-              !verification.testsPassed ? 'test' : !verification.lintPassed ? 'lint' : 'build',
-              verification.testsOutput || verification.lintOutput || verification.buildOutput
-            );
+          // 1. Analyze context (skip if resuming past this step)
+          if (this.shouldExecuteStep('context_analysis', startStep)) {
+            codeContext = await this.analyzeContext(workOrder);
+            await this.saveCheckpoint(workOrder, 'context_analysis', attempt);
+          } else {
+            // Restore context from checkpoint
+            codeContext = await this.analyzeContext(workOrder);
           }
-          await this.saveCheckpoint(workOrder, 'verification', attempt);
-        } else {
-          verification = this.createSkippedVerification();
-        }
 
-        // 6. Commit changes (if not dry run)
-        if (options.dryRun !== true && this.shouldExecuteStep('commit', startStep)) {
-          await this.commitChanges(workOrder);
-          await this.saveCheckpoint(workOrder, 'commit', attempt);
-        }
+          const executionContext: ExecutionContext = {
+            workOrder,
+            codeContext,
+            config: this.config,
+            options,
+            attemptNumber: attempt,
+          };
 
-        // 7. Create and save result
-        const result = this.createResult(
-          workOrder,
-          'completed',
-          startedAt,
-          branchName,
-          verification
-        );
+          // 2. Create feature branch (skip if resuming past this step)
+          if (this.shouldExecuteStep('branch_creation', startStep)) {
+            branchName = await this.createBranch(workOrder);
+            this.currentBranchName = branchName;
+            await this.saveCheckpoint(workOrder, 'branch_creation', attempt);
+          } else {
+            branchName = this.currentBranchName ?? (await this.getCurrentBranch());
+          }
 
-        await this.saveResult(result);
+          // 3. Generate code (skip if resuming past this step)
+          if (this.shouldExecuteStep('code_generation', startStep)) {
+            await this.generateCode(executionContext);
+            await this.saveCheckpoint(workOrder, 'code_generation', attempt);
+          }
 
-        // Clean up checkpoint on success
-        await this.checkpointManager.deleteCheckpoint(workOrder.orderId);
+          // 4. Generate tests (if not skipped)
+          if (options.skipTests !== true && this.shouldExecuteStep('test_generation', startStep)) {
+            await this.generateTests(executionContext);
+            await this.saveCheckpoint(workOrder, 'test_generation', attempt);
+          }
 
-        return result;
-      } catch (error) {
-        lastError = error instanceof Error ? error : new Error(String(error));
+          // 5. Run verification (if not skipped)
+          let verification: VerificationResult;
+          if (
+            options.skipVerification !== true &&
+            this.shouldExecuteStep('verification', startStep)
+          ) {
+            verification = await this.runVerification();
 
-        // Classify error to determine retry strategy
-        const errorCategory = categorizeError(lastError);
-        const categoryConfig = this.getCategoryRetryConfig(retryPolicy, errorCategory);
+            if (
+              !verification.testsPassed ||
+              !verification.lintPassed ||
+              !verification.buildPassed
+            ) {
+              throw new VerificationError(
+                !verification.testsPassed ? 'test' : !verification.lintPassed ? 'lint' : 'build',
+                verification.testsOutput || verification.lintOutput || verification.buildOutput
+              );
+            }
+            await this.saveCheckpoint(workOrder, 'verification', attempt);
+          } else {
+            verification = this.createSkippedVerification();
+          }
 
-        // Handle based on error category
-        if (errorCategory === 'fatal' || !categoryConfig.retry) {
-          // Fatal errors: No retry, immediate return/escalation
-          if (error instanceof ImplementationBlockedError) {
+          // 6. Commit changes (if not dry run)
+          if (options.dryRun !== true && this.shouldExecuteStep('commit', startStep)) {
+            await this.commitChanges(workOrder);
+            await this.saveCheckpoint(workOrder, 'commit', attempt);
+          }
+
+          // 7. Create and save result
+          const result = this.createResult(
+            workOrder,
+            'completed',
+            startedAt,
+            branchName,
+            verification
+          );
+
+          await this.saveResult(result);
+
+          // Clean up checkpoint on success
+          await this.checkpointManager.deleteCheckpoint(workOrder.orderId);
+
+          return result;
+        } catch (error) {
+          lastError = error instanceof Error ? error : new Error(String(error));
+
+          // Classify error to determine retry strategy
+          const errorCategory = categorizeError(lastError);
+          const categoryConfig = this.getCategoryRetryConfig(retryPolicy, errorCategory);
+
+          // Handle based on error category
+          if (errorCategory === 'fatal' || !categoryConfig.retry) {
+            // Fatal errors: No retry, immediate return/escalation
+            if (error instanceof ImplementationBlockedError) {
+              const result = this.createResult(
+                workOrder,
+                'blocked',
+                startedAt,
+                await this.getCurrentBranch(),
+                this.createSkippedVerification(),
+                undefined,
+                error.blockers
+              );
+              await this.saveResult(result);
+              // Clean up checkpoint on terminal state
+              await this.checkpointManager.deleteCheckpoint(workOrder.orderId);
+              return result;
+            }
+
+            // Other fatal errors: fail immediately
             const result = this.createResult(
               workOrder,
-              'blocked',
+              'failed',
               startedAt,
               await this.getCurrentBranch(),
               this.createSkippedVerification(),
-              undefined,
-              error.blockers
+              `Fatal error: ${lastError.message}`
             );
             await this.saveResult(result);
             // Clean up checkpoint on terminal state
@@ -353,39 +389,34 @@ export class WorkerAgent implements IAgent {
             return result;
           }
 
-          // Other fatal errors: fail immediately
-          const result = this.createResult(
-            workOrder,
-            'failed',
-            startedAt,
-            await this.getCurrentBranch(),
-            this.createSkippedVerification(),
-            `Fatal error: ${lastError.message}`
-          );
-          await this.saveResult(result);
-          // Clean up checkpoint on terminal state
-          await this.checkpointManager.deleteCheckpoint(workOrder.orderId);
-          return result;
-        }
+          // Check category-specific max attempts
+          if (attempt >= categoryConfig.maxAttempts) {
+            throw lastError;
+          }
 
-        // Check category-specific max attempts
-        if (attempt >= categoryConfig.maxAttempts) {
-          // Max attempts for this category reached
-          break;
-        }
+          // Recoverable errors: May attempt self-fix before retry
+          if (errorCategory === 'recoverable' && categoryConfig.requireFixAttempt) {
+            // Log that fix was attempted (actual fix logic would go here)
+            // For VerificationError, the runVerification() already handles lint --fix
+          }
 
-        // Recoverable errors: May attempt self-fix before retry
-        if (errorCategory === 'recoverable' && categoryConfig.requireFixAttempt) {
-          // Log that fix was attempted (actual fix logic would go here)
-          // For VerificationError, the runVerification() already handles lint --fix
+          throw lastError;
         }
-
-        // Transient and recoverable errors: Retry with backoff
-        if (attempt < retryPolicy.maxAttempts) {
-          const delay = this.calculateDelay(attempt, retryPolicy);
-          await this.sleep(delay);
-        }
+      },
+      {
+        operationName: `worker:${workOrder.issueId}`,
+        errorClassifier: () => 'retryable',
+        backoffAttemptOffset: attempt,
+        shouldRetry: (error) => {
+          const category = categorizeError(error);
+          const categoryConfig = this.getCategoryRetryConfig(retryPolicy, category);
+          return categoryConfig.retry && attempt < categoryConfig.maxAttempts;
+        },
       }
+    );
+
+    if (execution.success && execution.value !== undefined) {
+      return execution.value;
     }
 
     // Max retries exceeded - clean up checkpoint
@@ -1235,41 +1266,6 @@ export class WorkerAgent implements IAgent {
       maxAttempts: categoryConfig?.maxAttempts ?? defaultConfig.maxAttempts,
       requireFixAttempt: categoryConfig?.requireFixAttempt ?? defaultConfig.requireFixAttempt,
     };
-  }
-
-  /**
-   * Calculate delay for retry attempt
-   * @param attempt - Current attempt number (1-based)
-   * @param policy - Retry policy containing backoff strategy and delay parameters
-   * @returns Delay in milliseconds for this retry attempt (capped at maxDelayMs)
-   */
-  private calculateDelay(attempt: number, policy: RetryPolicy): number {
-    let delay: number;
-
-    switch (policy.backoff) {
-      case 'fixed':
-        delay = policy.baseDelayMs;
-        break;
-      case 'linear':
-        delay = policy.baseDelayMs * attempt;
-        break;
-      case 'exponential':
-        delay = policy.baseDelayMs * Math.pow(2, attempt - 1);
-        break;
-      default:
-        delay = policy.baseDelayMs;
-    }
-
-    return Math.min(delay, policy.maxDelayMs);
-  }
-
-  /**
-   * Sleep for a given duration
-   * @param ms - Duration to sleep in milliseconds
-   * @returns Promise that resolves after the specified duration
-   */
-  private async sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   /**

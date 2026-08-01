@@ -71,26 +71,23 @@ const agent = new WorkerAgent({
 
 ### Configuration Options
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `projectRoot` | `string` | `process.cwd()` | Project root directory |
-| `resultsPath` | `string` | `.ad-sdlc/scratchpad/progress` | Path to store results |
-| `maxRetries` | `number` | `3` | Maximum retry attempts |
-| `testCommand` | `string` | `npm test` | Command to run tests |
-| `lintCommand` | `string` | `npm run lint` | Command to run linter |
-| `buildCommand` | `string` | `npm run build` | Command to run build |
-| `autoFixLint` | `boolean` | `true` | Auto-fix lint errors |
-| `coverageThreshold` | `number` | `80` | Minimum coverage percentage |
+| Option              | Type      | Default                        | Description                 |
+| ------------------- | --------- | ------------------------------ | --------------------------- |
+| `projectRoot`       | `string`  | `process.cwd()`                | Project root directory      |
+| `resultsPath`       | `string`  | `.ad-sdlc/scratchpad/progress` | Path to store results       |
+| `maxRetries`        | `number`  | `3`                            | Maximum retry attempts      |
+| `testCommand`       | `string`  | `npm test`                     | Command to run tests        |
+| `lintCommand`       | `string`  | `npm run lint`                 | Command to run linter       |
+| `buildCommand`      | `string`  | `npm run build`                | Command to run build        |
+| `autoFixLint`       | `boolean` | `true`                         | Auto-fix lint errors        |
+| `coverageThreshold` | `number`  | `80`                           | Minimum coverage percentage |
 
 ### Runtime Configuration Resolution
 
 For consistent `projectRoot` resolution in monorepos and when `ProjectContext` is initialized, use the factory functions instead of the static defaults:
 
 ```typescript
-import {
-  getDefaultWorkerAgentConfig,
-  getDefaultSelfVerificationConfig,
-} from 'ad-sdlc';
+import { getDefaultWorkerAgentConfig, getDefaultSelfVerificationConfig } from 'ad-sdlc';
 
 // Get configuration with runtime-resolved projectRoot
 const workerConfig = getDefaultWorkerAgentConfig();
@@ -100,6 +97,7 @@ console.log(workerConfig.projectRoot); // Uses ProjectContext when available
 ```
 
 These factory functions resolve `projectRoot` using:
+
 1. Initialized project root from `ProjectContext` (if available)
 2. Current working directory (fallback)
 
@@ -111,20 +109,20 @@ The WorkerAgent expects a Work Order with the following structure:
 
 ```typescript
 interface WorkOrder {
-  orderId: string;           // Unique work order ID (e.g., "WO-001")
-  issueId: string;           // Issue ID (e.g., "ISS-001")
-  issueUrl?: string;         // GitHub issue URL
-  createdAt: string;         // ISO timestamp
-  priority: number;          // Priority score
+  orderId: string; // Unique work order ID (e.g., "WO-001")
+  issueId: string; // Issue ID (e.g., "ISS-001")
+  issueUrl?: string; // GitHub issue URL
+  createdAt: string; // ISO timestamp
+  priority: number; // Priority score
   context: WorkOrderContext; // Context information
   acceptanceCriteria: string[]; // Criteria to satisfy
 }
 
 interface WorkOrderContext {
-  sdsComponent?: string;     // SDS component reference
-  srsFeature?: string;       // SRS feature reference
-  prdRequirement?: string;   // PRD requirement reference
-  relatedFiles: RelatedFile[];     // Related files
+  sdsComponent?: string; // SDS component reference
+  srsFeature?: string; // SRS feature reference
+  prdRequirement?: string; // PRD requirement reference
+  relatedFiles: RelatedFile[]; // Related files
   dependenciesStatus: DependencyStatus[]; // Dependency status
 }
 ```
@@ -139,8 +137,8 @@ implementation_result:
   issueId: ISS-001
   githubIssue: 45
   status: completed
-  startedAt: "2025-12-27T10:00:00Z"
-  completedAt: "2025-12-27T11:30:00Z"
+  startedAt: '2025-12-27T10:00:00Z'
+  completedAt: '2025-12-27T11:30:00Z'
   changes:
     - filePath: src/feature/NewFeature.ts
       changeType: create
@@ -154,16 +152,16 @@ implementation_result:
     coveragePercentage: 85
   verification:
     testsPassed: true
-    testsOutput: "All tests passed"
+    testsOutput: 'All tests passed'
     lintPassed: true
-    lintOutput: "No lint errors"
+    lintOutput: 'No lint errors'
     buildPassed: true
-    buildOutput: "Build successful"
+    buildOutput: 'Build successful'
   branch:
     name: feature/iss-001-new-feature
     commits:
       - hash: abc123
-        message: "feat(feature): implement new feature"
+        message: 'feat(feature): implement new feature'
 ```
 
 ## Context Analysis
@@ -181,13 +179,13 @@ console.log(`Test framework: ${context.patterns.testFramework}`);
 
 ### Detected Patterns
 
-| Pattern | Type | Description |
-|---------|------|-------------|
-| `indentation` | `'spaces' \| 'tabs'` | Indentation style |
-| `indentSize` | `number` | Indent size (if spaces) |
-| `quoteStyle` | `'single' \| 'double'` | String quote preference |
-| `useSemicolons` | `boolean` | Semicolon usage |
-| `trailingComma` | `'none' \| 'es5' \| 'all'` | Trailing comma style |
+| Pattern         | Type                            | Description             |
+| --------------- | ------------------------------- | ----------------------- |
+| `indentation`   | `'spaces' \| 'tabs'`            | Indentation style       |
+| `indentSize`    | `number`                        | Indent size (if spaces) |
+| `quoteStyle`    | `'single' \| 'double'`          | String quote preference |
+| `useSemicolons` | `boolean`                       | Semicolon usage         |
+| `trailingComma` | `'none' \| 'es5' \| 'all'`      | Trailing comma style    |
 | `testFramework` | `'jest' \| 'vitest' \| 'mocha'` | Detected test framework |
 
 ## Branch Creation
@@ -202,20 +200,20 @@ const branchName = await agent.createBranch(workOrder);
 ### Branch Prefixes
 
 | Issue ID Contains | Branch Prefix |
-|-------------------|---------------|
-| `fix` or `bug` | `fix/` |
-| `doc` | `docs/` |
-| `test` | `test/` |
-| `refactor` | `refactor/` |
-| Default | `feature/` |
+| ----------------- | ------------- |
+| `fix` or `bug`    | `fix/`        |
+| `doc`             | `docs/`       |
+| `test`            | `test/`       |
+| `refactor`        | `refactor/`   |
+| Default           | `feature/`    |
 
 ## Execution Options
 
 ```typescript
 const result = await agent.implement(workOrder, {
-  skipTests: false,        // Skip test generation
+  skipTests: false, // Skip test generation
   skipVerification: false, // Skip verification
-  dryRun: false,          // Don't commit changes
+  dryRun: false, // Don't commit changes
   retryPolicy: {
     maxAttempts: 3,
     baseDelayMs: 5000,
@@ -231,21 +229,21 @@ The module provides specific error classes:
 
 ```typescript
 import {
-  WorkerError,              // Base error class
-  WorkOrderParseError,      // Work order parsing failed
-  ContextAnalysisError,     // Context analysis failed
-  FileReadError,            // File read failed
-  FileWriteError,           // File write failed
-  BranchCreationError,      // Branch creation failed
-  BranchExistsError,        // Branch already exists
-  CommitError,              // Commit failed
-  GitOperationError,        // Git operation failed
-  CodeGenerationError,      // Code generation failed
-  TestGenerationError,      // Test generation failed
-  VerificationError,        // Verification failed
-  MaxRetriesExceededError,  // Max retries exceeded
+  WorkerError, // Base error class
+  WorkOrderParseError, // Work order parsing failed
+  ContextAnalysisError, // Context analysis failed
+  FileReadError, // File read failed
+  FileWriteError, // File write failed
+  BranchCreationError, // Branch creation failed
+  BranchExistsError, // Branch already exists
+  CommitError, // Commit failed
+  GitOperationError, // Git operation failed
+  CodeGenerationError, // Code generation failed
+  TestGenerationError, // Test generation failed
+  VerificationError, // Verification failed
+  MaxRetriesExceededError, // Max retries exceeded
   ImplementationBlockedError, // Implementation blocked
-  ResultPersistenceError,   // Result save/load failed
+  ResultPersistenceError, // Result save/load failed
 } from 'ad-sdlc';
 ```
 
@@ -274,20 +272,20 @@ The agent supports configurable retry with backoff:
 ```typescript
 const result = await agent.implement(workOrder, {
   retryPolicy: {
-    maxAttempts: 3,          // Maximum attempts
-    baseDelayMs: 5000,       // Initial delay (5 seconds)
-    backoff: 'exponential',  // 'fixed', 'linear', or 'exponential'
-    maxDelayMs: 60000,       // Maximum delay (1 minute)
+    maxAttempts: 3, // Maximum attempts
+    baseDelayMs: 5000, // Initial delay (5 seconds)
+    backoff: 'exponential', // 'fixed', 'linear', or 'exponential'
+    maxDelayMs: 60000, // Maximum delay (1 minute)
   },
 });
 ```
 
 ### Backoff Strategies
 
-| Strategy | Delay Calculation |
-|----------|-------------------|
-| `fixed` | Always `baseDelayMs` |
-| `linear` | `baseDelayMs * attempt` |
+| Strategy      | Delay Calculation             |
+| ------------- | ----------------------------- |
+| `fixed`       | Always `baseDelayMs`          |
+| `linear`      | `baseDelayMs * attempt`       |
 | `exponential` | `baseDelayMs * 2^(attempt-1)` |
 
 ## Recording Changes
@@ -333,11 +331,7 @@ const workOrder = {
     ],
     dependenciesStatus: [],
   },
-  acceptanceCriteria: [
-    'Implement user login',
-    'Add JWT token generation',
-    'Write unit tests',
-  ],
+  acceptanceCriteria: ['Implement user login', 'Add JWT token generation', 'Write unit tests'],
 };
 
 try {
@@ -362,22 +356,22 @@ try {
 
 ### WorkerAgent Methods
 
-| Method | Description |
-|--------|-------------|
+| Method                           | Description                                    |
+| -------------------------------- | ---------------------------------------------- |
 | `implement(workOrder, options?)` | Process work order and generate implementation |
-| `analyzeContext(workOrder)` | Analyze code context from work order |
-| `createBranch(workOrder)` | Create feature branch |
-| `generateCode(context)` | Generate code (placeholder) |
-| `generateTests(context)` | Generate tests using TestGenerator |
-| `getTestGenerator()` | Get the TestGenerator instance |
-| `getLastTestGenerationResult()` | Get the last test generation result |
-| `runVerification()` | Run tests, lint, and build |
-| `commitChanges(workOrder)` | Commit staged changes |
-| `createResult(...)` | Create implementation result |
-| `saveResult(result)` | Save result to disk |
-| `recordFileChange(change)` | Record a file change |
-| `recordTestFile(path, count)` | Record a test file |
-| `getConfig()` | Get current configuration |
+| `analyzeContext(workOrder)`      | Analyze code context from work order           |
+| `createBranch(workOrder)`        | Create feature branch                          |
+| `generateCode(context)`          | Generate code (placeholder)                    |
+| `generateTests(context)`         | Generate tests using TestGenerator             |
+| `getTestGenerator()`             | Get the TestGenerator instance                 |
+| `getLastTestGenerationResult()`  | Get the last test generation result            |
+| `runVerification()`              | Run tests, lint, and build                     |
+| `commitChanges(workOrder)`       | Commit staged changes                          |
+| `createResult(...)`              | Create implementation result                   |
+| `saveResult(result)`             | Save result to disk                            |
+| `recordFileChange(change)`       | Record a file change                           |
+| `recordTestFile(path, count)`    | Record a test file                             |
+| `getConfig()`                    | Get current configuration                      |
 
 ## TestGenerator
 
@@ -392,11 +386,7 @@ import { TestGenerator, DEFAULT_CODE_PATTERNS } from 'ad-sdlc';
 const generator = new TestGenerator();
 
 // Generate tests for a source file
-const suite = generator.generateTests(
-  'src/Calculator.ts',
-  sourceContent,
-  DEFAULT_CODE_PATTERNS
-);
+const suite = generator.generateTests('src/Calculator.ts', sourceContent, DEFAULT_CODE_PATTERNS);
 
 console.log(`Test file: ${suite.testFile}`);
 console.log(`Total tests: ${suite.totalTests}`);
@@ -407,35 +397,35 @@ console.log(`Estimated coverage: ${suite.estimatedCoverage}%`);
 
 ```typescript
 const generator = new TestGenerator({
-  coverageTarget: 90,           // Target coverage percentage
+  coverageTarget: 90, // Target coverage percentage
   namingConvention: 'should_when', // Test naming convention
-  includeEdgeCases: true,       // Include edge case tests
-  includeErrorHandling: true,   // Include error handling tests
-  includeIntegration: true,     // Include integration tests
+  includeEdgeCases: true, // Include edge case tests
+  includeErrorHandling: true, // Include error handling tests
+  includeIntegration: true, // Include integration tests
   mockStrategy: 'comprehensive', // Mock generation strategy
-  testFilePattern: 'test',      // Test file suffix (.test.ts)
+  testFilePattern: 'test', // Test file suffix (.test.ts)
 });
 ```
 
 ### Configuration Options
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `coverageTarget` | `number` | `80` | Target coverage percentage |
-| `namingConvention` | `'should_when' \| 'it_does' \| 'test_case'` | `'should_when'` | Test naming convention |
-| `includeEdgeCases` | `boolean` | `true` | Generate edge case tests |
-| `includeErrorHandling` | `boolean` | `true` | Generate error handling tests |
-| `includeIntegration` | `boolean` | `true` | Generate integration tests |
-| `mockStrategy` | `'minimal' \| 'comprehensive'` | `'comprehensive'` | Mock generation strategy |
-| `testFilePattern` | `'test' \| 'spec'` | `'test'` | Test file suffix pattern |
+| Option                 | Type                                        | Default           | Description                   |
+| ---------------------- | ------------------------------------------- | ----------------- | ----------------------------- |
+| `coverageTarget`       | `number`                                    | `80`              | Target coverage percentage    |
+| `namingConvention`     | `'should_when' \| 'it_does' \| 'test_case'` | `'should_when'`   | Test naming convention        |
+| `includeEdgeCases`     | `boolean`                                   | `true`            | Generate edge case tests      |
+| `includeErrorHandling` | `boolean`                                   | `true`            | Generate error handling tests |
+| `includeIntegration`   | `boolean`                                   | `true`            | Generate integration tests    |
+| `mockStrategy`         | `'minimal' \| 'comprehensive'`              | `'comprehensive'` | Mock generation strategy      |
+| `testFilePattern`      | `'test' \| 'spec'`                          | `'test'`          | Test file suffix pattern      |
 
 ### Naming Conventions
 
-| Convention | Example Test Name |
-|------------|-------------------|
+| Convention    | Example Test Name                       |
+| ------------- | --------------------------------------- |
 | `should_when` | `should_return_result_when_valid_input` |
-| `it_does` | `returns result with valid input` |
-| `test_case` | `test_return_result_valid_input` |
+| `it_does`     | `returns result with valid input`       |
+| `test_case`   | `test_return_result_valid_input`        |
 
 ### Code Analysis
 
@@ -493,12 +483,12 @@ describe('Calculator', () => {
 
 ### Test Categories
 
-| Category | Description | Priority |
-|----------|-------------|----------|
-| `happy_path` | Normal successful execution | Critical |
-| `edge_case` | Boundary conditions and empty inputs | Medium |
-| `error_handling` | Invalid input and error scenarios | High |
-| `integration` | Integration with dependencies | Low |
+| Category         | Description                          | Priority |
+| ---------------- | ------------------------------------ | -------- |
+| `happy_path`     | Normal successful execution          | Critical |
+| `edge_case`      | Boundary conditions and empty inputs | Medium   |
+| `error_handling` | Invalid input and error scenarios    | High     |
+| `integration`    | Integration with dependencies        | Low      |
 
 ### Mock Generation
 
@@ -506,10 +496,10 @@ The generator creates mock specifications for external dependencies:
 
 ```typescript
 interface MockDependency {
-  name: string;                              // Dependency name
+  name: string; // Dependency name
   type: 'class' | 'function' | 'module' | 'external';
   strategy: 'spy' | 'stub' | 'mock' | 'fake';
-  behavior: string;                          // Mock behavior description
+  behavior: string; // Mock behavior description
 }
 ```
 
@@ -524,18 +514,18 @@ await fs.writeFile(suite.testFile, content, 'utf-8');
 
 ### TestGenerator Methods
 
-| Method | Description |
-|--------|-------------|
-| `generateTests(sourceFile, content, patterns)` | Generate test suite for a file |
-| `generateTestsForFiles(files, patterns)` | Generate tests for multiple files |
-| `analyzeCode(content)` | Analyze source code structure |
-| `generateTestFileContent(suite, patterns)` | Generate test file content |
-| `getConfig()` | Get current configuration |
-| `getCodeAnalyzer()` | Get the CodeAnalyzer sub-module |
-| `getAssertionBuilder()` | Get the AssertionBuilder sub-module |
-| `getFixtureManager()` | Get the FixtureManager sub-module |
-| `getStrategyFactory()` | Get the TestStrategyFactory sub-module |
-| `getAdapterFactory()` | Get the FrameworkAdapterFactory sub-module |
+| Method                                         | Description                                |
+| ---------------------------------------------- | ------------------------------------------ |
+| `generateTests(sourceFile, content, patterns)` | Generate test suite for a file             |
+| `generateTestsForFiles(files, patterns)`       | Generate tests for multiple files          |
+| `analyzeCode(content)`                         | Analyze source code structure              |
+| `generateTestFileContent(suite, patterns)`     | Generate test file content                 |
+| `getConfig()`                                  | Get current configuration                  |
+| `getCodeAnalyzer()`                            | Get the CodeAnalyzer sub-module            |
+| `getAssertionBuilder()`                        | Get the AssertionBuilder sub-module        |
+| `getFixtureManager()`                          | Get the FixtureManager sub-module          |
+| `getStrategyFactory()`                         | Get the TestStrategyFactory sub-module     |
+| `getAdapterFactory()`                          | Get the FrameworkAdapterFactory sub-module |
 
 ### Modular Architecture (Issue #237)
 
@@ -561,10 +551,10 @@ const analyzer = new CodeAnalyzer();
 const analysis = analyzer.analyzeCode(sourceContent);
 
 // Access analyzed elements
-analysis.classes;      // Class information
-analysis.functions;    // Function information
+analysis.classes; // Class information
+analysis.functions; // Function information
 analysis.dependencies; // Import dependencies
-analysis.exports;      // Export statements
+analysis.exports; // Export statements
 ```
 
 #### TestStrategyFactory
@@ -640,7 +630,7 @@ The TestGenerator is integrated with WorkerAgent for automated test generation:
 ```typescript
 const agent = new WorkerAgent(
   { projectRoot: '/path/to/project' },
-  { coverageTarget: 85, includeEdgeCases: true }  // TestGenerator config
+  { coverageTarget: 85, includeEdgeCases: true } // TestGenerator config
 );
 
 // Tests are automatically generated during implement()
@@ -689,18 +679,18 @@ const agent = new SelfVerificationAgent({
 
 ### Configuration Options
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `projectRoot` | `string` | `process.cwd()` | Project root directory |
-| `testCommand` | `string` | `npm test` | Command to run tests |
-| `lintCommand` | `string` | `npm run lint` | Command to run linter |
-| `buildCommand` | `string` | `npm run build` | Command to run build |
-| `typecheckCommand` | `string` | `npx tsc --noEmit` | Command to run type checker |
-| `maxFixIterations` | `number` | `3` | Maximum fix attempts per step |
-| `autoFixLint` | `boolean` | `true` | Auto-fix lint errors |
-| `stepsToRun` | `VerificationStep[]` | All steps | Steps to execute |
-| `commandTimeout` | `number` | `300000` | Command timeout (ms) |
-| `continueOnFailure` | `boolean` | `false` | Continue on step failure |
+| Option              | Type                 | Default            | Description                   |
+| ------------------- | -------------------- | ------------------ | ----------------------------- |
+| `projectRoot`       | `string`             | `process.cwd()`    | Project root directory        |
+| `testCommand`       | `string`             | `npm test`         | Command to run tests          |
+| `lintCommand`       | `string`             | `npm run lint`     | Command to run linter         |
+| `buildCommand`      | `string`             | `npm run build`    | Command to run build          |
+| `typecheckCommand`  | `string`             | `npx tsc --noEmit` | Command to run type checker   |
+| `maxFixIterations`  | `number`             | `3`                | Maximum fix attempts per step |
+| `autoFixLint`       | `boolean`            | `true`             | Auto-fix lint errors          |
+| `stepsToRun`        | `VerificationStep[]` | All steps          | Steps to execute              |
+| `commandTimeout`    | `number`             | `300000`           | Command timeout (ms)          |
+| `continueOnFailure` | `boolean`            | `false`            | Continue on step failure      |
 
 ### Verification Pipeline Flow
 
@@ -733,29 +723,33 @@ The agent generates a detailed verification report:
 
 ```typescript
 interface VerificationReport {
-  taskId: string;              // Task identifier
-  timestamp: string;           // Report timestamp
-  results: {                   // Results for each step
+  taskId: string; // Task identifier
+  timestamp: string; // Report timestamp
+  results: {
+    // Results for each step
     tests: VerificationStepResult | null;
     lint: VerificationStepResult | null;
     build: VerificationStepResult | null;
     typecheck: VerificationStepResult | null;
   };
-  testSummary?: {              // Test summary (if tests ran)
+  testSummary?: {
+    // Test summary (if tests ran)
     passed: number;
     failed: number;
     skipped: number;
     coverage: number;
   };
-  lintSummary?: {              // Lint summary (if lint ran)
+  lintSummary?: {
+    // Lint summary (if lint ran)
     errors: number;
     warnings: number;
     autoFixed: number;
   };
-  fixAttempts: FixAttempt[];   // All fix attempts made
+  fixAttempts: FixAttempt[]; // All fix attempts made
   finalStatus: 'passed' | 'failed' | 'escalated';
-  totalDurationMs: number;     // Total duration
-  escalation?: {               // Escalation details (if escalated)
+  totalDurationMs: number; // Total duration
+  escalation?: {
+    // Escalation details (if escalated)
     reason: string;
     failedSteps: VerificationStep[];
     errorLogs: string[];
@@ -823,16 +817,16 @@ try {
 
 ### SelfVerificationAgent Methods
 
-| Method | Description |
-|--------|-------------|
-| `runVerificationPipeline(taskId)` | Run full verification pipeline |
-| `runStep(step)` | Run a single verification step |
-| `parseErrors(step, output)` | Parse errors from output |
-| `analyzeError(step, output)` | Analyze errors and suggest fixes |
-| `allStepsPassed()` | Check if all steps passed |
-| `getFixAttempts()` | Get fix attempts from last run |
-| `getStepResults()` | Get step results from last run |
-| `getConfig()` | Get current configuration |
+| Method                            | Description                      |
+| --------------------------------- | -------------------------------- |
+| `runVerificationPipeline(taskId)` | Run full verification pipeline   |
+| `runStep(step)`                   | Run a single verification step   |
+| `parseErrors(step, output)`       | Parse errors from output         |
+| `analyzeError(step, output)`      | Analyze errors and suggest fixes |
+| `allStepsPassed()`                | Check if all steps passed        |
+| `getFixAttempts()`                | Get fix attempts from last run   |
+| `getStepResults()`                | Get step results from last run   |
+| `getConfig()`                     | Get current configuration        |
 
 ### Complete Example
 
@@ -885,9 +879,7 @@ const implementResult = await workerAgent.implement(workOrder, {
 
 // Run full self-verification with fix attempts
 try {
-  const report = await verificationAgent.runVerificationPipeline(
-    implementResult.workOrderId
-  );
+  const report = await verificationAgent.runVerificationPipeline(implementResult.workOrderId);
 
   if (report.finalStatus === 'passed') {
     console.log('Implementation verified successfully');
@@ -931,11 +923,11 @@ const manager = new CheckpointManager({
 
 ### Configuration Options
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `projectRoot` | `string` | `process.cwd()` | Project root directory |
-| `checkpointPath` | `string` | `.ad-sdlc/scratchpad/checkpoints` | Checkpoint storage path |
-| `enabled` | `boolean` | `true` | Enable checkpointing |
+| Option           | Type      | Default                           | Description             |
+| ---------------- | --------- | --------------------------------- | ----------------------- |
+| `projectRoot`    | `string`  | `process.cwd()`                   | Project root directory  |
+| `checkpointPath` | `string`  | `.ad-sdlc/scratchpad/checkpoints` | Checkpoint storage path |
+| `enabled`        | `boolean` | `true`                            | Enable checkpointing    |
 
 ### Saving Checkpoints
 
@@ -980,15 +972,15 @@ if (checkpoint && checkpoint.resumable) {
 
 Not all steps are safe to resume from. The following steps are considered resumable:
 
-| Step | Resumable | Notes |
-|------|-----------|-------|
-| `context_analysis` | Yes | Analysis can be re-run safely |
-| `branch_creation` | Yes | Branch may already exist |
-| `code_generation` | Yes | Files are written incrementally |
-| `test_generation` | Yes | Tests are written incrementally |
-| `verification` | No | Should re-run from code_generation |
-| `commit` | No | Should re-run verification first |
-| `result_persistence` | No | Near completion, restart is fine |
+| Step                 | Resumable | Notes                              |
+| -------------------- | --------- | ---------------------------------- |
+| `context_analysis`   | Yes       | Analysis can be re-run safely      |
+| `branch_creation`    | Yes       | Branch may already exist           |
+| `code_generation`    | Yes       | Files are written incrementally    |
+| `test_generation`    | Yes       | Tests are written incrementally    |
+| `verification`       | No        | Should re-run from code_generation |
+| `commit`             | No        | Should re-run verification first   |
+| `result_persistence` | No        | Near completion, restart is fine   |
 
 ### Checkpoint Cleanup
 
@@ -1028,101 +1020,76 @@ const result = await agent.implement(workOrder);
 
 ### CheckpointManager Methods
 
-| Method | Description |
-|--------|-------------|
+| Method                                                      | Description                       |
+| ----------------------------------------------------------- | --------------------------------- |
 | `saveCheckpoint(workOrderId, taskId, step, attempt, state)` | Save checkpoint for current state |
-| `loadCheckpoint(workOrderId)` | Load existing checkpoint |
-| `hasCheckpoint(workOrderId)` | Check if checkpoint exists |
-| `deleteCheckpoint(workOrderId)` | Delete checkpoint |
-| `extractState(checkpoint)` | Extract state from checkpoint |
-| `getNextStep(lastCompletedStep)` | Get next step to execute |
-| `listCheckpoints()` | List all checkpoint IDs |
-| `cleanupOldCheckpoints(maxAgeMs)` | Clean up expired checkpoints |
-| `isEnabled()` | Check if checkpointing is enabled |
-| `getConfig()` | Get current configuration |
+| `loadCheckpoint(workOrderId)`                               | Load existing checkpoint          |
+| `hasCheckpoint(workOrderId)`                                | Check if checkpoint exists        |
+| `deleteCheckpoint(workOrderId)`                             | Delete checkpoint                 |
+| `extractState(checkpoint)`                                  | Extract state from checkpoint     |
+| `getNextStep(lastCompletedStep)`                            | Get next step to execute          |
+| `listCheckpoints()`                                         | List all checkpoint IDs           |
+| `cleanupOldCheckpoints(maxAgeMs)`                           | Clean up expired checkpoints      |
+| `isEnabled()`                                               | Check if checkpointing is enabled |
+| `getConfig()`                                               | Get current configuration         |
 
-## RetryHandler
+## Retry execution
 
-The RetryHandler class provides comprehensive retry mechanism with error categorization, timeout handling, progress checkpointing, and Controller escalation support.
+`WorkerAgent.implement()` delegates retry timing and attempt limits to the canonical `RetryExecutor`. The worker retains only its domain policy: transient and recoverable failures are retried, while fatal failures return immediately.
 
 ### Basic Usage
 
 ```typescript
-import { RetryHandler } from 'ad-sdlc';
+import { WorkerAgent } from 'ad-sdlc';
 
-// Create handler with required configuration
-const handler = new RetryHandler({
-  workerId: 'worker-001',
-  projectRoot: '/path/to/project',
-});
-
-// Execute an operation with retry
-const result = await handler.executeWithRetry(
-  async () => await someOperation(),
-  {
-    taskId: 'task-001',
-    step: 'code_generation',
-    workOrder: { id: 'WO-001' },
-  }
-);
-
-if (result.success) {
-  console.log('Operation succeeded:', result.data);
-} else {
-  console.error('Operation failed:', result.error?.message);
-}
-```
-
-### Custom Configuration
-
-```typescript
-const handler = new RetryHandler({
-  workerId: 'worker-001',
-  projectRoot: '/path/to/project',
-  checkpointPath: '.ad-sdlc/scratchpad/checkpoints',
+const worker = new WorkerAgent({ projectRoot: '/path/to/project' });
+const result = await worker.implement(workOrder, {
   retryPolicy: {
     maxAttempts: 3,
     baseDelayMs: 1000,
     backoff: 'exponential',
     maxDelayMs: 30000,
-    timeoutMs: 600000, // 10 minutes
+  },
+});
+```
+
+### Custom Configuration
+
+```typescript
+const result = await worker.implement(workOrder, {
+  retryPolicy: {
+    maxAttempts: 3,
+    baseDelayMs: 1000,
+    backoff: 'exponential',
+    maxDelayMs: 30000,
     byCategory: {
       transient: { retry: true, maxAttempts: 3 },
       recoverable: { retry: true, maxAttempts: 3, requireFixAttempt: true },
       fatal: { retry: false, escalateImmediately: true },
     },
   },
-  onEscalation: async (report) => {
-    await notifyController(report);
-  },
-  onProgress: (checkpoint) => {
-    console.log(`Progress: ${checkpoint.currentStep}`);
-  },
-  verbose: true,
 });
 ```
 
 ### Configuration Options
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `workerId` | `string` | (required) | Worker identifier |
-| `projectRoot` | `string` | (required) | Project root directory |
-| `checkpointPath` | `string` | `.ad-sdlc/scratchpad/checkpoints` | Checkpoint storage path |
-| `retryPolicy` | `RetryPolicy` | Default policy | Retry configuration |
-| `onEscalation` | `(report) => Promise<void>` | `undefined` | Escalation callback |
-| `onProgress` | `(checkpoint) => void` | `undefined` | Progress callback |
-| `verbose` | `boolean` | `false` | Enable detailed logging |
+| Option        | Type                             | Default           | Description                           |
+| ------------- | -------------------------------- | ----------------- | ------------------------------------- |
+| `maxAttempts` | `number`                         | `3`               | Total calls before giving up          |
+| `baseDelayMs` | `number`                         | `1000`            | Initial retry delay                   |
+| `backoff`     | `fixed \| linear \| exponential` | `exponential`     | Delay strategy                        |
+| `maxDelayMs`  | `number`                         | `30000`           | Delay cap                             |
+| `byCategory`  | `object`                         | Category defaults | Per-category retry and attempt limits |
 
 ### Error Categories
 
 The handler categorizes errors for intelligent retry decisions:
 
-| Category | Description | Default Behavior |
-|----------|-------------|------------------|
-| `transient` | Network issues, timeouts, rate limits | Retry with exponential backoff |
-| `recoverable` | Test failures, lint errors, build errors | Attempt self-fix, then retry |
-| `fatal` | Missing dependencies, permission denied | Immediate escalation |
+| Category      | Description                              | Default Behavior               |
+| ------------- | ---------------------------------------- | ------------------------------ |
+| `transient`   | Network issues, timeouts, rate limits    | Retry with exponential backoff |
+| `recoverable` | Test failures, lint errors, build errors | Attempt self-fix, then retry   |
+| `fatal`       | Missing dependencies, permission denied  | Immediate escalation           |
 
 ### Error Categorization Functions
 
@@ -1156,32 +1123,12 @@ console.log(suggestion); // 'Retry with exponential backoff...'
 
 // Create detailed error info
 const errorInfo = createWorkerErrorInfo(error, { taskId: 'task-001' });
-console.log(errorInfo.category);      // 'transient'
-console.log(errorInfo.retryable);     // true
+console.log(errorInfo.category); // 'transient'
+console.log(errorInfo.retryable); // true
 console.log(errorInfo.suggestedAction);
 ```
 
-### Progress Checkpointing
-
-The handler creates checkpoints for resume capability:
-
-```typescript
-// Create checkpoint
-await handler.createCheckpoint('task-001', 'code_generation', 1, {
-  filesProcessed: 5,
-  currentFile: 'src/Feature.ts',
-});
-
-// Load checkpoint (for resume)
-const checkpoint = await handler.loadCheckpoint('task-001');
-if (checkpoint) {
-  console.log(`Resume from: ${checkpoint.currentStep}`);
-  console.log(`Attempt: ${checkpoint.attemptNumber}`);
-}
-
-// Clear checkpoint (on success)
-await handler.clearCheckpoint('task-001');
-```
+Checkpoint persistence remains the responsibility of `CheckpointManager`; retry execution does not own checkpoint or escalation storage.
 
 ### Escalation Reports
 
@@ -1189,103 +1136,35 @@ When escalation is needed, a detailed report is generated:
 
 ```typescript
 interface EscalationReport {
-  taskId: string;          // Task identifier
-  workerId: string;        // Worker identifier
-  error: WorkerErrorInfo;  // Detailed error information
-  attempts: RetryAttempt[];// All retry attempts
+  taskId: string; // Task identifier
+  workerId: string; // Worker identifier
+  error: WorkerErrorInfo; // Detailed error information
+  attempts: RetryAttempt[]; // All retry attempts
   context: {
-    workOrder: object;     // Original work order
+    workOrder: object; // Original work order
     progressSnapshot: object; // Progress at failure
   };
-  recommendation: string;  // Suggested action
-  timestamp: string;       // Escalation time
+  recommendation: string; // Suggested action
+  timestamp: string; // Escalation time
 }
 ```
 
-### Timeout Handling
-
-Operations are automatically wrapped with timeout:
+### Direct retry usage
 
 ```typescript
-const handler = new RetryHandler({
-  workerId: 'worker-001',
-  projectRoot: '/path/to/project',
-  retryPolicy: {
-    ...DEFAULT_RETRY_POLICY,
-    timeoutMs: 300000, // 5 minutes per operation
-  },
+import { RetryExecutor } from 'ad-sdlc';
+
+const executor = new RetryExecutor({
+  maxAttempts: 3,
+  backoffStrategy: 'exponential',
+  baseDelayMs: 1000,
+  maxDelayMs: 30000,
+  multiplier: 2,
+  jitterRatio: 0.25,
 });
 
-// Operation will timeout after 5 minutes
-const result = await handler.executeWithRetry(
-  async () => await longRunningOperation(),
-  context
-);
-```
-
-### RetryHandler Methods
-
-| Method | Description |
-|--------|-------------|
-| `executeWithRetry(operation, context)` | Execute operation with retry mechanism |
-| `createCheckpoint(taskId, step, attempt, snapshot)` | Create progress checkpoint |
-| `loadCheckpoint(taskId)` | Load checkpoint for resume |
-| `clearCheckpoint(taskId)` | Clear checkpoint (on success) |
-| `escalate(taskId, workOrder, error)` | Escalate to Controller |
-| `getCurrentCheckpoint()` | Get current checkpoint |
-| `getRetryAttempts()` | Get all retry attempts |
-| `getConfig()` | Get current configuration |
-
-### Complete Example
-
-```typescript
-import { RetryHandler, OperationTimeoutError } from 'ad-sdlc';
-
-const handler = new RetryHandler({
-  workerId: 'worker-001',
-  projectRoot: '/path/to/project',
-  retryPolicy: {
-    maxAttempts: 3,
-    baseDelayMs: 1000,
-    backoff: 'exponential',
-    maxDelayMs: 30000,
-    timeoutMs: 600000,
-    byCategory: {
-      transient: { retry: true, maxAttempts: 3 },
-      recoverable: { retry: true, maxAttempts: 3, requireFixAttempt: true },
-      fatal: { retry: false, escalateImmediately: true },
-    },
-  },
-  onEscalation: async (report) => {
-    console.error(`Escalation required for ${report.taskId}`);
-    console.error(`Recommendation: ${report.recommendation}`);
-    // Notify Controller
-    await controllerAgent.handleEscalation(report);
-  },
-  verbose: true,
+const result = await executor.executeWithResult(() => generateCode(workOrder), {
+  operationName: `worker:${workOrder.issueId}`,
+  timeoutMs: 600000,
 });
-
-try {
-  const result = await handler.executeWithRetry(
-    async () => {
-      // Perform code generation
-      return await generateCode(workOrder);
-    },
-    {
-      taskId: workOrder.orderId,
-      step: 'code_generation',
-      workOrder,
-    }
-  );
-
-  if (result.success) {
-    console.log('Code generation completed');
-    console.log(`Attempts: ${result.attempts}`);
-    console.log(`Duration: ${result.durationMs}ms`);
-  }
-} catch (error) {
-  if (error instanceof OperationTimeoutError) {
-    console.error(`Operation timed out after ${error.timeoutMs}ms`);
-  }
-}
 ```

@@ -10,6 +10,7 @@
 import type { ILogTransport, TransportState, TransportHealth } from './ILogTransport.js';
 import type { TransportLogEntry, BaseTransportConfig, LogLevel } from './types.js';
 import { shouldLog } from './types.js';
+import { RetryExecutor } from '../../error-handler/RetryExecutor.js';
 
 /**
  * Default configuration values
@@ -271,26 +272,42 @@ export abstract class BaseTransport implements ILogTransport {
    */
   private async shipWithRetry(entries: TransportLogEntry[]): Promise<void> {
     let lastError: unknown;
-
-    for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
-      try {
+    let attempt = 0;
+    const retryExecutor = new RetryExecutor({
+      maxAttempts: this.maxRetries + 1,
+      backoffStrategy: 'linear',
+      baseDelayMs: this.retryDelayMs,
+      maxDelayMs: Math.max(this.retryDelayMs, this.retryDelayMs * this.maxRetries),
+      multiplier: 1,
+      jitterRatio: 0,
+    });
+    const result = await retryExecutor.executeWithResult(
+      async () => {
+        attempt++;
         await this.doLog(entries);
         this.totalProcessed += entries.length;
         this.lastLogTime = new Date();
-        return;
-      } catch (error) {
-        lastError = error;
-        this.failedAttempts++;
-        this.handleError(`Log attempt ${String(attempt + 1)} failed`, error);
-
-        if (attempt < this.maxRetries) {
-          await this.delay(this.retryDelayMs * (attempt + 1));
-        }
+      },
+      {
+        operationName: `log-transport:${this.name}`,
+        errorClassifier: () => 'retryable',
+        logAttempts: false,
+        delay: (ms) => this.delay(ms),
+        shouldRetry: (error) => {
+          lastError = error;
+          this.failedAttempts++;
+          this.handleError(`Log attempt ${String(attempt)} failed`, error);
+          return true;
+        },
       }
-    }
+    );
 
-    // All retries failed
-    throw lastError;
+    if (!result.success) {
+      if (lastError === undefined && result.error !== undefined) {
+        lastError = result.error;
+      }
+      throw lastError;
+    }
   }
 
   /**

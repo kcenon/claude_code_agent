@@ -18,9 +18,9 @@ import type {
   CICheckFailure,
   GitHubStatusCheck,
 } from './types.js';
-import { DEFAULT_INTELLIGENT_POLLER_CONFIG } from './types.js';
-import { CICircuitBreaker } from './CICircuitBreaker.js';
-import { CircuitOpenError } from './errors.js';
+import { DEFAULT_CI_CIRCUIT_BREAKER_CONFIG, DEFAULT_INTELLIGENT_POLLER_CONFIG } from './types.js';
+import { CircuitBreaker } from '../error-handler/CircuitBreaker.js';
+import { CircuitOpenError } from '../error-handler/errors.js';
 import { getLogger } from '../logging/index.js';
 
 /**
@@ -66,10 +66,10 @@ export type PollerEventListener = (event: PollerEvent) => void;
  */
 export class IntelligentCIPoller {
   private readonly config: IntelligentPollerConfig;
-  private readonly circuitBreaker: CICircuitBreaker;
+  private readonly circuitBreaker: CircuitBreaker;
   private readonly listeners: PollerEventListener[] = [];
 
-  constructor(config: Partial<IntelligentPollerConfig> = {}, circuitBreaker?: CICircuitBreaker) {
+  constructor(config: Partial<IntelligentPollerConfig> = {}, circuitBreaker?: CircuitBreaker) {
     this.config = {
       initialIntervalMs:
         config.initialIntervalMs ?? DEFAULT_INTELLIGENT_POLLER_CONFIG.initialIntervalMs,
@@ -82,7 +82,9 @@ export class IntelligentCIPoller {
         config.failFastOnTerminal ?? DEFAULT_INTELLIGENT_POLLER_CONFIG.failFastOnTerminal,
     };
 
-    this.circuitBreaker = circuitBreaker ?? new CICircuitBreaker();
+    this.circuitBreaker =
+      circuitBreaker ??
+      new CircuitBreaker({ ...DEFAULT_CI_CIRCUIT_BREAKER_CONFIG, name: 'ci-poller' });
   }
 
   /**
@@ -102,12 +104,12 @@ export class IntelligentCIPoller {
 
     while (pollCount < this.config.maxPolls) {
       // Check circuit breaker
-      if (!this.circuitBreaker.canAttempt()) {
+      if (!this.circuitBreaker.isAcceptingRequests()) {
         const status = this.circuitBreaker.getStatus();
         this.emit({
           type: 'circuit_opened',
           prNumber,
-          failures: status.failures,
+          failures: status.failureCount,
         });
 
         return {
@@ -179,7 +181,7 @@ export class IntelligentCIPoller {
                 failure,
               });
 
-              this.circuitBreaker.recordFailure('terminal');
+              this.circuitBreaker.forceOpen(new Error(`Terminal CI failure: ${failure.name}`));
 
               return {
                 success: false,
@@ -193,7 +195,17 @@ export class IntelligentCIPoller {
 
           // Record failure for circuit breaker
           const firstFailure = status.failedChecks[0];
-          this.circuitBreaker.recordFailure(firstFailure?.failureType);
+          this.circuitBreaker.recordFailure(
+            new Error(
+              firstFailure === undefined
+                ? 'CI check failed'
+                : `${firstFailure.failureType} CI failure: ${firstFailure.name}`
+            )
+          );
+        } else {
+          // Pending/running is a neutral result: keep the recovery state and
+          // make the HALF_OPEN probe slot available to the next poll.
+          this.circuitBreaker.releaseAttempt();
         }
 
         // Still pending or running - continue polling with backoff
@@ -214,7 +226,9 @@ export class IntelligentCIPoller {
           pollCount,
           error: error instanceof Error ? error.message : String(error),
         });
-        this.circuitBreaker.recordFailure('transient');
+        this.circuitBreaker.recordFailure(
+          error instanceof Error ? error : new Error(String(error))
+        );
 
         // Apply backoff and continue
         interval = this.calculateNextInterval(interval, 'error');
@@ -334,9 +348,9 @@ export class IntelligentCIPoller {
 
   /**
    * Get the circuit breaker instance
-   * @returns The CICircuitBreaker used by this poller
+   * @returns The shared circuit breaker used by this poller
    */
-  public getCircuitBreaker(): CICircuitBreaker {
+  public getCircuitBreaker(): CircuitBreaker {
     return this.circuitBreaker;
   }
 

@@ -9,7 +9,7 @@ import {
   CircuitOpenError,
   InvalidCircuitBreakerConfigError,
   DEFAULT_CIRCUIT_BREAKER_CONFIG,
-  withRetry,
+  executeWithRetry,
 } from '../../src/error-handler/index.js';
 import type {
   CircuitState,
@@ -505,7 +505,7 @@ describe('createCircuitBreakerFunction', () => {
   });
 });
 
-describe('CircuitBreaker integration with withRetry', () => {
+describe('CircuitBreaker integration with RetryExecutor', () => {
   let testLogDir: string;
 
   beforeEach(() => {
@@ -531,9 +531,9 @@ describe('CircuitBreaker integration with withRetry', () => {
 
     // First retry - all attempts should fail and record failures to breaker
     await expect(
-      withRetry(operation, {
-        policy: { maxAttempts: 2, baseDelayMs: 10, enableJitter: false },
-        circuitBreaker: { breaker },
+      executeWithRetry(operation, {
+        policy: { maxAttempts: 2, baseDelayMs: 10, jitterRatio: 0 },
+        circuitBreaker: breaker,
         operationName: 'testOp',
       })
     ).rejects.toThrow();
@@ -543,9 +543,9 @@ describe('CircuitBreaker integration with withRetry', () => {
 
     // Second retry - should trip the breaker
     await expect(
-      withRetry(operation, {
-        policy: { maxAttempts: 2, baseDelayMs: 10, enableJitter: false },
-        circuitBreaker: { breaker },
+      executeWithRetry(operation, {
+        policy: { maxAttempts: 2, baseDelayMs: 10, jitterRatio: 0 },
+        circuitBreaker: breaker,
         operationName: 'testOp',
       })
     ).rejects.toThrow();
@@ -569,9 +569,9 @@ describe('CircuitBreaker integration with withRetry', () => {
 
     // Retry should be blocked immediately
     await expect(
-      withRetry(operation, {
+      executeWithRetry(operation, {
         policy: { maxAttempts: 3, baseDelayMs: 10 },
-        circuitBreaker: { breaker },
+        circuitBreaker: breaker,
         operationName: 'blockedOp',
       })
     ).rejects.toThrow(CircuitOpenError);
@@ -593,9 +593,9 @@ describe('CircuitBreaker integration with withRetry', () => {
 
     const operation = vi.fn().mockResolvedValue('success');
 
-    await withRetry(operation, {
+    await executeWithRetry(operation, {
       policy: { maxAttempts: 1 },
-      circuitBreaker: { breaker },
+      circuitBreaker: breaker,
       operationName: 'successOp',
     });
 
@@ -612,9 +612,10 @@ describe('CircuitBreaker integration with withRetry', () => {
     const operation = vi.fn().mockRejectedValue(new Error('ECONNRESET'));
 
     await expect(
-      withRetry(operation, {
-        policy: { maxAttempts: 3, baseDelayMs: 10, enableJitter: false },
-        circuitBreaker: { breaker, countRetryableFailures: false },
+      executeWithRetry(operation, {
+        policy: { maxAttempts: 3, baseDelayMs: 10, jitterRatio: 0 },
+        circuitBreaker: breaker,
+        countRetryableFailures: false,
         operationName: 'noCountOp',
       })
     ).rejects.toThrow();

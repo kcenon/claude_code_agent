@@ -8,34 +8,20 @@
  */
 
 import type { ISecretProvider } from './ISecretProvider.js';
-import type {
-  Secret,
-  SecretManagerConfig,
-  CircuitBreakerConfig,
-  CircuitBreakerState,
-  CircuitBreakerStatus,
-} from './types.js';
+import type { Secret, SecretManagerConfig, CircuitBreakerStatus } from './types.js';
+import { CircuitBreaker } from '../../error-handler/CircuitBreaker.js';
+import { CircuitOpenError } from '../../error-handler/errors.js';
 import { SecretNotFoundInProvidersError, AllProvidersFailedError } from './errors.js';
 
 /**
  * Default circuit breaker configuration
  */
-const DEFAULT_CIRCUIT_BREAKER_CONFIG: CircuitBreakerConfig = {
+const PROVIDER_CIRCUIT_BREAKER_CONFIG = {
   failureThreshold: 5,
-  resetTimeout: 30000, // 30 seconds
+  resetTimeoutMs: 30000,
+  halfOpenMaxAttempts: 3,
   successThreshold: 3,
-};
-
-/**
- * Circuit breaker state for a provider
- */
-interface CircuitBreakerInstance {
-  state: CircuitBreakerState;
-  failureCount: number;
-  successCount: number;
-  lastFailureTime: Date | undefined;
-  nextAttemptTime: Date | undefined;
-}
+} as const;
 
 /**
  * ProviderSecretManager orchestrates multiple secret providers
@@ -67,8 +53,7 @@ interface CircuitBreakerInstance {
  */
 export class ProviderSecretManager {
   private readonly providers: ISecretProvider[] = [];
-  private readonly circuitBreakers: Map<string, CircuitBreakerInstance> = new Map();
-  private readonly circuitBreakerConfig: CircuitBreakerConfig;
+  private readonly circuitBreakers = new Map<string, CircuitBreaker>();
   private readonly envFallback: boolean;
   private initialized = false;
 
@@ -79,7 +64,6 @@ export class ProviderSecretManager {
    */
   constructor(config: SecretManagerConfig = {}) {
     this.envFallback = config.envFallback ?? true;
-    this.circuitBreakerConfig = DEFAULT_CIRCUIT_BREAKER_CONFIG;
   }
 
   /**
@@ -99,13 +83,10 @@ export class ProviderSecretManager {
     this.providers.push(provider);
 
     // Initialize circuit breaker for this provider
-    this.circuitBreakers.set(provider.name, {
-      state: 'closed',
-      failureCount: 0,
-      successCount: 0,
-      lastFailureTime: undefined,
-      nextAttemptTime: undefined,
-    });
+    this.circuitBreakers.set(
+      provider.name,
+      new CircuitBreaker({ ...PROVIDER_CIRCUIT_BREAKER_CONFIG, name: `secret:${provider.name}` })
+    );
 
     this.initialized = true;
   }
@@ -128,7 +109,7 @@ export class ProviderSecretManager {
       const circuitBreaker = this.circuitBreakers.get(provider.name);
 
       // Skip if circuit breaker is open
-      if (circuitBreaker !== undefined && !this.isCircuitReady(circuitBreaker)) {
+      if (circuitBreaker !== undefined && !this.prepareCircuit(circuitBreaker)) {
         continue;
       }
 
@@ -141,10 +122,15 @@ export class ProviderSecretManager {
           this.recordSuccess(provider.name);
           return secret.value;
         }
+
+        circuitBreaker?.releaseAttempt();
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         errors.push({ provider: provider.name, error: errorMessage });
-        this.recordFailure(provider.name);
+        this.recordFailure(
+          provider.name,
+          error instanceof Error ? error : new Error(String(error))
+        );
         // Continue to next provider
       }
     }
@@ -204,7 +190,7 @@ export class ProviderSecretManager {
     for (const provider of this.providers) {
       const circuitBreaker = this.circuitBreakers.get(provider.name);
 
-      if (circuitBreaker !== undefined && !this.isCircuitReady(circuitBreaker)) {
+      if (circuitBreaker !== undefined && !this.prepareCircuit(circuitBreaker)) {
         continue;
       }
 
@@ -215,8 +201,13 @@ export class ProviderSecretManager {
           this.recordSuccess(provider.name);
           return secret;
         }
-      } catch {
-        this.recordFailure(provider.name);
+
+        circuitBreaker?.releaseAttempt();
+      } catch (error) {
+        this.recordFailure(
+          provider.name,
+          error instanceof Error ? error : new Error(String(error))
+        );
       }
     }
 
@@ -280,21 +271,8 @@ export class ProviderSecretManager {
       const healthy = await provider.healthCheck();
       const cb = this.circuitBreakers.get(provider.name);
 
-      const circuitBreakerStatus: CircuitBreakerStatus = cb
-        ? {
-            state: cb.state,
-            failureCount: cb.failureCount,
-            successCount: cb.successCount,
-            lastFailureTime: cb.lastFailureTime,
-            nextAttemptTime: cb.nextAttemptTime,
-          }
-        : {
-            state: 'closed' as CircuitBreakerState,
-            failureCount: 0,
-            successCount: 0,
-            lastFailureTime: undefined,
-            nextAttemptTime: undefined,
-          };
+      const circuitBreakerStatus: CircuitBreakerStatus =
+        cb?.getStatus() ?? new CircuitBreaker().getStatus();
 
       providerHealth.push({
         name: provider.name,
@@ -344,11 +322,7 @@ export class ProviderSecretManager {
   public resetCircuitBreaker(providerName: string): void {
     const cb = this.circuitBreakers.get(providerName);
     if (cb !== undefined) {
-      cb.state = 'closed';
-      cb.failureCount = 0;
-      cb.successCount = 0;
-      cb.lastFailureTime = undefined;
-      cb.nextAttemptTime = undefined;
+      cb.reset();
     }
   }
 
@@ -370,32 +344,23 @@ export class ProviderSecretManager {
    */
   private isProviderAvailable(providerName: string): boolean {
     const cb = this.circuitBreakers.get(providerName);
-    return cb === undefined || this.isCircuitReady(cb);
+    return cb === undefined || cb.isAcceptingRequests();
   }
 
   /**
-   * Check if circuit breaker allows requests
+   * Reserve a request with the canonical circuit breaker
    *
    * @returns True if the circuit is closed or eligible for half-open retry
-   * @param cb - The circuit breaker instance to check
+   * @param cb - The circuit breaker instance to prepare
    */
-  private isCircuitReady(cb: CircuitBreakerInstance): boolean {
-    if (cb.state === 'closed') {
+  private prepareCircuit(cb: CircuitBreaker): boolean {
+    try {
+      cb.prepareForAttempt();
       return true;
+    } catch (error) {
+      if (error instanceof CircuitOpenError) return false;
+      throw error;
     }
-
-    if (cb.state === 'open') {
-      // Check if we should transition to half-open
-      if (cb.nextAttemptTime !== undefined && new Date() >= cb.nextAttemptTime) {
-        cb.state = 'half-open';
-        cb.successCount = 0;
-        return true;
-      }
-      return false;
-    }
-
-    // half-open state - allow requests
-    return true;
   }
 
   /**
@@ -406,43 +371,19 @@ export class ProviderSecretManager {
     const cb = this.circuitBreakers.get(providerName);
     if (cb === undefined) return;
 
-    if (cb.state === 'half-open') {
-      cb.successCount++;
-      if (cb.successCount >= this.circuitBreakerConfig.successThreshold) {
-        cb.state = 'closed';
-        cb.failureCount = 0;
-        cb.successCount = 0;
-        cb.lastFailureTime = undefined;
-        cb.nextAttemptTime = undefined;
-      }
-    } else if (cb.state === 'closed') {
-      // Reset failure count on success
-      cb.failureCount = 0;
-    }
+    cb.recordSuccess();
   }
 
   /**
    * Record a failed request for circuit breaker
    * @param providerName - The name of the provider that failed
+   * @param error - Failure reported by the provider
    */
-  private recordFailure(providerName: string): void {
+  private recordFailure(providerName: string, error: Error): void {
     const cb = this.circuitBreakers.get(providerName);
     if (cb === undefined) return;
 
-    cb.failureCount++;
-    cb.lastFailureTime = new Date();
-
-    if (cb.state === 'half-open') {
-      // Any failure in half-open immediately opens the circuit
-      cb.state = 'open';
-      cb.nextAttemptTime = new Date(Date.now() + this.circuitBreakerConfig.resetTimeout);
-    } else if (
-      cb.state === 'closed' &&
-      cb.failureCount >= this.circuitBreakerConfig.failureThreshold
-    ) {
-      cb.state = 'open';
-      cb.nextAttemptTime = new Date(Date.now() + this.circuitBreakerConfig.resetTimeout);
-    }
+    cb.recordFailure(error);
   }
 }
 

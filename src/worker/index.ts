@@ -11,8 +11,6 @@ export { WorkerAgent, WORKER_AGENT_ID } from './WorkerAgent.js';
 export type { CodeChange } from './WorkerAgent.js';
 export { TestGenerator } from './TestGenerator.js';
 export { SelfVerificationAgent } from './SelfVerificationAgent.js';
-export { RetryHandler } from './RetryHandler.js';
-export type { RetryHandlerConfig, OperationResult } from './RetryHandler.js';
 export { CheckpointManager, DEFAULT_CHECKPOINT_CONFIG } from './CheckpointManager.js';
 export type { CheckpointManagerConfig, CheckpointState } from './CheckpointManager.js';
 

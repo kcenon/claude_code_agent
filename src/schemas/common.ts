@@ -116,7 +116,7 @@ export type DependencyGraph = z.infer<typeof DependencyGraphSchema>;
 /**
  * Progress checkpoint for retry handling
  *
- * Used in: RetryHandler
+ * Used in: RetryExecutor and worker retry policy validation
  */
 export const ProgressCheckpointSchema = z
   .object({

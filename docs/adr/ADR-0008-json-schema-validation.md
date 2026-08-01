@@ -126,7 +126,7 @@ The migration covered:
 
 - PR Reviewer modules (PRCreator, PRReviewerAgent, MergeDecision, ReviewChecks)
 - Controller modules (WorkerPoolManager, ProgressMonitor)
-- Worker modules (RetryHandler)
+- Worker modules (WorkerAgent retry policy configuration)
 - Monitoring modules (Logger, AuditLogger)
 - Scratchpad module
 

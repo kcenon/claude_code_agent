@@ -680,11 +680,6 @@ export interface CIFixDelegationResult {
 // ============================================================================
 
 /**
- * Circuit breaker state
- */
-export type CircuitState = 'closed' | 'open' | 'half-open';
-
-/**
  * Failure type classification for intelligent handling
  */
 export type FailureType = 'transient' | 'persistent' | 'terminal';
@@ -704,44 +699,15 @@ export interface CICheckFailure {
 }
 
 /**
- * Circuit breaker configuration
+ * CI polling profile for the shared circuit breaker
  */
-export interface CircuitBreakerConfig {
-  /** Number of failures before opening circuit (default: 3) */
-  readonly failureThreshold: number;
-  /** Number of successes needed to close circuit from half-open (default: 2) */
-  readonly successThreshold: number;
-  /** Time in ms before attempting to recover from open state (default: 300000 = 5min) */
-  readonly resetTimeoutMs: number;
-  /** Time window in ms to track failures (default: 600000 = 10min) */
-  readonly failureWindowMs: number;
-}
-
-/**
- * Default circuit breaker configuration
- */
-export const DEFAULT_CIRCUIT_BREAKER_CONFIG: CircuitBreakerConfig = {
+export const DEFAULT_CI_CIRCUIT_BREAKER_CONFIG = {
   failureThreshold: 3,
-  successThreshold: 2,
   resetTimeoutMs: 300000,
+  halfOpenMaxAttempts: 2,
+  successThreshold: 2,
   failureWindowMs: 600000,
 } as const;
-
-/**
- * Circuit breaker status
- */
-export interface CircuitBreakerStatus {
-  /** Current state */
-  readonly state: CircuitState;
-  /** Number of consecutive failures */
-  readonly failures: number;
-  /** Number of consecutive successes in half-open */
-  readonly successes: number;
-  /** Last failure timestamp */
-  readonly lastFailureTime: number;
-  /** Last state change timestamp */
-  readonly lastStateChangeTime: number;
-}
 
 /**
  * Intelligent CI poller configuration

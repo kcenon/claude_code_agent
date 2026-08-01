@@ -507,7 +507,7 @@ export class CircuitBreaker {
 
   /**
    * Record a successful operation result (for external integration)
-   * Use this when the operation is managed externally (e.g., by RetryHandler)
+   * Use this when the operation is managed externally (e.g., by RetryExecutor)
    */
   public recordSuccess(): void {
     this.onSuccess();
@@ -515,11 +515,22 @@ export class CircuitBreaker {
 
   /**
    * Record a failed operation result (for external integration)
-   * Use this when the operation is managed externally (e.g., by RetryHandler)
+   * Use this when the operation is managed externally (e.g., by RetryExecutor)
    * @param error - The error that caused the failure
    */
   public recordFailure(error: Error): void {
     this.onFailure(error);
+  }
+
+  /**
+   * Release a HALF_OPEN attempt that produced neither a success nor a failure.
+   * This is useful for polling and lookup operations whose neutral result should
+   * not consume one of the limited recovery probes.
+   */
+  public releaseAttempt(): void {
+    if (this.state === 'HALF_OPEN' && this.halfOpenAttemptCount > 0) {
+      this.halfOpenAttemptCount--;
+    }
   }
 
   /**

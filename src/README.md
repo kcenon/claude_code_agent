@@ -5,6 +5,7 @@ This directory contains source code for the AD-SDLC system.
 ## Current Modules
 
 ### Core Modules
+
 ```
 src/
 ├── cli.ts                 # CLI entry point
@@ -20,17 +21,20 @@ src/
 ```
 
 ### completion/ - Shell Autocompletion Support
+
 - `CompletionGenerator.ts` - Generates shell completion scripts
 - `types.ts` - Shell types and command definitions
 - `index.ts` - Module exports
 
 Features:
+
 - Bash, Zsh, and Fish shell support
 - Command and option completion
 - Value completion for enum-type options
 - Installation instructions for each shell
 
 ### config/ - Configuration Validation
+
 - `schemas.ts` - Zod schemas for workflow.yaml and agents.yaml
 - `validation.ts` - Validation functions with error handling
 - `loader.ts` - YAML file loading and parsing
@@ -39,13 +43,16 @@ Features:
 - `types.ts` - TypeScript type definitions
 
 ### error-handler/ - Retry Logic, Error Handling, and Circuit Breaker
-- `RetryHandler.ts` - Core retry logic with exponential backoff
+
+- `RetryExecutor.ts` - Canonical retry execution with pluggable backoff and metrics
+- `BackoffStrategies.ts` - Fixed, linear, exponential, and Fibonacci delay strategies
 - `CircuitBreaker.ts` - Circuit breaker pattern for fault tolerance
 - `types.ts` - Retry policy, circuit breaker config, and error classification types
 - `errors.ts` - Custom error classes (MaxRetriesExceeded, CircuitOpen, OperationTimeout, etc.)
 - `index.ts` - Module exports
 
 Features:
+
 - Configurable retry policies (max attempts, delays, backoff strategy)
 - Exponential, linear, and fixed backoff strategies
 - Jitter support to prevent thundering herd
@@ -57,12 +64,14 @@ Features:
 - Integration between retry logic and circuit breaker
 
 ### telemetry/ - Opt-In Usage Analytics
+
 - `Telemetry.ts` - Core telemetry service with consent management
 - `types.ts` - Type definitions for events, consent, and configuration
 - `errors.ts` - Custom error classes
 - `index.ts` - Module exports
 
 Features:
+
 - Explicit opt-in consent mechanism
 - Anonymous-only data collection
 - CLI commands: status, enable, disable, policy
@@ -75,6 +84,7 @@ Features:
 The structure for generated projects depends on the target project type:
 
 ### TypeScript/JavaScript Project
+
 ```
 src/
 ├── index.ts           # Entry point
@@ -85,6 +95,7 @@ src/
 ```
 
 ### Python Project
+
 ```
 src/
 ├── __init__.py
@@ -106,6 +117,7 @@ src/
 ## Coding Standards
 
 Generated code follows:
+
 - Project-specific coding conventions
 - Language-specific best practices
 - Existing patterns in the codebase

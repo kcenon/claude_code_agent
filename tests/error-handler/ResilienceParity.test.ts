@@ -166,4 +166,21 @@ describe('canonical circuit-breaker behavior parity matrix', () => {
 
     expect(breaker.getState()).toBe('OPEN');
   });
+
+  it('releases a neutral half-open probe without changing recovery counters', () => {
+    vi.useFakeTimers();
+    const breaker = new CircuitBreaker({
+      failureThreshold: 1,
+      resetTimeoutMs: 100,
+      halfOpenMaxAttempts: 1,
+    });
+    breaker.recordFailure(new Error('down'));
+    vi.advanceTimersByTime(100);
+    breaker.prepareForAttempt();
+
+    breaker.releaseAttempt();
+
+    expect(breaker.getState()).toBe('HALF_OPEN');
+    expect(breaker.isAcceptingRequests()).toBe(true);
+  });
 });
