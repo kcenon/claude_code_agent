@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
@@ -1156,27 +1156,18 @@ describe('Lock Heartbeat Mechanism', () => {
     const initialLock = JSON.parse(fs.readFileSync(lockPath, 'utf8'));
     const initialHeartbeat = initialLock.lastHeartbeat;
 
-    // Wait for heartbeat update
-    await new Promise((resolve) => setTimeout(resolve, 150));
-
-    // Read updated heartbeat with retry (handles race condition during file write)
-    let updatedLock: { lastHeartbeat: string } | null = null;
-    const maxRetries = 5;
-    for (let i = 0; i < maxRetries; i++) {
-      try {
-        const content = fs.readFileSync(lockPath, 'utf8');
-        if (content.trim()) {
-          updatedLock = JSON.parse(content);
-          break;
-        }
-      } catch {
-        // File might be in the middle of being written, retry
-      }
-      await new Promise((resolve) => setTimeout(resolve, 20));
-    }
-
-    expect(updatedLock).not.toBeNull();
-    expect(updatedLock!.lastHeartbeat).not.toBe(initialHeartbeat);
+    // Poll for the observable heartbeat change. A fixed delay can line up with
+    // the asynchronous file rewrite on a busy CI runner and read a transiently
+    // empty lock file.
+    await vi.waitFor(
+      () => {
+        const updatedLock = JSON.parse(fs.readFileSync(lockPath, 'utf8')) as {
+          lastHeartbeat: string;
+        };
+        expect(updatedLock.lastHeartbeat).not.toBe(initialHeartbeat);
+      },
+      { timeout: 1000, interval: 20 }
+    );
 
     await heartbeatScratchpad.cleanup();
   });
