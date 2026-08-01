@@ -256,7 +256,9 @@ export function evaluateRegressionGate(
           baseline: baselineValue,
           current,
           percentChange: percentChange * 100,
-          severity: percentChange > CRITICAL_THRESHOLD ? 'critical' : 'warning',
+          // Median/p50 is stable enough to gate CI. Vitest only exposes p99 as
+          // our p95 proxy, and hosted-runner tail outliers are advisory.
+          severity: metric === 'p50' && percentChange > CRITICAL_THRESHOLD ? 'critical' : 'warning',
         });
       }
     }

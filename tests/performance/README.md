@@ -89,7 +89,8 @@ npm run perf:update-baseline
 Each operation is keyed by benchmark file, full suite path, and benchmark name,
 so repeated leaf names remain distinct. Vitest/Tinybench reports `median` and
 `p99`; the shared baseline parser maps median to p50 and uses p99 as the
-conservative upper-tail proxy for p95.
+conservative upper-tail proxy for p95. The stable p50 measurement drives the
+hard >20% CI gate; the noisier p99-derived tail metric remains advisory.
 
 Committed baselines must come from the pinned `ubuntu-24.04-arm` CI environment.
 Run the **Performance Tests** workflow manually with `update_baseline` enabled,

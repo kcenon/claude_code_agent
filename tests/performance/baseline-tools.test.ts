@@ -128,6 +128,15 @@ describe('performance regression gate', () => {
     ]);
   });
 
+  it('keeps the p99-derived upper-tail metric advisory', () => {
+    const evaluation = evaluateRegressionGate([baseline()], [result({ p50: 10, p95: 100 })]);
+
+    expect(evaluation.failed).toBe(false);
+    expect(evaluation.regressions).toEqual([
+      expect.objectContaining({ metric: 'p95', severity: 'warning' }),
+    ]);
+  });
+
   it('fails when current and baseline operation sets do not match', () => {
     const unbaselinedOperation = `${operation} changed`;
     const evaluation = evaluateRegressionGate(
