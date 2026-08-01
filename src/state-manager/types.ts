@@ -323,10 +323,7 @@ export interface SkipResult {
  * Admin override action types
  */
 export type AdminOverrideAction =
-  | 'force_transition'
-  | 'force_skip'
-  | 'restore_checkpoint'
-  | 'manual_correction';
+  'force_transition' | 'force_skip' | 'restore_checkpoint' | 'manual_correction';
 
 /**
  * Admin override request

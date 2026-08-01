@@ -373,13 +373,7 @@ export interface LogCompressionOptions {
  * Query field names for structured log search
  */
 export type LogQueryField =
-  | 'level'
-  | 'agent'
-  | 'stage'
-  | 'projectId'
-  | 'correlationId'
-  | 'message'
-  | 'time';
+  'level' | 'agent' | 'stage' | 'projectId' | 'correlationId' | 'message' | 'time';
 
 /**
  * Logical operators for combining query conditions

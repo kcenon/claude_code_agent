@@ -12,12 +12,7 @@
  * SVP generation status
  */
 export type SVPGenerationStatus =
-  | 'pending'
-  | 'parsing'
-  | 'deriving'
-  | 'generating'
-  | 'completed'
-  | 'failed';
+  'pending' | 'parsing' | 'deriving' | 'generating' | 'completed' | 'failed';
 
 /**
  * Document status (mirrors other writer agents)

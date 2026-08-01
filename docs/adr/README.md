@@ -13,14 +13,16 @@ An Architecture Decision Record captures an important architectural decision mad
 
 ## ADR Index
 
-| ID | Title | Status | Date |
-|----|-------|--------|------|
-| [ADR-0001](ADR-0001-scratchpad-state-sharing.md) | Scratchpad-based State Sharing | Accepted | 2024-01-15 |
-| [ADR-0002](ADR-0002-agent-factory-pattern.md) | Agent Factory Pattern | Accepted | 2024-02-01 |
-| [ADR-0003](ADR-0003-file-based-locking.md) | File-based Distributed Locking | Accepted | 2024-02-15 |
-| [ADR-0004](ADR-0004-error-handling-strategy.md) | Error Classification and Retry Strategy | Accepted | 2024-03-01 |
-| [ADR-0005](ADR-0005-layered-architecture.md) | Layered Architecture (Control/Data/Agent) | Accepted | 2024-01-10 |
-| [ADR-0006](ADR-0006-keep-or-kill-orphaned-public-subsystems.md) | Keep-or-Kill Disposition for Orphaned-but-Public Subsystems | Proposed | 2026-06-20 |
+| ID                                                              | Title                                                       | Status     | Date       |
+| --------------------------------------------------------------- | ----------------------------------------------------------- | ---------- | ---------- |
+| [ADR-0001](ADR-0001-scratchpad-state-sharing.md)                | Scratchpad-based State Sharing                              | Accepted   | 2024-01-15 |
+| [ADR-0002](ADR-0002-agent-factory-pattern.md)                   | Agent Factory Pattern                                       | Superseded | 2024-02-01 |
+| [ADR-0003](ADR-0003-file-based-locking.md)                      | File-based Distributed Locking                              | Accepted   | 2024-02-15 |
+| [ADR-0004](ADR-0004-error-handling-strategy.md)                 | Error Classification and Retry Strategy                     | Accepted   | 2024-03-01 |
+| [ADR-0005](ADR-0005-layered-architecture.md)                    | Layered Architecture (Control/Data/Agent)                   | Accepted   | 2024-01-10 |
+| [ADR-0006](ADR-0006-keep-or-kill-orphaned-public-subsystems.md) | Keep-or-Kill Disposition for Orphaned-but-Public Subsystems | Accepted   | 2026-06-20 |
+| [ADR-0007](ADR-0007-agent-model-selection.md)                   | Agent Model Selection Strategy                              | Superseded | 2024-12-20 |
+| [ADR-0008](ADR-0008-json-schema-validation.md)                  | Runtime JSON Schema Validation with Zod                     | Accepted   | 2025-12-31 |
 
 ## When to Write an ADR
 
@@ -42,13 +44,13 @@ Write an ADR when making a decision that:
 
 ### Statuses
 
-| Status | Description |
-|--------|-------------|
-| **Proposed** | Under discussion, not yet decided |
-| **Accepted** | Decision made and currently in effect |
+| Status         | Description                            |
+| -------------- | -------------------------------------- |
+| **Proposed**   | Under discussion, not yet decided      |
+| **Accepted**   | Decision made and currently in effect  |
 | **Deprecated** | No longer recommended but still in use |
-| **Superseded** | Replaced by a newer ADR |
-| **Rejected** | Considered but not adopted |
+| **Superseded** | Replaced by a newer ADR                |
+| **Rejected**   | Considered but not adopted             |
 
 ## How to Write an ADR
 
@@ -66,24 +68,31 @@ Every ADR follows a consistent structure:
 # ADR-XXXX: Title
 
 ## Status
+
 [Proposed | Accepted | Deprecated | Superseded by ADR-YYYY]
 
 ## Date
+
 YYYY-MM-DD
 
 ## Context
+
 What problem are we solving? What constraints exist?
 
 ## Decision
+
 What change are we making?
 
 ## Consequences
+
 What are the positive, negative, and neutral outcomes?
 
 ## Alternatives Considered
+
 What other options were evaluated and why were they rejected?
 
 ## References
+
 Links to related code, issues, and external resources.
 ```
 

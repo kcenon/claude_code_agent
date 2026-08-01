@@ -2,7 +2,14 @@
 
 ## Status
 
-Accepted
+Superseded by the v0.1 ExecutionAdapter architecture (#785, #798)
+
+<!-- historical: AgentFactory, AgentRegistry -->
+
+This record describes the pre-v0.1 lifecycle design. `AgentFactory` and
+`AgentRegistry` were removed in v0.1.0; pipeline stages now execute through the
+single `ExecutionAdapter` seam, while concrete modules expose constructors and
+module-local `get*`/`reset*` accessors where singleton convenience is needed.
 
 ## Date
 
@@ -10,7 +17,7 @@ Accepted
 
 ## Context
 
-The AD-SDLC system contains 19+ specialized agents (Collector, PRD Writer, Worker, etc.) with varying lifecycle requirements:
+Before v0.1, AD-SDLC contained 19+ specialized agents with varying lifecycle requirements:
 
 - Some agents should be **singletons** (shared logging, configuration)
 - Some agents need **fresh instances** per operation (workers handling concurrent tasks)
@@ -26,7 +33,7 @@ Without centralized management:
 
 ## Decision
 
-Implement a **centralized Agent Factory pattern** with:
+The original decision was to implement a **centralized Agent Factory pattern** with:
 
 1. **AgentRegistry**: Singleton registry for agent metadata and factory functions
 2. **AgentFactory**: Singleton factory that creates/caches agent instances
@@ -145,7 +152,9 @@ interface IAgent {
 
 ## References
 
-- Related code: `src/agents/AgentFactory.ts`
-- Related code: `src/agents/AgentRegistry.ts`
+- Removed historical code: `src/agents/AgentFactory.ts`
+- Removed historical code: `src/agents/AgentRegistry.ts`
+- Replacement: `src/execution/ExecutionAdapter.ts`
 - Related documentation: `src/agents/README.md`
 - Related issue: #358 (AgentFactory pattern implementation)
+- Superseding issues: #785 and #798 (v0.1 ExecutionAdapter cutover)

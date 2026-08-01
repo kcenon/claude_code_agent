@@ -34,12 +34,7 @@ export type PackageDependencyType = 'production' | 'development';
  * Naming convention types
  */
 export type NamingConvention =
-  | 'camelCase'
-  | 'snake_case'
-  | 'PascalCase'
-  | 'kebab-case'
-  | 'SCREAMING_SNAKE_CASE'
-  | 'mixed';
+  'camelCase' | 'snake_case' | 'PascalCase' | 'kebab-case' | 'SCREAMING_SNAKE_CASE' | 'mixed';
 
 /**
  * Supported programming languages

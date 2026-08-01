@@ -12,11 +12,7 @@
  * Tech Decision generation status
  */
 export type TechDecisionGenerationStatus =
-  | 'pending'
-  | 'parsing'
-  | 'generating'
-  | 'completed'
-  | 'failed';
+  'pending' | 'parsing' | 'generating' | 'completed' | 'failed';
 
 /**
  * Document status (mirrors other writer agents)

@@ -49,7 +49,7 @@
 | Category | Scope |
 |----------|-------|
 | **Architecture** | 멀티 에이전트 오케스트레이션 아키텍처, Scratchpad 패턴 |
-| **Components** | 36개 컴포넌트 설계 (25개 특화 에이전트 + 3개 인프라 서비스 + 8개 지원 모듈) |
+| **Components** | 36개의 `CMP-*` 설계 레코드([runtime inventory](architecture/runtime-inventory.md)의 프롬프트 정의 36개 및 런타임 stage slot 39개와는 별도의 설계 문서 축) |
 | **Data** | 파일 기반 상태 스키마, 데이터 엔티티 정의 |
 | **Interfaces** | 에이전트 간 통신, GitHub API 연동, CLI 인터페이스 |
 | **Security** | 인증, 권한 관리, 민감 정보 보호 |
@@ -2986,7 +2986,8 @@ interface TelemetryEvent {
 
 이 컴포넌트들은 핵심 에이전트 파이프라인을 보강하는 특화된 생성, 검증,
 관측 기능을 제공합니다. 위의 인프라 모듈과 달리, `IAgent` 인터페이스를
-구현하며 `AgentFactory`가 관리하는 에이전트 수명주기에 참여합니다.
+구현하여 공통 `IAgent` 수명주기 계약을 따릅니다. 구체 모듈은 직접 생성하거나
+모듈별 접근자를 사용하며, SDK 기반 stage 실행은 `ExecutionAdapter`를 통합니다.
 
 #### 3.14.1 CMP-029: Agent Definition Validator
 

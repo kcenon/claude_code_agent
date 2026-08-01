@@ -494,26 +494,34 @@ sequenceDiagram
 
 ## 8. Verification & Validation (V&V) Pipeline
 
-The V&V pipeline ensures that pipeline outputs are complete and that the final implementation conforms to its requirements.
+The live V&V path validates the final implementation. Additional verifier and
+traceability modules exist but are not currently enforced by the run loop.
 
 ### Stage Verifier
 
-The Stage Verifier agent checks the outputs of each pipeline stage for completeness and correctness before the workflow advances to the next stage. It validates that all required artifacts (documents, issues, code) have been produced and meet structural expectations.
+The Stage Verifier module can check pipeline outputs for completeness and
+traceability, but it is not currently invoked as a blocking stage by the live
+orchestrator. Enforce-or-demote is tracked in #877.
 
 ### RTM Builder
 
-The RTM (Requirements Traceability Matrix) Builder agent creates and maintains a traceability matrix that links requirements from PRD through SRS, SDS, issues, and implementation. This matrix provides end-to-end visibility into requirement coverage and identifies any gaps.
+The RTM (Requirements Traceability Matrix) Builder can create a traceability
+matrix linking PRD, SRS, SDS, issues, and implementation. Like Stage Verifier,
+it currently remains an auxiliary module/definition rather than an enforced
+run-loop stage (#877).
 
 ### Validation Agent
 
-The Validation agent validates the final implementation against the original requirements. It runs after all workers have completed their tasks and before PR review, ensuring that the delivered code satisfies the acceptance criteria defined in the upstream documents.
+The Validation Agent is the V&V component wired into every current pipeline
+mode. It runs after implementation (and after regression testing in Enhancement
+mode) and before PR review.
 
 ## 9. Directory Structure
 
 ```
 claude_code_agent/
 ├── .claude/
-│   └── agents/                    # Agent Definitions (34 files)
+│   └── agents/                    # Agent definitions (36 prompt files)
 │       ├── ad-sdlc-orchestrator.md # AD-SDLC Orchestrator Agent
 │       ├── analysis-orchestrator.md # Analysis Orchestrator Agent
 │       ├── ci-fixer.md            # CI Fixer Agent

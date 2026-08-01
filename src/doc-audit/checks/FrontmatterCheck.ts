@@ -7,7 +7,7 @@
  */
 
 import { z } from 'zod';
-import yaml from 'js-yaml';
+import * as yaml from 'js-yaml';
 import { DocumentFrontmatterSchema } from '../../schemas/document-frontmatter.js';
 import type { AuditCheck, AuditFinding, CheckResult, LoadedDocument } from '../types.js';
 

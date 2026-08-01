@@ -402,14 +402,7 @@ export interface LogCompressionOptions {
  * Alert condition operator types for type-safe conditions
  */
 export type AlertConditionOperator =
-  | '>'
-  | '>='
-  | '<'
-  | '<='
-  | '='
-  | '!='
-  | 'contains'
-  | 'not_contains';
+  '>' | '>=' | '<' | '<=' | '=' | '!=' | 'contains' | 'not_contains';
 
 /**
  * Alert condition metric types
@@ -595,13 +588,7 @@ export interface ProjectedOverageAlert {
  * Query field names for structured log search
  */
 export type LogQueryField =
-  | 'level'
-  | 'agent'
-  | 'stage'
-  | 'projectId'
-  | 'correlationId'
-  | 'message'
-  | 'time';
+  'level' | 'agent' | 'stage' | 'projectId' | 'correlationId' | 'message' | 'time';
 
 /**
  * Logical operators for combining query conditions
@@ -673,10 +660,7 @@ export type OpenTelemetryExporterType = 'console' | 'otlp' | 'jaeger';
  * Sampling strategy types
  */
 export type OpenTelemetrySamplingType =
-  | 'always_on'
-  | 'always_off'
-  | 'probability'
-  | 'rate_limiting';
+  'always_on' | 'always_off' | 'probability' | 'rate_limiting';
 
 /**
  * OpenTelemetry exporter configuration

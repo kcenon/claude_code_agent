@@ -5,9 +5,9 @@
 | Field | Value |
 |-------|-------|
 | **Document ID** | PRD-001 |
-| **Version** | 1.0.0 |
+| **Version** | 1.1.0 |
 | **Status** | Review |
-| **Implementation** | Not Started |
+| **Implementation** | Partial |
 | **Created** | 2025-12-27 |
 | **Author** | System Architect |
 
@@ -38,7 +38,7 @@
 **Agent-Driven SDLC (AD-SDLC)** - 에이전트 기반 소프트웨어 개발 생명주기 자동화 시스템
 
 ### 1.2 Overview
-AD-SDLC는 Claude Agent SDK를 기반으로 구축된 멀티 에이전트 시스템으로, 소프트웨어 개발의 전체 생명주기를 자동화합니다. Greenfield, Enhancement, Import 세 가지 파이프라인 모드에 걸쳐 25개의 특화된 에이전트가 사용자의 초기 요구사항부터 PRD, SRS, SDS 작성, GitHub Issue 생성, 코드 구현, PR 검토까지 전 과정을 처리합니다.
+AD-SDLC는 Claude Agent SDK를 기반으로 구축된 멀티 에이전트 시스템으로, 소프트웨어 개발의 전체 생명주기를 자동화합니다. 이 제품 역할 카탈로그는 25개의 특화 역할과 3개의 인프라 서비스를 정의합니다. 현재 구현 수치는 별도 축으로 관리되며, 체크인된 프롬프트 정의 36개, 고유 파이프라인 에이전트 유형 29개, Greenfield/Enhancement/Import 모드별 stage slot 합계 39개입니다. 구현 수치는 소스에서 검증되는 [runtime inventory](architecture/runtime-inventory.md)를 기준으로 합니다.
 
 ### 1.3 Key Value Propositions
 - **End-to-End 자동화**: 요구사항 수집부터 코드 배포까지 전 과정 자동화
@@ -1317,6 +1317,7 @@ Validation Gates:
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 1.0.0 | 2025-12-27 | System Architect | Initial draft |
+| 1.1.0 | 2026-02-07 | System Architect | Enhancement Pipeline features (FR-017~FR-033), correct agent count to 28 total components |
 
 ---
 

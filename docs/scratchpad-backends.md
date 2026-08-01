@@ -67,11 +67,11 @@ await scratchpad.write('/path/to/readme.md', '# Title');           // Markdown (
 await scratchpad.write('/path/to/data.txt', { key: 'value' }, { format: 'json' });
 
 // Read with format detection
-const yamlData = await scratchpad.read<Config>('/path/to/config.yaml');
-const jsonData = await scratchpad.read<Data>('/path/to/data.json');
+const yamlData = await scratchpad.read<Record<string, unknown>>('/path/to/config.yaml');
+const jsonData = await scratchpad.read<unknown>('/path/to/data.json');
 
 // Read with explicit format
-const data = await scratchpad.read<Data>('/path/to/custom.txt', { format: 'json' });
+const data = await scratchpad.read<unknown>('/path/to/custom.txt', { format: 'json' });
 
 // Detect format programmatically
 const format = scratchpad.detectFormat('/path/to/file.yaml'); // 'yaml'
@@ -116,11 +116,11 @@ All format operations are available in synchronous versions:
 scratchpad.writeSync('/path/to/config.yaml', data);
 
 // Synchronous read with auto-detect
-const data = scratchpad.readSync<Config>('/path/to/config.yaml');
+const data = scratchpad.readSync<Record<string, unknown>>('/path/to/config.yaml');
 
 // Synchronous with explicit format
 scratchpad.writeSync('/path/to/data.txt', data, { format: 'json' });
-const result = scratchpad.readSync<Data>('/path/to/data.txt', { format: 'json' });
+const result = scratchpad.readSync<unknown>('/path/to/data.txt', { format: 'json' });
 ```
 
 ## Backend Interface

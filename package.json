@@ -28,6 +28,9 @@
     "perf:check": "tsx scripts/check-regression.ts",
     "perf:update-baseline": "node --experimental-specifier-resolution=node dist/scripts/update-baseline.js",
     "audit:docs": "tsx scripts/audit-docs.ts",
+    "docs:check": "npm run docs:check-symbols && npm run docs:check-inventory",
+    "docs:check-inventory": "tsx scripts/ci/validate-doc-inventory.ts",
+    "docs:check-symbols": "tsx scripts/ci/validate-doc-symbols.ts",
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
     "format": "prettier --write 'src/**/*.ts'",
@@ -94,7 +97,7 @@
     "tsx": "^4.23.1",
     "typedoc": "^0.28.20",
     "typedoc-plugin-markdown": "^4.12.0",
-    "typescript": "^7.0.2",
+    "typescript": "^6.0.3",
     "typescript-eslint": "^8.65.0",
     "vitest": "^4.0.16"
   },

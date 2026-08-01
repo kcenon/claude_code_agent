@@ -17,12 +17,7 @@ import type {
  * SRS generation status
  */
 export type SRSGenerationStatus =
-  | 'pending'
-  | 'parsing'
-  | 'decomposing'
-  | 'generating'
-  | 'completed'
-  | 'failed';
+  'pending' | 'parsing' | 'decomposing' | 'generating' | 'completed' | 'failed';
 
 /**
  * Priority level for requirements and features

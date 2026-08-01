@@ -49,7 +49,7 @@ This SDS covers the following design scope:
 | Category | Scope |
 |----------|-------|
 | **Architecture** | Multi-agent orchestration architecture, Scratchpad pattern |
-| **Components** | 36 component designs (25 specialized agents + 3 infrastructure services + 8 support modules) |
+| **Components** | 36 `CMP-*` design records (a design-document axis, distinct from the 36 prompt definitions and 39 runtime stage slots in the [runtime inventory](architecture/runtime-inventory.md)) |
 | **Data** | File-based state schema, data entity definitions |
 | **Interfaces** | Inter-agent communication, GitHub API integration, CLI interface |
 | **Security** | Authentication, authorization management, sensitive information protection |
@@ -82,7 +82,7 @@ This SDS covers the following design scope:
 | SRS-001 | Software Requirements Specification |
 | Claude Agent SDK | https://platform.claude.com/docs/en/agent-sdk |
 | Claude Code Subagents | https://code.claude.com/docs/en/sub-agents |
-| Dual-Layer Architecture | [docs/architecture/dual-layer-design.md](architecture/dual-layer-design.md) -- Infrastructure vs. Intelligence layer separation for all 25 agents |
+| Execution and Definition Layers | [docs/architecture/dual-layer-design.md](architecture/dual-layer-design.md) -- Pipeline control, `ExecutionAdapter`, and declarative agent knowledge boundaries |
 
 ---
 
@@ -3042,7 +3042,9 @@ interface TelemetryEvent {
 These components provide specialized generation, validation, and observability
 capabilities that augment the core agent pipeline. Unlike the infrastructure
 modules above, they implement the `IAgent` interface and participate in the
-agent lifecycle managed by `AgentFactory`.
+the shared `IAgent` lifecycle contract. Concrete modules are constructed
+directly or through module-local accessors; SDK-backed stage execution uses
+`ExecutionAdapter`.
 
 #### 3.14.1 CMP-029: Agent Definition Validator
 

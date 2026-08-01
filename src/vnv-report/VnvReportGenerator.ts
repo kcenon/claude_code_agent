@@ -10,7 +10,7 @@
  * @module vnv-report/VnvReportGenerator
  */
 
-import yaml from 'js-yaml';
+import * as yaml from 'js-yaml';
 import type { VnvRigor } from '../vnv/types.js';
 import type { PipelineMode } from '../ad-sdlc-orchestrator/types.js';
 import type {

@@ -7,7 +7,7 @@
 | **Document ID** | SDS-001 |
 | **Source SRS** | SRS-001 |
 | **Source PRD** | PRD-001 |
-| **Version** | 1.1.0 |
+| **Version** | 1.2.0 |
 | **Status** | Review |
 | **Implementation** | Partial |
 | **Created** | 2025-12-27 |
@@ -49,7 +49,7 @@ This SDS covers the following design scope:
 | Category | Scope |
 |----------|-------|
 | **Architecture** | Multi-agent orchestration architecture, Scratchpad pattern |
-| **Components** | 28 component designs (25 specialized agents + 3 infrastructure services) |
+| **Components** | 36 `CMP-*` design records (a design-document axis, distinct from the 36 prompt definitions and 39 runtime stage slots in the [runtime inventory](architecture/runtime-inventory.md)) |
 | **Data** | File-based state schema, data entity definitions |
 | **Interfaces** | Inter-agent communication, GitHub API integration, CLI interface |
 | **Security** | Authentication, authorization management, sensitive information protection |
@@ -82,6 +82,7 @@ This SDS covers the following design scope:
 | SRS-001 | Software Requirements Specification |
 | Claude Agent SDK | https://platform.claude.com/docs/en/agent-sdk |
 | Claude Code Subagents | https://code.claude.com/docs/en/sub-agents |
+| Execution and Definition Layers | [docs/architecture/dual-layer-design.md](architecture/dual-layer-design.md) -- Pipeline control, `ExecutionAdapter`, and declarative agent knowledge boundaries |
 
 ---
 
@@ -382,6 +383,14 @@ project-root/
 | CMP-026 | Analysis Orchestrator Agent | Analysis Orchestrator | SF-030 | Enhancement analysis sub-pipeline |
 | CMP-027 | GitHub Repo Setup Agent | GitHub Repo Setup | SF-029 | Create and initialize GitHub repository |
 | CMP-028 | Issue Reader Agent | Issue Reader | SF-031 | Import existing GitHub Issues |
+| CMP-029 | Agent Definition Validator | Agent Definition Validator | SF-028 | Validate agent definition files against schema and registry |
+| CMP-030 | Architecture Generator | Architecture Generator | SF-004 | Generate architecture designs from SRS documents |
+| CMP-031 | Component Generator | Component Generator | SF-004 | Generate component designs, interface specs, and API documentation |
+| CMP-032 | Monitoring Service | Monitoring Service | SF-015 | Observability, token budget management, alerting, and performance tuning |
+| CMP-033 | Telemetry Service | Telemetry Service | SF-015 | Opt-in anonymous usage analytics with consent management |
+| CMP-034 | Security Module | Security Module | Cross-cutting (NFR) | Input validation, command sanitization, audit logging, rate limiting |
+| CMP-035 | Configuration Manager | Configuration Manager | SF-028 | Unified workflow/agent configuration loading, validation, and watching |
+| CMP-036 | Completion Generator | Completion Generator | CLI Tooling | Shell autocompletion script generation for bash, zsh, and fish |
 
 ### 3.2 CMP-001: Collector Agent
 
@@ -2681,11 +2690,58 @@ When a pipeline is resumed (via `resumeSessionId` or `startFromStage`), the orch
 
 3. **Result merging**: `executePipeline()` merges prior completed results with newly executed results into the final `PipelineResult.stages` array.
 
+```
+┌─────────────┐     ┌──────────────────┐     ┌───────────────────┐
+│startSession()│────▶│ Build            │────▶│ executeStages()   │
+│             │     │ preCompletedStages│     │ preCompleted param│
+└─────────────┘     └──────────────────┘     └───────────────────┘
+                                                      │
+                                              ┌───────▼───────┐
+                                              │completedStages │
+                                              │= new Set(      │
+                                              │  preCompleted) │
+                                              └───────┬───────┘
+                                                      │
+                                              ┌───────▼───────┐
+                                              │remaining =     │
+                                              │stages.filter(  │
+                                              │  !completed)   │
+                                              └───────┬───────┘
+                                                      │
+                                              ┌───────▼───────┐
+                                              │ Dependency     │
+                                              │ resolution     │
+                                              │ loop (unchanged)│
+                                              └───────────────┘
+```
+
 **Artifact Validation for Pre-completed Stages**
 
 Before executing remaining stages, the orchestrator validates that output artifacts
-from pre-completed stages actually exist on disk. The `ArtifactValidator` class maps
-each stage to its expected output artifacts and checks their presence using glob matching.
+from pre-completed stages actually exist on disk. This prevents runtime failures
+when a user claims stages are complete but artifacts are missing.
+
+The `ArtifactValidator` class maps each stage to its expected output artifacts:
+
+```typescript
+interface ArtifactSpec {
+  readonly pathPattern: string;   // Glob pattern (supports * wildcard)
+  readonly description: string;   // Human-readable label
+  readonly required: boolean;     // Whether downstream stages need this
+}
+
+interface StageArtifactMap {
+  readonly stage: StageName;
+  readonly requiredArtifacts: readonly ArtifactSpec[];
+}
+
+interface ValidationResult {
+  readonly valid: boolean;
+  readonly stage: StageName;
+  readonly missing: readonly ArtifactSpec[];
+  readonly found: readonly string[];
+}
+```
 
 **Graceful degradation flow:**
 
@@ -2693,6 +2749,28 @@ each stage to its expected output artifacts and checks their presence using glob
 2. `ArtifactValidator.validatePreCompletedStages()` checks each stage's artifacts
 3. Stages with missing required artifacts are removed from `preCompleted`
 4. Removed stages are re-executed in the normal pipeline flow
+
+```
+preCompleted: {init, collection, prd_gen}
+                    │
+         ┌──────────▼──────────┐
+         │ ArtifactValidator    │
+         │ validatePreCompleted │
+         └──────────┬──────────┘
+                    │
+         init: ✓ .ad-sdlc/scratchpad exists
+         collection: ✗ collected_info.yaml missing
+         prd_gen: ✓ prd.md found
+                    │
+         ┌──────────▼──────────┐
+         │ Remove invalid:      │
+         │ preCompleted.delete( │
+         │   'collection')      │
+         └──────────┬──────────┘
+                    │
+         preCompleted: {init, prd_gen}
+         → collection will re-execute
+```
 
 Artifact maps are defined per pipeline mode:
 - **Greenfield**: initialization, collection, prd/srs/sds_generation, issue_generation
@@ -2958,6 +3036,676 @@ interface TelemetryEvent {
 │  └──────────────┘ └──────────┘ └────────────┘ └──────────────┘│
 └─────────────────────────────────────────────────────────────────┘
 ```
+
+### 3.14 Support Components
+
+These components provide specialized generation, validation, and observability
+capabilities that augment the core agent pipeline. Unlike the infrastructure
+modules above, they implement the `IAgent` interface and participate in the
+the shared `IAgent` lifecycle contract. Concrete modules are constructed
+directly or through module-local accessors; SDK-backed stage execution uses
+`ExecutionAdapter`.
+
+#### 3.14.1 CMP-029: Agent Definition Validator
+
+**Source Features**: SF-028 (UC-039)
+**Responsibility**: Validates agent definition files (`.claude/agents/*.md`) against a Zod-based schema and checks consistency with the `agents.yaml` registry. This is a stateless library module (not an IAgent implementation) that exposes pure validation functions. Parses YAML frontmatter from markdown files, validates structure (name, description, tools, model), verifies recommended sections, and produces validation reports with errors and warnings.
+
+```typescript
+interface IAgentDefinitionValidator {
+  /**
+   * Validate a single agent definition file
+   * @param filePath Path to the agent definition markdown file
+   * @param options Validation options
+   * @returns Validation result with errors and warnings
+   */
+  validateAgentFile(
+    filePath: string,
+    options?: ValidateAgentOptions
+  ): AgentValidationResult;
+
+  /**
+   * Validate all agent definition files in a directory
+   * @param options Validation options including directory path
+   * @returns Batch validation report
+   */
+  validateAllAgents(
+    options?: ValidateAgentOptions
+  ): AgentValidationReport;
+
+  /**
+   * Format a validation report as human-readable string
+   * @param report Validation report to format
+   * @returns Formatted report string
+   */
+  formatValidationReport(
+    report: AgentValidationReport
+  ): string;
+}
+
+interface ValidateAgentOptions {
+  /** Check consistency with agents.yaml registry */
+  readonly checkRegistry?: boolean;
+  /** Include warnings in output */
+  readonly includeWarnings?: boolean;
+  /** Custom agents directory path */
+  readonly agentsDir?: string;
+  /** Custom registry file path */
+  readonly registryPath?: string;
+}
+
+interface AgentValidationResult {
+  /** Path to the validated file */
+  readonly filePath: string;
+  /** Whether the file is valid */
+  readonly valid: boolean;
+  /** Validation errors */
+  readonly errors: AgentValidationError[];
+  /** Validation warnings */
+  readonly warnings: AgentValidationError[];
+  /** Parsed agent definition (if valid) */
+  readonly agent?: AgentDefinition;
+}
+
+interface AgentValidationReport {
+  /** Report generation timestamp */
+  readonly timestamp: string;
+  /** Total files validated */
+  readonly totalFiles: number;
+  /** Number of valid files */
+  readonly validCount: number;
+  /** Number of invalid files */
+  readonly invalidCount: number;
+  /** Number of warnings */
+  readonly warningCount: number;
+  /** Per-file validation results */
+  readonly results: AgentValidationResult[];
+}
+```
+
+**Output**: `AgentValidationReport` data structure (no disk writes)
+**Tools Required**: Read (agent definition files, agents.yaml)
+**Dependencies**: `src/utils` (project root detection), `src/config/paths` (default paths)
+
+#### 3.14.2 CMP-030: Architecture Generator
+
+**Source Features**: SF-004 (UC-007)
+**Responsibility**: Generates comprehensive system architecture designs from SRS documents. Analyzes features, use cases, non-functional requirements, and constraints to recommend architecture patterns, technology stacks, Mermaid diagrams, and directory structures. Produces markdown-formatted SDS architecture sections.
+
+```typescript
+interface IArchitectureGenerator extends IAgent {
+  /**
+   * Generate architecture design from an SRS file
+   * @param srsPath Path to the SRS markdown file
+   * @param options Generation options
+   * @returns Complete architecture design
+   */
+  generateFromFile(
+    srsPath: string,
+    options?: ArchitectureGeneratorOptions
+  ): ArchitectureDesign;
+
+  /**
+   * Generate architecture and save to disk
+   * @param srsPath Path to the SRS file
+   * @param projectId Project identifier
+   * @param options Generation options
+   * @returns Design and output file path
+   */
+  generateAndSave(
+    srsPath: string,
+    projectId: string,
+    options?: ArchitectureGeneratorOptions
+  ): { design: ArchitectureDesign; outputPath: string };
+
+  /**
+   * Convert architecture design to markdown
+   * @param design Architecture design to render
+   * @returns Markdown string
+   */
+  designToMarkdown(design: ArchitectureDesign): string;
+}
+
+interface ArchitectureDesign {
+  /** Architecture pattern analysis and recommendations */
+  readonly analysis: ArchitectureAnalysis;
+  /** Recommended technology stack */
+  readonly technologyStack: TechnologyStack;
+  /** Generated Mermaid diagrams */
+  readonly diagrams: MermaidDiagram[];
+  /** Directory structure specification */
+  readonly directoryStructure: DirectoryStructure;
+  /** Generation metadata */
+  readonly metadata: ArchitectureMetadata;
+}
+
+interface ArchitectureAnalysis {
+  /** Recommended primary architecture pattern */
+  readonly primaryPattern: ArchitecturePattern;
+  /** Supporting patterns */
+  readonly supportingPatterns: ArchitecturePattern[];
+  /** Selection rationale */
+  readonly rationale: string;
+  /** Pattern-specific recommendations */
+  readonly recommendations: PatternRecommendation[];
+  /** Identified architectural concerns */
+  readonly concerns: ArchitecturalConcern[];
+}
+
+type ArchitecturePattern =
+  | 'hierarchical-multi-agent'
+  | 'pipeline'
+  | 'event-driven'
+  | 'microservices'
+  | 'layered'
+  | 'hexagonal'
+  | 'cqrs'
+  | 'scratchpad';
+```
+
+**Output**: `docs/sds/SDS-{projectId}-architecture.md`
+**Tools Required**: Read (SRS files), Write (SDS output)
+**Dependencies**: None (self-contained module)
+
+#### 3.14.3 CMP-031: Component Generator
+
+**Source Features**: SF-004 (UC-007)
+**Responsibility**: Converts parsed SRS documents into detailed component designs with interface specifications, API documentation, dependency analysis, and traceability matrices. Generates SDS component sections and TypeScript type definitions from use case analysis.
+
+```typescript
+interface IComponentGenerator extends IAgent {
+  /**
+   * Generate component design from parsed SRS
+   * @param srs Parsed SRS document
+   * @param options Generation options
+   * @returns Complete component design
+   */
+  generate(
+    srs: ParsedSRS,
+    options?: ComponentGeneratorOptions
+  ): ComponentDesign;
+
+  /**
+   * Generate component design and save to disk
+   * @param srs Parsed SRS document
+   * @param projectId Project identifier
+   * @param options Generation options
+   * @returns Design and output file path
+   */
+  generateAndSave(
+    srs: ParsedSRS,
+    projectId: string,
+    options?: ComponentGeneratorOptions
+  ): { design: ComponentDesign; outputPath: string };
+
+  /**
+   * Generate TypeScript interfaces from design
+   * @param design Component design
+   * @returns TypeScript interface declarations
+   */
+  generateTypeScriptInterfaces(
+    design: ComponentDesign
+  ): string;
+}
+
+interface ComponentDesign {
+  /** Component definitions */
+  readonly components: ComponentDefinition[];
+  /** API endpoint specifications */
+  readonly apiSpecification: APIEndpoint[];
+  /** Feature-to-component traceability */
+  readonly traceabilityMatrix: TraceabilityEntry[];
+  /** Inter-component dependencies */
+  readonly dependencies: ComponentDependency[];
+  /** Generation metadata */
+  readonly metadata: ComponentDesignMetadata;
+}
+
+interface ComponentDefinition {
+  /** Component identifier */
+  readonly id: string;
+  /** Component name */
+  readonly name: string;
+  /** Component responsibility */
+  readonly responsibility: string;
+  /** Source feature reference */
+  readonly sourceFeature: string;
+  /** Interface specifications */
+  readonly interfaces: InterfaceSpec[];
+  /** Component dependencies */
+  readonly dependencies: string[];
+  /** Architecture layer */
+  readonly layer: 'presentation' | 'application' | 'domain' | 'infrastructure' | 'integration';
+}
+
+interface APIEndpoint {
+  /** Endpoint path */
+  readonly endpoint: string;
+  /** HTTP method */
+  readonly method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+  /** Endpoint description */
+  readonly description: string;
+  /** Request schema */
+  readonly request: Record<string, unknown>;
+  /** Response schema */
+  readonly response: Record<string, unknown>;
+  /** Requires authentication */
+  readonly authenticated: boolean;
+  /** Rate limit configuration */
+  readonly rateLimit?: string;
+}
+```
+
+**Output**: `docs/sds/SDS-{projectId}-components.md`
+**Tools Required**: Read (SRS files), Write (SDS output)
+**Dependencies**: `src/architecture-generator` (ParsedSRS types), `src/logging` (Logger)
+
+#### 3.14.4 CMP-032: Monitoring Service
+
+**Source Features**: SF-015 (UC-022, UC-023)
+**Responsibility**: Provides comprehensive observability and cost control infrastructure for the AD-SDLC pipeline. Includes metrics collection, alerting with escalation, hierarchical token budget enforcement with forecasting, distributed tracing via OpenTelemetry, intelligent model selection, query caching, and real-time dashboard data aggregation. See Section 3.13.2 for the complete sub-component listing.
+
+```typescript
+interface IMetricsCollector {
+  /**
+   * Record an agent invocation metric
+   * @param agentId Agent identifier
+   * @param metrics Invocation metrics (tokens, duration, status)
+   */
+  recordAgentInvocation(
+    agentId: string,
+    metrics: AgentInvocationMetrics
+  ): void;
+
+  /**
+   * Record a pipeline stage metric
+   * @param stage Pipeline stage name
+   * @param durationMs Stage execution duration
+   * @param status Stage completion status
+   */
+  recordPipelineStage(
+    stage: string,
+    durationMs: number,
+    status: 'success' | 'failure' | 'skipped'
+  ): void;
+
+  /** Flush buffered metrics to disk */
+  flush(): Promise<void>;
+}
+
+interface ITokenBudgetManager {
+  /**
+   * Track token usage for an agent
+   * @param agentId Agent identifier
+   * @param usage Token usage data (input, output, model)
+   * @returns Budget status with remaining tokens and warnings
+   */
+  trackUsage(
+    agentId: string,
+    usage: TokenUsage
+  ): BudgetStatus;
+
+  /**
+   * Get remaining budget for an agent or session
+   * @param agentId Optional agent filter
+   * @returns Budget remaining with forecast
+   */
+  getRemainingBudget(agentId?: string): BudgetRemaining;
+}
+
+interface IModelSelector {
+  /**
+   * Recommend optimal model based on task complexity and constraints
+   * @param task Task description and characteristics
+   * @param constraints Budget and latency constraints
+   * @returns Model recommendation with rationale
+   */
+  selectModel(
+    task: TaskCharacteristics,
+    constraints: ModelConstraints
+  ): ModelRecommendation;
+}
+
+interface IAlertManager {
+  /**
+   * Fire an alert based on a condition
+   * @param alertId Alert identifier
+   * @param condition Alert condition and context
+   */
+  fireAlert(alertId: string, condition: AlertCondition): void;
+
+  /**
+   * Acknowledge an active alert
+   * @param alertId Alert identifier
+   */
+  acknowledgeAlert(alertId: string): void;
+}
+```
+
+**Output**: `.ad-sdlc/metrics/`, `.ad-sdlc/alerts/`, `.ad-sdlc/budget/`, `.ad-sdlc/cache/`
+**Tools Required**: Read/Write (metric and budget persistence)
+**Dependencies**: `src/config/paths` (directory resolution), `src/logging` (Logger)
+
+#### 3.14.5 CMP-033: Telemetry Service
+
+**Source Features**: SF-015 (UC-022)
+**Responsibility**: Provides opt-in anonymous usage analytics collection with explicit user consent. Manages consent lifecycle (grant/deny/revoke), buffers telemetry events, and enforces privacy policy compliance. No personal data is collected; all data collection requires explicit opt-in. This is a standalone singleton service (not an IAgent implementation).
+
+```typescript
+interface ITelemetryService {
+  /**
+   * Get current consent status
+   * @returns 'granted' | 'denied' | 'pending'
+   */
+  getConsentStatus(): ConsentStatus;
+
+  /**
+   * Set user consent for telemetry collection
+   * @param granted Whether consent is granted
+   * @returns Updated consent record
+   */
+  setConsent(granted: boolean): ConsentRecord;
+
+  /**
+   * Revoke telemetry consent and clear buffered data
+   * @returns Updated consent record
+   */
+  revokeConsent(): ConsentRecord;
+
+  /**
+   * Record a telemetry event (only if consent granted)
+   * @param type Event type
+   * @param properties Anonymous event properties
+   * @returns Recorded event or null if disabled
+   */
+  recordEvent(
+    type: TelemetryEventType,
+    properties: Record<string, string | number | boolean>
+  ): TelemetryEvent | null;
+
+  /**
+   * Flush buffered events to storage
+   * @returns Number of events flushed
+   */
+  flush(): number;
+
+  /**
+   * Shut down telemetry and flush pending events
+   * @returns Number of events flushed
+   */
+  shutdown(): number;
+}
+
+type ConsentStatus = 'granted' | 'denied' | 'pending';
+type TelemetryEventType =
+  | 'command_executed'
+  | 'pipeline_started'
+  | 'pipeline_completed'
+  | 'pipeline_failed'
+  | 'agent_invoked'
+  | 'error_occurred'
+  | 'feature_used';
+
+interface ConsentRecord {
+  readonly status: ConsentStatus;
+  readonly timestamp: string;
+  readonly policyVersion: string;
+}
+
+interface TelemetryEvent {
+  readonly eventId: string;
+  readonly type: TelemetryEventType;
+  readonly timestamp: string;
+  readonly sessionId: string;
+  readonly properties: Readonly<Record<string, string | number | boolean>>;
+}
+```
+
+**Output**: `~/.ad-sdlc/telemetry-consent.json` (consent state)
+**Tools Required**: None (filesystem only)
+**Dependencies**: None (standalone module)
+
+#### 3.14.6 CMP-034: Security Module
+
+**Applicability**: Cross-cutting (NFR — security requirements)
+**Responsibility**: Provides comprehensive security infrastructure for the AD-SDLC system including input validation, path sanitization, symlink resolution, command sanitization with whitelist enforcement, rate limiting, audit logging, secure file operations, and secret management. This is a stateless library collection (not an IAgent implementation) exposing multiple focused classes.
+
+```typescript
+interface IInputValidator {
+  /**
+   * Validate a file path against security rules
+   * @param filePath Path to validate
+   * @returns Validation result with error details
+   */
+  validatePath(filePath: string): ValidationResult;
+
+  /**
+   * Validate a URL against allowed protocols and hosts
+   * @param url URL to validate
+   * @returns Validation result
+   */
+  validateUrl(url: string): ValidationResult;
+
+  /**
+   * Validate user input string for injection attempts
+   * @param input Raw user input
+   * @returns Validation result with sanitized value
+   */
+  validateInput(input: string): ValidationResult;
+}
+
+interface ICommandSanitizer {
+  /**
+   * Sanitize and validate a command for safe execution
+   * @param command Raw command string
+   * @returns Sanitized command or rejection
+   */
+  sanitize(command: string): SanitizedCommand;
+
+  /**
+   * Execute a sanitized command with audit logging
+   * @param command Sanitized command to execute
+   * @returns Execution result
+   */
+  execute(command: SanitizedCommand): Promise<CommandExecResult>;
+}
+
+interface IAuditLogger {
+  /**
+   * Log a security-relevant audit event
+   * @param event Audit event data
+   */
+  log(event: AuditEvent): void;
+
+  /**
+   * Query audit log entries
+   * @param filter Filter criteria
+   * @returns Matching log entries
+   */
+  query(filter: AuditQueryFilter): AuditLogEntry[];
+}
+
+interface IRateLimiter {
+  /**
+   * Check if a request is allowed under rate limits
+   * @param key Rate limit bucket key
+   * @returns Rate limit status with remaining count
+   */
+  check(key: string): RateLimitStatus;
+
+  /**
+   * Consume a rate limit token
+   * @param key Rate limit bucket key
+   * @returns Updated status
+   */
+  consume(key: string): RateLimitStatus;
+}
+
+interface IPathSanitizer {
+  /**
+   * Sanitize a file path, rejecting traversal attempts
+   * @param inputPath Raw path to sanitize
+   * @returns Sanitization result with normalized path
+   */
+  sanitize(inputPath: string): SanitizationResult;
+}
+
+interface ISecureFileHandler {
+  /**
+   * Create a secure temporary file with restricted permissions
+   * @param prefix File name prefix
+   * @returns Path to created temporary file
+   */
+  createTempFile(prefix: string): Promise<string>;
+
+  /**
+   * Clean up all temporary files created by this handler
+   */
+  cleanup(): Promise<void>;
+}
+```
+
+**Output**: `.ad-sdlc/audit/` (audit logs)
+**Tools Required**: Read/Write (file operations, audit persistence)
+**Dependencies**: `src/config/paths` (directory resolution), `src/logging` (Logger)
+
+#### 3.14.7 CMP-035: Configuration Manager
+
+**Source Features**: SF-028 (UC-039)
+**Responsibility**: Provides unified access to workflow and agent configurations with caching, Zod schema validation, environment variable substitution (`${VAR}` syntax), and file watching for hot-reload. Loads `workflow.yaml` and `agents.yaml` from `.ad-sdlc/config/`, validates against predefined schemas, and exposes typed accessor methods for pipeline stages, agent settings, quality gates, and GitHub integration. This is a singleton service (not an IAgent implementation).
+
+```typescript
+interface IConfigManager {
+  /**
+   * Get global configuration (project root, timeouts, approval gates)
+   * @returns Typed global configuration
+   */
+  getGlobalConfig(): GlobalConfig;
+
+  /**
+   * Get ordered pipeline stages
+   * @returns Array of pipeline stages in execution order
+   */
+  getPipelineStages(): readonly PipelineStage[];
+
+  /**
+   * Get configuration for a specific agent
+   * @param agentId Agent identifier
+   * @returns Agent workflow configuration or undefined
+   */
+  getAgentConfig(agentId: string): AgentWorkflowConfig | undefined;
+
+  /**
+   * Get quality gate rules
+   * @returns Quality gates configuration
+   */
+  getQualityGates(): QualityGates;
+
+  /**
+   * Get all agent definitions from agents.yaml
+   * @returns Record of agent definitions
+   */
+  getAllAgentDefinitions(): Record<string, AgentDefinition>;
+
+  /**
+   * Get retry policy configuration
+   * @returns Retry policy settings
+   */
+  getRetryPolicy(): RetryPolicy;
+}
+
+interface GlobalConfig {
+  readonly projectRoot: string;
+  readonly scratchpadDir: string;
+  readonly outputDocsDir: string;
+  readonly logLevel: 'DEBUG' | 'INFO' | 'WARN' | 'ERROR';
+  readonly approvalGates: {
+    readonly afterCollection: boolean;
+    readonly afterPrd: boolean;
+    readonly afterSrs: boolean;
+    readonly afterSds: boolean;
+    readonly afterIssues: boolean;
+    readonly beforeMerge: boolean;
+  };
+  readonly retryPolicy: RetryPolicy;
+  readonly timeouts: {
+    readonly documentGeneration: number;
+    readonly issueCreation: number;
+    readonly implementation: number;
+    readonly prReview: number;
+  };
+}
+
+interface PipelineStage {
+  readonly name: string;
+  readonly agent: string;
+  readonly description: string | undefined;
+  readonly next: string | null;
+  readonly approvalRequired: boolean;
+  readonly parallel: boolean;
+}
+```
+
+**Output**: In-memory cached configuration (no disk writes)
+**Tools Required**: Read (YAML configuration files)
+**Dependencies**: `src/config/loader` (file loading), `src/config/schemas` (Zod validation), `src/config/watcher` (hot-reload)
+
+#### 3.14.8 CMP-036: Completion Generator
+
+**Applicability**: CLI Tooling (standalone utility)
+**Responsibility**: Generates shell-specific autocompletion scripts for the AD-SDLC CLI. Supports bash, zsh, and fish shells. Produces completion scripts based on registered CLI command definitions including subcommands, options, and value enumerations. Provides installation instructions for each shell type. This is a standalone singleton (not an IAgent implementation).
+
+```typescript
+interface ICompletionGenerator {
+  /**
+   * Generate completion script for the specified shell
+   * @param shell Target shell type
+   * @returns Completion result with script and installation instructions
+   */
+  generate(shell: ShellType): CompletionResult;
+
+  /**
+   * Get list of supported shell types
+   * @returns Array of supported shells
+   */
+  getSupportedShells(): readonly ShellType[];
+
+  /**
+   * Get registered CLI command definitions
+   * @returns Array of command definitions for inspection
+   */
+  getCommands(): readonly CommandDefinition[];
+}
+
+type ShellType = 'bash' | 'zsh' | 'fish';
+
+interface CompletionResult {
+  readonly success: boolean;
+  readonly script: string;
+  readonly shell: ShellType;
+  readonly instructions: string;
+  readonly error?: string;
+}
+
+interface CommandDefinition {
+  readonly name: string;
+  readonly description: string;
+  readonly options: readonly OptionDefinition[];
+  readonly subcommands?: readonly CommandDefinition[];
+}
+
+interface OptionDefinition {
+  readonly short?: string;
+  readonly long: string;
+  readonly description: string;
+  readonly takesValue: boolean;
+  readonly values?: readonly string[];
+}
+```
+
+**Output**: Generated shell completion scripts (stdout)
+**Tools Required**: None (pure generation, no disk I/O)
+**Dependencies**: None (standalone module)
 
 ---
 
@@ -3833,7 +4581,7 @@ checkpoints:
 | SF-001 (Multi-Source Collection) | CMP-001 (Collector Agent) | Multi-source information collection |
 | SF-002 (PRD Generation) | CMP-002 (PRD Writer Agent) | Automatic PRD generation |
 | SF-003 (SRS Generation) | CMP-003 (SRS Writer Agent) | Automatic SRS generation |
-| SF-004 (SDS Generation) | CMP-004 (SDS Writer Agent) | Automatic SDS generation |
+| SF-004 (SDS Generation) | CMP-004 (SDS Writer Agent), CMP-030 (Architecture Generator), CMP-031 (Component Generator) | Automatic SDS generation and design artifact generation |
 | SF-005 (Issue Generation) | CMP-005 (Issue Generator) | GitHub Issue generation |
 | SF-006 (Work Prioritization) | CMP-006 (Controller Agent) | Work priority determination |
 | SF-007 (Work Assignment) | CMP-006 (Controller Agent) | Work assignment and monitoring |
@@ -3844,7 +4592,7 @@ checkpoints:
 | SF-012 (Traceability Matrix) | CMP-025 (AD-SDLC Orchestrator) | Traceability maintenance |
 | SF-013 (Approval Gate) | CMP-025 (AD-SDLC Orchestrator) | Approval gate system |
 | SF-014 (Scratchpad State) | CMP-009 (State Manager) | State management |
-| SF-015 (Activity Logging) | CMP-010 (Logger) | Activity logging |
+| SF-015 (Activity Logging) | CMP-010 (Logger), CMP-032 (Monitoring Service), CMP-033 (Telemetry Service) | Activity logging, observability, and anonymous analytics |
 | SF-016 (Error Handling) | CMP-011 (Error Handler) | Error handling and retry |
 | SF-017 (Document Reading) | CMP-012 (Document Reader Agent) | Parse existing spec documents and build traceability map |
 | SF-018 (Codebase Analysis) | CMP-013 (Codebase Analyzer Agent) | Analyze architecture patterns and dependency graph |
@@ -3857,10 +4605,12 @@ checkpoints:
 | SF-025 (Code Reading) | CMP-020 (Code Reader Agent) | AST analysis and dependency extraction |
 | SF-026 (CI Fixing) | CMP-021 (CI Fixer Agent) | Diagnose CI failures and apply automated fixes |
 | SF-027 (Mode Detection) | CMP-022 (Mode Detector Agent) | Detect greenfield vs enhancement mode |
-| SF-028 (Project Initialization) | CMP-023 (Project Initializer Agent) | Initialize .ad-sdlc workspace |
+| SF-028 (Project Initialization) | CMP-023 (Project Initializer Agent), CMP-029 (Agent Definition Validator), CMP-035 (Configuration Manager) | Initialize .ad-sdlc workspace, validate agent definitions, and manage configuration |
 | SF-029 (GitHub Repo Management) | CMP-024 (Repo Detector Agent), CMP-027 (GitHub Repo Setup Agent) | Detect existing repos and create new ones |
 | SF-030 (Pipeline Orchestration) | CMP-025 (AD-SDLC Orchestrator), CMP-026 (Analysis Orchestrator) | Top-level and analysis pipeline coordination |
 | SF-031 (Issue Import) | CMP-028 (Issue Reader Agent) | Import existing GitHub Issues into AD-SDLC format |
+| Cross-cutting (NFR) | CMP-034 (Security Module) | Input validation, command sanitization, audit logging, rate limiting |
+| CLI Tooling | CMP-036 (Completion Generator) | Shell autocompletion script generation |
 
 ### 9.2 Component → API Mapping
 
@@ -3891,6 +4641,14 @@ checkpoints:
 | CMP-026 | executeAnalysisPipeline | CMP-012, CMP-020, CMP-019, CMP-005 |
 | CMP-027 | createRepository | Bash (gh, git) |
 | CMP-028 | importIssues | Bash (gh) |
+| CMP-029 | validateAgentFile, validateAllAgents, formatValidationReport | Read (agent files, agents.yaml) |
+| CMP-030 | generateFromFile, generateAndSave | Read (SRS), Write (SDS sections) |
+| CMP-031 | generateFromSRS, generateAndSave | Read (SRS), Write (component specs) |
+| CMP-032 | recordAgentInvocation, recordPipelineStage, trackUsage, selectModel, fireAlert | Read/Write (metrics, budgets, alerts) |
+| CMP-033 | getConsentStatus, setConsent, recordEvent, flush, shutdown | Read/Write (consent file) |
+| CMP-034 | validatePath, validateUrl, sanitize, execute, log, check | Read/Write (audit logs) |
+| CMP-035 | getGlobalConfig, getPipelineStages, getAgentConfig, getQualityGates | Read (YAML config files) |
+| CMP-036 | generate, getSupportedShells, getCommands | None (stdout output) |
 
 ### 9.3 Full Traceability Chain
 
@@ -4025,6 +4783,7 @@ traceability_chain:
 |---------|------|--------|---------|
 | 1.0.0 | 2025-12-27 | System Architect | Initial draft based on SRS-001 |
 | 1.1.0 | 2026-02-07 | System Architect | Added Enhancement Pipeline components (CMP-012~CMP-028), Enhancement/Analysis/Import pipeline designs for SF-017~SF-031 |
+| 1.2.0 | 2026-02-13 | System Architect | Added support module components (CMP-029~CMP-036): Agent Validator, Architecture/Component Generators, Monitoring, Telemetry, Security, Config Manager, Completion Generator. Updated traceability matrix and API mappings. Fixed CMP-029 UC reference (UC-038→UC-039) and CMP-032 UC reference (UC-025→UC-022/UC-023). |
 
 ---
 

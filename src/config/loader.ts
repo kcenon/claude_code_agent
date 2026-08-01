@@ -15,7 +15,7 @@
 import { readFile } from 'node:fs/promises';
 import { existsSync, statSync } from 'node:fs';
 import { join, resolve, basename, dirname } from 'node:path';
-import yaml from 'js-yaml';
+import * as yaml from 'js-yaml';
 import { ConfigParseError, ConfigNotFoundError } from './errors.js';
 import { tryGetProjectRoot } from '../utils/index.js';
 import { getLogger } from '../logging/index.js';
@@ -83,12 +83,7 @@ const CONFIG_FILES: Record<ConfigFileType, string> = {
  * Supported environment names for configuration overrides
  */
 export type ConfigEnvironment =
-  | 'development'
-  | 'staging'
-  | 'production'
-  | 'test'
-  | 'local'
-  | (string & {});
+  'development' | 'staging' | 'production' | 'test' | 'local' | (string & {});
 
 // ============================================================
 // Environment Detection

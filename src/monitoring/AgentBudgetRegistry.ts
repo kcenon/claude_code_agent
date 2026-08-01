@@ -33,13 +33,11 @@ export interface AgentBudgetRegistryConfig {
 
   /** Callback when any agent exceeds budget */
   readonly onAnyBudgetExceeded?:
-    | ((agentName: string, status: BudgetStatus) => void | Promise<void>)
-    | undefined;
+    ((agentName: string, status: BudgetStatus) => void | Promise<void>) | undefined;
 
   /** Callback when pipeline budget exceeded */
   readonly onPipelineBudgetExceeded?:
-    | ((status: PipelineBudgetStatus) => void | Promise<void>)
-    | undefined;
+    ((status: PipelineBudgetStatus) => void | Promise<void>) | undefined;
 }
 
 /**
@@ -97,11 +95,9 @@ export class AgentBudgetRegistry {
   private readonly pipelineConfig: Required<PipelineBudgetConfig>;
   private readonly categoryDefaults: Required<CategoryBudgetDefaults>;
   private readonly onAnyBudgetExceeded:
-    | ((agentName: string, status: BudgetStatus) => void | Promise<void>)
-    | undefined;
+    ((agentName: string, status: BudgetStatus) => void | Promise<void>) | undefined;
   private readonly onPipelineBudgetExceeded:
-    | ((status: PipelineBudgetStatus) => void | Promise<void>)
-    | undefined;
+    ((status: PipelineBudgetStatus) => void | Promise<void>) | undefined;
   private readonly transferHistory: BudgetTransferRecord[] = [];
 
   constructor(config: AgentBudgetRegistryConfig = {}) {

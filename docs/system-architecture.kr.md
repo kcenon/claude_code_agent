@@ -494,26 +494,33 @@ sequenceDiagram
 
 ## 8. Verification & Validation (V&V) Pipeline
 
-The V&V pipeline ensures that pipeline outputs are complete and that the final implementation conforms to its requirements.
+현재 V&V 경로는 최종 구현을 검증합니다. 추가 verifier 및 추적성 모듈도
+존재하지만 현재 run loop에서 강제되지는 않습니다.
 
 ### Stage Verifier
 
-The Stage Verifier agent checks the outputs of each pipeline stage for completeness and correctness before the workflow advances to the next stage. It validates that all required artifacts (documents, issues, code) have been produced and meet structural expectations.
+Stage Verifier 모듈은 파이프라인 출력의 완전성과 추적성을 검사할 수 있지만,
+현재 라이브 오케스트레이터에서 차단 stage로 호출되지는 않습니다.
+enforce-or-demote 결정은 #877에서 추적합니다.
 
 ### RTM Builder
 
-The RTM (Requirements Traceability Matrix) Builder agent creates and maintains a traceability matrix that links requirements from PRD through SRS, SDS, issues, and implementation. This matrix provides end-to-end visibility into requirement coverage and identifies any gaps.
+RTM (Requirements Traceability Matrix) Builder는 PRD, SRS, SDS, 이슈,
+구현을 연결하는 추적성 매트릭스를 생성할 수 있습니다. Stage Verifier와
+마찬가지로 현재는 강제 run-loop stage가 아닌 보조 모듈/정의입니다(#877).
 
 ### Validation Agent
 
-The Validation agent validates the final implementation against the original requirements. It runs after all workers have completed their tasks and before PR review, ensuring that the delivered code satisfies the acceptance criteria defined in the upstream documents.
+Validation Agent는 현재 모든 파이프라인 모드에 실제로 연결된 V&V
+컴포넌트입니다. 구현 이후(Enhancement 모드에서는 회귀 테스트 이후), PR 리뷰
+전에 실행됩니다.
 
 ## 9. Directory Structure
 
 ```
 claude_code_agent/
 ├── .claude/
-│   └── agents/                    # Agent Definitions (34 files)
+│   └── agents/                    # Agent definitions (36 prompt files)
 │       ├── ad-sdlc-orchestrator.md # AD-SDLC Orchestrator Agent
 │       ├── analysis-orchestrator.md # Analysis Orchestrator Agent
 │       ├── ci-fixer.md            # CI Fixer Agent

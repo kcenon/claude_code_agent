@@ -31,8 +31,8 @@ Implement a **three-layer architecture** separating concerns:
 **Responsibility**: Orchestration, scheduling, and coordination
 
 **Components**:
-- `Controller`: Manages issue queue, assigns work to workers
-- `Orchestrator`: Coordinates full pipeline execution
+- `ControllerAgentAdapter`: Manages issue prioritization and worker-pool coordination
+- `AdsdlcOrchestratorAgent`: Coordinates full pipeline execution
 - `StateManager`: Pipeline state machine transitions
 
 **Characteristics**:
@@ -42,11 +42,8 @@ Implement a **three-layer architecture** separating concerns:
 
 ```typescript
 // Control layer orchestrates the flow
-const orchestrator = new Orchestrator();
-await orchestrator.runPipeline({
-  startPhase: 'collecting',
-  endPhase: 'merged',
-});
+const orchestrator = new AdsdlcOrchestratorAgent();
+await orchestrator.executePipeline(projectDir, userRequest);
 ```
 
 ### Layer 2: Data Layer
@@ -55,8 +52,8 @@ await orchestrator.runPipeline({
 
 **Components**:
 - `Scratchpad`: File-based state storage (ADR-0001)
-- `Config`: Configuration loading and validation
-- `Logging`: Structured logging with transports
+- `ConfigManager`: Configuration loading and validation
+- `Logger`: Structured logging with transports
 
 **Characteristics**:
 - Provides CRUD operations for pipeline data

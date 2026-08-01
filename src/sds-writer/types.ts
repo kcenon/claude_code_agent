@@ -17,13 +17,7 @@ import type {
  * SDS generation status
  */
 export type SDSGenerationStatus =
-  | 'pending'
-  | 'parsing'
-  | 'designing'
-  | 'specifying'
-  | 'generating'
-  | 'completed'
-  | 'failed';
+  'pending' | 'parsing' | 'designing' | 'specifying' | 'generating' | 'completed' | 'failed';
 
 /**
  * Priority level for components and features

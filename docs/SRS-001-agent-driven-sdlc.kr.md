@@ -44,7 +44,7 @@
 AD-SDLC 시스템은 다음 범위를 포함합니다:
 
 **포함 범위:**
-- 3가지 파이프라인 모드에 걸친 25개의 특화된 Claude 에이전트:
+- 3가지 파이프라인 모드에 걸친 25개의 특화된 Claude 에이전트 제품 역할 카탈로그(현재 소스 인벤토리인 프롬프트 정의 36개, 고유 파이프라인 에이전트 유형 29개, 모드별 stage slot 39개와는 별도이며 [runtime inventory](architecture/runtime-inventory.md) 참조):
   - **Core (Greenfield)**: Collector, PRD Writer, SRS Writer, SDS Writer, Issue Generator, Controller, Worker, PR Reviewer
   - **Enhancement**: Document Reader, Codebase Analyzer, Impact Analyzer, PRD/SRS/SDS Updaters, Regression Tester, Code Reader, Doc-Code Comparator, CI Fixer
   - **Infrastructure**: AD-SDLC Orchestrator, Analysis Orchestrator, Mode Detector, Project Initializer, Repo Detector, GitHub Repo Setup, Issue Reader

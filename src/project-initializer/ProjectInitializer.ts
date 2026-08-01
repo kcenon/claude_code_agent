@@ -12,7 +12,7 @@ import * as path from 'path';
 
 import { tryGetProjectRoot } from '../utils/index.js';
 
-import yaml from 'js-yaml';
+import * as yaml from 'js-yaml';
 
 import { FileSystemError, ProjectExistsError } from './errors.js';
 import { getPrerequisiteValidator } from './PrerequisiteValidator.js';

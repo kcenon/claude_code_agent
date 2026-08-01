@@ -51,26 +51,13 @@ export type FileChangeType = 'modified' | 'added' | 'deleted' | 'renamed';
  * Supported test frameworks
  */
 export type TestFramework =
-  | 'jest'
-  | 'vitest'
-  | 'mocha'
-  | 'pytest'
-  | 'junit'
-  | 'go'
-  | 'cargo'
-  | 'other'
-  | 'unknown';
+  'jest' | 'vitest' | 'mocha' | 'pytest' | 'junit' | 'go' | 'cargo' | 'other' | 'unknown';
 
 /**
  * Session status
  */
 export type RegressionSessionStatus =
-  | 'mapping'
-  | 'identifying'
-  | 'executing'
-  | 'analyzing'
-  | 'completed'
-  | 'failed';
+  'mapping' | 'identifying' | 'executing' | 'analyzing' | 'completed' | 'failed';
 
 /**
  * Changed file information

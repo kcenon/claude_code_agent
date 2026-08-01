@@ -155,10 +155,7 @@ export interface AzureKeyVaultConfig extends BaseSecretProviderConfig {
  * Union type of all provider configurations
  */
 export type SecretProviderConfig =
-  | LocalProviderConfig
-  | AWSSecretsManagerConfig
-  | VaultProviderConfig
-  | AzureKeyVaultConfig;
+  LocalProviderConfig | AWSSecretsManagerConfig | VaultProviderConfig | AzureKeyVaultConfig;
 
 /**
  * Secret manager configuration

@@ -5,10 +5,7 @@
 // ============ Change Request Types ============
 
 export type ChangeRequestType =
-  | 'add_requirement'
-  | 'modify_requirement'
-  | 'deprecate_requirement'
-  | 'extend_scope';
+  'add_requirement' | 'modify_requirement' | 'deprecate_requirement' | 'extend_scope';
 
 export type RequirementType = 'functional' | 'non_functional';
 

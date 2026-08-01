@@ -21,24 +21,13 @@ export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
  * Component layer categories
  */
 export type ComponentLayer =
-  | 'presentation'
-  | 'application'
-  | 'domain'
-  | 'infrastructure'
-  | 'integration';
+  'presentation' | 'application' | 'domain' | 'infrastructure' | 'integration';
 
 /**
  * Data type for API specifications
  */
 export type DataType =
-  | 'string'
-  | 'number'
-  | 'boolean'
-  | 'object'
-  | 'array'
-  | 'null'
-  | 'date'
-  | 'file';
+  'string' | 'number' | 'boolean' | 'object' | 'array' | 'null' | 'date' | 'file';
 
 /**
  * Component definition following SDS-001 template

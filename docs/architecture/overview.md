@@ -1,7 +1,7 @@
 # AD-SDLC System Architecture Overview
 
-> **Version**: 1.0.0
-> **Last Updated**: 2025-01-01
+> **Version**: 1.1.0
+> **Last Updated**: 2026-08-01
 > **Audience**: Developers, Architects, Contributors
 
 ## Table of Contents
@@ -47,7 +47,7 @@ AD-SDLC (Agent-Driven Software Development Lifecycle) is an automated software d
                                     ▼
                     ┌───────────────────────────────┐
                     │       Mode Detector           │
-                    │   (Greenfield / Enhancement)  │
+                    │(Greenfield/Enhancement/Import)│
                     └───────────────────────────────┘
                                     │
               ┌─────────────────────┴─────────────────────┐
@@ -117,32 +117,34 @@ AD-SDLC (Agent-Driven Software Development Lifecycle) is an automated software d
 | Component      | Version | Purpose             |
 | -------------- | ------- | ------------------- |
 | **Node.js**    | 18+     | Runtime environment |
-| **TypeScript** | 5.3+    | Primary language    |
+| **TypeScript** | 6.0+    | Primary language    |
 | **ES2022**     | -       | Module system (ESM) |
 
 ### Core Dependencies
 
 | Package     | Version | Purpose                     |
 | ----------- | ------- | --------------------------- |
-| `commander` | ^14.0.2 | CLI framework               |
-| `chalk`     | ^5.6.2  | Terminal output styling     |
-| `inquirer`  | ^13.1.0 | Interactive CLI prompts     |
-| `js-yaml`   | ^4.1.1  | YAML parsing                |
-| `zod`       | ^4.2.1  | Schema validation           |
-| `ts-morph`  | ^27.0.2 | TypeScript AST manipulation |
-| `dotenv`    | ^17.2.3 | Environment configuration   |
-| `mammoth`   | ^1.11.0 | DOCX file parsing           |
+| `@anthropic-ai/claude-agent-sdk` | ^0.3.220 | Agent execution runtime |
+| `commander` | ^15.0.0 | CLI framework               |
+| `chalk`     | ^6.0.0  | Terminal output styling     |
+| `inquirer`  | ^14.0.2 | Interactive CLI prompts     |
+| `js-yaml`   | ^5.2.2  | YAML parsing                |
+| `zod`       | ^4.4.3  | Schema validation           |
+| `ts-morph`  | ^28.0.0 | TypeScript AST manipulation |
+| `dotenv`    | ^17.4.2 | Environment configuration   |
+| `mammoth`   | ^1.12.0 | DOCX file parsing           |
 | `pdf-parse` | ^2.4.5  | PDF file parsing            |
 
 ### Development Tools
 
 | Tool                  | Version | Purpose                  |
 | --------------------- | ------- | ------------------------ |
+| `typescript`          | ^6.0.3  | TypeScript compiler      |
 | `vitest`              | ^4.0.16 | Test runner              |
-| `@vitest/coverage-v8` | ^4.0.16 | Code coverage            |
-| `eslint`              | ^9.0.0  | Code linting             |
-| `prettier`            | ^3.0.0  | Code formatting          |
-| `@typescript-eslint`  | ^8.0.0  | TypeScript linting rules |
+| `@vitest/coverage-v8` | ^4.1.10 | Code coverage            |
+| `eslint`              | ^10.8.0 | Code linting             |
+| `prettier`            | ^3.9.6  | Code formatting          |
+| `typescript-eslint`   | ^8.65.0 | TypeScript linting rules |
 
 ### External Integrations
 
@@ -159,7 +161,11 @@ AD-SDLC (Agent-Driven Software Development Lifecycle) is an automated software d
 
 ### 1. Agent System
 
-The system consists of 15 specialized agents organized into functional categories:
+The checked-in inventory contains 36 prompt definitions. Of those, 29 unique
+agent types are referenced directly by the three pipeline mode arrays; reused
+types occupy 39 mode-specific stage slots. See the source-checked
+[runtime inventory](runtime-inventory.md). The principal functional categories
+are:
 
 #### Document Generation Agents
 
@@ -380,7 +386,7 @@ full check list and CI integration.
 ```
 claude_code_agent/
 ├── .claude/                     # Claude Code configuration
-│   └── agents/                  # Agent definitions (30 files)
+│   └── agents/                  # Agent definitions (36 prompt files)
 │       ├── collector.md
 │       ├── prd-writer.md
 │       ├── worker.md
@@ -396,7 +402,7 @@ claude_code_agent/
 │   ├── logs/                    # Audit logs
 │   └── metrics/                 # Performance metrics
 │
-├── src/                         # Source code (31 modules)
+├── src/                         # TypeScript source modules
 │   ├── cli.ts                   # CLI entry point
 │   ├── index.ts                 # Main exports
 │   ├── config/                  # Configuration system
@@ -433,7 +439,8 @@ claude_code_agent/
 
 - [Agent Communication](./agent-communication.md) - Inter-agent communication patterns
 - [Data Flow](./data-flow.md) - Data flow through the system
-- [Architecture Decisions](./decisions/) - ADRs for key decisions
+- [Architecture Decisions](../adr/) - canonical ADR tree
+- [Runtime Inventory](./runtime-inventory.md) - source-checked count axes
 - [Configuration Guide](../reference/configuration/) - Configuration reference
 - [Agent Reference](../reference/agents/) - Detailed agent documentation
 

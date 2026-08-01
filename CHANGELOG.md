@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- [ADR-0006](docs/adr/ADR-0006-keep-or-kill-orphaned-public-subsystems.md) recording the keep-or-kill verdict (Proposed; owner ratifies on merge) for orphaned-but-public subsystems on two axes — run-loop reachability and `src/index.ts` public-export status — with a per-subsystem disposition and SemVer impact. No subsystem source is deleted; per-disposition execution is deferred to follow-up issues (#874, part of #866)
+- [ADR-0006](docs/adr/ADR-0006-keep-or-kill-orphaned-public-subsystems.md) recording the accepted keep-or-kill verdict for orphaned-but-public subsystems on two axes — run-loop reachability and `src/index.ts` public-export status — with a per-subsystem disposition and SemVer impact. No subsystem source is deleted; per-disposition execution is deferred to follow-up issues (#874, part of #866)
 
 ### Changed
 

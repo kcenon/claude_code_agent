@@ -1037,7 +1037,7 @@ program
   )
   .option(
     '--use-sdk-for-worker',
-    'Route the worker stage through the SDK ExecutionAdapter (feature flag, default: off). Equivalent to AD_SDLC_USE_SDK_FOR_WORKER=1.'
+    'Deprecated compatibility flag; worker stages already use the SDK ExecutionAdapter. Equivalent to AD_SDLC_USE_SDK_FOR_WORKER=1.'
   )
   .action(async (requirements: string, cmdOptions: Record<string, unknown>) => {
     const modeInput = typeof cmdOptions['mode'] === 'string' ? cmdOptions['mode'] : 'greenfield';
