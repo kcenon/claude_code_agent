@@ -20,13 +20,7 @@ export type CICheckStatus = 'pending' | 'running' | 'passed' | 'failed' | 'error
  * CI failure category
  */
 export type CIFailureCategory =
-  | 'test'
-  | 'type'
-  | 'lint'
-  | 'build'
-  | 'security'
-  | 'dependency'
-  | 'unknown';
+  'test' | 'type' | 'lint' | 'build' | 'security' | 'dependency' | 'unknown';
 
 /**
  * Fix outcome status
@@ -101,13 +95,7 @@ export interface CICheck {
   readonly status: CICheckStatus;
   /** Check conclusion (if completed) */
   readonly conclusion?:
-    | 'success'
-    | 'failure'
-    | 'neutral'
-    | 'cancelled'
-    | 'skipped'
-    | 'timed_out'
-    | undefined;
+    'success' | 'failure' | 'neutral' | 'cancelled' | 'skipped' | 'timed_out' | undefined;
   /** Logs URL (if available) */
   readonly logsUrl?: string | undefined;
   /** Run ID (for fetching logs) */

@@ -11,11 +11,7 @@
  * Threat Model generation status
  */
 export type ThreatModelGenerationStatus =
-  | 'pending'
-  | 'parsing'
-  | 'generating'
-  | 'completed'
-  | 'failed';
+  'pending' | 'parsing' | 'generating' | 'completed' | 'failed';
 
 /**
  * Document status

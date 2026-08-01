@@ -23,12 +23,7 @@ export type RequirementPriority = 'P0' | 'P1' | 'P2' | 'P3';
  * Non-functional requirement categories
  */
 export type NFRCategory =
-  | 'performance'
-  | 'security'
-  | 'scalability'
-  | 'usability'
-  | 'reliability'
-  | 'maintainability';
+  'performance' | 'security' | 'scalability' | 'usability' | 'reliability' | 'maintainability';
 
 /**
  * Component types in SDS

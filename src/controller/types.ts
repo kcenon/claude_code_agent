@@ -462,10 +462,7 @@ export type WorkerFailureCallback = (
  * Bottleneck type classification
  */
 export type BottleneckType =
-  | 'stuck_worker'
-  | 'blocked_chain'
-  | 'dependency_cycle'
-  | 'resource_contention';
+  'stuck_worker' | 'blocked_chain' | 'dependency_cycle' | 'resource_contention';
 
 /**
  * Detected bottleneck information
@@ -554,11 +551,7 @@ export type StuckWorkerEscalationLevel = 'warning' | 'stuck' | 'critical';
  * Recovery action types for stuck workers
  */
 export type StuckWorkerRecoveryAction =
-  | 'extend_deadline'
-  | 'send_warning'
-  | 'reassign_task'
-  | 'restart_worker'
-  | 'escalate_critical';
+  'extend_deadline' | 'send_warning' | 'reassign_task' | 'restart_worker' | 'escalate_critical';
 
 /**
  * Per-task-type threshold configuration

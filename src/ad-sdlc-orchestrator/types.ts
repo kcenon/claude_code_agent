@@ -61,11 +61,7 @@ export type EnhancementStageName =
  * Pipeline stage names for Import mode
  */
 export type ImportStageName =
-  | 'issue_reading'
-  | 'orchestration'
-  | 'implementation'
-  | 'validation-agent'
-  | 'review';
+  'issue_reading' | 'orchestration' | 'implementation' | 'validation-agent' | 'review';
 
 /**
  * Union of all stage names
@@ -76,12 +72,7 @@ export type StageName = GreenfieldStageName | EnhancementStageName | ImportStage
  * Pipeline stage status
  */
 export type PipelineStageStatus =
-  | 'pending'
-  | 'running'
-  | 'completed'
-  | 'degraded'
-  | 'failed'
-  | 'skipped';
+  'pending' | 'running' | 'completed' | 'degraded' | 'failed' | 'skipped';
 
 /**
  * Overall pipeline status

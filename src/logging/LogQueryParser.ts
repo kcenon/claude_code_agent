@@ -35,16 +35,7 @@ import type {
  * Token types for lexical analysis
  */
 type TokenType =
-  | 'FIELD'
-  | 'VALUE'
-  | 'AND'
-  | 'OR'
-  | 'NOT'
-  | 'LPAREN'
-  | 'RPAREN'
-  | 'COLON'
-  | 'RANGE'
-  | 'EOF';
+  'FIELD' | 'VALUE' | 'AND' | 'OR' | 'NOT' | 'LPAREN' | 'RPAREN' | 'COLON' | 'RANGE' | 'EOF';
 
 /**
  * Token representation

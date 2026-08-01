@@ -772,12 +772,7 @@ export class DocumentReaderAgent implements IAgent {
     content: string
   ): 'performance' | 'security' | 'scalability' | 'usability' | 'reliability' | 'maintainability' {
     type NFRCategoryType =
-      | 'performance'
-      | 'security'
-      | 'scalability'
-      | 'usability'
-      | 'reliability'
-      | 'maintainability';
+      'performance' | 'security' | 'scalability' | 'usability' | 'reliability' | 'maintainability';
     const categoryMatch = content.match(
       /\*\*Category\*\*:\s*(performance|security|scalability|usability|reliability|maintainability)/i
     );

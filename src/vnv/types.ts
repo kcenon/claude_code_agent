@@ -82,11 +82,7 @@ export interface VerificationContext {
  * - `consistency`:   Validates cross-document sync-point alignment
  */
 export type VerificationCategory =
-  | 'content'
-  | 'structure'
-  | 'traceability'
-  | 'quality'
-  | 'consistency';
+  'content' | 'structure' | 'traceability' | 'quality' | 'consistency';
 
 /**
  * Check severity determining how failures are treated.

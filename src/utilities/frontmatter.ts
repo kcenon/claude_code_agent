@@ -7,7 +7,7 @@
  * @module utilities/frontmatter
  */
 
-import yaml from 'js-yaml';
+import * as yaml from 'js-yaml';
 import {
   DocumentFrontmatterSchema,
   type DocumentFrontmatter,
@@ -83,7 +83,7 @@ export function generateFrontmatter(options: GenerateFrontmatterOptions): string
   const yamlStr = yaml.dump(frontmatterData, {
     lineWidth: 100,
     noRefs: true,
-    quotingType: "'",
+    quoteStyle: 'single',
     forceQuotes: false,
   });
 
@@ -174,7 +174,7 @@ export function appendChangeHistory(content: string, entry: ChangeHistoryEntry):
   const yamlStr = yaml.dump(updatedFrontmatter, {
     lineWidth: 100,
     noRefs: true,
-    quotingType: "'",
+    quoteStyle: 'single',
     forceQuotes: false,
   });
 

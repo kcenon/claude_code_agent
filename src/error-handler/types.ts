@@ -244,11 +244,7 @@ export interface CircuitBreakerStatus {
  * Circuit breaker event types for monitoring
  */
 export type CircuitBreakerEventType =
-  | 'state_change'
-  | 'failure_recorded'
-  | 'success_recorded'
-  | 'request_blocked'
-  | 'reset';
+  'state_change' | 'failure_recorded' | 'success_recorded' | 'request_blocked' | 'reset';
 
 /**
  * Circuit breaker event data

@@ -35,11 +35,7 @@ export type TechnologyLayer =
  * Diagram type categories
  */
 export type DiagramType =
-  | 'architecture-overview'
-  | 'component-interaction'
-  | 'deployment'
-  | 'sequence'
-  | 'data-flow';
+  'architecture-overview' | 'component-interaction' | 'deployment' | 'sequence' | 'data-flow';
 
 /**
  * SRS system feature extracted from document

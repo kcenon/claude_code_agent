@@ -20,7 +20,7 @@
 
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import yaml from 'js-yaml';
+import * as yaml from 'js-yaml';
 import { z } from 'zod';
 
 import { tryGetProjectRoot } from '../utils/index.js';
@@ -175,6 +175,11 @@ export function loadFeatureFlagsFile(filePath: string): FeatureFlagsFile | null 
       }`,
       { cause: error }
     );
+  }
+
+  if (raw.trim() === '') {
+    // js-yaml v5 rejects an empty document instead of returning undefined.
+    return {};
   }
 
   let parsed: unknown;

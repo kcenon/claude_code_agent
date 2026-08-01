@@ -445,13 +445,7 @@ export interface GitHubStatusCheck {
   readonly status: CheckStatus;
   /** Conclusion */
   readonly conclusion?:
-    | 'success'
-    | 'failure'
-    | 'neutral'
-    | 'cancelled'
-    | 'skipped'
-    | 'timed_out'
-    | undefined;
+    'success' | 'failure' | 'neutral' | 'cancelled' | 'skipped' | 'timed_out' | undefined;
 }
 
 /**

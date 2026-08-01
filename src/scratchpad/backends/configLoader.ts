@@ -10,7 +10,7 @@
 import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import yaml from 'js-yaml';
+import * as yaml from 'js-yaml';
 import type { ScratchpadBackendConfig } from './types.js';
 import { tryGetProjectRoot } from '../../utils/index.js';
 import { DEFAULT_PATHS } from '../../config/paths.js';

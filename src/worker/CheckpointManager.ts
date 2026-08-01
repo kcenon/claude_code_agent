@@ -224,8 +224,7 @@ export class CheckpointManager {
 
       // Extract context, handling optional fields properly
       const rawContext = snapshot.context as
-        | { workOrder: WorkOrder; branchName?: string }
-        | undefined;
+        { workOrder: WorkOrder; branchName?: string } | undefined;
 
       // Build context if present
       const context: CheckpointState['context'] =

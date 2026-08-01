@@ -14,10 +14,7 @@ export type AnalysisScope = 'full' | 'documents_only' | 'code_only' | 'compariso
  * Pipeline stage names
  */
 export type PipelineStageName =
-  | 'document_reader'
-  | 'code_reader'
-  | 'comparator'
-  | 'issue_generator';
+  'document_reader' | 'code_reader' | 'comparator' | 'issue_generator';
 
 /**
  * Pipeline stage status

@@ -117,7 +117,7 @@ AD-SDLC (Agent-Driven Software Development Lifecycle) is an automated software d
 | Component      | Version | Purpose             |
 | -------------- | ------- | ------------------- |
 | **Node.js**    | 18+     | Runtime environment |
-| **TypeScript** | 7.0+    | Primary language    |
+| **TypeScript** | 6.0+    | Primary language    |
 | **ES2022**     | -       | Module system (ESM) |
 
 ### Core Dependencies
@@ -139,6 +139,7 @@ AD-SDLC (Agent-Driven Software Development Lifecycle) is an automated software d
 
 | Tool                  | Version | Purpose                  |
 | --------------------- | ------- | ------------------------ |
+| `typescript`          | ^6.0.3  | TypeScript compiler      |
 | `vitest`              | ^4.0.16 | Test runner              |
 | `@vitest/coverage-v8` | ^4.1.10 | Code coverage            |
 | `eslint`              | ^10.8.0 | Code linting             |

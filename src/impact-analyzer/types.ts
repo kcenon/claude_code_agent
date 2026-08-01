@@ -9,12 +9,7 @@
  * Types of changes that can be analyzed
  */
 export type ChangeType =
-  | 'feature_add'
-  | 'feature_modify'
-  | 'bug_fix'
-  | 'refactor'
-  | 'documentation'
-  | 'infrastructure';
+  'feature_add' | 'feature_modify' | 'bug_fix' | 'refactor' | 'documentation' | 'infrastructure';
 
 /**
  * Size estimation for changes
