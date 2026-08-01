@@ -51,7 +51,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        # better-sqlite3's implicit node-gyp step requires Visual Studio 2022.
+        # windows-latest now resolves to a VS 2026 image that node-gyp 11 cannot detect.
+        os: [ubuntu-latest, windows-2022]
       fail-fast: false
     needs: lint
     steps:
@@ -74,7 +76,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run tests (Windows)
-        if: matrix.os == 'windows-latest'
+        if: matrix.os == 'windows-2022'
         run: npm test
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

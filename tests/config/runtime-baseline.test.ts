@@ -37,6 +37,13 @@ describe('Node.js runtime baseline', () => {
   it('uses the supported Node.js major in the runtime container', () => {
     expect(read('docker/Dockerfile')).toMatch(new RegExp(`^FROM node:${expectedMajor}-slim$`, 'm'));
   });
+
+  it('pins Windows CI to the Visual Studio 2022 runner required by native dependencies', () => {
+    const ciWorkflow = read('.github/workflows/ci.yml');
+
+    expect(ciWorkflow).toContain('os: [ubuntu-latest, windows-2022]');
+    expect(ciWorkflow).not.toMatch(/^\s*os:.*windows-latest/m);
+  });
 });
 
 function read(path: string): string {
