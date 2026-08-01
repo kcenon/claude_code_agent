@@ -960,6 +960,10 @@ Review Checklist:
 
 ### 10.1 High-Level Architecture
 
+The supported deployment baseline requires Node.js 22.22.1 or newer. This
+compatibility floor applies to local development, CI, and packaged runtime
+environments.
+
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                              AD-SDLC System                                 │

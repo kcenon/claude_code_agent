@@ -1,7 +1,7 @@
 name: Bug Report
 description: Report a bug or unexpected behavior
-title: "[BUG] "
-labels: ["bug"]
+title: '[BUG] '
+labels: ['bug']
 body:
   - type: markdown
     attributes:
@@ -56,7 +56,7 @@ body:
       description: Please provide environment details.
       placeholder: |
         - OS: [e.g., macOS 14.0, Ubuntu 22.04]
-        - Node.js version: [e.g., 20.10.0]
+        - Node.js version: [e.g., 22.22.1]
         - AD-SDLC version: [e.g., 1.0.0]
       render: markdown
     validations:

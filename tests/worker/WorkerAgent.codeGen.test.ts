@@ -228,8 +228,23 @@ describe('WorkerAgent - generateCode with ExecutionAdapter delegation', () => {
       await agent.generateCode(ctx);
 
       const changes = agent.getFileChanges();
-      // Stored as project-relative
-      expect(changes.has(join('src', 'abs.ts'))).toBe(true);
+      // Stored as a platform-independent project-relative path
+      expect(changes.has('src/abs.ts')).toBe(true);
+    });
+
+    it('should normalize Windows artifact separators to portable paths', async () => {
+      const adapter = new MockExecutionAdapter({
+        defaultResult: successResult([{ path: 'src\\portable.ts' }]),
+      });
+      agent.setExecutionAdapter(adapter);
+
+      const workOrder = createWorkOrder();
+      const ctx = createExecutionContext(workOrder);
+      await agent.generateCode(ctx);
+
+      const changes = agent.getFileChanges();
+      expect(changes.has('src/portable.ts')).toBe(true);
+      expect(changes.has('src\\portable.ts')).toBe(false);
     });
   });
 

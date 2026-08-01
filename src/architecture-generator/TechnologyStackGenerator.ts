@@ -34,7 +34,7 @@ interface TechnologyOption {
 const RUNTIME_OPTIONS: TechnologyOption[] = [
   {
     name: 'Node.js',
-    version: '20.x LTS',
+    version: '22.x LTS',
     rationale: 'Excellent async I/O, large ecosystem, unified JavaScript stack',
     strengths: ['performance', 'scalability'],
     patterns: ['event-driven', 'microservices', 'hierarchical-multi-agent'],

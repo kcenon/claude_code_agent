@@ -30,3 +30,5 @@ export {
 } from './ProjectContext.js';
 
 export type { ProjectContextOptions } from './ProjectContext.js';
+
+export { MINIMUM_NODE_VERSION, isSupportedNodeVersion } from './nodeVersion.js';

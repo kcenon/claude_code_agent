@@ -3,7 +3,7 @@
 > **Automate your software development from requirements to deployment, built on the [Claude Agent SDK](https://www.npmjs.com/package/@anthropic-ai/claude-agent-sdk).**
 
 [![License: BSD-3-Clause](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
-[![Node.js](https://img.shields.io/badge/Node.js-18%2B-green.svg)](https://nodejs.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-22.22.1%2B-green.svg)](https://nodejs.org/)
 [![Built with Claude Agent SDK](https://img.shields.io/badge/Built%20with-Claude%20Agent%20SDK-blueviolet)](https://www.npmjs.com/package/@anthropic-ai/claude-agent-sdk)
 
 Every AI-backed pipeline stage runs through a single Claude Agent SDK entry point (`ExecutionAdapter`). The three modes currently contain 39 stage slots that reuse 29 unique pipeline agent types; the repository also carries 7 support/delegated definitions, for 36 checked-in prompt files. These axes are [tracked separately and checked from source](docs/architecture/runtime-inventory.md).
@@ -179,7 +179,7 @@ Each agent reads and writes to a shared scratchpad, enabling seamless inter-agen
 
 ### Prerequisites
 
-- Node.js 18+ ([Download](https://nodejs.org/))
+- Node.js 22.22.1+ ([Download](https://nodejs.org/))
 - Git 2.30+
 - GitHub CLI 2.0+ (optional, for issue/PR management)
 - Claude API Key

@@ -6,7 +6,7 @@
 
 | Dependency                  | Required | Notes                                                              |
 | --------------------------- | -------- | ------------------------------------------------------------------ |
-| Node.js 18+                 | Yes      | [Download](https://nodejs.org/)                                    |
+| Node.js 22.22.1+            | Yes      | [Download](https://nodejs.org/)                                    |
 | Git 2.30+                   | Yes      |                                                                    |
 | `ANTHROPIC_API_KEY`         | Yes      | Required for all pipeline modes                                    |
 | `GITHUB_TOKEN` / GitHub CLI | No       | Required for GitHub issue/PR operations; not needed with `--local` |
@@ -134,7 +134,7 @@ AD-SDLC Health Check
 ====================
 
 Environment:
-  ✓ Node.js v20.10.0
+  ✓ Node.js v22.22.1
   ✓ npm 10.2.3
   ✓ Git 2.42.0
 

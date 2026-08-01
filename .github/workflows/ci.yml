@@ -4,7 +4,7 @@ on:
   push:
     branches: [main, develop]
   pull_request:
-    branches: [main]
+    branches: [main, develop]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -26,7 +26,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
 
       - name: Install dependencies
@@ -51,7 +51,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        # better-sqlite3's implicit node-gyp step requires Visual Studio 2022.
+        # windows-latest now resolves to a VS 2026 image that node-gyp 11 cannot detect.
+        os: [ubuntu-latest, windows-2022]
       fail-fast: false
     needs: lint
     steps:
@@ -61,7 +63,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
 
       - name: Install dependencies
@@ -74,7 +76,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run tests (Windows)
-        if: matrix.os == 'windows-latest'
+        if: matrix.os == 'windows-2022'
         run: npm test
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -98,7 +100,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
 
       - name: Install dependencies
@@ -119,22 +121,11 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
 
       - name: Install dependencies
         run: npm ci
-
-      - name: Run worker-pilot integration suite (#794)
-        # Dedicated step so the 5-scenario equivalence matrix surfaces as
-        # its own CI gate. Stays under the 5-minute budget mandated by AC.
-        # Real-adapter arms are gated on ANTHROPIC_API_KEY at the test
-        # level (test.skipIf), so this step succeeds without a key by
-        # running only the mock-vs-mock equivalence arm.
-        run: npm run test:integration -- worker-pilot
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY || secrets.CLAUDE_API_KEY }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run integration tests
         run: npm run test:integration
@@ -154,7 +145,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
 
       - name: Install dependencies
@@ -176,7 +167,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
 
       - name: Install dependencies

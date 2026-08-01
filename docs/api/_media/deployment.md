@@ -23,7 +23,7 @@
 | Component | Minimum | Recommended |
 |-----------|---------|-------------|
 | Python | 3.10+ | 3.11+ |
-| Node.js | 18+ | 20+ |
+| Node.js | 22.22.1+ | 22 LTS |
 | Memory | 4GB | 8GB+ |
 | Disk | 1GB | 5GB+ |
 
@@ -371,7 +371,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Node.js for Claude Code CLI
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y nodejs
 
 # Install Claude Code CLI
@@ -559,7 +559,7 @@ jobs:
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '20'
+        node-version: '22'
 
     - name: Setup Python
       uses: actions/setup-python@v5
@@ -607,7 +607,7 @@ ai-code-review:
   image: python:3.11
 
   before_script:
-    - curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+    - curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
     - apt-get install -y nodejs
     - npm install -g @anthropic-ai/claude-code
     - pip install -r requirements.txt
@@ -660,7 +660,7 @@ pipeline {
         stage('Setup') {
             steps {
                 sh '''
-                    curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+                    curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
                     apt-get install -y nodejs
                     npm install -g @anthropic-ai/claude-code
                     pip install -r requirements.txt

@@ -135,7 +135,7 @@ AD-SDLC는 Claude Agent SDK 기반의 멀티 에이전트 시스템으로, 기�
 |-----------|-------------|
 | **Runtime** | Claude Agent SDK (Claude Code CLI) |
 | **Platform** | macOS, Linux, Windows (WSL2) |
-| **Node.js** | v18+ |
+| **Node.js** | v22.22.1+ |
 | **Python** | v3.9+ (optional, for tooling) |
 | **Git** | v2.30+ |
 | **GitHub CLI** | v2.0+ |

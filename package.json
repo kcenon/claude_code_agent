@@ -64,7 +64,7 @@
   },
   "homepage": "https://github.com/kcenon/claude_code_agent#readme",
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=22.22.1"
   },
   "devDependencies": {
     "@aws-sdk/client-cloudwatch-logs": "^3.1095.0",

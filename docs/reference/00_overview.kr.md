@@ -167,7 +167,7 @@ my-skill/
 
 ### 필수 조건
 
-- Node.js 18+ 또는 Python 3.10+
+- Node.js 22.22.1+ 또는 Python 3.10+
 - Anthropic API 키
 - Claude Code CLI (Agent SDK 런타임)
 
