@@ -14,6 +14,7 @@
  */
 
 import { getLogger } from '../logging/index.js';
+import { RetryExecutor } from '../error-handler/RetryExecutor.js';
 import { StageTimeoutError } from './errors.js';
 import type { ArtifactValidator } from './ArtifactValidator.js';
 import type { PipelineCheckpointManager } from './PipelineCheckpointManager.js';
@@ -222,35 +223,52 @@ export async function executeStageWithRetry(
   const stageTimeoutMs = host.getTimeoutForStage(stage.name);
   const stageDeadline = Date.now() + stageTimeoutMs;
   let lastError: string | null = null;
-
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    const startTime = Date.now();
-    const remainingMs = stageDeadline - Date.now();
-    if (remainingMs <= 0) {
-      lastError = `Stage '${stage.name}' budget exhausted before attempt ${String(attempt + 1)}`;
-      break;
-    }
-    const attemptTimeoutMs = Math.min(remainingMs, stageTimeoutMs);
-
-    try {
-      const output = await runStageAgentWithTimeout(host, stage, session, attemptTimeoutMs);
-      return {
-        name: stage.name,
-        agentType: stage.agentType,
-        status: 'completed',
-        durationMs: Date.now() - startTime,
-        output,
-        artifacts: [],
-        error: null,
-        retryCount: attempt,
-      };
-    } catch (error) {
-      lastError = error instanceof Error ? error.message : String(error);
-      if (attempt < maxRetries) {
-        const delay = Math.min(5000 * Math.pow(2, attempt), 60_000);
-        await host.sleep(delay);
+  let attempt = 0;
+  let attemptStartTime = Date.now();
+  const retryExecutor = new RetryExecutor({
+    maxAttempts: maxRetries + 1,
+    backoffStrategy: 'exponential',
+    baseDelayMs: 5000,
+    maxDelayMs: 60000,
+    multiplier: 2,
+    jitterRatio: 0,
+  });
+  const execution = await retryExecutor.executeWithResult(
+    async () => {
+      attempt++;
+      attemptStartTime = Date.now();
+      const remainingMs = stageDeadline - Date.now();
+      if (remainingMs <= 0) {
+        lastError = `Stage '${stage.name}' budget exhausted before attempt ${String(attempt)}`;
+        throw new Error(lastError);
       }
+      const attemptTimeoutMs = Math.min(remainingMs, stageTimeoutMs);
+
+      const output = await runStageAgentWithTimeout(host, stage, session, attemptTimeoutMs);
+      return output;
+    },
+    {
+      operationName: `pipeline-stage:${stage.name}`,
+      errorClassifier: () => 'retryable',
+      shouldRetry: (error) => {
+        lastError = error.message;
+        return Date.now() < stageDeadline;
+      },
+      delay: (ms) => host.sleep(ms),
     }
+  );
+
+  if (execution.success && execution.value !== undefined) {
+    return {
+      name: stage.name,
+      agentType: stage.agentType,
+      status: 'completed',
+      durationMs: Date.now() - attemptStartTime,
+      output: execution.value,
+      artifacts: [],
+      error: null,
+      retryCount: Math.max(0, attempt - 1),
+    };
   }
 
   return {

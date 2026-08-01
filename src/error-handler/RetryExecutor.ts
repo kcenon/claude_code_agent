@@ -11,7 +11,7 @@
  * @module error-handler/RetryExecutor
  */
 
-import type { RetryPolicy, BackoffStrategy, ErrorClassifier, ErrorCategory } from './types.js';
+import type { BackoffStrategy, ErrorClassifier, ErrorCategory } from './types.js';
 
 import { RETRYABLE_ERROR_PATTERNS, NON_RETRYABLE_ERROR_PATTERNS } from './types.js';
 
@@ -21,6 +21,7 @@ import {
   OperationAbortedError,
   NonRetryableError,
   CircuitOpenError,
+  InvalidRetryPolicyError,
 } from './errors.js';
 
 import {
@@ -31,9 +32,7 @@ import {
 
 import { RetryMetrics, getGlobalRetryMetrics } from './RetryMetrics.js';
 
-import { CircuitBreaker } from './CircuitBreaker.js';
-
-import { getLogger } from '../logging/Logger.js';
+import type { CircuitBreaker } from './CircuitBreaker.js';
 
 /**
  * Retry execution options
@@ -53,6 +52,24 @@ export interface RetryExecutionOptions {
   readonly countRetryableFailures?: boolean;
   /** Metrics collector (uses global if not provided) */
   readonly metrics?: RetryMetrics;
+  /** Optional domain-specific decision applied after error classification */
+  readonly shouldRetry?: (error: Error, context: RetryDecisionContext) => boolean;
+  /** Optional delay implementation, primarily for schedulers and deterministic tests */
+  readonly delay?: (ms: number, signal?: AbortSignal) => Promise<void>;
+  /** Number of earlier attempts to include when calculating retry backoff */
+  readonly backoffAttemptOffset?: number;
+  /** Emit retry lifecycle logs (disable inside logging transports to avoid recursion) */
+  readonly logAttempts?: boolean;
+}
+
+/** Context supplied to a domain-specific retry decision */
+export interface RetryDecisionContext {
+  /** Current attempt number (1-based) */
+  readonly attempt: number;
+  /** Maximum attempts configured for the executor */
+  readonly maxAttempts: number;
+  /** Category returned by the configured error classifier */
+  readonly category: ErrorCategory;
 }
 
 /**
@@ -76,7 +93,7 @@ export interface RetryExecutionResult<T> {
 /**
  * Unified retry policy configuration
  */
-export interface UnifiedRetryPolicy {
+export interface RetryPolicy {
   /** Maximum number of retry attempts (default: 3) */
   readonly maxAttempts: number;
   /** Backoff strategy name (default: 'exponential') */
@@ -94,7 +111,7 @@ export interface UnifiedRetryPolicy {
 /**
  * Default unified retry policy
  */
-export const DEFAULT_UNIFIED_RETRY_POLICY: Readonly<UnifiedRetryPolicy> = {
+export const DEFAULT_RETRY_POLICY: Readonly<RetryPolicy> = {
   maxAttempts: 3,
   backoffStrategy: 'exponential',
   baseDelayMs: 1000,
@@ -103,12 +120,34 @@ export const DEFAULT_UNIFIED_RETRY_POLICY: Readonly<UnifiedRetryPolicy> = {
   jitterRatio: 0.25,
 } as const;
 
+function validatePolicy(policy: RetryPolicy): void {
+  if (!Number.isInteger(policy.maxAttempts) || policy.maxAttempts < 1) {
+    throw new InvalidRetryPolicyError('maxAttempts', policy.maxAttempts, 'must be an integer >= 1');
+  }
+  if (policy.baseDelayMs < 0) {
+    throw new InvalidRetryPolicyError('baseDelayMs', policy.baseDelayMs, 'must be >= 0');
+  }
+  if (policy.maxDelayMs < policy.baseDelayMs) {
+    throw new InvalidRetryPolicyError(
+      'maxDelayMs',
+      policy.maxDelayMs,
+      `must be >= baseDelayMs (${String(policy.baseDelayMs)})`
+    );
+  }
+  if (policy.multiplier < 1) {
+    throw new InvalidRetryPolicyError('multiplier', policy.multiplier, 'must be >= 1');
+  }
+  if (policy.jitterRatio < 0 || policy.jitterRatio > 1) {
+    throw new InvalidRetryPolicyError('jitterRatio', policy.jitterRatio, 'must be between 0 and 1');
+  }
+}
+
 /**
  * Predefined retry policies for common scenarios
  */
 export const RETRY_POLICIES = {
   /** Default policy for general operations */
-  default: DEFAULT_UNIFIED_RETRY_POLICY,
+  default: DEFAULT_RETRY_POLICY,
 
   /** Aggressive retry for critical operations */
   aggressive: {
@@ -291,19 +330,20 @@ async function withTimeout<T>(
  * ```
  */
 export class RetryExecutor {
-  private readonly policy: UnifiedRetryPolicy;
+  private readonly policy: RetryPolicy;
   private readonly backoffConfig: BackoffConfig;
 
-  constructor(policyOverride?: Partial<UnifiedRetryPolicy>) {
+  constructor(policyOverride?: Partial<RetryPolicy>) {
     this.policy = {
-      maxAttempts: policyOverride?.maxAttempts ?? DEFAULT_UNIFIED_RETRY_POLICY.maxAttempts,
-      backoffStrategy:
-        policyOverride?.backoffStrategy ?? DEFAULT_UNIFIED_RETRY_POLICY.backoffStrategy,
-      baseDelayMs: policyOverride?.baseDelayMs ?? DEFAULT_UNIFIED_RETRY_POLICY.baseDelayMs,
-      maxDelayMs: policyOverride?.maxDelayMs ?? DEFAULT_UNIFIED_RETRY_POLICY.maxDelayMs,
-      multiplier: policyOverride?.multiplier ?? DEFAULT_UNIFIED_RETRY_POLICY.multiplier,
-      jitterRatio: policyOverride?.jitterRatio ?? DEFAULT_UNIFIED_RETRY_POLICY.jitterRatio,
+      maxAttempts: policyOverride?.maxAttempts ?? DEFAULT_RETRY_POLICY.maxAttempts,
+      backoffStrategy: policyOverride?.backoffStrategy ?? DEFAULT_RETRY_POLICY.backoffStrategy,
+      baseDelayMs: policyOverride?.baseDelayMs ?? DEFAULT_RETRY_POLICY.baseDelayMs,
+      maxDelayMs: policyOverride?.maxDelayMs ?? DEFAULT_RETRY_POLICY.maxDelayMs,
+      multiplier: policyOverride?.multiplier ?? DEFAULT_RETRY_POLICY.multiplier,
+      jitterRatio: policyOverride?.jitterRatio ?? DEFAULT_RETRY_POLICY.jitterRatio,
     };
+
+    validatePolicy(this.policy);
 
     this.backoffConfig = createBackoffConfig({
       baseDelayMs: this.policy.baseDelayMs,
@@ -327,7 +367,7 @@ export class RetryExecutor {
    * Get the configured policy
    * @returns The current unified retry policy configuration
    */
-  public getPolicy(): UnifiedRetryPolicy {
+  public getPolicy(): RetryPolicy {
     return this.policy;
   }
 
@@ -367,11 +407,25 @@ export class RetryExecutor {
     operation: () => Promise<T>,
     options: RetryExecutionOptions = {}
   ): Promise<RetryExecutionResult<T>> {
-    const logger = getLogger();
+    // Lazy loading keeps the retry primitive usable by logging transports
+    // without creating an error-handler -> logging -> transport import cycle.
+    const logger =
+      options.logAttempts === false
+        ? undefined
+        : (await import('../logging/Logger.js')).getLogger();
     const operationName = options.operationName ?? 'unknown';
     const errorClassifier = options.errorClassifier ?? defaultErrorClassifier;
     const metrics = options.metrics ?? getGlobalRetryMetrics();
     const countRetryableFailures = options.countRetryableFailures ?? true;
+    const backoffAttemptOffset = options.backoffAttemptOffset ?? 0;
+
+    if (!Number.isInteger(backoffAttemptOffset) || backoffAttemptOffset < 0) {
+      throw new InvalidRetryPolicyError(
+        'backoffAttemptOffset',
+        backoffAttemptOffset,
+        'must be an integer >= 0'
+      );
+    }
 
     const metricsBuilder = metrics.createRecordBuilder(operationName, this.policy.backoffStrategy);
     const startTime = Date.now();
@@ -394,38 +448,37 @@ export class RetryExecutor {
         };
       }
 
-      // Check circuit breaker before each attempt
-      if (options.circuitBreaker !== undefined && !options.circuitBreaker.isAcceptingRequests()) {
-        const remainingMs = options.circuitBreaker.getRemainingTimeout();
-        const error = new CircuitOpenError(
-          remainingMs,
-          options.circuitBreaker.getFailureCount(),
-          operationName
-        );
-        metricsBuilder.failure(error.message);
-        return {
-          success: false,
-          error,
-          attempts: attempt,
-          totalDurationMs: Date.now() - startTime,
-          delays,
-        };
+      // Reserve a circuit breaker attempt, including HALF_OPEN transitions.
+      if (options.circuitBreaker !== undefined) {
+        try {
+          options.circuitBreaker.prepareForAttempt();
+        } catch (error) {
+          if (!(error instanceof CircuitOpenError)) throw error;
+          metricsBuilder.failure(error.message);
+          return {
+            success: false,
+            error,
+            attempts: attempt,
+            totalDurationMs: Date.now() - startTime,
+            delays,
+          };
+        }
       }
 
       // Calculate delay for this attempt (0 for first attempt)
-      const delayMs = attempt === 1 ? 0 : this.calculateDelay(attempt - 1);
+      const delayMs = attempt === 1 ? 0 : this.calculateDelay(backoffAttemptOffset + attempt - 1);
       metricsBuilder.recordAttempt(delayMs);
 
       // Wait before retry (if not first attempt)
       if (delayMs > 0) {
         delays.push(delayMs);
-        logger.debug(`Waiting ${String(delayMs)}ms before retry for '${operationName}'`, {
+        logger?.debug(`Waiting ${String(delayMs)}ms before retry for '${operationName}'`, {
           attempt,
           delayMs,
         });
 
         try {
-          await sleep(delayMs, options.signal);
+          await (options.delay ?? sleep)(delayMs, options.signal);
         } catch (error) {
           if (error instanceof OperationAbortedError) {
             metricsBuilder.failure(error.message);
@@ -451,7 +504,7 @@ export class RetryExecutor {
         }
 
         // Success
-        logger.info(`Retry succeeded for '${operationName}'`, {
+        logger?.info(`Retry succeeded for '${operationName}'`, {
           attempt,
           totalAttempts: this.policy.maxAttempts,
         });
@@ -475,8 +528,16 @@ export class RetryExecutor {
         // Categorize the error
         const category = errorClassifier(caughtError);
         const isRetryable = category !== 'non-retryable';
+        const shouldRetry =
+          isRetryable &&
+          (options.shouldRetry?.(caughtError, {
+            attempt,
+            maxAttempts: this.policy.maxAttempts,
+            category,
+          }) ??
+            true);
 
-        logger.warn(
+        logger?.warn(
           `Retry attempt ${String(attempt)}/${String(this.policy.maxAttempts)} failed for '${operationName}'`,
           {
             attempt,
@@ -484,6 +545,7 @@ export class RetryExecutor {
             errorMessage: caughtError.message,
             category,
             isRetryable,
+            shouldRetry,
             isFinalAttempt,
           }
         );
@@ -496,6 +558,25 @@ export class RetryExecutor {
         // If non-retryable, stop immediately
         if (!isRetryable) {
           const wrappedError = new NonRetryableError(caughtError, category);
+          metricsBuilder.failure(wrappedError.message);
+          return {
+            success: false,
+            error: wrappedError,
+            attempts: attempt,
+            totalDurationMs: Date.now() - startTime,
+            delays,
+          };
+        }
+
+        // A domain-specific policy may stop before the executor-wide limit.
+        if (!shouldRetry) {
+          const wrappedError = new MaxRetriesExceededError(
+            attempt,
+            this.policy.maxAttempts,
+            caughtError,
+            [],
+            operationName
+          );
           metricsBuilder.failure(wrappedError.message);
           return {
             success: false,
@@ -566,7 +647,7 @@ export class RetryExecutor {
  */
 export async function executeWithRetry<T>(
   operation: () => Promise<T>,
-  options?: RetryExecutionOptions & { policy?: Partial<UnifiedRetryPolicy> }
+  options?: RetryExecutionOptions & { policy?: Partial<RetryPolicy> }
 ): Promise<T> {
   const executor = new RetryExecutor(options?.policy);
   return executor.execute(operation, options);
@@ -584,32 +665,12 @@ export async function executeWithRetry<T>(
  */
 export function createRetryableFunction<TArgs extends unknown[], TResult>(
   fn: (...args: TArgs) => Promise<TResult>,
-  policy?: Partial<UnifiedRetryPolicy>,
+  policy?: Partial<RetryPolicy>,
   defaultOptions?: RetryExecutionOptions
 ): (...args: TArgs) => Promise<TResult> {
   const executor = new RetryExecutor(policy);
 
   return async (...args: TArgs): Promise<TResult> => {
     return executor.execute(() => fn(...args), defaultOptions);
-  };
-}
-
-/**
- * Convert legacy RetryPolicy to UnifiedRetryPolicy
- *
- * @param legacyPolicy - Legacy RetryPolicy
- * @returns UnifiedRetryPolicy
- */
-export function fromLegacyPolicy(legacyPolicy: Partial<RetryPolicy>): UnifiedRetryPolicy {
-  return {
-    maxAttempts: legacyPolicy.maxAttempts ?? DEFAULT_UNIFIED_RETRY_POLICY.maxAttempts,
-    backoffStrategy: legacyPolicy.backoff ?? DEFAULT_UNIFIED_RETRY_POLICY.backoffStrategy,
-    baseDelayMs: legacyPolicy.baseDelayMs ?? DEFAULT_UNIFIED_RETRY_POLICY.baseDelayMs,
-    maxDelayMs: legacyPolicy.maxDelayMs ?? DEFAULT_UNIFIED_RETRY_POLICY.maxDelayMs,
-    multiplier: legacyPolicy.backoffMultiplier ?? DEFAULT_UNIFIED_RETRY_POLICY.multiplier,
-    jitterRatio:
-      legacyPolicy.enableJitter === true
-        ? (legacyPolicy.jitterFactor ?? DEFAULT_UNIFIED_RETRY_POLICY.jitterRatio)
-        : 0,
   };
 }

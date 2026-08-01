@@ -17,6 +17,7 @@ The AD-SDLC system performs long-running operations that can fail for various re
 - **Fatal failures**: Missing dependencies, permission denied, invalid configuration
 
 Without a systematic approach:
+
 - All errors trigger immediate failure, wasting recoverable work
 - Retry logic is inconsistent across modules
 - Error messages lack context for debugging
@@ -28,11 +29,11 @@ Implement a **three-tier error classification system** with category-specific re
 
 ### Error Categories
 
-| Category | Description | Retryable | Strategy |
-|----------|-------------|-----------|----------|
-| `transient` | Temporary external failures | Yes | Retry with exponential backoff |
-| `recoverable` | Fixable errors | Yes | Attempt self-fix, then retry |
-| `fatal` | Unrecoverable failures | No | Fail fast, escalate immediately |
+| Category      | Description                 | Retryable | Strategy                        |
+| ------------- | --------------------------- | --------- | ------------------------------- |
+| `transient`   | Temporary external failures | Yes       | Retry with exponential backoff  |
+| `recoverable` | Fixable errors              | Yes       | Attempt self-fix, then retry    |
+| `fatal`       | Unrecoverable failures      | No        | Fail fast, escalate immediately |
 
 ### AppError Base Class
 
@@ -40,7 +41,7 @@ All application errors extend `AppError`:
 
 ```typescript
 class AppError extends Error {
-  readonly code: string;           // e.g., 'WRK-040'
+  readonly code: string; // e.g., 'WRK-040'
   readonly severity: ErrorSeverity; // LOW, MEDIUM, HIGH, CRITICAL
   readonly category: ErrorCategory; // transient, recoverable, fatal
   readonly context: Record<string, unknown>;
@@ -55,28 +56,30 @@ class AppError extends Error {
 
 ### Error Code Namespaces
 
-| Prefix | Module | Example |
-|--------|--------|---------|
-| `CTL` | Controller | `CTL-001` Graph not found |
-| `WRK` | Worker | `WRK-040` Verification failed |
-| `STM` | State Manager | `STM-010` Invalid transition |
-| `PRR` | PR Reviewer | `PRR-020` CI check failed |
+| Prefix | Module        | Example                       |
+| ------ | ------------- | ----------------------------- |
+| `CTL`  | Controller    | `CTL-001` Graph not found     |
+| `WRK`  | Worker        | `WRK-040` Verification failed |
+| `STM`  | State Manager | `STM-010` Invalid transition  |
+| `PRR`  | PR Reviewer   | `PRR-020` CI check failed     |
 
 ### Retry Policy Configuration
 
 ```typescript
 const retryPolicy: RetryPolicy = {
   maxAttempts: 3,
+  backoffStrategy: 'exponential',
   baseDelayMs: 1000,
-  backoff: 'exponential',
   maxDelayMs: 30000,
-  jitter: true,
-  byCategory: {
-    transient: { retry: true, maxAttempts: 5 },
-    recoverable: { retry: true, maxAttempts: 3, requireFixAttempt: true },
-    fatal: { retry: false, escalateImmediately: true },
-  },
+  multiplier: 2,
+  jitterRatio: 0.25,
 };
+
+const executor = new RetryExecutor(retryPolicy);
+await executor.execute(operation, {
+  errorClassifier: classifyForRetry,
+  circuitBreaker,
+});
 ```
 
 ### Self-Fix Mechanism (Recoverable Errors)
@@ -123,11 +126,13 @@ if (error.category === 'recoverable' && error.code === 'WRK-040') {
 **Description:** Retry all errors with exponential backoff, regardless of type.
 
 **Pros:**
+
 - Simple implementation
 - Handles transient errors automatically
 - No classification needed
 
 **Cons:**
+
 - Wastes time retrying fatal errors
 - Delays reporting of unrecoverable issues
 - No opportunity for targeted fixes
@@ -139,11 +144,13 @@ if (error.category === 'recoverable' && error.code === 'WRK-040') {
 **Description:** Treat all errors as fatal and report immediately.
 
 **Pros:**
+
 - Fast feedback on any failure
 - Simple error handling
 - No complex retry logic
 
 **Cons:**
+
 - Transient failures cause unnecessary pipeline restarts
 - Network blips disrupt long-running operations
 - Poor user experience with intermittent issues
@@ -155,11 +162,13 @@ if (error.category === 'recoverable' && error.code === 'WRK-040') {
 **Description:** Use a single error type with runtime tags for categorization.
 
 **Pros:**
+
 - Simpler class hierarchy
 - Flexible tagging
 - Easy to add new categories
 
 **Cons:**
+
 - No compile-time type safety
 - Easy to misspell tags
 - Category logic scattered across codebase
@@ -171,21 +180,24 @@ if (error.category === 'recoverable' && error.code === 'WRK-040') {
 **Description:** Use circuit breaker pattern without error categorization.
 
 **Pros:**
+
 - Prevents cascade failures
 - Simple on/off semantics
 - Good for external service protection
 
 **Cons:**
+
 - Doesn't distinguish error types
 - Binary state (open/closed) too coarse
 - Doesn't help with self-fixing errors
 
-**Why rejected:** Circuit breaker is useful for external services but doesn't address the need to handle different error types differently. We use circuit breaker *in addition to* error classification for external API calls.
+**Why rejected:** Circuit breaker is useful for external services but doesn't address the need to handle different error types differently. We use circuit breaker _in addition to_ error classification for external API calls.
 
 ## References
 
 - Related code: `src/errors/AppError.ts`
 - Related code: `src/errors/codes.ts`
 - Related documentation: `docs/error-handling.md`
-- Related code: `src/error-handler/RetryHandler.ts`
+- Related code: `src/error-handler/RetryExecutor.ts`
+- Related code: `src/error-handler/BackoffStrategies.ts`
 - Related code: `src/error-handler/CircuitBreaker.ts`

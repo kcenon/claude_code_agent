@@ -6,10 +6,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import {
-  PRReviewerAgent,
-  resetPRReviewerAgent,
-} from '../../src/pr-reviewer/PRReviewerAgent.js';
+import { PRReviewerAgent, resetPRReviewerAgent } from '../../src/pr-reviewer/PRReviewerAgent.js';
 import { MockCommandExecutor } from '../../src/utilities/CommandExecutor.js';
 
 describe('PRReviewerAgent', () => {
@@ -193,18 +190,18 @@ describe('PRReviewerAgent', () => {
     it('should expose circuit breaker for monitoring', () => {
       const circuitBreaker = agent.getCircuitBreaker();
       expect(circuitBreaker).toBeDefined();
-      expect(circuitBreaker.getStatus().state).toBe('closed');
+      expect(circuitBreaker.getStatus().state).toBe('CLOSED');
     });
 
     it('should allow resetting circuit breaker', () => {
       const circuitBreaker = agent.getCircuitBreaker();
 
       for (let i = 0; i < 10; i++) {
-        circuitBreaker.recordFailure();
+        circuitBreaker.recordFailure(new Error('CI failure'));
       }
 
       agent.resetCircuitBreaker();
-      expect(circuitBreaker.getStatus().state).toBe('closed');
+      expect(circuitBreaker.getStatus().state).toBe('CLOSED');
     });
   });
 

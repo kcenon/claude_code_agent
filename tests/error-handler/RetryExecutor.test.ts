@@ -5,11 +5,10 @@ import * as os from 'node:os';
 import { Logger, resetLogger } from '../../src/monitoring/index.js';
 import {
   RetryExecutor,
-  DEFAULT_UNIFIED_RETRY_POLICY,
+  DEFAULT_RETRY_POLICY,
   RETRY_POLICIES,
   executeWithRetry,
-  createRetryableFunction as createUnifiedRetryableFunction,
-  fromLegacyPolicy,
+  createRetryableFunction,
 } from '../../src/error-handler/RetryExecutor.js';
 import {
   MaxRetriesExceededError,
@@ -19,7 +18,6 @@ import {
 } from '../../src/error-handler/errors.js';
 import { CircuitBreaker } from '../../src/error-handler/CircuitBreaker.js';
 import { RetryMetrics, resetGlobalRetryMetrics } from '../../src/error-handler/RetryMetrics.js';
-import type { UnifiedRetryPolicy } from '../../src/error-handler/RetryExecutor.js';
 
 describe('RetryExecutor', () => {
   let testLogDir: string;
@@ -39,14 +37,14 @@ describe('RetryExecutor', () => {
     }
   });
 
-  describe('DEFAULT_UNIFIED_RETRY_POLICY', () => {
+  describe('DEFAULT_RETRY_POLICY', () => {
     it('should have correct default values', () => {
-      expect(DEFAULT_UNIFIED_RETRY_POLICY.maxAttempts).toBe(3);
-      expect(DEFAULT_UNIFIED_RETRY_POLICY.backoffStrategy).toBe('exponential');
-      expect(DEFAULT_UNIFIED_RETRY_POLICY.baseDelayMs).toBe(1000);
-      expect(DEFAULT_UNIFIED_RETRY_POLICY.maxDelayMs).toBe(60000);
-      expect(DEFAULT_UNIFIED_RETRY_POLICY.multiplier).toBe(2);
-      expect(DEFAULT_UNIFIED_RETRY_POLICY.jitterRatio).toBe(0.25);
+      expect(DEFAULT_RETRY_POLICY.maxAttempts).toBe(3);
+      expect(DEFAULT_RETRY_POLICY.backoffStrategy).toBe('exponential');
+      expect(DEFAULT_RETRY_POLICY.baseDelayMs).toBe(1000);
+      expect(DEFAULT_RETRY_POLICY.maxDelayMs).toBe(60000);
+      expect(DEFAULT_RETRY_POLICY.multiplier).toBe(2);
+      expect(DEFAULT_RETRY_POLICY.jitterRatio).toBe(0.25);
     });
   });
 
@@ -74,7 +72,7 @@ describe('RetryExecutor', () => {
       it('should use default policy when no override', () => {
         const executor = new RetryExecutor();
         const policy = executor.getPolicy();
-        expect(policy).toEqual(DEFAULT_UNIFIED_RETRY_POLICY);
+        expect(policy).toEqual(DEFAULT_RETRY_POLICY);
       });
 
       it('should merge partial policy with defaults', () => {
@@ -82,7 +80,7 @@ describe('RetryExecutor', () => {
         const policy = executor.getPolicy();
         expect(policy.maxAttempts).toBe(5);
         expect(policy.jitterRatio).toBe(0.5);
-        expect(policy.backoffStrategy).toBe(DEFAULT_UNIFIED_RETRY_POLICY.backoffStrategy);
+        expect(policy.backoffStrategy).toBe(DEFAULT_RETRY_POLICY.backoffStrategy);
       });
     });
 
@@ -122,9 +120,9 @@ describe('RetryExecutor', () => {
         const executor = new RetryExecutor({ maxAttempts: 2, baseDelayMs: 10, jitterRatio: 0 });
         const operation = vi.fn().mockRejectedValue(new Error('timeout'));
 
-        await expect(
-          executor.execute(operation, { operationName: 'failing' })
-        ).rejects.toThrow(MaxRetriesExceededError);
+        await expect(executor.execute(operation, { operationName: 'failing' })).rejects.toThrow(
+          MaxRetriesExceededError
+        );
 
         expect(operation).toHaveBeenCalledTimes(2);
       });
@@ -149,9 +147,9 @@ describe('RetryExecutor', () => {
         // Abort before retry delay completes
         setTimeout(() => controller.abort(), 50);
 
-        await expect(
-          executor.execute(operation, { signal: controller.signal })
-        ).rejects.toThrow(OperationAbortedError);
+        await expect(executor.execute(operation, { signal: controller.signal })).rejects.toThrow(
+          OperationAbortedError
+        );
       });
 
       it('should integrate with circuit breaker', async () => {
@@ -164,22 +162,18 @@ describe('RetryExecutor', () => {
         const operation = vi.fn().mockRejectedValue(new Error('timeout'));
 
         // First call should fail and open circuit
-        await expect(
-          executor.execute(operation, { circuitBreaker })
-        ).rejects.toThrow();
+        await expect(executor.execute(operation, { circuitBreaker })).rejects.toThrow();
 
         // Second call should fail and open circuit
-        await expect(
-          executor.execute(operation, { circuitBreaker })
-        ).rejects.toThrow();
+        await expect(executor.execute(operation, { circuitBreaker })).rejects.toThrow();
 
         // Circuit should now be open
         expect(circuitBreaker.getState()).toBe('OPEN');
 
         // Third call should be blocked by circuit breaker
-        await expect(
-          executor.execute(operation, { circuitBreaker })
-        ).rejects.toThrow(CircuitOpenError);
+        await expect(executor.execute(operation, { circuitBreaker })).rejects.toThrow(
+          CircuitOpenError
+        );
       });
     });
 
@@ -228,6 +222,48 @@ describe('RetryExecutor', () => {
         expect(result.delays).toHaveLength(2);
         expect(result.delays[0]).toBe(50);
         expect(result.delays[1]).toBe(50);
+      });
+
+      it('should stop when a domain-specific retry decision gives up', async () => {
+        const executor = new RetryExecutor({ maxAttempts: 3, baseDelayMs: 0, jitterRatio: 0 });
+        const operation = vi.fn().mockRejectedValue(new Error('temporary timeout'));
+        const shouldRetry = vi.fn().mockReturnValue(false);
+
+        const result = await executor.executeWithResult(operation, { shouldRetry });
+
+        expect(operation).toHaveBeenCalledTimes(1);
+        expect(shouldRetry).toHaveBeenCalledWith(
+          expect.any(Error),
+          expect.objectContaining({ attempt: 1, maxAttempts: 3, category: 'retryable' })
+        );
+        expect(result).toMatchObject({ success: false, attempts: 1 });
+        expect(result.error).toBeInstanceOf(MaxRetriesExceededError);
+      });
+
+      it('should preserve the backoff sequence after resumed attempts', async () => {
+        const delays: number[] = [];
+        const executor = new RetryExecutor({
+          maxAttempts: 2,
+          backoffStrategy: 'linear',
+          baseDelayMs: 100,
+          maxDelayMs: 1000,
+          jitterRatio: 0,
+        });
+        const operation = vi
+          .fn()
+          .mockRejectedValueOnce(new Error('temporary timeout'))
+          .mockResolvedValue('success');
+
+        const result = await executor.executeWithResult(operation, {
+          backoffAttemptOffset: 2,
+          delay: (ms) => {
+            delays.push(ms);
+            return Promise.resolve();
+          },
+        });
+
+        expect(result.success).toBe(true);
+        expect(delays).toEqual([300]);
       });
     });
 
@@ -285,10 +321,10 @@ describe('RetryExecutor', () => {
     });
   });
 
-  describe('createUnifiedRetryableFunction', () => {
+  describe('createRetryableFunction', () => {
     it('should create a retryable function', async () => {
       const fn = vi.fn().mockResolvedValue('data');
-      const retryableFn = createUnifiedRetryableFunction(fn);
+      const retryableFn = createRetryableFunction(fn);
 
       const result = await retryableFn();
 
@@ -296,8 +332,10 @@ describe('RetryExecutor', () => {
     });
 
     it('should pass arguments to wrapped function', async () => {
-      const fn = vi.fn().mockImplementation((a: number, b: string) => Promise.resolve(`${String(a)}-${b}`));
-      const retryableFn = createUnifiedRetryableFunction(fn);
+      const fn = vi
+        .fn()
+        .mockImplementation((a: number, b: string) => Promise.resolve(`${String(a)}-${b}`));
+      const retryableFn = createRetryableFunction(fn);
 
       const result = await retryableFn(42, 'test');
 
@@ -306,58 +344,14 @@ describe('RetryExecutor', () => {
     });
 
     it('should retry on failure', async () => {
-      const fn = vi
-        .fn()
-        .mockRejectedValueOnce(new Error('timeout'))
-        .mockResolvedValue('success');
+      const fn = vi.fn().mockRejectedValueOnce(new Error('timeout')).mockResolvedValue('success');
 
-      const retryableFn = createUnifiedRetryableFunction(fn, { baseDelayMs: 10, jitterRatio: 0 });
+      const retryableFn = createRetryableFunction(fn, { baseDelayMs: 10, jitterRatio: 0 });
 
       const result = await retryableFn();
 
       expect(result).toBe('success');
       expect(fn).toHaveBeenCalledTimes(2);
-    });
-  });
-
-  describe('fromLegacyPolicy', () => {
-    it('should convert legacy policy to unified policy', () => {
-      const legacyPolicy = {
-        maxAttempts: 5,
-        baseDelayMs: 2000,
-        maxDelayMs: 30000,
-        backoffMultiplier: 3,
-        backoff: 'linear' as const,
-        enableJitter: true,
-        jitterFactor: 0.3,
-      };
-
-      const unified = fromLegacyPolicy(legacyPolicy);
-
-      expect(unified.maxAttempts).toBe(5);
-      expect(unified.baseDelayMs).toBe(2000);
-      expect(unified.maxDelayMs).toBe(30000);
-      expect(unified.multiplier).toBe(3);
-      expect(unified.backoffStrategy).toBe('linear');
-      expect(unified.jitterRatio).toBe(0.3);
-    });
-
-    it('should handle disabled jitter', () => {
-      const legacyPolicy = {
-        enableJitter: false,
-        jitterFactor: 0.5,
-      };
-
-      const unified = fromLegacyPolicy(legacyPolicy);
-
-      expect(unified.jitterRatio).toBe(0);
-    });
-
-    it('should use defaults for missing values', () => {
-      const unified = fromLegacyPolicy({});
-
-      expect(unified.maxAttempts).toBe(DEFAULT_UNIFIED_RETRY_POLICY.maxAttempts);
-      expect(unified.backoffStrategy).toBe(DEFAULT_UNIFIED_RETRY_POLICY.backoffStrategy);
     });
   });
 

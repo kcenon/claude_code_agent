@@ -46,9 +46,7 @@ const workOrder: WorkOrder = {
   context: {
     issueTitle: 'Add user authentication',
     issueBody: 'Implement JWT-based authentication',
-    relatedFiles: [
-      { path: 'src/auth/index.ts', relevance: 'high' }
-    ],
+    relatedFiles: [{ path: 'src/auth/index.ts', relevance: 'high' }],
   },
   acceptanceCriteria: [
     'Users can login with email/password',
@@ -69,9 +67,9 @@ if (result.status === 'completed') {
 
 ```typescript
 const result = await worker.implement(workOrder, {
-  skipTests: false,           // Skip test generation
-  skipVerification: false,    // Skip verification pipeline
-  dryRun: true,               // Don't commit changes
+  skipTests: false, // Skip test generation
+  skipVerification: false, // Skip verification pipeline
+  dryRun: true, // Don't commit changes
   retryPolicy: {
     maxAttempts: 5,
     baseDelayMs: 2000,
@@ -107,7 +105,7 @@ WorkerAgent
 │   └── FrameworkAdapters (Vitest/Jest/Mocha)
 ├── CheckpointManager
 ├── SelfVerificationAgent
-├── RetryHandler
+├── RetryExecutor (shared error-handler service)
 └── SecureFileOps
 ```
 
@@ -145,37 +143,37 @@ Checkpoint saved after each step for resume capability
 
 ### Constructor Options
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `projectRoot` | `string` | `tryGetProjectRoot()` | Root directory of the project |
-| `resultsPath` | `string` | `.ad-sdlc/scratchpad/progress` | Output directory for results |
-| `maxRetries` | `number` | `3` | Maximum retry attempts |
-| `testCommand` | `string` | `npm test` | Command to run tests |
-| `lintCommand` | `string` | `npm run lint` | Command to run linter |
-| `buildCommand` | `string` | `npm run build` | Command to build project |
-| `autoFixLint` | `boolean` | `true` | Auto-fix lint errors |
-| `coverageThreshold` | `number` | `80` | Minimum coverage percentage |
+| Option              | Type      | Default                        | Description                   |
+| ------------------- | --------- | ------------------------------ | ----------------------------- |
+| `projectRoot`       | `string`  | `tryGetProjectRoot()`          | Root directory of the project |
+| `resultsPath`       | `string`  | `.ad-sdlc/scratchpad/progress` | Output directory for results  |
+| `maxRetries`        | `number`  | `3`                            | Maximum retry attempts        |
+| `testCommand`       | `string`  | `npm test`                     | Command to run tests          |
+| `lintCommand`       | `string`  | `npm run lint`                 | Command to run linter         |
+| `buildCommand`      | `string`  | `npm run build`                | Command to build project      |
+| `autoFixLint`       | `boolean` | `true`                         | Auto-fix lint errors          |
+| `coverageThreshold` | `number`  | `80`                           | Minimum coverage percentage   |
 
 ### Retry Policy Options
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `maxAttempts` | `number` | `3` | Maximum retry attempts |
-| `baseDelayMs` | `number` | `1000` | Base delay between retries |
-| `backoff` | `string` | `'exponential'` | `'fixed'` \| `'linear'` \| `'exponential'` |
-| `maxDelayMs` | `number` | `30000` | Maximum delay cap |
-| `timeoutMs` | `number` | `600000` | Operation timeout (10 min) |
+| Option        | Type     | Default         | Description                                |
+| ------------- | -------- | --------------- | ------------------------------------------ |
+| `maxAttempts` | `number` | `3`             | Maximum retry attempts                     |
+| `baseDelayMs` | `number` | `1000`          | Base delay between retries                 |
+| `backoff`     | `string` | `'exponential'` | `'fixed'` \| `'linear'` \| `'exponential'` |
+| `maxDelayMs`  | `number` | `30000`         | Maximum delay cap                          |
+| `timeoutMs`   | `number` | `600000`        | Operation timeout (10 min)                 |
 
 ### Test Generation Options
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `coverageTarget` | `number` | `80` | Target coverage percentage |
-| `namingConvention` | `string` | `'should_when'` | Test naming pattern |
-| `includeEdgeCases` | `boolean` | `true` | Generate edge case tests |
-| `includeErrorHandling` | `boolean` | `true` | Generate error tests |
-| `mockStrategy` | `string` | `'comprehensive'` | `'minimal'` \| `'comprehensive'` |
-| `testFilePattern` | `string` | `'test'` | `'test'` \| `'spec'` |
+| Option                 | Type      | Default           | Description                      |
+| ---------------------- | --------- | ----------------- | -------------------------------- |
+| `coverageTarget`       | `number`  | `80`              | Target coverage percentage       |
+| `namingConvention`     | `string`  | `'should_when'`   | Test naming pattern              |
+| `includeEdgeCases`     | `boolean` | `true`            | Generate edge case tests         |
+| `includeErrorHandling` | `boolean` | `true`            | Generate error tests             |
+| `mockStrategy`         | `string`  | `'comprehensive'` | `'minimal'` \| `'comprehensive'` |
+| `testFilePattern`      | `string`  | `'test'`          | `'test'` \| `'spec'`             |
 
 ### Key Methods
 
@@ -209,32 +207,32 @@ getLastTestGenerationResult(): TestGenerationResult | null
 
 ### Error Categories
 
-| Category | Retry | Fix Attempt | Escalate | Examples |
-|----------|-------|-------------|----------|----------|
-| `transient` | Yes | No | No | Network, timeouts |
-| `recoverable` | Yes | Yes | No | Test failures, lint errors |
-| `fatal` | No | No | Yes | Missing deps, permissions |
+| Category      | Retry | Fix Attempt | Escalate | Examples                   |
+| ------------- | ----- | ----------- | -------- | -------------------------- |
+| `transient`   | Yes   | No          | No       | Network, timeouts          |
+| `recoverable` | Yes   | Yes         | No       | Test failures, lint errors |
+| `fatal`       | No    | No          | Yes      | Missing deps, permissions  |
 
 ### Error Types
 
 ```typescript
 // Fatal errors - immediate escalation
-WorkOrderParseError
-FileReadError
-FileWriteError
-MaxRetriesExceededError
-ImplementationBlockedError
+WorkOrderParseError;
+FileReadError;
+FileWriteError;
+MaxRetriesExceededError;
+ImplementationBlockedError;
 
 // Recoverable errors - retry with fix
-ContextAnalysisError
-BranchCreationError
-CodeGenerationError
-TestGenerationError
-VerificationError
+ContextAnalysisError;
+BranchCreationError;
+CodeGenerationError;
+TestGenerationError;
+VerificationError;
 
 // Transient errors - retry with backoff
-CommandTimeoutError
-OperationTimeoutError
+CommandTimeoutError;
+OperationTimeoutError;
 ```
 
 ### Error Handling Pattern

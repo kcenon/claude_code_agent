@@ -49,8 +49,14 @@ export {
 } from './GitHubReviewClient.js';
 
 // Circuit breaker and intelligent polling
-export { CICircuitBreaker } from './CICircuitBreaker.js';
-export type { CircuitBreakerEvent, CircuitBreakerEventListener } from './CICircuitBreaker.js';
+export { CircuitBreaker } from '../error-handler/CircuitBreaker.js';
+export type {
+  CircuitState,
+  CircuitBreakerConfig,
+  CircuitBreakerStatus,
+  CircuitBreakerEvent,
+  CircuitBreakerEventCallback,
+} from '../error-handler/types.js';
 
 export { IntelligentCIPoller, createStatusChecker } from './IntelligentCIPoller.js';
 export type { CIStatusChecker, PollerEvent, PollerEventListener } from './IntelligentCIPoller.js';
@@ -146,11 +152,8 @@ export type {
   CIFixDelegationResult,
 
   // Circuit breaker types
-  CircuitState,
   FailureType,
   CICheckFailure,
-  CircuitBreakerConfig,
-  CircuitBreakerStatus,
   IntelligentPollerConfig,
   CIPollResult,
   EnhancedCIConfig,
@@ -172,7 +175,7 @@ export {
   DEFAULT_PR_REVIEWER_CONFIG,
   DEFAULT_QUALITY_GATE_CONFIG,
   DEFAULT_CI_FIX_DELEGATION_CONFIG,
-  DEFAULT_CIRCUIT_BREAKER_CONFIG,
+  DEFAULT_CI_CIRCUIT_BREAKER_CONFIG,
   DEFAULT_INTELLIGENT_POLLER_CONFIG,
   DEFAULT_ENHANCED_CI_CONFIG,
   DEFAULT_GITHUB_REVIEW_CLIENT_CONFIG,

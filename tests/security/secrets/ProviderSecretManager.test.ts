@@ -219,7 +219,7 @@ describe('ProviderSecretManager', () => {
       // Check health - circuit should be open
       const health = await manager.getHealth();
       const failingProvider = health.providers.find((p) => p.name === 'failing');
-      expect(failingProvider?.circuitBreaker.state).toBe('open');
+      expect(failingProvider?.circuitBreaker.state).toBe('OPEN');
     });
 
     it('should reset circuit breaker', async () => {
@@ -241,7 +241,7 @@ describe('ProviderSecretManager', () => {
 
       const health = await manager.getHealth();
       const failingProvider = health.providers.find((p) => p.name === 'failing');
-      expect(failingProvider?.circuitBreaker.state).toBe('closed');
+      expect(failingProvider?.circuitBreaker.state).toBe('CLOSED');
     });
   });
 

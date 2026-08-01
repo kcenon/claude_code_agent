@@ -29,12 +29,21 @@ import { CircuitOpenError, InvalidCircuitBreakerConfigError } from './errors.js'
 
 import { getLogger } from '../logging/Logger.js';
 
+interface ResolvedCircuitBreakerConfig {
+  readonly failureThreshold: number;
+  readonly resetTimeoutMs: number;
+  readonly halfOpenMaxAttempts: number;
+  readonly successThreshold: number;
+  readonly failureWindowMs?: number | undefined;
+  readonly name?: string | undefined;
+}
+
 /**
  * Validates circuit breaker configuration
  * @param config - The circuit breaker configuration to validate
  * @throws InvalidCircuitBreakerConfigError if config is invalid
  */
-function validateConfig(config: CircuitBreakerConfig): void {
+function validateConfig(config: ResolvedCircuitBreakerConfig): void {
   if (config.failureThreshold < 1) {
     throw new InvalidCircuitBreakerConfigError(
       'failureThreshold',
@@ -56,6 +65,20 @@ function validateConfig(config: CircuitBreakerConfig): void {
       'must be >= 1'
     );
   }
+  if (config.successThreshold < 1 || config.successThreshold > config.halfOpenMaxAttempts) {
+    throw new InvalidCircuitBreakerConfigError(
+      'successThreshold',
+      config.successThreshold,
+      `must be between 1 and halfOpenMaxAttempts (${String(config.halfOpenMaxAttempts)})`
+    );
+  }
+  if (config.failureWindowMs !== undefined && config.failureWindowMs < 1) {
+    throw new InvalidCircuitBreakerConfigError(
+      'failureWindowMs',
+      config.failureWindowMs,
+      'must be >= 1 when provided'
+    );
+  }
 }
 
 /**
@@ -63,12 +86,19 @@ function validateConfig(config: CircuitBreakerConfig): void {
  * @param partial - Optional partial configuration to merge with defaults
  * @returns The fully resolved circuit breaker configuration
  */
-function mergeConfig(partial?: Partial<CircuitBreakerConfig>): CircuitBreakerConfig {
-  const config: CircuitBreakerConfig = {
+function mergeConfig(partial?: Partial<CircuitBreakerConfig>): ResolvedCircuitBreakerConfig {
+  const halfOpenMaxAttempts =
+    partial?.halfOpenMaxAttempts ?? DEFAULT_CIRCUIT_BREAKER_CONFIG.halfOpenMaxAttempts;
+  const config: ResolvedCircuitBreakerConfig = {
     failureThreshold: partial?.failureThreshold ?? DEFAULT_CIRCUIT_BREAKER_CONFIG.failureThreshold,
     resetTimeoutMs: partial?.resetTimeoutMs ?? DEFAULT_CIRCUIT_BREAKER_CONFIG.resetTimeoutMs,
-    halfOpenMaxAttempts:
-      partial?.halfOpenMaxAttempts ?? DEFAULT_CIRCUIT_BREAKER_CONFIG.halfOpenMaxAttempts,
+    halfOpenMaxAttempts,
+    successThreshold:
+      partial?.successThreshold ??
+      partial?.halfOpenMaxAttempts ??
+      DEFAULT_CIRCUIT_BREAKER_CONFIG.successThreshold ??
+      halfOpenMaxAttempts,
+    failureWindowMs: partial?.failureWindowMs,
     name: partial?.name,
   };
   validateConfig(config);
@@ -104,7 +134,8 @@ export class CircuitBreaker {
   private halfOpenAttemptCount: number = 0;
   private lastFailureTime: number | undefined;
   private blockedRequestCount: number = 0;
-  private readonly config: CircuitBreakerConfig;
+  private failureTimestamps: number[] = [];
+  private readonly config: ResolvedCircuitBreakerConfig;
   private readonly eventCallbacks: CircuitBreakerEventCallback[] = [];
 
   constructor(configOverride?: Partial<CircuitBreakerConfig>) {
@@ -160,6 +191,21 @@ export class CircuitBreaker {
     return this.failureCount;
   }
 
+  /** @returns True when the circuit is OPEN */
+  public isOpen(): boolean {
+    return this.state === 'OPEN';
+  }
+
+  /** @returns True when the circuit is CLOSED */
+  public isClosed(): boolean {
+    return this.state === 'CLOSED';
+  }
+
+  /** @returns True when the circuit is HALF_OPEN */
+  public isHalfOpen(): boolean {
+    return this.state === 'HALF_OPEN';
+  }
+
   /**
    * Check if circuit is accepting requests
    * @returns True if the circuit is currently allowing operations
@@ -208,6 +254,42 @@ export class CircuitBreaker {
   }
 
   /**
+   * Reserve an externally managed operation attempt.
+   * Transitions an eligible OPEN circuit to HALF_OPEN and enforces the
+   * configured HALF_OPEN attempt limit.
+   *
+   * @throws CircuitOpenError when the operation is not currently allowed
+   */
+  public prepareForAttempt(): void {
+    const logger = getLogger();
+
+    if (this.state === 'OPEN' && this.shouldAttemptReset()) {
+      this.transitionTo('HALF_OPEN');
+    }
+
+    if (!this.isAcceptingRequests()) {
+      const remainingMs = this.getRemainingTimeout();
+      this.blockedRequestCount++;
+      this.emitEvent({
+        type: 'request_blocked',
+        failureCount: this.failureCount,
+        timestamp: Date.now(),
+      });
+      logger.warn(`Circuit breaker '${this.config.name ?? 'unnamed'}' blocked request`, {
+        state: this.state,
+        remainingTimeoutMs: remainingMs,
+        failureCount: this.failureCount,
+        blockedRequestCount: this.blockedRequestCount,
+      });
+      throw new CircuitOpenError(remainingMs, this.failureCount, this.config.name);
+    }
+
+    if (this.state === 'HALF_OPEN') {
+      this.halfOpenAttemptCount++;
+    }
+  }
+
+  /**
    * Execute an async operation with circuit breaker protection
    *
    * @template T - Return type of the operation
@@ -233,38 +315,7 @@ export class CircuitBreaker {
    * ```
    */
   public async execute<T>(operation: () => Promise<T>): Promise<T> {
-    const logger = getLogger();
-
-    // Check if we need to transition from OPEN to HALF_OPEN
-    if (this.state === 'OPEN' && this.shouldAttemptReset()) {
-      this.transitionTo('HALF_OPEN');
-    }
-
-    // Check if circuit is accepting requests
-    if (!this.isAcceptingRequests()) {
-      const remainingMs = this.getRemainingTimeout();
-      this.blockedRequestCount++;
-
-      this.emitEvent({
-        type: 'request_blocked',
-        failureCount: this.failureCount,
-        timestamp: Date.now(),
-      });
-
-      logger.warn(`Circuit breaker '${this.config.name ?? 'unnamed'}' blocked request`, {
-        state: this.state,
-        remainingTimeoutMs: remainingMs,
-        failureCount: this.failureCount,
-        blockedRequestCount: this.blockedRequestCount,
-      });
-
-      throw new CircuitOpenError(remainingMs, this.failureCount, this.config.name);
-    }
-
-    // Track HALF_OPEN attempts
-    if (this.state === 'HALF_OPEN') {
-      this.halfOpenAttemptCount++;
-    }
+    this.prepareForAttempt();
 
     try {
       const result = await operation();
@@ -293,11 +344,10 @@ export class CircuitBreaker {
 
       logger.debug(`Circuit breaker '${this.config.name ?? 'unnamed'}' success in HALF_OPEN`, {
         halfOpenSuccessCount: this.halfOpenSuccessCount,
-        halfOpenMaxAttempts: this.config.halfOpenMaxAttempts,
+        successThreshold: this.config.successThreshold,
       });
 
-      // Require successful completion of all half-open attempts to close
-      if (this.halfOpenSuccessCount >= this.config.halfOpenMaxAttempts) {
+      if (this.halfOpenSuccessCount >= this.config.successThreshold) {
         this.transitionTo('CLOSED');
       }
     } else if (this.state === 'CLOSED') {
@@ -307,6 +357,7 @@ export class CircuitBreaker {
           previousFailureCount: this.failureCount,
         });
         this.failureCount = 0;
+        this.failureTimestamps = [];
       }
     }
   }
@@ -318,8 +369,18 @@ export class CircuitBreaker {
   private onFailure(error: Error): void {
     const logger = getLogger();
 
-    this.failureCount++;
-    this.lastFailureTime = Date.now();
+    const now = Date.now();
+    const failureWindowMs = this.config.failureWindowMs;
+    if (failureWindowMs !== undefined) {
+      this.failureTimestamps = this.failureTimestamps.filter(
+        (timestamp) => now - timestamp < failureWindowMs
+      );
+      this.failureTimestamps.push(now);
+      this.failureCount = this.failureTimestamps.length;
+    } else {
+      this.failureCount++;
+    }
+    this.lastFailureTime = now;
 
     this.emitEvent({
       type: 'failure_recorded',
@@ -363,6 +424,7 @@ export class CircuitBreaker {
     // Reset counters based on new state
     if (newState === 'CLOSED') {
       this.failureCount = 0;
+      this.failureTimestamps = [];
       this.halfOpenSuccessCount = 0;
       this.halfOpenAttemptCount = 0;
     } else if (newState === 'HALF_OPEN') {
@@ -403,6 +465,7 @@ export class CircuitBreaker {
     this.halfOpenAttemptCount = 0;
     this.lastFailureTime = undefined;
     this.blockedRequestCount = 0;
+    this.failureTimestamps = [];
 
     logger.info(`Circuit breaker '${this.config.name ?? 'unnamed'}' manually reset`);
   }
@@ -444,7 +507,7 @@ export class CircuitBreaker {
 
   /**
    * Record a successful operation result (for external integration)
-   * Use this when the operation is managed externally (e.g., by RetryHandler)
+   * Use this when the operation is managed externally (e.g., by RetryExecutor)
    */
   public recordSuccess(): void {
     this.onSuccess();
@@ -452,11 +515,43 @@ export class CircuitBreaker {
 
   /**
    * Record a failed operation result (for external integration)
-   * Use this when the operation is managed externally (e.g., by RetryHandler)
+   * Use this when the operation is managed externally (e.g., by RetryExecutor)
    * @param error - The error that caused the failure
    */
   public recordFailure(error: Error): void {
     this.onFailure(error);
+  }
+
+  /**
+   * Release a HALF_OPEN attempt that produced neither a success nor a failure.
+   * This is useful for polling and lookup operations whose neutral result should
+   * not consume one of the limited recovery probes.
+   */
+  public releaseAttempt(): void {
+    if (this.state === 'HALF_OPEN' && this.halfOpenAttemptCount > 0) {
+      this.halfOpenAttemptCount--;
+    }
+  }
+
+  /**
+   * Immediately open the circuit, for failures known to be terminal.
+   * @param error - Optional error that explains why the circuit was forced open
+   */
+  public forceOpen(error?: Error): void {
+    const now = Date.now();
+    this.failureCount = Math.max(this.failureCount, this.config.failureThreshold);
+    this.lastFailureTime = now;
+
+    if (error !== undefined) {
+      this.emitEvent({
+        type: 'failure_recorded',
+        failureCount: this.failureCount,
+        timestamp: now,
+        error,
+      });
+    }
+
+    this.transitionTo('OPEN');
   }
 
   /**

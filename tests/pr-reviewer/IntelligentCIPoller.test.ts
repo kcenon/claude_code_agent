@@ -3,17 +3,18 @@ import {
   IntelligentCIPoller,
   createStatusChecker,
 } from '../../src/pr-reviewer/IntelligentCIPoller.js';
-import { CICircuitBreaker } from '../../src/pr-reviewer/CICircuitBreaker.js';
+import { CircuitBreaker } from '../../src/error-handler/CircuitBreaker.js';
 import type { CIStatusChecker, PollerEvent } from '../../src/pr-reviewer/IntelligentCIPoller.js';
 import type { GitHubStatusCheck, CICheckFailure } from '../../src/pr-reviewer/types.js';
 
 describe('IntelligentCIPoller', () => {
   let poller: IntelligentCIPoller;
-  let circuitBreaker: CICircuitBreaker;
+  let circuitBreaker: CircuitBreaker;
 
   beforeEach(() => {
-    circuitBreaker = new CICircuitBreaker({
+    circuitBreaker = new CircuitBreaker({
       failureThreshold: 3,
+      halfOpenMaxAttempts: 2,
       successThreshold: 2,
       resetTimeoutMs: 1000,
     });
@@ -126,7 +127,7 @@ describe('IntelligentCIPoller', () => {
     it('should return circuit_open when circuit breaker is open', async () => {
       // Open the circuit breaker
       for (let i = 0; i < 3; i++) {
-        circuitBreaker.recordFailure();
+        circuitBreaker.recordFailure(new Error('CI failure'));
       }
       expect(circuitBreaker.isOpen()).toBe(true);
 
@@ -300,7 +301,7 @@ describe('IntelligentCIPoller', () => {
     it('should reset the circuit breaker', () => {
       // Open the circuit
       for (let i = 0; i < 3; i++) {
-        circuitBreaker.recordFailure();
+        circuitBreaker.recordFailure(new Error('CI failure'));
       }
       expect(circuitBreaker.isOpen()).toBe(true);
 

@@ -169,40 +169,12 @@ export interface SecretManagerConfig {
   readonly defaultCacheTTL?: number;
 }
 
-// ─── Circuit Breaker ───────────────────────────────────────────────
-
-/**
- * Circuit breaker state
- */
-export type CircuitBreakerState = 'closed' | 'open' | 'half-open';
-
-/**
- * Circuit breaker configuration
- */
-export interface CircuitBreakerConfig {
-  /** Number of failures before opening the circuit */
-  readonly failureThreshold: number;
-  /** Time in ms before attempting to close the circuit */
-  readonly resetTimeout: number;
-  /** Number of successful calls needed to close from half-open */
-  readonly successThreshold: number;
-}
-
-/**
- * Circuit breaker status
- */
-export interface CircuitBreakerStatus {
-  /** Current circuit state */
-  readonly state: CircuitBreakerState;
-  /** Number of consecutive failures */
-  readonly failureCount: number;
-  /** Number of consecutive successes (in half-open state) */
-  readonly successCount: number;
-  /** When the circuit was last opened */
-  readonly lastFailureTime?: Date | undefined;
-  /** When to next attempt (if circuit is open) */
-  readonly nextAttemptTime?: Date | undefined;
-}
+// Circuit breaker types come from the canonical error-handler implementation.
+export type {
+  CircuitState as CircuitBreakerState,
+  CircuitBreakerConfig,
+  CircuitBreakerStatus,
+} from '../error-handler/types.js';
 
 // ─── ISecretProvider Interface ─────────────────────────────────────
 

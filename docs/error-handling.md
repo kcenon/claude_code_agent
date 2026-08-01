@@ -15,7 +15,8 @@ The AD-SDLC system provides a standardized error handling library that all modul
 4. [Error Categories](#error-categories)
 5. [Module Errors](#module-errors)
 6. [Usage Examples](#usage-examples)
-7. [Error Handler Utility](#error-handler-utility)
+7. [Retry and Circuit Breaking](#retry-and-circuit-breaking)
+8. [Error Handler Utility](#error-handler-utility)
 
 ---
 
@@ -67,15 +68,11 @@ interface AppErrorOptions {
 ```typescript
 import { AppError, ErrorCodes, ErrorSeverity } from './errors/index.js';
 
-const error = new AppError(
-  ErrorCodes.CTL_GRAPH_NOT_FOUND,
-  'Dependency graph file not found',
-  {
-    severity: ErrorSeverity.HIGH,
-    category: 'fatal',
-    context: { path: '/path/to/graph.json' }
-  }
-);
+const error = new AppError(ErrorCodes.CTL_GRAPH_NOT_FOUND, 'Dependency graph file not found', {
+  severity: ErrorSeverity.HIGH,
+  category: 'fatal',
+  context: { path: '/path/to/graph.json' },
+});
 
 console.log(error.format('log'));
 // Output: [CTL-001] Dependency graph file not found
@@ -92,13 +89,13 @@ Error codes follow a namespaced pattern: `MODULE-NNN`
 
 ### Code Namespaces
 
-| Prefix | Module | Range |
-|--------|--------|-------|
-| `CTL` | Controller | CTL-001 to CTL-099 |
-| `WRK` | Worker | WRK-001 to WRK-099 |
-| `STM` | State Manager | STM-001 to STM-099 |
-| `PRR` | PR Reviewer | PRR-001 to PRR-099 |
-| `GEN` | General | GEN-001 to GEN-099 |
+| Prefix | Module        | Range              |
+| ------ | ------------- | ------------------ |
+| `CTL`  | Controller    | CTL-001 to CTL-099 |
+| `WRK`  | Worker        | WRK-001 to WRK-099 |
+| `STM`  | State Manager | STM-001 to STM-099 |
+| `PRR`  | PR Reviewer   | PRR-001 to PRR-099 |
+| `GEN`  | General       | GEN-001 to GEN-099 |
 
 ### Using Error Codes
 
@@ -106,8 +103,8 @@ Error codes follow a namespaced pattern: `MODULE-NNN`
 import { ErrorCodes } from './errors/index.js';
 
 // Error codes are typed constants
-const code = ErrorCodes.CTL_GRAPH_NOT_FOUND;  // 'CTL-001'
-const code2 = ErrorCodes.WRK_VERIFICATION_ERROR;  // 'WRK-040'
+const code = ErrorCodes.CTL_GRAPH_NOT_FOUND; // 'CTL-001'
+const code2 = ErrorCodes.WRK_VERIFICATION_ERROR; // 'WRK-040'
 ```
 
 ---
@@ -116,11 +113,11 @@ const code2 = ErrorCodes.WRK_VERIFICATION_ERROR;  // 'WRK-040'
 
 Errors are categorized to determine handling strategy:
 
-| Category | Meaning | Retryable | Examples |
-|----------|---------|-----------|----------|
-| `transient` | Temporary failures | Yes | Network timeout, rate limit |
-| `recoverable` | Can be fixed and retried | Yes | Test failures, lint errors |
-| `fatal` | Unrecoverable | No | Missing dependencies, invalid config |
+| Category      | Meaning                  | Retryable | Examples                             |
+| ------------- | ------------------------ | --------- | ------------------------------------ |
+| `transient`   | Temporary failures       | Yes       | Network timeout, rate limit          |
+| `recoverable` | Can be fixed and retried | Yes       | Test failures, lint errors           |
+| `fatal`       | Unrecoverable            | No        | Missing dependencies, invalid config |
 
 ### Category-Based Retry Strategy in WorkerAgent
 
@@ -161,12 +158,12 @@ const retryPolicy: RetryPolicy = {
   byCategory: {
     transient: {
       retry: true,
-      maxAttempts: 5,  // More retries for network issues
+      maxAttempts: 5, // More retries for network issues
     },
     recoverable: {
       retry: true,
       maxAttempts: 3,
-      requireFixAttempt: true,  // Try self-fix before retry
+      requireFixAttempt: true, // Try self-fix before retry
     },
     fatal: {
       retry: false,
@@ -193,7 +190,7 @@ import {
 } from './worker/errors.js';
 
 // Classify an error
-const category = categorizeError(error);  // 'transient' | 'recoverable' | 'fatal'
+const category = categorizeError(error); // 'transient' | 'recoverable' | 'fatal'
 
 // Check if error is retryable
 if (isRetryableError(error)) {
@@ -225,7 +222,7 @@ Each module defines its own error hierarchy extending the base class.
 import {
   GraphNotFoundError,
   CircularDependencyError,
-  IssueNotFoundError
+  IssueNotFoundError,
 } from './controller/errors.js';
 
 // Specific error with context
@@ -242,7 +239,7 @@ throw new CircularDependencyError(['A', 'B', 'C', 'A']);
 import {
   VerificationError,
   MaxRetriesExceededError,
-  ImplementationBlockedError
+  ImplementationBlockedError,
 } from './worker/errors.js';
 
 // Recoverable verification error
@@ -260,7 +257,7 @@ throw new ImplementationBlockedError('ISS-001', ['ISS-002', 'ISS-003']);
 import {
   InvalidTransitionError,
   ProjectNotFoundError,
-  CheckpointNotFoundError
+  CheckpointNotFoundError,
 } from './state-manager/errors.js';
 
 throw new InvalidTransitionError('collecting', 'merged', 'project-001');
@@ -273,7 +270,7 @@ throw new InvalidTransitionError('collecting', 'merged', 'project-001');
 import {
   PRCreationError,
   CICheckFailedError,
-  QualityGateFailedError
+  QualityGateFailedError,
 } from './pr-reviewer/errors.js';
 
 throw new CICheckFailedError(123, ['tests', 'lint']);
@@ -291,11 +288,9 @@ import { WorkerError, ErrorCodes, ErrorSeverity } from './worker/errors.js';
 
 function processWorkOrder(order: WorkOrder): void {
   if (!order.issueId) {
-    throw new WorkerError(
-      ErrorCodes.WRK_WORK_ORDER_PARSE_ERROR,
-      'Work order missing issueId',
-      { context: { orderId: order.orderId } }
-    );
+    throw new WorkerError(ErrorCodes.WRK_WORK_ORDER_PARSE_ERROR, 'Work order missing issueId', {
+      context: { orderId: order.orderId },
+    });
   }
 }
 ```
@@ -317,7 +312,7 @@ try {
     // Escalate fatal errors
     ErrorHandler.handle(error, {
       rethrow: true,
-      output: 'stderr'
+      output: 'stderr',
     });
   }
 }
@@ -332,8 +327,39 @@ await saveError(json);
 
 // Restore from JSON
 const restored = AppError.fromJSON(json);
-console.log(restored.code);  // Original error code preserved
+console.log(restored.code); // Original error code preserved
 ```
+
+---
+
+## Retry and Circuit Breaking
+
+All general operation retries use `RetryExecutor`; all service-health state transitions use `CircuitBreaker`. Callers select a policy and classifier but do not implement their own attempt loop.
+
+```typescript
+import { CircuitBreaker, RetryExecutor } from 'ad-sdlc';
+
+const breaker = new CircuitBreaker({
+  failureThreshold: 3,
+  resetTimeoutMs: 60000,
+  halfOpenMaxAttempts: 1,
+});
+const executor = new RetryExecutor({
+  maxAttempts: 3,
+  backoffStrategy: 'exponential',
+  baseDelayMs: 1000,
+  maxDelayMs: 30000,
+  multiplier: 2,
+  jitterRatio: 0.25,
+});
+
+const value = await executor.execute(operation, {
+  operationName: 'external-api',
+  circuitBreaker: breaker,
+});
+```
+
+`maxAttempts` includes the initial call. An OPEN breaker rejects work until `resetTimeoutMs` elapses, then allows the configured HALF_OPEN probes. A successful CLOSED-state call resets consecutive failures.
 
 ---
 
@@ -343,13 +369,13 @@ The `ErrorHandler` class provides centralized error handling utilities:
 
 ### Methods
 
-| Method | Description |
-|--------|-------------|
-| `handle(error, options)` | Log and optionally rethrow error |
-| `categorize(error)` | Determine error category |
-| `isRetryable(error)` | Check if error can be retried |
-| `createErrorInfo(error)` | Create extended error info object |
-| `assert(condition, code, message)` | Assert with typed error |
+| Method                             | Description                       |
+| ---------------------------------- | --------------------------------- |
+| `handle(error, options)`           | Log and optionally rethrow error  |
+| `categorize(error)`                | Determine error category          |
+| `isRetryable(error)`               | Check if error can be retried     |
+| `createErrorInfo(error)`           | Create extended error info object |
+| `assert(condition, code, message)` | Assert with typed error           |
 
 ### Example Usage
 
@@ -366,7 +392,7 @@ ErrorHandler.assert(
 // Centralized error handling
 const appError = ErrorHandler.handle(unknownError, {
   output: 'stderr',
-  rethrow: false
+  rethrow: false,
 });
 
 // Check if error should be retried
@@ -381,7 +407,7 @@ if (ErrorHandler.isRetryable(error)) {
 
 1. **Use specific error classes** instead of generic `AppError` when available
 2. **Include context** with relevant debugging information
-3. **Check retryability** before implementing retry logic
+3. **Use `RetryExecutor`** with an error classifier instead of writing a retry loop
 4. **Serialize errors** for persistence in work order results
 5. **Use ErrorHandler.assert** for precondition checks
 6. **Log with format('log')** for consistent log output
@@ -402,6 +428,7 @@ throw new GraphNotFoundError('/path/to/file');
 ```
 
 The new approach provides:
+
 - Type-safe error codes
 - Consistent serialization
 - Category-based retry logic

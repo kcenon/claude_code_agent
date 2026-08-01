@@ -13,6 +13,9 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 
 import type { IAgent } from '../agents/types.js';
+import { CircuitBreaker } from '../error-handler/CircuitBreaker.js';
+import { CircuitOpenError as SharedCircuitOpenError } from '../error-handler/errors.js';
+import { RetryExecutor } from '../error-handler/RetryExecutor.js';
 import type {
   AnalysisInput,
   AnalysisOrchestratorConfig,
@@ -83,132 +86,6 @@ function toSafeString(value: unknown, defaultValue: string = ''): string {
 }
 
 /**
- * Circuit breaker state
- */
-type CircuitState = 'closed' | 'open' | 'half-open';
-
-/**
- * Stage Circuit Breaker for managing stage failure states
- *
- * Implements the circuit breaker pattern to prevent repeated calls
- * to failing stages and allow recovery time.
- */
-class StageCircuitBreaker {
-  private readonly failures = new Map<PipelineStageName, number>();
-  private readonly openUntil = new Map<PipelineStageName, number>();
-  private readonly lastSuccess = new Map<PipelineStageName, number>();
-  private readonly config: Required<CircuitBreakerConfig>;
-
-  constructor(config?: CircuitBreakerConfig) {
-    this.config = {
-      ...DEFAULT_CIRCUIT_BREAKER_CONFIG,
-      ...config,
-    };
-  }
-
-  /**
-   * Record a failure for a stage
-   * @param stageName - Pipeline stage that failed
-   */
-  recordFailure(stageName: PipelineStageName): void {
-    if (!this.config.enabled) return;
-
-    const count = (this.failures.get(stageName) ?? 0) + 1;
-    this.failures.set(stageName, count);
-
-    if (count >= this.config.failureThreshold) {
-      this.openUntil.set(stageName, Date.now() + this.config.resetTimeoutMs);
-    }
-  }
-
-  /**
-   * Record a success for a stage (resets failure count)
-   * @param stageName - Pipeline stage that succeeded
-   */
-  recordSuccess(stageName: PipelineStageName): void {
-    if (!this.config.enabled) return;
-
-    this.failures.delete(stageName);
-    this.openUntil.delete(stageName);
-    this.lastSuccess.set(stageName, Date.now());
-  }
-
-  /**
-   * Check if the circuit is open for a stage
-   * @param stageName - Pipeline stage to check
-   * @returns True if the circuit is open (stage should not be retried)
-   */
-  isOpen(stageName: PipelineStageName): boolean {
-    if (!this.config.enabled) return false;
-
-    const openTime = this.openUntil.get(stageName);
-    if (openTime === undefined) return false;
-
-    if (Date.now() > openTime) {
-      // Half-open: allow one attempt
-      this.openUntil.delete(stageName);
-      return false;
-    }
-    return true;
-  }
-
-  /**
-   * Get circuit state for a stage
-   * @param stageName - Pipeline stage to query
-   * @returns Current circuit state: 'closed', 'open', or 'half-open'
-   */
-  getState(stageName: PipelineStageName): CircuitState {
-    if (!this.config.enabled) return 'closed';
-
-    const openTime = this.openUntil.get(stageName);
-    if (openTime === undefined) return 'closed';
-
-    if (Date.now() > openTime) {
-      return 'half-open';
-    }
-    return 'open';
-  }
-
-  /**
-   * Get failure count for a stage
-   * @param stageName - Pipeline stage to query
-   * @returns Number of consecutive failures recorded
-   */
-  getFailureCount(stageName: PipelineStageName): number {
-    return this.failures.get(stageName) ?? 0;
-  }
-
-  /**
-   * Get remaining time until circuit closes (in ms)
-   * @param stageName - Pipeline stage to query
-   * @returns Milliseconds remaining until circuit resets to closed
-   */
-  getRemainingResetTime(stageName: PipelineStageName): number {
-    const openTime = this.openUntil.get(stageName);
-    if (openTime === undefined) return 0;
-    return Math.max(0, openTime - Date.now());
-  }
-
-  /**
-   * Manually reset circuit for a stage
-   * @param stageName - Pipeline stage to reset
-   */
-  reset(stageName: PipelineStageName): void {
-    this.failures.delete(stageName);
-    this.openUntil.delete(stageName);
-  }
-
-  /**
-   * Reset all circuits
-   */
-  resetAll(): void {
-    this.failures.clear();
-    this.openUntil.clear();
-    this.lastSuccess.clear();
-  }
-}
-
-/**
  * Agent ID for AnalysisOrchestratorAgent used in AgentFactory
  */
 export const ANALYSIS_ORCHESTRATOR_AGENT_ID = 'analysis-orchestrator-agent';
@@ -230,7 +107,8 @@ export class AnalysisOrchestratorAgent implements IAgent {
   public readonly name = 'Analysis Orchestrator Agent';
 
   private readonly config: Required<AnalysisOrchestratorConfig>;
-  private readonly circuitBreaker: StageCircuitBreaker;
+  private readonly circuitBreakerConfig: Required<CircuitBreakerConfig>;
+  private readonly circuitBreakers = new Map<PipelineStageName, CircuitBreaker>();
   private readonly stageTimeouts: Required<StageTimeoutConfig>;
   private readonly parallelExecutionConfig: Required<ParallelExecutionConfig>;
   private readonly cleanupTimers = new Map<PipelineStageName, NodeJS.Timeout>();
@@ -243,7 +121,10 @@ export class AnalysisOrchestratorAgent implements IAgent {
       ...DEFAULT_ORCHESTRATOR_CONFIG,
       ...config,
     };
-    this.circuitBreaker = new StageCircuitBreaker(config.circuitBreaker);
+    this.circuitBreakerConfig = {
+      ...DEFAULT_CIRCUIT_BREAKER_CONFIG,
+      ...config.circuitBreaker,
+    };
     this.stageTimeouts = {
       ...DEFAULT_STAGE_TIMEOUTS,
       ...config.stageTimeouts,
@@ -276,7 +157,7 @@ export class AnalysisOrchestratorAgent implements IAgent {
       controller.abort();
     }
     this.abortControllers.clear();
-    this.circuitBreaker.resetAll();
+    this.circuitBreakers.clear();
     this.session = null;
     this.initialized = false;
   }
@@ -1031,80 +912,102 @@ export class AnalysisOrchestratorAgent implements IAgent {
     return ratio >= this.parallelExecutionConfig.minSuccessRatio;
   }
 
+  /**
+   * Get or create the canonical circuit breaker for a pipeline stage.
+   * @param stageName - Pipeline stage whose failures are isolated
+   * @returns Stage circuit breaker, or undefined when protection is disabled
+   */
+  private getStageCircuitBreaker(stageName: PipelineStageName): CircuitBreaker | undefined {
+    if (!this.circuitBreakerConfig.enabled) return undefined;
+
+    let breaker = this.circuitBreakers.get(stageName);
+    if (breaker === undefined) {
+      breaker = new CircuitBreaker({
+        failureThreshold: this.circuitBreakerConfig.failureThreshold,
+        resetTimeoutMs: this.circuitBreakerConfig.resetTimeoutMs,
+        halfOpenMaxAttempts: 1,
+        successThreshold: 1,
+        name: `analysis-stage:${stageName}`,
+      });
+      this.circuitBreakers.set(stageName, breaker);
+    }
+    return breaker;
+  }
+
   private async executeStage(
     stageName: PipelineStageName,
     pipelineState: PipelineState,
     previousResults: StageResult[]
   ): Promise<StageResult> {
     const startTime = Date.now();
-    let retryCount = 0;
-    let lastError: string | null = null;
+    let attempts = 0;
+    const circuitBreaker = this.getStageCircuitBreaker(stageName);
 
-    // Check circuit breaker before attempting execution
-    if (this.circuitBreaker.isOpen(stageName)) {
-      const failureCount = this.circuitBreaker.getFailureCount(stageName);
-      const resetTime = this.circuitBreaker.getRemainingResetTime(stageName);
-      throw new CircuitOpenError(stageName, failureCount, resetTime);
+    if (circuitBreaker !== undefined && !circuitBreaker.isAcceptingRequests()) {
+      throw new CircuitOpenError(
+        stageName,
+        circuitBreaker.getFailureCount(),
+        circuitBreaker.getRemainingTimeout()
+      );
     }
 
-    while (retryCount <= this.config.maxRetries) {
-      try {
-        // Execute with timeout
-        const result = await this.executeStageWithTimeout(
-          stageName,
-          pipelineState,
-          previousResults
-        );
-
-        // Record success for circuit breaker
-        this.circuitBreaker.recordSuccess(stageName);
-
-        return {
-          ...result,
-          retryCount,
-        };
-      } catch (error) {
-        // Record failure for circuit breaker
-        this.circuitBreaker.recordFailure(stageName);
-
-        // Check if circuit breaker opened during retries
-        if (this.circuitBreaker.isOpen(stageName)) {
-          const failureCount = this.circuitBreaker.getFailureCount(stageName);
-          const resetTime = this.circuitBreaker.getRemainingResetTime(stageName);
-          return {
-            stage: stageName,
-            success: false,
-            outputPath: null,
-            error: `Circuit breaker opened after ${String(failureCount)} failures. Reset in ${String(resetTime)}ms.`,
-            durationMs: Date.now() - startTime,
-            retryCount,
-          };
-        }
-
-        // Handle timeout errors specifically
-        if (error instanceof StageTimeoutError) {
-          lastError = `Stage timed out after ${String(error.timeoutMs)}ms`;
-        } else {
-          lastError = error instanceof Error ? error.message : String(error);
-        }
-
-        retryCount++;
-
-        if (retryCount <= this.config.maxRetries) {
-          // Exponential backoff with cap at 30 seconds
-          const delay = Math.min(this.config.retryDelayMs * Math.pow(2, retryCount - 1), 30000);
-          await this.delay(delay);
-        }
+    const retryExecutor = new RetryExecutor({
+      maxAttempts: this.config.maxRetries + 1,
+      backoffStrategy: 'exponential',
+      baseDelayMs: Math.min(this.config.retryDelayMs, 30000),
+      maxDelayMs: 30000,
+      multiplier: 2,
+      jitterRatio: 0,
+    });
+    const execution = await retryExecutor.executeWithResult(
+      async () => {
+        attempts++;
+        return this.executeStageWithTimeout(stageName, pipelineState, previousResults);
+      },
+      {
+        operationName: `analysis-stage:${stageName}`,
+        errorClassifier: () => 'retryable',
+        ...(circuitBreaker !== undefined ? { circuitBreaker } : {}),
       }
+    );
+
+    if (execution.success && execution.value !== undefined) {
+      return {
+        ...execution.value,
+        retryCount: Math.max(0, attempts - 1),
+      };
     }
+
+    if (execution.error instanceof SharedCircuitOpenError || circuitBreaker?.isOpen() === true) {
+      const failureCount = circuitBreaker?.getFailureCount() ?? attempts;
+      const resetTime = circuitBreaker?.getRemainingTimeout() ?? 0;
+      return {
+        stage: stageName,
+        success: false,
+        outputPath: null,
+        error: `Circuit breaker opened after ${String(failureCount)} failures. Reset in ${String(resetTime)}ms.`,
+        durationMs: Date.now() - startTime,
+        retryCount: Math.max(0, attempts - 1),
+      };
+    }
+
+    const finalError = execution.error;
+    const cause =
+      finalError !== undefined && 'lastError' in finalError
+        ? (finalError as { lastError?: Error }).lastError
+        : finalError;
+    const errorMessage =
+      cause instanceof StageTimeoutError
+        ? `Stage timed out after ${String(cause.timeoutMs)}ms`
+        : (cause?.message ?? 'Unknown error');
 
     return {
       stage: stageName,
       success: false,
       outputPath: null,
-      error: lastError ?? 'Unknown error',
+      error: errorMessage,
       durationMs: Date.now() - startTime,
-      retryCount,
+      retryCount: attempts,
     };
   }
 
@@ -1672,10 +1575,6 @@ export class AnalysisOrchestratorAgent implements IAgent {
       skippedStages: Number(stats['skipped_stages'] ?? 0),
       totalDurationMs: Number(stats['total_duration_ms'] ?? 0),
     };
-  }
-
-  private delay(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }
 
