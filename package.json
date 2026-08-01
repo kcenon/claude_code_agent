@@ -26,7 +26,7 @@
     "test:memory": "vitest run --config vitest.perf.config.ts tests/performance/memory/",
     "test:scalability": "vitest run --config vitest.perf.config.ts tests/performance/scalability/",
     "perf:check": "tsx scripts/check-regression.ts",
-    "perf:update-baseline": "node --experimental-specifier-resolution=node dist/scripts/update-baseline.js",
+    "perf:update-baseline": "tsx scripts/update-baseline.ts",
     "audit:docs": "tsx scripts/audit-docs.ts",
     "docs:check": "npm run docs:check-symbols && npm run docs:check-inventory",
     "docs:check-inventory": "tsx scripts/ci/validate-doc-inventory.ts",

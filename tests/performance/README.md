@@ -70,6 +70,7 @@ npm run perf:check
 ```
 
 This will:
+
 - Compare current benchmark results against saved baselines
 - Report warnings for >10% degradation
 - Fail build for >20% degradation
@@ -77,29 +78,42 @@ This will:
 
 ### Update Baselines
 
-To update baseline metrics after intentional performance changes:
+Generate a native Vitest benchmark report, then update baseline metrics after
+intentional performance changes:
 
 ```bash
+npm run test:bench
 npm run perf:update-baseline
 ```
+
+Each operation is keyed by benchmark file, full suite path, and benchmark name,
+so repeated leaf names remain distinct. Vitest/Tinybench reports `median` and
+`p99`; the shared baseline parser maps median to p50 and uses p99 as the
+conservative upper-tail proxy for p95.
+
+Committed baselines must come from the consistent `ubuntu-latest` CI environment.
+Run the **Performance Tests** workflow manually with `update_baseline` enabled,
+download the `performance-results` artifact, and commit the generated
+`baseline-metrics.json`. Local regeneration is useful only for validating the
+tooling.
 
 ## Performance Targets
 
 ### Graph Analysis
 
-| Operation | Target p95 |
-|-----------|------------|
-| 100-node analysis | < 100ms |
-| 500-node analysis | < 500ms |
-| 1000-node analysis | < 2000ms |
+| Operation          | Target p95 |
+| ------------------ | ---------- |
+| 100-node analysis  | < 100ms    |
+| 500-node analysis  | < 500ms    |
+| 1000-node analysis | < 2000ms   |
 
 ### Memory Usage
 
-| Operation | Target Peak Memory |
-|-----------|-------------------|
-| 100-node graph | < 50MB |
-| 500-node graph | < 100MB |
-| 1000-node graph | < 200MB |
+| Operation       | Target Peak Memory |
+| --------------- | ------------------ |
+| 100-node graph  | < 50MB             |
+| 500-node graph  | < 100MB            |
+| 1000-node graph | < 200MB            |
 
 ### Memory Leak Prevention
 
@@ -109,10 +123,12 @@ npm run perf:update-baseline
 ## CI Integration
 
 Performance tests run automatically on:
+
 - Push to `main` branch
 - Pull requests targeting `main`
 
 The CI workflow includes:
+
 1. **Benchmark job**: Runs all benchmarks and checks for regressions
 2. **Memory profile job**: Runs memory tests with `--expose-gc`
 3. **Scalability job**: Runs scalability tests

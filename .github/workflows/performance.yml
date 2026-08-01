@@ -7,6 +7,12 @@ on:
     branches: [main]
   # Allow manual trigger
   workflow_dispatch:
+    inputs:
+      update_baseline:
+        description: 'Regenerate the benchmark baseline on the CI runner'
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   benchmark:
@@ -36,13 +42,21 @@ jobs:
         run: npm run test:perf
 
       - name: Check for regressions
+        if: ${{ !inputs.update_baseline }}
         run: npm run perf:check
 
+      - name: Regenerate performance baseline
+        if: ${{ inputs.update_baseline }}
+        run: npm run perf:update-baseline
+
       - name: Upload benchmark results
+        if: always()
         uses: actions/upload-artifact@v7
         with:
           name: performance-results
-          path: perf-results/
+          path: |
+            perf-results/
+            tests/performance/baselines/baseline-metrics.json
           retention-days: 30
 
       - name: Comment on PR

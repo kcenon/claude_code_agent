@@ -7,8 +7,9 @@ export default defineConfig({
     include: ['tests/performance/**/*.bench.ts'],
     benchmark: {
       include: ['tests/performance/**/*.bench.ts'],
-      reporters: ['default', 'json'],
-      outputFile: './perf-results/benchmark-results.json',
+      exclude: ['**/._*'],
+      reporters: ['default'],
+      outputJson: './perf-results/benchmark-results.json',
     },
     testTimeout: 60000, // Extended timeout for benchmarks
   },
