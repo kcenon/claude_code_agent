@@ -23,11 +23,14 @@ import {
   WorkerPoolManager,
   PriorityAnalyzer,
   type IssueNode,
-  type AnalyzedIssue,
   type WorkOrder,
   type WorkOrderResult,
   type RawDependencyGraph,
 } from '../../src/controller/index.js';
+import { AdsdlcOrchestratorAgent } from '../../src/ad-sdlc-orchestrator/AdsdlcOrchestratorAgent.js';
+import { IMPORT_STAGES, type OrchestratorSession } from '../../src/ad-sdlc-orchestrator/types.js';
+import { MockExecutionAdapter } from '../../src/execution/MockExecutionAdapter.js';
+import type { ExecutionAdapter } from '../../src/execution/types.js';
 
 describe('Multi-Agent Orchestration', () => {
   let env: TestEnvironment;
@@ -70,31 +73,12 @@ describe('Multi-Agent Orchestration', () => {
   }
 
   /**
-   * Helper to create a mock AnalyzedIssue
-   */
-  function createAnalyzedIssue(
-    id: string,
-    priority: 'P0' | 'P1' | 'P2' | 'P3' = 'P1',
-    priorityScore: number = 75,
-    dependencies: string[] = [],
-    dependenciesResolved: boolean = true
-  ): AnalyzedIssue {
-    return {
-      node: createIssueNode(id, priority),
-      dependencies,
-      dependents: [],
-      transitiveDependencies: [],
-      depth: dependencies.length,
-      priorityScore,
-      isOnCriticalPath: false,
-      dependenciesResolved,
-    };
-  }
-
-  /**
    * Helper to create a mock dependency graph
    */
-  function createDependencyGraph(issues: IssueNode[], edges: [string, string][]): RawDependencyGraph {
+  function createDependencyGraph(
+    issues: IssueNode[],
+    edges: [string, string][]
+  ): RawDependencyGraph {
     return {
       nodes: issues,
       edges: edges.map(([from, to]) => ({ from, to })),
@@ -496,10 +480,10 @@ describe('Multi-Agent Orchestration', () => {
       });
 
       // Enqueue items with different priorities (out of order)
-      manager.enqueue('ISS-LOW', 25);     // P3
+      manager.enqueue('ISS-LOW', 25); // P3
       manager.enqueue('ISS-CRITICAL', 100); // P0
-      manager.enqueue('ISS-MEDIUM', 50);  // P2
-      manager.enqueue('ISS-HIGH', 75);    // P1
+      manager.enqueue('ISS-MEDIUM', 50); // P2
+      manager.enqueue('ISS-HIGH', 75); // P1
 
       // When: Dequeuing items
       const dequeueOrder: string[] = [];
@@ -664,7 +648,10 @@ describe('Multi-Agent Orchestration', () => {
 
       // When: Some succeed, some fail
       await manager.completeWork('worker-1', createSuccessResult(orders[0]!.orderId));
-      await manager.completeWork('worker-2', createFailureResult(orders[1]!.orderId, 'Test failed'));
+      await manager.completeWork(
+        'worker-2',
+        createFailureResult(orders[1]!.orderId, 'Test failed')
+      );
       await manager.completeWork('worker-3', createSuccessResult(orders[2]!.orderId));
 
       // Then: Should track correctly
@@ -843,75 +830,47 @@ describe('Multi-Agent Orchestration', () => {
   });
 
   describe('End-to-End Orchestration Flow', () => {
-    it('should complete full orchestration cycle with multiple workers', async () => {
-      // Given: A complete orchestration setup
-      const analyzer = new PriorityAnalyzer();
-      const manager = new WorkerPoolManager({
-        maxWorkers: 3,
-        workOrdersPath: testDir,
-      });
+    it('runs the production DAG and persists its real pipeline result', async () => {
+      const adapter = new MockExecutionAdapter();
 
-      // Create a realistic issue set
-      const issues: IssueNode[] = [
-        { id: 'ISS-001', title: 'Setup project structure', priority: 'P0', effort: 2, status: 'pending' },
-        { id: 'ISS-002', title: 'Implement core module', priority: 'P0', effort: 4, status: 'pending' },
-        { id: 'ISS-003', title: 'Add API endpoints', priority: 'P1', effort: 4, status: 'pending' },
-        { id: 'ISS-004', title: 'Write unit tests', priority: 'P1', effort: 4, status: 'pending' },
-        { id: 'ISS-005', title: 'Add documentation', priority: 'P2', effort: 2, status: 'pending' },
-      ];
-
-      const graph = createDependencyGraph(issues, [
-        ['ISS-002', 'ISS-001'], // Core depends on setup
-        ['ISS-003', 'ISS-002'], // API depends on core
-        ['ISS-004', 'ISS-002'], // Tests depend on core
-        ['ISS-005', 'ISS-003'], // Docs depend on API
-        ['ISS-005', 'ISS-004'], // Docs depend on tests
-      ]);
-
-      const graphPath = path.join(testDir, 'e2e-graph.json');
-      fs.writeFileSync(graphPath, JSON.stringify(graph, null, 2));
-
-      // When: Running the orchestration
-      const loadedGraph = await analyzer.loadGraph(graphPath);
-      const analysis = analyzer.analyze(loadedGraph);
-
-      const completedIssues: string[] = [];
-      const processingLog: string[] = [];
-
-      // Process in execution order
-      for (const issueId of analysis.executionOrder) {
-        const analyzedIssue = analysis.issues.get(issueId)!;
-
-        // Wait for dependencies
-        const depsResolved = analyzedIssue.dependencies.every((dep) =>
-          completedIssues.includes(dep)
-        );
-        expect(depsResolved).toBe(true);
-
-        // Get available worker
-        const slot = manager.getAvailableSlot();
-        if (slot !== null) {
-          const order = await manager.createWorkOrder(analyzedIssue);
-          manager.assignWork(slot, order);
-          processingLog.push(`${slot} started ${issueId}`);
-
-          // Simulate work completion
-          await manager.completeWork(slot, createSuccessResult(order.orderId, [`src/${issueId}.ts`]));
-          processingLog.push(`${slot} completed ${issueId}`);
-          completedIssues.push(issueId);
+      class E2EOrchestrator extends AdsdlcOrchestratorAgent {
+        protected override createExecutionAdapter(_session: OrchestratorSession): ExecutionAdapter {
+          return adapter;
         }
       }
 
-      // Then: All issues should be completed
-      expect(completedIssues.length).toBe(5);
-      expect(manager.getCompletedOrders().length).toBe(5);
+      const orchestrator = new E2EOrchestrator({ maxRetries: 0 });
+      await orchestrator.startSession({
+        projectDir: env.rootDir,
+        userRequest: 'Implement the imported issues',
+        overrideMode: 'import',
+      });
 
-      // Verify order respects dependencies
-      expect(completedIssues.indexOf('ISS-001')).toBeLessThan(completedIssues.indexOf('ISS-002'));
-      expect(completedIssues.indexOf('ISS-002')).toBeLessThan(completedIssues.indexOf('ISS-003'));
-      expect(completedIssues.indexOf('ISS-002')).toBeLessThan(completedIssues.indexOf('ISS-004'));
-      expect(completedIssues.indexOf('ISS-003')).toBeLessThan(completedIssues.indexOf('ISS-005'));
-      expect(completedIssues.indexOf('ISS-004')).toBeLessThan(completedIssues.indexOf('ISS-005'));
+      const result = await orchestrator.executePipeline(
+        env.rootDir,
+        'Implement the imported issues'
+      );
+
+      expect(result.overallStatus).toBe('completed');
+      expect(result.stages.map((stage) => stage.name)).toEqual(
+        IMPORT_STAGES.map((stage) => stage.name)
+      );
+      expect(adapter.calls.map((request) => request.agentType)).toEqual(
+        IMPORT_STAGES.map((stage) => stage.agentType)
+      );
+      expect(Object.keys(adapter.calls.at(-1)?.priorOutputs ?? {})).toEqual(
+        IMPORT_STAGES.slice(0, -1).map((stage) => stage.name)
+      );
+
+      const persistedState = path.join(
+        env.rootDir,
+        '.ad-sdlc',
+        'scratchpad',
+        'pipeline',
+        `${result.pipelineId}.yaml`
+      );
+      expect(fs.existsSync(persistedState)).toBe(true);
+      await orchestrator.dispose();
     });
   });
 });

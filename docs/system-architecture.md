@@ -494,21 +494,21 @@ sequenceDiagram
 
 ## 8. Verification & Validation (V&V) Pipeline
 
-The live V&V path validates the final implementation. Additional verifier and
-traceability modules exist but are not currently enforced by the run loop.
+The live V&V path combines final implementation validation with a per-stage
+scheduler gate. Verification outcomes are included in the pipeline result.
 
 ### Stage Verifier
 
-The Stage Verifier module can check pipeline outputs for completeness and
-traceability, but it is not currently invoked as a blocking stage by the live
-orchestrator. Enforce-or-demote is tracked in #877.
+The scheduler invokes `StageVerifierAgent` after every completed or degraded
+stage. Standard and minimal rigor retain failed checks as advisory warnings.
+With strict rigor and `haltOnVerificationFailure` enabled, a failed check marks
+the stage failed, skips all unprocessed stages, and fails the pipeline.
 
 ### RTM Builder
 
 The RTM (Requirements Traceability Matrix) Builder can create a traceability
-matrix linking PRD, SRS, SDS, issues, and implementation. Like Stage Verifier,
-it currently remains an auxiliary module/definition rather than an enforced
-run-loop stage (#877).
+matrix linking PRD, SRS, SDS, issues, and implementation. It remains an
+auxiliary traceability builder rather than a blocking run-loop component.
 
 ### Validation Agent
 

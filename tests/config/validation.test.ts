@@ -122,6 +122,30 @@ describe('Config Validation', () => {
       expect(result.data?.name).toBe('Test Workflow');
     });
 
+    it('should parse the workflow V&V gate configuration', () => {
+      const result = validateWorkflowConfig({
+        version: '1.0.0',
+        global: {
+          vnv: {
+            rigor: 'strict',
+            halt_on_verification_failure: true,
+          },
+        },
+        pipeline: { stages: [] },
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.data?.global?.vnv).toEqual({
+        rigor: 'strict',
+        halt_on_verification_failure: true,
+        generate_vnv_plan: true,
+        generate_vnv_report: true,
+        generate_rtm: true,
+        cross_document_consistency: true,
+        acceptance_criteria_validation: true,
+      });
+    });
+
     it('should reject invalid version format', () => {
       const config = {
         version: 'invalid',
@@ -234,9 +258,7 @@ describe('Config Validation', () => {
           dependencies: {
             'prd-writer': { requires: ['collector'] },
           },
-          data_flow: [
-            { from: 'collector', to: 'prd-writer', data: 'collected_info.yaml' },
-          ],
+          data_flow: [{ from: 'collector', to: 'prd-writer', data: 'collected_info.yaml' }],
         },
         models: {
           sonnet: {

@@ -146,6 +146,23 @@
             "implementation": { "type": "integer", "minimum": 300, "default": 1800 },
             "pr_review": { "type": "integer", "minimum": 60, "default": 300 }
           }
+        },
+        "vnv": {
+          "type": "object",
+          "description": "Per-stage verification and validation policy",
+          "properties": {
+            "rigor": {
+              "type": "string",
+              "enum": ["strict", "standard", "minimal"],
+              "default": "standard"
+            },
+            "halt_on_verification_failure": { "type": "boolean", "default": false },
+            "generate_vnv_plan": { "type": "boolean", "default": true },
+            "generate_vnv_report": { "type": "boolean", "default": true },
+            "generate_rtm": { "type": "boolean", "default": true },
+            "cross_document_consistency": { "type": "boolean", "default": true },
+            "acceptance_criteria_validation": { "type": "boolean", "default": true }
+          }
         }
       }
     },

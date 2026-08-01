@@ -23,6 +23,7 @@ import {
   validateConfigFile,
   watchConfigWithLogging,
   configFilesExist,
+  loadWorkflowConfig,
   CONFIG_SCHEMA_VERSION,
   type ValidationReport,
   type FileValidationResult,
@@ -56,6 +57,7 @@ import { resolve } from 'node:path';
 import { getCompletionGenerator, SUPPORTED_SHELLS, type ShellType } from './completion/index.js';
 import { getTelemetry, PRIVACY_POLICY, PRIVACY_POLICY_VERSION } from './telemetry/index.js';
 import { getCLIOutput } from './cli/CLIOutput.js';
+import type { VnvConfig } from './vnv/types.js';
 
 const output = getCLIOutput();
 const program = new Command();
@@ -1082,7 +1084,7 @@ program
     const mode = modeInput as PipelineMode;
 
     // Check .ad-sdlc/ directory exists
-    const exists = configFilesExist();
+    const exists = configFilesExist(projectDir);
     if (!exists.workflow && !exists.agents) {
       output.error(chalk.red('\n❌ No AD-SDLC configuration found.'));
       output.info(chalk.dim('Run "ad-sdlc init" to initialize a project first.\n'));
@@ -1149,7 +1151,7 @@ program
       output.blank();
 
       try {
-        const report = await validateAllConfigs();
+        const report = await validateAllConfigs(projectDir);
         if (report.valid) {
           output.info(chalk.green('Configuration valid. Pipeline is ready to execute.\n'));
         } else {
@@ -1197,8 +1199,29 @@ program
     }
     output.blank();
 
+    let vnv: Pick<VnvConfig, 'rigor' | 'haltOnVerificationFailure'> | undefined;
+    if (exists.workflow) {
+      try {
+        const workflow = await loadWorkflowConfig({ baseDir: projectDir });
+        const configuredVnv = workflow.global?.vnv;
+        if (configuredVnv !== undefined) {
+          vnv = {
+            rigor: configuredVnv.rigor,
+            haltOnVerificationFailure: configuredVnv.halt_on_verification_failure,
+          };
+        }
+      } catch (error: unknown) {
+        output.error(
+          `${chalk.red('\nError:')} ${error instanceof Error ? error.message : String(error)}`
+        );
+        process.exit(1);
+        return;
+      }
+    }
+
     const agent = getAdsdlcOrchestratorAgent({
       approvalMode,
+      ...(vnv !== undefined ? { vnv } : {}),
       featureFlagsCli:
         useSdkForWorkerCli === undefined ? {} : { useSdkForWorker: useSdkForWorkerCli },
       featureFlagsBaseDir: projectDir,

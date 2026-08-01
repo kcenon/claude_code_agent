@@ -104,11 +104,16 @@ the same `ExecutionAdapter` request/result contract.
 ## Verification and validation boundary
 
 The `validation-agent` is a real pipeline stage in all three modes. The
-TypeScript `StageVerifierAgent` and `RtmBuilderAgent` modules and their prompt
-definitions also exist, but they are not currently invoked as blocking stages
-by the orchestrator. Their enforce-or-demote decision is tracked by issue #877.
-Documentation must not describe those auxiliary modules as enforced runtime
-gates until the run loop proves that behavior.
+TypeScript `StageVerifierAgent` is also wired into the scheduler after every
+completed stage. Its result is retained on `PipelineResult.verificationResults`;
+with `vnv.rigor: strict` and `vnv.haltOnVerificationFailure: true`, a failed
+verification marks the stage failed, cancels further scheduling, and makes the
+pipeline fail. In standard and minimal modes, failed checks remain advisory.
+
+`RtmBuilderAgent` remains an auxiliary traceability builder rather than a
+blocking scheduler component. The document-producing SDP/SVP/threat-model/
+technology-decision slots execute through their checked-in SDK agent
+definitions, like every other live pipeline stage.
 
 ## Extension guide
 
