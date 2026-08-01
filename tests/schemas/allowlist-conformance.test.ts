@@ -19,6 +19,7 @@ import { describe, it, expect } from 'vitest';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import { fileURLToPath } from 'node:url';
 import * as yaml from 'js-yaml';
 
 import { CANONICAL_TOOLS, CANONICAL_MODELS } from '../../src/config/allowlist.js';
@@ -28,7 +29,7 @@ import { validateAgentFile, validateAllAgents } from '../../src/agent-validator/
 // Helpers
 // ============================================================
 
-const PROJECT_ROOT = path.resolve(new URL('../../', import.meta.url).pathname);
+const PROJECT_ROOT = fileURLToPath(new URL('../../', import.meta.url));
 const AGENTS_DIR = path.join(PROJECT_ROOT, '.claude', 'agents');
 const WORKFLOW_SCHEMA = path.join(PROJECT_ROOT, 'schemas', 'workflow.schema.json');
 const AGENTS_SCHEMA = path.join(PROJECT_ROOT, 'schemas', 'agents.schema.json');
@@ -114,15 +115,13 @@ describe('JSON schema parity with canonical allowlist', () => {
     it('agents.*.model enum equals CANONICAL_MODELS', () => {
       // Path: properties.agents.additionalProperties.properties.model.enum
       const agentsSection = (schema as Record<string, unknown>)['properties'] as
-        | Record<string, unknown>
-        | undefined;
+        Record<string, unknown> | undefined;
       const agentsAdditional = (agentsSection?.['agents'] as Record<string, unknown> | undefined)?.[
         'additionalProperties'
       ] as Record<string, unknown> | undefined;
       const modelEnum = (
         (agentsAdditional?.['properties'] as Record<string, unknown> | undefined)?.['model'] as
-          | Record<string, unknown>
-          | undefined
+          Record<string, unknown> | undefined
       )?.['enum'] as string[] | undefined;
 
       expect(modelEnum).toBeDefined();
@@ -131,15 +130,13 @@ describe('JSON schema parity with canonical allowlist', () => {
 
     it('agents.*.tools.items.enum equals CANONICAL_TOOLS', () => {
       const agentsSection = (schema as Record<string, unknown>)['properties'] as
-        | Record<string, unknown>
-        | undefined;
+        Record<string, unknown> | undefined;
       const agentsAdditional = (agentsSection?.['agents'] as Record<string, unknown> | undefined)?.[
         'additionalProperties'
       ] as Record<string, unknown> | undefined;
       const toolsItems = (
         (agentsAdditional?.['properties'] as Record<string, unknown> | undefined)?.['tools'] as
-          | Record<string, unknown>
-          | undefined
+          Record<string, unknown> | undefined
       )?.['items'] as Record<string, unknown> | undefined;
       const toolsEnum = toolsItems?.['enum'] as string[] | undefined;
 
@@ -149,8 +146,7 @@ describe('JSON schema parity with canonical allowlist', () => {
 
     it('token_budgets.default_model enum equals CANONICAL_MODELS', () => {
       const properties = (schema as Record<string, unknown>)['properties'] as
-        | Record<string, unknown>
-        | undefined;
+        Record<string, unknown> | undefined;
       const tokenBudgets = properties?.['token_budgets'] as Record<string, unknown> | undefined;
       const defaultModel = (tokenBudgets?.['properties'] as Record<string, unknown> | undefined)?.[
         'default_model'
@@ -167,18 +163,14 @@ describe('JSON schema parity with canonical allowlist', () => {
 
     it('agents.*.model_preference enum equals CANONICAL_MODELS', () => {
       const properties = (schema as Record<string, unknown>)['properties'] as
-        | Record<string, unknown>
-        | undefined;
+        Record<string, unknown> | undefined;
       const agents = properties?.['agents'] as Record<string, unknown> | undefined;
       const additionalProperties = agents?.['additionalProperties'] as
-        | Record<string, unknown>
-        | undefined;
+        Record<string, unknown> | undefined;
       const agentProperties = additionalProperties?.['properties'] as
-        | Record<string, unknown>
-        | undefined;
+        Record<string, unknown> | undefined;
       const modelPreference = agentProperties?.['model_preference'] as
-        | Record<string, unknown>
-        | undefined;
+        Record<string, unknown> | undefined;
       const modelEnum = modelPreference?.['enum'] as string[] | undefined;
 
       expect(modelEnum).toBeDefined();
@@ -187,20 +179,16 @@ describe('JSON schema parity with canonical allowlist', () => {
 
     it('agents.*.token_budget.model_preference enum equals CANONICAL_MODELS', () => {
       const properties = (schema as Record<string, unknown>)['properties'] as
-        | Record<string, unknown>
-        | undefined;
+        Record<string, unknown> | undefined;
       const agents = properties?.['agents'] as Record<string, unknown> | undefined;
       const additionalProperties = agents?.['additionalProperties'] as
-        | Record<string, unknown>
-        | undefined;
+        Record<string, unknown> | undefined;
       const agentProperties = additionalProperties?.['properties'] as
-        | Record<string, unknown>
-        | undefined;
+        Record<string, unknown> | undefined;
       const tokenBudget = agentProperties?.['token_budget'] as Record<string, unknown> | undefined;
       const tbProperties = tokenBudget?.['properties'] as Record<string, unknown> | undefined;
       const modelPreference = tbProperties?.['model_preference'] as
-        | Record<string, unknown>
-        | undefined;
+        Record<string, unknown> | undefined;
       const modelEnum = modelPreference?.['enum'] as string[] | undefined;
 
       expect(modelEnum).toBeDefined();

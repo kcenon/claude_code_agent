@@ -1540,7 +1540,7 @@ export class WorkerAgent implements IAgent {
       return null;
     }
 
-    return relativePath;
+    return relativePath.replaceAll('\\', '/');
   }
 
   /**
