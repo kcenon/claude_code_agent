@@ -21,6 +21,7 @@ import {
   OperationAbortedError,
   NonRetryableError,
   CircuitOpenError,
+  InvalidRetryPolicyError,
 } from './errors.js';
 
 import {
@@ -102,6 +103,28 @@ export const DEFAULT_UNIFIED_RETRY_POLICY: Readonly<UnifiedRetryPolicy> = {
   multiplier: 2,
   jitterRatio: 0.25,
 } as const;
+
+function validatePolicy(policy: UnifiedRetryPolicy): void {
+  if (!Number.isInteger(policy.maxAttempts) || policy.maxAttempts < 1) {
+    throw new InvalidRetryPolicyError('maxAttempts', policy.maxAttempts, 'must be an integer >= 1');
+  }
+  if (policy.baseDelayMs < 0) {
+    throw new InvalidRetryPolicyError('baseDelayMs', policy.baseDelayMs, 'must be >= 0');
+  }
+  if (policy.maxDelayMs < policy.baseDelayMs) {
+    throw new InvalidRetryPolicyError(
+      'maxDelayMs',
+      policy.maxDelayMs,
+      `must be >= baseDelayMs (${String(policy.baseDelayMs)})`
+    );
+  }
+  if (policy.multiplier < 1) {
+    throw new InvalidRetryPolicyError('multiplier', policy.multiplier, 'must be >= 1');
+  }
+  if (policy.jitterRatio < 0 || policy.jitterRatio > 1) {
+    throw new InvalidRetryPolicyError('jitterRatio', policy.jitterRatio, 'must be between 0 and 1');
+  }
+}
 
 /**
  * Predefined retry policies for common scenarios
@@ -305,6 +328,8 @@ export class RetryExecutor {
       jitterRatio: policyOverride?.jitterRatio ?? DEFAULT_UNIFIED_RETRY_POLICY.jitterRatio,
     };
 
+    validatePolicy(this.policy);
+
     this.backoffConfig = createBackoffConfig({
       baseDelayMs: this.policy.baseDelayMs,
       maxDelayMs: this.policy.maxDelayMs,
@@ -394,22 +419,21 @@ export class RetryExecutor {
         };
       }
 
-      // Check circuit breaker before each attempt
-      if (options.circuitBreaker !== undefined && !options.circuitBreaker.isAcceptingRequests()) {
-        const remainingMs = options.circuitBreaker.getRemainingTimeout();
-        const error = new CircuitOpenError(
-          remainingMs,
-          options.circuitBreaker.getFailureCount(),
-          operationName
-        );
-        metricsBuilder.failure(error.message);
-        return {
-          success: false,
-          error,
-          attempts: attempt,
-          totalDurationMs: Date.now() - startTime,
-          delays,
-        };
+      // Reserve a circuit breaker attempt, including HALF_OPEN transitions.
+      if (options.circuitBreaker !== undefined) {
+        try {
+          options.circuitBreaker.prepareForAttempt();
+        } catch (error) {
+          if (!(error instanceof CircuitOpenError)) throw error;
+          metricsBuilder.failure(error.message);
+          return {
+            success: false,
+            error,
+            attempts: attempt,
+            totalDurationMs: Date.now() - startTime,
+            delays,
+          };
+        }
       }
 
       // Calculate delay for this attempt (0 for first attempt)

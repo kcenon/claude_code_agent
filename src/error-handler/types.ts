@@ -216,6 +216,10 @@ export interface CircuitBreakerConfig {
   readonly resetTimeoutMs: number;
   /** Maximum number of test requests allowed in HALF_OPEN state (default: 3) */
   readonly halfOpenMaxAttempts: number;
+  /** Number of successful HALF_OPEN requests required to close (defaults to halfOpenMaxAttempts) */
+  readonly successThreshold?: number | undefined;
+  /** Optional rolling window for counting failures; omitted means consecutive failures */
+  readonly failureWindowMs?: number | undefined;
   /** Optional name for logging and monitoring */
   readonly name?: string | undefined;
 }
@@ -276,4 +280,5 @@ export const DEFAULT_CIRCUIT_BREAKER_CONFIG: Readonly<CircuitBreakerConfig> = {
   failureThreshold: 5,
   resetTimeoutMs: 60000,
   halfOpenMaxAttempts: 3,
+  successThreshold: 3,
 } as const;
