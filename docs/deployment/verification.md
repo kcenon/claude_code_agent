@@ -134,7 +134,7 @@ AD-SDLC Health Check
 ====================
 
 System:
-  ✓ Node.js v20.10.0 (required: v18+)
+  ✓ Node.js v22.22.1 (required: v22.22.1+)
   ✓ npm v10.2.3
   ✓ Git v2.42.0
   ✓ Disk space: 15GB free
@@ -169,7 +169,7 @@ AD-SDLC Health Check
 ====================
 
 System:
-  ✓ Node.js v18.0.0 (required: v18+)
+  ✓ Node.js v22.22.1 (required: v22.22.1+)
   ⚠ npm v9.0.0 (recommended: v10+)
   ✓ Git v2.30.0
 
@@ -194,8 +194,8 @@ AD-SDLC Health Check
 ====================
 
 System:
-  ✗ Node.js v16.0.0 (required: v18+)
-  ✓ npm v8.0.0
+  ✗ Node.js v20.20.2 (required: v22.22.1+)
+  ✓ npm v10.8.2
 
 Environment:
   ✗ ANTHROPIC_API_KEY: not configured
@@ -205,7 +205,7 @@ Status: UNHEALTHY
 2 errors found. Please fix before running.
 
 Recommended actions:
-  1. Upgrade Node.js to v18+: nvm install 18
+  1. Upgrade Node.js to v22.22.1+: nvm install 22
   2. Set ANTHROPIC_API_KEY: export ANTHROPIC_API_KEY="sk-ant-..."
   3. Set GITHUB_TOKEN: export GITHUB_TOKEN="ghp_..."
 ```

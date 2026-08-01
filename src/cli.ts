@@ -46,7 +46,12 @@ import {
 import { describeExecutionEnvironment, hasRealExecutionEnvironment } from './execution/index.js';
 import { StatusService } from './status/index.js';
 import type { OutputFormat } from './status/types.js';
-import { initializeProject, isProjectInitialized } from './utils/index.js';
+import {
+  initializeProject,
+  isProjectInitialized,
+  isSupportedNodeVersion,
+  MINIMUM_NODE_VERSION,
+} from './utils/index.js';
 import { resolve } from 'node:path';
 import { getCompletionGenerator, SUPPORTED_SHELLS, type ShellType } from './completion/index.js';
 import { getTelemetry, PRIVACY_POLICY, PRIVACY_POLICY_VERSION } from './telemetry/index.js';
@@ -904,11 +909,10 @@ program
 
     // 1. Node.js version
     const nodeVersion = process.version;
-    const nodeMajor = parseInt(nodeVersion.slice(1), 10);
     checks.push({
       label: 'Node.js',
-      ok: nodeMajor >= 18,
-      detail: `${nodeVersion} (required: >=18.0.0)`,
+      ok: isSupportedNodeVersion(nodeVersion),
+      detail: `${nodeVersion} (required: >=${MINIMUM_NODE_VERSION})`,
     });
 
     // 2. Git

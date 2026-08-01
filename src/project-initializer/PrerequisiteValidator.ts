@@ -10,6 +10,7 @@ import type {
   PrerequisiteValidationResult,
 } from './types.js';
 import { getCommandSanitizer } from '../security/index.js';
+import { isSupportedNodeVersion, MINIMUM_NODE_VERSION } from '../utils/nodeVersion.js';
 
 /**
  * Validates prerequisites required for AD-SDLC project initialization
@@ -22,7 +23,7 @@ export class PrerequisiteValidator {
       {
         name: 'Node.js Version',
         check: this.checkNodeVersion.bind(this),
-        fix: 'Install Node.js 18 or higher from https://nodejs.org',
+        fix: `Install Node.js ${MINIMUM_NODE_VERSION} or higher from https://nodejs.org`,
         required: true,
       },
       {
@@ -91,13 +92,11 @@ export class PrerequisiteValidator {
   }
 
   /**
-   * Check if Node.js version is 18 or higher
-   * @returns True if Node.js version is 18 or higher, false otherwise
+   * Check if the active Node.js version meets the supported runtime floor.
+   * @returns True when the Node.js version is supported, false otherwise.
    */
   private checkNodeVersion(): Promise<boolean> {
-    const version = process.version;
-    const major = parseInt(version.slice(1).split('.')[0] ?? '0', 10);
-    return Promise.resolve(major >= 18);
+    return Promise.resolve(isSupportedNodeVersion(process.version));
   }
 
   /**

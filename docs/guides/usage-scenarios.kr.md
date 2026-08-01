@@ -64,7 +64,7 @@ Greenfield (신규 프로젝트)는 완전히 새 프로젝트를 시작하고 �
 
 - 환경에 `ANTHROPIC_API_KEY` 설정
 - `GITHUB_TOKEN` 또는 활성화된 `gh auth login` 세션
-- Node.js 18+, Git 2.30+, GitHub CLI 2.0+
+- Node.js 22.22.1+, Git 2.30+, GitHub CLI 2.0+
 
 ### 설정
 
@@ -119,7 +119,7 @@ GitHub를 사용할 수 없거나 사용하고 싶지 않을 때 사용합니다
 ### 사전 요구사항
 
 - `ANTHROPIC_API_KEY`만 필요 — GitHub 토큰 불필요
-- Node.js 18+, Git
+- Node.js 22.22.1+, Git
 
 ### 설정
 
@@ -421,7 +421,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Install AD-SDLC
         run: npm install -g ad-sdlc

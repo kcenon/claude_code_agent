@@ -7,7 +7,7 @@
 > **Automate your software development from requirements to deployment using Claude-powered agents.**
 
 [![License: BSD-3-Clause](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
-[![Node.js](https://img.shields.io/badge/Node.js-18%2B-green.svg)](https://nodejs.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-22.22.1%2B-green.svg)](https://nodejs.org/)
 
 ## Quick Start
 
@@ -95,7 +95,7 @@ Existing Docs + Code → Document Reader → Codebase Analyzer
 
 ### Prerequisites
 
-- Node.js 18+ ([Download](https://nodejs.org/))
+- Node.js 22.22.1+ ([Download](https://nodejs.org/))
 - Git 2.30+
 - GitHub CLI 2.0+ (optional, for issue/PR management)
 - Claude API Key

@@ -453,7 +453,7 @@ export const techDecisionOutput = [
   '## 6. Consequences',
   '',
   '### Positive',
-  '- Leverages the Runtime strengths of Node.js 20.x',
+  '- Leverages the Runtime strengths of Node.js 22.x',
   '- Aligns with the declared SDS technology stack',
   '',
   '### Negative',

@@ -37,7 +37,7 @@ export function slugifyTopic(topic: string): string {
  *
  *     | Layer | Technology | Version | Rationale |
  *     |-------|------------|---------|-----------|
- *     | Runtime | Node.js | 20.x | LTS version |
+ *     | Runtime | Node.js | 22.x | LTS version |
  *
  * @param content - Raw SDS markdown
  */

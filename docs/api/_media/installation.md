@@ -24,7 +24,7 @@ Before installing AD-SDLC, ensure you have:
 
 | Software | Minimum Version | Check Command    |
 | -------- | --------------- | ---------------- |
-| Node.js  | 18+             | `node --version` |
+| Node.js  | 22.22.1+        | `node --version` |
 | npm      | 9+              | `npm --version`  |
 | Git      | 2.30+           | `git --version`  |
 
@@ -80,7 +80,7 @@ brew install node
 
 ```bash
 # Using NodeSource repository
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
 sudo apt-get install -y nodejs
 ```
 
@@ -214,7 +214,7 @@ ad-sdlc --version
 
 # Check Node.js
 node --version
-# Expected: v18.x.x or higher
+# Expected: v22.22.1 or higher
 
 # Check API key (should not show full key)
 echo $ANTHROPIC_API_KEY | head -c 10

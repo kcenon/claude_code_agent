@@ -128,7 +128,7 @@ The init command validates the following prerequisites:
 
 | Check           | Required | Description          |
 | --------------- | -------- | -------------------- |
-| Node.js Version | Yes      | Must be 18 or higher |
+| Node.js Version | Yes      | Must be 22.22.1 or higher |
 | Git             | Yes      | Must be installed    |
 | Claude API Key  | No       | ANTHROPIC_API_KEY    |
 | GitHub CLI      | No       | gh CLI authenticated |

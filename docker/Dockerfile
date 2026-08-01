@@ -1,5 +1,5 @@
-# SRS-5.1.1: Base MUST be node:20-slim (Debian/glibc, NOT Alpine)
-FROM node:20-slim
+# Runtime baseline: Debian/glibc Node.js 22 (NOT Alpine)
+FROM node:22-slim
 
 # SRS-5.1.3: Version pinning via build arg
 ARG CLAUDE_CODE_VERSION
@@ -46,7 +46,7 @@ COPY scripts/git-safe /usr/local/bin/git-safe
 RUN chmod +x /usr/local/bin/git-safe
 
 # SRS-5.1.7: Run as non-root user
-# Why: node user (UID 1000) comes pre-created in node:20-slim
+# Why: node user (UID 1000) comes pre-created in node:22-slim
 USER node
 
 # Default command keeps container alive for docker compose exec

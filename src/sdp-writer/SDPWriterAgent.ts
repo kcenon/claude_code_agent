@@ -766,7 +766,7 @@ export class SDPWriterAgent implements IAgent {
     lines.push('| Category | Tool |');
     lines.push('|----------|------|');
     lines.push('| Language | TypeScript 5.x |');
-    lines.push('| Runtime | Node.js 20.x LTS |');
+    lines.push('| Runtime | Node.js 22.x LTS |');
     lines.push('| Package Manager | npm |');
     lines.push('| Test Runner | Vitest |');
     lines.push('| Version Control | Git / GitHub |');
@@ -1017,7 +1017,7 @@ export class SDPWriterAgent implements IAgent {
     lines.push('| 분류 | 도구 |');
     lines.push('|------|------|');
     lines.push('| 언어 | TypeScript 5.x |');
-    lines.push('| 런타임 | Node.js 20.x LTS |');
+    lines.push('| 런타임 | Node.js 22.x LTS |');
     lines.push('| 패키지 관리 | npm |');
     lines.push('| 테스트 러너 | Vitest |');
     lines.push('| 형상 관리 | Git / GitHub |');

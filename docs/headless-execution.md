@@ -235,7 +235,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Install Claude CLI
         run: npm install -g @anthropic-ai/claude-code
@@ -262,7 +262,7 @@ jobs:
 
 ```yaml
 ad-sdlc-pipeline:
-  image: node:20
+  image: node:22
   stage: build
   script:
     - npm install -g @anthropic-ai/claude-code

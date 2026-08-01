@@ -64,7 +64,7 @@ Use this when starting a brand-new project and you want the full pipeline: requi
 
 - `ANTHROPIC_API_KEY` set in the environment
 - `GITHUB_TOKEN` or an active `gh auth login` session
-- Node.js 18+, Git 2.30+, GitHub CLI 2.0+
+- Node.js 22.22.1+, Git 2.30+, GitHub CLI 2.0+
 
 ### Setup
 
@@ -119,7 +119,7 @@ Use this when you cannot or do not want to use GitHub. The pipeline generates al
 ### Prerequisites
 
 - `ANTHROPIC_API_KEY` only — no GitHub token needed
-- Node.js 18+, Git
+- Node.js 22.22.1+, Git
 
 ### Setup
 
@@ -421,7 +421,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Install AD-SDLC
         run: npm install -g ad-sdlc

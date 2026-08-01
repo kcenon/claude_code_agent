@@ -8,7 +8,7 @@
 
 | Component | Minimum | Recommended |
 |-----------|---------|-------------|
-| **Node.js** | 18.0+ | 20.0+ |
+| **Node.js** | 22.22.1+ | 22 LTS |
 | **npm** | 9.0+ | 10.0+ |
 | **Memory** | 4GB RAM | 8GB+ RAM |
 | **Disk** | 1GB free | 5GB+ free |
@@ -30,19 +30,19 @@
 
 ```bash
 # Check version
-node --version  # Should be v18.0.0 or higher
+node --version  # Should be v22.22.1 or higher
 
 # Install via nvm (recommended)
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
-nvm install 20
-nvm use 20
+nvm install 22
+nvm use 22
 
 # Or via package manager
 # macOS
-brew install node@20
+brew install node@22
 
 # Ubuntu/Debian
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
 sudo apt-get install -y nodejs
 
 # Windows
@@ -125,11 +125,14 @@ echo "Checking AD-SDLC prerequisites..."
 
 # Node.js
 if command -v node &> /dev/null; then
-    NODE_VERSION=$(node --version | cut -d'v' -f2 | cut -d'.' -f1)
-    if [ "$NODE_VERSION" -ge 18 ]; then
+    NODE_VERSION=$(node --version)
+    IFS=. read -r NODE_MAJOR NODE_MINOR NODE_PATCH <<< "${NODE_VERSION#v}"
+    if (( NODE_MAJOR > 22 ||
+          (NODE_MAJOR == 22 && NODE_MINOR > 22) ||
+          (NODE_MAJOR == 22 && NODE_MINOR == 22 && NODE_PATCH >= 1) )); then
         echo "✓ Node.js: $(node --version)"
     else
-        echo "✗ Node.js: $(node --version) (requires v18+)"
+        echo "✗ Node.js: $(node --version) (requires v22.22.1+)"
     fi
 else
     echo "✗ Node.js: not installed"

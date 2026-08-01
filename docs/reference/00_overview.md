@@ -166,7 +166,7 @@ my-skill/
 
 ### Prerequisites
 
-- Node.js 18+ or Python 3.10+
+- Node.js 22.22.1+ or Python 3.10+
 - Anthropic API key
 - Claude Code CLI (Agent SDK runtime)
 

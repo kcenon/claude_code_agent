@@ -161,7 +161,7 @@ Build a high-performance API gateway that handles routing, authentication, and r
 
 ## Technical Specifications
 - Language: TypeScript
-- Runtime: Node.js 20+
+- Runtime: Node.js 22.22.1+
 - Framework: Express.js
 - Cache: Redis
 - Database: PostgreSQL for configuration

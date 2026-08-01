@@ -10,7 +10,7 @@ Please read and follow our [Code of Conduct](CODE_OF_CONDUCT.md) to maintain a w
 
 ### Prerequisites
 
-- Node.js 18+
+- Node.js 22.22.1+
 - Git 2.30+
 - GitHub CLI (`gh`) 2.0+
 - Claude Code CLI
