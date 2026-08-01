@@ -272,6 +272,7 @@ Events:
 | Layer | Technology | Version | Rationale |
 |-------|------------|---------|-----------|
 | **Runtime** | Claude Agent SDK | Latest | Official Agent SDK |
+| **Language Runtime** | Node.js | 22.22.1+ | Minimum supported by the dependency set |
 | **CLI** | Claude Code CLI | Latest | Developer-friendly interface |
 | **Model** | Claude Sonnet 4.5 | claude-sonnet-4-5-20250929 | Cost/performance balance |
 | **Model (Critical)** | Claude Opus 4.6 | claude-opus-4-6 | For complex reasoning tasks |

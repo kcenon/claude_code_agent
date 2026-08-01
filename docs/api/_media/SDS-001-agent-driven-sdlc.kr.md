@@ -271,6 +271,7 @@ Events:
 | Layer | Technology | Version | Rationale |
 |-------|------------|---------|-----------|
 | **Runtime** | Claude Agent SDK | Latest | 공식 에이전트 SDK |
+| **Language Runtime** | Node.js | 22.22.1+ | 지원되는 의존성 세트의 최소 요구 사항 |
 | **CLI** | Claude Code CLI | Latest | 개발자 친화적 인터페이스 |
 | **Model** | Claude Sonnet 4 | claude-sonnet-4-* | 비용/성능 균형 |
 | **Model (Critical)** | Claude Opus 4.5 | claude-opus-4-5-* | 복잡한 추론 필요 시 |
