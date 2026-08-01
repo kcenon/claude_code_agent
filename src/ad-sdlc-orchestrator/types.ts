@@ -7,6 +7,7 @@
 
 import type { McpServerConfig } from '../execution/types.js';
 import type { StageVerificationResult } from '../stage-verifier/types.js';
+import { DEFAULT_VNV_CONFIG, type VnvConfig } from '../vnv/types.js';
 
 /**
  * Pipeline execution mode
@@ -330,6 +331,8 @@ export interface OrchestratorConfig {
   readonly maxRetries?: number;
   /** Maximum number of agents that can execute in parallel (default: 3) */
   readonly maxParallelAgents?: number;
+  /** Stage-verification policy applied by the live scheduler */
+  readonly vnv?: Partial<VnvConfig>;
   /** Log level */
   readonly logLevel?: 'DEBUG' | 'INFO' | 'WARN' | 'ERROR';
   /** Checkpoint configuration for mid-stage persistence */
@@ -349,6 +352,11 @@ export interface OrchestratorConfig {
   readonly featureFlagsBaseDir?: string;
 }
 
+/** Fully-resolved orchestrator configuration used at runtime. */
+export type ResolvedOrchestratorConfig = Omit<Required<OrchestratorConfig>, 'vnv'> & {
+  readonly vnv: Readonly<VnvConfig>;
+};
+
 /**
  * Checkpoint configuration for the orchestrator
  */
@@ -362,7 +370,7 @@ export interface CheckpointConfig {
 /**
  * Default orchestrator configuration
  */
-export const DEFAULT_ORCHESTRATOR_CONFIG: Required<OrchestratorConfig> = {
+export const DEFAULT_ORCHESTRATOR_CONFIG: ResolvedOrchestratorConfig = {
   scratchpadDir: '.ad-sdlc/scratchpad',
   outputDocsDir: 'docs',
   approvalMode: 'auto',
@@ -372,6 +380,7 @@ export const DEFAULT_ORCHESTRATOR_CONFIG: Required<OrchestratorConfig> = {
   },
   maxRetries: 3,
   maxParallelAgents: 3,
+  vnv: DEFAULT_VNV_CONFIG,
   logLevel: 'INFO',
   checkpoint: {
     enabled: true,

@@ -63,6 +63,12 @@ global:
     implementation: 1800 # Code implementation (min: 300)
     pr_review: 300 # PR review phase (min: 60)
 
+  # Per-stage verification. Strict + halt=true turns failed checks into a
+  # blocking scheduler gate; other modes retain failures as advisories.
+  vnv:
+    rigor: 'standard' # strict | standard | minimal
+    halt_on_verification_failure: false
+
 # -----------------------------------------------------------------------------
 # Pipeline Configuration
 # -----------------------------------------------------------------------------

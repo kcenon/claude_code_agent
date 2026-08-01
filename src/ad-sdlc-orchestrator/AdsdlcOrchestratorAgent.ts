@@ -25,6 +25,8 @@ import {
 import { SdkExecutionAdapter } from '../execution/index.js';
 import { getLogger } from '../logging/index.js';
 import { ENV_USE_SDK_FOR_WORKER } from '../config/featureFlags.js';
+import { StageVerifierAgent } from '../stage-verifier/StageVerifierAgent.js';
+import type { StageVerificationResult } from '../stage-verifier/types.js';
 import { PipelineCheckpointManager } from './PipelineCheckpointManager.js';
 import type {
   ApprovalDecision,
@@ -38,6 +40,7 @@ import type {
   PipelineStageDefinition,
   PipelineStageStatus,
   PipelineStatus,
+  ResolvedOrchestratorConfig,
   StageName,
   StageResult,
   StageSummary,
@@ -93,11 +96,15 @@ export class AdsdlcOrchestratorAgent implements IAgent {
   readonly agentId = ADSDLC_ORCHESTRATOR_AGENT_ID;
   readonly name = 'AD-SDLC Pipeline Orchestrator';
 
-  private config: Required<OrchestratorConfig>;
+  private config: ResolvedOrchestratorConfig;
   private session: OrchestratorSession | null = null;
   private initialized = false;
   private stageTimers = new Map<StageName, ReturnType<typeof setTimeout>>();
   private abortController: AbortController | null = null;
+  private executionAdapter: ExecutionAdapter | null = null;
+  private stageVerifier: StageVerifierAgent | null = null;
+  private stageVerifierInitialized = false;
+  private verificationResults: StageVerificationResult[] = [];
   private readonly checkpointManager: PipelineCheckpointManager | null;
   /**
    * One-shot SDK session id used to resume the FIRST stage of a session
@@ -107,12 +114,22 @@ export class AdsdlcOrchestratorAgent implements IAgent {
   private pendingResumeSdkSessionId: string | undefined = undefined;
 
   constructor(config: OrchestratorConfig = {}) {
+    const requestedParallelism =
+      config.maxParallelAgents ?? DEFAULT_ORCHESTRATOR_CONFIG.maxParallelAgents;
+    const maxParallelAgents = Number.isFinite(requestedParallelism)
+      ? Math.max(1, Math.floor(requestedParallelism))
+      : DEFAULT_ORCHESTRATOR_CONFIG.maxParallelAgents;
     this.config = {
       ...DEFAULT_ORCHESTRATOR_CONFIG,
       ...config,
       timeouts: {
         ...DEFAULT_ORCHESTRATOR_CONFIG.timeouts,
         ...config.timeouts,
+      },
+      maxParallelAgents,
+      vnv: {
+        ...DEFAULT_ORCHESTRATOR_CONFIG.vnv,
+        ...config.vnv,
       },
     };
     const ckptConfig: CheckpointConfig = this.config.checkpoint;
@@ -179,7 +196,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
    * Dispose of the orchestrator and release resources
    * @returns A promise that resolves when all resources are released
    */
-  dispose(): Promise<void> {
+  async dispose(): Promise<void> {
     for (const timer of this.stageTimers.values()) {
       clearTimeout(timer);
     }
@@ -188,9 +205,15 @@ export class AdsdlcOrchestratorAgent implements IAgent {
       this.abortController.abort();
       this.abortController = null;
     }
+    await this.disposeExecutionAdapter();
+    if (this.stageVerifier !== null && this.stageVerifierInitialized) {
+      await this.stageVerifier.dispose();
+    }
+    this.stageVerifier = null;
+    this.stageVerifierInitialized = false;
+    this.verificationResults = [];
     this.session = null;
     this.initialized = false;
-    return Promise.resolve();
   }
 
   /**
@@ -329,6 +352,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
 
     const startTime = Date.now();
     this.session = { ...session, status: 'running' };
+    this.verificationResults = [];
 
     try {
       const stages = this.getStagesForMode(session.mode);
@@ -362,7 +386,13 @@ export class AdsdlcOrchestratorAgent implements IAgent {
       // Merge prior + new results
       const stageResults = [...priorResults, ...newResults];
       const failedStages = stageResults.filter((s) => s.status === 'failed');
-      const overallStatus = this.determineOverallStatus(stageResults);
+      const verificationGateFailed =
+        this.config.vnv.rigor === 'strict' &&
+        this.config.vnv.haltOnVerificationFailure &&
+        this.verificationResults.some((verification) => !verification.passed);
+      const overallStatus = verificationGateFailed
+        ? 'failed'
+        : this.determineOverallStatus(stageResults);
 
       // Add warnings for partial completion (graceful degradation)
       const warnings: string[] = [];
@@ -382,6 +412,9 @@ export class AdsdlcOrchestratorAgent implements IAgent {
         durationMs: Date.now() - startTime,
         artifacts: stageResults.flatMap((s) => s.artifacts),
         warnings,
+        ...(this.verificationResults.length > 0
+          ? { verificationResults: [...this.verificationResults] }
+          : {}),
       };
 
       this.session = { ...this.session, status: overallStatus, stageResults };
@@ -415,6 +448,8 @@ export class AdsdlcOrchestratorAgent implements IAgent {
       }
       this.session = { ...this.session, status: 'failed' };
       throw error;
+    } finally {
+      await this.disposeExecutionAdapter();
     }
   }
 
@@ -571,10 +606,14 @@ export class AdsdlcOrchestratorAgent implements IAgent {
       abortController: this.abortController,
       stageTimers: this.stageTimers,
       maxRetries: this.config.maxRetries,
+      maxParallelAgents: this.config.maxParallelAgents,
+      haltOnVerificationFailure:
+        this.config.vnv.rigor === 'strict' && this.config.vnv.haltOnVerificationFailure,
       checkpointManager: this.checkpointManager,
       getTimeoutForStage: (name) => this.getTimeoutForStage(name),
       createArtifactValidator: (projectDir) => this.createArtifactValidator(projectDir),
-      invokeAgent: (stage, session) => this.invokeAgent(stage, session),
+      invokeAgent: (stage, session, signal) => this.invokeAgent(stage, session, signal),
+      verifyStage: (stage, result, session) => this.verifyStage(stage, result, session),
       checkApprovalGate: (stage, prior) => this.checkApprovalGate(stage, prior),
       sleep: (ms) => this.sleep(ms),
     };
@@ -588,12 +627,14 @@ export class AdsdlcOrchestratorAgent implements IAgent {
    * execution.
    * @param stage
    * @param session
+   * @param signal
    */
   protected async invokeAgent(
     stage: PipelineStageDefinition,
-    session: OrchestratorSession
+    session: OrchestratorSession,
+    signal?: AbortSignal
   ): Promise<string> {
-    return this.executeViaAdapter(stage, session);
+    return this.executeViaAdapter(stage, session, signal);
   }
 
   /**
@@ -604,25 +645,18 @@ export class AdsdlcOrchestratorAgent implements IAgent {
    *
    * @param stage
    * @param session
+   * @param signal
    * @throws Error when the adapter reports a non-success status.
    */
   protected async executeViaAdapter(
     stage: PipelineStageDefinition,
-    session: OrchestratorSession
+    session: OrchestratorSession,
+    signal?: AbortSignal
   ): Promise<string> {
-    const adapter = this.createExecutionAdapter(session);
-    try {
-      const request = this.buildStageExecutionRequest(stage, session);
-      const result = await adapter.execute(request);
-      return this.toStageOutput(stage, result);
-    } finally {
-      await adapter.dispose().catch((error: unknown) => {
-        getLogger().debug('ExecutionAdapter dispose failed', {
-          agent: 'AdsdlcOrchestratorAgent',
-          error: error instanceof Error ? error.message : String(error),
-        });
-      });
-    }
+    this.executionAdapter ??= this.createExecutionAdapter(session);
+    const request = this.buildStageExecutionRequest(stage, session, signal);
+    const result = await this.executionAdapter.execute(request);
+    return this.toStageOutput(stage, result);
   }
 
   /**
@@ -649,20 +683,93 @@ export class AdsdlcOrchestratorAgent implements IAgent {
   }
 
   /**
+   * Dispose the pipeline-scoped adapter without allowing cleanup failures to
+   * replace the pipeline's real outcome.
+   */
+  private async disposeExecutionAdapter(): Promise<void> {
+    const adapter = this.executionAdapter;
+    this.executionAdapter = null;
+    if (adapter === null) return;
+
+    try {
+      await adapter.dispose();
+    } catch (error: unknown) {
+      getLogger().debug('ExecutionAdapter dispose failed', {
+        agent: 'AdsdlcOrchestratorAgent',
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  /** Create the verifier used by the live scheduler. Tests may override it. */
+  protected createStageVerifier(): StageVerifierAgent {
+    return new StageVerifierAgent();
+  }
+
+  /**
+   * Verify one completed stage and retain the outcome for the final pipeline
+   * result. Unexpected verifier errors are converted into failed verification
+   * records so strict mode cannot fail open.
+   * @param stage
+   * @param result
+   * @param session
+   */
+  protected async verifyStage(
+    stage: PipelineStageDefinition,
+    result: StageResult,
+    session: OrchestratorSession
+  ): Promise<StageVerificationResult> {
+    const startedAt = Date.now();
+    let verification: StageVerificationResult;
+
+    try {
+      this.stageVerifier ??= this.createStageVerifier();
+      if (!this.stageVerifierInitialized) {
+        await this.stageVerifier.initialize();
+        this.stageVerifierInitialized = true;
+      }
+      verification = await this.stageVerifier.verifyStage(stage.name, result, {
+        projectDir: session.projectDir,
+        projectId: path.basename(session.projectDir),
+        pipelineMode: session.mode,
+        rigor: this.config.vnv.rigor,
+        pipelineId: session.sessionId,
+      });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      verification = {
+        stageName: stage.name,
+        passed: false,
+        rigor: this.config.vnv.rigor,
+        checks: [],
+        warnings: [],
+        errors: [`Stage verifier failed: ${message}`],
+        timestamp: new Date().toISOString(),
+        durationMs: Date.now() - startedAt,
+      };
+    }
+
+    this.verificationResults.push(verification);
+    return verification;
+  }
+
+  /**
    * Translate orchestrator state into a {@link StageExecutionRequest}.
    * Maps `session.userRequest` to `workOrder` and accumulated completed
    * stage outputs to `priorOutputs`. The system prompt is sourced by
    * the SDK from `.claude/agents/<agentType>.md`.
    * @param stage
    * @param session
+   * @param signal
    */
   protected buildStageExecutionRequest(
     stage: PipelineStageDefinition,
-    session: OrchestratorSession
+    session: OrchestratorSession,
+    signal?: AbortSignal
   ): StageExecutionRequest {
     const priorOutputs: Record<string, string> = {};
     for (const result of session.stageResults) {
-      if (result.status === 'completed' && result.output) {
+      if ((result.status === 'completed' || result.status === 'degraded') && result.output) {
         priorOutputs[result.name] = result.output;
       }
     }
@@ -691,7 +798,11 @@ export class AdsdlcOrchestratorAgent implements IAgent {
       ...(stage.maxTurns !== undefined ? { maxTurns: stage.maxTurns } : {}),
       ...(stage.permissionMode !== undefined ? { permissionMode: stage.permissionMode } : {}),
       ...(resumeId !== undefined ? { resume: resumeId } : {}),
-      ...(this.abortController !== null ? { signal: this.abortController.signal } : {}),
+      ...(signal !== undefined
+        ? { signal }
+        : this.abortController !== null
+          ? { signal: this.abortController.signal }
+          : {}),
     };
     return request;
   }
@@ -857,6 +968,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
         completedStages: result.stages.filter((s) => s.status === 'completed').length,
         failedStages: result.stages.filter((s) => s.status === 'failed').length,
         artifacts: result.artifacts,
+        verificationResults: result.verificationResults ?? [],
         stages: result.stages.map((s) => ({
           name: s.name,
           agentType: s.agentType,

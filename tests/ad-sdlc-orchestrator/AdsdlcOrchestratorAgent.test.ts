@@ -20,6 +20,13 @@ import {
   SessionCorruptedError,
 } from '../../src/ad-sdlc-orchestrator/errors.js';
 import { ArtifactValidator } from '../../src/ad-sdlc-orchestrator/ArtifactValidator.js';
+import { StageVerifierAgent } from '../../src/stage-verifier/StageVerifierAgent.js';
+import type { StageVerificationResult } from '../../src/stage-verifier/types.js';
+import type {
+  ExecutionAdapter,
+  StageExecutionRequest,
+  StageExecutionResult,
+} from '../../src/execution/types.js';
 
 /**
  * ArtifactValidator subclass that treats all stages as valid.
@@ -600,6 +607,206 @@ describe('AdsdlcOrchestratorAgent', () => {
       expect(executionOrder.indexOf('codebase_analysis')).toBeLessThan(comparisonIdx);
       expect(executionOrder.indexOf('code_reading')).toBeLessThan(comparisonIdx);
       await trackingAgent.dispose();
+    });
+
+    it('should never exceed maxParallelAgents', async () => {
+      let active = 0;
+      let maxActive = 0;
+
+      class LimitedOrchestrator extends AdsdlcOrchestratorAgent {
+        protected override async invokeAgent(
+          stage: PipelineStageDefinition,
+          _session: OrchestratorSession,
+          _signal?: AbortSignal
+        ): Promise<string> {
+          active++;
+          maxActive = Math.max(maxActive, active);
+          await new Promise((resolve) => setTimeout(resolve, 5));
+          active--;
+          return `Stage "${stage.name}" completed`;
+        }
+      }
+
+      const limitedAgent = new LimitedOrchestrator({ maxParallelAgents: 2 });
+      await limitedAgent.startSession({
+        projectDir: tempDir,
+        userRequest: 'test',
+        overrideMode: 'enhancement',
+      });
+
+      await limitedAgent.executePipeline(tempDir, 'test');
+      expect(maxActive).toBe(2);
+      await limitedAgent.dispose();
+    });
+  });
+
+  describe('production execution boundaries', () => {
+    const successResult: StageExecutionResult = {
+      status: 'success',
+      artifacts: [],
+      sessionId: 'shared-sdk-session',
+      toolCallCount: 1,
+      tokenUsage: { input: 1, output: 1, cache: 0 },
+    };
+
+    it('reuses one adapter for the pipeline and forwards accumulated prior outputs', async () => {
+      const calls: StageExecutionRequest[] = [];
+      let adapterCreations = 0;
+      let adapterDisposals = 0;
+
+      const adapter: ExecutionAdapter = {
+        execute: (request) => {
+          calls.push(request);
+          return Promise.resolve(successResult);
+        },
+        dispose: () => {
+          adapterDisposals++;
+          return Promise.resolve();
+        },
+      };
+
+      class ReusingOrchestrator extends AdsdlcOrchestratorAgent {
+        protected override createExecutionAdapter(_session: OrchestratorSession): ExecutionAdapter {
+          adapterCreations++;
+          return adapter;
+        }
+      }
+
+      const reusingAgent = new ReusingOrchestrator({ maxRetries: 0 });
+      await reusingAgent.startSession({
+        projectDir: tempDir,
+        userRequest: 'test',
+        overrideMode: 'import',
+        stopAfterStage: 'orchestration',
+      });
+
+      await reusingAgent.executePipeline(tempDir, 'test');
+
+      expect(adapterCreations).toBe(1);
+      expect(adapterDisposals).toBe(1);
+      expect(calls).toHaveLength(2);
+      expect(calls[1]?.priorOutputs['issue_reading']).toContain('execution-adapter');
+      await reusingAgent.dispose();
+    });
+
+    it('aborts in-flight adapter work when a stage times out', async () => {
+      let observedSignal: AbortSignal | undefined;
+      let abortObserved = false;
+      let adapterDisposals = 0;
+
+      const adapter: ExecutionAdapter = {
+        execute: (request) => {
+          observedSignal = request.signal;
+          return new Promise<StageExecutionResult>((resolve) => {
+            request.signal?.addEventListener(
+              'abort',
+              () => {
+                abortObserved = true;
+                resolve({
+                  ...successResult,
+                  status: 'aborted',
+                  sessionId: 'aborted-sdk-session',
+                });
+              },
+              { once: true }
+            );
+          });
+        },
+        dispose: () => {
+          adapterDisposals++;
+          return Promise.resolve();
+        },
+      };
+
+      class TimeoutOrchestrator extends AdsdlcOrchestratorAgent {
+        protected override createExecutionAdapter(_session: OrchestratorSession): ExecutionAdapter {
+          return adapter;
+        }
+      }
+
+      const timeoutAgent = new TimeoutOrchestrator({
+        maxRetries: 0,
+        timeouts: { default: 10 },
+      });
+      await timeoutAgent.startSession({
+        projectDir: tempDir,
+        userRequest: 'test',
+        overrideMode: 'import',
+      });
+
+      await expect(timeoutAgent.executePipeline(tempDir, 'test')).rejects.toBeInstanceOf(
+        PipelineFailedError
+      );
+
+      expect(abortObserved).toBe(true);
+      expect(observedSignal?.aborted).toBe(true);
+      expect(adapterDisposals).toBe(1);
+      expect(timeoutAgent.getStatus().stages[0]?.error).toContain('timed out');
+      await timeoutAgent.dispose();
+    });
+
+    it('halts the real stage DAG when strict verification fails', async () => {
+      const invokedStages: string[] = [];
+
+      class FailingVerifier extends StageVerifierAgent {
+        override verifyStage(
+          stageName: PipelineStageDefinition['name']
+        ): Promise<StageVerificationResult> {
+          return Promise.resolve({
+            stageName,
+            passed: false,
+            rigor: 'strict',
+            checks: [],
+            warnings: [],
+            errors: ['intentional verification failure'],
+            timestamp: new Date().toISOString(),
+            durationMs: 0,
+          });
+        }
+      }
+
+      class VerifiedOrchestrator extends AdsdlcOrchestratorAgent {
+        protected override invokeAgent(
+          stage: PipelineStageDefinition,
+          _session: OrchestratorSession,
+          _signal?: AbortSignal
+        ): Promise<string> {
+          invokedStages.push(stage.name);
+          return Promise.resolve(`Stage "${stage.name}" completed`);
+        }
+
+        protected override createStageVerifier(): StageVerifierAgent {
+          return new FailingVerifier();
+        }
+      }
+
+      const verifiedAgent = new VerifiedOrchestrator({
+        maxRetries: 0,
+        vnv: { rigor: 'strict', haltOnVerificationFailure: true },
+      });
+      await verifiedAgent.startSession({
+        projectDir: tempDir,
+        userRequest: 'test',
+        overrideMode: 'import',
+      });
+
+      await expect(verifiedAgent.executePipeline(tempDir, 'test')).rejects.toBeInstanceOf(
+        PipelineFailedError
+      );
+
+      expect(invokedStages).toEqual(['issue_reading']);
+      expect(verifiedAgent.getStatus().stages[0]).toMatchObject({
+        name: 'issue_reading',
+        status: 'failed',
+        error: expect.stringContaining('intentional verification failure'),
+      });
+      expect(
+        verifiedAgent
+          .getStatus()
+          .stages.slice(1)
+          .every((stage) => stage.status === 'skipped')
+      ).toBe(true);
+      await verifiedAgent.dispose();
     });
   });
 
@@ -1858,6 +2065,7 @@ describe('stopAfterStage — #868 regression', () => {
 
     const skippedNames = result.stages.filter((s) => s.status === 'skipped').map((s) => s.name);
     expect(skippedNames).toContain('implementation');
+    expect(skippedNames).not.toContain('issue_reading');
 
     await agent.dispose();
   });

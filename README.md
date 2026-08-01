@@ -97,7 +97,7 @@ GitHub Issues → Issue Reader → Controller → Worker → Validation → PR R
 | **Quality**       | PR Reviewer           | Creates PRs and performs automated code review                                                      |
 |                   | CI Fixer              | Automatically diagnoses and fixes CI failures                                                       |
 |                   | Regression Tester     | Validates existing functionality after changes                                                      |
-| **V&V**           | Stage Verifier        | Verifies pipeline stage outputs for content completeness and traceability                           |
+| **V&V**           | Stage Verifier        | Verifies every completed stage; strict mode can halt the live scheduler on failure                  |
 |                   | RTM Builder           | Builds Requirements Traceability Matrix from requirements to implementation                         |
 |                   | Validation Agent      | Validates final implementation against requirements and acceptance criteria                         |
 | **Enhancement**   | Document Reader       | Parses existing PRD/SRS/SDS documents                                                               |
@@ -171,7 +171,7 @@ Each agent reads and writes to a shared scratchpad, enabling seamless inter-agen
 - **Progress Tracking**: Real-time visibility into pipeline status
 - **Regression Testing**: Identifies affected tests when modifying existing code
 - **Doc-Code Gap Analysis**: Detects discrepancies between documentation and implementation
-- **V&V Framework**: Final validation is in the live pipeline; Stage Verifier and RTM Builder remain auxiliary until #877 resolves enforce-or-demote
+- **V&V Framework**: Final validation is a live pipeline stage, and the scheduler records per-stage verification results; strict `haltOnVerificationFailure` mode stops the DAG on the first failed gate
 - **Document Audit**: CLI script (`npm run audit:docs`) that validates pipeline-generated PRD/SRS/SDS/SDP/TM/SVP/TD/DBS documents for frontmatter, required sections, cross-references, and PRD→SRS→SDS traceability; see [Document Audit CLI](docs/doc-audit.md)
 - **Customizable Workflows**: Configure agents, templates, and quality gates
 

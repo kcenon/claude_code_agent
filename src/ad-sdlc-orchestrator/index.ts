@@ -57,6 +57,7 @@ export type {
   OrchestratorSession,
   // Configuration types
   OrchestratorConfig,
+  ResolvedOrchestratorConfig,
   StageTimeoutConfig,
   CheckpointConfig,
   // Checkpoint types

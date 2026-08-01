@@ -19,6 +19,14 @@ import {
   COMPLEX_FEATURE_INPUT,
   FIXTURE_EXPECTATIONS,
 } from './helpers/fixtures.js';
+import { AdsdlcOrchestratorAgent } from '../../src/ad-sdlc-orchestrator/AdsdlcOrchestratorAgent.js';
+import { PipelineFailedError } from '../../src/ad-sdlc-orchestrator/errors.js';
+import {
+  GREENFIELD_STAGES,
+  type OrchestratorSession,
+} from '../../src/ad-sdlc-orchestrator/types.js';
+import { MockExecutionAdapter } from '../../src/execution/MockExecutionAdapter.js';
+import type { ExecutionAdapter } from '../../src/execution/types.js';
 
 describe('E2E Pipeline Integration', () => {
   let env: TestEnvironment;
@@ -37,37 +45,50 @@ describe('E2E Pipeline Integration', () => {
   });
 
   describe('Simple Feature Flow', () => {
-    it('should complete full pipeline for single feature request', async () => {
-      // Given: A simple feature request
-      const input = SIMPLE_FEATURE_INPUT;
-
-      // When: Running the complete pipeline
-      const result = await runPipeline(env, input, {
-        projectName: 'Login Feature',
-        projectDescription: 'User login functionality',
-        skipClarification: true,
-        generateIssues: true,
+    it('runs the production pipeline for a single feature request', async () => {
+      const adapter = new MockExecutionAdapter({
+        handlers: [
+          {
+            match: () => true,
+            respond: (request) => ({
+              status: 'success',
+              artifacts: [{ path: `artifacts/${request.agentType}.md` }],
+              sessionId: `session-${request.agentType}`,
+              toolCallCount: 1,
+              tokenUsage: { input: 10, output: 5, cache: 0 },
+            }),
+          },
+        ],
       });
 
-      // Then: Pipeline should complete successfully
-      expect(result.success).toBe(true);
-      expect(result.projectId).toBeDefined();
-      expect(result.projectId.length).toBeGreaterThan(0);
+      class PipelineOrchestrator extends AdsdlcOrchestratorAgent {
+        protected override createExecutionAdapter(_session: OrchestratorSession): ExecutionAdapter {
+          return adapter;
+        }
+      }
 
-      // Verify all stages completed
-      expect(result.collection).toBeDefined();
-      expect(result.collection?.success).toBe(true);
-      expect(result.prd).toBeDefined();
-      expect(result.prd?.success).toBe(true);
-      expect(result.srs).toBeDefined();
-      expect(result.srs?.success).toBe(true);
-      expect(result.sds).toBeDefined();
-      expect(result.sds?.success).toBe(true);
+      const orchestrator = new PipelineOrchestrator({ maxRetries: 0, maxParallelAgents: 2 });
+      await orchestrator.startSession({
+        projectDir: env.rootDir,
+        userRequest: SIMPLE_FEATURE_INPUT,
+        overrideMode: 'greenfield',
+      });
 
-      // Verify timing is reasonable
-      expect(result.totalTimeMs).toBeLessThan(FIXTURE_EXPECTATIONS.simple.maxTimeMs);
+      const result = await orchestrator.executePipeline(env.rootDir, SIMPLE_FEATURE_INPUT);
+
+      expect(result.overallStatus).toBe('completed');
+      expect(result.stages.map((stage) => stage.name)).toEqual(
+        GREENFIELD_STAGES.map((stage) => stage.name)
+      );
+      expect(result.artifacts).toEqual(
+        GREENFIELD_STAGES.map((stage) => `artifacts/${stage.agentType}.md`)
+      );
+      expect(Object.keys(adapter.calls.at(-1)?.priorOutputs ?? {})).toEqual(
+        GREENFIELD_STAGES.slice(0, -1).map((stage) => stage.name)
+      );
+      expect(result.verificationResults).toHaveLength(GREENFIELD_STAGES.length);
+      await orchestrator.dispose();
     }, 60000);
-
 
     it('should generate valid issues from simple feature', async () => {
       // Given: A simple feature request
@@ -97,7 +118,6 @@ describe('E2E Pipeline Integration', () => {
   });
 
   describe('Medium Feature Flow', () => {
-
     it('should handle multiple requirements with dependency chain', async () => {
       // Given: A medium complexity feature request
       const input = MEDIUM_FEATURE_INPUT;
@@ -127,7 +147,6 @@ describe('E2E Pipeline Integration', () => {
       }
     }, 90000);
 
-
     it('should maintain document traceability for medium feature', async () => {
       // Given: A medium complexity feature request
       const input = MEDIUM_FEATURE_INPUT;
@@ -148,7 +167,6 @@ describe('E2E Pipeline Integration', () => {
   });
 
   describe('Complex Feature Flow', () => {
-
     it('should process complex requirements with many components', async () => {
       // Given: A complex feature request
       const input = COMPLEX_FEATURE_INPUT;
@@ -174,7 +192,6 @@ describe('E2E Pipeline Integration', () => {
       expect(result.totalTimeMs).toBeLessThan(FIXTURE_EXPECTATIONS.complex.maxTimeMs);
     }, 120000);
 
-
     it('should generate appropriate number of issues for complex feature', async () => {
       // Given: A complex feature request
       const input = COMPLEX_FEATURE_INPUT;
@@ -198,7 +215,6 @@ describe('E2E Pipeline Integration', () => {
   });
 
   describe('Document Pipeline Only', () => {
-
     it('should generate documents without issues', async () => {
       // Given: A simple feature request
       const input = SIMPLE_FEATURE_INPUT;
@@ -219,8 +235,47 @@ describe('E2E Pipeline Integration', () => {
     }, 60000);
   });
 
-  describe('Pipeline Timing Benchmarks', () => {
+  describe('Production Orchestrator Path', () => {
+    it('halts the production DAG when the real strict verifier rejects a stage', async () => {
+      const adapter = new MockExecutionAdapter();
 
+      class StrictOrchestrator extends AdsdlcOrchestratorAgent {
+        protected override createExecutionAdapter(_session: OrchestratorSession): ExecutionAdapter {
+          return adapter;
+        }
+      }
+
+      const orchestrator = new StrictOrchestrator({
+        maxRetries: 0,
+        vnv: { rigor: 'strict', haltOnVerificationFailure: true },
+      });
+      await orchestrator.startSession({
+        projectDir: env.rootDir,
+        userRequest: 'Execute imported work',
+        overrideMode: 'import',
+      });
+
+      await expect(
+        orchestrator.executePipeline(env.rootDir, 'Execute imported work')
+      ).rejects.toBeInstanceOf(PipelineFailedError);
+
+      expect(adapter.calls.map((request) => request.agentType)).toEqual([
+        'issue-reader',
+        'controller',
+        'worker',
+      ]);
+      expect(orchestrator.getStatus().stages).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'implementation', status: 'failed' }),
+          expect.objectContaining({ name: 'validation-agent', status: 'skipped' }),
+          expect.objectContaining({ name: 'review', status: 'skipped' }),
+        ])
+      );
+      await orchestrator.dispose();
+    });
+  });
+
+  describe('Pipeline Timing Benchmarks', () => {
     it('should complete simple pipeline within benchmark time', async () => {
       const input = SIMPLE_FEATURE_INPUT;
 

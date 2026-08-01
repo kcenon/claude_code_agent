@@ -446,23 +446,29 @@ None - This is the top-level orchestration agent.
 ### Optional Configuration File
 
 ```yaml
-# .ad-sdlc/config/orchestrator.yaml
-orchestration:
-  retry_limits:
-    default: 2
-    timeout: 3
+# .ad-sdlc/config/workflow.yaml
+global:
+  vnv:
+    rigor: strict
+    halt_on_verification_failure: true
+```
 
-  approval_gates:
-    enabled: true
-    auto_approve: false # Set true for CI/CD mode
+The CLI maps these workflow V&V gate fields into the live orchestrator. A
+failed per-stage verification is advisory by default. It becomes a blocking
+gate only when rigor is `strict` and `halt_on_verification_failure` is `true`.
 
-  parallelization:
-    enabled: true
-    max_concurrent: 3
+Programmatic callers can additionally cap concurrent DAG stages. The same
+execution adapter is reused for every stage in one pipeline and disposed once
+when that pipeline finishes.
 
-  logging:
-    level: info
-    output: scratchpad
+```typescript
+const orchestrator = new AdsdlcOrchestratorAgent({
+  maxParallelAgents: 3,
+  vnv: {
+    rigor: 'strict',
+    haltOnVerificationFailure: true,
+  },
+});
 ```
 
 ## CLI Usage

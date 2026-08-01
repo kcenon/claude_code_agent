@@ -562,24 +562,17 @@ pipeline:
 ### Default Configuration
 
 ```yaml
-# .ad-sdlc/config/orchestrator.yaml (optional)
-orchestration:
-  retry_limits:
-    default: 2
-    timeout: 3
-
-  approval_gates:
-    enabled: true
-    auto_approve: false # Set true for CI/CD mode
-
-  parallelization:
-    enabled: true
-    max_concurrent: 3
-
-  logging:
-    level: info
-    output: scratchpad
+# .ad-sdlc/config/workflow.yaml
+global:
+  vnv:
+    rigor: standard # strict | standard | minimal
+    halt_on_verification_failure: false
 ```
+
+The runtime scheduler verifies every completed stage. Set rigor to `strict` and
+enable `halt_on_verification_failure` to make a failed verification stop the
+remaining DAG. Programmatic callers may also set `maxParallelAgents`; the
+scheduler never starts more than that number of parallel stages.
 
 ## Best Practices
 
@@ -591,6 +584,7 @@ orchestration:
 6. **Provide progress updates** - Keep user informed of current stage
 7. **Generate comprehensive reports** - Summarize execution at completion
 8. **Resume on failure** - Use prior session state to avoid re-executing expensive stages
+9. **Respect verification gates** - Treat strict verifier failures as pipeline failures
 
 ## Related Agents
 

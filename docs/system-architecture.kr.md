@@ -494,20 +494,21 @@ sequenceDiagram
 
 ## 8. Verification & Validation (V&V) Pipeline
 
-현재 V&V 경로는 최종 구현을 검증합니다. 추가 verifier 및 추적성 모듈도
-존재하지만 현재 run loop에서 강제되지는 않습니다.
+현재 V&V 경로는 최종 구현 검증과 stage별 scheduler gate를 결합합니다.
+검증 결과는 pipeline result에 포함됩니다.
 
 ### Stage Verifier
 
-Stage Verifier 모듈은 파이프라인 출력의 완전성과 추적성을 검사할 수 있지만,
-현재 라이브 오케스트레이터에서 차단 stage로 호출되지는 않습니다.
-enforce-or-demote 결정은 #877에서 추적합니다.
+Scheduler는 완료 또는 degraded 상태의 각 stage 뒤에 `StageVerifierAgent`를
+호출합니다. standard/minimal rigor에서는 실패한 check를 advisory warning으로
+유지합니다. strict rigor에서 `haltOnVerificationFailure`를 활성화하면 실패한
+check가 해당 stage를 실패 처리하고 미실행 stage를 건너뛰며 pipeline을 실패시킵니다.
 
 ### RTM Builder
 
 RTM (Requirements Traceability Matrix) Builder는 PRD, SRS, SDS, 이슈,
-구현을 연결하는 추적성 매트릭스를 생성할 수 있습니다. Stage Verifier와
-마찬가지로 현재는 강제 run-loop stage가 아닌 보조 모듈/정의입니다(#877).
+구현을 연결하는 추적성 매트릭스를 생성할 수 있습니다. RTM Builder는 여전히
+강제 run-loop component가 아닌 보조 추적성 builder입니다.
 
 ### Validation Agent
 
