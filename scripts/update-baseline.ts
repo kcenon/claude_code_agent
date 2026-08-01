@@ -58,11 +58,16 @@ async function main(): Promise<void> {
   const removed = [...existingBaselines.keys()].filter(
     (operation) => !baselineOperations.has(operation)
   ).length;
+  const runner = process.env.PERF_RUNNER_LABEL ?? 'local';
   const data = {
     baselines,
     updatedAt: now,
-    notes:
-      'Generated from Vitest benchmark output on the designated CI runner. p50 uses median; p95 uses Vitest/Tinybench p99 as a conservative upper-tail proxy.',
+    environment: {
+      runner,
+      platform: `${process.platform}-${process.arch}`,
+      node: process.version,
+    },
+    notes: `Generated from Vitest benchmark output on ${runner}. p50 uses median; p95 uses Vitest/Tinybench p99 as a conservative upper-tail proxy.`,
   };
 
   await mkdir(dirname(baselinePath), { recursive: true });

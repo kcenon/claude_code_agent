@@ -16,7 +16,8 @@ on:
 
 jobs:
   benchmark:
-    runs-on: ubuntu-latest
+    # Pin the benchmark architecture instead of mixing heterogeneous x64 hosts.
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 30
 
     steps:
@@ -48,6 +49,8 @@ jobs:
       - name: Regenerate performance baseline
         if: ${{ inputs.update_baseline }}
         run: npm run perf:update-baseline
+        env:
+          PERF_RUNNER_LABEL: ubuntu-24.04-arm
 
       - name: Upload benchmark results
         if: always()

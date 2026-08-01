@@ -91,7 +91,7 @@ so repeated leaf names remain distinct. Vitest/Tinybench reports `median` and
 `p99`; the shared baseline parser maps median to p50 and uses p99 as the
 conservative upper-tail proxy for p95.
 
-Committed baselines must come from the consistent `ubuntu-latest` CI environment.
+Committed baselines must come from the pinned `ubuntu-24.04-arm` CI environment.
 Run the **Performance Tests** workflow manually with `update_baseline` enabled,
 download the `performance-results` artifact, and commit the generated
 `baseline-metrics.json`. Local regeneration is useful only for validating the
