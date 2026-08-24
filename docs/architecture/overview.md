@@ -122,18 +122,18 @@ AD-SDLC (Agent-Driven Software Development Lifecycle) is an automated software d
 
 ### Core Dependencies
 
-| Package     | Version | Purpose                     |
-| ----------- | ------- | --------------------------- |
-| `@anthropic-ai/claude-agent-sdk` | ^0.3.220 | Agent execution runtime |
-| `commander` | ^15.0.0 | CLI framework               |
-| `chalk`     | ^6.0.0  | Terminal output styling     |
-| `inquirer`  | ^14.0.2 | Interactive CLI prompts     |
-| `js-yaml`   | ^5.2.2  | YAML parsing                |
-| `zod`       | ^4.4.3  | Schema validation           |
-| `ts-morph`  | ^28.0.0 | TypeScript AST manipulation |
-| `dotenv`    | ^17.4.2 | Environment configuration   |
-| `mammoth`   | ^1.12.0 | DOCX file parsing           |
-| `pdf-parse` | ^2.4.5  | PDF file parsing            |
+| Package                          | Version  | Purpose                     |
+| -------------------------------- | -------- | --------------------------- |
+| `@anthropic-ai/claude-agent-sdk` | ^0.3.220 | Agent execution runtime     |
+| `commander`                      | ^15.0.0  | CLI framework               |
+| `chalk`                          | ^6.0.0   | Terminal output styling     |
+| `inquirer`                       | ^14.0.2  | Interactive CLI prompts     |
+| `js-yaml`                        | ^5.2.2   | YAML parsing                |
+| `zod`                            | ^4.4.3   | Schema validation           |
+| `ts-morph`                       | ^28.0.0  | TypeScript AST manipulation |
+| `dotenv`                         | ^17.4.2  | Environment configuration   |
+| `mammoth`                        | ^1.12.1  | DOCX file parsing           |
+| `pdf-parse`                      | ^2.4.5   | PDF file parsing            |
 
 ### Development Tools
 
@@ -141,10 +141,10 @@ AD-SDLC (Agent-Driven Software Development Lifecycle) is an automated software d
 | --------------------- | ------- | ------------------------ |
 | `typescript`          | ^6.0.3  | TypeScript compiler      |
 | `vitest`              | ^4.0.16 | Test runner              |
-| `@vitest/coverage-v8` | ^4.1.10 | Code coverage            |
-| `eslint`              | ^10.8.0 | Code linting             |
+| `@vitest/coverage-v8` | ^4.1.11 | Code coverage            |
+| `eslint`              | ^10.8.1 | Code linting             |
 | `prettier`            | ^3.9.6  | Code formatting          |
-| `typescript-eslint`   | ^8.65.0 | TypeScript linting rules |
+| `typescript-eslint`   | ^8.67.0 | TypeScript linting rules |
 
 ### External Integrations
 
