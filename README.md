@@ -213,10 +213,10 @@ AD-SDLC v0.1 standardizes on the official Claude Agent SDK as the only AI runtim
 
 | Package                          | Version    | Role                                                                        |
 | -------------------------------- | ---------- | --------------------------------------------------------------------------- |
-| `@anthropic-ai/claude-agent-sdk` | `^0.3.220` | Single Agent SDK entry point used by `ExecutionAdapter` for every stage     |
+| `@anthropic-ai/claude-agent-sdk` | `^0.3.241` | Single Agent SDK entry point used by `ExecutionAdapter` for every stage     |
 | `commander`                      | `^15.0.0`  | `ad-sdlc` CLI argument parsing                                              |
-| `inquirer`                       | `^14.0.2`  | Interactive prompts for `ad-sdlc init`                                      |
-| `js-yaml`                        | `^5.2.2`   | Pipeline config and document frontmatter parsing                            |
+| `inquirer`                       | `^14.1.0`  | Interactive prompts for `ad-sdlc init`                                      |
+| `js-yaml`                        | `^5.3.0`   | Pipeline config and document frontmatter parsing                            |
 | `zod`                            | `^4.4.3`   | Runtime schema validation for configs, external data, and checkpoint schema |
 | `ts-morph`                       | `^28.0.0`  | TypeScript AST analysis for the Code Reader / Codebase Analyzer agents      |
 | `chalk`, `dotenv`                | latest     | CLI output and environment loading                                          |

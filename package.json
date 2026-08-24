@@ -102,12 +102,12 @@
     "vitest": "^4.0.16"
   },
   "dependencies": {
-    "@anthropic-ai/claude-agent-sdk": "^0.3.220",
+    "@anthropic-ai/claude-agent-sdk": "^0.3.241",
     "chalk": "^6.0.0",
     "commander": "^15.0.0",
     "dotenv": "^17.4.2",
-    "inquirer": "^14.0.2",
-    "js-yaml": "^5.2.2",
+    "inquirer": "^14.1.0",
+    "js-yaml": "^5.3.0",
     "ts-morph": "^28.0.0",
     "zod": "^4.4.3"
   },
