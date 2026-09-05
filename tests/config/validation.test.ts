@@ -273,19 +273,34 @@ describe('Config Validation', () => {
       expect(result.success).toBe(true);
     });
 
-    it('should reject missing agent id', () => {
+    it.each(['id', 'name'] as const)('should reject missing agent %s', (field) => {
+      const agent: { id?: string; name?: string } = { id: 'test', name: 'Test Agent' };
+      delete agent[field];
       const config = {
         version: '1.0.0',
-        agents: {
-          test: {
-            name: 'Test Agent',
-            // missing id
-          },
-        },
+        agents: { test: agent },
       };
 
       const result = validateAgentsConfig(config);
       expect(result.success).toBe(false);
+      expect(result.errors).toEqual([
+        expect.objectContaining({ path: `agents.test.${field}`, message: expect.any(String) }),
+      ]);
+    });
+
+    it.each(['id', 'name'] as const)('should reject empty agent %s', (field) => {
+      const result = validateAgentsConfig({
+        version: '1.0.0',
+        agents: { test: { id: 'test', name: 'Test Agent', [field]: '' } },
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.errors).toEqual([
+        expect.objectContaining({
+          path: `agents.test.${field}`,
+          suggestion: 'Provide a non-empty value',
+        }),
+      ]);
     });
 
     it('should reject invalid category', () => {

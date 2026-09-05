@@ -266,6 +266,53 @@ claude "Add OAuth2 authentication with Google and GitHub providers"
 
 ## Troubleshooting
 
+### Existing agents.yaml Fails Validation for Missing id or name
+
+Older initialized projects may report missing `agents.<key>.id` or
+`agents.<key>.name` fields. Back up `.ad-sdlc/config/agents.yaml` first (for example,
+copy it to `agents.yaml.bak`), then edit the original file manually. For each
+affected agent, add only the missing `id` (its registry key) and/or `name` (a
+readable, nonempty label).
+
+Before:
+
+```yaml
+version: 1.0.0
+agents:
+  collector:
+    description: Collects our team's requirements
+    model: opus # Keep this customization
+    definition: .claude/agents/our-collector.md
+    x-team: platform
+```
+
+After:
+
+```yaml
+version: 1.0.0
+agents:
+  collector:
+    id: collector
+    name: Collector Agent
+    description: Collects our team's requirements
+    model: opus # Keep this customization
+    definition: .claude/agents/our-collector.md
+    x-team: platform
+```
+
+Keep existing IDs, names, descriptions, models, definition paths, custom agents,
+extension fields, and comments unchanged. Repeat for other agents with missing
+fields, then run from the project directory:
+
+```bash
+ad-sdlc validate --format json
+```
+
+Initialization rejects targets that already contain `.ad-sdlc`; do not delete that
+directory or regenerate configuration to repair missing fields.
+`--skip-validation` skips prerequisite checks only. Newly generated configuration
+is always validated before scaffold directories or files are created.
+
 ### Pipeline Stuck?
 
 ```bash
