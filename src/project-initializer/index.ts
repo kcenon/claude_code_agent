@@ -79,3 +79,13 @@ export {
   validateTemplateCompatibility,
   versionsEqual,
 } from './TemplateVersioning.js';
+
+export { loadAssetBundle } from './AgentAssets.js';
+export type { AssetBundle, AssetManifest, ValidatedAsset } from './AgentAssets.js';
+export { updateAssets } from './AssetUpdater.js';
+export type {
+  AssetUpdateOptions,
+  AssetUpdateResult,
+  AssetUpdateChange,
+  AssetLock,
+} from './AssetUpdater.js';

@@ -8,6 +8,8 @@
  * @packageDocumentation
  */
 
+import { configureAuditDocsCommand, runAuditDocs } from './doc-audit/cli.js';
+import { updateAssets } from './project-initializer/AssetUpdater.js';
 import chalk from 'chalk';
 import { Command } from 'commander';
 
@@ -195,12 +197,15 @@ program
           output.info(chalk.dim(`  ... and ${String(result.createdFiles.length - 10)} more files`));
         }
 
+        for (const warning of result.warnings) output.info(chalk.yellow(`Warning: ${warning}`));
         output.info(chalk.blue('\n📖 Next steps:\n'));
         output.info(`  1. ${chalk.cyan(`cd ${options.projectName}`)}`);
         output.info(
           `  2. Set up your API key: ${chalk.cyan('export ANTHROPIC_API_KEY="your-key"')}`
         );
-        output.info(`  3. Run AD-SDLC: ${chalk.cyan('npx ad-sdlc run "Your requirements"')}`);
+        output.info(
+          `  3. Run AD-SDLC: ${chalk.cyan('ad-sdlc run "Your requirements" --project-dir .')}`
+        );
         output.blank();
       } else {
         output.info(chalk.red(`\n❌ Initialization failed: ${result.error ?? 'Unknown error'}\n`));
@@ -1321,6 +1326,46 @@ function formatPipelineStatus(status: string): string {
       return chalk.dim(status);
   }
 }
+
+configureAuditDocsCommand(program.command('audit-docs')).action(
+  (options: { projectDir: string; output: string; quiet?: boolean }) => {
+    process.exitCode = runAuditDocs([
+      '--project-dir',
+      options.projectDir,
+      '--output',
+      options.output,
+      ...(options.quiet === true ? ['--quiet'] : []),
+    ]);
+  }
+);
+
+program
+  .command('assets')
+  .description('Manage installed canonical agents and commands')
+  .command('update')
+  .description('Plan or apply conservative asset-only updates')
+  .requiredOption('--project-dir <dir>', 'Initialized project directory')
+  .option('--dry-run', 'Print the update plan without writing files', false)
+  .action((options: { projectDir: string; dryRun: boolean }) => {
+    try {
+      const result = updateAssets(options);
+      output.info(`Asset update: ${result.status}${result.dryRun ? ' (dry run)' : ''}`);
+      for (const change of result.changes) {
+        output.info(
+          `${change.action}: ${change.path} (${change.oldVersion} -> ${change.targetVersion})`
+        );
+        if (change.message !== undefined) output.info(change.message);
+      }
+      for (const warning of result.warnings) output.info(`Warning: ${warning}`);
+      if (result.status === 'conflicted') {
+        output.error('Conflicts remain. No project files or lock were changed.');
+        process.exitCode = 1;
+      }
+    } catch (error) {
+      output.error(error instanceof Error ? error.message : String(error));
+      process.exitCode = 1;
+    }
+  });
 
 // Global error handlers — catch async errors that escape command handlers
 process.on('uncaughtException', (error: Error) => {

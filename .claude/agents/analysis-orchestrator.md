@@ -12,6 +12,11 @@ tools:
   - Bash
   - Task
 model: inherit
+required-assets:
+  - agent:code-reader
+  - agent:doc-code-comparator
+  - agent:document-reader
+  - agent:issue-generator
 ---
 
 # Analysis Orchestrator Agent

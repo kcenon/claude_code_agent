@@ -1,18 +1,27 @@
 ---
-description: Resume an interrupted AD-SDLC pipeline session
+description: Resume an interrupted AD-SDLC pipeline using its original requirements
 argument-hint: '<session-id> [--project-dir <dir>]'
+required-assets:
+  - agent:ad-sdlc-orchestrator
 ---
 
-Resume a previously interrupted AD-SDLC pipeline session.
+1. Resolve the intended project directory from `--project-dir` or the current
+   project root. Obtain the session ID from the earlier CLI output and the
+   original requirements and mode from the user or previous conversation.
+2. Use the existing `run <requirements> --resume <session-id>` interface:
 
-The CLI does not yet expose a dedicated `ad-sdlc resume` subcommand. Resume
-is implemented as a flag on `ad-sdlc run`:
+   ```javascript
+   execFileSync(executable, [
+     'run', requirements, '--resume', sessionId, '--project-dir', projectRoot,
+     '--mode', originalMode, ...runOptions,
+   ], { cwd: projectRoot, stdio: 'inherit', shell: false });
+   ```
 
-1. Locate the session id from `.ad-sdlc/sessions/` (most recent directory)
-   or from earlier `ad-sdlc run` console output.
-2. Re-issue the original requirements text and pass `--resume <session-id>`:
-   `npx ad-sdlc run "<original requirements>" --resume "$1"`.
-3. The orchestrator restores prior stage outputs via `loadPriorSession` and
-   continues from the first incomplete stage.
-4. If the requirements text is unknown, inspect
-   `.ad-sdlc/sessions/<session-id>/manifest.json` for the original request.
+   `executable` is the installed `ad-sdlc` path. Preserve applicable original
+   `--local`, `--approval-mode`, and `--stop-after` options as separate arguments.
+   Check `ad-sdlc run --help`; requirements are a required positional argument.
+3. Keep user input as data, never shell-interpolated source. If using a shell
+   tool, Write a JSON request and a Node runner that reads it and uses the argument
+   array above. Do not expand `$ARGUMENTS` or `$1` into a shell command.
+4. The orchestrator restores available prior outputs and continues execution.
+   Relay restore errors; do not silently start a different project/session.

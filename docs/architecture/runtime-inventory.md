@@ -35,3 +35,7 @@ The seven support/delegated definitions are the two orchestrators, CI fixer,
 the two local-mode aliases, RTM builder, and stage verifier. They remain prompt
 definitions even though they are not direct `agentType` values in the three
 mode arrays.
+
+All 36 prompts and four project commands ship in the npm asset bundle and are
+installed for every template. The [asset manifest and upgrade guide](../agent-assets.md)
+documents delivery validation, local/delegated closure, and customization ownership.

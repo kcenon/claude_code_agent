@@ -13,6 +13,10 @@ tools:
   - Bash
   - Task
 model: inherit
+required-assets:
+  - agent:analysis-orchestrator
+  - agent:rtm-builder
+  - agent:stage-verifier
 ---
 
 # AD-SDLC Pipeline Orchestrator

@@ -19,6 +19,8 @@ import {
   loadWorkflowConfig,
 } from '../../src/config/index.js';
 import type { ValidationReport } from '../../src/config/types.js';
+import { loadAssetBundle } from '../../src/project-initializer/AgentAssets.js';
+import { generateAgentsConfig } from '../../src/project-initializer/generatedConfig.js';
 import type { TemplateType } from '../../src/project-initializer/types.js';
 
 const cliPath = fileURLToPath(new URL('../../src/cli.ts', import.meta.url));
@@ -38,16 +40,7 @@ function runCli(args: string[], cwd: string) {
   return result;
 }
 
-const expectedAgents = {
-  collector: ['Collector Agent', 'Collects and organizes project requirements'],
-  'prd-writer': ['PRD Writer Agent', 'Generates Product Requirements Document'],
-  'srs-writer': ['SRS Writer Agent', 'Generates Software Requirements Specification'],
-  'sds-writer': ['SDS Writer Agent', 'Generates Software Design Specification'],
-  'issue-generator': ['Issue Generator Agent', 'Generates GitHub issues from SDS'],
-  controller: ['Controller Agent', 'Orchestrates parallel implementation'],
-  worker: ['Worker Agent', 'Implements individual issues'],
-  'pr-reviewer': ['PR Reviewer Agent', 'Reviews pull requests'],
-};
+const expectedAgents = generateAgentsConfig(loadAssetBundle()).agents;
 
 describe('CLI initialization configuration validation', () => {
   let tempDir: string;
@@ -119,15 +112,10 @@ describe('CLI initialization configuration validation', () => {
     ]);
     expect(agents.version).toBe('1.0.0');
     expect(Object.keys(agents.agents)).toEqual(Object.keys(expectedAgents));
-    for (const [id, [name, description]] of Object.entries(expectedAgents)) {
-      expect(agents.agents[id]).toEqual({
-        id,
-        name,
-        description,
-        model: 'sonnet',
-        definition: `.claude/agents/${id}.md`,
-      });
+    for (const [id, expected] of Object.entries(expectedAgents)) {
+      expect(agents.agents[id]).toEqual(expected);
       expect(agents.agents[id]?.name.trim().length).toBeGreaterThan(0);
+      expect(agents.agents[id]?.definition_file).toBe(`.claude/agents/${id}.md`);
     }
 
     // The loader's schema strips these legacy settings. Check the saved YAML
@@ -181,14 +169,19 @@ describe('CLI initialization configuration validation', () => {
     const agentsReport = report.files.find((file) => file.filePath === agentsPath);
     expect(agentsReport?.valid).toBe(false);
     expect(agentsReport?.errors).toEqual([
-      expect.objectContaining({ path: `agents.collector.${field}`, message: expect.any(String) }),
+      expect.objectContaining({
+        path: `agents.${Object.keys(expectedAgents)[0]}.${field}`,
+        message: expect.any(String),
+      }),
     ]);
 
     const loading = loadAgentsConfig({ baseDir: projectDir, environment: false });
     await expect(loading).rejects.toBeInstanceOf(ConfigValidationError);
     await expect(loading).rejects.toMatchObject({
       filePath: agentsPath,
-      errors: [expect.objectContaining({ path: `agents.collector.${field}` })],
+      errors: [
+        expect.objectContaining({ path: `agents.${Object.keys(expectedAgents)[0]}.${field}` }),
+      ],
     });
   });
 });

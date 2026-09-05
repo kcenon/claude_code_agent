@@ -109,6 +109,24 @@ jobs:
       - name: Build project
         run: npm run build
 
+  package-assets:
+    name: Package Asset Delivery (offline)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - name: Install development dependencies
+        run: npm ci
+      # Separate job/workspace avoids build and pack races with Vitest.
+      # Intentionally unconditional: no API key, Claude session, or plugin gate.
+      - name: Pack, production install, offline init and incomplete-package regression
+        run: npm run test:package
+
   integration:
     name: Integration Tests
     runs-on: ubuntu-latest

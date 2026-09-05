@@ -12,6 +12,8 @@ tools:
   - Glob
   - Grep
 model: inherit
+required-assets:
+  - agent:ci-fixer
 ---
 
 # PR Review Agent

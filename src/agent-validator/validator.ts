@@ -43,7 +43,7 @@ const FRONTMATTER_REGEX = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/;
  * @param filePath - File path for error reporting
  * @returns Object containing parsed frontmatter and body content
  */
-function parseFrontmatter(
+export function parseFrontmatter(
   content: string,
   filePath: string
 ): { frontmatter: unknown; body: string } {

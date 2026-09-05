@@ -71,12 +71,19 @@ ad-sdlc init my-first-project --quick
 cd my-first-project
 ```
 
+For an existing project directory, use `ad-sdlc init . --quick` from that root.
+All templates receive the same canonical assets; quality/worker settings remain
+template-specific. Review later changes with `ad-sdlc assets update --project-dir . --dry-run`.
+See [asset upgrades and customization](agent-assets.md).
+
 This creates the following structure:
 
 ```
 my-first-project/
-├── .claude/agents/          # Agent definitions
+├── .claude/agents/          # All canonical agent prompts
+├── .claude/commands/        # Four project commands
 ├── .ad-sdlc/
+│   ├── asset-lock.json      # Asset versions and exact-byte ownership
 │   ├── config/              # Configuration
 │   ├── templates/           # Document templates
 │   └── scratchpad/          # Agent state
