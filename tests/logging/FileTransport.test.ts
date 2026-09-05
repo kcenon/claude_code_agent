@@ -84,8 +84,8 @@ describe('FileTransport', () => {
 
       await transport.log(createTestEntry({ message: 'Hello World' }));
 
-      // Wait for write to complete
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      // Wait for the file stream to finish before reading persisted entries.
+      await transport.close();
 
       const currentFile = transport.getCurrentFilePath();
       const content = fs.readFileSync(currentFile as string, 'utf8');
@@ -103,8 +103,8 @@ describe('FileTransport', () => {
       await transport.log(createTestEntry({ message: 'Entry 1' }));
       await transport.log(createTestEntry({ message: 'Entry 2' }));
 
-      // Wait for writes to complete
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      // Wait for the file stream to finish before reading persisted entries.
+      await transport.close();
 
       const currentFile = transport.getCurrentFilePath();
       const content = fs.readFileSync(currentFile as string, 'utf8');
@@ -134,8 +134,8 @@ describe('FileTransport', () => {
         })
       );
 
-      // Wait for write to complete
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      // Wait for the file stream to finish before reading persisted entries.
+      await transport.close();
 
       const currentFile = transport.getCurrentFilePath();
       const content = fs.readFileSync(currentFile as string, 'utf8');
@@ -168,8 +168,8 @@ describe('FileTransport', () => {
         })
       );
 
-      // Wait for write to complete
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      // Wait for the file stream to finish before reading persisted entries.
+      await transport.close();
 
       const currentFile = transport.getCurrentFilePath();
       const content = fs.readFileSync(currentFile as string, 'utf8');
@@ -195,8 +195,8 @@ describe('FileTransport', () => {
       await transport.log(createTestEntry({ level: 'INFO', message: 'Info' }));
       await transport.log(createTestEntry({ level: 'WARN', message: 'Warning message' }));
 
-      // Wait for write to complete
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      // Wait for the file stream to finish before reading persisted entries.
+      await transport.close();
 
       const currentFile = transport.getCurrentFilePath();
       const content = fs.readFileSync(currentFile as string, 'utf8');
@@ -219,9 +219,7 @@ describe('FileTransport', () => {
 
       // Write entries and verify file grows
       for (let i = 0; i < 5; i++) {
-        await transport.log(
-          createTestEntry({ message: `Message ${i} with content` })
-        );
+        await transport.log(createTestEntry({ message: `Message ${i} with content` }));
       }
 
       // Wait for writes
@@ -244,7 +242,9 @@ describe('FileTransport', () => {
 
       // Create multiple log files
       for (let i = 0; i < 20; i++) {
-        await transport.log(createTestEntry({ message: `Message ${i} with extra content to trigger rotation` }));
+        await transport.log(
+          createTestEntry({ message: `Message ${i} with extra content to trigger rotation` })
+        );
       }
 
       // Wait for cleanup
@@ -313,7 +313,9 @@ describe('FileTransport', () => {
 
       // Write enough to trigger rotation
       for (let i = 0; i < 20; i++) {
-        await transport.log(createTestEntry({ message: `Message ${i} with extra content for compression` }));
+        await transport.log(
+          createTestEntry({ message: `Message ${i} with extra content for compression` })
+        );
       }
 
       // Wait for compression
@@ -372,8 +374,8 @@ describe('FileTransport', () => {
 
       await transport.log(createTestEntry({ message: 'Buffered message' }));
 
-      // Wait for write to complete
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      // Wait for the file stream to finish before reading persisted entries.
+      await transport.close();
 
       const currentFile = transport.getCurrentFilePath();
       const content = fs.readFileSync(currentFile as string, 'utf8');
