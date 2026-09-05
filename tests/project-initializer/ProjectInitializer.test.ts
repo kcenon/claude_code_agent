@@ -6,15 +6,22 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import * as yaml from 'js-yaml';
 
 import {
   createProjectInitializer,
   ProjectInitializer,
   resetProjectInitializer,
 } from '../../src/project-initializer/ProjectInitializer.js';
-import { resetPrerequisiteValidator } from '../../src/project-initializer/PrerequisiteValidator.js';
+import {
+  getPrerequisiteValidator,
+  resetPrerequisiteValidator,
+} from '../../src/project-initializer/PrerequisiteValidator.js';
+import { ConfigurationError } from '../../src/project-initializer/errors.js';
+import * as generatedConfig from '../../src/project-initializer/generatedConfig.js';
 import type { InitOptions } from '../../src/project-initializer/types.js';
+import { QUALITY_GATE_CONFIGS, TEMPLATE_CONFIGS } from '../../src/project-initializer/types.js';
 
 describe('ProjectInitializer', () => {
   let testDir: string;
@@ -38,6 +45,7 @@ describe('ProjectInitializer', () => {
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     // Clean up temp directory
     if (fs.existsSync(testDir)) {
       fs.rmSync(testDir, { recursive: true });
@@ -172,6 +180,73 @@ describe('ProjectInitializer', () => {
       expect(result.error).toContain('already exists');
     });
 
+    it('should preserve all customized project files when initialization is repeated', async () => {
+      await new ProjectInitializer(defaultOptions).initialize();
+      const customizations = {
+        '.ad-sdlc/config/workflow.yaml': '# Custom workflow\nversion: 1.0.0\ncustom: keep\n',
+        '.ad-sdlc/config/agents.yaml': '# Custom registry\ncustom-agent: keep\n',
+        '.claude/agents/collector.md': '# Custom Collector\r\nKeep my instructions.\r\n',
+        '.claude/agents/custom-agent.md': '# Custom Agent\nKeep this agent too.\n',
+        '.gitignore': '# Custom ignore rules\nprivate/\n',
+        'README.md': '# Custom documentation\n',
+      };
+      for (const [filename, content] of Object.entries(customizations)) {
+        fs.writeFileSync(path.join(testProjectPath, filename), content);
+      }
+      const snapshot = () => {
+        const files = fs.readdirSync(testProjectPath, { recursive: true, encoding: 'utf-8' });
+        return files.sort().map((filename) => {
+          const filePath = path.join(testProjectPath, filename);
+          return [filename, fs.statSync(filePath).isFile() ? fs.readFileSync(filePath) : null];
+        });
+      };
+      const before = snapshot();
+      const workflowBuilder = vi.spyOn(generatedConfig, 'generateWorkflowConfig');
+      const agentsBuilder = vi.spyOn(generatedConfig, 'generateAgentsConfig');
+
+      const result = await new ProjectInitializer({
+        ...defaultOptions,
+        template: 'enterprise',
+      }).initialize();
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('already exists');
+      expect(result.createdFiles).toEqual([]);
+      expect(snapshot()).toEqual(before);
+      expect(workflowBuilder).not.toHaveBeenCalled();
+      expect(agentsBuilder).not.toHaveBeenCalled();
+    });
+
+    it('should build each configuration once and serialize the validated original objects', async () => {
+      const workflow = generatedConfig.generateWorkflowConfig(
+        TEMPLATE_CONFIGS.standard,
+        QUALITY_GATE_CONFIGS.standard
+      );
+      const agents = generatedConfig.generateAgentsConfig();
+      const workflowBuilder = vi
+        .spyOn(generatedConfig, 'generateWorkflowConfig')
+        .mockReturnValueOnce(workflow);
+      const agentsBuilder = vi
+        .spyOn(generatedConfig, 'generateAgentsConfig')
+        .mockReturnValueOnce(agents);
+
+      const result = await new ProjectInitializer(defaultOptions).initialize();
+
+      expect(result.success).toBe(true);
+      expect(workflowBuilder).toHaveBeenCalledTimes(1);
+      expect(agentsBuilder).toHaveBeenCalledTimes(1);
+      for (const [filename, original] of [
+        ['workflow.yaml', workflow],
+        ['agents.yaml', agents],
+      ] as const) {
+        const saved = fs.readFileSync(
+          path.join(testProjectPath, '.ad-sdlc', 'config', filename),
+          'utf-8'
+        );
+        expect(yaml.load(saved)).toEqual(original);
+      }
+    });
+
     it('should apply minimal template settings', async () => {
       const options: InitOptions = {
         ...defaultOptions,
@@ -213,6 +288,60 @@ describe('ProjectInitializer', () => {
       expect(content).toContain('Test project description');
     });
   });
+
+  describe.each([true, false])(
+    'configuration preflight with skipValidation=%s',
+    (skipValidation) => {
+      beforeEach(() => {
+        vi.spyOn(getPrerequisiteValidator(), 'validate').mockResolvedValue({
+          valid: true,
+          checks: [],
+          warnings: 0,
+        });
+      });
+
+      it.each(['agents', 'workflow'] as const)(
+        'should reject invalid generated %s with diagnostics before any scaffold writes',
+        async (config) => {
+          const workflow = generatedConfig.generateWorkflowConfig(
+            TEMPLATE_CONFIGS.standard,
+            QUALITY_GATE_CONFIGS.standard
+          );
+          const expectedPaths =
+            config === 'agents'
+              ? ['agents.collector.id', 'agents.collector.name']
+              : ['pipeline.stages[0].name'];
+          if (config === 'agents') {
+            vi.spyOn(generatedConfig, 'generateAgentsConfig').mockReturnValue({
+              version: '1.0.0',
+              agents: { collector: { id: '', name: '' } },
+            });
+          } else {
+            vi.spyOn(generatedConfig, 'generateWorkflowConfig').mockReturnValue({
+              ...workflow,
+              pipeline: { stages: [{ name: '', agent: 'collector', timeout_ms: 300000 }] },
+            });
+          }
+
+          const initialization = new ProjectInitializer({
+            ...defaultOptions,
+            skipValidation,
+          }).initialize();
+
+          await expect(initialization).rejects.toBeInstanceOf(ConfigurationError);
+          await expect(initialization).rejects.toMatchObject({ configKey: `${config}.yaml` });
+          await expect(initialization).rejects.toThrow(`${config}.yaml`);
+          for (const fieldPath of expectedPaths) {
+            await expect(initialization).rejects.toThrow(`${fieldPath}:`);
+          }
+          await expect(initialization).rejects.toThrow('must be at least 1 character(s) long');
+          expect(fs.existsSync(testProjectPath)).toBe(false);
+          expect(fs.readdirSync(testDir)).toEqual([]);
+          expect(getPrerequisiteValidator().validate).toHaveBeenCalledTimes(skipValidation ? 0 : 1);
+        }
+      );
+    }
+  );
 
   describe('getTemplateConfig', () => {
     it('should return correct config for minimal template', () => {

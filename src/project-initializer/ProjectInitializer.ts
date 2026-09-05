@@ -14,12 +14,15 @@ import { tryGetProjectRoot } from '../utils/index.js';
 
 import * as yaml from 'js-yaml';
 
-import { FileSystemError, ProjectExistsError } from './errors.js';
+import { validateAgentsConfig, validateWorkflowConfig } from '../config/validation.js';
+import type { AgentsConfig } from '../config/types.js';
+
+import { ConfigurationError, FileSystemError, ProjectExistsError } from './errors.js';
+import { generateAgentsConfig, generateWorkflowConfig } from './generatedConfig.js';
 import { getPrerequisiteValidator } from './PrerequisiteValidator.js';
 import type {
   InitOptions,
   InitResult,
-  QualityGateConfig,
   TemplateConfig,
   TemplateType,
   WorkflowConfig,
@@ -105,6 +108,24 @@ export class ProjectInitializer {
         }
       }
 
+      // Always validate generated configuration, even when prerequisites are skipped.
+      const templateConfig = TEMPLATE_CONFIGS[this.options.template];
+      const qualityGateConfig = QUALITY_GATE_CONFIGS[templateConfig.qualityGates];
+      const workflowContent = generateWorkflowConfig(templateConfig, qualityGateConfig);
+      const agentsContent = generateAgentsConfig();
+      const validations = [
+        { filename: 'workflow.yaml', result: validateWorkflowConfig(workflowContent) },
+        { filename: 'agents.yaml', result: validateAgentsConfig(agentsContent) },
+      ];
+      for (const { filename, result } of validations) {
+        if (!result.success) {
+          const reason = result.errors
+            ?.map((error) => `${error.path}: ${error.message}`)
+            .join('\n');
+          throw new ConfigurationError(filename, reason ?? 'Generated configuration is invalid');
+        }
+      }
+
       // Create directory structure
       const directories = this.getDirectoryStructure(projectPath);
       for (const dir of directories) {
@@ -113,7 +134,11 @@ export class ProjectInitializer {
       }
 
       // Generate configuration files
-      const configFiles = await this.generateConfigFiles(projectPath);
+      const configFiles = await this.generateConfigFiles(
+        projectPath,
+        workflowContent,
+        agentsContent
+      );
       createdFiles.push(...configFiles);
 
       // Generate template files
@@ -207,112 +232,30 @@ export class ProjectInitializer {
   }
 
   /**
-   * Generate configuration files
+   * Write the original validated objects, preserving settings stripped by schema parsing.
    * @param projectPath - The root path of the project
+   * @param workflowContent - The validated workflow configuration
+   * @param agentsContent - The validated agents configuration
    * @returns Array of created configuration file paths
    */
-  private async generateConfigFiles(projectPath: string): Promise<string[]> {
+  private async generateConfigFiles(
+    projectPath: string,
+    workflowContent: WorkflowConfig,
+    agentsContent: AgentsConfig
+  ): Promise<string[]> {
     const createdFiles: string[] = [];
-    const templateConfig = TEMPLATE_CONFIGS[this.options.template];
-    const qualityGateConfig = QUALITY_GATE_CONFIGS[templateConfig.qualityGates];
 
     // Generate workflow.yaml
     const workflowPath = path.join(projectPath, '.ad-sdlc', 'config', 'workflow.yaml');
-    const workflowContent = this.generateWorkflowConfig(templateConfig, qualityGateConfig);
     await this.writeFile(workflowPath, yaml.dump(workflowContent, { lineWidth: 100 }));
     createdFiles.push(workflowPath);
 
     // Generate agents.yaml
     const agentsPath = path.join(projectPath, '.ad-sdlc', 'config', 'agents.yaml');
-    const agentsContent = this.generateAgentsConfig();
     await this.writeFile(agentsPath, yaml.dump(agentsContent, { lineWidth: 100 }));
     createdFiles.push(agentsPath);
 
     return createdFiles;
-  }
-
-  /**
-   * Generate workflow configuration
-   * @param templateConfig - The template configuration to use
-   * @param qualityGates - The quality gate configuration to apply
-   * @returns Generated workflow configuration object
-   */
-  private generateWorkflowConfig(
-    templateConfig: TemplateConfig,
-    qualityGates: QualityGateConfig
-  ): WorkflowConfig {
-    return {
-      version: '1.0.0',
-      pipeline: {
-        stages: [
-          { name: 'collect', agent: 'collector', timeout_ms: 300000 },
-          { name: 'prd', agent: 'prd-writer', timeout_ms: 300000 },
-          { name: 'srs', agent: 'srs-writer', timeout_ms: 300000 },
-          { name: 'sds', agent: 'sds-writer', timeout_ms: 300000 },
-          { name: 'issues', agent: 'issue-generator', timeout_ms: 300000 },
-          { name: 'implement', agent: 'controller', timeout_ms: 600000 },
-          { name: 'review', agent: 'pr-reviewer', timeout_ms: 300000 },
-        ],
-      },
-      quality_gates: qualityGates,
-      execution: {
-        max_parallel_workers: templateConfig.parallelWorkers,
-        retry_attempts: 3,
-        retry_delay_ms: 5000,
-      },
-    };
-  }
-
-  /**
-   * Generate agents configuration
-   * @returns Agent configuration object with definitions
-   */
-  private generateAgentsConfig(): Record<string, unknown> {
-    return {
-      version: '1.0.0',
-      agents: {
-        collector: {
-          description: 'Collects and organizes project requirements',
-          model: 'sonnet',
-          definition: '.claude/agents/collector.md',
-        },
-        'prd-writer': {
-          description: 'Generates Product Requirements Document',
-          model: 'sonnet',
-          definition: '.claude/agents/prd-writer.md',
-        },
-        'srs-writer': {
-          description: 'Generates Software Requirements Specification',
-          model: 'sonnet',
-          definition: '.claude/agents/srs-writer.md',
-        },
-        'sds-writer': {
-          description: 'Generates Software Design Specification',
-          model: 'sonnet',
-          definition: '.claude/agents/sds-writer.md',
-        },
-        'issue-generator': {
-          description: 'Generates GitHub issues from SDS',
-          model: 'sonnet',
-          definition: '.claude/agents/issue-generator.md',
-        },
-        controller: {
-          description: 'Orchestrates parallel implementation',
-          model: 'sonnet',
-          definition: '.claude/agents/controller.md',
-        },
-        worker: {
-          description: 'Implements individual issues',
-          model: 'sonnet',
-          definition: '.claude/agents/worker.md',
-        },
-        'pr-reviewer': {
-          description: 'Reviews pull requests',
-          model: 'sonnet',
-          definition: '.claude/agents/pr-reviewer.md',
-        },
-      },
-    };
   }
 
   /**
