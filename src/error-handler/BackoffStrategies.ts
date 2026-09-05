@@ -95,8 +95,7 @@ export function capDelay(delay: number, maxDelayMs: number): number {
 export class FixedBackoff implements BackoffStrategy {
   public readonly name: BackoffStrategyType = 'fixed';
 
-  public calculateDelay(attempt: number, config: BackoffConfig): number {
-    void attempt; // Unused - fixed delay doesn't vary by attempt
+  public calculateDelay(_attempt: number, config: BackoffConfig): number {
     const delay = config.baseDelayMs;
     const withJitter = applyJitter(delay, config.jitterRatio);
     return capDelay(withJitter, config.maxDelayMs);
