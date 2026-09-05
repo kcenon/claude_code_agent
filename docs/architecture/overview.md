@@ -142,9 +142,9 @@ AD-SDLC (Agent-Driven Software Development Lifecycle) is an automated software d
 | `typescript`          | ^6.0.3  | TypeScript compiler      |
 | `vitest`              | ^4.0.16 | Test runner              |
 | `@vitest/coverage-v8` | ^4.1.11 | Code coverage            |
-| `eslint`              | ^10.8.1 | Code linting             |
+| `eslint`              | ^10.9.1 | Code linting             |
 | `prettier`            | ^3.9.6  | Code formatting          |
-| `typescript-eslint`   | ^8.67.0 | TypeScript linting rules |
+| `typescript-eslint`   | ^8.68.0 | TypeScript linting rules |
 
 ### External Integrations
 
