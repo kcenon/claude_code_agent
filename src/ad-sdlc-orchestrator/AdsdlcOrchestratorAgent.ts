@@ -48,6 +48,7 @@ import type {
 import {
   DEFAULT_ORCHESTRATOR_CONFIG,
   GREENFIELD_STAGES,
+  LOCAL_AGENT_SUBSTITUTIONS,
   ENHANCEMENT_STAGES,
   IMPORT_STAGES,
 } from './types.js';
@@ -567,9 +568,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
         ) as typeof s.dependsOn;
 
         // Substitute GitHub-dependent agent types with local alternatives
-        let { agentType } = s;
-        if (agentType === 'pr-reviewer') agentType = 'local-reviewer';
-        if (agentType === 'issue-reader') agentType = 'local-issue-reader';
+        const agentType = LOCAL_AGENT_SUBSTITUTIONS[s.agentType] ?? s.agentType;
 
         return { ...s, agentType, dependsOn };
       });

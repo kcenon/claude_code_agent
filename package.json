@@ -10,11 +10,14 @@
   },
   "files": [
     "dist",
-    "README.md",
-    "LICENSE"
+    "./README.md",
+    "./LICENSE",
+    "agent-assets.manifest.json",
+    ".claude/agents/*.md",
+    ".claude/commands/*.md"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "npm run assets:check && tsc",
     "build:watch": "tsc --watch",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -43,7 +46,11 @@
     "todo:all": "grep -rn -E '(TODO|FIXME|HACK)' src/ --include='*.ts' | sort",
     "todo:count": "echo 'TODO:' && grep -r 'TODO' src/ --include='*.ts' | wc -l && echo 'FIXME:' && grep -r 'FIXME' src/ --include='*.ts' | wc -l && echo 'HACK:' && grep -r 'HACK' src/ --include='*.ts' | wc -l",
     "docs": "typedoc",
-    "docs:watch": "typedoc --watch"
+    "docs:watch": "typedoc --watch",
+    "assets:check": "tsx scripts/agent-assets.ts",
+    "assets:generate": "tsx scripts/agent-assets.ts --write",
+    "prepack": "npm run clean && npm run build",
+    "test:package": "node tests/package/asset-delivery.smoke.mjs"
   },
   "keywords": [
     "claude",

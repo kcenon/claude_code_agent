@@ -1,16 +1,12 @@
 ---
-description: Print current AD-SDLC pipeline status
+description: Print tracked AD-SDLC pipeline status from the intended project root
 argument-hint: '[--project <id>] [--format text|json] [--verbose]'
 ---
 
-Show the current AD-SDLC pipeline status for the active project.
-
-Steps:
-
-1. Execute `npx ad-sdlc status $ARGUMENTS` from the project root.
-2. By default the command prints a text summary of stages, the active
-   session, and any blocked or failed stages. Pass `--format json` for
-   machine-readable output.
-3. Use `--project <id>` to target a specific tracked project, and
-   `--verbose` to surface per-stage timestamps and last-error context.
-4. Relay the formatted output back to the user without modification.
+1. Execute the installed `ad-sdlc status` from the intended project root. Status
+   uses the working directory; it has no `--project-dir` option.
+2. Forward only the supported `--project <id>`, `--format text|json`, and
+   `--verbose` options as separate, safely quoted arguments. Do not expand raw
+   `$ARGUMENTS` in a shell. `--project` selects a tracked project ID, not a path.
+3. Check `ad-sdlc status --help` for the installed contract and relay the formatted
+   output, including empty/missing status or errors, without inventing stage data.

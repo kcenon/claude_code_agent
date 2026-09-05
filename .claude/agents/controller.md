@@ -12,6 +12,9 @@ tools:
   - Glob
   - Grep
 model: inherit
+required-assets:
+  - agent:pr-reviewer
+  - agent:worker
 ---
 
 # Controller Agent

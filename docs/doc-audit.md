@@ -1,6 +1,7 @@
 # Document Audit CLI
 
-> **Script**: `scripts/audit-docs.ts`
+> **Packaged entry**: `ad-sdlc audit-docs`
+> **Repository wrapper**: `scripts/audit-docs.ts`
 > **Module**: `src/doc-audit/`
 > **Purpose**: Validate pipeline-generated AD-SDLC documents for integrity, completeness, and cross-reference consistency.
 
@@ -21,7 +22,18 @@ The auditor produces two report files:
 
 ## Usage
 
-### Running via npm
+### Installed package
+
+```bash
+ad-sdlc audit-docs --project-dir . [--output <dir>] [--quiet]
+```
+
+Run from the intended project root, or pass a concrete absolute project directory.
+No project npm script, TypeScript tool, API key, or plugin is required. This checks
+generated document integrity; it does not compare implementation code against
+documentation.
+
+### Repository wrapper via npm
 
 ```bash
 npm run audit:docs -- --project-dir <path> [--output <dir>] [--quiet]

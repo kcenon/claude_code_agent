@@ -6,7 +6,7 @@
 [![Node.js](https://img.shields.io/badge/Node.js-22.22.1%2B-green.svg)](https://nodejs.org/)
 [![Built with Claude Agent SDK](https://img.shields.io/badge/Built%20with-Claude%20Agent%20SDK-blueviolet)](https://www.npmjs.com/package/@anthropic-ai/claude-agent-sdk)
 
-Every AI-backed pipeline stage runs through a single Claude Agent SDK entry point (`ExecutionAdapter`). The three modes currently contain 39 stage slots that reuse 29 unique pipeline agent types; the repository also carries 7 support/delegated definitions, for 36 checked-in prompt files. These axes are [tracked separately and checked from source](docs/architecture/runtime-inventory.md).
+Every AI-backed pipeline stage runs through a single Claude Agent SDK entry point (`ExecutionAdapter`). The three modes currently contain 39 stage slots that reuse 29 unique pipeline agent types; the repository also carries 7 support/delegated definitions, for 36 canonical prompt files shipped with every npm scaffold. These axes are [tracked separately and checked from source](docs/architecture/runtime-inventory.md).
 
 ## Quick Start
 
@@ -172,7 +172,7 @@ Each agent reads and writes to a shared scratchpad, enabling seamless inter-agen
 - **Regression Testing**: Identifies affected tests when modifying existing code
 - **Doc-Code Gap Analysis**: Detects discrepancies between documentation and implementation
 - **V&V Framework**: Final validation is a live pipeline stage, and the scheduler records per-stage verification results; strict `haltOnVerificationFailure` mode stops the DAG on the first failed gate
-- **Document Audit**: CLI script (`npm run audit:docs`) that validates pipeline-generated PRD/SRS/SDS/SDP/TM/SVP/TD/DBS documents for frontmatter, required sections, cross-references, and PRD→SRS→SDS traceability; see [Document Audit CLI](docs/doc-audit.md)
+- **Document Audit**: Packaged CLI (`ad-sdlc audit-docs --project-dir .`) that validates pipeline-generated PRD/SRS/SDS/SDP/TM/SVP/TD/DBS documents for frontmatter, required sections, cross-references, and PRD→SRS→SDS traceability; see [Document Audit CLI](docs/doc-audit.md)
 - **Customizable Workflows**: Configure agents, templates, and quality gates
 
 ## Installation
@@ -292,13 +292,13 @@ Once the pipeline has generated documents, validate them with the document audit
 
 ```bash
 # Audit the current project (writes reports to .ad-sdlc/audit/)
-npm run audit:docs -- --project-dir .
+ad-sdlc audit-docs --project-dir .
 
 # Audit a different project and pick the output directory
-npm run audit:docs -- --project-dir ./my-project --output audit-reports
+ad-sdlc audit-docs --project-dir ./my-project --output audit-reports
 
-# Or run the script directly with tsx
-npx tsx scripts/audit-docs.ts --project-dir ./my-project
+# Repository contributors may also use the compatible wrapper
+npm run audit:docs -- --project-dir ./my-project
 ```
 
 The auditor runs frontmatter, required-section, cross-reference, PRD→SRS→SDS
@@ -440,6 +440,15 @@ your-project/
 
 ## Agent Definitions
 
+All templates install the 36 canonical agents and four commands from the npm package.
+See [Canonical assets and upgrades](docs/agent-assets.md) for manifest regeneration,
+versioning, customization handling, and legacy migration.
+
+```bash
+ad-sdlc assets update --project-dir . --dry-run
+ad-sdlc assets update --project-dir .
+```
+
 Each agent is defined in `.claude/agents/` with:
 
 - YAML frontmatter (name, description, tools, model)
@@ -449,16 +458,16 @@ Agent prompt files (`.md`) are in English and used by Claude during execution.
 
 ## Slash Commands
 
-`.claude/commands/*.md` files are auto-loaded by Claude Code (and the Agent SDK) and exposed as slash commands inside the session. Each file declares its argument shape via YAML frontmatter (`description`, optional `argument-hint`) and a short markdown body that instructs the assistant which CLI subcommand to run.
+The scaffold installs `.claude/commands/*.md` for use as project slash commands in Claude Code sessions. Each file declares its argument shape via YAML frontmatter (`description`, optional `argument-hint`) and a short markdown body that instructs the assistant which CLI subcommand to run.
 
 | Command           | File                                 | Wraps                                                                  |
 | ----------------- | ------------------------------------ | ---------------------------------------------------------------------- |
-| `/run-greenfield` | `.claude/commands/run-greenfield.md` | `ad-sdlc init` + `ad-sdlc run --mode greenfield`                       |
-| `/resume`         | `.claude/commands/resume.md`         | `ad-sdlc run --resume <session-id>` (no dedicated `resume` subcommand) |
-| `/audit-docs`     | `.claude/commands/audit-docs.md`     | `npm run audit:docs` (`scripts/audit-docs.ts`)                         |
+| `/run-greenfield` | `.claude/commands/run-greenfield.md` | `ad-sdlc init . --quick` + `ad-sdlc run <requirements> --mode greenfield --project-dir .`                       |
+| `/resume`         | `.claude/commands/resume.md`         | `ad-sdlc run <requirements> --resume <session-id> --project-dir .` |
+| `/audit-docs`     | `.claude/commands/audit-docs.md`     | `ad-sdlc audit-docs --project-dir .`                         |
 | `/status`         | `.claude/commands/status.md`         | `ad-sdlc status`                                                       |
 
-To use them, open the project inside a Claude Code session and type the command (for example `/run-greenfield "Build a todo app"`). Claude reads the matching markdown file, substitutes `$ARGUMENTS` / `$1`, and executes the underlying CLI call. New commands can be added by dropping a markdown file with valid frontmatter into `.claude/commands/`.
+To use them, open the project inside a Claude Code session and type the command (for example `/run-greenfield "Build a todo app"`). Claude follows the matching markdown instructions, parsing requirements and supported options separately and keeping unchecked input out of shell source. New commands can be added by dropping a markdown file with valid frontmatter into `.claude/commands/`.
 
 ## Document Frontmatter
 

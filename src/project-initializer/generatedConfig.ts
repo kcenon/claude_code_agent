@@ -4,6 +4,7 @@
  * @packageDocumentation
  */
 
+import { loadAssetBundle, type AssetBundle } from './AgentAssets.js';
 import type { AgentsConfig } from '../config/types.js';
 import type { QualityGateConfig, TemplateConfig, WorkflowConfig } from './types.js';
 
@@ -42,67 +43,36 @@ export function generateWorkflowConfig(
 /**
  * Generate agents configuration
  * @returns Agent configuration object with definitions
+ * @param bundle - Validated canonical inventory
  */
-export function generateAgentsConfig(): AgentsConfig {
+export function generateAgentsConfig(bundle: AssetBundle = loadAssetBundle()): AgentsConfig {
   return {
     version: '1.0.0',
-    agents: {
-      collector: {
-        id: 'collector',
-        name: 'Collector Agent',
-        description: 'Collects and organizes project requirements',
-        model: 'sonnet',
-        definition: '.claude/agents/collector.md',
-      },
-      'prd-writer': {
-        id: 'prd-writer',
-        name: 'PRD Writer Agent',
-        description: 'Generates Product Requirements Document',
-        model: 'sonnet',
-        definition: '.claude/agents/prd-writer.md',
-      },
-      'srs-writer': {
-        id: 'srs-writer',
-        name: 'SRS Writer Agent',
-        description: 'Generates Software Requirements Specification',
-        model: 'sonnet',
-        definition: '.claude/agents/srs-writer.md',
-      },
-      'sds-writer': {
-        id: 'sds-writer',
-        name: 'SDS Writer Agent',
-        description: 'Generates Software Design Specification',
-        model: 'sonnet',
-        definition: '.claude/agents/sds-writer.md',
-      },
-      'issue-generator': {
-        id: 'issue-generator',
-        name: 'Issue Generator Agent',
-        description: 'Generates GitHub issues from SDS',
-        model: 'sonnet',
-        definition: '.claude/agents/issue-generator.md',
-      },
-      controller: {
-        id: 'controller',
-        name: 'Controller Agent',
-        description: 'Orchestrates parallel implementation',
-        model: 'sonnet',
-        definition: '.claude/agents/controller.md',
-      },
-      worker: {
-        id: 'worker',
-        name: 'Worker Agent',
-        description: 'Implements individual issues',
-        model: 'sonnet',
-        definition: '.claude/agents/worker.md',
-      },
-      'pr-reviewer': {
-        id: 'pr-reviewer',
-        name: 'PR Reviewer Agent',
-        description: 'Reviews pull requests',
-        model: 'sonnet',
-        definition: '.claude/agents/pr-reviewer.md',
-      },
-    },
+    agents: Object.fromEntries(
+      bundle.assets.flatMap((asset) => {
+        const metadata = asset.frontmatter;
+        if (metadata === undefined) return [];
+        return [
+          [
+            metadata.name,
+            {
+              id: metadata.name,
+              name:
+                metadata.name
+                  .split('-')
+                  .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+                  .join(' ') + ' Agent',
+              description: metadata.description,
+              model: metadata.model,
+              model_preference: metadata.model,
+              tools: metadata.tools,
+              definition_file: asset.path,
+              // Compatibility with readers of the pre-#946 generated registry.
+              definition: asset.path,
+            },
+          ],
+        ];
+      })
+    ),
   };
 }

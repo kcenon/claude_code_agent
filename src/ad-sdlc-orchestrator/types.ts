@@ -903,3 +903,9 @@ export interface PipelineCheckpoint {
    */
   readonly sdkSessionId?: string;
 }
+
+/** Local prompt substitutions shared by runtime execution and asset validation. */
+export const LOCAL_AGENT_SUBSTITUTIONS: Readonly<Record<string, string>> = {
+  'pr-reviewer': 'local-reviewer',
+  'issue-reader': 'local-issue-reader',
+};

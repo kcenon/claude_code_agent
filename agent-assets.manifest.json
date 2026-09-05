@@ -1,0 +1,409 @@
+{
+  "schemaVersion": 1,
+  "bundleVersion": "1.0.0",
+  "assets": [
+    {
+      "id": "agent:ad-sdlc-orchestrator",
+      "kind": "agent",
+      "path": ".claude/agents/ad-sdlc-orchestrator.md",
+      "digest": "d0177b219bed4f40967b3d34c5b0ef9892a2736af7eb1c002c260abd48599cf0",
+      "role": "support",
+      "requires": [
+        "agent:analysis-orchestrator",
+        "agent:code-reader",
+        "agent:codebase-analyzer",
+        "agent:collector",
+        "agent:controller",
+        "agent:doc-code-comparator",
+        "agent:doc-index-generator",
+        "agent:document-reader",
+        "agent:github-repo-setup",
+        "agent:impact-analyzer",
+        "agent:issue-generator",
+        "agent:issue-reader",
+        "agent:local-issue-reader",
+        "agent:local-reviewer",
+        "agent:mode-detector",
+        "agent:pr-reviewer",
+        "agent:prd-updater",
+        "agent:prd-writer",
+        "agent:project-initializer",
+        "agent:regression-tester",
+        "agent:repo-detector",
+        "agent:rtm-builder",
+        "agent:sdp-writer",
+        "agent:sds-updater",
+        "agent:sds-writer",
+        "agent:srs-updater",
+        "agent:srs-writer",
+        "agent:stage-verifier",
+        "agent:svp-writer",
+        "agent:tech-decision-writer",
+        "agent:threat-model-writer",
+        "agent:ui-spec-writer",
+        "agent:validation-agent",
+        "agent:worker"
+      ]
+    },
+    {
+      "id": "agent:analysis-orchestrator",
+      "kind": "agent",
+      "path": ".claude/agents/analysis-orchestrator.md",
+      "digest": "c742e2cb2b1dd4d714d7866cc00964d7a2e88a7ad734f1462d8f49705dcc62e6",
+      "role": "support",
+      "requires": [
+        "agent:code-reader",
+        "agent:doc-code-comparator",
+        "agent:document-reader",
+        "agent:issue-generator"
+      ]
+    },
+    {
+      "id": "agent:ci-fixer",
+      "kind": "agent",
+      "path": ".claude/agents/ci-fixer.md",
+      "digest": "44f1dc33ff5f422d53fbef476bf717bf8af71423cfcf5dd719c9eeb07f48f48f",
+      "role": "support",
+      "requires": []
+    },
+    {
+      "id": "agent:code-reader",
+      "kind": "agent",
+      "path": ".claude/agents/code-reader.md",
+      "digest": "dda770bcc5c80e64807cdb7a1ef6262f9f238ae78b1de3e766693c2bfe0ec235",
+      "role": "direct",
+      "requires": []
+    },
+    {
+      "id": "agent:codebase-analyzer",
+      "kind": "agent",
+      "path": ".claude/agents/codebase-analyzer.md",
+      "digest": "b671d430def3cd904c4a5fc7f47d125474a821b067822030802678f3494b8c10",
+      "role": "direct",
+      "requires": []
+    },
+    {
+      "id": "agent:collector",
+      "kind": "agent",
+      "path": ".claude/agents/collector.md",
+      "digest": "9450f0cb351f169b2731743807e76735fb504bbf2203f77e8025fda7727615e2",
+      "role": "direct",
+      "requires": []
+    },
+    {
+      "id": "agent:controller",
+      "kind": "agent",
+      "path": ".claude/agents/controller.md",
+      "digest": "ab3947e29de44cb71cc8943a930cb62bcead9d1a03bf7d6f639fb4537c74e3b0",
+      "role": "direct",
+      "requires": [
+        "agent:pr-reviewer",
+        "agent:worker"
+      ]
+    },
+    {
+      "id": "agent:doc-code-comparator",
+      "kind": "agent",
+      "path": ".claude/agents/doc-code-comparator.md",
+      "digest": "14fc7a59afaaa0a9b8429720f70ee0a3240d4aea911103778067e9a6b0c52132",
+      "role": "direct",
+      "requires": []
+    },
+    {
+      "id": "agent:doc-index-generator",
+      "kind": "agent",
+      "path": ".claude/agents/doc-index-generator.md",
+      "digest": "331ef8faa6b672b7f5a70ac7491ef8c20d9ec13618022314cf4120dcbb5dc5db",
+      "role": "direct",
+      "requires": []
+    },
+    {
+      "id": "agent:document-reader",
+      "kind": "agent",
+      "path": ".claude/agents/document-reader.md",
+      "digest": "ff883ea4cdfa538d6d7d01ca8cc02294ce7309369b9f73e324c711a883700e35",
+      "role": "direct",
+      "requires": []
+    },
+    {
+      "id": "agent:github-repo-setup",
+      "kind": "agent",
+      "path": ".claude/agents/github-repo-setup.md",
+      "digest": "4e41dcee24c740aa617c9216e70a773d076a055bcc3f99811d8feebb6c6ff4e7",
+      "role": "direct",
+      "requires": []
+    },
+    {
+      "id": "agent:impact-analyzer",
+      "kind": "agent",
+      "path": ".claude/agents/impact-analyzer.md",
+      "digest": "b06330fd7ff33adca97d4c30129d9011e58625f048f87561698d92f8d4e78132",
+      "role": "direct",
+      "requires": []
+    },
+    {
+      "id": "agent:issue-generator",
+      "kind": "agent",
+      "path": ".claude/agents/issue-generator.md",
+      "digest": "de7cbc459488a857f4847de9c4fd7e1424b15f835e82fb182a0cafb18a770c4f",
+      "role": "direct",
+      "requires": []
+    },
+    {
+      "id": "agent:issue-reader",
+      "kind": "agent",
+      "path": ".claude/agents/issue-reader.md",
+      "digest": "e7fbc9796ccb62481286d2ba8849808867f06a4c83699715328273a07bd94d90",
+      "role": "direct",
+      "requires": [
+        "agent:issue-reader"
+      ]
+    },
+    {
+      "id": "agent:local-issue-reader",
+      "kind": "agent",
+      "path": ".claude/agents/local-issue-reader.md",
+      "digest": "7bf93742ee077ff749414f3db8603155d751186f13bd6425437354ca49611235",
+      "role": "local",
+      "requires": []
+    },
+    {
+      "id": "agent:local-reviewer",
+      "kind": "agent",
+      "path": ".claude/agents/local-reviewer.md",
+      "digest": "096e48eb686116d4b519119cf8e17a9e0f8e30753cd73690afa5e6ed249c9191",
+      "role": "local",
+      "requires": []
+    },
+    {
+      "id": "agent:mode-detector",
+      "kind": "agent",
+      "path": ".claude/agents/mode-detector.md",
+      "digest": "3784ca41483762b9b19844c24def080574b1336b384ac05d8d746bff1cdc14e7",
+      "role": "direct",
+      "requires": []
+    },
+    {
+      "id": "agent:pr-reviewer",
+      "kind": "agent",
+      "path": ".claude/agents/pr-reviewer.md",
+      "digest": "f436b650a37a3e29eab781c12d3f20521edbd00b45e3441b4a369b808680a6be",
+      "role": "direct",
+      "requires": [
+        "agent:ci-fixer"
+      ]
+    },
+    {
+      "id": "agent:prd-updater",
+      "kind": "agent",
+      "path": ".claude/agents/prd-updater.md",
+      "digest": "e97fcf3d884b8eae3ffa91c087b70c8ec8661e40175ea74c6978514dbb8eb8b0",
+      "role": "direct",
+      "requires": []
+    },
+    {
+      "id": "agent:prd-writer",
+      "kind": "agent",
+      "path": ".claude/agents/prd-writer.md",
+      "digest": "73c96de1a66d172316035fb6c4f9e630b85dea556a6716468d46abe3017bcf0c",
+      "role": "direct",
+      "requires": []
+    },
+    {
+      "id": "agent:project-initializer",
+      "kind": "agent",
+      "path": ".claude/agents/project-initializer.md",
+      "digest": "428372267d15fe49e88cbbe66ef597216751a07260b4ed011c2d31c099f4969f",
+      "role": "direct",
+      "requires": []
+    },
+    {
+      "id": "agent:regression-tester",
+      "kind": "agent",
+      "path": ".claude/agents/regression-tester.md",
+      "digest": "b03ca563f0f5105121a726d86847b3034c5613d8dd586afe588b1ab3027ea879",
+      "role": "direct",
+      "requires": []
+    },
+    {
+      "id": "agent:repo-detector",
+      "kind": "agent",
+      "path": ".claude/agents/repo-detector.md",
+      "digest": "2c2c446addb8c68cc6a20409b30406c448256ebe031f3d3c206dc0bb4c8a8c23",
+      "role": "direct",
+      "requires": []
+    },
+    {
+      "id": "agent:rtm-builder",
+      "kind": "agent",
+      "path": ".claude/agents/rtm-builder.md",
+      "digest": "c2ef9ef875f1aab1b8dcac601cf6dac3707528d55632d3a41a5110b534318630",
+      "role": "support",
+      "requires": []
+    },
+    {
+      "id": "agent:sdp-writer",
+      "kind": "agent",
+      "path": ".claude/agents/sdp-writer.md",
+      "digest": "3be8265be3a0ec1d4edbf43c3ce2ec23ecd844416c898ee8a9e7e98a5d18f0b1",
+      "role": "direct",
+      "requires": []
+    },
+    {
+      "id": "agent:sds-updater",
+      "kind": "agent",
+      "path": ".claude/agents/sds-updater.md",
+      "digest": "7aa6ffba2747ec2c8e933a62b83042e6111544a7301c4efeb2c3977f3fc8ab99",
+      "role": "direct",
+      "requires": []
+    },
+    {
+      "id": "agent:sds-writer",
+      "kind": "agent",
+      "path": ".claude/agents/sds-writer.md",
+      "digest": "b9b927c18a97b976cd572a896e77e3bf5c617e2e0703875d7db74770403cf015",
+      "role": "direct",
+      "requires": []
+    },
+    {
+      "id": "agent:srs-updater",
+      "kind": "agent",
+      "path": ".claude/agents/srs-updater.md",
+      "digest": "196fa6f94c39856022a11e16cd7c67a807eadc70c9d9f27d0556ab64ac55de3f",
+      "role": "direct",
+      "requires": []
+    },
+    {
+      "id": "agent:srs-writer",
+      "kind": "agent",
+      "path": ".claude/agents/srs-writer.md",
+      "digest": "73a18b3f17bef1abf539ef9f462fb83c9adae35b46c41e3ccfb7ff326d03198e",
+      "role": "direct",
+      "requires": []
+    },
+    {
+      "id": "agent:stage-verifier",
+      "kind": "agent",
+      "path": ".claude/agents/stage-verifier.md",
+      "digest": "2de4076a434c21801e97b486d46fc4a3b8c7944768617b06a3f2cfc98f48b13c",
+      "role": "support",
+      "requires": []
+    },
+    {
+      "id": "agent:svp-writer",
+      "kind": "agent",
+      "path": ".claude/agents/svp-writer.md",
+      "digest": "f48f67069ca0229c2e7ce0f405f036f2df7f3c788f82b4a5b9944c635e53829f",
+      "role": "direct",
+      "requires": []
+    },
+    {
+      "id": "agent:tech-decision-writer",
+      "kind": "agent",
+      "path": ".claude/agents/tech-decision-writer.md",
+      "digest": "8535c37b7527fb7ca6ffb29dacebbe28960d07daec80ec6d1ad5a5763ea07353",
+      "role": "direct",
+      "requires": []
+    },
+    {
+      "id": "agent:threat-model-writer",
+      "kind": "agent",
+      "path": ".claude/agents/threat-model-writer.md",
+      "digest": "724333ed2de057eff27f45c838a227391732d8319ba0a8fda134656a1f67e246",
+      "role": "direct",
+      "requires": []
+    },
+    {
+      "id": "agent:ui-spec-writer",
+      "kind": "agent",
+      "path": ".claude/agents/ui-spec-writer.md",
+      "digest": "22d736295d69837f5878404748322b881e8cf05e6336b4047cb183588b0617e8",
+      "role": "direct",
+      "requires": []
+    },
+    {
+      "id": "agent:validation-agent",
+      "kind": "agent",
+      "path": ".claude/agents/validation-agent.md",
+      "digest": "da372e20a553456c1977f010c40d231bd911e891e3331adbd4dbc54b7cc4e8b3",
+      "role": "direct",
+      "requires": []
+    },
+    {
+      "id": "agent:worker",
+      "kind": "agent",
+      "path": ".claude/agents/worker.md",
+      "digest": "ed50d75a6a212bc3b2848e5a7e0e8c0bce1ea5d5def111f53dcb4a4f7404e88d",
+      "role": "direct",
+      "requires": []
+    },
+    {
+      "id": "command:audit-docs",
+      "kind": "command",
+      "path": ".claude/commands/audit-docs.md",
+      "digest": "56e49b4c6aa0862cb84c9db0185e7f27b49f7eed793c0331a32cdf7beb05363b",
+      "role": "command",
+      "requires": []
+    },
+    {
+      "id": "command:resume",
+      "kind": "command",
+      "path": ".claude/commands/resume.md",
+      "digest": "291217680073d8778dbfb34a865abd071dae6f451b62e22967f00f5356694c8b",
+      "role": "command",
+      "requires": [
+        "agent:ad-sdlc-orchestrator"
+      ]
+    },
+    {
+      "id": "command:run-greenfield",
+      "kind": "command",
+      "path": ".claude/commands/run-greenfield.md",
+      "digest": "d86f4b7ec372808e200a253438a6eaca724b089520ce85ec61c2d3827300017e",
+      "role": "command",
+      "requires": [
+        "agent:ad-sdlc-orchestrator",
+        "command:resume"
+      ]
+    },
+    {
+      "id": "command:status",
+      "kind": "command",
+      "path": ".claude/commands/status.md",
+      "digest": "1dc5b739175aeb8c09c6c61711d8c0a0166a22a4bff38d88d2a4160225279019",
+      "role": "command",
+      "requires": []
+    }
+  ],
+  "localSubstitutions": {
+    "pr-reviewer": "local-reviewer",
+    "issue-reader": "local-issue-reader"
+  },
+  "optionalExternalSkills": [
+    {
+      "plugin": "claude-config",
+      "name": "ci-debugging",
+      "required": false
+    },
+    {
+      "plugin": "claude-config",
+      "name": "code-quality",
+      "required": false
+    },
+    {
+      "plugin": "claude-config",
+      "name": "coding-guidelines",
+      "required": false
+    },
+    {
+      "plugin": "claude-config",
+      "name": "pr-review",
+      "required": false
+    },
+    {
+      "plugin": "claude-config",
+      "name": "security-audit",
+      "required": false
+    }
+  ]
+}

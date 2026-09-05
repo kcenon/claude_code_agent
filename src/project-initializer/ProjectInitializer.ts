@@ -19,6 +19,13 @@ import type { AgentsConfig } from '../config/types.js';
 
 import { ConfigurationError, FileSystemError, ProjectExistsError } from './errors.js';
 import { generateAgentsConfig, generateWorkflowConfig } from './generatedConfig.js';
+import { loadAssetBundle } from './AgentAssets.js';
+import {
+  ASSET_LOCK_PATH,
+  atomicAssetWrite,
+  createAssetLock,
+  preflightAssetInstallation,
+} from './AssetUpdater.js';
 import { getPrerequisiteValidator } from './PrerequisiteValidator.js';
 import type {
   InitOptions,
@@ -52,7 +59,10 @@ function resolveTargetDir(targetDir?: string): string {
 export class ProjectInitializer {
   private readonly options: InitOptions;
 
-  constructor(options: InitOptions) {
+  constructor(
+    options: InitOptions,
+    private readonly assetPackageRoot?: string
+  ) {
     this.options = {
       ...options,
       targetDir: resolveTargetDir(options.targetDir),
@@ -112,7 +122,10 @@ export class ProjectInitializer {
       const templateConfig = TEMPLATE_CONFIGS[this.options.template];
       const qualityGateConfig = QUALITY_GATE_CONFIGS[templateConfig.qualityGates];
       const workflowContent = generateWorkflowConfig(templateConfig, qualityGateConfig);
-      const agentsContent = generateAgentsConfig();
+      const bundle = loadAssetBundle(this.assetPackageRoot);
+      warnings.push(...bundle.warnings);
+      preflightAssetInstallation(projectPath, bundle);
+      const agentsContent = generateAgentsConfig(bundle);
       const validations = [
         { filename: 'workflow.yaml', result: validateWorkflowConfig(workflowContent) },
         { filename: 'agents.yaml', result: validateAgentsConfig(agentsContent) },
@@ -130,7 +143,6 @@ export class ProjectInitializer {
       const directories = this.getDirectoryStructure(projectPath);
       for (const dir of directories) {
         await this.createDirectory(dir);
-        createdFiles.push(dir);
       }
 
       // Generate configuration files
@@ -145,9 +157,14 @@ export class ProjectInitializer {
       const templateFiles = await this.generateTemplateFiles(projectPath);
       createdFiles.push(...templateFiles);
 
-      // Generate agent definitions
-      const agentFiles = await this.generateAgentDefinitions(projectPath);
-      createdFiles.push(...agentFiles);
+      // Copy the actual packaged bytes. Identical preexisting files remain untouched.
+      for (const asset of bundle.assets) {
+        const target = path.join(projectPath, asset.path);
+        if (!fs.existsSync(target)) {
+          atomicAssetWrite(target, asset.bytes);
+          createdFiles.push(target);
+        }
+      }
 
       // Update .gitignore
       const gitignoreUpdated = await this.updateGitignore(projectPath);
@@ -161,6 +178,13 @@ export class ProjectInitializer {
         await this.createReadme(projectPath);
         createdFiles.push(readmePath);
       }
+
+      const lockPath = path.join(projectPath, ASSET_LOCK_PATH);
+      atomicAssetWrite(
+        lockPath,
+        `${JSON.stringify(createAssetLock(projectPath, bundle), null, 2)}\n`
+      );
+      createdFiles.push(lockPath);
 
       return {
         success: true,
@@ -206,6 +230,7 @@ export class ProjectInitializer {
       // .claude structure
       path.join(projectPath, '.claude'),
       path.join(projectPath, '.claude', 'agents'),
+      path.join(projectPath, '.claude', 'commands'),
 
       // docs structure
       path.join(projectPath, 'docs'),
@@ -295,35 +320,6 @@ export class ProjectInitializer {
   }
 
   /**
-   * Generate agent definition files
-   * @param projectPath - The root path of the project
-   * @returns Array of created agent definition file paths
-   */
-  private async generateAgentDefinitions(projectPath: string): Promise<string[]> {
-    const createdFiles: string[] = [];
-    const agentsDir = path.join(projectPath, '.claude', 'agents');
-
-    const agents = [
-      { name: 'collector', content: this.getCollectorAgentDef() },
-      { name: 'prd-writer', content: this.getPrdWriterAgentDef() },
-      { name: 'srs-writer', content: this.getSrsWriterAgentDef() },
-      { name: 'sds-writer', content: this.getSdsWriterAgentDef() },
-      { name: 'issue-generator', content: this.getIssueGeneratorAgentDef() },
-      { name: 'controller', content: this.getControllerAgentDef() },
-      { name: 'worker', content: this.getWorkerAgentDef() },
-      { name: 'pr-reviewer', content: this.getPrReviewerAgentDef() },
-    ];
-
-    for (const agent of agents) {
-      const agentPath = path.join(agentsDir, `${agent.name}.md`);
-      await this.writeFile(agentPath, agent.content);
-      createdFiles.push(agentPath);
-    }
-
-    return createdFiles;
-  }
-
-  /**
    * Write content to a file
    * @param filePath - The path where the file should be written
    * @param content - The content to write to the file
@@ -384,20 +380,26 @@ This project uses AD-SDLC (Agent-Driven Software Development Lifecycle) for auto
 
 \`\`\`bash
 # Start the development pipeline
-npx ad-sdlc run "Your requirements here"
+ad-sdlc run "Your requirements here" --project-dir .
 
 # Check status
-npx ad-sdlc status
+ad-sdlc status
 
 # Resume from checkpoint
-npx ad-sdlc resume
+ad-sdlc run "Your original requirements" --resume <session-id> --project-dir .
 \`\`\`
 
 ## Project Structure
 
 - \`.ad-sdlc/\` - AD-SDLC configuration and runtime data
-- \`.claude/agents/\` - Agent definitions
+- \`.claude/agents/\` - Canonical agent definitions
+- \`.claude/commands/\` - Project commands
+- \`.ad-sdlc/asset-lock.json\` - Installed asset ownership baselines
 - \`docs/\` - Generated documentation (PRD, SRS, SDS)
+
+Review asset updates with \`ad-sdlc assets update --project-dir . --dry-run\`.
+Run without \`--dry-run\` to apply. Customized files are preserved and reported as conflicts.
+Optional claude-config plugin skills are not installed by this scaffold.
 
 ## Documentation
 
@@ -659,169 +661,6 @@ TBD
 
 - **Effort**: <!-- XS/S/M/L/XL -->
 - **Phase**: <!-- Development phase -->
-`;
-  }
-
-  private getCollectorAgentDef(): string {
-    return `# Collector Agent
-
-## Role
-You are the Collector agent responsible for gathering and organizing project requirements.
-
-## Responsibilities
-1. Collect user requirements from input
-2. Clarify ambiguous requirements
-3. Organize requirements into structured format
-4. Output to scratchpad for next stage
-
-## Input
-- User's project description and requirements
-
-## Output
-- Structured requirements in \`.ad-sdlc/scratchpad/info/{projectId}/collected_info.yaml\`
-`;
-  }
-
-  private getPrdWriterAgentDef(): string {
-    return `# PRD Writer Agent
-
-## Role
-You are the PRD Writer agent responsible for creating the Product Requirements Document.
-
-## Responsibilities
-1. Read collected requirements from scratchpad
-2. Generate comprehensive PRD following template
-3. Include all functional and non-functional requirements
-4. Output PRD to docs/prd/
-
-## Input
-- Collected info from \`.ad-sdlc/scratchpad/info/{projectId}/collected_info.yaml\`
-
-## Output
-- PRD document in \`docs/prd/{projectId}.md\`
-`;
-  }
-
-  private getSrsWriterAgentDef(): string {
-    return `# SRS Writer Agent
-
-## Role
-You are the SRS Writer agent responsible for creating the Software Requirements Specification.
-
-## Responsibilities
-1. Read PRD document
-2. Generate detailed SRS with technical specifications
-3. Define use cases and system requirements
-4. Output SRS to docs/srs/
-
-## Input
-- PRD from \`docs/prd/{projectId}.md\`
-
-## Output
-- SRS document in \`docs/srs/{projectId}.md\`
-`;
-  }
-
-  private getSdsWriterAgentDef(): string {
-    return `# SDS Writer Agent
-
-## Role
-You are the SDS Writer agent responsible for creating the Software Design Specification.
-
-## Responsibilities
-1. Read SRS document
-2. Design system architecture and components
-3. Define interfaces and data structures
-4. Output SDS to docs/sds/
-
-## Input
-- SRS from \`docs/srs/{projectId}.md\`
-
-## Output
-- SDS document in \`docs/sds/{projectId}.md\`
-`;
-  }
-
-  private getIssueGeneratorAgentDef(): string {
-    return `# Issue Generator Agent
-
-## Role
-You are the Issue Generator agent responsible for creating GitHub issues from the SDS.
-
-## Responsibilities
-1. Parse SDS document
-2. Generate issues for each component
-3. Set priorities and dependencies
-4. Create issues on GitHub
-
-## Input
-- SDS from \`docs/sds/{projectId}.md\`
-
-## Output
-- Issue list in \`.ad-sdlc/scratchpad/issues/{projectId}/\`
-- GitHub issues created
-`;
-  }
-
-  private getControllerAgentDef(): string {
-    return `# Controller Agent
-
-## Role
-You are the Controller agent responsible for orchestrating parallel implementation.
-
-## Responsibilities
-1. Read issue list and dependency graph
-2. Assign work to worker agents
-3. Monitor progress and handle failures
-4. Coordinate PR reviews
-
-## Input
-- Issues from \`.ad-sdlc/scratchpad/issues/{projectId}/\`
-
-## Output
-- Work orders in \`.ad-sdlc/scratchpad/progress/{projectId}/\`
-`;
-  }
-
-  private getWorkerAgentDef(): string {
-    return `# Worker Agent
-
-## Role
-You are a Worker agent responsible for implementing individual issues.
-
-## Responsibilities
-1. Read assigned work order
-2. Implement the required changes
-3. Write tests
-4. Create pull request
-
-## Input
-- Work order from Controller
-
-## Output
-- Code implementation
-- Pull request
-`;
-  }
-
-  private getPrReviewerAgentDef(): string {
-    return `# PR Reviewer Agent
-
-## Role
-You are the PR Reviewer agent responsible for reviewing pull requests.
-
-## Responsibilities
-1. Review code changes
-2. Check against requirements
-3. Verify test coverage
-4. Approve or request changes
-
-## Input
-- Pull request details
-
-## Output
-- Review comments
-- Approval/rejection decision
 `;
   }
 
