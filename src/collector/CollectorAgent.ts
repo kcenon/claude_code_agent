@@ -13,6 +13,7 @@
  * - Implements IAgent interface for AgentFactory integration
  */
 
+import { resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import type { IAgent } from '../agents/types.js';
 import type { ExecutionAdapter } from '../execution/index.js';
@@ -47,6 +48,7 @@ import type {
  * Note: maxQuestionsPerRound is set to 5 per issue #13 requirements
  */
 const DEFAULT_CONFIG: Required<CollectorAgentConfig> = {
+  projectDir: '',
   confidenceThreshold: 0.7,
   maxQuestionsPerRound: 5,
   skipClarificationIfConfident: false,
@@ -78,7 +80,14 @@ export class CollectorAgent implements IAgent {
   private initialized = false;
 
   constructor(config: CollectorAgentConfig = {}, adapter?: ExecutionAdapter) {
-    this.config = { ...DEFAULT_CONFIG, ...config };
+    this.config = {
+      ...DEFAULT_CONFIG,
+      ...config,
+      projectDir:
+        config.projectDir === undefined || config.projectDir === ''
+          ? ''
+          : resolve(config.projectDir),
+    };
 
     const parserOptions: InputParserOptions = {};
     const extractorOptions: InformationExtractorOptions = {
@@ -96,7 +105,8 @@ export class CollectorAgent implements IAgent {
       this.llmExtractor = new LLMExtractor(
         effectiveAdapter,
         this.extractor,
-        this.config.scratchpadBasePath
+        this.config.scratchpadBasePath,
+        this.config.projectDir
       );
     } else {
       this.llmExtractor = null;
@@ -108,7 +118,9 @@ export class CollectorAgent implements IAgent {
         maxQuestionsPerRound: this.config.maxQuestionsPerRound,
         enableLLMQuestions: effectiveAdapter !== null,
       },
-      effectiveAdapter
+      effectiveAdapter,
+      undefined,
+      this.config.projectDir
     );
   }
 

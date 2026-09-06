@@ -220,6 +220,8 @@ export interface CollectionSession {
  * Collector Agent configuration options
  */
 export interface CollectorAgentConfig {
+  /** Target project root, required for SDK extraction and investigation. */
+  readonly projectDir?: string;
   /** Minimum confidence threshold for auto-accepting extractions */
   readonly confidenceThreshold?: number;
   /** Maximum number of clarification questions to ask at once */

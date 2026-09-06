@@ -3,6 +3,7 @@ import { MockExecutionAdapter } from '../../src/execution/MockExecutionAdapter.j
 import type { StageExecutionRequest, StageExecutionResult } from '../../src/execution/types.js';
 
 const baseRequest: StageExecutionRequest = {
+  projectDir: '/tmp/mock-project',
   agentType: 'worker',
   workOrder: 'implement issue #1',
   priorOutputs: {},

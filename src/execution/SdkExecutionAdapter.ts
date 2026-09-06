@@ -1,97 +1,38 @@
 /**
- * SdkExecutionAdapter — real adapter that drives `@anthropic-ai/claude-agent-sdk`.
- *
- * Loads the SDK lazily via dynamic `import()` so this module compiles in
- * environments where the SDK is not yet installed. Tests inject a fake
- * `loader` to bypass the actual import.
- *
- * Maps {@link StageExecutionRequest} → SDK options as follows:
- *
- * | Request field   | SDK option       | Note                                           |
- * |-----------------|------------------|------------------------------------------------|
- * | `agentType`     | (prompt prefix)  | Identifies which `.claude/agents/*.md` to load |
- * | `workOrder`     | prompt body      |                                                |
- * | `priorOutputs`  | prompt context   | Verbatim, labeled by key                       |
- * | `skills`        | options.skills   |                                                |
- * | `mcpServers`    | options.mcpServers |                                              |
- * | `maxTurns`      | options.maxTurns |                                                |
- * | `permissionMode`| options.permissionMode | `'default' \| 'acceptEdits' \| 'plan'`   |
- * | `resume`        | options.resume   | Continue an earlier session                    |
- * | `signal`        | options.signal   |                                                |
- *
+ * SDK execution with an explicitly selected target-project agent and cwd.
+ * Runtime loading stays lazy; production query input and messages use the
+ * installed SDK types. Tests inject only query(), without unrelated Query APIs.
  * @packageDocumentation
  */
 
+import type { Options, SDKMessage, SDKResultMessage, query } from '@anthropic-ai/claude-agent-sdk';
+import { resolveProjectAgent } from './resolveProjectAgent.js';
 import { AppError } from '../errors/AppError.js';
 import { ErrorSeverity } from '../errors/types.js';
 import type { HookPipeline } from './hooks.js';
 import type {
   ArtifactRef,
   ExecutionAdapter,
-  McpServerConfig,
   StageExecutionRequest,
   StageExecutionResult,
   TokenUsage,
 } from './types.js';
 
-/**
- * Minimal subset of `@anthropic-ai/claude-agent-sdk` we depend on. We declare
- * it locally so tsc can compile this file without the package being installed.
- * Real SDK types are wider; we only consume what is documented here.
- */
-export interface SdkQueryOptions {
-  prompt: string;
-  options?: {
-    skills?: readonly string[];
-    mcpServers?: Record<string, McpServerConfig>;
-    maxTurns?: number;
-    permissionMode?: 'default' | 'acceptEdits' | 'plan';
-    resume?: string;
-    signal?: AbortSignal;
-    hooks?: HookPipeline;
-  };
-}
+/** Official query input, retained under the existing exported name. */
+export type SdkQueryOptions = Parameters<typeof query>[0];
 
-/**
- * Shape of messages the SDK yields. We pattern-match on `type`.
- */
-export interface SdkMessage {
-  readonly type: 'system' | 'assistant' | 'user' | 'result';
-  readonly subtype?: string;
-  readonly session_id?: string;
-  readonly result?: string;
-  readonly is_error?: boolean;
-  readonly num_turns?: number;
-  readonly usage?: {
-    readonly input_tokens?: number;
-    readonly output_tokens?: number;
-    readonly cache_read_input_tokens?: number;
-    readonly cache_creation_input_tokens?: number;
-  };
-}
+/** Official SDK messages; adapters narrow discriminated variants explicitly. */
+export type SdkMessage = SDKMessage;
 
+/** Injectable query boundary: offline doubles only implement async iteration. */
 export interface SdkLike {
   query(opts: SdkQueryOptions): AsyncIterable<SdkMessage>;
 }
 
-/**
- * Loader function for the SDK module. Defaults to a dynamic import of
- * `@anthropic-ai/claude-agent-sdk`. Tests pass a fake.
- */
+/** Lazy runtime loader, replaceable by an offline query double. */
 export type SdkLoader = () => Promise<SdkLike>;
 
-const defaultLoader: SdkLoader = async () => {
-  const moduleSpecifier = '@anthropic-ai/claude-agent-sdk';
-  const mod = (await import(/* @vite-ignore */ moduleSpecifier)) as Partial<SdkLike>;
-  if (typeof mod.query !== 'function') {
-    throw new AppError(
-      'EXEC-001',
-      '@anthropic-ai/claude-agent-sdk did not export a `query` function',
-      { severity: ErrorSeverity.CRITICAL }
-    );
-  }
-  return mod as SdkLike;
-};
+const defaultLoader: SdkLoader = async () => import('@anthropic-ai/claude-agent-sdk');
 
 export interface SdkExecutionAdapterOptions {
   /** Override the SDK loader for tests / alternative endpoints. */
@@ -132,19 +73,13 @@ export class SdkExecutionAdapter implements ExecutionAdapter {
       return abortedResult(req.resume);
     }
 
-    const sdk = await this.getSdk();
-    const prompt = renderPrompt(req);
-    // Build options with conditional spreads so undefined fields are absent
-    // entirely (required by tsconfig `exactOptionalPropertyTypes: true`).
-    const sdkOptions: NonNullable<SdkQueryOptions['options']> = {
-      ...(req.skills !== undefined && { skills: req.skills }),
-      ...(req.mcpServers !== undefined && { mcpServers: req.mcpServers }),
-      ...(req.maxTurns !== undefined && { maxTurns: req.maxTurns }),
-      ...(req.permissionMode !== undefined && { permissionMode: req.permissionMode }),
-      ...(req.resume !== undefined && { resume: req.resume }),
-      ...(req.signal !== undefined && { signal: req.signal }),
-      ...(this.hooks !== undefined && { hooks: this.hooks }),
+    const abortController = new AbortController();
+    const forwardAbort = (): void => {
+      abortController.abort(req.signal?.reason);
     };
+    // Read through a function because abort state can change across awaited SDK work.
+    const isAborted = (): boolean => abortController.signal.aborted;
+    req.signal?.addEventListener('abort', forwardAbort, { once: true });
 
     let sessionId = req.resume ?? 'unknown';
     let toolCallCount = 0;
@@ -153,27 +88,46 @@ export class SdkExecutionAdapter implements ExecutionAdapter {
     let isError = false;
 
     try {
+      const definition = await resolveProjectAgent(req.projectDir, req.agentType);
+      const sdk = await this.getSdk();
+      // Cancellation may have arrived while resolving the definition or loader.
+      if (isAborted()) return abortedResult(sessionId);
+      const prompt = renderPrompt(req);
+      const sdkOptions: Options = {
+        cwd: req.projectDir,
+        agent: req.agentType,
+        agents: { [req.agentType]: definition },
+        settingSources: ['user', 'project', 'local'],
+        ...(req.skills !== undefined && { skills: [...req.skills] }),
+        ...(req.mcpServers !== undefined && {
+          mcpServers: copyMcpServers(req.mcpServers),
+        }),
+        ...(req.maxTurns !== undefined && { maxTurns: req.maxTurns }),
+        ...(req.permissionMode !== undefined && { permissionMode: req.permissionMode }),
+        ...(req.resume !== undefined && { resume: req.resume }),
+        ...(req.signal !== undefined && { abortController }),
+        ...(this.hooks !== undefined && { hooks: this.hooks }),
+      };
       for await (const message of sdk.query({ prompt, options: sdkOptions })) {
-        if (message.session_id !== undefined && message.session_id !== '') {
+        if ('session_id' in message && message.session_id !== '') {
           sessionId = message.session_id;
         }
         if (message.type === 'assistant') toolCallCount += 1;
         if (message.type === 'result') {
-          resultText = message.result;
-          isError = message.is_error === true;
-          if (typeof message.num_turns === 'number') {
-            toolCallCount = Math.max(toolCallCount, message.num_turns);
-          }
-          if (message.usage !== undefined) tokenUsage = mapUsage(message.usage);
+          resultText = message.subtype === 'success' ? message.result : message.errors.join('\n');
+          isError = message.is_error || message.subtype !== 'success';
+          toolCallCount = Math.max(toolCallCount, message.num_turns);
+          tokenUsage = mapUsage(message.usage);
         }
       }
     } catch (err) {
-      // The signal may have flipped to aborted between the early-return guard
-      // above and this point; widen the type so TS does not collapse the check.
-      const signal: AbortSignal | undefined = req.signal;
-      if (signal?.aborted === true) return abortedResult(sessionId);
+      if (isAborted()) return abortedResult(sessionId);
       return failedResult(sessionId, err);
+    } finally {
+      req.signal?.removeEventListener('abort', forwardAbort);
     }
+
+    if (isAborted()) return abortedResult(sessionId);
 
     if (isError || resultText === undefined) {
       return failedResult(sessionId, new Error(resultText ?? 'SDK returned no result'));
@@ -221,11 +175,26 @@ export function renderPrompt(req: StageExecutionRequest): string {
   return blocks.join('\n');
 }
 
-function mapUsage(usage: NonNullable<SdkMessage['usage']>): TokenUsage {
-  const cache = (usage.cache_read_input_tokens ?? 0) + (usage.cache_creation_input_tokens ?? 0);
+function copyMcpServers(
+  servers: NonNullable<StageExecutionRequest['mcpServers']>
+): NonNullable<Options['mcpServers']> {
+  const copied: NonNullable<Options['mcpServers']> = {};
+  for (const [name, server] of Object.entries(servers)) {
+    if (server.type === 'stdio') {
+      const { args, ...config } = server;
+      copied[name] = { ...config, ...(args !== undefined ? { args: [...args] } : {}) };
+    } else {
+      copied[name] = { ...server };
+    }
+  }
+  return copied;
+}
+
+function mapUsage(usage: SDKResultMessage['usage']): TokenUsage {
+  const cache = usage.cache_read_input_tokens + usage.cache_creation_input_tokens;
   return {
-    input: usage.input_tokens ?? 0,
-    output: usage.output_tokens ?? 0,
+    input: usage.input_tokens,
+    output: usage.output_tokens,
     cache,
   };
 }

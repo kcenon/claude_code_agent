@@ -7,6 +7,7 @@
  * @module collector/InvestigationEngine
  */
 
+import { resolve } from 'node:path';
 import { promises as fs } from 'node:fs';
 import { z } from 'zod';
 import type { ExecutionAdapter, StageExecutionResult } from '../execution/index.js';
@@ -76,9 +77,15 @@ export class InvestigationEngine {
   constructor(
     config: Partial<InvestigationEngineConfig>,
     adapter: ExecutionAdapter | null,
-    templates?: InvestigationTemplates
+    templates?: InvestigationTemplates,
+    /** Target root is required for LLM question generation. */
+    private readonly projectDir: string = ''
   ) {
+    if (projectDir.length > 0) this.projectDir = resolve(projectDir);
     const parsed = InvestigationEngineConfigSchema.parse(config);
+    if (adapter !== null && parsed.enableLLMQuestions && projectDir.trim().length === 0) {
+      throw new Error('InvestigationEngine: projectDir is required for SDK execution');
+    }
     this.config = {
       depth: parsed.depth,
       maxQuestionsPerRound: parsed.maxQuestionsPerRound,
@@ -328,6 +335,7 @@ export class InvestigationEngine {
       }
 
       const result = await this.adapter.execute({
+        projectDir: this.projectDir,
         agentType: 'collector',
         workOrder: prompt,
         priorOutputs: {},
@@ -495,7 +503,7 @@ Rules:
       return first.description;
     }
     try {
-      return await fs.readFile(first.path, 'utf8');
+      return await fs.readFile(resolve(this.projectDir, first.path), 'utf8');
     } catch (error) {
       getLogger().warn('Failed to read investigation questions artifact from disk', {
         agent: 'InvestigationEngine',

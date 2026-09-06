@@ -95,7 +95,7 @@ describe('LLMExtractor', () => {
   describe('extract', () => {
     it('should return structured extraction from LLM response', async () => {
       const adapter = adapterReturning(validLLMResponse());
-      const extractor = new LLMExtractor(adapter, fallback);
+      const extractor = new LLMExtractor(adapter, fallback, '', '/project');
       const input = parser.combineInputs([
         parser.parseText('Build a task management app with user login'),
       ]);
@@ -117,7 +117,7 @@ describe('LLMExtractor', () => {
 
     it('should convert ambiguities to clarification questions', async () => {
       const adapter = adapterReturning(validLLMResponse());
-      const extractor = new LLMExtractor(adapter, fallback);
+      const extractor = new LLMExtractor(adapter, fallback, '', '/project');
       const input = parser.combineInputs([parser.parseText('Some text')]);
 
       const result = await extractor.extract(input);
@@ -131,7 +131,7 @@ describe('LLMExtractor', () => {
 
     it('should calculate overall confidence from requirements', async () => {
       const adapter = adapterReturning(validLLMResponse());
-      const extractor = new LLMExtractor(adapter, fallback);
+      const extractor = new LLMExtractor(adapter, fallback, '', '/project');
       const input = parser.combineInputs([parser.parseText('Text')]);
 
       const result = await extractor.extract(input);
@@ -142,7 +142,7 @@ describe('LLMExtractor', () => {
 
     it('should pass project context to the prompt and forward it via priorOutputs', async () => {
       const adapter = adapterReturning(validLLMResponse());
-      const extractor = new LLMExtractor(adapter, fallback);
+      const extractor = new LLMExtractor(adapter, fallback, '', '/project');
       const input = parser.combineInputs([parser.parseText('Build a task app')]);
 
       await extractor.extract(input, 'Enterprise environment');
@@ -165,13 +165,14 @@ describe('LLMExtractor', () => {
       const request = adapter.calls[0]!;
       expect(request.priorOutputs['scratchpadDir']).toBe('/scratch');
       expect(request.priorOutputs['projectDir']).toBe('/project');
+      expect(request.projectDir).toBe('/project');
     });
   });
 
   describe('fallback behavior', () => {
     it('should fall back to keyword extractor when adapter returns failure', async () => {
       const adapter = new MockExecutionAdapter({ defaultResult: failedResult() });
-      const extractor = new LLMExtractor(adapter, fallback);
+      const extractor = new LLMExtractor(adapter, fallback, '', '/project');
       const input = parser.combineInputs([
         parser.parseText('The system must support user authentication.'),
       ]);
@@ -196,7 +197,7 @@ describe('LLMExtractor', () => {
         ],
       });
 
-      const extractor = new LLMExtractor(adapter, fallback);
+      const extractor = new LLMExtractor(adapter, fallback, '', '/project');
       const input = parser.combineInputs([parser.parseText('The system must support login.')]);
 
       const result = await extractor.extract(input);
@@ -207,7 +208,7 @@ describe('LLMExtractor', () => {
 
     it('should fall back when LLM output is not valid JSON', async () => {
       const adapter = adapterReturning('This is not JSON at all');
-      const extractor = new LLMExtractor(adapter, fallback);
+      const extractor = new LLMExtractor(adapter, fallback, '', '/project');
       const input = parser.combineInputs([
         parser.parseText('The system must handle user requests.'),
       ]);
@@ -226,7 +227,7 @@ describe('LLMExtractor', () => {
       });
 
       const adapter = adapterReturning(invalidJson);
-      const extractor = new LLMExtractor(adapter, fallback);
+      const extractor = new LLMExtractor(adapter, fallback, '', '/project');
       const input = parser.combineInputs([parser.parseText('The system should process data.')]);
 
       const result = await extractor.extract(input);
@@ -244,7 +245,7 @@ describe('LLMExtractor', () => {
           tokenUsage: { input: 0, output: 0, cache: 0 },
         },
       });
-      const extractor = new LLMExtractor(adapter, fallback);
+      const extractor = new LLMExtractor(adapter, fallback, '', '/project');
       const input = parser.combineInputs([parser.parseText('Some content for analysis.')]);
 
       const result = await extractor.extract(input);
@@ -260,7 +261,7 @@ describe('LLMExtractor', () => {
       const wrappedOutput = `Here is the analysis:\n\n\`\`\`json\n${jsonContent}\n\`\`\`\n\nLet me know if you need more details.`;
 
       const adapter = adapterReturning(wrappedOutput);
-      const extractor = new LLMExtractor(adapter, fallback);
+      const extractor = new LLMExtractor(adapter, fallback, '', '/project');
       const input = parser.combineInputs([parser.parseText('Build a task app')]);
 
       const result = await extractor.extract(input);
@@ -274,7 +275,7 @@ describe('LLMExtractor', () => {
       const wrappedOutput = `Based on my analysis:\n${jsonContent}\nEnd of analysis.`;
 
       const adapter = adapterReturning(wrappedOutput);
-      const extractor = new LLMExtractor(adapter, fallback);
+      const extractor = new LLMExtractor(adapter, fallback, '', '/project');
       const input = parser.combineInputs([parser.parseText('Build a task app')]);
 
       const result = await extractor.extract(input);
@@ -301,7 +302,7 @@ describe('LLMExtractor', () => {
       });
 
       const adapter = adapterReturning(response);
-      const extractor = new LLMExtractor(adapter, fallback);
+      const extractor = new LLMExtractor(adapter, fallback, '', '/project');
       const input = parser.combineInputs([parser.parseText('Secure app')]);
 
       const result = await extractor.extract(input);
@@ -326,7 +327,7 @@ describe('LLMExtractor', () => {
       });
 
       const adapter = adapterReturning(response);
-      const extractor = new LLMExtractor(adapter, fallback);
+      const extractor = new LLMExtractor(adapter, fallback, '', '/project');
       const input = parser.combineInputs([parser.parseText('Budget app')]);
 
       const result = await extractor.extract(input);
@@ -351,7 +352,7 @@ describe('LLMExtractor', () => {
       });
 
       const adapter = adapterReturning(response);
-      const extractor = new LLMExtractor(adapter, fallback);
+      const extractor = new LLMExtractor(adapter, fallback, '', '/project');
       const input = parser.combineInputs([parser.parseText('App')]);
 
       const result = await extractor.extract(input);
@@ -376,7 +377,7 @@ describe('LLMExtractor', () => {
       });
 
       const adapter = adapterReturning(response);
-      const extractor = new LLMExtractor(adapter, fallback);
+      const extractor = new LLMExtractor(adapter, fallback, '', '/project');
       const input = parser.combineInputs([parser.parseText('App')]);
 
       const result = await extractor.extract(input);
@@ -394,7 +395,7 @@ describe('LLMExtractor', () => {
       });
 
       const adapter = adapterReturning(response);
-      const extractor = new LLMExtractor(adapter, fallback);
+      const extractor = new LLMExtractor(adapter, fallback, '', '/project');
       const input = parser.combineInputs([parser.parseText('Empty')]);
 
       const result = await extractor.extract(input);
@@ -427,7 +428,7 @@ describe('LLMExtractor', () => {
       });
 
       const adapter = adapterReturning(response);
-      const extractor = new LLMExtractor(adapter, fallback);
+      const extractor = new LLMExtractor(adapter, fallback, '', '/project');
       const input = parser.combineInputs([parser.parseText('App')]);
 
       const result = await extractor.extract(input);
@@ -440,7 +441,7 @@ describe('LLMExtractor', () => {
 
     it('should return empty assumptions and dependencies arrays', async () => {
       const adapter = adapterReturning(validLLMResponse());
-      const extractor = new LLMExtractor(adapter, fallback);
+      const extractor = new LLMExtractor(adapter, fallback, '', '/project');
       const input = parser.combineInputs([parser.parseText('App')]);
 
       const result = await extractor.extract(input);
@@ -466,7 +467,7 @@ describe('LLMExtractor', () => {
       });
 
       const adapter = adapterReturning(response);
-      const extractor = new LLMExtractor(adapter, fallback);
+      const extractor = new LLMExtractor(adapter, fallback, '', '/project');
       const input = parser.combineInputs([parser.parseText('Clear app')]);
 
       const result = await extractor.extract(input);

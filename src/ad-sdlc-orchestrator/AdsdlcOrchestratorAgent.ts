@@ -235,13 +235,17 @@ export class AdsdlcOrchestratorAgent implements IAgent {
       throw new PipelineInProgressError(this.session.sessionId);
     }
 
-    await this.validateProjectDir(request.projectDir);
+    if (request.projectDir.trim().length === 0) {
+      throw new InvalidProjectDirError(request.projectDir, 'Project directory must not be blank');
+    }
+    const projectDir = path.resolve(request.projectDir);
+    await this.validateProjectDir(projectDir);
 
     // Resume from prior session if requested
     if (request.resumeSessionId !== undefined && request.resumeSessionId !== '') {
       // Try checkpoint-based resume first (more recent than session YAML)
       if (this.checkpointManager !== null && this.checkpointManager.isEnabled()) {
-        const scratchpadDir = path.resolve(request.projectDir, this.config.scratchpadDir);
+        const scratchpadDir = path.resolve(projectDir, this.config.scratchpadDir);
         const checkpoint = await this.checkpointManager.loadLatestCheckpoint(
           request.resumeSessionId,
           scratchpadDir
@@ -255,7 +259,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
           });
           // Feed checkpoint's completed stages into the existing resume path
           // by overriding preCompletedStages after loadPriorSession resolves
-          const prior = await this.loadPriorSession(request.resumeSessionId, request.projectDir);
+          const prior = await this.loadPriorSession(request.resumeSessionId, projectDir);
           if (prior) {
             this.session = {
               ...prior,
@@ -277,7 +281,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
         }
       }
 
-      const prior = await this.loadPriorSession(request.resumeSessionId, request.projectDir);
+      const prior = await this.loadPriorSession(request.resumeSessionId, projectDir);
       if (prior) {
         this.session = {
           ...prior,
@@ -295,7 +299,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
     this.pendingResumeSdkSessionId = undefined;
 
     const mode = request.overrideMode ?? 'greenfield';
-    const scratchpadDir = path.resolve(request.projectDir, this.config.scratchpadDir);
+    const scratchpadDir = path.resolve(projectDir, this.config.scratchpadDir);
 
     // Build preCompletedStages from startFromStage if provided
     let preCompletedStages: StageName[] | null = null;
@@ -314,7 +318,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
 
     this.session = {
       sessionId: randomUUID(),
-      projectDir: request.projectDir,
+      projectDir,
       userRequest: request.userRequest,
       mode,
       startedAt: new Date().toISOString(),
@@ -755,8 +759,8 @@ export class AdsdlcOrchestratorAgent implements IAgent {
   /**
    * Translate orchestrator state into a {@link StageExecutionRequest}.
    * Maps `session.userRequest` to `workOrder` and accumulated completed
-   * stage outputs to `priorOutputs`. The system prompt is sourced by
-   * the SDK from `.claude/agents/<agentType>.md`.
+   * stage outputs to `priorOutputs`. The adapter resolves the system prompt
+   * from `<session.projectDir>/.claude/agents/<agentType>.md`.
    * @param stage
    * @param session
    * @param signal
@@ -789,6 +793,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
     }
 
     const request: StageExecutionRequest = {
+      projectDir: session.projectDir,
       agentType: stage.agentType,
       workOrder: session.userRequest,
       priorOutputs,
@@ -1053,7 +1058,8 @@ export class AdsdlcOrchestratorAgent implements IAgent {
 
     return {
       sessionId: (data['pipelineId'] ?? sessionId) as string,
-      projectDir: (data['projectDir'] ?? projectDir) as string,
+      // The explicitly selected project owns the resumed execution, even if moved.
+      projectDir: path.resolve(projectDir),
       userRequest: (data['userRequest'] ?? '') as string,
       mode: data['mode'] as PipelineMode,
       startedAt: (data['startedAt'] ?? new Date().toISOString()) as string,

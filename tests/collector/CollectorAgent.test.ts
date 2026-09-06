@@ -9,6 +9,7 @@ import {
   SessionStateError,
   MissingInformationError,
 } from '../../src/collector/index.js';
+import { MockExecutionAdapter } from '../../src/execution/index.js';
 import { resetScratchpad } from '../../src/scratchpad/index.js';
 
 describe('CollectorAgent', () => {
@@ -30,6 +31,24 @@ describe('CollectorAgent', () => {
     fs.rmSync(testDir, { recursive: true, force: true });
     resetScratchpad();
     resetCollectorAgent();
+  });
+
+  it('threads its configured absolute project directory into LLM extraction', async () => {
+    const adapter = new MockExecutionAdapter();
+    const collector = new CollectorAgent(
+      {
+        projectDir: path.relative(process.cwd(), testDir),
+        scratchpadBasePath: path.join(testDir, '.ad-sdlc', 'scratchpad'),
+        skipClarificationIfConfident: true,
+        confidenceThreshold: 0,
+      },
+      adapter
+    );
+    await collector.collectFromText('Build a task app. The system must support login.', {
+      projectName: 'target-project',
+    });
+    expect(adapter.calls.length).toBeGreaterThan(0);
+    expect(adapter.calls.every((request) => request.projectDir === testDir)).toBe(true);
   });
 
   describe('startSession', () => {

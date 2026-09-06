@@ -8,6 +8,7 @@
  * @packageDocumentation
  */
 
+import type { McpStdioServerConfig, McpHttpServerConfig } from '@anthropic-ai/claude-agent-sdk';
 import type { SerializedError } from '../errors/types.js';
 
 /**
@@ -27,17 +28,11 @@ export interface ArtifactRef {
  * accepted by `@anthropic-ai/claude-agent-sdk` to keep the boundary thin.
  */
 export type McpServerConfig =
-  | {
+  | (Readonly<Omit<McpStdioServerConfig, 'args' | 'type'>> & {
       readonly type: 'stdio';
-      readonly command: string;
       readonly args?: readonly string[];
-      readonly env?: Record<string, string>;
-    }
-  | {
-      readonly type: 'http';
-      readonly url: string;
-      readonly headers?: Record<string, string>;
-    };
+    })
+  | Readonly<McpHttpServerConfig>;
 
 /**
  * Token usage breakdown returned by every adapter call.
@@ -62,6 +57,8 @@ export type StageExecutionStatus = 'success' | 'failed' | 'aborted';
  * test that asserts this.
  */
 export interface StageExecutionRequest {
+  /** Absolute root of the target project; never inferred by the SDK adapter. */
+  readonly projectDir: string;
   readonly agentType: string;
   readonly workOrder: string;
   readonly priorOutputs: Record<string, string>;

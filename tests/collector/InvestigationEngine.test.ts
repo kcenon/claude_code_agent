@@ -1,4 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { resolve } from 'node:path';
+import { MockExecutionAdapter } from '../../src/execution/index.js';
 import { InvestigationEngine } from '../../src/collector/InvestigationEngine.js';
 import { InvestigationTemplates } from '../../src/collector/InvestigationTemplates.js';
 import { InvestigationError } from '../../src/collector/errors.js';
@@ -98,6 +100,21 @@ describe('InvestigationEngine', () => {
   // ===========================================================================
   // initialize()
   // ===========================================================================
+
+  it('normalizes and forwards the configured target root for LLM questions', async () => {
+    const adapter = new MockExecutionAdapter();
+    const engine = new InvestigationEngine(
+      { enableLLMQuestions: true },
+      adapter,
+      undefined,
+      'target-project'
+    );
+    engine.initialize();
+    await engine.generateNextRound(createMockExtraction(), []);
+    expect(adapter.calls).toHaveLength(1);
+    expect(adapter.calls[0]?.projectDir).toBe(resolve('target-project'));
+    expect(adapter.calls[0]?.agentType).toBe('collector');
+  });
 
   describe('initialize()', () => {
     it('should set up 6 phases for thorough depth', () => {

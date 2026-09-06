@@ -1,9 +1,12 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+import { installAgent, sdkResult, sdkStatus } from './fixtures/sdk.js';
 import {
   buildHookPipeline,
   type ArtifactCaptureEntry,
   type ArtifactSink,
-  type SdkHookCallback,
   type SdkToolUseEvent,
 } from '../../src/execution/hooks.js';
 import {
@@ -15,6 +18,14 @@ import {
 import { MockExecutionAdapter } from '../../src/execution/MockExecutionAdapter.js';
 import type { StageExecutionRequest } from '../../src/execution/types.js';
 
+const projectDir = await mkdtemp(join(tmpdir(), 'sdk-hooks-'));
+beforeAll(async () => {
+  await installAgent(projectDir);
+});
+afterAll(async () => {
+  await rm(projectDir, { recursive: true, force: true });
+});
+
 /**
  * Pull the PostToolUse(Edit|Write) callback out of a built pipeline so each
  * test can drive it directly. Keeps assertions focused on capture behaviour
@@ -23,13 +34,30 @@ import type { StageExecutionRequest } from '../../src/execution/types.js';
 function getPostToolUseCallback(
   sink: ArtifactSink,
   options?: { now?: () => Date }
-): SdkHookCallback {
+): (
+  event: Pick<SdkToolUseEvent, 'tool_name' | 'tool_input'> &
+    Partial<Pick<SdkToolUseEvent, 'session_id'>>
+) => ReturnType<import('@anthropic-ai/claude-agent-sdk').HookCallback> {
   const pipeline = buildHookPipeline(sink, options);
   expect(pipeline.PostToolUse).toBeDefined();
   expect(pipeline.PostToolUse).toHaveLength(1);
-  const entry = pipeline.PostToolUse![0];
+  const entry = pipeline.PostToolUse![0]!;
   expect(entry.matcher).toBe('Edit|Write');
-  return entry.callback;
+  const callback = entry.hooks[0]!;
+  return (event) =>
+    callback(
+      {
+        hook_event_name: 'PostToolUse',
+        session_id: 'test-session',
+        transcript_path: '/tmp/transcript',
+        cwd: projectDir,
+        tool_response: {},
+        tool_use_id: 'tool-1',
+        ...event,
+      },
+      'tool-1',
+      { signal: new AbortController().signal }
+    );
 }
 
 function fakeSink(): ArtifactSink & { entries: ArtifactCaptureEntry[] } {
@@ -53,7 +81,7 @@ describe('buildHookPipeline', () => {
       const sink = fakeSink();
       const pipeline = buildHookPipeline(sink);
       expect(pipeline.PostToolUse).toHaveLength(1);
-      expect(pipeline.PostToolUse![0].matcher).toBe('Edit|Write');
+      expect(pipeline.PostToolUse![0]!.matcher).toBe('Edit|Write');
       // PreToolUse / Stop are TODO stubs — deliberately omitted from the
       // pipeline so the SDK skips them entirely.
       expect(pipeline.PreToolUse).toBeUndefined();
@@ -168,18 +196,19 @@ describe('SdkExecutionAdapter — hooks wiring', () => {
   }
 
   const successMessages: SdkMessage[] = [
-    { type: 'system', session_id: 'sess-A' },
-    {
+    sdkStatus('sess-A'),
+    sdkResult({
       type: 'result',
       session_id: 'sess-A',
       result: 'ok',
       is_error: false,
       num_turns: 1,
       usage: { input_tokens: 1, output_tokens: 1 },
-    },
+    }),
   ];
 
   const baseRequest: StageExecutionRequest = {
+    projectDir,
     agentType: 'worker',
     workOrder: 'do thing',
     priorOutputs: {},
@@ -240,6 +269,7 @@ describe('integration — MockExecutionAdapter + hook callback', () => {
     // tool call. We drive the hook callback ourselves to keep the test
     // independent of the real SDK.
     const result = await adapter.execute({
+      projectDir,
       agentType: 'worker',
       workOrder: 'implement integration',
       priorOutputs: { upstream: 'spec' },
@@ -257,7 +287,7 @@ describe('integration — MockExecutionAdapter + hook callback', () => {
 
     // MockExecutionAdapter recorded the stage call as expected.
     expect(adapter.calls).toHaveLength(1);
-    expect(adapter.calls[0].priorOutputs).toEqual({ upstream: 'spec' });
+    expect(adapter.calls[0]!.priorOutputs).toEqual({ upstream: 'spec' });
     expect(result.status).toBe('success');
 
     // The hook captured both tool events with the expected shape.
@@ -275,5 +305,62 @@ describe('integration — MockExecutionAdapter + hook callback', () => {
         sessionId: 'mock-int',
       },
     ]);
+  });
+});
+
+describe('SDK invokes official hook entries', () => {
+  it.each([false, true])('captures artifacts and propagates sink rejection=%s', async (reject) => {
+    const sink = fakeSink();
+    const error = new Error('artifact storage unavailable');
+    if (reject)
+      sink.recordArtifact = async () => {
+        throw error;
+      };
+    const outputs: unknown[] = [];
+    const adapter = new SdkExecutionAdapter({
+      hooks: buildHookPipeline(sink),
+      loader: async () => ({
+        async *query({ options }) {
+          for (const entry of options?.hooks?.PostToolUse ?? []) {
+            expect(entry).not.toHaveProperty('callback');
+            for (const callback of entry.hooks) {
+              outputs.push(
+                await callback(
+                  {
+                    hook_event_name: 'PostToolUse',
+                    tool_name: 'Write',
+                    tool_input: { file_path: 'sentinel.txt' },
+                    tool_response: {},
+                    tool_use_id: 'tool-offline',
+                    session_id: 'hook-session',
+                    transcript_path: join(projectDir, 'transcript.jsonl'),
+                    cwd: options?.cwd ?? '',
+                  },
+                  'tool-offline',
+                  { signal: new AbortController().signal }
+                )
+              );
+            }
+          }
+          yield sdkResult();
+        },
+      }),
+    });
+    const result = await adapter.execute({
+      projectDir,
+      agentType: 'worker',
+      workOrder: 'capture',
+      priorOutputs: {},
+    });
+    if (reject) {
+      expect(result.status).toBe('failed');
+      expect(result.error?.message).toContain(error.message);
+    } else {
+      expect(result.status).toBe('success');
+      expect(outputs).toEqual([{}]);
+      expect(sink.entries).toEqual([
+        expect.objectContaining({ filePath: 'sentinel.txt', sessionId: 'hook-session' }),
+      ]);
+    }
   });
 });

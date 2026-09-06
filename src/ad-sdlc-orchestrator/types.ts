@@ -220,7 +220,7 @@ export interface AgentInvocation {
 export interface OrchestratorSession {
   /** Unique session identifier */
   readonly sessionId: string;
-  /** Project root directory */
+  /** Target project root, normalized to an absolute path at session creation. */
   readonly projectDir: string;
   /** User request text */
   readonly userRequest: string;
@@ -262,7 +262,7 @@ export interface OrchestratorSession {
  * Pipeline execution request
  */
 export interface PipelineRequest {
-  /** Project root directory */
+  /** Target project root, normalized to an absolute path at session creation. */
   readonly projectDir: string;
   /** User's project description or change request */
   readonly userRequest: string;
@@ -885,7 +885,7 @@ export interface PipelineCheckpoint {
   readonly sessionId: string;
   /** Pipeline mode */
   readonly mode: PipelineMode;
-  /** Project directory */
+  /** Target project root saved by the session. */
   readonly projectDir: string;
   /** User request text */
   readonly userRequest: string;

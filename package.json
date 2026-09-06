@@ -50,7 +50,8 @@
     "assets:check": "tsx scripts/agent-assets.ts",
     "assets:generate": "tsx scripts/agent-assets.ts --write",
     "prepack": "npm run clean && npm run build",
-    "test:package": "node tests/package/asset-delivery.smoke.mjs"
+    "test:package": "node tests/package/asset-delivery.smoke.mjs",
+    "test:sdk-contract": "tsc -p tsconfig.sdk-contract.json"
   },
   "keywords": [
     "claude",

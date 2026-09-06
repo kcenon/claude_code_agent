@@ -22,6 +22,14 @@
  * @packageDocumentation
  */
 
+import type {
+  HookCallback,
+  HookCallbackMatcher,
+  HookInput,
+  HookJSONOutput,
+  Options,
+  PostToolUseHookInput,
+} from '@anthropic-ai/claude-agent-sdk';
 import { AppError } from '../errors/AppError.js';
 import { ErrorSeverity } from '../errors/types.js';
 
@@ -56,42 +64,17 @@ export interface ArtifactCaptureEntry {
   readonly sessionId?: string;
 }
 
-/**
- * Generic shape of a tool-use event the SDK forwards to a hook callback.
- * We intentionally accept a wide `tool_input` so callers do not need to
- * keep this in lockstep with the SDK's evolving tool catalog.
- */
-export interface SdkToolUseEvent {
-  readonly tool_name: string;
-  readonly tool_input?: Record<string, unknown>;
-  readonly session_id?: string;
-}
+/** Official SDK tool event retained under the existing exported name. */
+export type SdkToolUseEvent = PostToolUseHookInput;
 
-/**
- * Callback signature the SDK invokes for matched tool events. Return value
- * is intentionally `void | Promise<void>` so the hook can be async.
- */
-export type SdkHookCallback = (event: SdkToolUseEvent) => void | Promise<void>;
+/** Official callbacks return JSON output and receive tool ID and signal context. */
+export type SdkHookCallback = HookCallback;
 
-/**
- * Single hook entry: the `matcher` is a regex string the SDK applies to
- * `tool_name`; the `callback` runs when it matches.
- */
-export interface SdkHookEntry {
-  readonly matcher: string;
-  readonly callback: SdkHookCallback;
-}
+/** Official matcher entry: callbacks are supplied in `hooks: [callback]`. */
+export type SdkHookEntry = HookCallbackMatcher;
 
-/**
- * Hook pipeline shape consumed by {@link SdkExecutionAdapter}. Mirrors the
- * SDK's hook configuration: each top-level key is a hook event name, the
- * value is the list of (matcher, callback) entries.
- */
-export interface HookPipeline {
-  readonly PreToolUse?: readonly SdkHookEntry[];
-  readonly PostToolUse?: readonly SdkHookEntry[];
-  readonly Stop?: readonly SdkHookEntry[];
-}
+/** Official SDK hook configuration. Unprovided event keys remain absent. */
+export type HookPipeline = NonNullable<Options['hooks']>;
 
 /**
  * Options accepted by {@link buildHookPipeline}.
@@ -145,7 +128,12 @@ export function buildHookPipeline(
   const postToolUse: SdkHookEntry[] = [
     {
       matcher: ARTIFACT_TOOL_MATCHER,
-      callback: async (event): Promise<void> => captureEditOrWrite(event, sink, now),
+      hooks: [
+        async (event): Promise<HookJSONOutput> => {
+          await captureEditOrWrite(event, sink, now);
+          return {};
+        },
+      ],
     },
   ];
 
@@ -169,11 +157,11 @@ export function buildHookPipeline(
  * @param now Clock function used to stamp `capturedAt`.
  */
 async function captureEditOrWrite(
-  event: SdkToolUseEvent,
+  event: HookInput,
   sink: ArtifactSink,
   now: () => Date
 ): Promise<void> {
-  const toolName = event.tool_name;
+  const toolName = 'tool_name' in event ? event.tool_name : event.hook_event_name;
   if (!isArtifactToolName(toolName)) {
     // Defensive: matcher should have filtered, but never trust the SDK.
     throw new AppError(
@@ -183,7 +171,7 @@ async function captureEditOrWrite(
     );
   }
 
-  const filePath = readFilePath(event.tool_input);
+  const filePath = readFilePath('tool_input' in event ? event.tool_input : undefined);
   if (filePath === null) {
     throw new AppError('EXEC-103', `Hook PostToolUse(${toolName}) missing tool_input.file_path`, {
       severity: ErrorSeverity.HIGH,
@@ -195,7 +183,7 @@ async function captureEditOrWrite(
     filePath,
     toolName,
     capturedAt: now().toISOString(),
-    ...(event.session_id !== undefined ? { sessionId: event.session_id } : {}),
+    sessionId: event.session_id,
   };
 
   // Deliberate await: a sink failure must abort the stage.
@@ -206,8 +194,8 @@ function isArtifactToolName(name: string): name is ArtifactToolName {
   return (ARTIFACT_TOOL_NAMES as readonly string[]).includes(name);
 }
 
-function readFilePath(input: Record<string, unknown> | undefined): string | null {
-  if (!input) return null;
+function readFilePath(input: unknown): string | null {
+  if (typeof input !== 'object' || input === null || !('file_path' in input)) return null;
   const value = input.file_path;
   if (typeof value !== 'string' || value.length === 0) return null;
   return value;
