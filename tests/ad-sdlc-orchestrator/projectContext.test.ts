@@ -18,7 +18,12 @@ import {
   type SdkQueryOptions,
   type StageExecutionRequest,
 } from '../../src/execution/index.js';
-import { agentMarkdown, installAgent, sdkResult } from '../execution/fixtures/sdk.js';
+import {
+  agentMarkdown,
+  installAgent,
+  sdkResult,
+  withQueryLifecycle,
+} from '../execution/fixtures/sdk.js';
 
 class ProbeOrchestrator extends AdsdlcOrchestratorAgent {
   constructor(private readonly adapter: ExecutionAdapter) {
@@ -42,12 +47,13 @@ afterEach(async () => {
 
 function capturingAdapter(calls: SdkQueryOptions[]): SdkExecutionAdapter {
   return new SdkExecutionAdapter({
-    loader: async () => ({
-      async *query(input) {
-        calls.push(input);
-        yield sdkResult();
-      },
-    }),
+    loader: async () =>
+      withQueryLifecycle({
+        async *query(input) {
+          calls.push(input);
+          yield sdkResult();
+        },
+      }),
   });
 }
 

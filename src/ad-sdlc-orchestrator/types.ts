@@ -5,6 +5,7 @@
  * Enhancement, and Import modes. Based on SDS-001 CMP-025 specification.
  */
 
+import type { SerializedError } from '../errors/types.js';
 import type { McpServerConfig } from '../execution/types.js';
 import type { StageVerificationResult } from '../stage-verifier/types.js';
 import { DEFAULT_VNV_CONFIG, type VnvConfig } from '../vnv/types.js';
@@ -164,6 +165,8 @@ export interface StageResult {
   readonly artifacts: readonly string[];
   /** Error message if failed */
   readonly error: string | null;
+  /** Machine-readable execution failure, including partial usage and cause. */
+  readonly errorDetails?: SerializedError;
   /** Number of retry attempts */
   readonly retryCount: number;
   /** Warning messages (e.g., stub backend detection) */

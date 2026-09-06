@@ -2,7 +2,14 @@ import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { installAgent, sdkResult, sdkStatus, sdkAssistant } from './fixtures/sdk.js';
+import {
+  installAgent,
+  sdkResult,
+  sdkStatus,
+  sdkAssistant,
+  sdkQuery,
+  withQueryLifecycle,
+} from './fixtures/sdk.js';
 import {
   renderPrompt,
   SdkExecutionAdapter,
@@ -19,9 +26,11 @@ function fakeSdk(
   return {
     query(q) {
       opts.onCall?.(q);
-      return (async function* () {
-        for (const m of messages) yield m;
-      })();
+      return sdkQuery(
+        (async function* () {
+          for (const m of messages) yield m;
+        })()
+      );
     },
   };
 }
@@ -316,7 +325,7 @@ describe('official SDK options and cancellation bridge', () => {
     const server = captured?.options?.mcpServers?.stdio;
     expect(server && 'args' in server ? server.args : undefined).not.toBe(args);
     expect(captured?.options).not.toHaveProperty('resume');
-    expect(captured?.options).not.toHaveProperty('abortController');
+    expect(captured?.options?.abortController).toBeInstanceOf(AbortController);
   });
 
   it.each(['success', 'failure', 'aborted'] as const)(
@@ -328,27 +337,29 @@ describe('official SDK options and cancellation bridge', () => {
       let sdkController: AbortController | undefined;
       const reason = new Error('cancel this stage');
       const adapter = new SdkExecutionAdapter({
-        loader: async () => ({
-          async *query({ options }) {
-            sdkController = options?.abortController;
-            expect(sdkController).toBeInstanceOf(AbortController);
-            if (outcome === 'aborted') {
-              controller.abort(reason);
-              expect(sdkController?.signal.aborted).toBe(true);
-              expect(sdkController?.signal.reason).toBe(reason);
-              throw reason;
-            }
-            if (outcome === 'failure') throw new Error('SDK failure');
-            yield sdkResult();
-          },
-        }),
+        loader: async () =>
+          withQueryLifecycle({
+            async *query({ options }) {
+              sdkController = options?.abortController;
+              expect(sdkController).toBeInstanceOf(AbortController);
+              if (outcome === 'aborted') {
+                controller.abort(reason);
+                expect(sdkController?.signal.aborted).toBe(true);
+                expect(sdkController?.signal.reason).toBe(reason);
+                throw reason;
+              }
+              if (outcome === 'failure') throw new Error('SDK failure');
+              yield sdkResult();
+            },
+          }),
       });
       const result = await adapter.execute({ ...baseRequest, signal: controller.signal });
       expect(result.status).toBe(outcome === 'failure' ? 'failed' : outcome);
       expect(remove).toHaveBeenCalledWith('abort', add.mock.calls[0]?.[1]);
       if (outcome !== 'aborted') {
-        controller.abort();
-        expect(sdkController?.signal.aborted).toBe(false);
+        const originalReason: unknown = sdkController?.signal.reason;
+        controller.abort('late cancellation');
+        expect(sdkController?.signal.reason).toBe(originalReason);
       }
     }
   );

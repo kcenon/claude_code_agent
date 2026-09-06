@@ -5,7 +5,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Options } from '@anthropic-ai/claude-agent-sdk';
 import { SdkExecutionAdapter, type SdkLike } from '../../../src/execution/SdkExecutionAdapter.js';
-import { agentMarkdown, installAgent, sdkResult } from './sdk.js';
+import { agentMarkdown, installAgent, sdkResult, withQueryLifecycle } from './sdk.js';
 
 const projectA = process.cwd();
 const projectB = process.argv[2];
@@ -17,7 +17,7 @@ let release: () => void = () => {};
 const rendezvous = new Promise<void>((resolve) => {
   release = resolve;
 });
-const sdk: SdkLike = {
+const sdk: SdkLike = withQueryLifecycle({
   async *query({ options }) {
     assert.ok(options?.cwd);
     assert.ok(options.agent);
@@ -32,7 +32,7 @@ const sdk: SdkLike = {
     await writeFile(join(options.cwd, artifact), definition.prompt);
     yield sdkResult({ result: `${artifact}: sentinel` });
   },
-};
+});
 const adapter = new SdkExecutionAdapter({ loader: async () => sdk });
 const request = (projectDir: string, agentType = 'worker') => ({
   projectDir,
