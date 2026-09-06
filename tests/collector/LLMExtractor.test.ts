@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
+import { resolve } from 'node:path';
 import { LLMExtractor } from '../../src/collector/LLMExtractor.js';
 import { InformationExtractor, InputParser } from '../../src/collector/index.js';
 import { MockExecutionAdapter } from '../../src/execution/MockExecutionAdapter.js';
@@ -164,8 +165,9 @@ describe('LLMExtractor', () => {
       expect(adapter.calls).toHaveLength(1);
       const request = adapter.calls[0]!;
       expect(request.priorOutputs['scratchpadDir']).toBe('/scratch');
-      expect(request.priorOutputs['projectDir']).toBe('/project');
-      expect(request.projectDir).toBe('/project');
+      // Root-relative paths include the current drive when resolved on Windows.
+      expect(request.priorOutputs['projectDir']).toBe(resolve('/project'));
+      expect(request.projectDir).toBe(resolve('/project'));
     });
   });
 

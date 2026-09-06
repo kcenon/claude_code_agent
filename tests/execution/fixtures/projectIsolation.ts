@@ -1,6 +1,6 @@
 // Executed by Node in project A, outside Vitest. Only the SDK boundary is injected.
 import assert from 'node:assert/strict';
-import { chmod, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, readFile, realpath, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Options } from '@anthropic-ai/claude-agent-sdk';
@@ -159,6 +159,11 @@ assert.equal(
 );
 assert.equal(process.cwd(), projectA);
 await adapter.dispose();
+// Report the same canonical spelling as the parent, including Windows 8.3 aliases.
 process.stdout.write(
-  JSON.stringify({ cwd: process.cwd(), queries: captured.length, isolation: 'passed' })
+  JSON.stringify({
+    cwd: await realpath(process.cwd()),
+    queries: captured.length,
+    isolation: 'passed',
+  })
 );
