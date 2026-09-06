@@ -16,7 +16,7 @@ import { tryGetProjectRoot } from '../utils/index.js';
  * Worker Agent configuration
  */
 export interface WorkerAgentConfig {
-  /** Project root directory */
+  /** Project root directory, normalized to an absolute path at configuration. */
   readonly projectRoot?: string;
   /** Path to store results (default: '.ad-sdlc/scratchpad/progress') */
   readonly resultsPath?: string;

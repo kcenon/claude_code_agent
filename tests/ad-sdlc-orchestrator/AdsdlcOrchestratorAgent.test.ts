@@ -685,6 +685,7 @@ describe('AdsdlcOrchestratorAgent', () => {
       expect(adapterCreations).toBe(1);
       expect(adapterDisposals).toBe(1);
       expect(calls).toHaveLength(2);
+      expect(calls.every((request) => request.projectDir === tempDir)).toBe(true);
       expect(calls[1]?.priorOutputs['issue_reading']).toContain('execution-adapter');
       await reusingAgent.dispose();
     });
@@ -1598,6 +1599,7 @@ describe('claude-config plugin skills preload', () => {
 
     const workerReq = orchestrator.probe(workerStage as PipelineStageDefinition, session);
     expect(workerReq.skills).toEqual(WORKER_SKILLS);
+    expect(workerReq.projectDir).toBe(session.projectDir);
 
     const reviewerReq = orchestrator.probe(reviewerStage as PipelineStageDefinition, session);
     expect(reviewerReq.skills).toEqual(PR_REVIEWER_SKILLS);

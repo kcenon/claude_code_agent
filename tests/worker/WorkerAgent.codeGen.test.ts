@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { rm, mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
 import { tmpdir } from 'node:os';
 import { WorkerAgent, CodeGenerationError } from '../../src/worker/index.js';
 import type { WorkOrder, CodeContext, ExecutionContext } from '../../src/worker/index.js';
@@ -97,7 +97,7 @@ describe('WorkerAgent - generateCode with ExecutionAdapter delegation', () => {
     await mkdir(testDir, { recursive: true });
 
     agent = new WorkerAgent({
-      projectRoot: testDir,
+      projectRoot: relative(process.cwd(), testDir),
       resultsPath: '.ad-sdlc/scratchpad/progress',
     });
   });
@@ -130,6 +130,7 @@ describe('WorkerAgent - generateCode with ExecutionAdapter delegation', () => {
       expect(adapter.calls).toHaveLength(1);
       const request = adapter.calls[0] as StageExecutionRequest;
       expect(request.agentType).toBe('worker');
+      expect(request.projectDir).toBe(testDir);
       expect(request.workOrder).toContain('ISS-001');
     });
 

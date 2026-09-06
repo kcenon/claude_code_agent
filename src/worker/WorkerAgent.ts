@@ -148,9 +148,12 @@ export class WorkerAgent implements IAgent {
     testGeneratorConfig?: TestGeneratorConfig,
     checkpointConfig?: CheckpointManagerConfig
   ) {
+    if (config.projectRoot !== undefined && config.projectRoot.trim().length === 0) {
+      throw new Error('WorkerAgent: projectRoot must not be blank');
+    }
     const defaults = getDefaultWorkerAgentConfig();
     this.config = {
-      projectRoot: config.projectRoot ?? tryGetProjectRoot() ?? defaults.projectRoot,
+      projectRoot: resolve(config.projectRoot ?? tryGetProjectRoot() ?? defaults.projectRoot),
       resultsPath: config.resultsPath ?? defaults.resultsPath,
       maxRetries: config.maxRetries ?? defaults.maxRetries,
       testCommand: config.testCommand ?? defaults.testCommand,
@@ -775,6 +778,7 @@ export class WorkerAgent implements IAgent {
     // Delegate to ExecutionAdapter when available
     if (this.executionAdapter) {
       const request: StageExecutionRequest = {
+        projectDir: this.config.projectRoot,
         agentType: 'worker',
         workOrder: this.buildCodeGenPrompt(workOrder, codeContext),
         priorOutputs: {

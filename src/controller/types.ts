@@ -288,6 +288,8 @@ export const DEFAULT_DISTRIBUTED_LOCK_OPTIONS: Required<DistributedLockOptions> 
  * Worker pool configuration
  */
 export interface WorkerPoolConfig {
+  /** Target project root. Required for SDK execution; normalized at construction. */
+  readonly projectRoot?: string;
   /** Maximum number of concurrent workers (default: 5) */
   readonly maxWorkers?: number;
   /** Worker timeout in milliseconds (default: 600000 = 10 minutes) */
@@ -306,7 +308,7 @@ export interface WorkerPoolConfig {
  * Default worker pool configuration
  */
 export const DEFAULT_WORKER_POOL_CONFIG: Required<
-  Omit<WorkerPoolConfig, 'queueConfig' | 'distributedLock' | 'metricsConfig'>
+  Omit<WorkerPoolConfig, 'projectRoot' | 'queueConfig' | 'distributedLock' | 'metricsConfig'>
 > = {
   maxWorkers: 5,
   workerTimeout: 600000, // 10 minutes

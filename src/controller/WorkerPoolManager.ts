@@ -32,7 +32,7 @@
 
 import { mkdir, writeFile, readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-import { join, dirname } from 'node:path';
+import { join, dirname, resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
 
 import type {
@@ -108,6 +108,7 @@ interface MutableWorkerInfo {
  * Internal configuration type with optional queueConfig
  */
 interface InternalWorkerPoolConfig {
+  readonly projectRoot: string | undefined;
   readonly maxWorkers: number;
   readonly workerTimeout: number;
   readonly workOrdersPath: string;
@@ -149,6 +150,9 @@ export class WorkerPoolManager {
   _processManager: import('./WorkerProcessManager.js').WorkerProcessManager | null = null;
 
   constructor(config: WorkerPoolConfig = {}, scratchpadOptions?: ScratchpadOptions) {
+    if (config.projectRoot !== undefined && config.projectRoot.trim().length === 0) {
+      throw new Error('WorkerPoolManager: projectRoot must not be blank');
+    }
     // Merge distributed lock options with defaults
     const distributedLockConfig: Required<DistributedLockOptions> = {
       enabled: config.distributedLock?.enabled ?? DEFAULT_DISTRIBUTED_LOCK_OPTIONS.enabled,
@@ -168,6 +172,7 @@ export class WorkerPoolManager {
     };
 
     this.config = {
+      projectRoot: config.projectRoot === undefined ? undefined : resolve(config.projectRoot),
       maxWorkers: config.maxWorkers ?? DEFAULT_WORKER_POOL_CONFIG.maxWorkers,
       workerTimeout: config.workerTimeout ?? DEFAULT_WORKER_POOL_CONFIG.workerTimeout,
       workOrdersPath: config.workOrdersPath ?? DEFAULT_WORKER_POOL_CONFIG.workOrdersPath,
@@ -523,7 +528,8 @@ export class WorkerPoolManager {
   /**
    * Execute a work order through the configured ExecutionAdapter.
    *
-   * Delegates execution to the adapter using the 'worker' agent type.
+   * Delegates execution using the 'worker' agent in the configured projectRoot.
+   * An explicit projectRoot is required when an adapter is configured.
    * Returns the structured stage execution result. When no adapter is
    * configured, returns a stubbed success result so callers can run
    * without a live SDK backend.
@@ -542,7 +548,12 @@ export class WorkerPoolManager {
       };
     }
 
+    if (this.config.projectRoot === undefined) {
+      throw new Error('WorkerPoolManager: projectRoot must be configured for SDK execution');
+    }
+
     const request: StageExecutionRequest = {
+      projectDir: this.config.projectRoot,
       agentType: 'worker',
       workOrder: workOrder.issueId,
       priorOutputs: {},

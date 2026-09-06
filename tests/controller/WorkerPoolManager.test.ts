@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { rm } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
 import { tmpdir } from 'node:os';
 import {
   WorkerPoolManager,
@@ -29,6 +29,7 @@ describe('WorkerPoolManager', () => {
     manager = new WorkerPoolManager({
       maxWorkers: 3,
       workOrdersPath: testDir,
+      projectRoot: relative(process.cwd(), testDir),
     });
   });
 
@@ -1042,6 +1043,17 @@ describe('WorkerPoolManager', () => {
       expect(result.tokenUsage).toEqual({ input: 0, output: 0, cache: 0 });
     });
 
+    it('requires project configuration before delegating SDK work', async () => {
+      const unconfigured = new WorkerPoolManager();
+      const adapter = new MockExecutionAdapter();
+      unconfigured.setExecutionAdapter(adapter);
+      const order = await manager.createWorkOrder(createIssueNode('ISS-042'));
+      await expect(unconfigured.executeWithAdapter(order)).rejects.toThrow(
+        'projectRoot must be configured'
+      );
+      expect(adapter.calls).toHaveLength(0);
+    });
+
     it('delegates to the configured ExecutionAdapter with the worker agent type', async () => {
       const adapter = new MockExecutionAdapter();
       manager.setExecutionAdapter(adapter);
@@ -1052,6 +1064,7 @@ describe('WorkerPoolManager', () => {
       expect(adapter.calls).toHaveLength(1);
       const recorded = adapter.calls[0];
       expect(recorded?.agentType).toBe('worker');
+      expect(recorded?.projectDir).toBe(testDir);
       expect(recorded?.workOrder).toBe('ISS-042');
       expect(recorded?.priorOutputs).toEqual({});
       expect(result.status).toBe('success');

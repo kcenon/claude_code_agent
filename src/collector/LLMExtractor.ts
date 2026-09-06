@@ -14,6 +14,7 @@
  */
 
 import { promises as fs } from 'node:fs';
+import { resolve } from 'node:path';
 import { z } from 'zod';
 import type { ExecutionAdapter, StageExecutionResult } from '../execution/index.js';
 import type { InformationExtractor } from './InformationExtractor.js';
@@ -54,8 +55,13 @@ export class LLMExtractor {
     private readonly adapter: ExecutionAdapter,
     private readonly fallback: InformationExtractor,
     private readonly scratchpadDir: string = '',
-    private readonly projectDir: string = ''
-  ) {}
+    /** Target root is required when using the SDK adapter. */
+    private readonly projectDir: string
+  ) {
+    if (projectDir.trim().length === 0)
+      throw new Error('LLMExtractor: projectDir is required for SDK execution');
+    this.projectDir = resolve(projectDir);
+  }
 
   /**
    * Extract structured information from parsed input using LLM analysis.
@@ -68,6 +74,7 @@ export class LLMExtractor {
   async extract(input: ParsedInput, projectContext?: string): Promise<ExtractionResult> {
     try {
       const result = await this.adapter.execute({
+        projectDir: this.projectDir,
         agentType: 'collector',
         workOrder: this.buildExtractionPrompt(input.combinedContent, projectContext),
         priorOutputs: this.buildPriorOutputs(projectContext),
@@ -115,7 +122,7 @@ export class LLMExtractor {
       return first.description;
     }
     try {
-      return await fs.readFile(first.path, 'utf8');
+      return await fs.readFile(resolve(this.projectDir, first.path), 'utf8');
     } catch (error) {
       getLogger().warn('Failed to read extraction artifact from disk', {
         agent: 'LLMExtractor',

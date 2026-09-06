@@ -58,16 +58,17 @@ export interface ExecutionAdapter {
 `StageExecutionRequest` carries everything a stage needs to run a single
 SDK call:
 
-| Field          | Required | Purpose                                                          |
-| -------------- | -------- | ---------------------------------------------------------------- |
-| `agentType`    | yes      | Identifies which `.claude/agents/*.md` to load (e.g. `'worker'`) |
-| `workOrder`    | yes      | Prompt body — the actual instruction the stage emits             |
-| `priorOutputs` | yes      | Verbatim outputs from upstream stages, keyed by stage name       |
-| `skills`       | no       | SDK skill names to enable for this call                          |
-| `mcpServers`   | no       | MCP server config map forwarded to the SDK                       |
-| `maxTurns`     | no       | Cap on agent turns; SDK aborts past this                         |
-| `resume`       | no       | SDK session id to continue                                       |
-| `signal`       | no       | `AbortSignal` for cancellation                                   |
+| Field          | Required | Purpose                                                                           |
+| -------------- | -------- | --------------------------------------------------------------------------------- |
+| `projectDir`   | yes      | Absolute target project directory; normalized at session/configuration boundaries |
+| `agentType`    | yes      | Identifies which `.claude/agents/*.md` to load (e.g. `'worker'`)                  |
+| `workOrder`    | yes      | Prompt body — the actual instruction the stage emits                              |
+| `priorOutputs` | yes      | Verbatim outputs from upstream stages, keyed by stage name                        |
+| `skills`       | no       | SDK skill names to enable for this call                                           |
+| `mcpServers`   | no       | MCP server config map forwarded to the SDK                                        |
+| `maxTurns`     | no       | Cap on agent turns; SDK aborts past this                                          |
+| `resume`       | no       | SDK session id to continue                                                        |
+| `signal`       | no       | `AbortSignal` for cancellation                                                    |
 
 ### Result
 
@@ -100,24 +101,63 @@ pass.
 Production adapter that drives `@anthropic-ai/claude-agent-sdk`. Defined in
 [`SdkExecutionAdapter.ts`](./SdkExecutionAdapter.ts).
 
-The SDK is loaded with a dynamic `import()` so this module compiles even in
-environments where the SDK is not yet installed (the dynamic import only
-runs when `execute()` is called). Tests inject a fake `loader` to avoid
-touching the real package.
+The SDK runtime loads lazily through a literal, typed dynamic `import()`.
+Production options use the installed SDK's `Options` and `AgentDefinition`;
+query input is derived from `Parameters<typeof query>[0]` and messages use
+`SDKMessage`. The package must be installed for TypeScript checks. Offline
+tests inject only `query()` returning an async iterable, without implementing
+unrelated `Query` methods.
+
+Before loading or calling the SDK, the adapter validates `agentType` and reads
+`<projectDir>/.claude/agents/<agentType>.md`. The resolver reuses AD-SDLC's
+frontmatter parser and required metadata schema, without ambient `agents.yaml`
+discovery. It requires a matching name, valid description/tools/model, and a
+nonempty Markdown prompt. Supported SDK metadata such as skills, disallowed
+tools, MCP servers, permissions, memory, and effort is preserved. The installed
+project definition is authoritative, including user edits; packaged checksums
+are not enforced and definitions are not cached.
+
+`projectDir` must be absolute and identify a directory at the adapter boundary.
+Relative roots are resolved once when configuring a worker or starting a session.
+Resumed sessions use the explicitly selected project, including when persisted
+state contains an old root. Worker pools require `WorkerPoolConfig.projectRoot`
+for SDK execution. Collector SDK callers require `CollectorAgentConfig.projectDir`
+(or an explicit project directory when constructing `LLMExtractor` or
+`InvestigationEngine`). No execution changes `process.cwd()`.
+
+Every query explicitly sets `cwd`, `agent`, and `agents[agentType]`, as well as
+`settingSources: ['user', 'project', 'local']`. Project support agents and skills
+remain discoverable and user/local plugin settings remain enabled. The required
+main agent is always validated in the target project. Local mode uses the same
+path for `local-reviewer` and `local-issue-reader`. The `# Stage: ...` prompt
+heading provides context; SDK options select the persona.
+
+Missing, unreadable, malformed, empty, or incorrectly named definitions produce
+a failed `StageExecutionResult` with the agent name, attempted path, and useful
+validation or I/O details, before `query()` is called. Invalid agent names and
+project roots are rejected before constructing an unsafe definition path.
 
 The adapter maps `StageExecutionRequest` → SDK options:
 
-| Request field         | SDK option           | Note                                           |
-| --------------------- | -------------------- | ---------------------------------------------- |
-| `agentType`           | (prompt prefix)      | Identifies which `.claude/agents/*.md` to load |
-| `workOrder`           | prompt body          |                                                |
-| `priorOutputs`        | prompt context       | Verbatim, labeled by key                       |
-| `skills`              | `options.skills`     |                                                |
-| `mcpServers`          | `options.mcpServers` |                                                |
-| `maxTurns`            | `options.maxTurns`   |                                                |
-| `resume`              | `options.resume`     | Continue an earlier session                    |
-| `signal`              | `options.signal`     | Forwarded to the SDK for cancellation          |
-| `hooks` (constructor) | `options.hooks`      | Optional hook pipeline; see below              |
+| Request field         | SDK option                        | Note                                                 |
+| --------------------- | --------------------------------- | ---------------------------------------------------- |
+| `projectDir`          | `options.cwd`                     | Absolute target project root                         |
+| `agentType`           | `options.agent`, `options.agents` | Explicit main-thread persona from the target project |
+| `workOrder`           | prompt body                       |                                                      |
+| `priorOutputs`        | prompt context                    | Verbatim, labeled by key                             |
+| `skills`              | `options.skills`                  |                                                      |
+| `mcpServers`          | `options.mcpServers`              |                                                      |
+| `maxTurns`            | `options.maxTurns`                |                                                      |
+| `resume`              | `options.resume`                  | Continue an earlier session                          |
+| `signal`              | `options.abortController`         | Per-execution bridge, preserving the abort reason    |
+| `hooks` (constructor) | `options.hooks`                   | Optional hook pipeline; see below                    |
+
+Readonly request skills and MCP stdio arguments are copied into mutable SDK
+arrays; other server settings are retained. Optional fields are omitted when
+unprovided. Pre-aborted requests do not load or query the SDK. The abort bridge
+removes its listener in `finally` on success, failure, and cancellation.
+Comprehensive active-query disposal and timeout/retry cleanup remain tracked
+separately in #948.
 
 #### Example: production wiring
 
@@ -129,6 +169,7 @@ const adapter = new SdkExecutionAdapter({
 });
 
 const result = await adapter.execute({
+  projectDir: '/absolute/path/to/project',
   agentType: 'worker',
   workOrder: 'Implement the login endpoint per the SRS.',
   priorOutputs: {
@@ -183,6 +224,7 @@ const adapter = new MockExecutionAdapter({
 });
 
 const result = await adapter.execute({
+  projectDir: '/absolute/path/to/project',
   agentType: 'worker',
   workOrder: 'Implement login',
   priorOutputs: { srs: 'SRS body' },
@@ -265,7 +307,7 @@ const adapter = new SdkExecutionAdapter({
 
 ## Testing Strategy
 
-The module is split into three test files, all under
+Offline execution tests live under
 [`tests/execution/`](../../tests/execution/):
 
 | File                                                                                 | Scope                                                                                                                                                               |
@@ -273,6 +315,21 @@ The module is split into three test files, all under
 | [`MockExecutionAdapter.test.ts`](../../tests/execution/MockExecutionAdapter.test.ts) | Mock semantics: default success, handler matching order, `calls[]` recording, `dispose` behaviour, abort handling                                                   |
 | [`SdkExecutionAdapter.test.ts`](../../tests/execution/SdkExecutionAdapter.test.ts)   | `renderPrompt` contract (including the `priorOutputs` verbatim guarantee), SDK message reduction (`session_id`, `toolCallCount`, `tokenUsage`), error / abort paths |
 | [`hooks.test.ts`](../../tests/execution/hooks.test.ts)                               | `buildHookPipeline` shape, `PostToolUse(Edit\|Write)` capture, error codes, end-to-end wiring through `SdkExecutionAdapter` with a fake SDK loader                  |
+
+The project-isolation test launches a separate Node process with cwd set to
+project A, then targets project B with conflicting same-named definitions. A
+query double writes sentinel files relative to the captured `options.cwd`.
+It also checks validation failures and overlapping A/B requests without mocking
+the resolver. `projectContext.test.ts` exercises the real orchestrator local-mode
+substitutions and resumed requests through the SDK adapter.
+
+These tests verify the SDK boundary contract. They do not verify live model
+persona behavior; live Import acceptance is a separate scenario.
+
+`npm run build` type-checks production SDK input. `npm run test:sdk-contract`
+invokes `tsc -p tsconfig.sdk-contract.json` to additionally check execution
+fixtures and doubles against official SDK types; Vitest transpilation alone
+does not establish compatibility.
 
 ### Recommended pattern: stages use the mock
 
@@ -321,8 +378,10 @@ npm test -- tests/execution
 
 1. Add the new entry type to `HookPipeline` in [`hooks.ts`](./hooks.ts) if
    the SDK exposes a new event family (otherwise reuse the existing keys).
-2. Build a `SdkHookEntry` with a `matcher` regex string and an async
-   `callback` that throws `AppError` on any failure path.
+2. Build a `SdkHookEntry` with a `matcher` regex string and `hooks: [callback]`.
+   Official callbacks receive `(input, toolUseID, { signal })` and return
+   `Promise<HookJSONOutput>`. Artifact capture awaits the sink and returns `{}`;
+   sink failures propagate to the adapter.
 3. Register the entry under the matching event key in the returned object.
 4. Add a focused test in `tests/execution/hooks.test.ts` that drives the
    callback directly (do not couple the test to the SDK's event loop).
@@ -354,6 +413,8 @@ export class BedrockExecutionAdapter implements ExecutionAdapter {
 
 Checklist when implementing a new adapter:
 
+- [ ] Resolves the required target-project agent and explicitly sets agent selection
+      and cwd without changing the process directory.
 - [ ] Forwards every `priorOutputs` entry verbatim into the prompt
       (mirror the existing contract test).
 - [ ] Returns the canonical `StageExecutionResult` shape, including a
@@ -370,7 +431,7 @@ Checklist when implementing a new adapter:
 
 ## What this module does NOT do (yet)
 
-- Wiring stages to actually call the adapter — see issue #793.
+- Comprehensive query disposal and timeout/retry cleanup — see issue #948.
 - Telemetry bridge (`Stop` finalisation) — Phase 3.
 - Bedrock / Vertex endpoint selection — Phase 4.
 

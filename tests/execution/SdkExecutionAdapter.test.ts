@@ -1,4 +1,8 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+import { installAgent, sdkResult, sdkStatus, sdkAssistant } from './fixtures/sdk.js';
 import {
   renderPrompt,
   SdkExecutionAdapter,
@@ -22,29 +26,39 @@ function fakeSdk(
   };
 }
 
+const projectDir = await mkdtemp(join(tmpdir(), 'sdk-adapter-'));
+beforeAll(async () => {
+  await installAgent(projectDir);
+});
+afterAll(async () => {
+  await rm(projectDir, { recursive: true, force: true });
+});
+
 const baseRequest: StageExecutionRequest = {
+  projectDir,
   agentType: 'worker',
   workOrder: 'implement issue #42',
   priorOutputs: {},
 };
 
 const successMessages: SdkMessage[] = [
-  { type: 'system', session_id: 's-123' },
-  { type: 'assistant' },
-  {
+  sdkStatus('s-123'),
+  sdkAssistant('s-123'),
+  sdkResult({
     type: 'result',
     session_id: 's-123',
     result: 'src/foo.ts: implementation file\nsrc/foo.test.ts: unit test',
     is_error: false,
     num_turns: 4,
     usage: { input_tokens: 100, output_tokens: 50, cache_read_input_tokens: 30 },
-  },
+  }),
 ];
 
 describe('SdkExecutionAdapter', () => {
   describe('renderPrompt', () => {
     it('embeds every priorOutputs entry verbatim under labeled headers', () => {
       const prompt = renderPrompt({
+        projectDir,
         agentType: 'worker',
         workOrder: 'WORK',
         priorOutputs: { srs: 'SRS-CONTENT', sds: 'SDS-CONTENT' },
@@ -93,7 +107,9 @@ describe('SdkExecutionAdapter', () => {
       expect(captured?.options?.mcpServers).toEqual({ github: { type: 'stdio', command: 'gh' } });
       expect(captured?.options?.maxTurns).toBe(7);
       expect(captured?.options?.resume).toBe('prior-session');
-      expect(captured?.options?.signal).toBe(controller.signal);
+      expect(captured?.options?.abortController).toBeInstanceOf(AbortController);
+      expect(captured?.options?.abortController?.signal).not.toBe(controller.signal);
+      expect(captured?.options).not.toHaveProperty('signal');
     });
 
     it('forwards skills only when provided and omits the option otherwise', async () => {
@@ -189,7 +205,7 @@ describe('SdkExecutionAdapter', () => {
       const adapter = new SdkExecutionAdapter({
         loader: async () =>
           fakeSdk([
-            { type: 'result', session_id: 's-err', result: 'something went wrong', is_error: true },
+            sdkResult({ session_id: 's-err', result: 'something went wrong', is_error: true }),
           ]),
       });
       const result = await adapter.execute(baseRequest);
@@ -198,9 +214,23 @@ describe('SdkExecutionAdapter', () => {
       expect(result.error?.code).toBe('EXEC-003');
     });
 
+    it('reduces official error-result variants with useful SDK error details', async () => {
+      const { result: _result, subtype: _subtype, ...message } = sdkResult();
+      const failure: import('@anthropic-ai/claude-agent-sdk').SDKResultError = {
+        ...message,
+        subtype: 'error_max_turns',
+        is_error: true,
+        errors: ['Stage exceeded its turn limit'],
+      };
+      const adapter = new SdkExecutionAdapter({ loader: async () => fakeSdk([failure]) });
+      const result = await adapter.execute(baseRequest);
+      expect(result.status).toBe('failed');
+      expect(result.error?.message).toContain('Stage exceeded its turn limit');
+    });
+
     it('returns failed when no result message is emitted', async () => {
       const adapter = new SdkExecutionAdapter({
-        loader: async () => fakeSdk([{ type: 'system', session_id: 's-empty' }]),
+        loader: async () => fakeSdk([sdkStatus('s-empty')]),
       });
       const result = await adapter.execute(baseRequest);
       expect(result.status).toBe('failed');
@@ -250,5 +280,119 @@ describe('SdkExecutionAdapter', () => {
       await adapter.execute(baseRequest);
       expect(calls).toBe(1);
     });
+  });
+});
+
+describe('official SDK options and cancellation bridge', () => {
+  it('copies readonly skills and MCP args while preserving other server settings', async () => {
+    const skills = Object.freeze(['coding']);
+    const args = Object.freeze(['--offline']);
+    const stdio = {
+      type: 'stdio',
+      command: 'node',
+      args,
+      env: { MODE: 'offline' },
+      timeout: 2500,
+      alwaysLoad: true,
+    } as const;
+    const http = {
+      type: 'http',
+      url: 'https://example.invalid/mcp',
+      headers: { Authorization: 'test' },
+    } as const;
+    let captured: SdkQueryOptions | undefined;
+    const adapter = new SdkExecutionAdapter({
+      loader: async () =>
+        fakeSdk(successMessages, {
+          onCall: (q) => {
+            captured = q;
+          },
+        }),
+    });
+    await adapter.execute({ ...baseRequest, skills, mcpServers: { stdio, http } });
+    expect(captured?.options?.skills).toEqual(skills);
+    expect(captured?.options?.skills).not.toBe(skills);
+    expect(captured?.options?.mcpServers).toEqual({ stdio, http });
+    const server = captured?.options?.mcpServers?.stdio;
+    expect(server && 'args' in server ? server.args : undefined).not.toBe(args);
+    expect(captured?.options).not.toHaveProperty('resume');
+    expect(captured?.options).not.toHaveProperty('abortController');
+  });
+
+  it.each(['success', 'failure', 'aborted'] as const)(
+    'removes the bridge listener after %s',
+    async (outcome) => {
+      const controller = new AbortController();
+      const add = vi.spyOn(controller.signal, 'addEventListener');
+      const remove = vi.spyOn(controller.signal, 'removeEventListener');
+      let sdkController: AbortController | undefined;
+      const reason = new Error('cancel this stage');
+      const adapter = new SdkExecutionAdapter({
+        loader: async () => ({
+          async *query({ options }) {
+            sdkController = options?.abortController;
+            expect(sdkController).toBeInstanceOf(AbortController);
+            if (outcome === 'aborted') {
+              controller.abort(reason);
+              expect(sdkController?.signal.aborted).toBe(true);
+              expect(sdkController?.signal.reason).toBe(reason);
+              throw reason;
+            }
+            if (outcome === 'failure') throw new Error('SDK failure');
+            yield sdkResult();
+          },
+        }),
+      });
+      const result = await adapter.execute({ ...baseRequest, signal: controller.signal });
+      expect(result.status).toBe(outcome === 'failure' ? 'failed' : outcome);
+      expect(remove).toHaveBeenCalledWith('abort', add.mock.calls[0]?.[1]);
+      if (outcome !== 'aborted') {
+        controller.abort();
+        expect(sdkController?.signal.aborted).toBe(false);
+      }
+    }
+  );
+
+  it('does not load or query the SDK for pre-aborted requests', async () => {
+    const controller = new AbortController();
+    controller.abort('before execution');
+    const loader = vi.fn(async () => fakeSdk(successMessages));
+    const result = await new SdkExecutionAdapter({ loader }).execute({
+      ...baseRequest,
+      signal: controller.signal,
+      resume: 'prior-session',
+    });
+    expect(result.status).toBe('aborted');
+    expect(result.sessionId).toBe('prior-session');
+    expect(loader).not.toHaveBeenCalled();
+  });
+
+  it('does not query when aborted during SDK loading', async () => {
+    const controller = new AbortController();
+    const query = vi.fn(() => fakeSdk(successMessages).query({ prompt: '' }));
+    const adapter = new SdkExecutionAdapter({
+      loader: async () => {
+        controller.abort('loading');
+        return { query };
+      },
+    });
+    expect((await adapter.execute({ ...baseRequest, signal: controller.signal })).status).toBe(
+      'aborted'
+    );
+    expect(query).not.toHaveBeenCalled();
+  });
+
+  it('serializes loader errors and removes its abort listener', async () => {
+    const controller = new AbortController();
+    const remove = vi.spyOn(controller.signal, 'removeEventListener');
+    const adapter = new SdkExecutionAdapter({
+      loader: async () => {
+        throw new Error('load failed');
+      },
+    });
+    const result = await adapter.execute({ ...baseRequest, signal: controller.signal });
+    expect(result.status).toBe('failed');
+    expect(result.error?.message).toContain('load failed');
+    expect(remove).toHaveBeenCalledTimes(1);
   });
 });

@@ -19,6 +19,8 @@ export type {
 export { MockExecutionAdapter } from './MockExecutionAdapter.js';
 export type { MockExecutionAdapterOptions, MockExecutionHandler } from './MockExecutionAdapter.js';
 
+export { resolveProjectAgent } from './resolveProjectAgent.js';
+
 export { SdkExecutionAdapter, renderPrompt } from './SdkExecutionAdapter.js';
 export type {
   SdkExecutionAdapterOptions,
