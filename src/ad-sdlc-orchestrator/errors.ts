@@ -78,6 +78,8 @@ export class StageExecutionError extends OrchestratorError {
  * Error thrown when a stage times out
  */
 export class StageTimeoutError extends OrchestratorError {
+  /** Adapter failure details observed while joining timed-out execution cleanup. */
+  override cause?: unknown;
   public readonly stage: StageName;
   public readonly timeoutMs: number;
 

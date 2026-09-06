@@ -8,6 +8,9 @@
  * Implements IAgent interface for unified agent instantiation through AgentFactory.
  */
 
+import { AppError } from '../errors/AppError.js';
+import { OperationAbortedError } from '../error-handler/errors.js';
+import { DEFAULT_CLEANUP_GRACE_MS } from '../execution/cleanup.js';
 import { randomUUID } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
@@ -103,6 +106,8 @@ export class AdsdlcOrchestratorAgent implements IAgent {
   private stageTimers = new Map<StageName, ReturnType<typeof setTimeout>>();
   private abortController: AbortController | null = null;
   private executionAdapter: ExecutionAdapter | null = null;
+  private adapterDisposal: Promise<void> | null = null;
+  private disposal: Promise<void> | null = null;
   private stageVerifier: StageVerifierAgent | null = null;
   private stageVerifierInitialized = false;
   private verificationResults: StageVerificationResult[] = [];
@@ -197,24 +202,31 @@ export class AdsdlcOrchestratorAgent implements IAgent {
    * Dispose of the orchestrator and release resources
    * @returns A promise that resolves when all resources are released
    */
-  async dispose(): Promise<void> {
-    for (const timer of this.stageTimers.values()) {
-      clearTimeout(timer);
-    }
-    this.stageTimers.clear();
-    if (this.abortController) {
-      this.abortController.abort();
-      this.abortController = null;
-    }
-    await this.disposeExecutionAdapter();
-    if (this.stageVerifier !== null && this.stageVerifierInitialized) {
-      await this.stageVerifier.dispose();
-    }
-    this.stageVerifier = null;
-    this.stageVerifierInitialized = false;
-    this.verificationResults = [];
-    this.session = null;
-    this.initialized = false;
+  dispose(): Promise<void> {
+    if (this.disposal !== null) return this.disposal;
+    // Install the admission barrier before any await or verifier cleanup.
+    const adapterDisposal = this.disposeExecutionAdapter();
+    this.disposal = Promise.resolve().then(async (): Promise<void> => {
+      const results = await Promise.allSettled([
+        adapterDisposal,
+        this.stageVerifier !== null && this.stageVerifierInitialized
+          ? this.stageVerifier.dispose()
+          : Promise.resolve(),
+      ]);
+      this.stageVerifier = null;
+      this.stageVerifierInitialized = false;
+      this.verificationResults = [];
+      this.initialized = false;
+      const failures = results.filter((result) => result.status === 'rejected');
+      if (failures.length > 0)
+        throw new AggregateError(
+          failures.map((result): unknown => result.reason),
+          'Orchestrator disposal failed'
+        );
+      this.session = null;
+    });
+    this.abortController?.abort(new OperationAbortedError(undefined, 'Orchestrator disposed'));
+    return this.disposal;
   }
 
   /**
@@ -231,6 +243,12 @@ export class AdsdlcOrchestratorAgent implements IAgent {
    * @returns The newly created orchestrator session
    */
   async startSession(request: PipelineRequest): Promise<OrchestratorSession> {
+    this.assertNotDisposed();
+    if (this.adapterDisposal !== null) {
+      await this.adapterDisposal;
+      this.assertNotDisposed();
+      this.adapterDisposal = null;
+    }
     if (this.session?.status === 'running') {
       throw new PipelineInProgressError(this.session.sessionId);
     }
@@ -358,6 +376,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
     const startTime = Date.now();
     this.session = { ...session, status: 'running' };
     this.verificationResults = [];
+    let pipelineError: unknown;
 
     try {
       const stages = this.getStagesForMode(session.mode);
@@ -448,13 +467,14 @@ export class AdsdlcOrchestratorAgent implements IAgent {
 
       return result;
     } catch (error) {
+      pipelineError = error;
       if (error instanceof PipelineFailedError) {
         throw error;
       }
       this.session = { ...this.session, status: 'failed' };
       throw error;
     } finally {
-      await this.disposeExecutionAdapter();
+      await this.disposeAfterPipeline(pipelineError);
     }
   }
 
@@ -613,12 +633,13 @@ export class AdsdlcOrchestratorAgent implements IAgent {
       haltOnVerificationFailure:
         this.config.vnv.rigor === 'strict' && this.config.vnv.haltOnVerificationFailure,
       checkpointManager: this.checkpointManager,
+      getCleanupGraceMs: () => this.executionAdapter?.cleanupGraceMs ?? DEFAULT_CLEANUP_GRACE_MS,
       getTimeoutForStage: (name) => this.getTimeoutForStage(name),
       createArtifactValidator: (projectDir) => this.createArtifactValidator(projectDir),
       invokeAgent: (stage, session, signal) => this.invokeAgent(stage, session, signal),
       verifyStage: (stage, result, session) => this.verifyStage(stage, result, session),
       checkApprovalGate: (stage, prior) => this.checkApprovalGate(stage, prior),
-      sleep: (ms) => this.sleep(ms),
+      sleep: (ms, signal) => this.sleep(ms, signal),
     };
   }
 
@@ -656,6 +677,14 @@ export class AdsdlcOrchestratorAgent implements IAgent {
     session: OrchestratorSession,
     signal?: AbortSignal
   ): Promise<string> {
+    if (this.adapterDisposal !== null || this.disposal !== null) {
+      throw new AppError('EXEC-002', 'ExecutionAdapter pipeline shutdown has started', {
+        category: 'fatal',
+      });
+    }
+    if (signal?.aborted === true || this.abortController?.signal.aborted === true) {
+      throw new OperationAbortedError(stage.name, 'Pipeline cancelled');
+    }
     this.executionAdapter ??= this.createExecutionAdapter(session);
     const request = this.buildStageExecutionRequest(stage, session, signal);
     const result = await this.executionAdapter.execute(request);
@@ -685,23 +714,42 @@ export class AdsdlcOrchestratorAgent implements IAgent {
     return new SdkExecutionAdapter({ hooks });
   }
 
+  private assertNotDisposed(): void {
+    if (this.disposal !== null)
+      throw new AppError('EXEC-002', 'Orchestrator disposed', { category: 'fatal' });
+  }
+
+  private async disposeAfterPipeline(pipelineError: unknown): Promise<void> {
+    try {
+      await this.disposeExecutionAdapter();
+    } catch (cleanupError) {
+      getLogger().error(
+        'ExecutionAdapter disposal failed',
+        cleanupError instanceof Error ? cleanupError : undefined,
+        {
+          agent: 'AdsdlcOrchestratorAgent',
+          error: cleanupError instanceof AppError ? cleanupError.toJSON() : String(cleanupError),
+        }
+      );
+      if (pipelineError === undefined) throw cleanupError;
+      // Preserve primary identity while exposing additional disposal failures to callers.
+      if (pipelineError instanceof Error)
+        Object.assign(pipelineError, { cleanupErrors: [cleanupError] });
+    }
+  }
+
   /**
    * Dispose the pipeline-scoped adapter without allowing cleanup failures to
    * replace the pipeline's real outcome.
    */
-  private async disposeExecutionAdapter(): Promise<void> {
+  private disposeExecutionAdapter(): Promise<void> {
+    if (this.adapterDisposal !== null) return this.adapterDisposal;
     const adapter = this.executionAdapter;
-    this.executionAdapter = null;
-    if (adapter === null) return;
-
-    try {
-      await adapter.dispose();
-    } catch (error: unknown) {
-      getLogger().debug('ExecutionAdapter dispose failed', {
-        agent: 'AdsdlcOrchestratorAgent',
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
+    this.adapterDisposal = Promise.resolve().then(async () => {
+      await adapter?.dispose();
+      this.executionAdapter = null;
+    });
+    return this.adapterDisposal;
   }
 
   /** Create the verifier used by the live scheduler. Tests may override it. */
@@ -822,8 +870,21 @@ export class AdsdlcOrchestratorAgent implements IAgent {
    */
   protected toStageOutput(stage: PipelineStageDefinition, result: StageExecutionResult): string {
     if (result.status !== 'success') {
-      const message = result.error?.message ?? `ExecutionAdapter status=${result.status}`;
-      throw new Error(`ExecutionAdapter failed: ${message}`);
+      const error =
+        result.error !== undefined
+          ? AppError.fromJSON(result.error)
+          : new AppError(
+              result.status === 'aborted' ? 'EXEC-005' : 'EXEC-003',
+              `ExecutionAdapter status=${result.status}`,
+              { category: result.status === 'aborted' ? 'fatal' : 'transient' }
+            );
+      throw error.withContext({
+        stage: stage.name,
+        status: result.status,
+        sessionId: result.sessionId,
+        toolCallCount: result.toolCallCount,
+        tokenUsage: result.tokenUsage,
+      });
     }
     return JSON.stringify({
       stage: stage.name,
@@ -1119,10 +1180,23 @@ export class AdsdlcOrchestratorAgent implements IAgent {
    *
    * Protected to allow test subclasses to override for fast execution.
    * @param ms - The number of milliseconds to sleep
+   * @param signal - Pipeline cancellation, including timer and listener removal
    * @returns A promise that resolves after the specified delay
    */
-  protected sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
+  protected sleep(ms: number, signal?: AbortSignal): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      const abort = (): void => {
+        clearTimeout(timer);
+        signal?.removeEventListener('abort', abort);
+        reject(new OperationAbortedError(undefined, 'Pipeline cancelled during backoff'));
+      };
+      const timer = setTimeout(() => {
+        signal?.removeEventListener('abort', abort);
+        resolve();
+      }, ms);
+      signal?.addEventListener('abort', abort, { once: true });
+      if (signal?.aborted === true) abort();
+    });
   }
 }
 

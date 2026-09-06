@@ -105,8 +105,9 @@ The SDK runtime loads lazily through a literal, typed dynamic `import()`.
 Production options use the installed SDK's `Options` and `AgentDefinition`;
 query input is derived from `Parameters<typeof query>[0]` and messages use
 `SDKMessage`. The package must be installed for TypeScript checks. Offline
-tests inject only `query()` returning an async iterable, without implementing
-unrelated `Query` methods.
+tests inject `query()` returning `AsyncIterable<SDKMessage> &
+Pick<Query, 'close' | 'return'>`. The lifecycle methods use the official `Query`
+method types; doubles need not implement unrelated streaming control APIs.
 
 Before loading or calling the SDK, the adapter validates `agentType` and reads
 `<projectDir>/.claude/agents/<agentType>.md`. The resolver reuses AD-SDLC's
@@ -153,11 +154,112 @@ The adapter maps `StageExecutionRequest` → SDK options:
 | `hooks` (constructor) | `options.hooks`                   | Optional hook pipeline; see below                    |
 
 Readonly request skills and MCP stdio arguments are copied into mutable SDK
-arrays; other server settings are retained. Optional fields are omitted when
-unprovided. Pre-aborted requests do not load or query the SDK. The abort bridge
-removes its listener in `finally` on success, failure, and cancellation.
-Comprehensive active-query disposal and timeout/retry cleanup remain tracked
-separately in #948.
+arrays; other server settings are retained. Optional request fields are omitted
+when unprovided. Every execution receives a distinct owned `abortController`,
+including requests without a caller signal. A caller's abort reason (Error or
+non-Error) is forwarded unchanged; the adapter never aborts the caller's
+controller or another execution's controller.
+
+#### Completion and disposal
+
+Executions enter the active registry before agent resolution or SDK loading.
+Pre-aborted requests skip both. Cancellation and disposal are rechecked after
+each awaited setup step and before `query()`, so deferred setup cannot start a
+late query. Setup rejection remains observed even if cancellation has already
+returned a cleanup failure.
+
+For success, ordinary SDK failure, cancellation, timeout, and disposal, completion
+means **both the original Query lifecycle and message consumption have settled**,
+or the result explicitly reports `EXEC-004` cleanup failure. Cancellation aborts
+the owned controller promptly. Finalization initiates `query.close()` and awaits
+`query.return(undefined)` plus consumption. The same finalization is shared by
+execution and disposal. An SDK failure remains `failed` even when teardown aborts
+its controller; caller/pipeline cancellation and disposal are `aborted`. Cleanup
+failure adds a fatal diagnostic to those outcomes; it is never successful
+cancellation and must not be interpreted as proof that the query stopped.
+
+SDK 0.3.258's `close(): void` initiates shutdown. Its outer Query's asynchronous
+`return(undefined)` awaits cleanup. `query[Symbol.asyncIterator]()` returns a
+separate inner generator, so finishing/returning that iterator alone is
+insufficient. `interrupt()` is a streaming control request, not whole-query
+finalization. The adapter uses no private transport state or invented public
+process-wait API.
+
+`dispose()` stops admission synchronously, aborts **all** owned executions,
+including those without caller signals or still in setup, and joins their cleanup
+boundaries. Concurrent/repeated calls share the same promise and outcome. A
+failure in one execution does not skip cleanup of siblings. Failures are aggregated
+in a fatal `ExecutionCleanupError`. After successful disposal, no adapter-owned
+forwarding listeners, timers, active queries, or pending setups remain. Subsequent
+`execute()` rejects with `EXEC-002`.
+
+#### Cleanup grace and failure policy
+
+`SdkExecutionAdapterOptions.cleanupGraceMs` is a positive finite value, defaulting
+to **5,000 ms**, independent of the stage execution budget. SDK 0.3.258 bounds its
+internal process-exit wait at 2,000 ms; the default allows another 3,000 ms for
+other cleanup and message-consumption settlement. The `resolveAgent` and `loader`
+options allow deferred setup tests without a live SDK call.
+
+If close/return throws or setup/cleanup/consumption fails to settle within that
+grace, the adapter reports `EXEC-004`, category `fatal`, with the original reason
+as cause and cleanup details in context. `context.unresolved` identifies pending
+operations at the observation boundary; a settled but rejected cleanup still does
+not establish successful shutdown. Any observed cleanup failure blocks further
+execution through that adapter. An unresolved execution stays registered until
+its actual settlement; late fulfillment/rejection remains observed. Forwarding
+listeners and grace timers are removed at the bounded completion boundary, but
+unresolved SDK work is never silently erased. Even if that work later settles,
+the failed adapter remains disabled and repeated disposal retains its failure.
+
+The production scheduler retains every invocation. On timeout it preserves the
+`StageTimeoutError` and controller abort reason, then waits for invocation cleanup
+before surfacing the timeout. Pipeline cancellation follows the same ordering and
+cannot turn a late SDK success into a completed stage. Its fallback budget is the
+current adapter's `cleanupGraceMs` **plus 1,000 ms** (6,000 ms by default), allowing
+adapter diagnostics to reach the scheduler before a fallback error can mask them.
+An invocation that ignores cancellation produces the same fatal cleanup code with
+`context.phase: 'scheduler'`; adapter diagnostics use `'adapter'`.
+
+Fatal cleanup errors explicitly map to RetryExecutor's `non-retryable` category
+(the error contracts use different category vocabularies). They stop queued DAG
+work and never launch a replacement on the affected adapter. Normal retryable
+failures finish cleanup before the existing exponential backoff and next attempt.
+The stage deadline still covers all attempts and backoff; a timeout normally
+exhausts that total budget. Cancellation is checked before attempts/backoff, during
+backoff, and immediately before invocation after any delay. Production backoff
+cancellation clears its timer.
+
+The orchestrator retains its adapter while disposal is pending and blocks late
+stage invocations from creating a replacement. A new session can reset that
+barrier only after successful prior pipeline disposal. Public orchestrator
+disposal also joins concurrent callers. Stage `errorDetails` preserves serialized
+code, category, context, cause and partial usage through `AppError.fromJSON`;
+first-attempt fatal failures retain meaningful diagnostics and zero retries.
+Disposal failures are logged at ERROR and exposed on the primary thrown pipeline
+error's `cleanupErrors`; without a primary error, disposal failure rejects the
+pipeline itself.
+
+These boundaries are **SDK-observable cleanup**, not independent confirmation that
+every operating-system process exited. The SDK's own process-exit wait is bounded.
+Process-level confirmation belongs to the later live acceptance lane; the offline
+regressions do not establish lingering or terminated live SDK processes.
+
+#### Partial usage and outcomes
+
+All results retain the latest observed session ID (or requested resume ID), turn
+count, and available usage. Before a result message, assistant `message.usage` is
+accumulated once per distinct assistant message ID, using its latest observation.
+Repeated IDs replace that contribution and add no turns or duplicate usage. Aggregate result usage, including SDK error
+results, is authoritative and replaces the assistant fallback; it is never added
+to that same usage again. The turn count retains the maximum of observed assistant
+turns and result `num_turns`. `TokenUsage.cache` includes cache-read **plus**
+cache-creation input tokens. With no observed usage, counters remain zero.
+
+Thrown SDK failures and aborted executions retain these partial observations.
+They are available data, not comprehensive billing metrics. Successful artifact
+extraction is unchanged; artifact manifests and expanded metrics remain separate
+work.
 
 #### Example: production wiring
 
@@ -323,6 +425,24 @@ It also checks validation failures and overlapping A/B requests without mocking
 the resolver. `projectContext.test.ts` exercises the real orchestrator local-mode
 substitutions and resumed requests through the SDK adapter.
 
+`SdkExecutionAdapter.lifecycle.test.ts` uses a controlled asynchronous Query with
+an official owned controller, separate inner iterator, synchronous close initiation,
+deferred outer cleanup, and a sentinel artifact writer. Fake timers cover cleanup
+timeouts and late rejections. Production integration coverage lives in
+[`sdkLifecycle.test.ts`](../../tests/ad-sdlc-orchestrator/sdkLifecycle.test.ts), so
+it runs in the focused orchestrator lane (no separate integration configuration
+is needed). It verifies timeout cleanup, early-failure retry ordering, exhausted
+budgets, cancellation during backoff, fatal first-attempt diagnostics, queued DAG
+work, and concurrent orchestrator disposal.
+
+```bash
+npm run test:sdk-contract
+npx vitest run tests/execution tests/ad-sdlc-orchestrator
+npm run build
+npm run lint
+npm run docs:check
+```
+
 These tests verify the SDK boundary contract. They do not verify live model
 persona behavior; live Import acceptance is a separate scenario.
 
@@ -431,7 +551,6 @@ Checklist when implementing a new adapter:
 
 ## What this module does NOT do (yet)
 
-- Comprehensive query disposal and timeout/retry cleanup — see issue #948.
 - Telemetry bridge (`Stop` finalisation) — Phase 3.
 - Bedrock / Vertex endpoint selection — Phase 4.
 
@@ -442,3 +561,4 @@ Checklist when implementing a new adapter:
 - AD-07 (`#791` / PR #811): hook pipeline integration
 - AD-08 (`#792`): this README
 - AD-09 (`#793`): pilot stage cutover
+- #948: owned execution lifecycle, bounded cleanup, disposal and retry barriers

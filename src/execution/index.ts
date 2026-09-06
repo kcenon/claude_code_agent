@@ -28,6 +28,7 @@ export type {
   SdkLoader,
   SdkMessage,
   SdkQueryOptions,
+  SdkQuery,
 } from './SdkExecutionAdapter.js';
 
 export { buildHookPipeline } from './hooks.js';
@@ -48,3 +49,5 @@ export {
   isClaudeCodeSession,
 } from './env.js';
 export type { ExecutionEnvironmentLabel } from './env.js';
+
+export { DEFAULT_CLEANUP_GRACE_MS, ExecutionCleanupError } from './cleanup.js';

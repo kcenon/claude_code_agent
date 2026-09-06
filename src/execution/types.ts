@@ -35,7 +35,9 @@ export type McpServerConfig =
   | Readonly<McpHttpServerConfig>;
 
 /**
- * Token usage breakdown returned by every adapter call.
+ * Available token usage on every outcome. SDK result usage is authoritative;
+ * before a result, distinct assistant messages supply the fallback. Cache includes
+ * both cache-read and cache-creation tokens.
  */
 export interface TokenUsage {
   readonly input: number;
@@ -72,7 +74,9 @@ export interface StageExecutionRequest {
 
 /**
  * Result of a stage execution. `error` is populated only when
- * `status !== 'success'`.
+ * `status !== 'success'`. Available session/turn/usage observations survive failure
+ * and cancellation. EXEC-004 means cleanup could not be established, even when
+ * the causal status is aborted.
  */
 export interface StageExecutionResult {
   readonly status: StageExecutionStatus;
@@ -89,6 +93,10 @@ export interface StageExecutionResult {
  * and {@link MockExecutionAdapter} (testing).
  */
 export interface ExecutionAdapter {
+  /** Cleanup budget used to coordinate the scheduler fallback (default: 5000ms). */
+  readonly cleanupGraceMs?: number;
+  /** Completes after observable lifecycle cleanup, or reports a fatal cleanup error. */
   execute(req: StageExecutionRequest): Promise<StageExecutionResult>;
+  /** Stops admission and joins all owned cleanup; concurrent calls share the outcome. */
   dispose(): Promise<void>;
 }

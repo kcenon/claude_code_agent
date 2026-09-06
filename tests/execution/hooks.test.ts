@@ -1,3 +1,4 @@
+import { sdkQuery, withQueryLifecycle } from './fixtures/sdk.js';
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -187,9 +188,11 @@ describe('SdkExecutionAdapter — hooks wiring', () => {
     const sdk: SdkLike = {
       query(q) {
         captured.value = q;
-        return (async function* () {
-          for (const m of messages) yield m;
-        })();
+        return sdkQuery(
+          (async function* () {
+            for (const m of messages) yield m;
+          })()
+        );
       },
     };
     return { sdk, captured };
@@ -319,32 +322,33 @@ describe('SDK invokes official hook entries', () => {
     const outputs: unknown[] = [];
     const adapter = new SdkExecutionAdapter({
       hooks: buildHookPipeline(sink),
-      loader: async () => ({
-        async *query({ options }) {
-          for (const entry of options?.hooks?.PostToolUse ?? []) {
-            expect(entry).not.toHaveProperty('callback');
-            for (const callback of entry.hooks) {
-              outputs.push(
-                await callback(
-                  {
-                    hook_event_name: 'PostToolUse',
-                    tool_name: 'Write',
-                    tool_input: { file_path: 'sentinel.txt' },
-                    tool_response: {},
-                    tool_use_id: 'tool-offline',
-                    session_id: 'hook-session',
-                    transcript_path: join(projectDir, 'transcript.jsonl'),
-                    cwd: options?.cwd ?? '',
-                  },
-                  'tool-offline',
-                  { signal: new AbortController().signal }
-                )
-              );
+      loader: async () =>
+        withQueryLifecycle({
+          async *query({ options }) {
+            for (const entry of options?.hooks?.PostToolUse ?? []) {
+              expect(entry).not.toHaveProperty('callback');
+              for (const callback of entry.hooks) {
+                outputs.push(
+                  await callback(
+                    {
+                      hook_event_name: 'PostToolUse',
+                      tool_name: 'Write',
+                      tool_input: { file_path: 'sentinel.txt' },
+                      tool_response: {},
+                      tool_use_id: 'tool-offline',
+                      session_id: 'hook-session',
+                      transcript_path: join(projectDir, 'transcript.jsonl'),
+                      cwd: options?.cwd ?? '',
+                    },
+                    'tool-offline',
+                    { signal: new AbortController().signal }
+                  )
+                );
+              }
             }
-          }
-          yield sdkResult();
-        },
-      }),
+            yield sdkResult();
+          },
+        }),
     });
     const result = await adapter.execute({
       projectDir,

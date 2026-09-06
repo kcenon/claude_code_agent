@@ -16,6 +16,19 @@
 import { getLogger } from '../logging/index.js';
 import { RetryExecutor } from '../error-handler/RetryExecutor.js';
 import type { StageVerificationResult } from '../stage-verifier/types.js';
+import { AppError } from '../errors/AppError.js';
+import {
+  MaxRetriesExceededError,
+  NonRetryableError,
+  OperationAbortedError,
+} from '../error-handler/errors.js';
+import {
+  DEFAULT_CLEANUP_GRACE_MS,
+  SCHEDULER_CLEANUP_MARGIN_MS,
+  ExecutionCleanupError,
+  isExecutionCleanupError,
+  withinCleanupGrace,
+} from '../execution/cleanup.js';
 import { StageTimeoutError } from './errors.js';
 import type { ArtifactValidator } from './ArtifactValidator.js';
 import type { PipelineCheckpointManager } from './PipelineCheckpointManager.js';
@@ -48,6 +61,8 @@ export interface SchedulerHost {
   readonly haltOnVerificationFailure: boolean;
   readonly checkpointManager: PipelineCheckpointManager | null;
   getTimeoutForStage(name: StageName): number;
+  /** Current adapter budget; fallback includes a margin for diagnostic propagation. */
+  getCleanupGraceMs?(): number;
   createArtifactValidator(projectDir: string): ArtifactValidator;
   invokeAgent(
     stage: PipelineStageDefinition,
@@ -63,7 +78,7 @@ export interface SchedulerHost {
     stage: PipelineStageDefinition,
     priorResults: readonly StageResult[]
   ): Promise<ApprovalDecision>;
-  sleep(ms: number): Promise<void>;
+  sleep(ms: number, signal?: AbortSignal): Promise<void>;
 }
 
 /**
@@ -188,59 +203,111 @@ async function saveCheckpoint(
  * @param session
  * @param timeoutMs
  */
-function runStageAgentWithTimeout(
+async function runStageAgentWithTimeout(
   host: SchedulerHost,
   stage: PipelineStageDefinition,
   session: OrchestratorSession,
   timeoutMs: number
 ): Promise<string> {
-  return new Promise<string>((resolve, reject) => {
-    const attemptController = new AbortController();
-    const pipelineSignal = host.abortController?.signal;
-    let settled = false;
-
-    const cleanup = (): void => {
-      clearTimeout(timer);
-      host.stageTimers.delete(stage.name);
-      pipelineSignal?.removeEventListener('abort', abortFromPipeline);
-    };
-    const settle = (operation: () => void): void => {
-      if (settled) return;
-      settled = true;
-      cleanup();
-      operation();
-    };
-    const abortFromPipeline = (): void => {
-      attemptController.abort(pipelineSignal?.reason);
-    };
-    const timer = setTimeout(() => {
-      const error = new StageTimeoutError(stage.name, timeoutMs);
-      attemptController.abort(error);
-      settle(() => {
-        reject(error);
-      });
-    }, timeoutMs);
-
-    host.stageTimers.set(stage.name, timer);
-    if (pipelineSignal?.aborted === true) {
-      abortFromPipeline();
-    } else {
-      pipelineSignal?.addEventListener('abort', abortFromPipeline, { once: true });
-    }
-
-    host
-      .invokeAgent(stage, session, attemptController.signal)
-      .then((output) => {
-        settle(() => {
-          resolve(output);
-        });
-      })
-      .catch((error: unknown) => {
-        settle(() => {
-          reject(error instanceof Error ? error : new Error(String(error)));
-        });
-      });
+  const attemptController = new AbortController();
+  const pipelineSignal = host.abortController?.signal;
+  let cancellation: Error | undefined;
+  let notifyCancellation!: () => void;
+  const cancelled = new Promise<void>((resolve) => {
+    notifyCancellation = resolve;
   });
+  const cancel = (reason: unknown): void => {
+    if (cancellation !== undefined) return;
+    cancellation =
+      reason instanceof Error ? reason : new OperationAbortedError(stage.name, String(reason));
+    attemptController.abort(reason);
+    notifyCancellation();
+  };
+  const abortFromPipeline = (): void => {
+    cancel(pipelineSignal?.reason);
+  };
+  const timer = setTimeout(() => {
+    cancel(new StageTimeoutError(stage.name, timeoutMs));
+  }, timeoutMs);
+  host.stageTimers.set(stage.name, timer);
+  pipelineSignal?.addEventListener('abort', abortFromPipeline, { once: true });
+  if (pipelineSignal?.aborted === true) abortFromPipeline();
+
+  // Keep and observe the invocation even if cancellation wins the race.
+  const invocation = Promise.resolve()
+    .then(async () => {
+      if (attemptController.signal.aborted)
+        throw cancellation ?? new OperationAbortedError(stage.name);
+      return host.invokeAgent(stage, session, attemptController.signal);
+    })
+    .then(
+      (value) => ({ ok: true as const, value }),
+      (error: unknown) => ({ ok: false as const, error })
+    );
+  try {
+    const first = await Promise.race([invocation, cancelled.then(() => undefined)]);
+    if (cancellation !== undefined) {
+      const graceMs =
+        (host.getCleanupGraceMs?.() ?? DEFAULT_CLEANUP_GRACE_MS) + SCHEDULER_CLEANUP_MARGIN_MS;
+      const outcome = await withinCleanupGrace(
+        invocation,
+        graceMs,
+        () =>
+          new ExecutionCleanupError(
+            `Stage "${stage.name}" cleanup grace period exceeded; invocation may still be active`,
+            cancellation,
+            { stage: stage.name, phase: 'scheduler', cleanupGraceMs: graceMs, unresolved: true }
+          )
+      );
+      if (!outcome.ok && isExecutionCleanupError(outcome.error)) throw outcome.error;
+      // A late success cannot override cancellation. Retain partial execution data on timeouts.
+      if (!outcome.ok) {
+        if (cancellation instanceof StageTimeoutError && outcome.error !== cancellation)
+          cancellation.cause = outcome.error;
+        else if (outcome.error instanceof AppError) throw outcome.error;
+      }
+      throw cancellation;
+    }
+    if (first === undefined) throw new OperationAbortedError(stage.name);
+    if (!first.ok) throw first.error;
+    return first.value;
+  } finally {
+    clearTimeout(timer);
+    host.stageTimers.delete(stage.name);
+    pipelineSignal?.removeEventListener('abort', abortFromPipeline);
+  }
+}
+
+/** A host override may ignore the signal; still prevent retries and observe late rejection.
+ * @param host - Supplies the production or overridden delay
+ * @param ms - Backoff duration capped by the stage deadline
+ * @param signal - Pipeline cancellation
+ */
+async function waitForRetry(host: SchedulerHost, ms: number, signal?: AbortSignal): Promise<void> {
+  if (signal?.aborted === true)
+    throw new OperationAbortedError(undefined, 'Aborted before backoff');
+  let abort!: () => void;
+  const cancelled = new Promise<never>((_resolve, reject) => {
+    abort = (): void => {
+      reject(new OperationAbortedError(undefined, 'Aborted during backoff'));
+    };
+    signal?.addEventListener('abort', abort, { once: true });
+  });
+  try {
+    await Promise.race([host.sleep(ms, signal), cancelled]);
+  } finally {
+    signal?.removeEventListener('abort', abort);
+  }
+}
+
+/** Unwrap retry bookkeeping while keeping the execution's code, cause and partial usage.
+ * @param error - RetryExecutor's final error, possibly wrapped
+ * @returns The underlying execution error when available
+ */
+function originalExecutionError(error: Error | undefined): Error | undefined {
+  if (error instanceof NonRetryableError) return error.originalError;
+  if (error instanceof MaxRetriesExceededError) return error.lastError ?? error;
+  return error;
 }
 
 /**
@@ -279,7 +346,6 @@ export async function executeStageWithRetry(
   const maxRetries = host.maxRetries;
   const stageTimeoutMs = host.getTimeoutForStage(stage.name);
   const stageDeadline = Date.now() + stageTimeoutMs;
-  let lastError: string | null = null;
   let attempt = 0;
   let attemptStartTime = Date.now();
   const retryExecutor = new RetryExecutor({
@@ -292,26 +358,39 @@ export async function executeStageWithRetry(
   });
   const execution = await retryExecutor.executeWithResult(
     async () => {
-      attempt++;
+      if (host.abortController?.signal.aborted === true)
+        throw new OperationAbortedError(stage.name, 'Pipeline cancelled');
       attemptStartTime = Date.now();
       const remainingMs = stageDeadline - Date.now();
       if (remainingMs <= 0) {
-        lastError = `Stage '${stage.name}' budget exhausted before attempt ${String(attempt)}`;
-        throw new Error(lastError);
+        throw new Error(
+          `Stage '${stage.name}' budget exhausted before attempt ${String(attempt + 1)}`
+        );
       }
       const attemptTimeoutMs = Math.min(remainingMs, stageTimeoutMs);
 
+      attempt++;
       const output = await runStageAgentWithTimeout(host, stage, session, attemptTimeoutMs);
       return output;
     },
     {
       operationName: `pipeline-stage:${stage.name}`,
-      errorClassifier: () => 'retryable',
-      shouldRetry: (error) => {
-        lastError = error.message;
-        return Date.now() < stageDeadline;
+      ...(host.abortController !== null ? { signal: host.abortController.signal } : {}),
+      errorClassifier: (error) => {
+        if (isExecutionCleanupError(error)) {
+          // Stop queued DAG work even if an injected invocation ignored cancellation.
+          host.abortController?.abort(error);
+          return 'non-retryable';
+        }
+        return (error instanceof AppError && error.category === 'fatal') ||
+          host.abortController?.signal.aborted === true
+          ? 'non-retryable'
+          : 'retryable';
       },
-      delay: (ms) => host.sleep(ms),
+      shouldRetry: () =>
+        host.abortController?.signal.aborted !== true && Date.now() < stageDeadline,
+      delay: (ms, signal) =>
+        waitForRetry(host, Math.max(0, Math.min(ms, stageDeadline - Date.now())), signal),
     }
   );
 
@@ -328,15 +407,23 @@ export async function executeStageWithRetry(
     };
   }
 
+  const error = originalExecutionError(execution.error);
+  const details =
+    error instanceof AppError
+      ? error
+      : error instanceof StageTimeoutError && error.cause instanceof AppError
+        ? error.cause.withContext({ timeoutMs: error.timeoutMs })
+        : undefined;
   return {
     name: stage.name,
     agentType: stage.agentType,
     status: 'failed',
-    durationMs: 0,
+    durationMs: execution.totalDurationMs,
     output: '',
     artifacts: [],
-    error: lastError,
-    retryCount: maxRetries,
+    error: error?.message ?? 'Stage execution failed',
+    ...(details !== undefined ? { errorDetails: details.toJSON() } : {}),
+    retryCount: Math.max(0, attempt - 1),
   };
 }
 

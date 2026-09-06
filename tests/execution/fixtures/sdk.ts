@@ -1,3 +1,9 @@
+import type { SDKMessage } from '@anthropic-ai/claude-agent-sdk';
+import type {
+  SdkLike,
+  SdkQuery,
+  SdkQueryOptions,
+} from '../../../src/execution/SdkExecutionAdapter.js';
 import type {
   SDKAssistantMessage,
   SDKResultSuccess,
@@ -52,7 +58,10 @@ export function sdkStatus(sessionId: string): SDKStatusMessage {
   };
 }
 
-export function sdkAssistant(sessionId: string): SDKAssistantMessage {
+export function sdkAssistant(
+  sessionId: string,
+  overrides: Partial<SDKAssistantMessage['message']> = {}
+): SDKAssistantMessage {
   return {
     type: 'assistant',
     session_id: sessionId,
@@ -71,6 +80,7 @@ export function sdkAssistant(sessionId: string): SDKAssistantMessage {
       context_management: null,
       diagnostics: null,
       stop_details: null,
+      ...overrides,
     },
   };
 }
@@ -94,4 +104,19 @@ export async function installAgent(
   const path = join(directory, `${name}.md`);
   await writeFile(path, content);
   return path;
+}
+
+/** Minimal outer lifecycle for finite scripted streams; the iterator remains distinct. */
+export function sdkQuery(messages: AsyncGenerator<SDKMessage, void>): SdkQuery {
+  return {
+    [Symbol.asyncIterator]: () => messages,
+    close: () => {},
+    return: (value) => messages.return(value),
+  };
+}
+
+export function withQueryLifecycle(sdk: {
+  query(options: SdkQueryOptions): AsyncGenerator<SDKMessage, void>;
+}): SdkLike {
+  return { query: (options) => sdkQuery(sdk.query(options)) };
 }

@@ -1,11 +1,24 @@
 /**
  * SDK execution with an explicitly selected target-project agent and cwd.
  * Runtime loading stays lazy; production query input and messages use the
- * installed SDK types. Tests inject only query(), without unrelated Query APIs.
+ * installed SDK types. Tests inject query() and its supported lifecycle,
+ * without unrelated Query APIs.
  * @packageDocumentation
  */
 
-import type { Options, SDKMessage, SDKResultMessage, query } from '@anthropic-ai/claude-agent-sdk';
+import type {
+  Options,
+  Query,
+  SDKMessage,
+  SDKResultMessage,
+  query,
+} from '@anthropic-ai/claude-agent-sdk';
+import {
+  DEFAULT_CLEANUP_GRACE_MS,
+  ExecutionCleanupError,
+  isExecutionCleanupError,
+  withinCleanupGrace,
+} from './cleanup.js';
 import { resolveProjectAgent } from './resolveProjectAgent.js';
 import { AppError } from '../errors/AppError.js';
 import { ErrorSeverity } from '../errors/types.js';
@@ -24,9 +37,12 @@ export type SdkQueryOptions = Parameters<typeof query>[0];
 /** Official SDK messages; adapters narrow discriminated variants explicitly. */
 export type SdkMessage = SDKMessage;
 
-/** Injectable query boundary: offline doubles only implement async iteration. */
+/** Only the supported lifecycle and message iteration surface is required of doubles. */
+export type SdkQuery = AsyncIterable<SDKMessage> & Pick<Query, 'close' | 'return'>;
+
+/** Injectable query boundary using official lifecycle method types. */
 export interface SdkLike {
-  query(opts: SdkQueryOptions): AsyncIterable<SdkMessage>;
+  query(opts: SdkQueryOptions): SdkQuery;
 }
 
 /** Lazy runtime loader, replaceable by an offline query double. */
@@ -35,6 +51,10 @@ export type SdkLoader = () => Promise<SdkLike>;
 const defaultLoader: SdkLoader = async () => import('@anthropic-ai/claude-agent-sdk');
 
 export interface SdkExecutionAdapterOptions {
+  /** Finite cleanup budget, independent of stage execution time (default: 5000ms). */
+  readonly cleanupGraceMs?: number;
+  /** Override target-project resolution for controlled setup tests. */
+  readonly resolveAgent?: typeof resolveProjectAgent;
   /** Override the SDK loader for tests / alternative endpoints. */
   readonly loader?: SdkLoader;
   /**
@@ -45,114 +65,327 @@ export interface SdkExecutionAdapterOptions {
   readonly hooks?: HookPipeline;
 }
 
-/**
- *
- */
+interface OwnedExecution {
+  readonly controller: AbortController;
+  readonly cancelled: Promise<void>;
+  cancel(reason: unknown): void;
+  work: Promise<void>;
+  readonly completion: Promise<void>;
+  query?: SdkQuery;
+  cleanup?: Promise<AppError | undefined>;
+  cleanupSettled: boolean;
+  executionSettled: boolean;
+  outcome: 'running' | 'success' | 'failed' | 'aborted';
+  reason?: unknown;
+  sessionId: string;
+  toolCallCount: number;
+  tokenUsage: TokenUsage;
+  resultText?: string;
+}
+
+/** Each registered execution owns setup, consumption, and one shared cleanup operation. */
 export class SdkExecutionAdapter implements ExecutionAdapter {
+  readonly cleanupGraceMs: number;
   private readonly loader: SdkLoader;
+  private readonly resolveAgent: typeof resolveProjectAgent;
   private readonly hooks: HookPipeline | undefined;
   private sdkPromise: Promise<SdkLike> | null = null;
   private disposed = false;
+  private disposal: Promise<void> | undefined;
+  private readonly active = new Set<OwnedExecution>();
+  private readonly cleanupFailures = new Map<OwnedExecution, AppError>();
 
   constructor(options: SdkExecutionAdapterOptions = {}) {
     this.loader = options.loader ?? defaultLoader;
+    this.resolveAgent = options.resolveAgent ?? resolveProjectAgent;
     this.hooks = options.hooks;
+    this.cleanupGraceMs = options.cleanupGraceMs ?? DEFAULT_CLEANUP_GRACE_MS;
+    if (!Number.isFinite(this.cleanupGraceMs) || this.cleanupGraceMs <= 0) {
+      throw new RangeError('cleanupGraceMs must be finite and greater than zero');
+    }
   }
 
-  /**
-   *
-   * @param req
+  /** Register before any asynchronous setup and retain unresolved work until it settles.
+   * @param req - Target project, prompt and optional caller cancellation
+   * @returns Outcome after cleanup, or an explicit fatal cleanup diagnostic
    */
   async execute(req: StageExecutionRequest): Promise<StageExecutionResult> {
     if (this.disposed) {
       throw new AppError('EXEC-002', 'SdkExecutionAdapter: execute called after dispose', {
         severity: ErrorSeverity.HIGH,
+        category: 'fatal',
       });
     }
-    if (req.signal?.aborted === true) {
-      return abortedResult(req.resume);
-    }
+    const priorCleanupFailure = this.cleanupFailures.values().next().value;
+    if (priorCleanupFailure !== undefined) throw priorCleanupFailure;
 
-    const abortController = new AbortController();
+    const controller = new AbortController();
+    let notifyCancellation!: () => void;
+    const cancelled = new Promise<void>((resolve) => {
+      notifyCancellation = resolve;
+    });
+    let notifyCompletion!: () => void;
+    const completion = new Promise<void>((resolve) => {
+      notifyCompletion = resolve;
+    });
     const forwardAbort = (): void => {
-      abortController.abort(req.signal?.reason);
+      execution.cancel(req.signal?.reason);
     };
-    // Read through a function because abort state can change across awaited SDK work.
-    const isAborted = (): boolean => abortController.signal.aborted;
-    req.signal?.addEventListener('abort', forwardAbort, { once: true });
-
-    let sessionId = req.resume ?? 'unknown';
-    let toolCallCount = 0;
-    let tokenUsage: TokenUsage = { input: 0, output: 0, cache: 0 };
-    let resultText: string | undefined;
-    let isError = false;
-
-    try {
-      const definition = await resolveProjectAgent(req.projectDir, req.agentType);
-      const sdk = await this.getSdk();
-      // Cancellation may have arrived while resolving the definition or loader.
-      if (isAborted()) return abortedResult(sessionId);
-      const prompt = renderPrompt(req);
-      const sdkOptions: Options = {
-        cwd: req.projectDir,
-        agent: req.agentType,
-        agents: { [req.agentType]: definition },
-        settingSources: ['user', 'project', 'local'],
-        ...(req.skills !== undefined && { skills: [...req.skills] }),
-        ...(req.mcpServers !== undefined && {
-          mcpServers: copyMcpServers(req.mcpServers),
-        }),
-        ...(req.maxTurns !== undefined && { maxTurns: req.maxTurns }),
-        ...(req.permissionMode !== undefined && { permissionMode: req.permissionMode }),
-        ...(req.resume !== undefined && { resume: req.resume }),
-        ...(req.signal !== undefined && { abortController }),
-        ...(this.hooks !== undefined && { hooks: this.hooks }),
-      };
-      for await (const message of sdk.query({ prompt, options: sdkOptions })) {
-        if ('session_id' in message && message.session_id !== '') {
-          sessionId = message.session_id;
+    const execution: OwnedExecution = {
+      controller,
+      cancelled,
+      cancel: (reason): void => {
+        // Mechanical abort for failure cleanup must not change the causal outcome.
+        if (execution.outcome === 'running' || execution.outcome === 'success') {
+          execution.outcome = 'aborted';
+          execution.reason = reason;
         }
-        if (message.type === 'assistant') toolCallCount += 1;
-        if (message.type === 'result') {
-          resultText = message.subtype === 'success' ? message.result : message.errors.join('\n');
-          isError = message.is_error || message.subtype !== 'success';
-          toolCallCount = Math.max(toolCallCount, message.num_turns);
-          tokenUsage = mapUsage(message.usage);
+        controller.abort(reason);
+        notifyCancellation();
+      },
+      work: Promise.resolve(),
+      completion,
+      cleanupSettled: false,
+      executionSettled: false,
+      outcome: 'running',
+      sessionId: req.resume ?? 'unknown',
+      toolCallCount: 0,
+      tokenUsage: { input: 0, output: 0, cache: 0 },
+    };
+    this.active.add(execution);
+    req.signal?.addEventListener('abort', forwardAbort, { once: true });
+    if (req.signal?.aborted === true) forwardAbort();
+
+    // Deferring setup also makes synchronous loader/query throws observed failures.
+    execution.work = Promise.resolve().then(async () => {
+      try {
+        await this.consume(req, execution);
+      } catch (error) {
+        if (execution.outcome === 'running' || execution.outcome === 'success') {
+          execution.outcome = 'failed';
+          execution.reason = error;
         }
       }
-    } catch (err) {
-      if (isAborted()) return abortedResult(sessionId);
-      return failedResult(sessionId, err);
+    });
+    try {
+      return await this.complete(execution);
     } finally {
       req.signal?.removeEventListener('abort', forwardAbort);
+      execution.executionSettled = true;
+      notifyCompletion();
+      this.release(execution);
     }
+  }
 
-    if (isAborted()) return abortedResult(sessionId);
-
-    if (isError || resultText === undefined) {
-      return failedResult(sessionId, new Error(resultText ?? 'SDK returned no result'));
+  private async consume(req: StageExecutionRequest, execution: OwnedExecution): Promise<void> {
+    const stopped = (): boolean => {
+      if (execution.controller.signal.aborted || this.disposed) return true;
+      const failure = this.cleanupFailures.values().next().value;
+      if (failure !== undefined) throw failure;
+      return false;
+    };
+    if (stopped()) return;
+    const definition = await this.resolveAgent(req.projectDir, req.agentType);
+    if (stopped()) return;
+    const sdk = await this.getSdk();
+    if (stopped()) return;
+    const sdkOptions: Options = {
+      cwd: req.projectDir,
+      agent: req.agentType,
+      agents: { [req.agentType]: definition },
+      settingSources: ['user', 'project', 'local'],
+      abortController: execution.controller,
+      ...(req.skills !== undefined && { skills: [...req.skills] }),
+      ...(req.mcpServers !== undefined && { mcpServers: copyMcpServers(req.mcpServers) }),
+      ...(req.maxTurns !== undefined && { maxTurns: req.maxTurns }),
+      ...(req.permissionMode !== undefined && { permissionMode: req.permissionMode }),
+      ...(req.resume !== undefined && { resume: req.resume }),
+      ...(this.hooks !== undefined && { hooks: this.hooks }),
+    };
+    execution.query = sdk.query({ prompt: renderPrompt(req), options: sdkOptions });
+    const assistantUsage = new Map<string, TokenUsage>();
+    let hasResultUsage = false;
+    for await (const message of execution.query) {
+      if ('session_id' in message && message.session_id !== '')
+        execution.sessionId = message.session_id;
+      if (message.type === 'assistant') {
+        const previous = assistantUsage.get(message.message.id) ?? {
+          input: 0,
+          output: 0,
+          cache: 0,
+        };
+        const usage = mapUsage(message.message.usage);
+        assistantUsage.set(message.message.id, usage);
+        execution.toolCallCount = Math.max(execution.toolCallCount, assistantUsage.size);
+        if (!hasResultUsage) {
+          execution.tokenUsage = {
+            input: execution.tokenUsage.input + usage.input - previous.input,
+            output: execution.tokenUsage.output + usage.output - previous.output,
+            cache: execution.tokenUsage.cache + usage.cache - previous.cache,
+          };
+        }
+      }
+      if (message.type === 'result') {
+        execution.resultText =
+          message.subtype === 'success' ? message.result : message.errors.join('\n');
+        const isError = message.is_error || message.subtype !== 'success';
+        execution.toolCallCount = Math.max(execution.toolCallCount, message.num_turns);
+        execution.tokenUsage = mapUsage(message.usage);
+        hasResultUsage = true;
+        if (isError && execution.outcome === 'running') {
+          execution.outcome = 'failed';
+          execution.reason = new Error(execution.resultText);
+        }
+      }
     }
+    if (execution.outcome === 'aborted' || execution.outcome === 'failed') return;
+    if (execution.resultText === undefined) {
+      throw new Error('SDK returned no result');
+    }
+    execution.outcome = 'success';
+  }
 
+  private async complete(execution: OwnedExecution): Promise<StageExecutionResult> {
+    await Promise.race([execution.work, execution.cancelled]);
+    const cleanupError = await this.finalize(execution);
+    const status =
+      execution.outcome === 'aborted'
+        ? 'aborted'
+        : execution.outcome === 'success' && cleanupError === undefined
+          ? 'success'
+          : 'failed';
+    const reason = execution.reason;
+    const cause = reason instanceof Error ? reason : new Error(String(reason));
+    const error =
+      cleanupError ??
+      (isExecutionCleanupError(reason) ? reason : undefined) ??
+      (status === 'success'
+        ? undefined
+        : new AppError(
+            status === 'aborted' ? 'EXEC-005' : 'EXEC-003',
+            `SdkExecutionAdapter execute ${status}: ${cause.message}`,
+            {
+              severity: ErrorSeverity.HIGH,
+              category:
+                status === 'aborted'
+                  ? 'fatal'
+                  : execution.reason instanceof AppError
+                    ? execution.reason.category
+                    : 'transient',
+              context: {
+                reason:
+                  execution.reason instanceof Error ? execution.reason.message : execution.reason,
+              },
+              ...(reason !== undefined ? { cause } : {}),
+            }
+          ));
     return {
-      status: 'success',
-      artifacts: extractArtifacts(resultText),
-      sessionId,
-      toolCallCount,
-      tokenUsage,
+      status,
+      artifacts: status === 'success' ? extractArtifacts(execution.resultText ?? '') : [],
+      sessionId: execution.sessionId,
+      toolCallCount: execution.toolCallCount,
+      tokenUsage: execution.tokenUsage,
+      ...(error !== undefined ? { error: error.toJSON() } : {}),
     };
   }
 
-  /**
-   *
+  private finalize(execution: OwnedExecution): Promise<AppError | undefined> {
+    execution.cleanup ??= this.cleanup(execution);
+    return execution.cleanup;
+  }
+
+  private async cleanup(execution: OwnedExecution): Promise<AppError | undefined> {
+    if (execution.outcome !== 'success') execution.controller.abort(execution.reason);
+    const errors: string[] = [];
+    const failure = (unresolved: boolean): AppError =>
+      new ExecutionCleanupError('SDK cleanup failed', execution.reason, {
+        phase: 'adapter',
+        unresolved,
+        cleanupErrors: [...errors],
+      });
+    const recordFailure = (error: unknown): void => {
+      errors.push(error instanceof Error ? error.message : String(error));
+      // Stop admission immediately, including while sibling stages are completing.
+      this.cleanupFailures.set(execution, failure(!execution.cleanupSettled));
+    };
+    const query = execution.query;
+    // Keep the outer Query: its iterator is a different object in SDK 0.3.258.
+    try {
+      query?.close();
+    } catch (error) {
+      recordFailure(error);
+    }
+    const returned = Promise.resolve().then(async () => {
+      try {
+        await query?.return(undefined);
+      } catch (error) {
+        recordFailure(error);
+      }
+    });
+    const settled = Promise.allSettled([execution.work, returned]).then((results) => {
+      for (const result of results) if (result.status === 'rejected') recordFailure(result.reason);
+      execution.cleanupSettled = true;
+      delete execution.query;
+      this.release(execution);
+    });
+    try {
+      await withinCleanupGrace(
+        settled,
+        this.cleanupGraceMs,
+        () =>
+          new ExecutionCleanupError(
+            'SDK cleanup grace period exceeded; execution may still be active',
+            execution.reason,
+            {
+              cleanupGraceMs: this.cleanupGraceMs,
+              phase: 'adapter',
+              unresolved: true,
+              cleanupErrors: [...errors],
+            }
+          )
+      );
+      if (errors.length > 0) throw failure(false);
+    } catch (error) {
+      const diagnostic =
+        error instanceof AppError
+          ? error
+          : new ExecutionCleanupError('SDK cleanup failed', execution.reason);
+      this.cleanupFailures.set(execution, diagnostic);
+      return diagnostic;
+    }
+    return undefined;
+  }
+
+  private release(execution: OwnedExecution): void {
+    if (execution.cleanupSettled && execution.executionSettled) this.active.delete(execution);
+  }
+
+  /** Stop admission synchronously; every caller joins the same disposal and its failures.
+   * @returns Completion after all owned executions reached their bounded cleanup boundary
    */
-  async dispose(): Promise<void> {
+  dispose(): Promise<void> {
+    if (this.disposal !== undefined) return this.disposal;
     this.disposed = true;
-    this.sdkPromise = null;
-    await Promise.resolve();
+    const executions = [...this.active];
+    this.disposal = Promise.resolve().then(async (): Promise<void> => {
+      await Promise.allSettled(executions.map((execution) => execution.completion));
+      this.sdkPromise = null;
+      if (this.cleanupFailures.size > 0)
+        throw new ExecutionCleanupError(
+          'SdkExecutionAdapter disposal failed',
+          this.cleanupFailures.values().next().value,
+          {
+            unresolvedExecutions: this.active.size,
+            cleanupErrors: [...this.cleanupFailures.values()].map((error) => error.toJSON()),
+          }
+        );
+    });
+    for (const execution of executions) execution.cancel(new Error('SdkExecutionAdapter disposed'));
+    return this.disposal;
   }
 
   private getSdk(): Promise<SdkLike> {
-    if (!this.sdkPromise) this.sdkPromise = this.loader();
+    this.sdkPromise ??= this.loader();
     return this.sdkPromise;
   }
 }
@@ -190,8 +423,13 @@ function copyMcpServers(
   return copied;
 }
 
-function mapUsage(usage: SDKResultMessage['usage']): TokenUsage {
-  const cache = usage.cache_read_input_tokens + usage.cache_creation_input_tokens;
+function mapUsage(
+  usage: Pick<SDKResultMessage['usage'], 'input_tokens' | 'output_tokens'> & {
+    cache_read_input_tokens?: number | null;
+    cache_creation_input_tokens?: number | null;
+  }
+): TokenUsage {
+  const cache = (usage.cache_read_input_tokens ?? 0) + (usage.cache_creation_input_tokens ?? 0);
   return {
     input: usage.input_tokens,
     output: usage.output_tokens,
@@ -216,30 +454,4 @@ function extractArtifacts(resultText: string): ArtifactRef[] {
     out.push({ path, description: description.trim() });
   }
   return out;
-}
-
-function abortedResult(sessionId: string | undefined): StageExecutionResult {
-  return {
-    status: 'aborted',
-    artifacts: [],
-    sessionId: sessionId ?? 'unknown',
-    toolCallCount: 0,
-    tokenUsage: { input: 0, output: 0, cache: 0 },
-  };
-}
-
-function failedResult(sessionId: string, err: unknown): StageExecutionResult {
-  const cause = err instanceof Error ? err : new Error(String(err));
-  const error = new AppError('EXEC-003', `SdkExecutionAdapter execute failed: ${cause.message}`, {
-    severity: ErrorSeverity.HIGH,
-    cause,
-  });
-  return {
-    status: 'failed',
-    artifacts: [],
-    sessionId,
-    toolCallCount: 0,
-    tokenUsage: { input: 0, output: 0, cache: 0 },
-    error: error.toJSON(),
-  };
 }
