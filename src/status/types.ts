@@ -6,6 +6,8 @@
  * @module status/types
  */
 
+import type { EffectiveExecutionPlan } from '../config/runtimeTypes.js';
+import type { StageResult } from '../ad-sdlc-orchestrator/types.js';
 import type { ProjectState } from '../state-manager/types.js';
 
 /**
@@ -22,6 +24,8 @@ export type OutputFormat = 'text' | 'json';
  * Status command options
  */
 export interface StatusOptions {
+  /** Project root owning persisted pipeline sessions. */
+  readonly projectDir?: string;
   /** Output format (text or json) */
   readonly format?: OutputFormat;
   /** Specific project ID to show status for */
@@ -119,7 +123,20 @@ export interface ProjectStatus {
 /**
  * Overall pipeline status (may contain multiple projects)
  */
+/** Saved runs are reported independently of the legacy state-manager project list. */
+export interface PipelineRunStatus {
+  readonly sessionId: string;
+  readonly projectId: string;
+  readonly status: string;
+  readonly stages: readonly StageResult[];
+  readonly runtimeSnapshot?: EffectiveExecutionPlan;
+  readonly runtimeSnapshotStatus: 'saved' | 'unavailable';
+  readonly message?: string;
+}
+
 export interface PipelineStatus {
+  /** Actual saved runs; never reconstructed from today's YAML or legacy labels. */
+  readonly runs?: readonly PipelineRunStatus[];
   /** List of project statuses */
   readonly projects: readonly ProjectStatus[];
   /** Total number of projects */

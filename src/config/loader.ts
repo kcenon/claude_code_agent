@@ -570,9 +570,14 @@ export async function loadAllConfigs(
  * Validate a specific configuration file
  *
  * @param filePath - Path to the configuration file
+ * @param options - Include raw workflow runtime support findings
+ * @param options.runtime - Audit support for the SDK CLI
  * @returns Validation result
  */
-export async function validateConfigFile(filePath: string): Promise<FileValidationResult> {
+export async function validateConfigFile(
+  filePath: string,
+  options: { runtime?: boolean } = {}
+): Promise<FileValidationResult> {
   try {
     const data = await parseYamlFile(filePath);
 
@@ -603,10 +608,33 @@ export async function validateConfigFile(filePath: string): Promise<FileValidati
       }
     }
 
+    let runtimeDiagnostics: readonly import('./runtimeTypes.js').RuntimeDiagnostic[] | undefined;
+    if (
+      options.runtime === true &&
+      (isWorkflow || (!isAgents && validateWorkflowConfig(data).success))
+    ) {
+      const { resolveRuntimeConfig } = await import('./runtime.js');
+      const { RuntimeConfigError } = await import('./runtimeTypes.js');
+      try {
+        runtimeDiagnostics = resolveRuntimeConfig({
+          layers: [{ source: filePath, value: data }],
+        }).diagnostics;
+      } catch (error) {
+        if (!(error instanceof RuntimeConfigError)) throw error;
+        runtimeDiagnostics = error.diagnostics;
+      }
+    }
+    const errors = [
+      ...(result.errors ?? []),
+      ...(runtimeDiagnostics ?? [])
+        .filter((d) => d.severity === 'error')
+        .map((d) => ({ path: d.path, message: d.reason, suggestion: d.action })),
+    ];
     return {
       filePath,
-      valid: result.success,
-      errors: result.errors ?? [],
+      ...(runtimeDiagnostics !== undefined ? { runtimeDiagnostics } : {}),
+      valid: result.success && errors.length === 0,
+      errors,
       schemaVersion: result.schemaVersion,
     };
   } catch (error) {
@@ -634,18 +662,47 @@ export async function validateConfigFile(filePath: string): Promise<FileValidati
  * Validate all configuration files
  *
  * @param baseDir - Base directory for configuration
+ * @param options - Include SDK CLI runtime support validation
+ * @param options.runtime - Resolve support for the SDK CLI
  * @returns Validation report for all files
  */
-export async function validateAllConfigs(baseDir?: string): Promise<ValidationReport> {
+export async function validateAllConfigs(
+  baseDir?: string,
+  options: { runtime?: boolean } = {}
+): Promise<ValidationReport> {
   const paths = getAllConfigFilePaths(baseDir);
   const results = await Promise.all([
     validateConfigFile(paths.workflow),
     validateConfigFile(paths.agents),
   ]);
 
+  let runtimeDiagnostics: readonly import('./runtimeTypes.js').RuntimeDiagnostic[] | undefined;
+  if (options.runtime === true) {
+    const { loadResolvedRuntimeConfig } = await import('./runtime.js');
+    const { RuntimeConfigError } = await import('./runtimeTypes.js');
+    try {
+      runtimeDiagnostics = (
+        await loadResolvedRuntimeConfig(baseDir ?? tryGetProjectRoot() ?? process.cwd())
+      ).diagnostics;
+    } catch (error) {
+      if (!(error instanceof RuntimeConfigError)) throw error;
+      runtimeDiagnostics = error.diagnostics;
+    }
+    for (const diagnostic of runtimeDiagnostics.filter((finding) => finding.severity === 'error')) {
+      results.push({
+        filePath: diagnostic.source,
+        valid: false,
+        schemaVersion: '1.0.0',
+        errors: [
+          { path: diagnostic.path, message: diagnostic.reason, suggestion: diagnostic.action },
+        ],
+      });
+    }
+  }
   const totalErrors = results.reduce((sum, r) => sum + r.errors.length, 0);
 
   return {
+    ...(runtimeDiagnostics !== undefined ? { runtimeDiagnostics } : {}),
     valid: results.every((r) => r.valid),
     files: results,
     totalErrors,

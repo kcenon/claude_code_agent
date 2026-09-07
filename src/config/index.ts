@@ -136,3 +136,12 @@ export {
   DEFAULT_PATHS,
 } from './paths.js';
 export type { ProjectPaths } from './paths.js';
+
+export { resolveRuntimeConfig, loadResolvedRuntimeConfig, loadRuntimeLayers } from './runtime.js';
+export { RuntimeConfigError } from './runtimeTypes.js';
+export type {
+  ResolvedRuntimeConfig,
+  EffectiveExecutionPlan,
+  RuntimeDiagnostic,
+  RuntimeValueSource,
+} from './runtimeTypes.js';

@@ -11,6 +11,9 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import chalk from 'chalk';
+import { listSavedPipelineRuns } from '../config/runtimeSnapshot.js';
+import type { PipelineRunStatus } from './types.js';
+import { tryGetProjectRoot } from '../utils/index.js';
 import { StateManager, getStateManager } from '../state-manager/index.js';
 import { Scratchpad, getScratchpad } from '../scratchpad/index.js';
 import type { ProjectState } from '../state-manager/types.js';
@@ -31,6 +34,7 @@ import { getLogger } from '../logging/index.js';
  * Default status options
  */
 const DEFAULT_OPTIONS: Required<StatusOptions> = {
+  projectDir: '',
   format: 'text',
   projectId: '',
   verbose: false,
@@ -97,11 +101,35 @@ export class StatusService {
   async getStatus(projectId?: string): Promise<PipelineStatus> {
     const targetProjectId = projectId ?? this.options.projectId;
     const timestamp = new Date().toISOString();
+    const saved = await listSavedPipelineRuns(
+      this.options.projectDir !== ''
+        ? this.options.projectDir
+        : (tryGetProjectRoot() ?? process.cwd())
+    );
+    const runs: PipelineRunStatus[] = saved
+      .filter(
+        (run) =>
+          targetProjectId === '' ||
+          run.data['projectId'] === targetProjectId ||
+          run.data['pipelineId'] === targetProjectId
+      )
+      .map((run) => ({
+        sessionId: typeof run.data['pipelineId'] === 'string' ? run.data['pipelineId'] : '',
+        projectId: typeof run.data['projectId'] === 'string' ? run.data['projectId'] : '',
+        status:
+          typeof run.data['overallStatus'] === 'string' ? run.data['overallStatus'] : 'unknown',
+        stages: run.stages,
+        runtimeSnapshotStatus: run.runtimeSnapshot === undefined ? 'unavailable' : 'saved',
+        ...(run.runtimeSnapshot === undefined
+          ? { message: 'No saved runtime snapshot exists for this legacy session.' }
+          : { runtimeSnapshot: run.runtimeSnapshot }),
+      }));
 
     if (targetProjectId !== '') {
       // Get status for specific project
       const projectStatus = await this.getProjectStatus(targetProjectId);
       return {
+        runs,
         projects: projectStatus !== null ? [projectStatus] : [],
         totalProjects: projectStatus !== null ? 1 : 0,
         activeProjects:
@@ -124,6 +152,7 @@ export class StatusService {
     const activeCount = projectStatuses.filter((p) => !this.isTerminalState(p.currentState)).length;
 
     return {
+      runs,
       projects: projectStatuses,
       totalProjects: projectStatuses.length,
       activeProjects: activeCount,
@@ -231,6 +260,24 @@ export class StatusService {
   private displayTextStatus(status: PipelineStatus, verbose: boolean): void {
     console.log(chalk.blue('\n📊 Pipeline Status\n'));
 
+    for (const run of status.runs ?? []) {
+      console.log(`Session ${run.sessionId}: ${run.status}`);
+      if (run.runtimeSnapshot === undefined) console.log(run.message);
+      else {
+        const plan = run.runtimeSnapshot;
+        console.log(
+          `Saved mode: ${plan.config.mode}; local: ${String(plan.config.localMode)}; stage concurrency: ${String(plan.config.maxParallelAgents)}; total attempts: ${String(plan.config.maxRetries + 1)}`
+        );
+        for (const stage of plan.stages) {
+          const result = run.stages.find((item) => item.name === stage.name);
+          console.log(
+            `  ${stage.name}: ${stage.agentType}, ${result?.status ?? 'pending'}, budget ${String(stage.timeoutMs)} ms, dependencies [${stage.dependsOn.join(', ')}]`
+          );
+        }
+        if (verbose) console.log(JSON.stringify(plan, null, 2));
+      }
+    }
+    if ((status.runs?.length ?? 0) > 0 && status.totalProjects === 0) return;
     if (status.totalProjects === 0) {
       console.log(chalk.yellow('No projects found.'));
       console.log(chalk.dim('Run "ad-sdlc init" to create a new project.\n'));
@@ -254,6 +301,9 @@ export class StatusService {
    * @param verbose - Whether to display detailed information including workers and activity
    */
   private displayProjectStatus(project: ProjectStatus, verbose: boolean): void {
+    console.log(
+      'Legacy state-manager view: no saved runtime snapshot is attached to these labels.'
+    );
     const stateColor = this.isTerminalState(project.currentState) ? chalk.dim : chalk.green;
 
     // Header

@@ -441,23 +441,24 @@ jobs:
 
 ### Key Flags for CI
 
-| Flag                    | Purpose                                                                     |
-| ----------------------- | --------------------------------------------------------------------------- |
-| `--yes`                 | Auto-accept privacy policy prompt on first run                              |
-| `--local`               | Skip all GitHub calls (useful for build-only pipelines)                     |
-| `--dry-run`             | Validate configuration without running agents                               |
-| `--stop-after <stage>`  | Halt after a specific stage (e.g., `sds` to stop after document generation) |
-| `--resume <session-id>` | Resume a previously interrupted pipeline                                    |
-| `--mode <mode>`         | Explicitly set `greenfield`, `enhancement`, or `import`                     |
+| Flag                    | Purpose                                                                                            |
+| ----------------------- | -------------------------------------------------------------------------------------------------- |
+| `--yes`                 | Auto-accept privacy policy prompt on first run                                                     |
+| `--local`               | Skip all GitHub calls (useful for build-only pipelines)                                            |
+| `--dry-run`             | Validate configuration without running agents                                                      |
+| `--stop-after <stage>`  | Halt after a specific stage (e.g., `sds_generation`; peers in a ready parallel group can also run) |
+| `--resume <session-id>` | Resume a previously interrupted pipeline                                                           |
+| `--mode <mode>`         | Explicitly set `greenfield`, `enhancement`, or `import`                                            |
 
 ### Approval Mode for CI
 
 When running in CI, the pipeline must not block waiting for human input. Configure the approval mode in `.ad-sdlc/config/workflow.yaml`:
 
 ```yaml
-execution:
+global:
   approval_mode: auto # Never prompt for human approval
-  max_parallel_workers: 3
+execution:
+  max_parallel_stages: 3 # Runnable stages, not a worker-pool limit
 ```
 
 Available values:
@@ -466,10 +467,10 @@ Available values:
 | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
 | `auto`     | All approval gates pass automatically                                                                                                         |
 | `manual`   | Prompts for interactive approval at every gate (requires TTY; gates are denied by default in non-interactive environments — do not use in CI) |
-| `critical` | Only high-risk gates require approval                                                                                                         |
-| `custom`   | Per-stage configuration in `workflow.yaml`                                                                                                    |
+| `critical` | Approves existing gates unless prior stage results contain failures                                                                           |
+| `custom`   | Programmatic custom strategy only; rejected in CLI workflows                                                                                  |
 
-Use `auto` in CI and `manual` or `critical` during local development when you want to review impact reports before proceeding.
+Use `auto` in CI and `manual` during local development when you want to review gate outputs before proceeding. `critical` uses the existing prior-failure check; it does not prompt based on risk.
 
 ---
 
@@ -533,7 +534,7 @@ The `ClaudeCodeBridge` polls for output files every 1 second, with a default tim
 Configure in `.ad-sdlc/config/workflow.yaml`:
 
 ```yaml
-execution:
+global:
   approval_mode: manual # or: auto, critical, custom
 ```
 
@@ -543,16 +544,16 @@ execution:
 
 ### Common Issues by Scenario
 
-| Problem                             | Scenario   | Solution                                                  |
-| ----------------------------------- | ---------- | --------------------------------------------------------- |
-| `❌ No AD-SDLC configuration found` | A, B, C, D | Run `ad-sdlc init` first                                  |
-| GitHub rate limit exceeded          | A, C, D    | Wait for reset or reduce `max_parallel_workers`           |
-| Pipeline stuck at approval gate     | A, C, G    | Use `approval_mode: auto` in CI, or type `y` to proceed   |
-| Worktree already exists             | F          | Remove with `git worktree remove <path>` and re-run setup |
-| Container exits immediately         | E, F       | Check `docker compose logs claude-a` for errors           |
-| Agent timeout (5 min exceeded)      | H          | Increase `timeoutMs` in the bridge configuration          |
-| `AD_SDLC_LOCAL` ignored             | B, D       | Verify the variable is exported: `export AD_SDLC_LOCAL=1` |
-| Wrong mode auto-detected            | C          | Pass `--mode enhancement` explicitly                      |
+| Problem                             | Scenario   | Solution                                                                     |
+| ----------------------------------- | ---------- | ---------------------------------------------------------------------------- |
+| `❌ No AD-SDLC configuration found` | A, B, C, D | Run `ad-sdlc init` first                                                     |
+| GitHub rate limit exceeded          | A, C, D    | Wait for reset or reduce `execution.max_parallel_stages` (stage concurrency) |
+| Pipeline stuck at approval gate     | A, C, G    | Use `approval_mode: auto` in CI, or type `y` to proceed                      |
+| Worktree already exists             | F          | Remove with `git worktree remove <path>` and re-run setup                    |
+| Container exits immediately         | E, F       | Check `docker compose logs claude-a` for errors                              |
+| Agent timeout (5 min exceeded)      | H          | Increase `timeoutMs` in the bridge configuration                             |
+| `AD_SDLC_LOCAL` ignored             | B, D       | Verify the variable is exported: `export AD_SDLC_LOCAL=1`                    |
+| Wrong mode auto-detected            | C          | Pass `--mode enhancement` explicitly                                         |
 
 For detailed error codes and recovery procedures, see the [Troubleshooting Guide](troubleshooting.md).
 

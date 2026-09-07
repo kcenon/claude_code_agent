@@ -8,6 +8,7 @@
  */
 
 import { z } from 'zod';
+import { CANONICAL_STAGE_NAMES } from '../ad-sdlc-orchestrator/plan.js';
 import { CANONICAL_TOOLS, CANONICAL_MODELS } from './allowlist.js';
 
 // ============================================================
@@ -58,20 +59,34 @@ const ApprovalGatesSchema = z.record(z.string(), z.boolean());
  * Retry policy configuration
  */
 const RetryPolicySchema = z.object({
-  max_attempts: z.number().int().min(1).max(10).optional().default(3),
-  backoff: z.enum(['linear', 'exponential']).optional().default('exponential'),
-  base_delay_seconds: z.number().int().min(1).optional().default(5),
-  max_delay_seconds: z.number().int().min(1).optional().default(60),
+  max_attempts: z.number().int().min(1).max(100).optional(),
+  backoff: z.enum(['fixed', 'linear', 'exponential', 'fibonacci']).optional(),
+  base_delay_seconds: z.number().int().min(0).max(2147483).optional(),
+  max_delay_seconds: z.number().int().min(0).max(2147483).optional(),
 });
 
-/**
- * Timeout settings
- */
+/** Phase settings are seconds, and never insert defaults during parsing. */
 const TimeoutsSchema = z.object({
-  document_generation: z.number().int().min(60).optional().default(300),
-  issue_creation: z.number().int().min(30).optional().default(60),
-  implementation: z.number().int().min(300).optional().default(1800),
-  pr_review: z.number().int().min(60).optional().default(300),
+  document_generation: z.number().int().min(1).max(2147483).optional(),
+  issue_creation: z.number().int().min(1).max(2147483).optional(),
+  orchestration: z.number().int().min(1).max(2147483).optional(),
+  implementation: z.number().int().min(1).max(2147483).optional(),
+  pr_review: z.number().int().min(1).max(2147483).optional(),
+});
+
+/** Supported execution controls; deprecated retry aliases retain their original units. */
+const WorkflowExecutionSchema = z.object({
+  max_parallel_stages: z.number().int().min(1).max(100).optional(),
+  local_mode: z.boolean().optional(),
+  stage_timeout_ms: z.number().int().min(1).max(2147483647).optional(),
+  stage_timeouts_ms: z
+    .partialRecord(
+      z.enum(CANONICAL_STAGE_NAMES as [string, ...string[]]),
+      z.number().int().min(1).max(2147483647)
+    )
+    .optional(),
+  retry_attempts: z.number().int().min(0).max(99).optional(),
+  retry_delay_ms: z.number().int().min(0).max(2147483647).optional(),
 });
 
 /**
@@ -152,24 +167,24 @@ const InvestigationConfigSchema = z.object({
 });
 
 const VnvConfigSchema = z.object({
-  rigor: z.enum(['strict', 'standard', 'minimal']).optional().default('standard'),
-  halt_on_verification_failure: z.boolean().optional().default(false),
-  generate_vnv_plan: z.boolean().optional().default(true),
-  generate_vnv_report: z.boolean().optional().default(true),
-  generate_rtm: z.boolean().optional().default(true),
-  cross_document_consistency: z.boolean().optional().default(true),
-  acceptance_criteria_validation: z.boolean().optional().default(true),
+  rigor: z.enum(['strict', 'standard', 'minimal']).optional(),
+  halt_on_verification_failure: z.boolean().optional(),
+  generate_vnv_plan: z.boolean().optional(),
+  generate_vnv_report: z.boolean().optional(),
+  generate_rtm: z.boolean().optional(),
+  cross_document_consistency: z.boolean().optional(),
+  acceptance_criteria_validation: z.boolean().optional(),
 });
 
 /**
  * Global settings
  */
 const GlobalSettingsSchema = z.object({
-  project_root: z.string().optional().default('${PWD}'),
-  scratchpad_dir: z.string().optional().default('.ad-sdlc/scratchpad'),
-  output_docs_dir: z.string().optional().default('docs'),
-  log_level: LogLevelSchema.optional().default('INFO'),
-  approval_mode: z.enum(['auto', 'manual', 'critical', 'custom']).optional().default('auto'),
+  project_root: z.string().optional(),
+  scratchpad_dir: z.string().optional(),
+  output_docs_dir: z.string().optional(),
+  log_level: LogLevelSchema.optional(),
+  approval_mode: z.enum(['auto', 'manual', 'critical', 'custom']).optional(),
   approval_gates: ApprovalGatesSchema.optional(),
   retry_policy: RetryPolicySchema.optional(),
   timeouts: TimeoutsSchema.optional(),
@@ -209,6 +224,7 @@ const PipelineStageSchema: z.ZodType = z.lazy(() =>
   z
     .object({
       name: z.string().min(1, 'Stage name is required'),
+      timeout_ms: z.number().int().min(1).max(2147483647).optional(),
       agent: z.string().optional(),
       description: z.string().optional(),
       inputs: StageIOSchema.optional(),
@@ -233,6 +249,7 @@ const PipelineModeSchema = z.object({
 });
 
 const PipelineSchema = z.object({
+  description: z.string().optional(),
   default_mode: z.enum(['greenfield', 'enhancement', 'import']).optional(),
   modes: z
     .object({
@@ -584,6 +601,9 @@ export const WorkflowConfigSchema = z.object({
   name: z.string().optional(),
   global: GlobalSettingsSchema.optional(),
   pipeline: PipelineSchema,
+  execution: WorkflowExecutionSchema.optional(),
+  description: z.string().optional(),
+  extensions: z.record(z.string(), z.unknown()).optional(),
   agents: WorkflowAgentsSchema.optional(),
   quality_gates: QualityGatesSchema.optional(),
   notifications: NotificationsSchema.optional(),

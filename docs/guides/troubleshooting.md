@@ -1,5 +1,7 @@
 # Troubleshooting Guide
 
+For the production SDK CLI workflow contract, supported setting owners, and migration, see [runtime workflow configuration](../configuration/RUNTIME_WORKFLOW.md). Settings for separate APIs below do not imply CLI workflow enforcement.
+
 > **Version**: 1.0.0
 
 This guide provides comprehensive troubleshooting procedures for diagnosing and resolving issues in the AD-SDLC system. It covers error diagnosis, recovery procedures, performance optimization, and common integration issues.
@@ -47,6 +49,7 @@ curl -s -o /dev/null -w "%{http_code}" https://api.anthropic.com/v1/messages \
 ### E001: API Rate Limit Exceeded
 
 **Symptom:**
+
 ```
 Error: GitHub API rate limit exceeded. Retry after: 3600s
 ```
@@ -55,6 +58,7 @@ Error: GitHub API rate limit exceeded. Retry after: 3600s
 Too many GitHub API calls in a short period. Unauthenticated requests are limited to 60/hour; authenticated requests allow 5,000/hour.
 
 **Diagnosis:**
+
 ```bash
 # Check current rate limit status
 gh api rate_limit --jq '.rate'
@@ -63,21 +67,24 @@ gh api rate_limit --jq '.rate'
 **Solutions:**
 
 1. **Wait for reset:**
+
    ```bash
    # Check when rate limit resets
    gh api rate_limit --jq '.rate.reset | strftime("%Y-%m-%d %H:%M:%S")'
    ```
 
 2. **Authenticate for higher limits:**
+
    ```bash
    gh auth login
    ```
 
 3. **Reduce parallelism:**
+
    ```yaml
    # .ad-sdlc/config/workflow.yaml
    execution:
-     max_parallel_workers: 2  # Reduce from 5
+     max_parallel_stages: 2 # Runnable stages; not worker-pool concurrency
    ```
 
 4. **Enable request caching:**
@@ -93,6 +100,7 @@ gh api rate_limit --jq '.rate'
 ### E002: Agent Timeout
 
 **Symptom:**
+
 ```
 Error: Agent 'worker' timed out after 600000ms
 ```
@@ -101,6 +109,7 @@ Error: Agent 'worker' timed out after 600000ms
 Task complexity exceeds time limit, or external service (API, GitHub) is responding slowly.
 
 **Diagnosis:**
+
 ```bash
 # Check agent-specific logs
 tail -50 .ad-sdlc/logs/agent-logs/worker.log
@@ -116,20 +125,22 @@ time curl -s https://api.anthropic.com/v1/messages \
 **Solutions:**
 
 1. **Increase timeout:**
+
    ```yaml
    # .ad-sdlc/config/workflow.yaml
    timeouts:
-     worker: 900  # 15 minutes (was 600)
+     worker: 900 # 15 minutes (was 600)
    ```
 
 2. **Break down large tasks:**
    Split complex issues into smaller, focused issues in the PRD stage.
 
 3. **Use faster model for simple tasks:**
+
    ```yaml
    agents:
      worker:
-       model: "haiku"  # For simple tasks
+       model: 'haiku' # For simple tasks
    ```
 
 4. **Check network connectivity:**
@@ -146,6 +157,7 @@ time curl -s https://api.anthropic.com/v1/messages \
 ### E003: Scratchpad Corruption
 
 **Symptom:**
+
 ```
 Error: Invalid YAML in .ad-sdlc/scratchpad/documents/prd.yaml
 ```
@@ -154,6 +166,7 @@ Error: Invalid YAML in .ad-sdlc/scratchpad/documents/prd.yaml
 YAML file contains syntax errors, possibly from interrupted writes or manual edits.
 
 **Diagnosis:**
+
 ```bash
 # Validate YAML syntax
 npx js-yaml .ad-sdlc/scratchpad/documents/prd.yaml
@@ -168,6 +181,7 @@ yamllint .ad-sdlc/scratchpad/documents/prd.yaml
 **Solutions:**
 
 1. **Backup and fix:**
+
    ```bash
    # Create backup
    cp -r .ad-sdlc/scratchpad .ad-sdlc/scratchpad.bak.$(date +%Y%m%d_%H%M%S)
@@ -179,6 +193,7 @@ yamllint .ad-sdlc/scratchpad/documents/prd.yaml
    ```
 
 2. **Restore from checkpoint:**
+
    ```bash
    # List available checkpoints
    ls -la .ad-sdlc/scratchpad/checkpoints/
@@ -199,15 +214,19 @@ yamllint .ad-sdlc/scratchpad/documents/prd.yaml
 ### E004: Authentication Failed
 
 **Symptom:**
+
 ```
 Error: Authentication failed for repository
 ```
+
 or
+
 ```
 Error: Invalid API key
 ```
 
 **Diagnosis:**
+
 ```bash
 # Check GitHub authentication
 gh auth status
@@ -226,12 +245,14 @@ curl https://api.anthropic.com/v1/messages \
 **Solutions:**
 
 1. **Re-authenticate GitHub:**
+
    ```bash
    gh auth logout
    gh auth login
    ```
 
 2. **Refresh API key:**
+
    ```bash
    # Update in environment
    export ANTHROPIC_API_KEY="sk-ant-api03-new-key..."
@@ -250,15 +271,19 @@ curl https://api.anthropic.com/v1/messages \
 ### E005: Permission Denied
 
 **Symptom:**
+
 ```
 Error: EACCES: permission denied, mkdir '/usr/local/lib/node_modules/ad-sdlc'
 ```
+
 or
+
 ```
 Error: Permission denied writing to .ad-sdlc/scratchpad/
 ```
 
 **Diagnosis:**
+
 ```bash
 # Check directory ownership
 ls -la .ad-sdlc/
@@ -271,6 +296,7 @@ whoami
 **Solutions:**
 
 1. **Fix local permissions:**
+
    ```bash
    # Fix project directory
    sudo chown -R $(whoami) .ad-sdlc/
@@ -278,6 +304,7 @@ whoami
    ```
 
 2. **Use user-local npm:**
+
    ```bash
    # Configure npm to use user directory
    mkdir ~/.npm-global
@@ -297,15 +324,19 @@ whoami
 ### E006: Dependency Resolution Failed
 
 **Symptom:**
+
 ```
 Error: Circular dependency detected in issue graph
 ```
+
 or
+
 ```
 Error: Unresolved dependency: issue-15 requires issue-99 (not found)
 ```
 
 **Diagnosis:**
+
 ```bash
 # View dependency graph
 cat .ad-sdlc/scratchpad/issues/dependency_graph.yaml
@@ -317,6 +348,7 @@ ad-sdlc validate --issues
 **Solutions:**
 
 1. **For circular dependencies:**
+
    ```bash
    # Visualize the cycle
    ad-sdlc visualize-deps
@@ -338,6 +370,7 @@ ad-sdlc validate --issues
 ### E007: Model Context Exceeded
 
 **Symptom:**
+
 ```
 Error: Context window exceeded. Input tokens: 250000, Maximum: 200000
 ```
@@ -348,20 +381,22 @@ The combined input (agent prompt + scratchpad content + conversation) exceeds mo
 **Solutions:**
 
 1. **Reduce scratchpad content:**
+
    ```yaml
    # .ad-sdlc/config/workflow.yaml
    scratchpad:
-     max_document_size_kb: 100  # Limit individual documents
+     max_document_size_kb: 100 # Limit individual documents
      summarize_large_outputs: true
    ```
 
 2. **Use chunking strategy:**
+
    ```yaml
    agents:
      document-reader:
        chunking:
          enabled: true
-         max_chunk_size: 50000  # tokens
+         max_chunk_size: 50000 # tokens
          overlap: 1000
    ```
 
@@ -392,13 +427,13 @@ ad-sdlc status
 
 **Understanding Status Output:**
 
-| Field | Description |
-|-------|-------------|
-| Pipeline Status | `idle`, `running`, `paused`, `completed`, `failed` |
-| Current Stage | Active pipeline stage |
-| Active Agents | Currently executing agents |
-| Completed Stages | Successfully finished stages |
-| Issues | Implementation progress |
+| Field            | Description                                        |
+| ---------------- | -------------------------------------------------- |
+| Pipeline Status  | `idle`, `running`, `paused`, `completed`, `failed` |
+| Current Stage    | Active pipeline stage                              |
+| Active Agents    | Currently executing agents                         |
+| Completed Stages | Successfully finished stages                       |
+| Issues           | Implementation progress                            |
 
 ### Inspecting Scratchpad State
 
@@ -441,12 +476,12 @@ cat .ad-sdlc/scratchpad/progress/checkpoint.yaml
 
 **Log Locations:**
 
-| Log File | Content |
-|----------|---------|
-| `.ad-sdlc/logs/pipeline.log` | Main pipeline execution log |
-| `.ad-sdlc/logs/agent-logs/*.log` | Individual agent logs |
-| `.ad-sdlc/logs/api-calls.log` | Claude API call records |
-| `.ad-sdlc/logs/github-ops.log` | GitHub operation logs |
+| Log File                         | Content                     |
+| -------------------------------- | --------------------------- |
+| `.ad-sdlc/logs/pipeline.log`     | Main pipeline execution log |
+| `.ad-sdlc/logs/agent-logs/*.log` | Individual agent logs       |
+| `.ad-sdlc/logs/api-calls.log`    | Claude API call records     |
+| `.ad-sdlc/logs/github-ops.log`   | GitHub operation logs       |
 
 **Common Log Commands:**
 
@@ -472,7 +507,7 @@ grep "2024-12-30" .ad-sdlc/logs/pipeline.log
 ```yaml
 # .ad-sdlc/config/workflow.yaml
 logging:
-  level: debug  # trace, debug, info, warn, error
+  level: debug # trace, debug, info, warn, error
   file_retention_days: 7
   max_file_size_mb: 50
 ```
@@ -500,11 +535,11 @@ ad-sdlc resume --verbose
 
 ```yaml
 # checkpoint.yaml
-last_completed_stage: "srs-writer"
-next_stage: "sds-writer"
-timestamp: "2024-12-30T10:30:00Z"
+last_completed_stage: 'srs-writer'
+next_stage: 'sds-writer'
+timestamp: '2024-12-30T10:30:00Z'
 context:
-  project_id: "abc123"
+  project_id: 'abc123'
   issues_completed: [1, 2, 3]
   issues_pending: [4, 5, 6, 7, 8, 9, 10]
 ```
@@ -526,12 +561,12 @@ ad-sdlc resume
 
 **Reset Options:**
 
-| Option | Effect |
-|--------|--------|
-| `--stage <name>` | Reset only specified stage |
-| `--from <name>` | Reset stage and all subsequent stages |
-| `--issues` | Reset only issue implementation (keep docs) |
-| `--all` | Complete reset (start fresh) |
+| Option           | Effect                                      |
+| ---------------- | ------------------------------------------- |
+| `--stage <name>` | Reset only specified stage                  |
+| `--from <name>`  | Reset stage and all subsequent stages       |
+| `--issues`       | Reset only issue implementation (keep docs) |
+| `--all`          | Complete reset (start fresh)                |
 
 ### Manual Intervention
 
@@ -594,20 +629,22 @@ grep "Worker" .ad-sdlc/logs/pipeline.log | grep -E "start|complete"
 **Optimization Strategies:**
 
 1. **Increase parallelism (if rate limits allow):**
+
    ```yaml
    execution:
-     max_parallel_workers: 5
+     max_parallel_stages: 5 # Runnable stages; not worker-pool concurrency
    ```
 
 2. **Use appropriate models:**
+
    ```yaml
    agents:
      collector:
-       model: "haiku"  # Fast for simple tasks
+       model: 'haiku' # Fast for simple tasks
      prd-writer:
-       model: "sonnet"  # Balanced
+       model: 'sonnet' # Balanced
      worker:
-       model: "sonnet"  # Good code generation
+       model: 'sonnet' # Good code generation
    ```
 
 3. **Enable caching:**
@@ -615,7 +652,7 @@ grep "Worker" .ad-sdlc/logs/pipeline.log | grep -E "start|complete"
    caching:
      enabled: true
      ttl_minutes: 30
-     cache_dir: ".ad-sdlc/cache"
+     cache_dir: '.ad-sdlc/cache'
    ```
 
 ### High Token Usage
@@ -634,6 +671,7 @@ ad-sdlc status --tokens
 **Reduction Strategies:**
 
 1. **Limit document size:**
+
    ```yaml
    documents:
      prd:
@@ -657,6 +695,7 @@ ad-sdlc status --tokens
 ### Memory Issues
 
 **Symptoms:**
+
 - Process killed unexpectedly
 - "JavaScript heap out of memory" errors
 
@@ -693,15 +732,17 @@ tail -50 .ad-sdlc/logs/github-ops.log
 **Solutions:**
 
 1. **Verify repository access:**
+
    ```bash
    gh repo view owner/repo
    ```
 
 2. **Check configuration:**
+
    ```yaml
    # .ad-sdlc/config/workflow.yaml
    github:
-     repository: "owner/repo"  # Must match exactly
+     repository: 'owner/repo' # Must match exactly
      create_issues: true
    ```
 
@@ -727,12 +768,12 @@ gh pr view <pr-number> --json reviews
 
 **Common Causes and Solutions:**
 
-| Issue | Solution |
-|-------|----------|
-| Failed checks | Fix failing tests/lint |
-| Review required | Configure auto-review or add reviewers |
+| Issue             | Solution                               |
+| ----------------- | -------------------------------------- |
+| Failed checks     | Fix failing tests/lint                 |
+| Review required   | Configure auto-review or add reviewers |
 | Branch protection | Adjust branch rules or use admin merge |
-| Conflicts | Rebase or resolve conflicts |
+| Conflicts         | Rebase or resolve conflicts            |
 
 ```bash
 # Force merge (admin only, use cautiously)
@@ -791,6 +832,7 @@ cat .ad-sdlc/scratchpad/progress/results/issue-5/test_output.log
 ```
 
 **Solution:**
+
 - Increase retry attempts
 - Provide more context in issue description
 - Consider simpler test requirements initially
@@ -804,8 +846,8 @@ cat .ad-sdlc/scratchpad/progress/results/issue-5/test_output.log
 agents:
   pr-reviewer:
     quality_gates:
-      coverage_threshold: 70  # Lower from 80
-      complexity_threshold: 15  # Raise from 10
+      coverage_threshold: 70 # Lower from 80
+      complexity_threshold: 15 # Raise from 10
       allow_warnings: true
 ```
 
@@ -844,6 +886,7 @@ export NODE_EXTRA_CA_CERTS=/path/to/corporate-ca.crt
 ### Cloud Provider Integration
 
 **AWS Bedrock:**
+
 ```bash
 export CLAUDE_CODE_USE_BEDROCK=1
 export AWS_REGION=us-east-1
@@ -851,6 +894,7 @@ export AWS_PROFILE=my-profile
 ```
 
 **Google Vertex AI:**
+
 ```bash
 export CLAUDE_CODE_USE_VERTEX=1
 export GOOGLE_CLOUD_PROJECT=my-project
@@ -867,6 +911,7 @@ If issues persist after following this guide:
    [GitHub Issues](https://github.com/kcenon/claude_code_agent/issues)
 
 2. **Open new issue with diagnostics:**
+
    ```bash
    # Generate diagnostic report
    ad-sdlc diagnose > diagnostic-report.txt
@@ -881,4 +926,4 @@ If issues persist after following this guide:
 
 ---
 
-*Part of [AD-SDLC Documentation](../README.md)*
+_Part of [AD-SDLC Documentation](../README.md)_

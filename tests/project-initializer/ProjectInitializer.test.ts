@@ -101,7 +101,8 @@ describe('ProjectInitializer', () => {
       const content = fs.readFileSync(workflowPath, 'utf-8');
       expect(content).toContain('version:');
       expect(content).toContain('pipeline:');
-      expect(content).toContain('quality_gates:');
+      expect(content).not.toContain('quality_gates:');
+      expect(content).toContain('default_mode: greenfield');
     });
 
     it('should generate agents.yaml configuration', async () => {
@@ -257,8 +258,9 @@ describe('ProjectInitializer', () => {
 
       const workflowPath = path.join(testProjectPath, '.ad-sdlc', 'config', 'workflow.yaml');
       const content = fs.readFileSync(workflowPath, 'utf-8');
-      expect(content).toContain('max_parallel_workers: 2');
-      expect(content).toContain('coverage: 50');
+      expect(content).not.toContain('max_parallel_workers');
+      expect(content).not.toContain('coverage');
+      expect(content).toContain('default_mode: greenfield');
     });
 
     it('should apply enterprise template settings', async () => {
@@ -271,8 +273,9 @@ describe('ProjectInitializer', () => {
 
       const workflowPath = path.join(testProjectPath, '.ad-sdlc', 'config', 'workflow.yaml');
       const content = fs.readFileSync(workflowPath, 'utf-8');
-      expect(content).toContain('max_parallel_workers: 5');
-      expect(content).toContain('coverage: 80');
+      expect(content).not.toContain('max_parallel_workers');
+      expect(content).not.toContain('coverage');
+      expect(content).toContain('default_mode: greenfield');
     });
 
     it('should include description in README when provided', async () => {

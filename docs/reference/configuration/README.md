@@ -1,5 +1,7 @@
 # Configuration Reference
 
+For the production SDK CLI workflow contract, supported setting owners, and migration, see [runtime workflow configuration](../../configuration/RUNTIME_WORKFLOW.md). Settings for separate APIs below do not imply CLI workflow enforcement.
+
 > **Version**: 1.0.0
 > **Last Updated**: 2025-01-01
 
@@ -11,11 +13,11 @@ AD-SDLC is configured through YAML files and environment variables. This section
 
 ## Configuration Files
 
-| File | Location | Purpose |
-|------|----------|---------|
-| `workflow.yaml` | `.ad-sdlc/config/` | Pipeline stages, quality gates |
-| `agents.yaml` | `.ad-sdlc/config/` | Agent definitions and capabilities |
-| `mode-detection.yaml` | `.ad-sdlc/config/` | Greenfield vs Enhancement rules |
+| File                  | Location           | Purpose                            |
+| --------------------- | ------------------ | ---------------------------------- |
+| `workflow.yaml`       | `.ad-sdlc/config/` | Pipeline stages, quality gates     |
+| `agents.yaml`         | `.ad-sdlc/config/` | Agent definitions and capabilities |
+| `mode-detection.yaml` | `.ad-sdlc/config/` | Greenfield vs Enhancement rules    |
 
 ---
 
@@ -38,10 +40,10 @@ AD-SDLC is configured through YAML files and environment variables. This section
 ```yaml
 # .ad-sdlc/config/workflow.yaml
 global_settings:
-  project_root: "."
-  output_dir: "docs"
+  project_root: '.'
+  output_dir: 'docs'
   approval_gates: true
-  default_model: "sonnet"
+  default_model: 'sonnet'
 
 pipelines:
   greenfield:
@@ -72,4 +74,4 @@ export GITHUB_TOKEN="ghp_..."
 
 ---
 
-*Part of [AD-SDLC Reference Documentation](../README.md)*
+_Part of [AD-SDLC Reference Documentation](../README.md)_

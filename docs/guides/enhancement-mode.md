@@ -34,7 +34,7 @@ You can explicitly specify the mode:
 
 ```yaml
 # In your project configuration or CLI
-mode: enhancement  # or 'greenfield'
+mode: enhancement # or 'greenfield'
 ```
 
 ## Pipeline Stages
@@ -93,6 +93,7 @@ mode: enhancement  # or 'greenfield'
 Two agents run in parallel to analyze the existing project:
 
 **Document Reader Agent**
+
 - Parses existing PRD/SRS/SDS documents
 - Extracts requirements (FR-XXX, NFR-XXX)
 - Extracts features (SF-XXX) and components (CMP-XXX)
@@ -100,6 +101,7 @@ Two agents run in parallel to analyze the existing project:
 - Outputs: `current_state.yaml`
 
 **Codebase Analyzer Agent**
+
 - Analyzes directory structure
 - Detects architecture patterns
 - Generates dependency graph
@@ -125,6 +127,7 @@ Sequential updates to maintain consistency:
 **PRD Updater** → **SRS Updater** → **SDS Updater**
 
 Each updater:
+
 - Performs incremental updates (not full rewrites)
 - Maintains version history
 - Generates changelog
@@ -135,20 +138,23 @@ Each updater:
 #### 4. Issue Generation Stage
 
 Generates GitHub issues based on:
+
 - Updated SDS components
 - Impact analysis report
 - Regression test requirements
 
-#### 5. Parallel Execution Stage
+#### 5. Implementation and Regression Stages
 
-Two agents run in parallel:
+The canonical graph runs implementation first, then regression testing after its dependency completes:
 
 **Worker Agent**
+
 - Implements assigned issues
 - Generates code and tests
-- Up to 5 parallel workers
+- One canonical worker stage; `execution.max_parallel_stages` bounds runnable stage invocations, not a worker pool. See [runtime configuration](../configuration/RUNTIME_WORKFLOW.md).
 
 **Regression Tester Agent**
+
 - Identifies affected tests
 - Runs regression test suites
 - Analyzes coverage impact
@@ -158,6 +164,7 @@ Two agents run in parallel:
 #### 6. Review Stage
 
 PR Reviewer creates and reviews pull requests with:
+
 - Implementation results
 - Regression test report
 - Coverage analysis
@@ -168,25 +175,25 @@ PR Reviewer creates and reviews pull requests with:
 
 ```yaml
 pipeline:
-  default_mode: "greenfield"
+  default_mode: 'greenfield'
 
   modes:
     enhancement:
-      description: "Incremental update pipeline for existing projects"
+      description: 'Incremental update pipeline for existing projects'
       stages:
-        - name: "analysis_parallel"
+        - name: 'analysis_parallel'
           parallel: true
           substages:
-            - name: "document_reading"
-              agent: "document-reader"
-            - name: "codebase_analysis"
-              agent: "codebase-analyzer"
-          next: "impact_analysis"
+            - name: 'document_reading'
+              agent: 'document-reader'
+            - name: 'codebase_analysis'
+              agent: 'codebase-analyzer'
+          next: 'impact_analysis'
 
-        - name: "impact_analysis"
-          agent: "impact-analyzer"
+        - name: 'impact_analysis'
+          agent: 'impact-analyzer'
           approval_required: true
-          next: "document_update"
+          next: 'document_update'
 
         # ... additional stages
 ```
@@ -198,7 +205,7 @@ Enhancement Pipeline agents are defined in the `enhancement_pipeline` category:
 ```yaml
 categories:
   enhancement_pipeline:
-    name: "Enhancement Pipeline"
+    name: 'Enhancement Pipeline'
     agents:
       - document-reader
       - codebase-analyzer
@@ -207,26 +214,27 @@ categories:
       - srs-updater
       - sds-updater
       - regression-tester
-    execution_mode: "mixed"
+    execution_mode: 'mixed'
 ```
 
 ## Agent Capabilities
 
-| Agent | Key Capabilities |
-|-------|------------------|
-| Document Reader | Document parsing, requirement extraction, traceability mapping |
+| Agent             | Key Capabilities                                                 |
+| ----------------- | ---------------------------------------------------------------- |
+| Document Reader   | Document parsing, requirement extraction, traceability mapping   |
 | Codebase Analyzer | Architecture detection, dependency graphing, pattern recognition |
-| Impact Analyzer | Change scope analysis, risk assessment, regression prediction |
-| PRD Updater | Incremental updates, version management, conflict detection |
-| SRS Updater | Feature updates, use case generation, traceability updates |
-| SDS Updater | Component integration, API specification, architecture evolution |
-| Regression Tester | Test mapping, coverage analysis, compatibility verification |
+| Impact Analyzer   | Change scope analysis, risk assessment, regression prediction    |
+| PRD Updater       | Incremental updates, version management, conflict detection      |
+| SRS Updater       | Feature updates, use case generation, traceability updates       |
+| SDS Updater       | Component integration, API specification, architecture evolution |
+| Regression Tester | Test mapping, coverage analysis, compatibility verification      |
 
 ## Best Practices
 
 ### 1. Review Impact Analysis Carefully
 
 The impact analysis stage provides critical information:
+
 - Affected components and their dependencies
 - Risk levels and mitigation suggestions
 - Recommended regression tests
@@ -236,6 +244,7 @@ Take time to review this before approving.
 ### 2. Incremental Changes
 
 Enhancement mode works best with:
+
 - Focused, well-scoped changes
 - Clear requirements
 - Existing test coverage
@@ -243,6 +252,7 @@ Enhancement mode works best with:
 ### 3. Maintain Traceability
 
 The pipeline automatically maintains traceability:
+
 - PRD requirements → SRS features → SDS components
 - Changes propagate through the chain
 - Changelogs track all modifications
@@ -250,6 +260,7 @@ The pipeline automatically maintains traceability:
 ### 4. Monitor Regression Reports
 
 After parallel execution:
+
 - Review regression test results
 - Check coverage impact
 - Address compatibility issues before merge
@@ -259,6 +270,7 @@ After parallel execution:
 ### Mode Not Detected Correctly
 
 If the system chooses the wrong mode:
+
 1. Check if documents exist in `docs/prd/`, `docs/srs/`, `docs/sds/`
 2. Verify source code exists in `src/`
 3. Use explicit mode override if needed
@@ -266,6 +278,7 @@ If the system chooses the wrong mode:
 ### Impact Analysis Taking Too Long
 
 For large codebases:
+
 1. Check if dependency graph is being cached
 2. Consider breaking changes into smaller scopes
 3. Review codebase-analyzer configuration for depth limits
@@ -273,6 +286,7 @@ For large codebases:
 ### Regression Tests Failing
 
 If regression tests fail unexpectedly:
+
 1. Review the changed files list
 2. Check test-to-code mapping accuracy
 3. Verify test environment configuration

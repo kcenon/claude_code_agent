@@ -99,15 +99,15 @@ export class InteractiveWizard {
         message: 'Project template:',
         choices: [
           {
-            name: 'Minimal - Basic structure with essential features',
+            name: 'Minimal - Canonical SDK setup (legacy preset name)',
             value: 'minimal',
           },
           {
-            name: 'Standard - Full setup with token tracking and dashboard',
+            name: 'Standard - Canonical SDK setup (default)',
             value: 'standard',
           },
           {
-            name: 'Enterprise - Strict quality gates with audit logging',
+            name: 'Enterprise - Canonical SDK setup (legacy preset name)',
             value: 'enterprise',
           },
         ],

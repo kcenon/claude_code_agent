@@ -441,35 +441,36 @@ jobs:
 
 ### CI를 위한 주요 플래그
 
-| 플래그                  | 목적                                                   |
-| ----------------------- | ------------------------------------------------------ |
-| `--yes`                 | 첫 실행 시 개인정보 정책 프롬프트 자동 수락            |
-| `--local`               | 모든 GitHub 호출 건너뜀 (빌드 전용 파이프라인에 유용)  |
-| `--dry-run`             | 에이전트 실행 없이 구성 검증                           |
-| `--stop-after <stage>`  | 특정 단계 후 중단 (예: `sds`로 문서 생성 후 중지)      |
-| `--resume <session-id>` | 이전에 중단된 파이프라인 재개                          |
-| `--mode <mode>`         | `greenfield`, `enhancement`, 또는 `import` 명시적 설정 |
+| 플래그                  | 목적                                                                                  |
+| ----------------------- | ------------------------------------------------------------------------------------- |
+| `--yes`                 | 첫 실행 시 개인정보 정책 프롬프트 자동 수락                                           |
+| `--local`               | 모든 GitHub 호출 건너뜀 (빌드 전용 파이프라인에 유용)                                 |
+| `--dry-run`             | 에이전트 실행 없이 구성 검증                                                          |
+| `--stop-after <stage>`  | 특정 단계 후 중단 (예: `sds_generation`; 같은 병렬 그룹의 다른 단계도 실행될 수 있음) |
+| `--resume <session-id>` | 이전에 중단된 파이프라인 재개                                                         |
+| `--mode <mode>`         | `greenfield`, `enhancement`, 또는 `import` 명시적 설정                                |
 
 ### CI용 승인 모드
 
 CI에서 실행할 때 파이프라인이 사람의 입력을 기다리며 차단되어서는 안 됩니다. `.ad-sdlc/config/workflow.yaml`에서 승인 모드를 구성합니다:
 
 ```yaml
-execution:
+global:
   approval_mode: auto # 사람의 승인 없이 모든 승인 게이트 통과
-  max_parallel_workers: 3
+execution:
+  max_parallel_stages: 3 # Runnable stages, not a worker-pool limit
 ```
 
 사용 가능한 값:
 
-| 모드       | 동작                                  |
-| ---------- | ------------------------------------- |
-| `auto`     | 모든 승인 게이트가 자동으로 통과      |
-| `manual`   | 모든 게이트에서 명시적 사람 승인 필요 |
-| `critical` | 위험도가 높은 게이트만 승인 필요      |
-| `custom`   | `workflow.yaml`에서 단계별 구성       |
+| 모드       | 동작                                                   |
+| ---------- | ------------------------------------------------------ |
+| `auto`     | 모든 승인 게이트가 자동으로 통과                       |
+| `manual`   | 모든 게이트에서 명시적 사람 승인 필요                  |
+| `critical` | 이전 단계 결과에 실패가 없으면 기존 게이트 자동 승인   |
+| `custom`   | 프로그래밍 API의 사용자 정의 전략 전용; CLI에서는 거부 |
 
-CI에서는 `auto`를 사용하고, 진행하기 전에 영향 보고서를 검토하려는 로컬 개발 시에는 `manual` 또는 `critical`을 사용하세요.
+CI에서는 `auto`를 사용하고, 진행하기 전에 영향 보고서를 검토하려는 로컬 개발 시에는 `manual`을 사용하세요. `critical`은 이전 실패 여부를 확인하며 위험도에 따라 사용자에게 승인을 요청하지 않습니다.
 
 ---
 
@@ -533,7 +534,7 @@ Claude Code가 스크래치패드 브리지를 통해 각 에이전트 호출을
 `.ad-sdlc/config/workflow.yaml`에서 구성합니다:
 
 ```yaml
-execution:
+global:
   approval_mode: manual # 또는: auto, critical, custom
 ```
 
@@ -543,16 +544,16 @@ execution:
 
 ### 시나리오별 일반적인 문제
 
-| 문제                                | 시나리오   | 해결책                                                      |
-| ----------------------------------- | ---------- | ----------------------------------------------------------- |
-| `❌ No AD-SDLC configuration found` | A, B, C, D | 먼저 `ad-sdlc init` 실행                                    |
-| GitHub 속도 제한 초과               | A, C, D    | 재설정 대기 또는 `max_parallel_workers` 감소                |
-| 승인 게이트에서 파이프라인 중단     | A, C, G    | CI에서는 `approval_mode: auto` 사용, 또는 `y` 입력하여 진행 |
-| 워크트리가 이미 존재함              | F          | `git worktree remove <path>`로 제거 후 설정 재실행          |
-| 컨테이너가 즉시 종료됨              | E, F       | 오류는 `docker compose logs claude-a`에서 확인              |
-| 에이전트 타임아웃 (5분 초과)        | H          | 브리지 구성에서 `timeoutMs` 증가                            |
-| `AD_SDLC_LOCAL` 무시됨              | B, D       | 변수가 내보내졌는지 확인: `export AD_SDLC_LOCAL=1`          |
-| 잘못된 모드 자동 감지               | C          | `--mode enhancement` 명시적 지정                            |
+| 문제                                | 시나리오   | 해결책                                                                    |
+| ----------------------------------- | ---------- | ------------------------------------------------------------------------- |
+| `❌ No AD-SDLC configuration found` | A, B, C, D | 먼저 `ad-sdlc init` 실행                                                  |
+| GitHub 속도 제한 초과               | A, C, D    | 재설정 대기 또는 `execution.max_parallel_stages` (stage concurrency) 감소 |
+| 승인 게이트에서 파이프라인 중단     | A, C, G    | CI에서는 `approval_mode: auto` 사용, 또는 `y` 입력하여 진행               |
+| 워크트리가 이미 존재함              | F          | `git worktree remove <path>`로 제거 후 설정 재실행                        |
+| 컨테이너가 즉시 종료됨              | E, F       | 오류는 `docker compose logs claude-a`에서 확인                            |
+| 에이전트 타임아웃 (5분 초과)        | H          | 브리지 구성에서 `timeoutMs` 증가                                          |
+| `AD_SDLC_LOCAL` 무시됨              | B, D       | 변수가 내보내졌는지 확인: `export AD_SDLC_LOCAL=1`                        |
+| 잘못된 모드 자동 감지               | C          | `--mode enhancement` 명시적 지정                                          |
 
 자세한 오류 코드 및 복구 절차는 [문제 해결 가이드](troubleshooting.md)를 참조하세요.
 

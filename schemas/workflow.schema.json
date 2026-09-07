@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://github.com/kcenon/claude_code_agent/schemas/workflow.schema.json",
   "title": "AD-SDLC Workflow Configuration",
-  "description": "Schema for workflow.yaml configuration file",
+  "description": "Workflow syntax for AD-SDLC consumers. The SDK CLI additionally audits runtime support before execution; see docs/configuration/RUNTIME_WORKFLOW.md. Deprecated properties below have no SDK CLI enforcement owner.",
   "type": "object",
   "required": ["version", "pipeline"],
   "definitions": {
@@ -10,22 +10,44 @@
       "type": "object",
       "required": ["name"],
       "properties": {
-        "name": { "type": "string", "minLength": 1, "description": "Stage name" },
-        "agent": { "type": "string", "description": "Agent to execute this stage" },
-        "description": { "type": "string", "description": "Stage description" },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Stage name"
+        },
+        "agent": {
+          "type": "string",
+          "description": "Agent to execute this stage"
+        },
+        "description": {
+          "type": "string",
+          "description": "Stage description"
+        },
         "inputs": {
           "type": "array",
           "items": {
-            "oneOf": [{ "type": "string" }, { "type": "object" }]
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object"
+              }
+            ]
           },
           "description": "Input files/patterns (strings or typed objects)"
         },
         "outputs": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "description": "Output files/patterns"
         },
-        "next": { "type": ["string", "null"], "description": "Next stage name" },
+        "next": {
+          "type": ["string", "null"],
+          "description": "Next stage name"
+        },
         "approval_required": {
           "type": "boolean",
           "default": false,
@@ -50,8 +72,14 @@
           "type": "object",
           "description": "CI failure handling configuration",
           "properties": {
-            "agent": { "type": "string", "description": "Agent to handle CI failure" },
-            "description": { "type": "string", "description": "Description of failure handler" },
+            "agent": {
+              "type": "string",
+              "description": "Agent to handle CI failure"
+            },
+            "description": {
+              "type": "string",
+              "description": "Description of failure handler"
+            },
             "max_attempts": {
               "type": "integer",
               "minimum": 1,
@@ -59,20 +87,32 @@
             },
             "inputs": {
               "type": "array",
-              "items": { "type": "string" },
+              "items": {
+                "type": "string"
+              },
               "description": "Inputs for failure handler"
             },
             "outputs": {
               "type": "array",
-              "items": { "type": "string" },
+              "items": {
+                "type": "string"
+              },
               "description": "Outputs from failure handler"
             }
           }
         },
         "substages": {
           "type": "array",
-          "items": { "$ref": "#/definitions/pipeline_stage" },
+          "items": {
+            "$ref": "#/definitions/pipeline_stage"
+          },
           "description": "Nested substages within this stage"
+        },
+        "timeout_ms": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647,
+          "description": "Legacy topology is rejected by SDK CLI. Move to execution.stage_timeouts_ms using canonical stage names."
         }
       }
     }
@@ -94,74 +134,130 @@
         "project_root": {
           "type": "string",
           "default": "${PWD}",
-          "description": "Project root directory"
+          "description": "Unsupported on SDK CLI workflows; remove. --project-dir selects the project, and the CLI uses the existing default session directory.",
+          "deprecated": true
         },
         "scratchpad_dir": {
           "type": "string",
           "default": ".ad-sdlc/scratchpad",
-          "description": "Scratchpad directory for inter-agent communication"
+          "description": "Unsupported on SDK CLI workflows; remove. --project-dir selects the project, and the CLI uses the existing default session directory.",
+          "deprecated": true
         },
         "output_docs_dir": {
           "type": "string",
           "default": "docs",
-          "description": "Output directory for generated documents"
+          "description": "Unsupported on SDK CLI workflows; remove. --project-dir selects the project, and the CLI uses the existing default session directory.",
+          "deprecated": true
         },
         "log_level": {
           "type": "string",
           "enum": ["DEBUG", "INFO", "WARN", "ERROR"],
           "default": "INFO",
-          "description": "Logging level"
+          "description": "Unsupported on SDK CLI workflows; remove. --project-dir selects the project, and the CLI uses the existing default session directory.",
+          "deprecated": true
         },
         "approval_mode": {
           "type": "string",
-          "enum": ["auto", "manual", "critical", "custom"],
-          "default": "auto",
-          "description": "Approval mode for pipeline gates"
+          "enum": ["auto", "manual", "critical", "custom"]
         },
         "approval_gates": {
           "type": "object",
-          "description": "Human-in-the-loop approval gates (dynamic keys)",
-          "additionalProperties": { "type": "boolean" }
+          "description": "Unsupported on SDK CLI workflows; remove. --project-dir selects the project, and the CLI uses the existing default session directory.",
+          "additionalProperties": {
+            "type": "boolean"
+          },
+          "deprecated": true
         },
         "retry_policy": {
           "type": "object",
-          "description": "Retry policy for agents",
           "properties": {
-            "max_attempts": { "type": "integer", "minimum": 1, "maximum": 10, "default": 3 },
+            "max_attempts": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "description": "Total attempts including the first. Runtime default 4, preserving the existing maxRetries: 3 API behavior."
+            },
             "backoff": {
               "type": "string",
-              "enum": ["linear", "exponential"],
-              "default": "exponential"
+              "enum": ["fixed", "linear", "exponential", "fibonacci"]
             },
-            "base_delay_seconds": { "type": "integer", "minimum": 1, "default": 5 },
-            "max_delay_seconds": { "type": "integer", "minimum": 1, "default": 60 }
+            "base_delay_seconds": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 2147483
+            },
+            "max_delay_seconds": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 2147483
+            }
           }
         },
         "timeouts": {
           "type": "object",
-          "description": "Timeout settings (in seconds)",
           "properties": {
-            "document_generation": { "type": "integer", "minimum": 60, "default": 300 },
-            "issue_creation": { "type": "integer", "minimum": 30, "default": 60 },
-            "implementation": { "type": "integer", "minimum": 300, "default": 1800 },
-            "pr_review": { "type": "integer", "minimum": 60, "default": 300 }
+            "document_generation": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483
+            },
+            "issue_creation": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483
+            },
+            "orchestration": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483
+            },
+            "implementation": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483
+            },
+            "pr_review": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483
+            }
           }
         },
         "vnv": {
           "type": "object",
-          "description": "Per-stage verification and validation policy",
           "properties": {
             "rigor": {
               "type": "string",
-              "enum": ["strict", "standard", "minimal"],
-              "default": "standard"
+              "enum": ["strict", "standard", "minimal"]
             },
-            "halt_on_verification_failure": { "type": "boolean", "default": false },
-            "generate_vnv_plan": { "type": "boolean", "default": true },
-            "generate_vnv_report": { "type": "boolean", "default": true },
-            "generate_rtm": { "type": "boolean", "default": true },
-            "cross_document_consistency": { "type": "boolean", "default": true },
-            "acceptance_criteria_validation": { "type": "boolean", "default": true }
+            "halt_on_verification_failure": {
+              "type": "boolean"
+            },
+            "generate_vnv_plan": {
+              "type": "boolean",
+              "deprecated": true,
+              "description": "Unsupported toggle on SDK CLI, including false; remove. Canonical stages and current verification semantics remain in effect."
+            },
+            "generate_vnv_report": {
+              "type": "boolean",
+              "deprecated": true,
+              "description": "Unsupported toggle on SDK CLI, including false; remove. Canonical stages and current verification semantics remain in effect."
+            },
+            "generate_rtm": {
+              "type": "boolean",
+              "deprecated": true,
+              "description": "Unsupported toggle on SDK CLI, including false; remove. Canonical stages and current verification semantics remain in effect."
+            },
+            "cross_document_consistency": {
+              "type": "boolean",
+              "deprecated": true,
+              "description": "Unsupported toggle on SDK CLI, including false; remove. Canonical stages and current verification semantics remain in effect."
+            },
+            "acceptance_criteria_validation": {
+              "type": "boolean",
+              "deprecated": true,
+              "description": "Unsupported toggle on SDK CLI, including false; remove. Canonical stages and current verification semantics remain in effect."
+            }
           }
         }
       }
@@ -173,20 +269,24 @@
         "default_mode": {
           "type": "string",
           "enum": ["greenfield", "enhancement", "import"],
-          "description": "Default pipeline mode"
+          "description": "Selects the canonical 19/15/5-slot graph (before local adaptation). Runtime default: greenfield."
         },
         "modes": {
           "type": "object",
-          "description": "Pipeline modes with per-mode stage definitions",
+          "description": "Unsupported topology on the SDK CLI. Remove and select pipeline.default_mode; use execution.stage_timeouts_ms for budgets.",
           "properties": {
             "greenfield": {
               "type": "object",
               "properties": {
-                "description": { "type": "string" },
+                "description": {
+                  "type": "string"
+                },
                 "stages": {
                   "type": "array",
                   "minItems": 1,
-                  "items": { "$ref": "#/definitions/pipeline_stage" }
+                  "items": {
+                    "$ref": "#/definitions/pipeline_stage"
+                  }
                 }
               },
               "required": ["stages"]
@@ -194,11 +294,15 @@
             "enhancement": {
               "type": "object",
               "properties": {
-                "description": { "type": "string" },
+                "description": {
+                  "type": "string"
+                },
                 "stages": {
                   "type": "array",
                   "minItems": 1,
-                  "items": { "$ref": "#/definitions/pipeline_stage" }
+                  "items": {
+                    "$ref": "#/definitions/pipeline_stage"
+                  }
                 }
               },
               "required": ["stages"]
@@ -206,27 +310,39 @@
             "import": {
               "type": "object",
               "properties": {
-                "description": { "type": "string" },
+                "description": {
+                  "type": "string"
+                },
                 "stages": {
                   "type": "array",
                   "minItems": 1,
-                  "items": { "$ref": "#/definitions/pipeline_stage" }
+                  "items": {
+                    "$ref": "#/definitions/pipeline_stage"
+                  }
                 }
               },
               "required": ["stages"]
             }
-          }
+          },
+          "deprecated": true
         },
         "stages": {
           "type": "array",
-          "description": "Legacy flat stages (when not using modes)",
-          "items": { "$ref": "#/definitions/pipeline_stage" }
+          "description": "Unsupported topology on the SDK CLI. Remove and select pipeline.default_mode; use execution.stage_timeouts_ms for budgets.",
+          "items": {
+            "$ref": "#/definitions/pipeline_stage"
+          },
+          "deprecated": true
+        },
+        "description": {
+          "type": "string",
+          "description": "Descriptive metadata, not runtime topology."
         }
       }
     },
     "agents": {
       "type": "object",
-      "description": "Agent configurations",
+      "description": "Separate-consumer configuration, not enforced on the SDK CLI run path. Active settings are rejected by runtime resolution; remove them from CLI workflows.",
       "additionalProperties": {
         "type": "object",
         "properties": {
@@ -257,7 +373,10 @@
             },
             "description": "Tools available to the agent"
           },
-          "template": { "type": "string", "description": "Template file path" },
+          "template": {
+            "type": "string",
+            "description": "Template file path"
+          },
           "max_questions": {
             "type": "integer",
             "minimum": 1,
@@ -266,10 +385,19 @@
           "github": {
             "type": "object",
             "properties": {
-              "labels_prefix": { "type": "string" },
-              "auto_assign": { "type": "boolean" },
-              "merge_strategy": { "type": "string", "enum": ["merge", "squash", "rebase"] },
-              "delete_branch_after_merge": { "type": "boolean" }
+              "labels_prefix": {
+                "type": "string"
+              },
+              "auto_assign": {
+                "type": "boolean"
+              },
+              "merge_strategy": {
+                "type": "string",
+                "enum": ["merge", "squash", "rebase"]
+              },
+              "delete_branch_after_merge": {
+                "type": "boolean"
+              }
             }
           },
           "scheduling": {
@@ -279,26 +407,52 @@
                 "type": "string",
                 "enum": ["priority_only", "dependency_only", "priority_dependency"]
               },
-              "max_workers": { "type": "integer", "minimum": 1, "maximum": 10 },
-              "check_interval_seconds": { "type": "integer", "minimum": 10 }
+              "max_workers": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 10
+              },
+              "check_interval_seconds": {
+                "type": "integer",
+                "minimum": 10
+              }
             }
           },
           "coding": {
             "type": "object",
             "properties": {
-              "language": { "type": "string" },
-              "test_framework": { "type": "string" },
-              "lint_command": { "type": "string" },
-              "test_command": { "type": "string" },
-              "build_command": { "type": "string" }
+              "language": {
+                "type": "string"
+              },
+              "test_framework": {
+                "type": "string"
+              },
+              "lint_command": {
+                "type": "string"
+              },
+              "test_command": {
+                "type": "string"
+              },
+              "build_command": {
+                "type": "string"
+              }
             }
           },
           "verification": {
             "type": "object",
             "properties": {
-              "run_tests": { "type": "boolean", "default": true },
-              "run_lint": { "type": "boolean", "default": true },
-              "run_build": { "type": "boolean", "default": true },
+              "run_tests": {
+                "type": "boolean",
+                "default": true
+              },
+              "run_lint": {
+                "type": "boolean",
+                "default": true
+              },
+              "run_build": {
+                "type": "boolean",
+                "default": true
+              },
               "coverage_threshold": {
                 "type": "number",
                 "minimum": 0,
@@ -310,23 +464,34 @@
           "review": {
             "type": "object",
             "properties": {
-              "auto_merge": { "type": "boolean", "default": false },
-              "require_all_checks": { "type": "boolean", "default": true },
+              "auto_merge": {
+                "type": "boolean",
+                "default": false
+              },
+              "require_all_checks": {
+                "type": "boolean",
+                "default": true
+              },
               "coverage_threshold": {
                 "type": "number",
                 "minimum": 0,
                 "maximum": 100,
                 "default": 80
               },
-              "max_complexity": { "type": "integer", "minimum": 1, "default": 10 }
+              "max_complexity": {
+                "type": "integer",
+                "minimum": 1,
+                "default": 10
+              }
             }
           }
         }
-      }
+      },
+      "deprecated": true
     },
     "quality_gates": {
       "type": "object",
-      "description": "Quality gate configurations",
+      "description": "Separate-consumer configuration, not enforced on the SDK CLI run path. Active settings are rejected by runtime resolution; remove them from CLI workflows.",
       "properties": {
         "document_quality": {
           "type": "object",
@@ -334,23 +499,50 @@
             "prd": {
               "type": "object",
               "properties": {
-                "required_sections": { "type": "array", "items": { "type": "string" } },
-                "min_requirements": { "type": "integer", "minimum": 1 }
+                "required_sections": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "min_requirements": {
+                  "type": "integer",
+                  "minimum": 1
+                }
               }
             },
             "srs": {
               "type": "object",
               "properties": {
-                "required_sections": { "type": "array", "items": { "type": "string" } },
-                "min_features": { "type": "integer", "minimum": 1 },
-                "min_use_cases_per_feature": { "type": "integer", "minimum": 1 }
+                "required_sections": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "min_features": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "min_use_cases_per_feature": {
+                  "type": "integer",
+                  "minimum": 1
+                }
               }
             },
             "sds": {
               "type": "object",
               "properties": {
-                "required_sections": { "type": "array", "items": { "type": "string" } },
-                "min_components": { "type": "integer", "minimum": 1 }
+                "required_sections": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "min_components": {
+                  "type": "integer",
+                  "minimum": 1
+                }
               }
             }
           }
@@ -358,37 +550,79 @@
         "code_quality": {
           "type": "object",
           "properties": {
-            "coverage_threshold": { "type": "number", "minimum": 0, "maximum": 100, "default": 80 },
-            "max_complexity": { "type": "integer", "minimum": 1, "default": 10 },
-            "max_line_length": { "type": "integer", "minimum": 80, "default": 100 },
-            "no_todos_in_code": { "type": "boolean", "default": false },
-            "no_console_logs": { "type": "boolean", "default": true }
+            "coverage_threshold": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100,
+              "default": 80
+            },
+            "max_complexity": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 10
+            },
+            "max_line_length": {
+              "type": "integer",
+              "minimum": 80,
+              "default": 100
+            },
+            "no_todos_in_code": {
+              "type": "boolean",
+              "default": false
+            },
+            "no_console_logs": {
+              "type": "boolean",
+              "default": true
+            }
           }
         },
         "security": {
           "type": "object",
           "properties": {
-            "no_hardcoded_secrets": { "type": "boolean", "default": true },
-            "require_input_validation": { "type": "boolean", "default": true },
-            "require_authentication": { "type": "boolean", "default": true }
+            "no_hardcoded_secrets": {
+              "type": "boolean",
+              "default": true
+            },
+            "require_input_validation": {
+              "type": "boolean",
+              "default": true
+            },
+            "require_authentication": {
+              "type": "boolean",
+              "default": true
+            }
           }
         }
-      }
+      },
+      "deprecated": true
     },
     "notifications": {
       "type": "object",
-      "description": "Notification settings",
+      "description": "Separate-consumer configuration, not enforced on the SDK CLI run path. Active settings are rejected by runtime resolution; remove them from CLI workflows.",
       "properties": {
-        "enabled": { "type": "boolean", "default": false },
+        "enabled": {
+          "type": "boolean",
+          "default": false
+        },
         "channels": {
           "type": "array",
           "items": {
             "type": "object",
             "required": ["type"],
             "properties": {
-              "type": { "type": "string", "enum": ["slack", "email"] },
-              "webhook": { "type": "string" },
-              "recipients": { "type": "array", "items": { "type": "string" } },
+              "type": {
+                "type": "string",
+                "enum": ["slack", "email"]
+              },
+              "webhook": {
+                "type": "string"
+              },
+              "recipients": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
               "events": {
                 "type": "array",
                 "items": {
@@ -401,60 +635,116 @@
         },
         "templates": {
           "type": "object",
-          "additionalProperties": { "type": "string" }
+          "additionalProperties": {
+            "type": "string"
+          }
         }
-      }
+      },
+      "deprecated": true
     },
     "github": {
       "type": "object",
-      "description": "GitHub integration settings",
+      "description": "Separate-consumer configuration, not enforced on the SDK CLI run path. Active settings are rejected by runtime resolution; remove them from CLI workflows.",
       "properties": {
-        "repo": { "type": "string", "description": "Repository in owner/repo format" },
-        "default_branch": { "type": "string", "default": "main" },
-        "issue_labels": { "type": "array", "items": { "type": "string" } },
-        "pr_labels": { "type": "array", "items": { "type": "string" } },
-        "milestone_prefix": { "type": "string" }
-      }
+        "repo": {
+          "type": "string",
+          "description": "Repository in owner/repo format"
+        },
+        "default_branch": {
+          "type": "string",
+          "default": "main"
+        },
+        "issue_labels": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "pr_labels": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "milestone_prefix": {
+          "type": "string"
+        }
+      },
+      "deprecated": true
     },
     "logging": {
       "type": "object",
-      "description": "Logging configuration",
+      "description": "Separate-consumer configuration, not enforced on the SDK CLI run path. Active settings are rejected by runtime resolution; remove them from CLI workflows.",
       "properties": {
         "level": {
           "type": "string",
           "enum": ["DEBUG", "INFO", "WARN", "ERROR"],
           "default": "INFO"
         },
-        "format": { "type": "string", "enum": ["json", "text"], "default": "json" },
+        "format": {
+          "type": "string",
+          "enum": ["json", "text"],
+          "default": "json"
+        },
         "output": {
           "type": "array",
           "items": {
             "type": "object",
             "required": ["type"],
             "properties": {
-              "type": { "type": "string", "enum": ["file", "console"] },
-              "path": { "type": "string" },
-              "rotate": { "type": "boolean" },
-              "max_size": { "type": "string" },
-              "max_files": { "type": "integer", "minimum": 1 },
-              "format": { "type": "string", "enum": ["json", "pretty"] }
+              "type": {
+                "type": "string",
+                "enum": ["file", "console"]
+              },
+              "path": {
+                "type": "string"
+              },
+              "rotate": {
+                "type": "boolean"
+              },
+              "max_size": {
+                "type": "string"
+              },
+              "max_files": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "format": {
+                "type": "string",
+                "enum": ["json", "pretty"]
+              }
             }
           }
         },
-        "include": { "type": "array", "items": { "type": "string" } }
-      }
+        "include": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "deprecated": true
     },
     "monitoring": {
       "type": "object",
-      "description": "Monitoring configuration",
+      "description": "Separate-consumer configuration, not enforced on the SDK CLI run path. Active settings are rejected by runtime resolution; remove them from CLI workflows.",
       "properties": {
-        "enabled": { "type": "boolean", "default": false },
-        "metrics": { "type": "array", "items": { "type": "string" } }
-      }
+        "enabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "metrics": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "deprecated": true
     },
     "scratchpad": {
       "type": "object",
-      "description": "Scratchpad backend configuration",
+      "description": "Separate-consumer configuration, not enforced on the SDK CLI run path. Active settings are rejected by runtime resolution; remove them from CLI workflows.",
       "properties": {
         "backend": {
           "type": "string",
@@ -466,73 +756,138 @@
           "type": "object",
           "description": "File backend configuration",
           "properties": {
-            "base_path": { "type": "string" },
-            "file_mode": { "type": "integer" },
-            "dir_mode": { "type": "integer" },
-            "format": { "type": "string", "enum": ["yaml", "json", "raw"] }
+            "base_path": {
+              "type": "string"
+            },
+            "file_mode": {
+              "type": "integer"
+            },
+            "dir_mode": {
+              "type": "integer"
+            },
+            "format": {
+              "type": "string",
+              "enum": ["yaml", "json", "raw"]
+            }
           }
         },
         "sqlite": {
           "type": "object",
           "description": "SQLite backend configuration",
           "properties": {
-            "db_path": { "type": "string" },
-            "wal_mode": { "type": "boolean" },
-            "busy_timeout": { "type": "integer" }
+            "db_path": {
+              "type": "string"
+            },
+            "wal_mode": {
+              "type": "boolean"
+            },
+            "busy_timeout": {
+              "type": "integer"
+            }
           }
         },
         "redis": {
           "type": "object",
           "description": "Redis backend configuration",
           "properties": {
-            "host": { "type": "string" },
-            "port": { "type": "integer" },
-            "password": { "type": "string" },
-            "db": { "type": "integer" },
-            "prefix": { "type": "string" },
-            "ttl": { "type": "integer" },
-            "connect_timeout": { "type": "integer" },
-            "max_retries": { "type": "integer" },
+            "host": {
+              "type": "string"
+            },
+            "port": {
+              "type": "integer"
+            },
+            "password": {
+              "type": "string"
+            },
+            "db": {
+              "type": "integer"
+            },
+            "prefix": {
+              "type": "string"
+            },
+            "ttl": {
+              "type": "integer"
+            },
+            "connect_timeout": {
+              "type": "integer"
+            },
+            "max_retries": {
+              "type": "integer"
+            },
             "lock": {
               "type": "object",
               "properties": {
-                "lock_ttl": { "type": "integer" },
-                "lock_timeout": { "type": "integer" },
-                "lock_retry_interval": { "type": "integer" }
+                "lock_ttl": {
+                  "type": "integer"
+                },
+                "lock_timeout": {
+                  "type": "integer"
+                },
+                "lock_retry_interval": {
+                  "type": "integer"
+                }
               }
             },
             "fallback": {
               "type": "object",
               "properties": {
-                "enabled": { "type": "boolean" },
+                "enabled": {
+                  "type": "boolean"
+                },
                 "file_config": {
                   "type": "object",
                   "properties": {
-                    "base_path": { "type": "string" },
-                    "file_mode": { "type": "integer" },
-                    "dir_mode": { "type": "integer" },
-                    "format": { "type": "string", "enum": ["yaml", "json", "raw"] }
+                    "base_path": {
+                      "type": "string"
+                    },
+                    "file_mode": {
+                      "type": "integer"
+                    },
+                    "dir_mode": {
+                      "type": "integer"
+                    },
+                    "format": {
+                      "type": "string",
+                      "enum": ["yaml", "json", "raw"]
+                    }
                   }
                 }
               }
             }
           }
         }
-      }
+      },
+      "deprecated": true
     },
     "telemetry": {
       "type": "object",
-      "description": "Telemetry configuration (opt-in only)",
+      "description": "Separate-consumer configuration, not enforced on the SDK CLI run path. Active settings are rejected by runtime resolution; remove them from CLI workflows.",
       "properties": {
-        "enabled": { "type": "boolean", "default": false },
-        "flush_interval_ms": { "type": "integer", "minimum": 1000, "default": 60000 },
-        "max_buffer_size": { "type": "integer", "minimum": 1, "maximum": 1000, "default": 100 },
-        "include_debug_events": { "type": "boolean", "default": false }
-      }
+        "enabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "flush_interval_ms": {
+          "type": "integer",
+          "minimum": 1000,
+          "default": 60000
+        },
+        "max_buffer_size": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000,
+          "default": 100
+        },
+        "include_debug_events": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "deprecated": true
     },
     "token_budgets": {
       "type": "object",
-      "description": "Token budget configuration for pipeline and agents",
+      "description": "Separate-consumer configuration, not enforced on the SDK CLI run path. Active settings are rejected by runtime resolution; remove them from CLI workflows.",
       "properties": {
         "default_model": {
           "type": "string",
@@ -565,8 +920,12 @@
           "additionalProperties": {
             "type": "object",
             "properties": {
-              "max_tokens": { "type": "integer" },
-              "max_cost_usd": { "type": "number" }
+              "max_tokens": {
+                "type": "integer"
+              },
+              "max_cost_usd": {
+                "type": "number"
+              }
             }
           }
         },
@@ -576,12 +935,103 @@
           "additionalProperties": {
             "type": "object",
             "properties": {
-              "max_tokens": { "type": "integer" },
-              "max_cost_usd": { "type": "number" }
+              "max_tokens": {
+                "type": "integer"
+              },
+              "max_cost_usd": {
+                "type": "number"
+              }
             }
           }
         }
-      }
+      },
+      "deprecated": true
+    },
+    "execution": {
+      "type": "object",
+      "properties": {
+        "max_parallel_stages": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "local_mode": {
+          "type": "boolean"
+        },
+        "stage_timeout_ms": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647,
+          "description": "Total stage budget across attempts and backoff. Runtime default 300000 ms. Higher-priority layers win before timeout specificity."
+        },
+        "stage_timeouts_ms": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string",
+            "enum": [
+              "initialization",
+              "mode_detection",
+              "collection",
+              "prd_generation",
+              "srs_generation",
+              "sdp_generation",
+              "repo_detection",
+              "github_repo_setup",
+              "sds_generation",
+              "ui_spec_generation",
+              "threat_modeling",
+              "tech_decisions",
+              "issue_generation",
+              "svp_generation",
+              "orchestration",
+              "implementation",
+              "validation-agent",
+              "review",
+              "doc_indexing",
+              "document_reading",
+              "codebase_analysis",
+              "code_reading",
+              "doc_code_comparison",
+              "impact_analysis",
+              "prd_update",
+              "srs_update",
+              "sds_update",
+              "regression_testing",
+              "issue_reading"
+            ]
+          },
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          }
+        },
+        "retry_attempts": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 99,
+          "description": "Deprecated alias: number of retries after the first attempt. Migrate to global.retry_policy.max_attempts by adding one. Cannot coexist in the same source.",
+          "deprecated": true
+        },
+        "retry_delay_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647,
+          "description": "Deprecated alias: retry base delay in milliseconds. Cannot coexist with base_delay_seconds in the same source.",
+          "deprecated": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "description": {
+      "type": "string"
+    },
+    "extensions": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {}
     }
   }
 }

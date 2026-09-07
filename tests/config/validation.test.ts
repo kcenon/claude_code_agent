@@ -138,11 +138,6 @@ describe('Config Validation', () => {
       expect(result.data?.global?.vnv).toEqual({
         rigor: 'strict',
         halt_on_verification_failure: true,
-        generate_vnv_plan: true,
-        generate_vnv_report: true,
-        generate_rtm: true,
-        cross_document_consistency: true,
-        acceptance_criteria_validation: true,
       });
     });
 

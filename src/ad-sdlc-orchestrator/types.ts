@@ -5,6 +5,8 @@
  * Enhancement, and Import modes. Based on SDS-001 CMP-025 specification.
  */
 
+import type { EffectiveExecutionPlan } from '../config/runtimeTypes.js';
+import type { RetryPolicy } from '../error-handler/RetryExecutor.js';
 import type { SerializedError } from '../errors/types.js';
 import type { McpServerConfig } from '../execution/types.js';
 import type { StageVerificationResult } from '../stage-verifier/types.js';
@@ -177,6 +179,8 @@ export interface StageResult {
  * Pipeline execution result (SDS-001 Section 3.25)
  */
 export interface PipelineResult {
+  /** Resolved configuration and graph saved for this run (absent in legacy sessions). */
+  readonly runtimeSnapshot?: EffectiveExecutionPlan;
   /** Unique pipeline execution identifier */
   readonly pipelineId: string;
   /** Project identifier */
@@ -221,6 +225,8 @@ export interface AgentInvocation {
  * Orchestrator session tracking
  */
 export interface OrchestratorSession {
+  /** Resolved configuration and graph saved for this run (absent in legacy sessions). */
+  readonly runtimeSnapshot?: EffectiveExecutionPlan;
   /** Unique session identifier */
   readonly sessionId: string;
   /** Target project root, normalized to an absolute path at session creation. */
@@ -265,6 +271,8 @@ export interface OrchestratorSession {
  * Pipeline execution request
  */
 export interface PipelineRequest {
+  /** Resolved configuration and graph saved for this run (absent in legacy sessions). */
+  readonly runtimeSnapshot?: EffectiveExecutionPlan;
   /** Target project root, normalized to an absolute path at session creation. */
   readonly projectDir: string;
   /** User's project description or change request */
@@ -294,13 +302,12 @@ export interface PipelineRequest {
 /**
  * Per-stage timeout configuration.
  *
- * Timeout hierarchy invariant: API_CALL (120s) < STAGE (default 300s).
- * The orchestrator enforces this by capping per-attempt timeout to
- * the remaining stage budget, preventing retry cascades from exceeding
- * the stage deadline.
+ * The default stage budget is 300 seconds. Each attempt is capped at
+ * the remaining total stage budget, including retry backoff. Cleanup
+ * retains its existing grace period and must finish before replacement.
  */
 export interface StageTimeoutConfig {
-  /** Default timeout for all stages in milliseconds (must be > API call timeout) */
+  /** Total timeout for each stage in milliseconds (positive integer) */
   readonly default: number;
   /** Per-stage timeout overrides */
   readonly overrides?: Readonly<Partial<Record<StageName, number>>>;
@@ -322,6 +329,8 @@ export interface OrchestratorFeatureFlagsCli {
  * Orchestrator configuration
  */
 export interface OrchestratorConfig {
+  /** Default canonical preset when no request override is supplied. */
+  readonly defaultMode?: PipelineMode;
   /** Scratchpad base directory */
   readonly scratchpadDir?: string;
   /** Output documents directory */
@@ -330,8 +339,10 @@ export interface OrchestratorConfig {
   readonly approvalMode?: ApprovalMode;
   /** Stage timeout configuration */
   readonly timeouts?: StageTimeoutConfig;
-  /** Maximum retry attempts per stage */
+  /** Maximum retries after the first attempt per stage */
   readonly maxRetries?: number;
+  /** Backoff policy; attempts are derived from maxRetries exactly once. */
+  readonly retryBackoff?: Pick<RetryPolicy, 'backoffStrategy' | 'baseDelayMs' | 'maxDelayMs'>;
   /** Maximum number of agents that can execute in parallel (default: 3) */
   readonly maxParallelAgents?: number;
   /** Stage-verification policy applied by the live scheduler */
@@ -374,6 +385,7 @@ export interface CheckpointConfig {
  * Default orchestrator configuration
  */
 export const DEFAULT_ORCHESTRATOR_CONFIG: ResolvedOrchestratorConfig = {
+  defaultMode: 'greenfield',
   scratchpadDir: '.ad-sdlc/scratchpad',
   outputDocsDir: 'docs',
   approvalMode: 'auto',
@@ -382,6 +394,7 @@ export const DEFAULT_ORCHESTRATOR_CONFIG: ResolvedOrchestratorConfig = {
     overrides: {},
   },
   maxRetries: 3,
+  retryBackoff: { backoffStrategy: 'exponential', baseDelayMs: 5000, maxDelayMs: 60000 },
   maxParallelAgents: 3,
   vnv: DEFAULT_VNV_CONFIG,
   logLevel: 'INFO',
@@ -836,6 +849,8 @@ export interface ApprovalDecision {
  * Pipeline monitoring snapshot
  */
 export interface PipelineMonitorSnapshot {
+  /** Saved runtime plan; absent for legacy API sessions. */
+  readonly runtimeSnapshot?: EffectiveExecutionPlan;
   /** Session identifier */
   readonly sessionId: string;
   /** Pipeline mode */

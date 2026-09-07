@@ -1,5 +1,7 @@
 # Configuration and Permissions Guide
 
+For the production SDK CLI workflow contract, supported setting owners, and migration, see [runtime workflow configuration](../configuration/RUNTIME_WORKFLOW.md). Settings for separate APIs below do not imply CLI workflow enforcement.
+
 > **Version**: 1.0.0
 > **Based on**: Anthropic Official Documentation
 
@@ -29,12 +31,12 @@
 
 ### Configuration Scopes
 
-| Scope | File Location | Git Shared | Affects |
-|-------|---------------|------------|---------|
-| Enterprise | System-managed settings | N/A | Entire organization |
-| User | `~/.claude/settings.json` | ❌ | All projects |
-| Project | `.claude/settings.json` | ✅ | This project |
-| Local | `.claude/settings.local.json` | ❌ | You only, this project |
+| Scope      | File Location                 | Git Shared | Affects                |
+| ---------- | ----------------------------- | ---------- | ---------------------- |
+| Enterprise | System-managed settings       | N/A        | Entire organization    |
+| User       | `~/.claude/settings.json`     | ❌         | All projects           |
+| Project    | `.claude/settings.json`       | ✅         | This project           |
+| Local      | `.claude/settings.local.json` | ❌         | You only, this project |
 
 ---
 
@@ -118,11 +120,7 @@
       "Bash(curl:*)",
       "Bash(wget:*)"
     ],
-    "ask": [
-      "Bash(git push:*)",
-      "Write(package.json)",
-      "Edit(*.lock)"
-    ]
+    "ask": ["Bash(git push:*)", "Write(package.json)", "Edit(*.lock)"]
   },
   "hooks": {
     "PostToolUse": [
@@ -152,11 +150,7 @@
   "model": "claude-opus-4-5-20251101",
   "alwaysThinking": true,
   "permissions": {
-    "deny": [
-      "Read(~/.ssh/**)",
-      "Read(~/.aws/**)",
-      "Read(~/.config/gcloud/**)"
-    ]
+    "deny": ["Read(~/.ssh/**)", "Read(~/.aws/**)", "Read(~/.config/gcloud/**)"]
   }
 }
 ```
@@ -193,12 +187,12 @@ ToolName(pattern)
 
 ### Pattern Syntax
 
-| Pattern | Meaning | Example |
-|---------|---------|---------|
-| `*` | Single path segment | `src/*.ts` |
-| `**` | All subdirectories | `src/**/*.ts` |
-| `{a,b}` | OR | `*.{js,ts}` |
-| `:*` | All arguments | `npm run:*` |
+| Pattern | Meaning             | Example       |
+| ------- | ------------------- | ------------- |
+| `*`     | Single path segment | `src/*.ts`    |
+| `**`    | All subdirectories  | `src/**/*.ts` |
+| `{a,b}` | OR                  | `*.{js,ts}`   |
+| `:*`    | All arguments       | `npm run:*`   |
 
 ### Permission Examples by Tool
 
@@ -273,12 +267,12 @@ ToolName(pattern)
 
 ### Agent SDK Permission Modes
 
-| Mode | Description | Use Case |
-|------|-------------|----------|
-| `default` | Approval required for all actions | Interactive use |
-| `acceptEdits` | Auto-approve file edits | Automation, scripts |
-| `bypassPermissions` | Bypass all permissions | Full automation (dangerous!) |
-| `plan` | Plan only, no execution | Task preview |
+| Mode                | Description                       | Use Case                     |
+| ------------------- | --------------------------------- | ---------------------------- |
+| `default`           | Approval required for all actions | Interactive use              |
+| `acceptEdits`       | Auto-approve file edits           | Automation, scripts          |
+| `bypassPermissions` | Bypass all permissions            | Full automation (dangerous!) |
+| `plan`              | Plan only, no execution           | Task preview                 |
 
 ### Setting Permission Modes
 
@@ -398,13 +392,13 @@ options = ClaudeAgentOptions(
 
 ### Available Models
 
-| Model | ID | Features |
-|-------|-----|----------|
-| Claude Opus 4.5 | `claude-opus-4-5-20251101` | Highest performance |
-| Claude Opus 4 | `claude-opus-4-1` | High performance |
+| Model             | ID                           | Features                     |
+| ----------------- | ---------------------------- | ---------------------------- |
+| Claude Opus 4.5   | `claude-opus-4-5-20251101`   | Highest performance          |
+| Claude Opus 4     | `claude-opus-4-1`            | High performance             |
 | Claude Sonnet 4.5 | `claude-sonnet-4-5-20251101` | Balanced (speed/performance) |
-| Claude Sonnet 4 | `claude-sonnet-4-20250514` | Balanced |
-| Claude Haiku 4 | `claude-haiku-4` | Fastest, simple tasks |
+| Claude Sonnet 4   | `claude-sonnet-4-20250514`   | Balanced                     |
+| Claude Haiku 4    | `claude-haiku-4`             | Fastest, simple tasks        |
 
 ### Model Configuration Methods
 
@@ -454,12 +448,7 @@ claude -p "Task" --model claude-sonnet-4-5-20251101
       "Bash(npx:*)",
       "Bash(git:*)"
     ],
-    "deny": [
-      "Read(.env*)",
-      "Read(node_modules/**)",
-      "Bash(rm -rf:*)",
-      "Bash(sudo:*)"
-    ]
+    "deny": ["Read(.env*)", "Read(node_modules/**)", "Bash(rm -rf:*)", "Bash(sudo:*)"]
   },
   "hooks": {
     "PostToolUse": [
@@ -535,20 +524,8 @@ claude -p "Task" --model claude-sonnet-4-5-20251101
 ```json
 {
   "permissions": {
-    "allow": [
-      "Read(**)",
-      "Glob",
-      "Grep",
-      "WebSearch",
-      "WebFetch(domain:*.example.com)"
-    ],
-    "deny": [
-      "Read(.env*)",
-      "Read(**/*secret*)",
-      "Write",
-      "Edit",
-      "Bash"
-    ]
+    "allow": ["Read(**)", "Glob", "Grep", "WebSearch", "WebFetch(domain:*.example.com)"],
+    "deny": ["Read(.env*)", "Read(**/*secret*)", "Write", "Edit", "Bash"]
   }
 }
 ```
@@ -568,11 +545,7 @@ claude -p "Task" --model claude-sonnet-4-5-20251101
       "Bash(git:*)",
       "Bash(make:*)"
     ],
-    "deny": [
-      "Read(.env*)",
-      "Bash(git push --force:*)",
-      "Bash(rm -rf:*)"
-    ]
+    "deny": ["Read(.env*)", "Bash(git push --force:*)", "Bash(rm -rf:*)"]
   }
 }
 ```
@@ -605,4 +578,4 @@ options = ClaudeAgentOptions(
 
 ---
 
-*Previous: [Skills Reference](05_skills.md) | Next: [Security Guide](07_security.md)*
+_Previous: [Skills Reference](05_skills.md) | Next: [Security Guide](07_security.md)_

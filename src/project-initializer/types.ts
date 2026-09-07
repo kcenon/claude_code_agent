@@ -70,13 +70,13 @@ export interface TemplateConfig {
   /** Agent configuration set */
   readonly agents: 'default';
 
-  /** Quality gate level */
+  /** @deprecated Historical quality preset; not emitted or enforced by SDK CLI. */
   readonly qualityGates: QualityGateLevel;
 
-  /** Number of parallel workers */
+  /** @deprecated Historical worker-pool preset; not emitted or enforced by SDK CLI. */
   readonly parallelWorkers: number;
 
-  /** Additional features enabled */
+  /** @deprecated Historical feature names; do not enable runtime integrations. */
   readonly extraFeatures: readonly string[];
 }
 
@@ -228,29 +228,9 @@ export const QUALITY_GATE_CONFIGS: Record<QualityGateLevel, QualityGateConfig> =
 /**
  * Workflow configuration structure
  */
-export interface WorkflowConfig {
-  /** Workflow version */
-  readonly version: string;
-
-  /** Pipeline configuration */
-  readonly pipeline: {
-    readonly stages: readonly {
-      readonly name: string;
-      readonly agent: string;
-      readonly timeout_ms: number;
-    }[];
-  };
-
-  /** Quality gates configuration */
-  readonly quality_gates: QualityGateConfig;
-
-  /** Execution configuration */
-  readonly execution: {
-    readonly max_parallel_workers: number;
-    readonly retry_attempts: number;
-    readonly retry_delay_ms: number;
-  };
-}
+export type WorkflowConfig = import('zod').input<
+  typeof import('../config/schemas.js').WorkflowConfigSchema
+>;
 
 /**
  * Template compatibility check result

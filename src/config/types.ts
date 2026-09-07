@@ -130,6 +130,8 @@ export interface ValidateCommandOptions {
  * Validation report for CLI output
  */
 export interface ValidationReport {
+  /** SDK CLI support findings, when runtime validation was requested. */
+  readonly runtimeDiagnostics?: readonly import('./runtimeTypes.js').RuntimeDiagnostic[];
   /** Overall validation status */
   readonly valid: boolean;
   /** Files validated */
@@ -144,6 +146,8 @@ export interface ValidationReport {
  * Validation result for a single file
  */
 export interface FileValidationResult {
+  /** Raw workflow runtime findings when explicitly requested. */
+  readonly runtimeDiagnostics?: readonly import('./runtimeTypes.js').RuntimeDiagnostic[];
   /** File path */
   readonly filePath: string;
   /** Whether the file is valid */
