@@ -72,18 +72,7 @@ function install(tarball, dir) {
       type: 'module',
     })
   );
-  run(
-    'npm',
-    [
-      'install',
-      '--omit=dev',
-      '--omit=optional',
-      '--no-audit',
-      '--no-fund',
-      tarball,
-    ],
-    dir
-  );
+  run('npm', ['install', '--omit=dev', '--omit=optional', '--no-audit', '--no-fund', tarball], dir);
   return join(dir, 'node_modules', '.bin', 'ad-sdlc');
 }
 function moduleUrl(pkg, relative) {
@@ -142,7 +131,7 @@ try {
       const project = ${JSON.stringify(project)};
       const bundle = loadAssetBundle();
       assert.equal(bundle.packageRoot, ${JSON.stringify(pkg + '/')});
-      assert((await validateAllConfigs(project)).valid);
+      assert((await validateAllConfigs(project, { runtime: true })).valid);
       const report = validateAllAgents({ agentsDir: join(project, '.claude/agents'), registryPath: join(project, '.ad-sdlc/config/agents.yaml'), checkRegistry: true });
       assert(report.totalFiles > 0); assert.equal(report.invalidCount, 0);
       assert.equal(report.totalFiles, bundle.assets.filter((a) => a.kind === 'agent').length);
@@ -164,40 +153,67 @@ try {
       ],
       caller
     );
-    // Offline run verifies flags/config only; no SDK or paid persona execution.
-    run(
-      bin,
-      [
-        'run',
-        'Offline contract check $(never execute)',
-        '--project-dir',
-        project,
-        '--mode',
-        'greenfield',
-        '--dry-run',
-        '--local',
-        '--stop-after',
-        'collect',
-        '--approval-mode',
-        'auto',
-      ],
-      caller
+    // Resolve the installed CLI's canonical plan without SDK or paid persona execution.
+    const plan = JSON.parse(
+      run(
+        bin,
+        [
+          'run',
+          'Offline contract check $(never execute)',
+          '--project-dir',
+          project,
+          '--mode',
+          'greenfield',
+          '--dry-run',
+          '--local',
+          '--stop-after',
+          'collection',
+          '--approval-mode',
+          'auto',
+          '--format',
+          'json',
+        ],
+        caller
+      )
     );
-    run(
-      bin,
-      [
-        'run',
-        'Original requirements',
-        '--resume',
-        'offline-session',
-        '--project-dir',
-        project,
-        '--mode',
-        'greenfield',
-        '--dry-run',
-      ],
-      caller
+    assert.equal(plan.ready, true);
+    assert.equal(plan.config.mode, 'greenfield');
+    assert.equal(plan.config.localMode, true);
+    assert.equal(plan.config.approvalMode, 'auto');
+    assert.equal(plan.stopAfterStage, 'collection');
+    assert.equal(plan.stages.length, 18);
+    assert(
+      plan.stages.some((stage) => stage.name === 'collection' && stage.agentType === 'collector')
     );
+    assert(!plan.stages.some((stage) => stage.name === 'github_repo_setup'));
+    assert.deepEqual(plan.diagnostics, []);
+
+    // Resume validates the saved session even for dry-run; a missing session is an error.
+    const missingSession = JSON.parse(
+      run(
+        bin,
+        [
+          'run',
+          'Original requirements',
+          '--resume',
+          'offline-session',
+          '--project-dir',
+          project,
+          '--dry-run',
+          '--format',
+          'json',
+        ],
+        caller,
+        1
+      )
+    );
+    assert.equal(missingSession.ready, false);
+    assert.equal(missingSession.diagnostics.length, 1);
+    assert.equal(missingSession.diagnostics[0].source, 'CLI');
+    assert.equal(missingSession.diagnostics[0].path, '--resume');
+    assert.equal(missingSession.diagnostics[0].code, 'invalid');
+    assert.match(missingSession.diagnostics[0].reason, /Session not found/);
+    assert.match(missingSession.diagnostics[0].action, /saved session ID from status/);
     run(bin, ['assets', 'update', '--project-dir', project, '--dry-run'], caller);
     process.stdout.write(
       `PACKAGE SMOKE: ${template} initialized and verified using installed package\n`
