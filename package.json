@@ -75,7 +75,7 @@
     "node": ">=22.22.1"
   },
   "devDependencies": {
-    "@aws-sdk/client-cloudwatch-logs": "^3.1124.0",
+    "@aws-sdk/client-cloudwatch-logs": "^3.1126.0",
     "@elastic/elasticsearch": "^9.5.1",
     "@eslint/js": "^10.0.1",
     "@opentelemetry/api": "^1.9.1",
@@ -91,11 +91,11 @@
     "@types/pdf-parse": "^1.1.5",
     "@typescript-eslint/eslint-plugin": "^8.69.0",
     "@typescript-eslint/parser": "^8.69.0",
-    "@vitest/coverage-v8": "^4.1.11",
+    "@vitest/coverage-v8": "^5.0.0",
     "better-sqlite3": "^13.0.3",
     "eslint": "^10.9.1",
     "eslint-config-prettier": "^10.1.8",
-    "eslint-plugin-jsdoc": "^64.3.4",
+    "eslint-plugin-jsdoc": "^64.3.5",
     "husky": "^9.1.7",
     "ioredis": "^6.0.0",
     "lint-staged": "^17.4.1",
@@ -107,7 +107,7 @@
     "typedoc-plugin-markdown": "^4.13.0",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.69.0",
-    "vitest": "^4.0.16"
+    "vitest": "^5.0.0"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.3.258",
