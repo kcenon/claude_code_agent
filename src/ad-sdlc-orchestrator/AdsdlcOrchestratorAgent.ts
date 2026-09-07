@@ -30,6 +30,9 @@ import { getLogger } from '../logging/index.js';
 import { ENV_USE_SDK_FOR_WORKER } from '../config/featureFlags.js';
 import { StageVerifierAgent } from '../stage-verifier/StageVerifierAgent.js';
 import type { StageVerificationResult } from '../stage-verifier/types.js';
+import { buildCanonicalPlan } from './plan.js';
+import { parseRuntimeSnapshot } from '../config/runtimeSnapshot.js';
+import type { EffectiveExecutionPlan } from '../config/runtimeTypes.js';
 import { PipelineCheckpointManager } from './PipelineCheckpointManager.js';
 import type {
   ApprovalDecision,
@@ -48,13 +51,7 @@ import type {
   StageResult,
   StageSummary,
 } from './types.js';
-import {
-  DEFAULT_ORCHESTRATOR_CONFIG,
-  GREENFIELD_STAGES,
-  LOCAL_AGENT_SUBSTITUTIONS,
-  ENHANCEMENT_STAGES,
-  IMPORT_STAGES,
-} from './types.js';
+import { DEFAULT_ORCHESTRATOR_CONFIG } from './types.js';
 import {
   InvalidProjectDirError,
   PipelineFailedError,
@@ -257,6 +254,12 @@ export class AdsdlcOrchestratorAgent implements IAgent {
       throw new InvalidProjectDirError(request.projectDir, 'Project directory must not be blank');
     }
     const projectDir = path.resolve(request.projectDir);
+    if (request.runtimeSnapshot !== undefined)
+      this.config = {
+        ...this.config,
+        ...request.runtimeSnapshot.config,
+        vnv: { ...this.config.vnv, ...request.runtimeSnapshot.config.vnv },
+      };
     await this.validateProjectDir(projectDir);
 
     // Resume from prior session if requested
@@ -282,7 +285,17 @@ export class AdsdlcOrchestratorAgent implements IAgent {
             this.session = {
               ...prior,
               status: 'running',
-              localMode: request.localMode ?? prior.localMode,
+              localMode:
+                request.runtimeSnapshot?.config.localMode ??
+                prior.runtimeSnapshot?.config.localMode ??
+                request.localMode ??
+                prior.localMode,
+              ...((request.runtimeSnapshot ?? prior.runtimeSnapshot) !== undefined
+                ? { runtimeSnapshot: request.runtimeSnapshot ?? prior.runtimeSnapshot }
+                : {}),
+              ...(request.stopAfterStage !== undefined
+                ? { stopAfterStage: request.stopAfterStage }
+                : {}),
               preCompletedStages: checkpoint.completedStageNames,
               stageResults: checkpoint.completedStageResults,
               ...(checkpoint.sdkSessionId !== undefined && checkpoint.sdkSessionId !== ''
@@ -294,6 +307,8 @@ export class AdsdlcOrchestratorAgent implements IAgent {
                 ? checkpoint.sdkSessionId
                 : undefined;
             this.abortController = new AbortController();
+            if (this.session.runtimeSnapshot !== undefined)
+              await this.persistProgress(this.session, []);
             return this.session;
           }
         }
@@ -304,11 +319,23 @@ export class AdsdlcOrchestratorAgent implements IAgent {
         this.session = {
           ...prior,
           status: 'running',
-          localMode: request.localMode ?? prior.localMode,
+          localMode:
+            request.runtimeSnapshot?.config.localMode ??
+            prior.runtimeSnapshot?.config.localMode ??
+            request.localMode ??
+            prior.localMode,
+          ...((request.runtimeSnapshot ?? prior.runtimeSnapshot) !== undefined
+            ? { runtimeSnapshot: request.runtimeSnapshot ?? prior.runtimeSnapshot }
+            : {}),
+          ...(request.stopAfterStage !== undefined
+            ? { stopAfterStage: request.stopAfterStage }
+            : {}),
         };
         // No checkpoint => no SDK session id to resume from.
         this.pendingResumeSdkSessionId = undefined;
         this.abortController = new AbortController();
+        if (this.session.runtimeSnapshot !== undefined)
+          await this.persistProgress(this.session, []);
         return this.session;
       }
     }
@@ -316,13 +343,16 @@ export class AdsdlcOrchestratorAgent implements IAgent {
     // Cold-start session: ensure no stale resume id leaks across runs.
     this.pendingResumeSdkSessionId = undefined;
 
-    const mode = request.overrideMode ?? 'greenfield';
+    const mode =
+      request.runtimeSnapshot?.config.mode ?? request.overrideMode ?? this.config.defaultMode;
     const scratchpadDir = path.resolve(projectDir, this.config.scratchpadDir);
 
     // Build preCompletedStages from startFromStage if provided
     let preCompletedStages: StageName[] | null = null;
     if (request.startFromStage !== undefined) {
-      const stages = this.getStagesForMode(mode);
+      const stages =
+        request.runtimeSnapshot?.stages ??
+        buildCanonicalPlan(mode, request.localMode ?? this.config.localMode);
       preCompletedStages = [];
       for (const stage of stages) {
         if (stage.name === request.startFromStage) break;
@@ -332,7 +362,8 @@ export class AdsdlcOrchestratorAgent implements IAgent {
       preCompletedStages = [...request.preCompletedStages];
     }
 
-    const localMode = request.localMode ?? this.config.localMode;
+    const localMode =
+      request.runtimeSnapshot?.config.localMode ?? request.localMode ?? this.config.localMode;
 
     this.session = {
       sessionId: randomUUID(),
@@ -344,11 +375,15 @@ export class AdsdlcOrchestratorAgent implements IAgent {
       stageResults: [],
       scratchpadDir,
       localMode,
+      ...(request.runtimeSnapshot !== undefined
+        ? { runtimeSnapshot: request.runtimeSnapshot }
+        : {}),
       ...(preCompletedStages !== null ? { preCompletedStages } : {}),
       ...(request.stopAfterStage !== undefined ? { stopAfterStage: request.stopAfterStage } : {}),
     };
 
     this.abortController = new AbortController();
+    if (this.session.runtimeSnapshot !== undefined) await this.persistProgress(this.session, []);
     return this.session;
   }
 
@@ -428,6 +463,9 @@ export class AdsdlcOrchestratorAgent implements IAgent {
       }
 
       const result: PipelineResult = {
+        ...(session.runtimeSnapshot !== undefined
+          ? { runtimeSnapshot: session.runtimeSnapshot }
+          : {}),
         pipelineId: session.sessionId,
         projectId: path.basename(session.projectDir),
         mode: session.mode,
@@ -482,11 +520,18 @@ export class AdsdlcOrchestratorAgent implements IAgent {
    * Get the current pipeline status for monitoring
    * @returns The current pipeline status and completed stage results
    */
-  getStatus(): { status: PipelineStatus; stages: readonly StageResult[] } {
+  getStatus(): {
+    status: PipelineStatus;
+    stages: readonly StageResult[];
+    runtimeSnapshot?: EffectiveExecutionPlan;
+  } {
     if (!this.session) {
       return { status: 'pending', stages: [] };
     }
     return {
+      ...(this.session.runtimeSnapshot !== undefined
+        ? { runtimeSnapshot: this.session.runtimeSnapshot }
+        : {}),
       status: this.session.status,
       stages: this.session.stageResults,
     };
@@ -529,6 +574,9 @@ export class AdsdlcOrchestratorAgent implements IAgent {
     }));
 
     return {
+      ...(this.session.runtimeSnapshot !== undefined
+        ? { runtimeSnapshot: this.session.runtimeSnapshot }
+        : {}),
       sessionId: this.session.sessionId,
       mode: this.session.mode,
       status: this.session.status,
@@ -552,50 +600,10 @@ export class AdsdlcOrchestratorAgent implements IAgent {
    * @returns The ordered list of stage definitions for the specified mode
    */
   private getStagesForMode(mode: PipelineMode): readonly PipelineStageDefinition[] {
-    let stages: readonly PipelineStageDefinition[];
-    switch (mode) {
-      case 'greenfield':
-        stages = GREENFIELD_STAGES;
-        break;
-      case 'enhancement':
-        stages = ENHANCEMENT_STAGES;
-        break;
-      case 'import':
-        stages = IMPORT_STAGES;
-        break;
-    }
-
-    return this.session?.localMode === true ? this.adaptStagesForLocalMode(stages) : stages;
-  }
-
-  /**
-   * Adapt pipeline stages for local mode (no GitHub dependency).
-   *
-   * - Removes github_repo_setup stage entirely
-   * - Replaces pr-reviewer with local-reviewer
-   * - Replaces issue-reader with local-issue-reader
-   * - Rewires dependencies that pointed to removed stages
-   * @param stages
-   */
-  private adaptStagesForLocalMode(
-    stages: readonly PipelineStageDefinition[]
-  ): PipelineStageDefinition[] {
-    return stages
-      .filter((s) => s.name !== 'github_repo_setup')
-      .map((s) => {
-        // Rewire dependencies from github_repo_setup to repo_detection
-        const filtered = s.dependsOn.filter((d) => d !== 'github_repo_setup');
-        const needsRewire =
-          s.dependsOn.includes('github_repo_setup') && !s.dependsOn.includes('repo_detection');
-        const dependsOn = (
-          needsRewire ? [...filtered, 'repo_detection'] : [...filtered]
-        ) as typeof s.dependsOn;
-
-        // Substitute GitHub-dependent agent types with local alternatives
-        const agentType = LOCAL_AGENT_SUBSTITUTIONS[s.agentType] ?? s.agentType;
-
-        return { ...s, agentType, dependsOn };
-      });
+    return (
+      this.session?.runtimeSnapshot?.stages ??
+      buildCanonicalPlan(mode, this.session?.localMode ?? this.config.localMode)
+    );
   }
 
   /**
@@ -629,6 +637,8 @@ export class AdsdlcOrchestratorAgent implements IAgent {
       abortController: this.abortController,
       stageTimers: this.stageTimers,
       maxRetries: this.config.maxRetries,
+      retryBackoff: this.config.retryBackoff,
+      onProgress: (session, results) => this.persistProgress(session, results),
       maxParallelAgents: this.config.maxParallelAgents,
       haltOnVerificationFailure:
         this.config.vnv.rigor === 'strict' && this.config.vnv.haltOnVerificationFailure,
@@ -1013,6 +1023,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
    * @param result - The pipeline result to serialize and persist as YAML
    */
   private async persistState(session: OrchestratorSession, result: PipelineResult): Promise<void> {
+    await loadYaml();
     if (!yaml) return;
 
     try {
@@ -1027,6 +1038,11 @@ export class AdsdlcOrchestratorAgent implements IAgent {
         userRequest: session.userRequest,
         startedAt: session.startedAt,
         mode: result.mode,
+        localMode: session.localMode,
+        ...(session.stopAfterStage !== undefined ? { stopAfterStage: session.stopAfterStage } : {}),
+        ...(session.runtimeSnapshot !== undefined
+          ? { runtimeSnapshot: session.runtimeSnapshot }
+          : {}),
         overallStatus: result.overallStatus,
         durationMs: result.durationMs,
         stageCount: result.stages.length,
@@ -1046,13 +1062,44 @@ export class AdsdlcOrchestratorAgent implements IAgent {
         })),
       });
 
-      await fs.writeFile(statePath, content, 'utf-8');
+      // Status can read while stages finish; publish a complete session atomically.
+      const temporaryPath = `${statePath}.${randomUUID()}.tmp`;
+      try {
+        await fs.writeFile(temporaryPath, content, 'utf-8');
+        await fs.rename(temporaryPath, statePath);
+      } finally {
+        await fs.rm(temporaryPath, { force: true });
+      }
     } catch (error) {
       throw new StatePersistenceError(
         session.scratchpadDir,
         error instanceof Error ? error.message : String(error)
       );
     }
+  }
+
+  /** Persist the current snapshot and completed results using the existing session file.
+   * @param session - Active session
+   * @param results - Results from this scheduler pass
+   */
+  private async persistProgress(
+    session: OrchestratorSession,
+    results: readonly StageResult[]
+  ): Promise<void> {
+    const stageResults = [...session.stageResults, ...results];
+    this.session = { ...session, status: 'running', stageResults };
+    if (session.runtimeSnapshot === undefined) return;
+    await this.persistState(this.session, {
+      pipelineId: session.sessionId,
+      projectId: path.basename(session.projectDir),
+      mode: session.mode,
+      overallStatus: 'running',
+      durationMs: Date.now() - new Date(session.startedAt).getTime(),
+      stages: stageResults,
+      artifacts: stageResults.flatMap((stage) => stage.artifacts),
+      warnings: [],
+      runtimeSnapshot: session.runtimeSnapshot,
+    });
   }
 
   /**
@@ -1101,6 +1148,16 @@ export class AdsdlcOrchestratorAgent implements IAgent {
       throw new SessionCorruptedError(sessionId, 'Missing or invalid "mode" field');
     }
 
+    const runtimeSnapshot =
+      data['runtimeSnapshot'] === undefined
+        ? undefined
+        : parseRuntimeSnapshot(data['runtimeSnapshot'], statePath);
+    if (runtimeSnapshot !== undefined)
+      this.config = {
+        ...this.config,
+        ...runtimeSnapshot.config,
+        vnv: { ...this.config.vnv, ...runtimeSnapshot.config.vnv },
+      };
     const stages = Array.isArray(data['stages']) ? data['stages'] : [];
     const stageResults: StageResult[] = stages.map((s: Record<string, unknown>) => ({
       name: (s['name'] ?? '') as StageName,
@@ -1127,7 +1184,12 @@ export class AdsdlcOrchestratorAgent implements IAgent {
       status: (data['overallStatus'] ?? 'partial') as PipelineStatus,
       stageResults,
       scratchpadDir: path.resolve(projectDir, this.config.scratchpadDir),
-      localMode: (data['localMode'] as boolean | undefined) ?? false,
+      localMode:
+        runtimeSnapshot?.config.localMode ?? (data['localMode'] as boolean | undefined) ?? false,
+      ...(runtimeSnapshot !== undefined ? { runtimeSnapshot } : {}),
+      ...(typeof data['stopAfterStage'] === 'string'
+        ? { stopAfterStage: data['stopAfterStage'] as StageName }
+        : {}),
       resumedFrom: sessionId,
       preCompletedStages: completedStageNames,
     };

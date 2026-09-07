@@ -22,7 +22,7 @@ import type { CanonicalModel } from './allowlist.js';
  */
 export interface RetryPolicy {
   readonly maxAttempts: number;
-  readonly backoff: 'linear' | 'exponential';
+  readonly backoff: 'fixed' | 'linear' | 'exponential' | 'fibonacci';
   readonly baseDelaySeconds: number;
   readonly maxDelaySeconds: number;
 }

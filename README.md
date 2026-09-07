@@ -145,11 +145,11 @@ AD-SDLC automates the full software development lifecycle through a coordinated 
 
 3. **Planning**: The Issue Generator transforms design specifications into actionable GitHub Issues with dependencies and labels. The SVP Writer creates a Software Verification Plan with derived test cases.
 
-4. **Implementation**: The Controller distributes issues to Worker agents, which implement code, write tests, and create pull requests. Multiple workers operate in parallel for faster delivery.
+4. **Implementation**: The canonical graph runs the controller stage followed by the worker stage. Configured stage concurrency limits independent runnable stages; it does not enforce a worker pool inside SDK agents.
 
 5. **Verification & Validation**: The Validation Agent is an active stage in all three modes and checks the implementation against acceptance criteria. Stage Verifier and RTM Builder exist as auxiliary definitions/modules but are not yet orchestrator-enforced gates; their disposition is tracked in #877.
 
-6. **Review & Indexing**: The PR Reviewer performs automated code review with quality gates. Finally, the Doc Index Generator creates a searchable documentation index from all pipeline artifacts.
+6. **Review & Indexing**: The SDK reviewer stage performs code review; supported verification rules run through the existing stage verifier. Workflow coverage and complexity thresholds are not enforced and are rejected when configured. Finally, the Doc Index Generator creates a searchable documentation index from all pipeline artifacts.
 
 Each agent reads and writes to a shared scratchpad, enabling seamless inter-agent communication. The pipeline supports resume (`--resume`) and start-from (`--start-from <stage>`) for interrupted sessions.
 
@@ -166,14 +166,14 @@ Each agent reads and writes to a shared scratchpad, enabling seamless inter-agen
 - **Pipeline Resume**: Resume interrupted pipelines from the last completed stage (`--resume`)
 - **Session Persistence**: Automatic state persistence for pipeline recovery
 - **GitHub Integration**: Automatic issue creation with dependencies and labels
-- **Parallel Implementation**: Multiple workers implementing issues concurrently
-- **Automated PR Review**: Code review and quality gate enforcement
+- **Bounded Stage Execution**: Configurable concurrency for independent runnable stages
+- **Automated PR Review**: SDK reviewer execution with the existing verification policy
 - **Progress Tracking**: Real-time visibility into pipeline status
 - **Regression Testing**: Identifies affected tests when modifying existing code
 - **Doc-Code Gap Analysis**: Detects discrepancies between documentation and implementation
 - **V&V Framework**: Final validation is a live pipeline stage, and the scheduler records per-stage verification results; strict `haltOnVerificationFailure` mode stops the DAG on the first failed gate
 - **Document Audit**: Packaged CLI (`ad-sdlc audit-docs --project-dir .`) that validates pipeline-generated PRD/SRS/SDS/SDP/TM/SVP/TD/DBS documents for frontmatter, required sections, cross-references, and PRD→SRS→SDS traceability; see [Document Audit CLI](docs/doc-audit.md)
-- **Customizable Workflows**: Configure agents, templates, and quality gates
+- **Resolved Workflow Policy**: Canonical presets with validated stage concurrency, retry, timeout, approval, and verification settings. See the [runtime configuration contract](docs/configuration/RUNTIME_WORKFLOW.md).
 
 ## Installation
 
@@ -460,12 +460,12 @@ Agent prompt files (`.md`) are in English and used by Claude during execution.
 
 The scaffold installs `.claude/commands/*.md` for use as project slash commands in Claude Code sessions. Each file declares its argument shape via YAML frontmatter (`description`, optional `argument-hint`) and a short markdown body that instructs the assistant which CLI subcommand to run.
 
-| Command           | File                                 | Wraps                                                                  |
-| ----------------- | ------------------------------------ | ---------------------------------------------------------------------- |
-| `/run-greenfield` | `.claude/commands/run-greenfield.md` | `ad-sdlc init . --quick` + `ad-sdlc run <requirements> --mode greenfield --project-dir .`                       |
-| `/resume`         | `.claude/commands/resume.md`         | `ad-sdlc run <requirements> --resume <session-id> --project-dir .` |
-| `/audit-docs`     | `.claude/commands/audit-docs.md`     | `ad-sdlc audit-docs --project-dir .`                         |
-| `/status`         | `.claude/commands/status.md`         | `ad-sdlc status`                                                       |
+| Command           | File                                 | Wraps                                                                                     |
+| ----------------- | ------------------------------------ | ----------------------------------------------------------------------------------------- |
+| `/run-greenfield` | `.claude/commands/run-greenfield.md` | `ad-sdlc init . --quick` + `ad-sdlc run <requirements> --mode greenfield --project-dir .` |
+| `/resume`         | `.claude/commands/resume.md`         | `ad-sdlc run <requirements> --resume <session-id> --project-dir .`                        |
+| `/audit-docs`     | `.claude/commands/audit-docs.md`     | `ad-sdlc audit-docs --project-dir .`                                                      |
+| `/status`         | `.claude/commands/status.md`         | `ad-sdlc status`                                                                          |
 
 To use them, open the project inside a Claude Code session and type the command (for example `/run-greenfield "Build a todo app"`). Claude follows the matching markdown instructions, parsing requirements and supported options separately and keeping unchecked input out of shell source. New commands can be added by dropping a markdown file with valid frontmatter into `.claude/commands/`.
 

@@ -18,6 +18,8 @@ import {
   loadAgentsConfig,
   loadWorkflowConfig,
 } from '../../src/config/index.js';
+import { loadResolvedRuntimeConfig } from '../../src/config/runtime.js';
+import { buildCanonicalPlan } from '../../src/ad-sdlc-orchestrator/plan.js';
 import type { ValidationReport } from '../../src/config/types.js';
 import { loadAssetBundle } from '../../src/project-initializer/AgentAssets.js';
 import { generateAgentsConfig } from '../../src/project-initializer/generatedConfig.js';
@@ -74,76 +76,55 @@ describe('CLI initialization configuration validation', () => {
     expect(result.status, result.stdout + result.stderr).toBe(0);
   }
 
-  it.each([
-    { template: 'minimal', workers: 2, coverage: 50, complexity: 20, requireReview: false },
-    { template: 'standard', workers: 3, coverage: 70, complexity: 15, requireReview: true },
-    { template: 'enterprise', workers: 5, coverage: 80, complexity: 10, requireReview: true },
-  ] as const)('initializes and validates the $template template', async (settings) => {
-    initialize(settings.template);
+  it.each([{ template: 'minimal' }, { template: 'standard' }, { template: 'enterprise' }] as const)(
+    'initializes and validates the $template template',
+    async (settings) => {
+      initialize(settings.template);
 
-    const validation = runCli(['validate', '--format', 'json'], projectDir);
-    expect(validation.status, validation.stdout + validation.stderr).toBe(0);
-    const report: ValidationReport = JSON.parse(validation.stdout);
-    expect(report.valid).toBe(true);
-    expect(report.totalErrors).toBe(0);
-    expect(report.files).toHaveLength(2);
-    for (const filename of ['workflow.yaml', 'agents.yaml']) {
-      expect(report.files).toContainEqual(
-        expect.objectContaining({
-          filePath: join(projectDir, '.ad-sdlc', 'config', filename),
-          valid: true,
-          errors: [],
-        })
+      const validation = runCli(['validate', '--format', 'json'], projectDir);
+      expect(validation.status, validation.stdout + validation.stderr).toBe(0);
+      const report: ValidationReport = JSON.parse(validation.stdout);
+      expect(report.valid).toBe(true);
+      expect(report.totalErrors).toBe(0);
+      expect(report.files).toHaveLength(2);
+      for (const filename of ['workflow.yaml', 'agents.yaml']) {
+        expect(report.files).toContainEqual(
+          expect.objectContaining({
+            filePath: join(projectDir, '.ad-sdlc', 'config', filename),
+            valid: true,
+            errors: [],
+          })
+        );
+      }
+
+      const options = { baseDir: projectDir, environment: false } as const;
+      const workflow = await loadWorkflowConfig(options);
+      const agents = await loadAgentsConfig(options);
+      expect(workflow.version).toBe('1.0.0');
+      expect(workflow.pipeline).toEqual({ default_mode: 'greenfield' });
+      expect(agents.version).toBe('1.0.0');
+      expect(Object.keys(agents.agents)).toEqual(Object.keys(expectedAgents));
+      for (const [id, expected] of Object.entries(expectedAgents)) {
+        expect(agents.agents[id]).toEqual(expected);
+        expect(agents.agents[id]?.name.trim().length).toBeGreaterThan(0);
+        expect(agents.agents[id]?.definition_file).toBe(`.claude/agents/${id}.md`);
+      }
+
+      const savedWorkflow = yaml.load(
+        readFileSync(join(projectDir, '.ad-sdlc', 'config', 'workflow.yaml'), 'utf-8')
       );
+      expect(savedWorkflow).toEqual(workflow);
+      for (const mode of ['greenfield', 'enhancement', 'import'] as const) {
+        const plan = await loadResolvedRuntimeConfig(projectDir, { mode }, {});
+        expect(plan.diagnostics).toEqual([]);
+        expect(plan.stages.map(({ timeoutMs, ...stage }) => stage)).toEqual(
+          buildCanonicalPlan(mode)
+        );
+        expect(plan.config.maxParallelAgents).toBe(3);
+        expect(plan.config.maxRetries).toBe(3);
+      }
     }
-
-    const options = { baseDir: projectDir, environment: false } as const;
-    const workflow = await loadWorkflowConfig(options);
-    const agents = await loadAgentsConfig(options);
-    expect(workflow.version).toBe('1.0.0');
-    expect(workflow.pipeline.stages.map(({ name, agent }) => [name, agent])).toEqual([
-      ['collect', 'collector'],
-      ['prd', 'prd-writer'],
-      ['srs', 'srs-writer'],
-      ['sds', 'sds-writer'],
-      ['issues', 'issue-generator'],
-      ['implement', 'controller'],
-      ['review', 'pr-reviewer'],
-    ]);
-    expect(agents.version).toBe('1.0.0');
-    expect(Object.keys(agents.agents)).toEqual(Object.keys(expectedAgents));
-    for (const [id, expected] of Object.entries(expectedAgents)) {
-      expect(agents.agents[id]).toEqual(expected);
-      expect(agents.agents[id]?.name.trim().length).toBeGreaterThan(0);
-      expect(agents.agents[id]?.definition_file).toBe(`.claude/agents/${id}.md`);
-    }
-
-    // The loader's schema strips these legacy settings. Check the saved YAML
-    // directly to ensure initialization preserves each template's original data.
-    const savedWorkflow = yaml.load(
-      readFileSync(join(projectDir, '.ad-sdlc', 'config', 'workflow.yaml'), 'utf-8')
-    );
-    expect(savedWorkflow).toMatchObject({
-      execution: {
-        max_parallel_workers: settings.workers,
-        retry_attempts: 3,
-        retry_delay_ms: 5000,
-      },
-      quality_gates: {
-        coverage: settings.coverage,
-        complexity: settings.complexity,
-        requireReview: settings.requireReview,
-        requireTests: true,
-      },
-      pipeline: {
-        stages: workflow.pipeline.stages.map(({ name, agent }) => ({
-          name,
-          agent,
-          timeout_ms: agent === 'controller' ? 600000 : 300000,
-        })),
-      },
-    });
-  });
+  );
 
   it.each([
     { field: 'id', value: 'missing' },

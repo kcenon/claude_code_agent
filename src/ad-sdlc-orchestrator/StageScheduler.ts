@@ -29,6 +29,7 @@ import {
   isExecutionCleanupError,
   withinCleanupGrace,
 } from '../execution/cleanup.js';
+import { DEFAULT_ORCHESTRATOR_CONFIG } from './types.js';
 import { StageTimeoutError } from './errors.js';
 import type { ArtifactValidator } from './ArtifactValidator.js';
 import type { PipelineCheckpointManager } from './PipelineCheckpointManager.js';
@@ -57,6 +58,8 @@ export interface SchedulerHost {
   readonly abortController: AbortController | null;
   readonly stageTimers: Map<StageName, ReturnType<typeof setTimeout>>;
   readonly maxRetries: number;
+  readonly retryBackoff?: import('./types.js').ResolvedOrchestratorConfig['retryBackoff'];
+  onProgress?(session: OrchestratorSession, results: readonly StageResult[]): Promise<void>;
   readonly maxParallelAgents: number;
   readonly haltOnVerificationFailure: boolean;
   readonly checkpointManager: PipelineCheckpointManager | null;
@@ -350,9 +353,7 @@ export async function executeStageWithRetry(
   let attemptStartTime = Date.now();
   const retryExecutor = new RetryExecutor({
     maxAttempts: maxRetries + 1,
-    backoffStrategy: 'exponential',
-    baseDelayMs: 5000,
-    maxDelayMs: 60000,
+    ...(host.retryBackoff ?? DEFAULT_ORCHESTRATOR_CONFIG.retryBackoff),
     multiplier: 2,
     jitterRatio: 0,
   });
@@ -684,6 +685,7 @@ export async function runStages(
           verificationHaltStage = stage.name;
         }
       }
+      await host.onProgress?.(session, results);
       await saveCheckpoint(host, session, results, [...completedStages]);
 
       if (verificationHaltStage !== null) {
@@ -749,6 +751,7 @@ export async function runStages(
         completedStages.add(stage.name);
       }
 
+      await host.onProgress?.(session, results);
       await saveCheckpoint(host, session, results, [...completedStages]);
 
       if (finalized.halt) {

@@ -1,3 +1,4 @@
+import { buildCanonicalPlan } from '../../src/ad-sdlc-orchestrator/plan.js';
 import * as fs from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -101,22 +102,15 @@ describe('canonical asset inventory and initialization', () => {
   it('covers actual runtime arrays, actual local transformation, and source-declared delegation', () => {
     const bundle = loadAssetBundle(source);
     const ids = new Set(bundle.assets.map((a) => a.id));
-    // Call the real private transformation on its prototype; it does not need an SDK session.
-    const adapt = (
-      AdsdlcOrchestratorAgent.prototype as unknown as {
-        adaptStagesForLocalMode(stages: typeof GREENFIELD_STAGES): typeof GREENFIELD_STAGES;
-      }
-    ).adaptStagesForLocalMode;
-    for (const stages of [GREENFIELD_STAGES, ENHANCEMENT_STAGES, IMPORT_STAGES]) {
-      for (const stage of stages) expect(ids.has(`agent:${stage.agentType}`)).toBe(true);
-      const local = adapt.call(AdsdlcOrchestratorAgent.prototype, stages);
+    for (const mode of ['greenfield', 'enhancement', 'import'] as const) {
+      for (const stage of buildCanonicalPlan(mode))
+        expect(ids.has(`agent:${stage.agentType}`)).toBe(true);
+      const local = buildCanonicalPlan(mode, true);
       expect(local.some((s) => s.agentType === 'local-reviewer')).toBe(true);
       for (const stage of local) expect(ids.has(`agent:${stage.agentType}`)).toBe(true);
     }
     expect(
-      adapt
-        .call(AdsdlcOrchestratorAgent.prototype, IMPORT_STAGES)
-        .some((s) => s.agentType === 'local-issue-reader')
+      buildCanonicalPlan('import', true).some((s) => s.agentType === 'local-issue-reader')
     ).toBe(true);
     expect(bundle.manifest.localSubstitutions).toEqual(LOCAL_AGENT_SUBSTITUTIONS);
     expect(bundle.assets.find((a) => a.id === 'agent:pr-reviewer')!.requires).toContain(

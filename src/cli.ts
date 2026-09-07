@@ -12,6 +12,7 @@ import { configureAuditDocsCommand, runAuditDocs } from './doc-audit/cli.js';
 import { updateAssets } from './project-initializer/AssetUpdater.js';
 import chalk from 'chalk';
 import { Command } from 'commander';
+import { Console } from 'node:console';
 
 import {
   cleanupEmptyScaffolds,
@@ -25,7 +26,6 @@ import {
   validateConfigFile,
   watchConfigWithLogging,
   configFilesExist,
-  loadWorkflowConfig,
   CONFIG_SCHEMA_VERSION,
   type ValidationReport,
   type FileValidationResult,
@@ -36,16 +36,6 @@ import {
 } from './analysis-orchestrator/index.js';
 import type { AnalysisScope } from './analysis-orchestrator/types.js';
 import { getLogger } from './logging/index.js';
-import {
-  getAdsdlcOrchestratorAgent,
-  resetAdsdlcOrchestratorAgent,
-} from './ad-sdlc-orchestrator/index.js';
-import type { PipelineMode, PipelineRequest, StageName } from './ad-sdlc-orchestrator/index.js';
-import {
-  GREENFIELD_STAGES,
-  ENHANCEMENT_STAGES,
-  IMPORT_STAGES,
-} from './ad-sdlc-orchestrator/index.js';
 import { describeExecutionEnvironment, hasRealExecutionEnvironment } from './execution/index.js';
 import { StatusService } from './status/index.js';
 import type { OutputFormat } from './status/types.js';
@@ -59,7 +49,8 @@ import { resolve } from 'node:path';
 import { getCompletionGenerator, SUPPORTED_SHELLS, type ShellType } from './completion/index.js';
 import { getTelemetry, PRIVACY_POLICY, PRIVACY_POLICY_VERSION } from './telemetry/index.js';
 import { getCLIOutput } from './cli/CLIOutput.js';
-import type { VnvConfig } from './vnv/types.js';
+import { configureRunCommand, prepareRunCommand } from './cli/runCommand.js';
+import { RuntimeConfigError, type EffectiveExecutionPlan } from './config/runtimeTypes.js';
 
 const output = getCLIOutput();
 const program = new Command();
@@ -252,10 +243,14 @@ program
   .command('validate')
   .description('Validate AD-SDLC configuration files')
   .option('-f, --file <path>', 'Validate a specific file')
+  .option('--project-dir <dir>', 'Target project directory', process.cwd())
   .option('-w, --watch', 'Watch for file changes')
   .option('--format <format>', 'Output format (text, json)', 'text')
   .action(async (cmdOptions: Record<string, unknown>) => {
     const filePath = typeof cmdOptions['file'] === 'string' ? cmdOptions['file'] : null;
+    const projectDir = resolve(
+      typeof cmdOptions['projectDir'] === 'string' ? cmdOptions['projectDir'] : process.cwd()
+    );
     const watchMode = cmdOptions['watch'] === true;
     const format = typeof cmdOptions['format'] === 'string' ? cmdOptions['format'] : 'text';
     const isJson = format === 'json';
@@ -267,8 +262,8 @@ program
 
     try {
       // Check if config files exist
-      const exists = configFilesExist();
-      if (!exists.workflow && !exists.agents) {
+      const exists = configFilesExist(projectDir);
+      if (filePath === null && !exists.workflow && !exists.agents) {
         if (isJson) {
           output.info(
             JSON.stringify({
@@ -288,7 +283,7 @@ program
 
       // Validate specific file or all files
       if (filePath !== null && filePath.length > 0) {
-        const result = await validateConfigFile(filePath);
+        const result = await validateConfigFile(filePath, { runtime: true });
 
         if (isJson) {
           output.info(
@@ -312,7 +307,7 @@ program
           process.exit(1);
         }
       } else {
-        const report = await validateAllConfigs();
+        const report = await validateAllConfigs(projectDir, { runtime: true });
 
         if (isJson) {
           formatReportAsJson(report);
@@ -345,7 +340,7 @@ program
         }
 
         const cleanup = watchConfigWithLogging(
-          undefined,
+          projectDir,
           (changedPath) => {
             if (isJson) {
               output.info(
@@ -416,7 +411,8 @@ program
 program
   .command('status')
   .description('Show current pipeline status')
-  .option('-p, --project <id>', 'Show status for specific project')
+  .option('-p, --project <id>', 'Show status for specific project or session')
+  .option('--project-dir <dir>', 'Project root owning saved runs', process.cwd())
   .option('--format <format>', 'Output format (text, json)', 'text')
   .option('-v, --verbose', 'Show verbose output with more details')
   .action(async (cmdOptions: Record<string, unknown>) => {
@@ -433,12 +429,30 @@ program
     }
     const format = formatInput as OutputFormat;
 
-    const statusService = new StatusService({ format, verbose });
-    const displayOptions = projectId !== undefined ? { projectId } : {};
-    const result = await statusService.displayStatus(displayOptions);
-
-    if (!result.success) {
-      process.exit(1);
+    const diagnosticConsole = globalThis.console;
+    if (format === 'json')
+      globalThis.console = new Console({ stdout: process.stderr, stderr: process.stderr });
+    try {
+      const statusService = new StatusService({
+        format,
+        verbose,
+        projectDir: String(cmdOptions['projectDir']),
+      });
+      if (format === 'json')
+        output.info(JSON.stringify(await statusService.getStatus(projectId), null, 2));
+      else {
+        const result = await statusService.displayStatus(
+          projectId === undefined ? {} : { projectId }
+        );
+        if (!result.success) process.exitCode = 1;
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (format === 'json') output.info(JSON.stringify({ error: message }));
+      else output.error(message);
+      process.exitCode = 1;
+    } finally {
+      globalThis.console = diagnosticConsole;
     }
   });
 
@@ -1023,309 +1037,97 @@ program
     }
   });
 
-/**
- * Run command - Execute the AD-SDLC pipeline
- */
-program
-  .command('run')
-  .description('Execute the AD-SDLC pipeline to generate documents, issues, and implementation')
-  .argument('<requirements>', 'Project requirements or description text')
-  .option('-m, --mode <mode>', 'Pipeline mode: greenfield | enhancement | import', 'greenfield')
-  .option('--stop-after <stage>', 'Stop pipeline after specified stage')
-  .option('--project-dir <dir>', 'Target project directory', process.cwd())
-  .option('--dry-run', 'Validate pipeline configuration without executing agents', false)
-  .option(
-    '--allow-stub',
-    'Allow stub execution backend for testing (by default, a real backend is required)',
-    false
-  )
-  .option('--resume <session-id>', 'Resume a previously interrupted pipeline session')
-  .option('-L, --local', 'Run in local mode without GitHub dependency')
-  .option(
-    '--approval-mode <mode>',
-    'Approval mode for pipeline stages: auto | manual | critical',
-    'auto'
-  )
-  .option(
-    '--use-sdk-for-worker',
-    'Deprecated compatibility flag; worker stages already use the SDK ExecutionAdapter. Equivalent to AD_SDLC_USE_SDK_FOR_WORKER=1.'
-  )
-  .action(async (requirements: string, cmdOptions: Record<string, unknown>) => {
-    const modeInput = typeof cmdOptions['mode'] === 'string' ? cmdOptions['mode'] : 'greenfield';
-    // Issue #795: surface --use-sdk-for-worker as a tri-state. `undefined`
-    // means the user did not pass the flag, so the resolver falls through
-    // to YAML / default. `true` means the flag was supplied (boolean opt
-    // with no `--no-` form, so commander only sets it when present).
-    const useSdkForWorkerCli = cmdOptions['useSdkForWorker'] === true ? true : undefined;
-    const stopAfter =
-      typeof cmdOptions['stopAfter'] === 'string' ? cmdOptions['stopAfter'] : undefined;
-    const projectDir =
-      typeof cmdOptions['projectDir'] === 'string'
-        ? resolve(cmdOptions['projectDir'])
-        : resolve(process.cwd());
-    const dryRun = cmdOptions['dryRun'] === true;
-    const allowStub = cmdOptions['allowStub'] === true;
-    const resumeSessionId =
-      typeof cmdOptions['resume'] === 'string' ? cmdOptions['resume'] : undefined;
-    const localMode = cmdOptions['local'] === true || process.env['AD_SDLC_LOCAL'] === '1';
-    const approvalModeInput =
-      typeof cmdOptions['approvalMode'] === 'string' ? cmdOptions['approvalMode'] : 'auto';
-    // 'custom' mode excluded from CLI — available only via programmatic API (subclassing)
-    const validApprovalModes = ['auto', 'manual', 'critical'];
-    if (!validApprovalModes.includes(approvalModeInput)) {
-      output.error(chalk.red(`\n❌ Invalid approval mode: ${approvalModeInput}`));
-      output.info(chalk.dim(`Valid modes: ${validApprovalModes.join(', ')}\n`));
-      process.exit(1);
-    }
-    const approvalMode = approvalModeInput as 'auto' | 'manual' | 'critical';
-
-    // Validate mode
-    const validModes = ['greenfield', 'enhancement', 'import'];
-    if (!validModes.includes(modeInput)) {
-      output.error(chalk.red(`\n❌ Invalid mode: ${modeInput}`));
-      output.info(chalk.dim(`Valid modes: ${validModes.join(', ')}\n`));
-      process.exit(1);
-    }
-    const mode = modeInput as PipelineMode;
-
-    // Check .ad-sdlc/ directory exists
-    const exists = configFilesExist(projectDir);
-    if (!exists.workflow && !exists.agents) {
-      output.error(chalk.red('\n❌ No AD-SDLC configuration found.'));
-      output.info(chalk.dim('Run "ad-sdlc init" to initialize a project first.\n'));
-      process.exit(1);
-    }
-
-    // Initialize project context
-    if (!isProjectInitialized()) {
-      try {
-        initializeProject(projectDir, { silent: true });
-      } catch (error) {
-        getLogger().debug('Project initialization skipped, using fallback paths', {
-          agent: 'CLI',
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
-    }
-
-    // Dry-run mode
-    if (dryRun) {
-      output.info(chalk.blue('\n🔍 Dry Run — Validating pipeline configuration\n'));
-      output.info(chalk.dim(`Mode: ${mode}`));
-      output.info(chalk.dim(`Project: ${projectDir}`));
-      output.info(
-        chalk.dim(
-          `Requirements: ${requirements.slice(0, 120)}${requirements.length > 120 ? '...' : ''}`
-        )
-      );
-      if (stopAfter !== undefined) {
-        output.info(chalk.dim(`Stop after: ${stopAfter}`));
-      }
-      output.blank();
-
-      // Show planned stages
-      const stageMap: Record<
-        string,
-        readonly { name: string; agentType: string; parallel?: boolean }[]
-      > = {
-        greenfield: GREENFIELD_STAGES,
-        enhancement: ENHANCEMENT_STAGES,
-        import: IMPORT_STAGES,
-      };
-      const stages = stageMap[mode] ?? GREENFIELD_STAGES;
-      output.info(chalk.dim(`Pipeline: ${String(stages.length)} stages`));
-      for (let i = 0; i < stages.length; i++) {
-        const s = stages[i];
-        if (s === undefined) continue;
-        const exec = s.parallel === true ? 'parallel' : 'sequential';
-        output.info(
-          chalk.dim(`  ${String(i + 1).padStart(2)}. ${s.name} (${s.agentType}, ${exec})`)
-        );
-      }
-      output.blank();
-
-      // Show execution backend info
-      const envLabel = describeExecutionEnvironment();
-      const backendLabel =
-        envLabel === 'claude-code'
-          ? 'claude-code session'
-          : envLabel === 'anthropic-api'
-            ? 'Anthropic API'
-            : 'stub (no real backend)';
-      output.info(chalk.dim(`Execution backend: ${backendLabel}`));
-      output.blank();
-
-      try {
-        const report = await validateAllConfigs(projectDir);
-        if (report.valid) {
-          output.info(chalk.green('Configuration valid. Pipeline is ready to execute.\n'));
-        } else {
+/** Run and dry-run share the same validated, side-effect-free preparation boundary. */
+configureRunCommand(program.command('run')).action(
+  async (requirements: string, options: Record<string, unknown>) => {
+    const json = options['format'] === 'json';
+    let runtimeSnapshot: EffectiveExecutionPlan | undefined;
+    // The CLI owns this process: SDK/library console diagnostics belong on stderr in JSON mode.
+    const diagnosticConsole = globalThis.console;
+    if (json) globalThis.console = new Console({ stdout: process.stderr, stderr: process.stderr });
+    try {
+      const prepared = await prepareRunCommand(requirements, options);
+      runtimeSnapshot = prepared.plan;
+      if (options['dryRun'] === true) {
+        if (json) output.info(JSON.stringify({ ready: true, ...prepared.plan }, null, 2));
+        else {
           output.info(
-            chalk.red(
-              `Found ${String(report.totalErrors)} configuration error(s). Fix these before running.\n`
-            )
+            `Mode: ${prepared.plan.config.mode}; local: ${String(prepared.plan.config.localMode)}`
           );
-          process.exit(1);
+          output.info(
+            `Stage concurrency: ${String(prepared.plan.config.maxParallelAgents)}; total attempts: ${String(prepared.plan.config.maxRetries + 1)}`
+          );
+          for (const stage of prepared.plan.stages)
+            output.info(
+              `  ${stage.name}: ${stage.agentType}, depends on [${stage.dependsOn.join(', ')}], budget ${String(stage.timeoutMs)} ms`
+            );
+          if (prepared.plan.stopAfterStage !== undefined)
+            output.info(
+              `Stop after: ${prepared.plan.stopAfterStage}. ${prepared.plan.stopBehavior}`
+            );
+          for (const diagnostic of prepared.plan.diagnostics)
+            output.warn(
+              `${diagnostic.source}: ${diagnostic.path}: ${diagnostic.reason} ${diagnostic.action}`
+            );
+          output.info('Configuration valid. Pipeline is ready to execute.');
         }
-      } catch (error) {
-        output.error(
-          `${chalk.red('\nError:')} ${error instanceof Error ? error.message : String(error)}`
-        );
-        process.exit(1);
-      }
-      return;
-    }
-
-    // Validate bridge availability — require real bridge unless --allow-stub
-    if (!hasRealExecutionEnvironment() && !allowStub) {
-      output.error(chalk.red('\nNo AI bridge available.'));
-      output.info(chalk.dim('Set ANTHROPIC_API_KEY or run inside a Claude Code session.'));
-      output.info(chalk.dim('Use --allow-stub for testing without a real AI bridge.\n'));
-      process.exit(1);
-    }
-
-    // Display pipeline info
-    output.info(chalk.blue('\n🚀 AD-SDLC Pipeline Execution\n'));
-    output.info(chalk.dim(`Mode: ${mode}`));
-    output.info(chalk.dim(`Project: ${projectDir}`));
-    output.info(
-      chalk.dim(
-        `Requirements: ${requirements.slice(0, 120)}${requirements.length > 120 ? '...' : ''}`
-      )
-    );
-    if (resumeSessionId !== undefined) {
-      output.info(chalk.dim(`Resuming session: ${resumeSessionId}`));
-    }
-    if (stopAfter !== undefined) {
-      output.info(chalk.dim(`Stop after: ${stopAfter}`));
-    }
-    if (localMode) {
-      output.info(chalk.dim('Local mode: enabled (GitHub integration disabled)'));
-    }
-    output.blank();
-
-    let vnv: Pick<VnvConfig, 'rigor' | 'haltOnVerificationFailure'> | undefined;
-    if (exists.workflow) {
-      try {
-        const workflow = await loadWorkflowConfig({ baseDir: projectDir });
-        const configuredVnv = workflow.global?.vnv;
-        if (configuredVnv !== undefined) {
-          vnv = {
-            rigor: configuredVnv.rigor,
-            haltOnVerificationFailure: configuredVnv.halt_on_verification_failure,
-          };
-        }
-      } catch (error: unknown) {
-        output.error(
-          `${chalk.red('\nError:')} ${error instanceof Error ? error.message : String(error)}`
-        );
-        process.exit(1);
         return;
       }
-    }
-
-    const agent = getAdsdlcOrchestratorAgent({
-      approvalMode,
-      ...(vnv !== undefined ? { vnv } : {}),
-      featureFlagsCli:
-        useSdkForWorkerCli === undefined ? {} : { useSdkForWorker: useSdkForWorkerCli },
-      featureFlagsBaseDir: projectDir,
-    });
-
-    try {
-      // Build pipeline request
-      const request: PipelineRequest = {
-        projectDir,
-        userRequest: requirements,
-        overrideMode: mode,
-        localMode,
-        ...(resumeSessionId !== undefined && {
-          resumeMode: 'resume' as const,
-          resumeSessionId,
-        }),
-        ...(stopAfter !== undefined && {
-          stopAfterStage: stopAfter as StageName,
-        }),
+      for (const diagnostic of prepared.plan.diagnostics)
+        output.warn(
+          `${diagnostic.source}: ${diagnostic.path}: ${diagnostic.reason} ${diagnostic.action}`
+        );
+      if (!hasRealExecutionEnvironment() && options['allowStub'] !== true)
+        throw new Error(
+          'No AI bridge available. Set ANTHROPIC_API_KEY or run inside a Claude Code session. Use --allow-stub for offline testing.'
+        );
+      const agent = prepared.createAgent();
+      const cancel = (): void => {
+        // Final disposal below awaits and reports the same cleanup outcome.
+        void agent.dispose().catch(() => undefined);
       };
-
-      // Start session
-      const session = await agent.startSession(request);
-      output.info(chalk.green(`✓ Session started: ${session.sessionId}`));
-      output.info(chalk.dim(`Pipeline mode: ${session.mode}`));
-      output.blank();
-
-      // Execute pipeline
-      output.info(chalk.blue('⟳ Executing pipeline stages...\n'));
-      const result = await agent.executePipeline(projectDir, requirements);
-
-      // Display results
-      output.info(chalk.green('\n✅ Pipeline Complete\n'));
-      output.info(`${chalk.white('Pipeline ID:')} ${result.pipelineId}`);
-      output.info(`${chalk.white('Project ID:')} ${result.projectId}`);
-      output.info(`${chalk.white('Mode:')} ${result.mode}`);
-      output.info(`${chalk.white('Status:')} ${formatPipelineStatus(result.overallStatus)}`);
-
-      if (result.stages.length > 0) {
-        output.info(chalk.blue('\nStages:'));
-        for (const stage of result.stages) {
-          const icon = getStatusIcon(stage.status);
-          const duration = chalk.dim(`(${String(stage.durationMs)}ms)`);
-          output.info(`  ${icon} ${stage.name} ${duration}`);
-          if (stage.error !== null) {
-            output.info(chalk.red(`      Error: ${stage.error}`));
-          }
-        }
+      process.once('SIGINT', cancel);
+      process.once('SIGTERM', cancel);
+      let result: Awaited<ReturnType<typeof prepared.execute>>;
+      try {
+        result = await prepared.execute(agent);
+      } finally {
+        process.removeListener('SIGINT', cancel);
+        process.removeListener('SIGTERM', cancel);
+        await agent.dispose();
       }
-
-      if (result.artifacts.length > 0) {
-        output.info(chalk.blue('\nArtifacts:'));
-        for (const artifact of result.artifacts) {
-          output.info(`  ${chalk.dim(artifact)}`);
-        }
+      // Emit one terminal JSON object only after all cleanup has completed.
+      if (json) output.info(JSON.stringify(result, null, 2));
+      else {
+        output.info(`Pipeline ${result.pipelineId}: ${result.overallStatus} (${result.mode})`);
+        for (const stage of result.stages)
+          output.info(
+            `  ${stage.name}: ${stage.status} (${String(stage.durationMs)} ms)${stage.error === null ? '' : ` — ${stage.error}`}`
+          );
       }
-
-      if (result.warnings.length > 0) {
-        output.info(chalk.yellow('\nWarnings:'));
-        for (const warning of result.warnings) {
-          output.info(chalk.yellow(`  ⚠ ${warning}`));
-        }
-      }
-
-      output.info(chalk.dim(`\nTotal duration: ${String(result.durationMs)}ms\n`));
-
-      resetAdsdlcOrchestratorAgent();
-
-      if (result.overallStatus === 'failed') {
-        process.exit(1);
-      }
+      if (result.overallStatus === 'failed') process.exitCode = 1;
     } catch (error) {
-      output.error(
-        `${chalk.red('\n❌ Pipeline failed:')} ${error instanceof Error ? error.message : String(error)}`
-      );
-      resetAdsdlcOrchestratorAgent();
-      process.exit(1);
+      const message = error instanceof Error ? error.message : String(error);
+      if (json)
+        output.info(
+          JSON.stringify(
+            {
+              ready: false,
+              error: message,
+              diagnostics: error instanceof RuntimeConfigError ? error.diagnostics : [],
+              ...(runtimeSnapshot === undefined ? {} : { runtimeSnapshot }),
+            },
+            null,
+            2
+          )
+        );
+      else output.error(message);
+      process.exitCode = 1;
+    } finally {
+      globalThis.console = diagnosticConsole;
     }
-  });
-
-/**
- * Format pipeline overall status for display
- * @param status - The pipeline status string
- * @returns A chalk-colored status label
- */
-function formatPipelineStatus(status: string): string {
-  switch (status) {
-    case 'completed':
-      return chalk.green(status);
-    case 'running':
-      return chalk.blue(status);
-    case 'partial':
-      return chalk.yellow(status);
-    case 'failed':
-      return chalk.red(status);
-    default:
-      return chalk.dim(status);
   }
-}
+);
 
 configureAuditDocsCommand(program.command('audit-docs')).action(
   (options: { projectDir: string; output: string; quiet?: boolean }) => {

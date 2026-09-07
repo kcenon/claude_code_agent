@@ -10,33 +10,19 @@ import type { QualityGateConfig, TemplateConfig, WorkflowConfig } from './types.
 
 /**
  * Generate workflow configuration
- * @param templateConfig - The template configuration to use
- * @param qualityGates - The quality gate configuration to apply
+ * @param _templateConfig - Template metadata (runtime presets use canonical defaults)
+ * @param _qualityGates - Deprecated compatibility parameter; never emitted
  * @returns Generated workflow configuration object
  */
 export function generateWorkflowConfig(
-  templateConfig: TemplateConfig,
-  qualityGates: QualityGateConfig
+  _templateConfig: TemplateConfig,
+  _qualityGates: QualityGateConfig
 ): WorkflowConfig {
+  // Template quality/worker presets are retained in the public input types only.
+  // They never governed SDK execution and must not become active runtime requests.
   return {
     version: '1.0.0',
-    pipeline: {
-      stages: [
-        { name: 'collect', agent: 'collector', timeout_ms: 300000 },
-        { name: 'prd', agent: 'prd-writer', timeout_ms: 300000 },
-        { name: 'srs', agent: 'srs-writer', timeout_ms: 300000 },
-        { name: 'sds', agent: 'sds-writer', timeout_ms: 300000 },
-        { name: 'issues', agent: 'issue-generator', timeout_ms: 300000 },
-        { name: 'implement', agent: 'controller', timeout_ms: 600000 },
-        { name: 'review', agent: 'pr-reviewer', timeout_ms: 300000 },
-      ],
-    },
-    quality_gates: qualityGates,
-    execution: {
-      max_parallel_workers: templateConfig.parallelWorkers,
-      retry_attempts: 3,
-      retry_delay_ms: 5000,
-    },
+    pipeline: { default_mode: 'greenfield' },
   };
 }
 

@@ -14,6 +14,7 @@ import { tryGetProjectRoot } from '../utils/index.js';
 
 import * as yaml from 'js-yaml';
 
+import { resolveRuntimeConfig } from '../config/runtime.js';
 import { validateAgentsConfig, validateWorkflowConfig } from '../config/validation.js';
 import type { AgentsConfig } from '../config/types.js';
 
@@ -120,7 +121,8 @@ export class ProjectInitializer {
 
       // Always validate generated configuration, even when prerequisites are skipped.
       const templateConfig = TEMPLATE_CONFIGS[this.options.template];
-      const qualityGateConfig = QUALITY_GATE_CONFIGS[templateConfig.qualityGates];
+      // Retained builder parameters are compatibility inputs, not runtime quality policy.
+      const qualityGateConfig = QUALITY_GATE_CONFIGS.standard;
       const workflowContent = generateWorkflowConfig(templateConfig, qualityGateConfig);
       const bundle = loadAssetBundle(this.assetPackageRoot);
       warnings.push(...bundle.warnings);
@@ -137,6 +139,17 @@ export class ProjectInitializer {
             .join('\n');
           throw new ConfigurationError(filename, reason ?? 'Generated configuration is invalid');
         }
+      }
+
+      try {
+        resolveRuntimeConfig({
+          layers: [{ source: 'generated workflow.yaml', value: workflowContent }],
+        });
+      } catch (error) {
+        throw new ConfigurationError(
+          'workflow.yaml',
+          error instanceof Error ? error.message : String(error)
+        );
       }
 
       // Create directory structure
