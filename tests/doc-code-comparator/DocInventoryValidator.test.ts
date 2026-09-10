@@ -93,6 +93,39 @@ describe('DocInventoryValidator', () => {
     );
   });
 
+  it('accepts patch and minor dependency bumps on the documented release line', () => {
+    write(
+      'package.json',
+      JSON.stringify({ dependencies: { '@anthropic-ai/claude-agent-sdk': '^1.4.0' } })
+    );
+
+    expect(new DocInventoryValidator(root).validate().violations).toEqual([]);
+  });
+
+  it('reports a major dependency bump until the documented version is updated', () => {
+    write(
+      'package.json',
+      JSON.stringify({ dependencies: { '@anthropic-ai/claude-agent-sdk': '^2.0.0' } })
+    );
+
+    const result = new DocInventoryValidator(root).validate();
+
+    expect(result.violations).toContainEqual(
+      expect.objectContaining({ code: 'DEPENDENCY_VERSION', path: 'README.md' })
+    );
+    expect(result.violations).toContainEqual(
+      expect.objectContaining({ code: 'DEPENDENCY_VERSION', path: 'docs/architecture/overview.md' })
+    );
+  });
+
+  it('compares 0.x caret ranges by minor version', () => {
+    expect(DocInventoryValidator.isSameReleaseLine('^0.3.258', '^0.3.260')).toBe(true);
+    expect(DocInventoryValidator.isSameReleaseLine('^0.3.258', '^0.4.0')).toBe(false);
+    expect(DocInventoryValidator.isSameReleaseLine('^14.2.0', '^14.2.1')).toBe(true);
+    expect(DocInventoryValidator.isSameReleaseLine('^4.0.16', '^5.0.0')).toBe(false);
+    expect(DocInventoryValidator.isSameReleaseLine('~1.2.3', '~1.2.4')).toBe(false);
+  });
+
   it('reports a legacy ADR tree and stale generated inventory block', () => {
     write('docs/architecture/decisions/ADR-001-old.md', '# Legacy ADR\n');
     write(

@@ -326,7 +326,7 @@ export class DocInventoryValidator {
       const documentedVersions = this.extractDependencyVersions(dependencySection);
       for (const [dependency, documented] of documentedVersions) {
         const actual = versions[dependency];
-        if (actual !== undefined && documented !== actual) {
+        if (actual !== undefined && !DocInventoryValidator.isSameReleaseLine(documented, actual)) {
           violations.push({
             code: 'DEPENDENCY_VERSION',
             path: table.path,
@@ -343,6 +343,37 @@ export class DocInventoryValidator {
         });
       }
     }
+  }
+
+  /**
+   * Dependency tables document the release line a package is on, not the exact
+   * range in package.json. Two caret ranges are on the same line when they share
+   * the major version (the minor version for 0.x, as in semver caret semantics),
+   * so patch and minor bumps such as Dependabot updates pass without a doc edit,
+   * while a major bump fails until the table is updated in the same PR. Anything
+   * other than a plain caret range must match exactly.
+   *
+   * @param documented - Version range written in the documentation table
+   * @param declared - Version range declared in package.json
+   * @returns True when both ranges are on the same release line
+   */
+  static isSameReleaseLine(documented: string, declared: string): boolean {
+    if (documented === declared) {
+      return true;
+    }
+    const releaseLine = (range: string): string | undefined => {
+      const match = /^\^(\d+)\.(\d+)\.\d+$/.exec(range);
+      if (match === null) {
+        return undefined;
+      }
+      const [, major, minor] = match;
+      if (major === undefined || minor === undefined) {
+        return undefined;
+      }
+      return major === '0' ? `0.${minor}` : major;
+    };
+    const documentedLine = releaseLine(documented);
+    return documentedLine !== undefined && documentedLine === releaseLine(declared);
   }
 
   private extractDependencyVersions(markdown: string): ReadonlyMap<string, string> {
