@@ -46,6 +46,14 @@ permissions:
   pull-requests: write
 
 jobs:
+  # Checks documented symbols and inventory counts against the code
+  # (npm run docs:check). Policy for dependency-only PRs such as Dependabot
+  # updates: the dependency tables in README.md and
+  # docs/architecture/overview.md are compared by release line
+  # (DocInventoryValidator.isSameReleaseLine). A patch or minor bump passes
+  # without a doc edit; a major bump, or a minor bump of a 0.x package, fails
+  # until the documented version is updated in the same PR. Whoever merges the
+  # dependency PR pushes that doc edit to its branch.
   validate-doc-code:
     name: Validate Documentation Against Code
     runs-on: ubuntu-latest
