@@ -452,7 +452,10 @@ async function loadConfigWithEnvOverride(
   // Load and merge environment-specific configuration
   try {
     const envData = await parseYamlFile(envPath);
-    const mergedData = deepMergeConfig(baseData, envData as Partial<typeof baseData>);
+    const mergedData =
+      isPlainObject(baseData) && isPlainObject(envData)
+        ? deepMergeConfig(baseData, envData)
+        : envData;
     return { data: mergedData, envPath };
   } catch (error) {
     // If env config fails to parse, log warning and use base
