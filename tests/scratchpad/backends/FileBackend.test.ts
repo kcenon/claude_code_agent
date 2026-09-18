@@ -86,6 +86,15 @@ describe('FileBackend', () => {
   });
 
   describe('list', () => {
+    it('round-trips raw keys including extensions through list and read', async () => {
+      const raw = new FileBackend({ basePath: testBasePath, format: 'raw' });
+      await raw.initialize();
+      await raw.write('raw-records', 'capture.json', '{"captured":true}');
+      const keys = await raw.list('raw-records');
+      expect(keys).toEqual(['capture.json']);
+      expect(await raw.read('raw-records', keys[0]!)).toBe('{"captured":true}');
+      await raw.close();
+    });
     it('should list all keys in a section', async () => {
       await backend.write('section1', 'key1', { data: 1 });
       await backend.write('section1', 'key2', { data: 2 });

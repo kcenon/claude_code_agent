@@ -110,12 +110,14 @@ describe('buildHookPipeline', () => {
       expect(sink.entries).toEqual([
         {
           filePath: 'src/foo.ts',
+          toolUseId: 'tool-1',
           toolName: 'Edit',
           capturedAt: '2026-05-08T00:00:00.000Z',
           sessionId: 'sess-1',
         },
         {
           filePath: 'src/bar.ts',
+          toolUseId: 'tool-1',
           toolName: 'Write',
           capturedAt: '2026-05-08T00:00:00.000Z',
           sessionId: 'sess-1',
@@ -297,12 +299,14 @@ describe('integration — MockExecutionAdapter + hook callback', () => {
     expect(sink.entries).toEqual([
       {
         filePath: 'src/integration.ts',
+        toolUseId: 'tool-1',
         toolName: 'Write',
         capturedAt: '2026-05-08T01:00:00.000Z',
         sessionId: 'mock-int',
       },
       {
         filePath: 'src/integration.ts',
+        toolUseId: 'tool-1',
         toolName: 'Edit',
         capturedAt: '2026-05-08T01:00:00.000Z',
         sessionId: 'mock-int',

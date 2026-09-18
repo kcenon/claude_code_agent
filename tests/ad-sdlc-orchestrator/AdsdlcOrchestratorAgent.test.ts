@@ -1273,9 +1273,9 @@ describe('AdsdlcOrchestratorAgent', () => {
       expect(result.overallStatus).toBe('completed');
       // collection had a required artifact (collected_info.yaml) that doesn't exist,
       // so it should have been removed from preCompleted and re-executed.
-      // initialization has .ad-sdlc/scratchpad which doesn't exist either.
+      // Session persistence provisions the initialization scratchpad directory.
       // mode_detection has no artifact definition, so it stays pre-completed.
-      expect(executionOrder).toContain('initialization');
+      expect(executionOrder).not.toContain('initialization');
       expect(executionOrder).toContain('collection');
       // mode_detection has no artifact spec, so it remains pre-completed
       expect(executionOrder).not.toContain('mode_detection');

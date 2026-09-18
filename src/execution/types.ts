@@ -10,10 +10,11 @@
 
 import type { McpStdioServerConfig, McpHttpServerConfig } from '@anthropic-ai/claude-agent-sdk';
 import type { SerializedError } from '../errors/types.js';
+import type { ArtifactContext, ArtifactManifest, ManifestReference } from './artifacts/schemas.js';
 
 /**
  * Reference to an artifact produced by a stage. Path is relative to the
- * project's scratchpad root (e.g., `.ad-sdlc/scratchpad/...`). The optional
+ * project root, using portable `/` separators. The optional SHA-256
  * checksum lets downstream consumers detect drift between recorded and
  * on-disk content.
  */
@@ -59,6 +60,10 @@ export type StageExecutionStatus = 'success' | 'failed' | 'aborted';
  * test that asserts this.
  */
 export interface StageExecutionRequest {
+  /** Trusted invocation identity and output policy; enables durable manifests. */
+  readonly artifactContext?: ArtifactContext;
+  /** Hydrated upstream records, including for non-file scratchpad backends. */
+  readonly priorManifests?: readonly ArtifactManifest[];
   /** Absolute root of the target project; never inferred by the SDK adapter. */
   readonly projectDir: string;
   readonly agentType: string;
@@ -79,6 +84,8 @@ export interface StageExecutionRequest {
  * the causal status is aborted.
  */
 export interface StageExecutionResult {
+  /** Immutable manifest reference; authoritative when present. */
+  readonly manifest?: ManifestReference;
   readonly status: StageExecutionStatus;
   readonly artifacts: readonly ArtifactRef[];
   readonly sessionId: string;

@@ -8,6 +8,7 @@
     "src/execution/**/*.ts",
     "tests/execution/**/*.ts",
     "tests/ad-sdlc-orchestrator/projectContext.test.ts",
+    "tests/ad-sdlc-orchestrator/artifactManifests.test.ts",
     "tests/ad-sdlc-orchestrator/sdkLifecycle.test.ts"
   ],
   "exclude": ["node_modules", "dist"]
