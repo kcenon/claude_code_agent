@@ -12,6 +12,7 @@
  * private helpers (timers, retries, validators, checkpoints) without
  * exposing them publicly.
  */
+import type { ManifestReference } from '../execution/artifacts/schemas.js';
 
 import { getLogger } from '../logging/index.js';
 import { RetryExecutor } from '../error-handler/RetryExecutor.js';
@@ -55,6 +56,8 @@ import type {
  *   - `sleep` so test subclasses can short-circuit retry backoffs
  */
 export interface SchedulerHost {
+  getStageManifest?(name: StageName): ManifestReference | undefined;
+  getStageArtifacts?(name: StageName): readonly string[] | undefined;
   readonly abortController: AbortController | null;
   readonly stageTimers: Map<StageName, ReturnType<typeof setTimeout>>;
   readonly maxRetries: number;
@@ -395,6 +398,7 @@ export async function executeStageWithRetry(
     }
   );
 
+  const manifest = host.getStageManifest?.(stage.name);
   if (execution.success && execution.value !== undefined) {
     return {
       name: stage.name,
@@ -402,7 +406,8 @@ export async function executeStageWithRetry(
       status: 'completed',
       durationMs: Date.now() - attemptStartTime,
       output: execution.value,
-      artifacts: extractArtifactPaths(execution.value),
+      artifacts: host.getStageArtifacts?.(stage.name) ?? extractArtifactPaths(execution.value),
+      ...(manifest !== undefined ? { manifest } : {}),
       error: null,
       retryCount: Math.max(0, attempt - 1),
     };
@@ -423,6 +428,7 @@ export async function executeStageWithRetry(
     output: '',
     artifacts: [],
     error: error?.message ?? 'Stage execution failed',
+    ...(manifest !== undefined ? { manifest } : {}),
     ...(details !== undefined ? { errorDetails: details.toJSON() } : {}),
     retryCount: Math.max(0, attempt - 1),
   };

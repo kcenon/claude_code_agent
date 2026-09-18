@@ -4,6 +4,7 @@
  * Defines types for full pipeline orchestration across Greenfield,
  * Enhancement, and Import modes. Based on SDS-001 CMP-025 specification.
  */
+import type { ManifestReference } from '../execution/artifacts/schemas.js';
 
 import type { EffectiveExecutionPlan } from '../config/runtimeTypes.js';
 import type { RetryPolicy } from '../error-handler/RetryExecutor.js';
@@ -153,6 +154,8 @@ export interface PipelineStageDefinition {
  * Pipeline stage result
  */
 export interface StageResult {
+  /** Authoritative immutable artifact metadata, absent in legacy sessions. */
+  readonly manifest?: ManifestReference;
   /** Stage name */
   readonly name: StageName;
   /** Agent type that executed */
@@ -179,6 +182,8 @@ export interface StageResult {
  * Pipeline execution result (SDS-001 Section 3.25)
  */
 export interface PipelineResult {
+  /** References retained independently of checkpoint pruning. */
+  readonly manifests?: readonly ManifestReference[];
   /** Resolved configuration and graph saved for this run (absent in legacy sessions). */
   readonly runtimeSnapshot?: EffectiveExecutionPlan;
   /** Unique pipeline execution identifier */

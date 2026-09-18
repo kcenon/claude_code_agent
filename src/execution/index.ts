@@ -51,3 +51,17 @@ export {
 export type { ExecutionEnvironmentLabel } from './env.js';
 
 export { DEFAULT_CLEANUP_GRACE_MS, ExecutionCleanupError } from './cleanup.js';
+
+export { ManifestStore } from './artifacts/ManifestStore.js';
+export {
+  ArtifactManifestSchema,
+  ArtifactOutputSchema,
+  ManifestReferenceSchema,
+} from './artifacts/schemas.js';
+export type {
+  ArtifactManifest,
+  ArtifactContext,
+  ArtifactEntry,
+  ManifestReference,
+  ArtifactDeclaration,
+} from './artifacts/schemas.js';

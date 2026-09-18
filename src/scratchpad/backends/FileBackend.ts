@@ -214,7 +214,9 @@ export class FileBackend implements IScratchpadBackend {
       const entries = await fs.promises.readdir(sectionPath, { withFileTypes: true });
       return entries
         .filter((entry) => entry.isFile() && entry.name.endsWith(this.extension))
-        .map((entry) => entry.name.slice(0, -this.extension.length));
+        .map((entry) =>
+          this.extension === '' ? entry.name : entry.name.slice(0, -this.extension.length)
+        );
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
         return [];

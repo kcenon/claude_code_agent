@@ -33,6 +33,11 @@ afterEach(() => {
 
 class SdkOrchestrator extends AdsdlcOrchestratorAgent {
   creations = 0;
+  readonly backoffStarted = deferred<void>();
+  protected override sleep(ms: number, signal?: AbortSignal): Promise<void> {
+    this.backoffStarted.resolve();
+    return super.sleep(ms, signal);
+  }
   constructor(
     readonly adapter: ExecutionAdapter,
     config: OrchestratorConfig = {}
@@ -158,6 +163,7 @@ describe('production timeout and retry cleanup barriers', () => {
     expect(run.isSettled()).toBe(false);
     run.query.cleanupGate.resolve();
     await run.query.cleaned.promise;
+    await run.orchestrator.backoffStarted.promise;
     await vi.advanceTimersByTimeAsync(4999);
     expect(run.queries).toHaveLength(1);
     await vi.advanceTimersByTimeAsync(1);
@@ -180,6 +186,7 @@ describe('production timeout and retry cleanup barriers', () => {
     await run.query.returning.promise;
     run.query.cleanupGate.resolve();
     await run.query.cleaned.promise;
+    await run.orchestrator.backoffStarted.promise;
     await vi.advanceTimersByTimeAsync(4000);
     expect((await run.execution).error).toBeInstanceOf(PipelineFailedError);
     expect(run.orchestrator.getStatus().stages[0]).toMatchObject({
@@ -219,6 +226,7 @@ describe('production timeout and retry cleanup barriers', () => {
     await run.query.returning.promise;
     run.query.cleanupGate.resolve();
     await run.query.cleaned.promise;
+    await run.orchestrator.backoffStarted.promise;
     await vi.advanceTimersByTimeAsync(1000);
     const disposal = run.orchestrator.dispose();
     await disposal;

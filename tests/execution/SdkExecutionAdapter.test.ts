@@ -85,17 +85,14 @@ describe('SdkExecutionAdapter', () => {
   });
 
   describe('execute - success path', () => {
-    it('extracts session id, tool count, token usage and artifacts from messages', async () => {
+    it('extracts SDK metadata without treating final prose as artifact declarations', async () => {
       const adapter = new SdkExecutionAdapter({ loader: async () => fakeSdk(successMessages) });
       const result = await adapter.execute(baseRequest);
       expect(result.status).toBe('success');
       expect(result.sessionId).toBe('s-123');
       expect(result.toolCallCount).toBe(4);
       expect(result.tokenUsage).toEqual({ input: 100, output: 50, cache: 30 });
-      expect(result.artifacts).toEqual([
-        { path: 'src/foo.ts', description: 'implementation file' },
-        { path: 'src/foo.test.ts', description: 'unit test' },
-      ]);
+      expect(result.artifacts).toEqual([]);
     });
 
     it('forwards skills, mcpServers, maxTurns, resume and signal to the SDK options', async () => {

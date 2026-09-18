@@ -18,14 +18,23 @@ import * as path from 'node:path';
 
 import type { IAgent } from '../agents/types.js';
 import {
-  buildHookPipeline,
-  type ArtifactCaptureEntry,
-  type ArtifactSink,
   type ExecutionAdapter,
   type StageExecutionRequest,
   type StageExecutionResult,
 } from '../execution/index.js';
 import { SdkExecutionAdapter } from '../execution/index.js';
+import {
+  ManifestReferenceSchema,
+  parseArtifact,
+  type ManifestReference,
+} from '../execution/artifacts/schemas.js';
+import {
+  stageArtifactContext,
+  loadStageManifests,
+  recoverStageManifest,
+  resolveStageManifest,
+} from './stageManifests.js';
+import { manifestArtifacts } from '../execution/artifacts/ArtifactAttempt.js';
 import { getLogger } from '../logging/index.js';
 import { ENV_USE_SDK_FOR_WORKER } from '../config/featureFlags.js';
 import { StageVerifierAgent } from '../stage-verifier/StageVerifierAgent.js';
@@ -108,6 +117,10 @@ export class AdsdlcOrchestratorAgent implements IAgent {
   private stageVerifier: StageVerifierAgent | null = null;
   private stageVerifierInitialized = false;
   private verificationResults: StageVerificationResult[] = [];
+  private readonly stageManifests = new Map<
+    StageName,
+    { reference: ManifestReference; artifacts: readonly string[] }
+  >();
   private readonly checkpointManager: PipelineCheckpointManager | null;
   /**
    * One-shot SDK session id used to resume the FIRST stage of a session
@@ -253,6 +266,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
     if (request.projectDir.trim().length === 0) {
       throw new InvalidProjectDirError(request.projectDir, 'Project directory must not be blank');
     }
+    this.stageManifests.clear();
     const projectDir = path.resolve(request.projectDir);
     if (request.runtimeSnapshot !== undefined)
       this.config = {
@@ -383,7 +397,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
     };
 
     this.abortController = new AbortController();
-    if (this.session.runtimeSnapshot !== undefined) await this.persistProgress(this.session, []);
+    await this.persistProgress(this.session, []);
     return this.session;
   }
 
@@ -401,7 +415,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
       await this.initialize();
     }
 
-    const session =
+    let session =
       this.session ??
       (await this.startSession({
         projectDir,
@@ -414,6 +428,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
     let pipelineError: unknown;
 
     try {
+      await this.persistProgress(this.session, []);
       const stages = this.getStagesForMode(session.mode);
 
       // Build pre-completed set from session state
@@ -424,10 +439,31 @@ export class AdsdlcOrchestratorAgent implements IAgent {
         }
       }
 
-      // Validate artifacts for pre-completed stages (graceful degradation)
+      const savedManifests = await loadStageManifests(session, session.stageResults);
+      session = {
+        ...session,
+        stageResults: session.stageResults.map((result) => {
+          const manifest = savedManifests.find((saved) => saved.stageName === result.name);
+          return manifest === undefined
+            ? result
+            : { ...result, artifacts: manifestArtifacts(manifest).map((entry) => entry.path) };
+        }),
+      };
+
+      // Legacy sessions retain the existing path-pattern validation policy.
       if (preCompleted.size > 0) {
         const validator = this.createArtifactValidator(session.projectDir);
-        const validations = await validator.validatePreCompletedStages(preCompleted, session.mode);
+        const validations = await validator.validatePreCompletedStages(
+          new Set(
+            [...preCompleted].filter(
+              (name) =>
+                !session.stageResults.some(
+                  (result) => result.name === name && result.manifest !== undefined
+                )
+            )
+          ),
+          session.mode
+        );
         const invalid = validations.filter((v) => !v.valid);
         for (const v of invalid) {
           preCompleted.delete(v.stage);
@@ -437,7 +473,10 @@ export class AdsdlcOrchestratorAgent implements IAgent {
       // Collect prior results for final aggregation
       const priorResults: StageResult[] =
         preCompleted.size > 0
-          ? session.stageResults.filter((r) => r.status === 'completed' && preCompleted.has(r.name))
+          ? session.stageResults.filter(
+              (r) =>
+                (r.status === 'completed' || r.status === 'degraded') && preCompleted.has(r.name)
+            )
           : [];
 
       const newResults = await this.executeStages(stages, session, preCompleted);
@@ -473,6 +512,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
         overallStatus,
         durationMs: Date.now() - startTime,
         artifacts: stageResults.flatMap((s) => s.artifacts),
+        manifests: stageResults.flatMap((s) => (s.manifest === undefined ? [] : [s.manifest])),
         warnings,
         ...(this.verificationResults.length > 0
           ? { verificationResults: [...this.verificationResults] }
@@ -643,6 +683,8 @@ export class AdsdlcOrchestratorAgent implements IAgent {
       haltOnVerificationFailure:
         this.config.vnv.rigor === 'strict' && this.config.vnv.haltOnVerificationFailure,
       checkpointManager: this.checkpointManager,
+      getStageManifest: (name) => this.stageManifests.get(name)?.reference,
+      getStageArtifacts: (name) => this.stageManifests.get(name)?.artifacts,
       getCleanupGraceMs: () => this.executionAdapter?.cleanupGraceMs ?? DEFAULT_CLEANUP_GRACE_MS,
       getTimeoutForStage: (name) => this.getTimeoutForStage(name),
       createArtifactValidator: (projectDir) => this.createArtifactValidator(projectDir),
@@ -696,32 +738,35 @@ export class AdsdlcOrchestratorAgent implements IAgent {
       throw new OperationAbortedError(stage.name, 'Pipeline cancelled');
     }
     this.executionAdapter ??= this.createExecutionAdapter(session);
+    this.stageManifests.delete(stage.name);
     const request = this.buildStageExecutionRequest(stage, session, signal);
-    const result = await this.executionAdapter.execute(request);
+    const priorManifests = await loadStageManifests(session, session.stageResults);
+    const recovered =
+      session.resumedFrom !== undefined ? await recoverStageManifest(request) : undefined;
+    if (recovered !== undefined && request.resume !== undefined)
+      this.pendingResumeSdkSessionId = request.resume;
+    const result = await resolveStageManifest(
+      session,
+      stage,
+      recovered ?? (await this.executionAdapter.execute({ ...request, priorManifests }))
+    );
+    if (result.manifest !== undefined)
+      this.stageManifests.set(stage.name, {
+        reference: result.manifest,
+        artifacts: result.artifacts.map((entry) => entry.path),
+      });
     return this.toStageOutput(stage, result);
   }
 
   /**
    * Construct the {@link ExecutionAdapter} used by {@link executeViaAdapter}.
    * Returns an {@link SdkExecutionAdapter} wired with the AD-07 hook
-   * pipeline that funnels `Edit`/`Write` artifacts into a session-scoped
-   * {@link ArtifactSink}. Tests override this method to inject a mock.
-   * @param session
+   * pipeline with invocation-scoped durable artifact capture. Tests override
+   * this method to inject a controlled SDK boundary.
+   * @param _session - Session whose requests carry manifest storage and identity
    */
-  protected createExecutionAdapter(session: OrchestratorSession): ExecutionAdapter {
-    const sink: ArtifactSink = {
-      recordArtifact: (entry: ArtifactCaptureEntry): void => {
-        getLogger().debug('Adapter captured artifact', {
-          agent: 'AdsdlcOrchestratorAgent',
-          sessionId: session.sessionId,
-          filePath: entry.filePath,
-          toolName: entry.toolName,
-          capturedAt: entry.capturedAt,
-        });
-      },
-    };
-    const hooks = buildHookPipeline(sink);
-    return new SdkExecutionAdapter({ hooks });
+  protected createExecutionAdapter(_session: OrchestratorSession): ExecutionAdapter {
+    return new SdkExecutionAdapter();
   }
 
   private assertNotDisposed(): void {
@@ -851,6 +896,11 @@ export class AdsdlcOrchestratorAgent implements IAgent {
     }
 
     const request: StageExecutionRequest = {
+      artifactContext: stageArtifactContext(
+        stage,
+        session,
+        this.createArtifactValidator(session.projectDir)
+      ),
       projectDir: session.projectDir,
       agentType: stage.agentType,
       workOrder: session.userRequest,
@@ -899,11 +949,15 @@ export class AdsdlcOrchestratorAgent implements IAgent {
     return JSON.stringify({
       stage: stage.name,
       via: 'execution-adapter',
+      ...(result.manifest !== undefined
+        ? { manifest: result.manifest }
+        : { artifactCompatibility: 'legacy' }),
       sessionId: result.sessionId,
       toolCallCount: result.toolCallCount,
       tokenUsage: result.tokenUsage,
       artifacts: result.artifacts.map((a) => ({
         path: a.path,
+        ...(a.checksum !== undefined ? { checksum: a.checksum } : {}),
         ...(a.description !== undefined ? { description: a.description } : {}),
       })),
     });
@@ -1049,6 +1103,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
         completedStages: result.stages.filter((s) => s.status === 'completed').length,
         failedStages: result.stages.filter((s) => s.status === 'failed').length,
         artifacts: result.artifacts,
+        manifests: result.manifests ?? [],
         verificationResults: result.verificationResults ?? [],
         stages: result.stages.map((s) => ({
           name: s.name,
@@ -1057,6 +1112,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
           durationMs: s.durationMs,
           output: s.output,
           artifacts: s.artifacts,
+          ...(s.manifest !== undefined ? { manifest: s.manifest } : {}),
           error: s.error,
           retryCount: s.retryCount,
         })),
@@ -1087,18 +1143,22 @@ export class AdsdlcOrchestratorAgent implements IAgent {
     results: readonly StageResult[]
   ): Promise<void> {
     const stageResults = [...session.stageResults, ...results];
-    this.session = { ...session, status: 'running', stageResults };
-    if (session.runtimeSnapshot === undefined) return;
+    this.session = { ...session, status: this.session?.status ?? session.status, stageResults };
     await this.persistState(this.session, {
       pipelineId: session.sessionId,
       projectId: path.basename(session.projectDir),
       mode: session.mode,
-      overallStatus: 'running',
+      overallStatus: this.session.status,
       durationMs: Date.now() - new Date(session.startedAt).getTime(),
       stages: stageResults,
       artifacts: stageResults.flatMap((stage) => stage.artifacts),
+      manifests: stageResults.flatMap((stage) =>
+        stage.manifest === undefined ? [] : [stage.manifest]
+      ),
       warnings: [],
-      runtimeSnapshot: session.runtimeSnapshot,
+      ...(session.runtimeSnapshot !== undefined
+        ? { runtimeSnapshot: session.runtimeSnapshot }
+        : {}),
     });
   }
 
@@ -1166,12 +1226,24 @@ export class AdsdlcOrchestratorAgent implements IAgent {
       durationMs: (s['durationMs'] ?? 0) as number,
       output: (s['output'] ?? '') as string,
       artifacts: Array.isArray(s['artifacts']) ? (s['artifacts'] as string[]) : [],
+      ...(s['manifest'] !== undefined
+        ? {
+            manifest: parseArtifact(
+              ManifestReferenceSchema,
+              s['manifest'],
+              'session stage manifest'
+            ),
+          }
+        : {}),
       error: (s['error'] ?? null) as string | null,
       retryCount: (s['retryCount'] ?? 0) as number,
     }));
 
     const completedStageNames = stageResults
-      .filter((s) => s.status === 'completed')
+      // Legacy degraded results still rerun; validated manifests can retain their output lineage.
+      .filter(
+        (s) => s.status === 'completed' || (s.status === 'degraded' && s.manifest !== undefined)
+      )
       .map((s) => s.name);
 
     return {

@@ -51,7 +51,22 @@ function capturingAdapter(calls: SdkQueryOptions[]): SdkExecutionAdapter {
       withQueryLifecycle({
         async *query(input) {
           calls.push(input);
-          yield sdkResult();
+          if (input.options?.agent === 'validation-agent') {
+            const directory = join(input.options.cwd!, '.ad-sdlc/scratchpad/vnv/offline');
+            await mkdir(directory, { recursive: true });
+            const paths = ['rtm.yaml', 'validation-report.yaml'];
+            for (const name of paths) await writeFile(join(directory, name), 'offline: true');
+            yield sdkResult({
+              structured_output: {
+                schemaVersion: 1,
+                artifacts: paths.map((name) => ({
+                  path: join(directory, name),
+                  kind: 'file',
+                  operation: 'written',
+                })),
+              },
+            });
+          } else yield sdkResult();
         },
       }),
   });

@@ -350,6 +350,16 @@ export class Scratchpad {
     return { section: section === '.' ? '' : section, key };
   }
 
+  /** List records in one directory through the configured storage backend.
+   * @param directory - Absolute directory within the scratchpad
+   * @returns Backend keys, without filesystem enumeration or recursive traversal
+   */
+  public async listKeys(directory: string): Promise<string[]> {
+    const validated = this.validatePath(path.join(directory, '__list__'));
+    await this.ensureBackendInitialized();
+    return this.getBackend().list(this.pathToSectionKey(validated).section);
+  }
+
   // ============================================================
   // Path Resolution
   // ============================================================

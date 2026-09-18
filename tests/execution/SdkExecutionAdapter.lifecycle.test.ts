@@ -515,10 +515,7 @@ describe('partial usage and causal outcomes', () => {
         toolCallCount: 4,
         tokenUsage: { input: 100, output: 30, cache: 5 },
       });
-      if (outcome === 'success')
-        expect((await execution).artifacts).toEqual([
-          { path: 'src/ok.ts', description: 'artifact' },
-        ]);
+      if (outcome === 'success') expect((await execution).artifacts).toEqual([]); // Prose is not a declaration.
       if (outcome === 'sdk-error')
         expect((await execution).error?.cause?.message).toBe('limit reached');
       await adapter.dispose();

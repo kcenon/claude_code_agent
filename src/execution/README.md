@@ -6,7 +6,8 @@ Single Claude Agent SDK entrypoint for the AD-SDLC pipeline. Per
 through one of the
 `ExecutionAdapter` implementations exposed here, and every Edit/Write a stage
 performs is captured by the hook pipeline so the next stage can consume it
-through `priorOutputs`.
+through durable manifest references and hydrated request context. See the
+[artifact manifest guide](../../docs/guides/artifact-manifests.md) for migration and recovery.
 
 ## Overview
 
@@ -58,30 +59,33 @@ export interface ExecutionAdapter {
 `StageExecutionRequest` carries everything a stage needs to run a single
 SDK call:
 
-| Field          | Required | Purpose                                                                           |
-| -------------- | -------- | --------------------------------------------------------------------------------- |
-| `projectDir`   | yes      | Absolute target project directory; normalized at session/configuration boundaries |
-| `agentType`    | yes      | Identifies which `.claude/agents/*.md` to load (e.g. `'worker'`)                  |
-| `workOrder`    | yes      | Prompt body — the actual instruction the stage emits                              |
-| `priorOutputs` | yes      | Verbatim outputs from upstream stages, keyed by stage name                        |
-| `skills`       | no       | SDK skill names to enable for this call                                           |
-| `mcpServers`   | no       | MCP server config map forwarded to the SDK                                        |
-| `maxTurns`     | no       | Cap on agent turns; SDK aborts past this                                          |
-| `resume`       | no       | SDK session id to continue                                                        |
-| `signal`       | no       | `AbortSignal` for cancellation                                                    |
+| Field             | Required | Purpose                                                                                                              |
+| ----------------- | -------- | -------------------------------------------------------------------------------------------------------------------- |
+| `projectDir`      | yes      | Absolute target project directory; normalized at session/configuration boundaries                                    |
+| `agentType`       | yes      | Identifies which `.claude/agents/*.md` to load (e.g. `'worker'`)                                                     |
+| `workOrder`       | yes      | Prompt body — the actual instruction the stage emits                                                                 |
+| `artifactContext` | no       | Trusted session/stage/attempt identity, output requirements, and storage configuration; supplied by the orchestrator |
+| `priorManifests`  | no       | Hydrated persisted upstream manifests, independent of backend                                                        |
+| `priorOutputs`    | yes      | Verbatim outputs from upstream stages, keyed by stage name                                                           |
+| `skills`          | no       | SDK skill names to enable for this call                                                                              |
+| `mcpServers`      | no       | MCP server config map forwarded to the SDK                                                                           |
+| `maxTurns`        | no       | Cap on agent turns; SDK aborts past this                                                                             |
+| `resume`          | no       | SDK session id to continue                                                                                           |
+| `signal`          | no       | `AbortSignal` for cancellation                                                                                       |
 
 ### Result
 
 `StageExecutionResult` is the same shape regardless of adapter:
 
-| Field           | Meaning                                                              |
-| --------------- | -------------------------------------------------------------------- |
-| `status`        | `'success' \| 'failed' \| 'aborted'`                                 |
-| `artifacts`     | `ArtifactRef[]` — files the stage produced; lifted from agent output |
-| `sessionId`     | SDK session id (for `resume` on a later call)                        |
-| `toolCallCount` | Number of agent turns observed                                       |
-| `tokenUsage`    | `{ input, output, cache }` token counts                              |
-| `error`         | `SerializedError`, populated only when `status !== 'success'`        |
+| Field           | Meaning                                                                       |
+| --------------- | ----------------------------------------------------------------------------- |
+| `status`        | `'success' \| 'failed' \| 'aborted'`                                          |
+| `artifacts`     | `ArtifactRef[]` — present project files/directories derived from the manifest |
+| `manifest`      | Optional immutable versioned manifest reference; authoritative when present   |
+| `sessionId`     | SDK session id (for `resume` on a later call)                                 |
+| `toolCallCount` | Number of agent turns observed                                                |
+| `tokenUsage`    | `{ input, output, cache }` token counts                                       |
+| `error`         | `SerializedError`, populated only when `status !== 'success'`                 |
 
 ### `priorOutputs` contract
 
@@ -257,9 +261,10 @@ turns and result `num_turns`. `TokenUsage.cache` includes cache-read **plus**
 cache-creation input tokens. With no observed usage, counters remain zero.
 
 Thrown SDK failures and aborted executions retain these partial observations.
-They are available data, not comprehensive billing metrics. Successful artifact
-extraction is unchanged; artifact manifests and expanded metrics remain separate
-work.
+They are available data, not comprehensive billing metrics. Durable manifests
+retain these observations with stage/attempt provenance. The adapter validates
+structured declarations after SDK cleanup and awaits artifact persistence before
+reporting success; pending storage work shares the cleanup grace budget.
 
 #### Example: production wiring
 
@@ -369,19 +374,21 @@ export interface ArtifactCaptureEntry {
   readonly toolName: 'Edit' | 'Write';
   readonly capturedAt: string; // ISO-8601 timestamp
   readonly sessionId?: string; // SDK session id when available
+  readonly toolUseId?: string; // Replay identity from the official SDK hook event
 }
 ```
 
 `recordArtifact` MUST be idempotent — the SDK may re-emit the same path
-across retries. Production wiring adapts the real `Scratchpad`
-([`src/scratchpad/`](../scratchpad/)) to this interface with a thin shim;
-tests use an in-memory array.
+across retries. Production invocations use `ArtifactAttempt` with a project-scoped
+`ManifestStore` over the asynchronous `Scratchpad` API. Captures are durable before
+hook acknowledgement. Tests include real file/SQLite storage and process restart.
 
 ### Failure semantics
 
-Any hook callback that throws aborts the SDK stage. This module never
-swallows errors — it surfaces them up so the `SdkExecutionAdapter` returns a
-`failed` `StageExecutionResult`. Specifically, the hook throws `AppError`
+Hook errors propagate to the SDK. The production capture sink also retains a
+sticky error so an SDK success result cannot hide rejected persistence.
+Manifest/schema/path failures produce a failed stage (with an `EXEC-110` cause);
+unresolved cleanup uses `EXEC-004`. The hook boundary itself throws `AppError`
 with codes:
 
 | Code       | Meaning                                                     |
@@ -562,3 +569,4 @@ Checklist when implementing a new adapter:
 - AD-08 (`#792`): this README
 - AD-09 (`#793`): pilot stage cutover
 - #948: owned execution lifecycle, bounded cleanup, disposal and retry barriers
+- #950: durable structured artifacts and downstream/restart manifest handoff

@@ -297,8 +297,18 @@ describe('observable configuration ownership through the CLI', () => {
       }),
     });
     const run = await prepared(adapter, ['--stop-after', 'issue_reading']);
+    const backoffStarted = deferred<void>();
+    const agent = new (class extends AdsdlcOrchestratorAgent {
+      protected override createExecutionAdapter(): ExecutionAdapter {
+        return adapter;
+      }
+      protected override sleep(ms: number, signal?: AbortSignal): Promise<void> {
+        backoffStarted.resolve();
+        return super.sleep(ms, signal);
+      }
+    })(run.plan.config);
     vi.useFakeTimers();
-    const execution = run.execute();
+    const execution = run.execute(agent);
     const first = await arrivals[0]!.promise;
     await first.reading.promise;
     first.finish(sdkResult({ is_error: true }));
@@ -308,6 +318,7 @@ describe('observable configuration ownership through the CLI', () => {
     expect(first.writerActive).toBe(true);
     first.cleanupGate.resolve();
     await first.cleaned.promise;
+    await backoffStarted.promise; // Durable artifact publication/close precede retry backoff.
     await vi.advanceTimersByTimeAsync(999);
     expect(queries).toHaveLength(1);
     await vi.advanceTimersByTimeAsync(1);

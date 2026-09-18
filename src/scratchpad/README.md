@@ -245,16 +245,16 @@ Each has a corresponding `assert*` function that throws on invalid data.
 
 ### Constructor Options
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `basePath` | `string` | `.ad-sdlc/scratchpad` | Base directory path |
-| `fileMode` | `number` | `0o600` | File permission mode |
-| `dirMode` | `number` | `0o700` | Directory permission mode |
-| `enableLocking` | `boolean` | `true` | Enable file locking |
-| `lockTimeout` | `number` | `5000` | Lock timeout in ms |
-| `enableHeartbeat` | `boolean` | `false` | Enable heartbeat mechanism for locks |
-| `heartbeatIntervalMs` | `number` | `1000` | How often to update lock timestamp |
-| `heartbeatTimeoutMs` | `number` | `3000` | Duration after which a lock is considered stale |
+| Option                | Type      | Default               | Description                                     |
+| --------------------- | --------- | --------------------- | ----------------------------------------------- |
+| `basePath`            | `string`  | `.ad-sdlc/scratchpad` | Base directory path                             |
+| `fileMode`            | `number`  | `0o600`               | File permission mode                            |
+| `dirMode`             | `number`  | `0o700`               | Directory permission mode                       |
+| `enableLocking`       | `boolean` | `true`                | Enable file locking                             |
+| `lockTimeout`         | `number`  | `5000`                | Lock timeout in ms                              |
+| `enableHeartbeat`     | `boolean` | `false`               | Enable heartbeat mechanism for locks            |
+| `heartbeatIntervalMs` | `number`  | `1000`                | How often to update lock timestamp              |
+| `heartbeatTimeoutMs`  | `number`  | `3000`                | Duration after which a lock is considered stale |
 
 ### Path Methods
 
@@ -298,17 +298,26 @@ Each has a corresponding `assert*` function that throws on invalid data.
 
 ### Lock Options
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `holderId` | `string` | (auto) | Lock holder identifier |
-| `retryAttempts` | `number` | `10` | Number of retry attempts |
-| `retryDelayMs` | `number` | `100` | Base delay between retries |
-| `cooperativeRelease` | `boolean` | `true` | Enable cooperative release before stealing |
-| `cooperativeReleaseTimeoutMs` | `number` | `1000` | Timeout for cooperative release |
-| `enableHeartbeat` | `boolean` | (global) | Enable heartbeat for this specific lock |
+| Option                        | Type      | Default  | Description                                |
+| ----------------------------- | --------- | -------- | ------------------------------------------ |
+| `holderId`                    | `string`  | (auto)   | Lock holder identifier                     |
+| `retryAttempts`               | `number`  | `10`     | Number of retry attempts                   |
+| `retryDelayMs`                | `number`  | `100`    | Base delay between retries                 |
+| `cooperativeRelease`          | `boolean` | `true`   | Enable cooperative release before stealing |
+| `cooperativeReleaseTimeoutMs` | `number`  | `1000`   | Timeout for cooperative release            |
+| `enableHeartbeat`             | `boolean` | (global) | Enable heartbeat for this specific lock    |
 
 ## Testing
 
 ```bash
 npm test -- tests/scratchpad
 ```
+
+## Stage artifact storage
+
+SDK stage manifests use the asynchronous Scratchpad API, including `listKeys()`
+for backend-aware record discovery. File, SQLite, and Redis storage keep the same
+logical references. The manifest store awaits writes and owns backend cleanup; it
+does not use buffered CachedScratchpad acknowledgements. See
+[Artifact Manifests](../../docs/guides/artifact-manifests.md) for the storage layout,
+required-output checks, and legacy migration.

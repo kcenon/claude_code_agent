@@ -22,7 +22,15 @@ import {
 import { resolveProjectAgent } from './resolveProjectAgent.js';
 import { AppError } from '../errors/AppError.js';
 import { ErrorSeverity } from '../errors/types.js';
-import type { HookPipeline } from './hooks.js';
+import { buildHookPipeline, type HookPipeline } from './hooks.js';
+import { ManifestStore } from './artifacts/ManifestStore.js';
+import { ArtifactAttempt, manifestArtifacts } from './artifacts/ArtifactAttempt.js';
+import {
+  ARTIFACT_OUTPUT_FORMAT,
+  artifactError,
+  type ManifestReference,
+} from './artifacts/schemas.js';
+import { normalizeArtifactPath, inspectArtifact } from './artifacts/paths.js';
 import type {
   ArtifactRef,
   ExecutionAdapter,
@@ -51,6 +59,10 @@ export type SdkLoader = () => Promise<SdkLike>;
 const defaultLoader: SdkLoader = async () => import('@anthropic-ai/claude-agent-sdk');
 
 export interface SdkExecutionAdapterOptions {
+  /** Explicit compatibility only: validated path annotations from older agents. */
+  readonly legacyTextArtifacts?: boolean;
+  /** Offline storage seam; production uses the configured Scratchpad backend. */
+  readonly openManifestStore?: typeof ManifestStore.open;
   /** Finite cleanup budget, independent of stage execution time (default: 5000ms). */
   readonly cleanupGraceMs?: number;
   /** Override target-project resolution for controlled setup tests. */
@@ -66,6 +78,13 @@ export interface SdkExecutionAdapterOptions {
 }
 
 interface OwnedExecution {
+  artifactSettled: boolean;
+  artifactStore?: ManifestStore;
+  artifactAttempt?: ArtifactAttempt;
+  artifactWork?: Promise<void>;
+  artifacts?: StageExecutionResult['artifacts'];
+  manifest?: ManifestReference;
+  structuredOutput?: unknown;
   readonly controller: AbortController;
   readonly cancelled: Promise<void>;
   cancel(reason: unknown): void;
@@ -89,6 +108,8 @@ export class SdkExecutionAdapter implements ExecutionAdapter {
   private readonly loader: SdkLoader;
   private readonly resolveAgent: typeof resolveProjectAgent;
   private readonly hooks: HookPipeline | undefined;
+  private readonly openManifestStore: typeof ManifestStore.open;
+  private readonly legacyTextArtifacts: boolean;
   private sdkPromise: Promise<SdkLike> | null = null;
   private disposed = false;
   private disposal: Promise<void> | undefined;
@@ -99,6 +120,10 @@ export class SdkExecutionAdapter implements ExecutionAdapter {
     this.loader = options.loader ?? defaultLoader;
     this.resolveAgent = options.resolveAgent ?? resolveProjectAgent;
     this.hooks = options.hooks;
+    this.openManifestStore =
+      options.openManifestStore ??
+      ((...args): Promise<ManifestStore> => ManifestStore.open(...args));
+    this.legacyTextArtifacts = options.legacyTextArtifacts ?? false;
     this.cleanupGraceMs = options.cleanupGraceMs ?? DEFAULT_CLEANUP_GRACE_MS;
     if (!Number.isFinite(this.cleanupGraceMs) || this.cleanupGraceMs <= 0) {
       throw new RangeError('cleanupGraceMs must be finite and greater than zero');
@@ -132,6 +157,7 @@ export class SdkExecutionAdapter implements ExecutionAdapter {
       execution.cancel(req.signal?.reason);
     };
     const execution: OwnedExecution = {
+      artifactSettled: true,
       controller,
       cancelled,
       cancel: (reason): void => {
@@ -168,7 +194,7 @@ export class SdkExecutionAdapter implements ExecutionAdapter {
       }
     });
     try {
-      return await this.complete(execution);
+      return await this.complete(req, execution);
     } finally {
       req.signal?.removeEventListener('abort', forwardAbort);
       execution.executionSettled = true;
@@ -189,6 +215,29 @@ export class SdkExecutionAdapter implements ExecutionAdapter {
     if (stopped()) return;
     const sdk = await this.getSdk();
     if (stopped()) return;
+    let hooks = this.hooks;
+    if (req.artifactContext !== undefined) {
+      execution.artifactStore = await this.openManifestStore(
+        req.projectDir,
+        req.artifactContext.scratchpadDir
+      );
+      if (stopped()) {
+        await execution.artifactStore.close();
+        delete execution.artifactStore;
+        return;
+      }
+      execution.artifactAttempt = new ArtifactAttempt(
+        execution.artifactStore,
+        req.artifactContext,
+        req.agentType,
+        execution.controller.signal
+      );
+      const capture = buildHookPipeline(execution.artifactAttempt);
+      hooks = {
+        ...hooks,
+        PostToolUse: [...(hooks?.PostToolUse ?? []), ...(capture.PostToolUse ?? [])],
+      };
+    }
     const sdkOptions: Options = {
       cwd: req.projectDir,
       agent: req.agentType,
@@ -200,7 +249,8 @@ export class SdkExecutionAdapter implements ExecutionAdapter {
       ...(req.maxTurns !== undefined && { maxTurns: req.maxTurns }),
       ...(req.permissionMode !== undefined && { permissionMode: req.permissionMode }),
       ...(req.resume !== undefined && { resume: req.resume }),
-      ...(this.hooks !== undefined && { hooks: this.hooks }),
+      ...(hooks !== undefined && { hooks }),
+      ...(req.artifactContext !== undefined ? { outputFormat: ARTIFACT_OUTPUT_FORMAT } : {}),
     };
     execution.query = sdk.query({ prompt: renderPrompt(req), options: sdkOptions });
     const assistantUsage = new Map<string, TokenUsage>();
@@ -226,6 +276,7 @@ export class SdkExecutionAdapter implements ExecutionAdapter {
         }
       }
       if (message.type === 'result') {
+        if (message.subtype === 'success') execution.structuredOutput = message.structured_output;
         execution.resultText =
           message.subtype === 'success' ? message.result : message.errors.join('\n');
         const isError = message.is_error || message.subtype !== 'success';
@@ -245,9 +296,89 @@ export class SdkExecutionAdapter implements ExecutionAdapter {
     execution.outcome = 'success';
   }
 
-  private async complete(execution: OwnedExecution): Promise<StageExecutionResult> {
+  private async complete(
+    req: StageExecutionRequest,
+    execution: OwnedExecution
+  ): Promise<StageExecutionResult> {
     await Promise.race([execution.work, execution.cancelled]);
-    const cleanupError = await this.finalize(execution);
+    const cleanupStartedAt = Date.now();
+    let cleanupError = await this.finalize(execution);
+    if (execution.artifactStore !== undefined) {
+      const store = execution.artifactStore;
+      execution.artifactSettled = false;
+      execution.artifactWork = (async (): Promise<void> => {
+        try {
+          // Join late setup/captures even when SDK cleanup already timed out.
+          await execution.work;
+          if (execution.artifactAttempt !== undefined) {
+            const outcome =
+              cleanupError === undefined && execution.outcome === 'success'
+                ? 'success'
+                : execution.outcome === 'aborted'
+                  ? 'aborted'
+                  : 'failed';
+            const finished = await execution.artifactAttempt.finish(
+              {
+                status: outcome,
+                artifacts: [],
+                sessionId: execution.sessionId,
+                toolCallCount: execution.toolCallCount,
+                tokenUsage: execution.tokenUsage,
+              },
+              execution.structuredOutput
+            );
+            execution.manifest = finished.reference;
+            execution.artifacts =
+              finished.manifest.status === 'complete' ? manifestArtifacts(finished.manifest) : [];
+          }
+        } catch (error) {
+          if (execution.outcome !== 'aborted') execution.outcome = 'failed';
+          execution.reason = artifactError(
+            `Artifact ${req.artifactContext?.stageName ?? req.agentType}/${req.artifactContext?.attemptId ?? 'standalone'}: ${error instanceof Error ? error.message : String(error)}`
+          );
+          if (execution.artifactAttempt !== undefined)
+            execution.manifest = await execution.artifactAttempt.fail(
+              {
+                status: execution.outcome === 'aborted' ? 'aborted' : 'failed',
+                artifacts: [],
+                sessionId: execution.sessionId,
+                toolCallCount: execution.toolCallCount,
+                tokenUsage: execution.tokenUsage,
+              },
+              (execution.reason as Error).message
+            );
+        } finally {
+          await store.close();
+          execution.artifactSettled = true;
+          this.release(execution);
+        }
+      })();
+      try {
+        const remainingGraceMs = Math.max(1, this.cleanupGraceMs - (Date.now() - cleanupStartedAt));
+        await withinCleanupGrace(
+          execution.artifactWork,
+          remainingGraceMs,
+          () =>
+            new ExecutionCleanupError(
+              'Artifact persistence cleanup grace period exceeded',
+              execution.reason,
+              { phase: 'artifacts', unresolved: true }
+            )
+        );
+      } catch (error) {
+        cleanupError =
+          error instanceof AppError
+            ? error
+            : new ExecutionCleanupError('Artifact store cleanup failed', error);
+        this.cleanupFailures.set(execution, cleanupError);
+        execution.controller.abort(cleanupError);
+      }
+    } else if (execution.outcome === 'success' && this.legacyTextArtifacts) {
+      execution.artifacts = await extractLegacyArtifacts(
+        req.projectDir,
+        execution.resultText ?? ''
+      );
+    }
     const status =
       execution.outcome === 'aborted'
         ? 'aborted'
@@ -281,7 +412,8 @@ export class SdkExecutionAdapter implements ExecutionAdapter {
           ));
     return {
       status,
-      artifacts: status === 'success' ? extractArtifacts(execution.resultText ?? '') : [],
+      artifacts: status === 'success' ? (execution.artifacts ?? []) : [],
+      ...(execution.manifest !== undefined ? { manifest: execution.manifest } : {}),
       sessionId: execution.sessionId,
       toolCallCount: execution.toolCallCount,
       tokenUsage: execution.tokenUsage,
@@ -357,7 +489,8 @@ export class SdkExecutionAdapter implements ExecutionAdapter {
   }
 
   private release(execution: OwnedExecution): void {
-    if (execution.cleanupSettled && execution.executionSettled) this.active.delete(execution);
+    if (execution.cleanupSettled && execution.artifactSettled && execution.executionSettled)
+      this.active.delete(execution);
   }
 
   /** Stop admission synchronously; every caller joins the same disposal and its failures.
@@ -394,7 +527,8 @@ export class SdkExecutionAdapter implements ExecutionAdapter {
  * Render a prompt that includes the work order and every prior output verbatim.
  * The format is intentionally simple — downstream agents parse the section
  * headers to retrieve specific upstream outputs.
- * @param req
+ * @param req - Invocation with work order, prior summaries, and artifact contracts.
+ * @returns Complete prompt with verbatim summaries and hydrated manifest metadata.
  */
 export function renderPrompt(req: StageExecutionRequest): string {
   const blocks: string[] = [`# Stage: ${req.agentType}`, '', '## Work order', '', req.workOrder];
@@ -405,6 +539,27 @@ export function renderPrompt(req: StageExecutionRequest): string {
       blocks.push('', `### ${key}`, '', value);
     }
   }
+  if (req.artifactContext !== undefined) {
+    blocks.push(
+      '',
+      '## Artifact output contract',
+      'Return structured output {"schemaVersion":1,"artifacts":[{"path":"project/relative/path","kind":"file","operation":"written"}]}.',
+      'Declare files/directories produced by Bash, MCP, or other tools as well as deletions. Kinds: file, directory, external-file, external-uri. Operations: created, modified, written, deleted, reused.',
+      'Edit/Write captures are persisted independently. Use written when creation versus modification is unknown. Reused project artifacts require upstream provenance. External references require explicit caller permission.',
+      `Required output contracts: ${JSON.stringify(req.artifactContext.requiredOutputs)}`,
+      `Permitted external references: ${JSON.stringify(req.artifactContext.externalReferences ?? [])}`,
+      `Upstream manifest references: ${JSON.stringify(req.artifactContext.upstream)}`
+    );
+    const legacyStages = Object.keys(req.priorOutputs).filter(
+      (stage) => req.artifactContext?.upstream.some((ref) => ref.stageName === stage) !== true
+    );
+    if (legacyStages.length > 0)
+      blocks.push(
+        `Legacy upstream summaries (unverified artifact lineage): ${JSON.stringify(legacyStages)}`
+      );
+  }
+  if (req.priorManifests !== undefined)
+    blocks.push('', '## Persisted upstream manifests', JSON.stringify(req.priorManifests));
   return blocks.join('\n');
 }
 
@@ -441,17 +596,39 @@ function mapUsage(
  * Lift any `path:` annotations the agent emitted into ArtifactRefs. The agent
  * convention is one per line as `<path>: <description>`. Lines without that
  * shape are ignored.
- * @param resultText
+ * @param projectDir - Explicit absolute project root used to validate legacy paths.
+ * @param resultText - Legacy final-response text containing optional path annotations.
+ * @returns Deduplicated references to verified existing project files.
  */
-function extractArtifacts(resultText: string): ArtifactRef[] {
+async function extractLegacyArtifacts(
+  projectDir: string,
+  resultText: string
+): Promise<ArtifactRef[]> {
   const out: ArtifactRef[] = [];
   for (const raw of resultText.split('\n')) {
-    const match = raw.match(/^\s*([\w./\-_]+):\s*(.+)$/);
+    const match = raw.match(/^(.+?):\s+(.+)$/u);
     if (match === null) continue;
     const path = match[1];
     const description = match[2];
     if (path === undefined || description === undefined) continue;
-    out.push({ path, description: description.trim() });
+    // Explicit path syntax plus real filesystem evidence excludes generic status lines.
+    if (!/[./\\]/.test(path)) continue;
+    try {
+      const normalized = normalizeArtifactPath(projectDir, path);
+      const observed = await inspectArtifact(projectDir, {
+        path: normalized,
+        kind: 'file',
+        operation: 'written',
+      });
+      if (observed.availability === 'present' && !out.some((entry) => entry.path === normalized))
+        out.push({
+          path: normalized,
+          description: description.trim(),
+          ...(observed.checksum !== undefined ? { checksum: observed.checksum } : {}),
+        });
+    } catch {
+      /* Invalid legacy annotations do not declare artifacts. */
+    }
   }
   return out;
 }

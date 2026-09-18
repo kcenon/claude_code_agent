@@ -54,6 +54,8 @@ export interface ArtifactSink {
  * `priorOutputs`.
  */
 export interface ArtifactCaptureEntry {
+  /** SDK tool-use identity, retained for durable replay deduplication. */
+  readonly toolUseId?: string;
   /** File path the tool wrote or edited (verbatim from `tool_input.file_path`). */
   readonly filePath: string;
   /** Tool name that produced the artifact (`Edit` or `Write`). */
@@ -184,6 +186,7 @@ async function captureEditOrWrite(
     toolName,
     capturedAt: now().toISOString(),
     sessionId: event.session_id,
+    ...('tool_use_id' in event ? { toolUseId: event.tool_use_id } : {}),
   };
 
   // Deliberate await: a sink failure must abort the stage.
