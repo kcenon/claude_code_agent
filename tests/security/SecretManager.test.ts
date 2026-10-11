@@ -1,4 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import {
   SecretManager,
   getSecretManager,
@@ -34,6 +37,65 @@ describe('SecretManager', () => {
       });
       expect(manager).toBeInstanceOf(SecretManager);
     });
+  });
+
+  describe('environment files', () => {
+    let directory: string;
+
+    beforeEach(() => {
+      directory = mkdtempSync(join(tmpdir(), 'ad-sdlc-secret-manager-'));
+      vi.stubEnv('TEST_ENV_SECRET', undefined);
+      for (const option of ['PATH', 'OVERRIDE', 'QUIET', 'DEBUG', 'FAST']) {
+        vi.stubEnv(`DOTENV_${option}`, undefined);
+        vi.stubEnv(`DOTENV_CONFIG_${option}`, undefined);
+      }
+      vi.stubEnv('DOTENV_QUIET', 'true');
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+      vi.unstubAllEnvs();
+      rmSync(directory, { recursive: true, force: true });
+    });
+
+    it('loads secrets from a custom environment file', () => {
+      const envFilePath = join(directory, 'custom.env');
+      writeFileSync(envFilePath, 'TEST_ENV_SECRET=custom-file-secret\n');
+      const manager = new SecretManager({ envFilePath, requiredSecrets: ['TEST_ENV_SECRET'] });
+
+      manager.load();
+
+      expect(manager.get('TEST_ENV_SECRET')).toBe('custom-file-secret');
+    });
+
+    it('loads the default environment file without writing to stdout', () => {
+      writeFileSync(join(directory, '.env'), 'TEST_ENV_SECRET=default-file-secret\n');
+      vi.spyOn(process, 'cwd').mockReturnValue(directory);
+      vi.stubEnv('DOTENV_QUIET', 'false');
+      const stdout = vi.spyOn(console, 'log').mockImplementation(() => {});
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+      const manager = new SecretManager({ requiredSecrets: ['TEST_ENV_SECRET'] });
+
+      manager.load();
+
+      expect(manager.get('TEST_ENV_SECRET')).toBe('default-file-secret');
+      expect(stdout).not.toHaveBeenCalled();
+    });
+
+    it.each([undefined, 'false', '0', 'off'])(
+      'preserves existing environment secrets with DOTENV_OVERRIDE=%s',
+      (override) => {
+        const envFilePath = join(directory, 'custom.env');
+        writeFileSync(envFilePath, 'TEST_ENV_SECRET=file-secret\n');
+        vi.stubEnv('TEST_ENV_SECRET', 'environment-secret');
+        vi.stubEnv('DOTENV_OVERRIDE', override);
+        const manager = new SecretManager({ envFilePath, requiredSecrets: ['TEST_ENV_SECRET'] });
+
+        manager.load();
+
+        expect(manager.get('TEST_ENV_SECRET')).toBe('environment-secret');
+      }
+    );
   });
 
   describe('set and get', () => {

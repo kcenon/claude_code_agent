@@ -124,14 +124,14 @@ AD-SDLC (Agent-Driven Software Development Lifecycle) is an automated software d
 
 | Package                          | Version  | Purpose                     |
 | -------------------------------- | -------- | --------------------------- |
-| `@anthropic-ai/claude-agent-sdk` | ^0.3.260 | Agent execution runtime     |
+| `@anthropic-ai/claude-agent-sdk` | ^0.3.287 | Agent execution runtime     |
 | `commander`                      | ^15.0.0  | CLI framework               |
-| `chalk`                          | ^6.0.0   | Terminal output styling     |
+| `chalk`                          | ^6.0.1   | Terminal output styling     |
 | `inquirer`                       | ^14.2.1  | Interactive CLI prompts     |
-| `js-yaml`                        | ^5.4.1   | YAML parsing                |
-| `zod`                            | ^4.5.4   | Schema validation           |
+| `js-yaml`                        | ^5.4.2   | YAML parsing                |
+| `zod`                            | ^4.6.5   | Schema validation           |
 | `ts-morph`                       | ^28.0.0  | TypeScript AST manipulation |
-| `dotenv`                         | ^17.4.2  | Environment configuration   |
+| `dotenv`                         | ^18.0.5  | Environment configuration   |
 | `mammoth`                        | ^1.12.2  | DOCX file parsing           |
 | `pdf-parse`                      | ^2.4.5   | PDF file parsing            |
 
