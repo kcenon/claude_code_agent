@@ -132,19 +132,19 @@ AD-SDLC (Agent-Driven Software Development Lifecycle) is an automated software d
 | `zod`                            | ^4.6.5   | Schema validation           |
 | `ts-morph`                       | ^28.0.0  | TypeScript AST manipulation |
 | `dotenv`                         | ^18.0.5  | Environment configuration   |
-| `mammoth`                        | ^1.12.2  | DOCX file parsing           |
+| `mammoth`                        | ^1.13.0  | DOCX file parsing           |
 | `pdf-parse`                      | ^2.4.5   | PDF file parsing            |
 
 ### Development Tools
 
-| Tool                  | Version | Purpose                  |
-| --------------------- | ------- | ------------------------ |
-| `typescript`          | ^6.0.3  | TypeScript compiler      |
-| `vitest`              | ^5.0.0  | Test runner              |
-| `@vitest/coverage-v8` | ^5.0.0  | Code coverage            |
-| `eslint`              | ^10.9.1 | Code linting             |
-| `prettier`            | ^3.9.6  | Code formatting          |
-| `typescript-eslint`   | ^8.69.0 | TypeScript linting rules |
+| Tool                  | Version  | Purpose                  |
+| --------------------- | -------- | ------------------------ |
+| `typescript`          | ^6.0.3   | TypeScript compiler      |
+| `vitest`              | ^5.0.0   | Test runner              |
+| `@vitest/coverage-v8` | ^5.0.3   | Code coverage            |
+| `eslint`              | ^10.12.0 | Code linting             |
+| `prettier`            | ^3.9.9   | Code formatting          |
+| `typescript-eslint`   | ^8.71.1  | TypeScript linting rules |
 
 ### External Integrations
 
