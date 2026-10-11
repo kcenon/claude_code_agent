@@ -110,14 +110,14 @@
     "vitest": "^5.0.0"
   },
   "dependencies": {
-    "@anthropic-ai/claude-agent-sdk": "^0.3.268",
-    "chalk": "^6.0.0",
+    "@anthropic-ai/claude-agent-sdk": "^0.3.287",
+    "chalk": "^6.0.1",
     "commander": "^15.0.0",
-    "dotenv": "^17.4.2",
+    "dotenv": "^18.0.5",
     "inquirer": "^14.2.2",
-    "js-yaml": "^5.4.1",
+    "js-yaml": "^5.4.2",
     "ts-morph": "^28.0.0",
-    "zod": "^4.6.2"
+    "zod": "^4.6.5"
   },
   "peerDependencies": {
     "@aws-sdk/client-cloudwatch-logs": "^3.1009.0",
