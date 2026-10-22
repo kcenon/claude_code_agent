@@ -192,7 +192,7 @@ The orchestration tests (`tests/e2e/orchestration.e2e.test.ts`) validate:
 ### Before Submitting
 
 1. Ensure your code follows the style guidelines
-2. Update documentation if needed
+2. Update documentation if needed; if you change `README.md`, run `python3 scripts/readme_lint.py README.md` (see [scripts/README.md](scripts/README.md))
 3. Add or update tests as appropriate
 4. Run the full test suite locally
 5. Rebase on the latest `main` branch
