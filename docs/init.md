@@ -23,7 +23,6 @@ This launches an interactive wizard that prompts for:
 
 - Project name
 - Project description (optional)
-- GitHub repository URL (optional)
 - Technology stack (TypeScript, Python, Java, Go, Rust, Other)
 - Project template (minimal, standard, enterprise)
 
@@ -42,7 +41,6 @@ Skips interactive prompts and uses defaults:
 
 ```bash
 npx ad-sdlc init my-project \
-  --github-repo https://github.com/user/my-project \
   --tech-stack typescript \
   --template standard \
   --skip-validation
@@ -50,11 +48,12 @@ npx ad-sdlc init my-project \
 
 | Option                      | Description                                                  |
 | --------------------------- | ------------------------------------------------------------ |
-| `-g, --github-repo <url>`   | GitHub repository URL                                        |
 | `-t, --tech-stack <stack>`  | Technology stack (typescript, python, java, go, rust, other) |
 | `-T, --template <template>` | Project template (minimal, standard, enterprise)             |
 | `-q, --quick`               | Skip interactive prompts                                     |
 | `--skip-validation`         | Skip prerequisite validation                                 |
+
+Init takes no repository URL and records none. During `ad-sdlc run`, the `repo_detection` stage reads the project's git remote `origin`.
 
 ## Templates
 
@@ -126,12 +125,12 @@ my-project/
 
 The init command validates the following prerequisites:
 
-| Check           | Required | Description          |
-| --------------- | -------- | -------------------- |
+| Check           | Required | Description               |
+| --------------- | -------- | ------------------------- |
 | Node.js Version | Yes      | Must be 22.22.1 or higher |
-| Git             | Yes      | Must be installed    |
-| Claude API Key  | No       | ANTHROPIC_API_KEY    |
-| GitHub CLI      | No       | gh CLI authenticated |
+| Git             | Yes      | Must be installed         |
+| Claude API Key  | No       | ANTHROPIC_API_KEY         |
+| GitHub CLI      | No       | gh CLI authenticated      |
 
 Skip validation with `--skip-validation` for offline initialization.
 

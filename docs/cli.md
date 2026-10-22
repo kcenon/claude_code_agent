@@ -8,12 +8,13 @@ described in the [Installation Guide](installation.md); run
 
 1. [Command Summary](#command-summary)
 2. [Initialize a Project](#initialize-a-project)
-3. [Run the Pipeline](#run-the-pipeline)
-4. [Drive the Pipeline from Claude Code](#drive-the-pipeline-from-claude-code)
-5. [Slash Commands](#slash-commands)
-6. [Document Audit](#document-audit)
-7. [Update Installed Agents and Commands](#update-installed-agents-and-commands)
-8. [Shell Autocompletion](#shell-autocompletion)
+3. [Check the Environment](#check-the-environment)
+4. [Run the Pipeline](#run-the-pipeline)
+5. [Drive the Pipeline from Claude Code](#drive-the-pipeline-from-claude-code)
+6. [Slash Commands](#slash-commands)
+7. [Document Audit](#document-audit)
+8. [Update Installed Agents and Commands](#update-installed-agents-and-commands)
+9. [Shell Autocompletion](#shell-autocompletion)
 
 ---
 
@@ -21,7 +22,7 @@ described in the [Installation Guide](installation.md); run
 
 ```bash
 # Initialize new project
-ad-sdlc init [project-name] [--quick] [--template minimal|standard|enterprise] [--tech-stack <stack>] [--github-repo <url>] [--skip-validation]
+ad-sdlc init [project-name] [--quick] [--template minimal|standard|enterprise] [--tech-stack <stack>] [--skip-validation]
 
 # Run the pipeline (all options: see "Run the Pipeline" below)
 ad-sdlc run "<requirements>" [--mode greenfield|enhancement|import] [--project-dir <dir>] [--resume <session-id>] [--stop-after <stage>] [--local] [--dry-run] [--format text|json]
@@ -32,8 +33,11 @@ ad-sdlc validate [--project-dir <dir>] [--file <path>] [--watch] [--format text|
 # Check pipeline status and list saved sessions
 ad-sdlc status [--project-dir <dir>] [--project <id>] [--format text|json] [--verbose]
 
-# Check environment prerequisites
+# Check environment prerequisites (see "Check the Environment" below)
 ad-sdlc doctor [--project-dir <dir>]
+
+# Print the version of the installed package
+ad-sdlc --version
 
 # Audit generated documents (see "Document Audit" below)
 ad-sdlc audit-docs --project-dir <dir> [--output <dir>] [--quiet]
@@ -65,9 +69,10 @@ ad-sdlc init my-project --quick
 # With specific options
 ad-sdlc init my-project \
   --tech-stack typescript \
-  --template standard \
-  --github-repo https://github.com/user/my-project
+  --template standard
 ```
+
+`ad-sdlc init` takes no repository URL and records none. During `ad-sdlc run`, the `repo_detection` stage reads the project's git remote `origin`; to work against an existing GitHub repository, add it as `origin` before the run.
 
 ### Template Options
 
@@ -99,6 +104,22 @@ your-project/
 ├── .gitignore               # AD-SDLC entries appended
 └── README.md
 ```
+
+---
+
+## Check the Environment
+
+```bash
+# Check the current directory
+ad-sdlc doctor
+
+# Check another project
+ad-sdlc doctor --project-dir ./my-project
+```
+
+`ad-sdlc doctor` prints one `OK` or `FAIL` line per check: the Node.js version, Git, the GitHub CLI (optional), the AI bridge (`ANTHROPIC_API_KEY` or a Claude Code session), local mode, the configuration files, and free disk space. The configuration check looks for `.ad-sdlc/config/workflow.yaml` and `.ad-sdlc/config/agents.yaml` in the project directory (`--project-dir`, default: the current directory); in an initialized project it prints `OK  Config files: workflow.yaml + agents.yaml found`. Missing configuration files are reported but do not change the exit status; any other failed check, including a missing AI bridge, makes `doctor` exit with status 1.
+
+`ad-sdlc --version` prints the `version` field of the installed package's `package.json`.
 
 ---
 

@@ -17,7 +17,6 @@ import { CLIOutput, getCLIOutput } from '../cli/index.js';
 interface WizardAnswers {
   projectName: string;
   description: string;
-  githubRepo: string;
   techStack: TechStack;
   template: TemplateType;
 }
@@ -67,19 +66,6 @@ export class InteractiveWizard {
         default: '',
       },
       {
-        type: 'input',
-        name: 'githubRepo',
-        message: 'GitHub repository URL (optional):',
-        default: '',
-        validate: (input: string): boolean | string => {
-          if (input.length === 0) return true;
-          if (!input.startsWith('https://github.com/')) {
-            return 'Please enter a valid GitHub repository URL (https://github.com/...)';
-          }
-          return true;
-        },
-      },
-      {
         type: 'list',
         name: 'techStack',
         message: 'Primary technology stack:',
@@ -118,7 +104,6 @@ export class InteractiveWizard {
     return {
       projectName: answers.projectName,
       description: answers.description.length > 0 ? answers.description : undefined,
-      githubRepo: answers.githubRepo.length > 0 ? answers.githubRepo : undefined,
       techStack: answers.techStack,
       template: answers.template,
     };
@@ -153,9 +138,6 @@ export class InteractiveWizard {
 
     if (options.description !== undefined && options.description.length > 0) {
       summaryData['Description'] = options.description;
-    }
-    if (options.githubRepo !== undefined && options.githubRepo.length > 0) {
-      summaryData['GitHub Repo'] = options.githubRepo;
     }
     summaryData['Tech Stack'] = options.techStack;
     summaryData['Template'] = options.template;

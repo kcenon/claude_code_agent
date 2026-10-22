@@ -25,6 +25,7 @@ import type {
 } from './types.js';
 import { ConsentRequiredError, ConsentStorageError, InvalidEventError } from './errors.js';
 import { getLogger } from '../logging/index.js';
+import { readPackageVersion } from '../utils/packageVersion.js';
 
 // ============================================================
 // Constants
@@ -518,7 +519,7 @@ export class Telemetry {
     this.session = {
       sessionId: randomUUID(),
       startedAt: new Date().toISOString(),
-      cliVersion: '0.0.1', // Would come from package.json
+      cliVersion: readPackageVersion(),
       platform: process.platform,
       nodeVersion: process.version,
     };

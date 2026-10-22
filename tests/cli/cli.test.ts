@@ -11,7 +11,7 @@
 
 import { describe, it, expect, beforeAll } from 'vitest';
 import { execFile } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { promisify } from 'node:util';
 import { resolve } from 'node:path';
 
@@ -48,10 +48,13 @@ describe.skipIf(!cliBuilt)('CLI', () => {
       expect(result.stdout).toContain('validate');
     });
 
-    it('should show version with --version flag', async () => {
+    it('should show the package.json version with --version flag', async () => {
+      const { version } = JSON.parse(
+        readFileSync(resolve(__dirname, '../../package.json'), 'utf-8')
+      ) as { version: string };
       const result = await runCli(['--version']);
       expect(result.exitCode).toBe(0);
-      expect(result.stdout.trim()).toMatch(/^\d+\.\d+\.\d+$/);
+      expect(result.stdout.trim()).toBe(version);
     });
 
     it('should show help for init subcommand', async () => {

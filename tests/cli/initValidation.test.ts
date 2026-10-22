@@ -1,10 +1,18 @@
 /**
- * Offline init-to-validate regression tests. Run the source CLI so ordinary
- * npm test covers initialization even before dist/cli.js has been built.
+ * Offline init-to-validate regression tests, plus the init-adjacent CLI
+ * contracts (--version, doctor, removed init options). Run the source CLI so
+ * ordinary npm test covers initialization even before dist/cli.js has been built.
  */
 
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -164,5 +172,38 @@ describe('CLI initialization configuration validation', () => {
         expect.objectContaining({ path: `agents.${Object.keys(expectedAgents)[0]}.${field}` }),
       ],
     });
+  });
+
+  it('prints the version declared in package.json', () => {
+    const { version } = JSON.parse(
+      readFileSync(new URL('../../package.json', import.meta.url), 'utf-8')
+    ) as { version: string };
+    const result = runCli(['--version'], tempDir);
+    expect(result.status, result.stdout + result.stderr).toBe(0);
+    expect(result.stdout.trim()).toBe(version);
+  });
+
+  // The exit status depends on the AI bridge of the environment; assert the config check only.
+  it('doctor finds the configuration of a quick-initialized project', () => {
+    initialize();
+    const found = 'OK  Config files: workflow.yaml + agents.yaml found';
+    expect(runCli(['doctor', '--project-dir', projectDir], tempDir).stdout).toContain(found);
+    // Without --project-dir, doctor checks the current directory.
+    expect(runCli(['doctor'], projectDir).stdout).toContain(found);
+    expect(runCli(['doctor', '--project-dir', tempDir], tempDir).stdout).toContain(
+      'FAIL  Config files: missing: workflow.yaml, agents.yaml'
+    );
+  }, 90_000);
+
+  // No pipeline stage reads a repository from init; repo detection uses the git remote.
+  it.each(['--github-repo', '-g'])('rejects the removed %s init option', (flag) => {
+    const result = runCli(
+      ['init', 'project', '--quick', '--skip-validation', flag, 'https://github.com/user/project'],
+      tempDir
+    );
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(`unknown option '${flag}'`);
+    expect(existsSync(projectDir)).toBe(false);
+    expect(runCli(['init', '--help'], tempDir).stdout).not.toContain('--github-repo');
   });
 });

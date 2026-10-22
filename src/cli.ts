@@ -45,6 +45,7 @@ import {
   isSupportedNodeVersion,
   MINIMUM_NODE_VERSION,
 } from './utils/index.js';
+import { readPackageVersion } from './utils/packageVersion.js';
 import { resolve } from 'node:path';
 import { getCompletionGenerator, SUPPORTED_SHELLS, type ShellType } from './completion/index.js';
 import { getTelemetry, PRIVACY_POLICY, PRIVACY_POLICY_VERSION } from './telemetry/index.js';
@@ -58,7 +59,7 @@ const program = new Command();
 program
   .name('ad-sdlc')
   .description('Agent-Driven Software Development Lifecycle CLI')
-  .version('0.0.1');
+  .version(readPackageVersion());
 
 /**
  * Init command - Initialize a new AD-SDLC project
@@ -66,7 +67,6 @@ program
 program
   .command('init [project-name]')
   .description('Initialize a new AD-SDLC project')
-  .option('-g, --github-repo <url>', 'GitHub repository URL')
   .option(
     '-t, --tech-stack <stack>',
     'Primary technology stack (typescript, python, java, go, rust, other)'
@@ -87,8 +87,6 @@ program
 
       if (isQuickMode || (hasProjectName && hasTemplate)) {
         // Non-interactive mode with command-line options
-        const githubRepo =
-          typeof cmdOptions['githubRepo'] === 'string' ? cmdOptions['githubRepo'] : undefined;
         const techStack =
           typeof cmdOptions['techStack'] === 'string'
             ? (cmdOptions['techStack'] as TechStack)
@@ -101,7 +99,6 @@ program
 
         options = {
           projectName: hasProjectName ? projectName : 'my-project',
-          githubRepo,
           techStack,
           template,
           quick: true,
@@ -982,8 +979,8 @@ program
         : 'available (use --local flag or AD_SDLC_LOCAL=1)',
     });
 
-    // 6. Config files
-    const configResult = configFilesExist(resolve(projectDir, '.ad-sdlc', 'config'));
+    // 6. Config files (configFilesExist takes the project root and appends .ad-sdlc/config)
+    const configResult = configFilesExist(projectDir);
     if (configResult.workflow && configResult.agents) {
       checks.push({ label: 'Config files', ok: true, detail: 'workflow.yaml + agents.yaml found' });
     } else {

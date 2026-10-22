@@ -228,6 +228,24 @@ try {
   );
   assert(!existsSync(join(explicitRoot, 'my-project')));
   run(bin, ['status', '--format', 'json'], explicitRoot);
+  // The installed CLI reports its own package version and finds the initialized configuration.
+  // doctor's exit status depends on the AI bridge, which this credential-free env lacks.
+  const installedVersion = JSON.parse(readFileSync(join(pkg, 'package.json'), 'utf8')).version;
+  assert.equal(run(bin, ['--version'], caller).trim(), installedVersion);
+  const doctor = spawnSync(bin, ['doctor', '--project-dir', explicitRoot], {
+    cwd: caller,
+    env,
+    encoding: 'utf8',
+    timeout: 300_000,
+  });
+  assert.ifError(doctor.error);
+  assert(
+    doctor.stdout.includes('OK  Config files: workflow.yaml + agents.yaml found'),
+    doctor.stdout + doctor.stderr
+  );
+  process.stdout.write(
+    `PACKAGE SMOKE: installed --version ${installedVersion}; doctor found config\n`
+  );
   const audit = join(temp, 'offline audit fixture');
   cpSync(join(repo, 'tests/doc-audit/fixtures/valid-project'), audit, { recursive: true });
   run(bin, ['audit-docs', '--project-dir', audit], caller);
@@ -251,6 +269,10 @@ try {
     for (const flag of requiredFlags) assert(help.includes(flag), `${command} ${flag}`);
   }
   assert(!run(bin, ['--help'], caller).includes('resume '), 'Resume is a run flag');
+  assert(
+    !run(bin, ['init', '--help'], caller).includes('--github-repo'),
+    'init has no repo option'
+  );
   process.stdout.write('PACKAGE SMOKE: packaged audit and command CLI contracts passed\n');
 
   // Inspect the shipped instructions, not just an independent list of expected flags.
