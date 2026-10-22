@@ -90,18 +90,26 @@ Download and run the installer from [nodejs.org](https://nodejs.org/).
 
 ### Step 2: Install AD-SDLC CLI
 
+AD-SDLC is not published to the npm registry yet, so `npm install -g ad-sdlc` and
+`npx ad-sdlc` do not work. Install it from source:
+
 ```bash
-# Global installation (recommended)
-npm install -g ad-sdlc
+git clone https://github.com/kcenon/claude_code_agent.git
+cd claude_code_agent
+npm ci
+npm run build
+
+# Put the ad-sdlc command on your PATH (this links to the clone, so keep it in place)
+npm install -g .
 
 # Verify installation
 ad-sdlc --version
 ```
 
-Alternatively, use npx without global installation:
+Alternatively, run the built CLI from the clone without a global installation:
 
 ```bash
-npx ad-sdlc init
+node dist/cli.js --help
 ```
 
 ### Step 3: Install GitHub CLI (Optional)
@@ -299,8 +307,8 @@ gh auth login
 **Solution**:
 
 ```bash
-# Option 1: Use npx instead
-npx ad-sdlc init
+# Option 1: Run the built CLI from the clone instead
+node /path/to/claude_code_agent/dist/cli.js init
 
 # Option 2: Configure npm to use a different directory
 mkdir ~/.npm-global

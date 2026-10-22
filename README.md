@@ -13,14 +13,22 @@ Every AI-backed pipeline stage runs through a single Claude Agent SDK entry poin
 Get started in under 5 minutes:
 
 ```bash
-# 1. Install AD-SDLC
-npm install -g ad-sdlc
+# 1. Install AD-SDLC from source (it is not published to the npm registry yet)
+git clone https://github.com/kcenon/claude_code_agent.git
+cd claude_code_agent
+npm ci
+npm run build
+npm install -g .
+cd ..
 
 # 2. Initialize your project
 ad-sdlc init my-project
 cd my-project
 
-# 3. Start with your requirements
+# 3. Start with your requirements (the CLI entry point is `ad-sdlc run`)
+ad-sdlc run "Implement user authentication with OAuth2" --project-dir .
+
+# Or hand the same request to Claude Code inside the project
 claude "Implement user authentication with OAuth2"
 ```
 
@@ -151,7 +159,7 @@ AD-SDLC automates the full software development lifecycle through a coordinated 
 
 6. **Review & Indexing**: The SDK reviewer stage performs code review; supported verification rules run through the existing stage verifier. Workflow coverage and complexity thresholds are not enforced and are rejected when configured. Finally, the Doc Index Generator creates a searchable documentation index from all pipeline artifacts.
 
-Each agent reads and writes to a shared scratchpad, enabling seamless inter-agent communication. The pipeline supports resume (`--resume`) and start-from (`--start-from <stage>`) for interrupted sessions.
+Each agent reads and writes to a shared scratchpad, enabling seamless inter-agent communication. An interrupted run can be resumed with `ad-sdlc run "<requirements>" --resume <session-id>`, which reuses the saved stage graph and runtime policy and skips the stages that session already completed. The CLI has no option to start from a later stage; `--stop-after <stage>` only ends a run early (see [Run the Pipeline from the CLI](#run-the-pipeline-from-the-cli)).
 
 ## Features
 
@@ -187,12 +195,19 @@ Each agent reads and writes to a shared scratchpad, enabling seamless inter-agen
 
 ### Install
 
-```bash
-# Global installation (recommended)
-npm install -g ad-sdlc
+AD-SDLC is not published to the npm registry yet and the repository has no releases, so `npm install -g ad-sdlc` and `npx ad-sdlc` do not work. Install it from source:
 
-# Or use directly with npx
-npx ad-sdlc init
+```bash
+git clone https://github.com/kcenon/claude_code_agent.git
+cd claude_code_agent
+npm ci
+npm run build
+
+# Put the ad-sdlc command on your PATH (this links to the clone, so keep the clone in place)
+npm install -g .
+
+# Or run the built CLI without a global install
+node dist/cli.js --help
 ```
 
 ### Configure
@@ -213,13 +228,14 @@ AD-SDLC v0.1 standardizes on the official Claude Agent SDK as the only AI runtim
 
 | Package                          | Version    | Role                                                                        |
 | -------------------------------- | ---------- | --------------------------------------------------------------------------- |
-| `@anthropic-ai/claude-agent-sdk` | `^0.3.287` | Single Agent SDK entry point used by `ExecutionAdapter` for every stage     |
+| `@anthropic-ai/claude-agent-sdk` | `^0.3.301` | Single Agent SDK entry point used by `ExecutionAdapter` for every stage     |
 | `commander`                      | `^15.0.0`  | `ad-sdlc` CLI argument parsing                                              |
-| `inquirer`                       | `^14.2.1`  | Interactive prompts for `ad-sdlc init`                                      |
-| `js-yaml`                        | `^5.4.2`   | Pipeline config and document frontmatter parsing                            |
-| `zod`                            | `^4.6.5`   | Runtime schema validation for configs, external data, and checkpoint schema |
+| `inquirer`                       | `^14.2.3`  | Interactive prompts for `ad-sdlc init`                                      |
+| `js-yaml`                        | `^5.5.0`   | Pipeline config and document frontmatter parsing                            |
+| `zod`                            | `^4.6.7`   | Runtime schema validation for configs, external data, and checkpoint schema |
 | `ts-morph`                       | `^28.0.0`  | TypeScript AST analysis for the Code Reader / Codebase Analyzer agents      |
-| `chalk`, `dotenv`                | latest     | CLI output and environment loading                                          |
+| `chalk`                          | `^6.0.1`   | CLI output styling                                                          |
+| `dotenv`                         | `^18.0.8`  | Environment loading                                                         |
 
 Optional integrations (logging backends, OpenTelemetry exporters, `better-sqlite3`, `ioredis`, `mammoth`, `pdf-parse`) are declared as **optional peer dependencies** so the runtime install stays lean; consumers pull them in only when the matching scratchpad backend or document parser is enabled.
 
@@ -243,11 +259,9 @@ ad-sdlc init my-project \
 
 ### Template Options
 
-| Template       | Workers | Coverage | Features                         |
-| -------------- | ------- | -------- | -------------------------------- |
-| **minimal**    | 2       | 50%      | Basic structure                  |
-| **standard**   | 3       | 70%      | Token tracking, dashboard        |
-| **enterprise** | 5       | 80%      | Audit logging, security scanning |
+`--template` accepts `minimal`, `standard` (the `--quick` default), or `enterprise`. All three currently write the same files: the same 36 canonical agents and four commands, the same `agents.yaml`, and the same `workflow.yaml` (`version: 1.0.0`, `pipeline.default_mode: greenfield`).
+
+The worker-count (2/3/5), coverage (50/70/80%), and feature presets (token tracking, dashboard, audit logging, security scanning) that earlier versions of this README listed per template are historical values marked `@deprecated` in `src/project-initializer/types.ts`. They are not written to the project and are not enforced; stage concurrency, retries, timeouts, and verification are configured through the [runtime configuration contract](docs/configuration/RUNTIME_WORKFLOW.md) instead.
 
 ### Run the Pipeline
 
@@ -271,16 +285,31 @@ claude "Start implementation with Controller"
 
 ```bash
 # Initialize new project
-ad-sdlc init [project-name]
+ad-sdlc init [project-name] [--quick] [--template minimal|standard|enterprise] [--tech-stack <stack>] [--github-repo <url>] [--skip-validation]
+
+# Run the pipeline (all options: see "Run the Pipeline from the CLI" below)
+ad-sdlc run "<requirements>" [--mode greenfield|enhancement|import] [--project-dir <dir>] [--resume <session-id>] [--stop-after <stage>] [--local] [--dry-run] [--format text|json]
 
 # Validate configuration files
-ad-sdlc validate [--file <path>] [--watch] [--format text|json]
+ad-sdlc validate [--project-dir <dir>] [--file <path>] [--watch] [--format text|json]
 
-# Check pipeline status
-ad-sdlc status [--project <id>] [--format text|json] [--verbose]
+# Check pipeline status and list saved sessions
+ad-sdlc status [--project-dir <dir>] [--project <id>] [--format text|json] [--verbose]
+
+# Check environment prerequisites
+ad-sdlc doctor [--project-dir <dir>]
+
+# Audit generated documents (see "Document Audit" below)
+ad-sdlc audit-docs --project-dir <dir> [--output <dir>] [--quiet]
+
+# Plan or apply updates of the installed canonical agents and commands
+ad-sdlc assets update --project-dir <dir> [--dry-run]
 
 # Analyze project for documentation-code gaps
-ad-sdlc analyze [--project <path>] [--scope full|documents_only|code_only]
+ad-sdlc analyze [--project <path>] [--scope full|documents_only|code_only|comparison]
+
+# Manage opt-in telemetry (`telemetry enable --yes` accepts the privacy policy)
+ad-sdlc telemetry <status|enable|disable|policy>
 
 # Generate shell completion script
 ad-sdlc completion --shell <bash|zsh|fish>
@@ -310,31 +339,43 @@ pre-merge check or as a CI quality gate. See the
 [Document Audit CLI](docs/doc-audit.md) guide for the full list of checks,
 report format, exit codes, and CI integration.
 
-### Full Pipeline Script
+### Run the Pipeline from the CLI
 
-Run the complete AD-SDLC pipeline end-to-end:
+`ad-sdlc run` runs the complete canonical pipeline end-to-end. It takes the requirements text as its only argument:
 
 ```bash
-# Auto-detect mode and run full pipeline
-./ad-sdlc-full-pipeline.sh [project_path] [mode]
+# Run in an initialized project
+ad-sdlc run "Build a todo app with user accounts" --project-dir .
 
-# Specify mode explicitly
-./ad-sdlc-full-pipeline.sh . greenfield
-./ad-sdlc-full-pipeline.sh . enhancement
-./ad-sdlc-full-pipeline.sh . import
+# Specify the mode explicitly
+ad-sdlc run "<requirements>" --mode greenfield --project-dir .
+ad-sdlc run "<requirements>" --mode enhancement --project-dir .
+ad-sdlc run "<requirements>" --mode import --project-dir .
 
-# Resume an interrupted pipeline
-./ad-sdlc-full-pipeline.sh . auto --resume
+# Validate the configuration and print the stage graph without calling the SDK
+ad-sdlc run "<requirements>" --project-dir . --dry-run
 
-# Resume a specific session
-./ad-sdlc-full-pipeline.sh . auto --resume <session-id>
+# Stop after a stage (stages that are runnable alongside it may still run)
+ad-sdlc run "<requirements>" --mode greenfield --project-dir . --stop-after sds_generation
 
-# Start from a specific stage
-./ad-sdlc-full-pipeline.sh . greenfield --start-from sds_generation
+# Run without GitHub, using the local agent variants
+ad-sdlc run "<requirements>" --project-dir . --local
 
-# List available sessions for resume
-./ad-sdlc-full-pipeline.sh . auto --list-sessions
+# List saved sessions and their status
+ad-sdlc status --project-dir .
+
+# Resume a saved session
+ad-sdlc run "<requirements>" --resume <session-id> --project-dir .
 ```
+
+- **Mode**: without `--mode`, the mode comes from the `AD_SDLC_MODE` environment variable or from `pipeline.default_mode` in `.ad-sdlc/config/workflow.yaml` (`greenfield` in a freshly initialized project).
+- **Session IDs**: a finished run prints `Pipeline <session-id>: <status> (<mode>)`, and `ad-sdlc status --project-dir .` prints one `Session <session-id>: <status>` line per saved run. Each run is saved as `.ad-sdlc/scratchpad/pipeline/<session-id>.yaml`.
+- **Resume**: `--resume` reuses the saved stage graph and runtime policy and skips the stages that session already completed. It rejects `--mode`, `--local`, and policy overrides; only `--stop-after` may change on resume.
+- **No start-from or session-list flag**: `ad-sdlc run` has no option to start from a later stage and no `--list-sessions`; use `ad-sdlc status` to find sessions.
+- **Policy options**: `--approval-mode auto|manual|critical`, `--max-parallel-stages <count>`, `--max-attempts <count>`, `--retry-backoff fixed|linear|exponential|fibonacci`, `--retry-base-delay-seconds <seconds>`, `--retry-max-delay-seconds <seconds>`, `--stage-timeout-ms <ms>`, `--vnv-rigor minimal|standard|strict`, and `--halt-on-verification-failure <boolean>`. See the [runtime configuration contract](docs/configuration/RUNTIME_WORKFLOW.md) for their precedence and validation.
+- **Output and credentials**: `--format json` prints a single JSON result. A live run needs `ANTHROPIC_API_KEY` or a Claude Code session; `--allow-stub` allows execution without detected SDK credentials for offline testing.
+
+Run `ad-sdlc run --help` for the full option list.
 
 ### Shell Autocompletion
 
@@ -385,23 +426,26 @@ See [Use Cases Guide](docs/use-cases.md) for more examples.
 
 ## Project Structure
 
+`ad-sdlc init` creates the following layout. Pipeline runs then add generated documents, source code, and run state.
+
 ```
 your-project/
 ├── .claude/
-│   └── agents/              # Agent definitions (36 prompt files; see runtime inventory)
-│       └── *.md             # Agent prompts (English, used by Claude)
+│   ├── agents/              # Agent definitions (36 prompt files; see runtime inventory)
+│   │   └── *.md             # Agent prompts (English, used by Claude)
+│   └── commands/            # Project slash commands (see Slash Commands)
 ├── .ad-sdlc/
+│   ├── asset-lock.json      # Installed asset versions and ownership baselines
 │   ├── config/              # Configuration files
 │   │   ├── agents.yaml      # Agent registry
 │   │   └── workflow.yaml    # Pipeline configuration
 │   ├── logs/                # Audit logs
-│   ├── scripts/             # Pipeline shell scripts
-│   │   └── ad-sdlc-full-pipeline.sh
-│   ├── templates/           # Document templates
+│   ├── templates/           # Document templates (PRD, SRS, SDS, issue)
 │   └── scratchpad/          # Inter-agent state (Scratchpad pattern)
-│       └── pipeline/        # Pipeline session state (resume support)
-├── docs/                    # Generated documentation
-├── src/                     # Generated source code
+│       ├── info/, documents/, issues/, progress/
+│       └── pipeline/        # Saved run state for --resume (created by ad-sdlc run)
+├── docs/                    # Generated documentation (prd/, srs/, sds/)
+├── .gitignore               # AD-SDLC entries appended
 └── README.md
 ```
 

@@ -72,8 +72,9 @@ cd my-first-project
 ```
 
 For an existing project directory, use `ad-sdlc init . --quick` from that root.
-All templates receive the same canonical assets; quality/worker settings remain
-template-specific. Review later changes with `ad-sdlc assets update --project-dir . --dry-run`.
+All templates currently write the same files, including the same canonical assets and
+the same default `workflow.yaml`; the historical quality/worker presets are not written
+or enforced. Review later changes with `ad-sdlc assets update --project-dir . --dry-run`.
 See [asset upgrades and customization](agent-assets.md).
 
 This creates the following structure:
@@ -340,11 +341,14 @@ cat .ad-sdlc/logs/agent-logs/collector.log
 ### Need to Restart?
 
 ```bash
-# Resume from last checkpoint
-ad-sdlc resume
+# List saved runs and their session IDs
+ad-sdlc status --project-dir .
 
-# Or reset and start over
-ad-sdlc reset
+# Resume a saved run from its last completed stage
+ad-sdlc run "Your original requirements" --resume <session-id> --project-dir .
+
+# Or start over with a fresh run (omit --resume)
+ad-sdlc run "Your requirements" --project-dir .
 ```
 
 See [FAQ](faq.md) for more troubleshooting tips.
@@ -355,13 +359,13 @@ See [FAQ](faq.md) for more troubleshooting tips.
 
 ### Essential Commands
 
-| Command            | Description            |
-| ------------------ | ---------------------- |
-| `ad-sdlc init`     | Initialize new project |
-| `ad-sdlc status`   | Check pipeline status  |
-| `ad-sdlc validate` | Validate configuration |
-| `ad-sdlc resume`   | Resume from checkpoint |
-| `ad-sdlc reset`    | Reset pipeline state   |
+| Command                                      | Description                        |
+| -------------------------------------------- | ---------------------------------- |
+| `ad-sdlc init`                               | Initialize new project             |
+| `ad-sdlc run "<requirements>"`               | Run the pipeline                   |
+| `ad-sdlc status`                             | Check pipeline status and sessions |
+| `ad-sdlc validate`                           | Validate configuration             |
+| `ad-sdlc run "<requirements>" --resume <id>` | Resume a saved run                 |
 
 ### Pipeline Stages (Greenfield -- 19 stages)
 
