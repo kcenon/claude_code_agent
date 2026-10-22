@@ -39,3 +39,55 @@ mode arrays.
 All 36 prompts and four project commands ship in the npm asset bundle and are
 installed for every template. The [asset manifest and upgrade guide](../agent-assets.md)
 documents delivery validation, local/delegated closure, and customization ownership.
+
+## Agent Definitions by Phase
+
+The table lists every checked-in definition in `.claude/agents/`, grouped by
+pipeline phase.
+
+| Phase             | Agent                 | Role                                                                                                |
+| ----------------- | --------------------- | --------------------------------------------------------------------------------------------------- |
+| **Orchestration** | AD-SDLC Orchestrator  | Coordinates the full pipeline lifecycle                                                             |
+|                   | Analysis Orchestrator | Coordinates the analysis sub-pipeline                                                               |
+| **Setup**         | Mode Detector         | Detects Greenfield vs Enhancement vs Import mode                                                    |
+|                   | Project Initializer   | Creates `.ad-sdlc` directory structure and config                                                   |
+|                   | Repo Detector         | Determines if existing repo or new setup needed                                                     |
+|                   | GitHub Repo Setup     | Creates and initializes GitHub repository                                                           |
+| **Collection**    | Collector             | Gathers requirements from text, files, and URLs                                                     |
+|                   | Issue Reader          | Imports existing GitHub Issues for Import pipeline                                                  |
+|                   | Local Issue Reader    | Local-mode issue import variant without a GitHub dependency                                         |
+| **Documentation** | PRD Writer            | Generates Product Requirements Document                                                             |
+|                   | SRS Writer            | Generates Software Requirements Specification                                                       |
+|                   | SDP Writer            | Generates Software Development Plan from PRD and SRS                                                |
+|                   | SDS Writer            | Generates Software Design Specification (SDS) and a separate Database Schema Specification (DBS)    |
+|                   | Threat Model Writer   | Generates STRIDE/DREAD Threat Model from SDS                                                        |
+|                   | Tech Decision Writer  | Generates Technology Decision documents with alternatives analysis from the SDS technology stack    |
+|                   | UI Spec Writer        | Generates UI screen specifications, user flow documents, and design system references from SRS      |
+|                   | Doc Index Generator   | Generates structured documentation index (manifest, bundles, graph, router) from pipeline artifacts |
+| **Planning**      | Issue Generator       | Creates GitHub Issues from SDS components                                                           |
+|                   | SVP Writer            | Generates Software Verification Plan with test cases from SRS and issues                            |
+| **Execution**     | Controller            | Orchestrates work distribution and monitors progress                                                |
+|                   | Worker                | Implements code based on assigned issues                                                            |
+|                   | Local Reviewer        | Local-mode PR review variant (no GitHub dependency)                                                 |
+| **Quality**       | PR Reviewer           | Creates PRs and performs automated code review                                                      |
+|                   | CI Fixer              | Automatically diagnoses and fixes CI failures                                                       |
+|                   | Regression Tester     | Validates existing functionality after changes                                                      |
+| **V&V**           | Stage Verifier        | Verifies every completed stage; strict mode can halt the live scheduler on failure                  |
+|                   | RTM Builder           | Builds Requirements Traceability Matrix from requirements to implementation                         |
+|                   | Validation Agent      | Validates final implementation against requirements and acceptance criteria                         |
+| **Enhancement**   | Document Reader       | Parses existing PRD/SRS/SDS documents                                                               |
+|                   | Code Reader           | Extracts source code structure and dependencies                                                     |
+|                   | Codebase Analyzer     | Analyzes current architecture and code structure                                                    |
+|                   | Doc-Code Comparator   | Detects gaps between documentation and code                                                         |
+|                   | Impact Analyzer       | Assesses change implications and risks                                                              |
+|                   | PRD Updater           | Incremental PRD updates (delta changes)                                                             |
+|                   | SRS Updater           | Incremental SRS updates (delta changes)                                                             |
+|                   | SDS Updater           | Incremental SDS updates (delta changes)                                                             |
+
+Only the unique pipeline agent types counted above are direct `agentType`
+values in the mode arrays. Local aliases, orchestrators, CI repair, Stage
+Verifier, and RTM Builder are the support/delegated definitions.
+
+Each definition has YAML frontmatter (name, description, tools, model) and a
+Markdown body with its role, responsibilities, schemas, and workflows. The
+prompt files are in English and are used by Claude during execution.

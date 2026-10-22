@@ -1,0 +1,55 @@
+name: Documentation Audit
+
+# README policy (#972): scripts/readme_lint.py checks README.md for a status
+# line and the package.json version in the first 20 lines, promotional
+# qualifiers, figures without a source marker, badges without a workflow
+# file, and the 300-line limit; scripts/tests/test_readme_lint.py checks the
+# linter itself. Both use only the Python standard library and never use the
+# network. The paths include what the lint reads besides README.md:
+# package.json for the version, docs/ for source-marker anchors, and the
+# workflow files for badges. See scripts/README.md.
+
+on:
+  pull_request:
+    branches: [develop, main]
+    paths:
+      - 'README.md'
+      - 'package.json'
+      - 'docs/**'
+      - 'scripts/readme_lint.py'
+      - 'scripts/tests/**'
+      - '.github/workflows/**'
+  push:
+    branches: [develop, main]
+    paths:
+      - 'README.md'
+      - 'package.json'
+      - 'docs/**'
+      - 'scripts/readme_lint.py'
+      - 'scripts/tests/**'
+      - '.github/workflows/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: doc-audit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  readme-lint:
+    name: README lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Show Python version
+        run: python3 --version
+
+      - name: Test README lint
+        run: python3 -m unittest discover -s scripts/tests -p 'test_readme_lint.py'
+
+      - name: Lint README
+        run: python3 scripts/readme_lint.py README.md

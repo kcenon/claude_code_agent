@@ -63,7 +63,7 @@ interface SyncPointConfig {
 const RUNTIME_INVENTORY_START = '<!-- generated-runtime-inventory:start -->';
 const RUNTIME_INVENTORY_END = '<!-- generated-runtime-inventory:end -->';
 
-/** Validate inventory counts, generated mirrors, the ADR tree, and README versions. */
+/** Validate inventory counts, generated mirrors, the ADR tree, and documented dependency versions. */
 export class DocInventoryValidator {
   private readonly projectRoot: string;
   private readonly syncConfigPath: string;
@@ -300,9 +300,9 @@ export class DocInventoryValidator {
     const versions = { ...packageJson.devDependencies, ...packageJson.dependencies };
     const tables = [
       {
-        path: 'README.md',
+        path: 'docs/installation.md',
         section: /### Dependencies([\s\S]*?)Optional integrations/,
-        label: 'README dependency table',
+        label: 'installation guide dependency table',
       },
       {
         path: 'docs/architecture/overview.md',

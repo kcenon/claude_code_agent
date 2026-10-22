@@ -138,6 +138,25 @@ sudo apt install gh
 winget install --id GitHub.cli
 ```
 
+### Dependencies
+
+`npm ci` installs the runtime dependencies declared in `package.json`. AD-SDLC v0.1 standardizes on the official Claude Agent SDK as the only AI runtime dependency. The legacy raw `@anthropic-ai/sdk` client and the in-tree `AgentBridge`/`AgentDispatcher`/`AgentRegistry` stack were removed in v0.1.0 (#798).
+
+| Package                          | Version    | Role                                                                        |
+| -------------------------------- | ---------- | --------------------------------------------------------------------------- |
+| `@anthropic-ai/claude-agent-sdk` | `^0.3.301` | Single Agent SDK entry point used by `ExecutionAdapter` for every stage     |
+| `commander`                      | `^15.0.0`  | `ad-sdlc` CLI argument parsing                                              |
+| `inquirer`                       | `^14.2.3`  | Interactive prompts for `ad-sdlc init`                                      |
+| `js-yaml`                        | `^5.5.0`   | Pipeline config and document frontmatter parsing                            |
+| `zod`                            | `^4.6.7`   | Runtime schema validation for configs, external data, and checkpoint schema |
+| `ts-morph`                       | `^28.0.0`  | TypeScript AST analysis for the Code Reader / Codebase Analyzer agents      |
+| `chalk`                          | `^6.0.1`   | CLI output styling                                                          |
+| `dotenv`                         | `^18.0.8`  | Environment loading                                                         |
+
+Optional integrations (logging backends, OpenTelemetry exporters, `better-sqlite3`, `ioredis`, `mammoth`, `pdf-parse`) are declared as **optional peer dependencies** so the runtime install stays lean; consumers pull them in only when the matching scratchpad backend or document parser is enabled.
+
+`npm run docs:check` compares this table with `package.json`.
+
 ---
 
 ## Configuration
@@ -194,6 +213,8 @@ gh auth login
 # Verify authentication
 gh auth status
 ```
+
+Stages that talk to GitHub (`pr-reviewer`, `issue-generator`, `ci-fixer`) also need `GITHUB_TOKEN`. Export a Personal Access Token with `repo`-level scope; the team-shared `.mcp.json` interpolates it via `${GITHUB_TOKEN}` and never stores literals. See [MCP configuration](configuration/mcp.md) for setup, scopes, and troubleshooting.
 
 ### Step 3: Initialize Your Project
 

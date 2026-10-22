@@ -65,7 +65,7 @@ describe('DocInventoryValidator', () => {
   it('reports mirror and dependency-version drift', () => {
     write('docs/api/_media/PRD.md', 'stale mirror');
     write(
-      'README.md',
+      'docs/installation.md',
       '### Dependencies\n\n| Package | Version | Role |\n| --- | --- | --- |\n| `@anthropic-ai/claude-agent-sdk` | `^0.1.0` | SDK |\n\nOptional integrations\n'
     );
 
@@ -111,7 +111,7 @@ describe('DocInventoryValidator', () => {
     const result = new DocInventoryValidator(root).validate();
 
     expect(result.violations).toContainEqual(
-      expect.objectContaining({ code: 'DEPENDENCY_VERSION', path: 'README.md' })
+      expect.objectContaining({ code: 'DEPENDENCY_VERSION', path: 'docs/installation.md' })
     );
     expect(result.violations).toContainEqual(
       expect.objectContaining({ code: 'DEPENDENCY_VERSION', path: 'docs/architecture/overview.md' })
@@ -158,7 +158,7 @@ describe('DocInventoryValidator', () => {
       JSON.stringify({ dependencies: { '@anthropic-ai/claude-agent-sdk': '^1.2.3' } })
     );
     write(
-      'README.md',
+      'docs/installation.md',
       '### Dependencies\n\n| Package | Version | Role |\n| --- | --- | --- |\n| `@anthropic-ai/claude-agent-sdk` | `^1.2.3` | SDK |\n\nOptional integrations\n'
     );
     write(
