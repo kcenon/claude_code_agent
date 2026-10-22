@@ -358,4 +358,185 @@ Another feature.
       expect(result.features[0]?.priority).toBe('P0');
     });
   });
+
+  describe('characterization of irregular spacing', () => {
+    const irregularSRS = [
+      '# Acme Portal Software Requirements',
+      '',
+      '|  **Document ID**  |\tSRS-acme  |',
+      '| **Version** |   |',
+      '| **Status** | Approved\t|',
+      '',
+      '---',
+      '',
+      '## 2.Features',
+      '',
+      '### SF-001:\tLogin  ',
+      '',
+      '| **Priority** |  P0 |',
+      '| **Source** | FR-001, FR-002 |',
+      '| **Use Cases** | UC-001 |',
+      '',
+      '**Description:**',
+      '',
+      '  Users sign in.  ',
+      '',
+      '**Acceptance Criteria:**',
+      '',
+      '-  Valid credentials work',
+      '*\tInvalid ones fail',
+      '1.  Lockout after 5 tries',
+      '-    ',
+      '-',
+      '',
+      '### SF-002: ',
+      '',
+      '## 3. Use Cases',
+      '',
+      '#### UC-001:   Sign in',
+      '',
+      '| **Actor** | Member |',
+      '| **Feature** | SF-001 |',
+      '',
+      '**Preconditions:**',
+      '- Account exists',
+      '**Main Scenario:**',
+      '1. Open page',
+      '2.\tSubmit form',
+      '**Alternative Flows:**',
+      '- Implicit step',
+      '##### Wrong password  ',
+      '- Show error',
+      '#####   ',
+      '- Retry',
+      '**Postconditions:**',
+      '- Session started',
+      '',
+      '##  Non-Functional Requirements',
+      '',
+      '### NFR-001:  Performance budget',
+      '',
+      '| **Priority** | P2 |',
+      '| **Metric** | p95 < 200 ms |',
+      '',
+      'Fast pages.',
+      '',
+      '## 5. Constraints',
+      '',
+      '### CON-001:\tTechnical stack',
+      '',
+      'Node only.',
+      '',
+      '## 6.Assumptions',
+      '',
+      '-  Users have email',
+      '2.  Browsers are modern',
+      '',
+      '## 7. Appendix',
+    ].join('\n');
+
+    it('should keep metadata, features, and list parsing stable', () => {
+      const result = new SRSParser().parse(irregularSRS);
+
+      expect(result.metadata).toEqual({
+        documentId: 'SRS-acme',
+        sourcePRD: '',
+        version: '',
+        status: 'Approved',
+        projectId: 'acme',
+        createdDate: '',
+        updatedDate: '',
+      });
+      expect(result.productName).toBe('Acme Portal');
+      expect(result.features).toEqual([
+        {
+          id: 'SF-001',
+          name: 'Login',
+          description: 'Users sign in.',
+          priority: 'P0',
+          sourceRequirements: ['FR-001', 'FR-002'],
+          useCaseIds: ['UC-001'],
+          acceptanceCriteria: [
+            'Valid credentials work',
+            'Invalid ones fail',
+            'Lockout after 5 tries',
+            '',
+          ],
+        },
+        {
+          id: 'SF-002',
+          name: '',
+          description: '',
+          priority: 'P1',
+          sourceRequirements: [],
+          useCaseIds: [],
+          acceptanceCriteria: [],
+        },
+      ]);
+      expect(result.nfrs).toEqual([
+        {
+          id: 'NFR-001',
+          category: 'Performance',
+          description: 'Fast pages.',
+          priority: 'P2',
+          metric: 'p95 < 200 ms',
+        },
+      ]);
+      expect(result.constraints).toEqual([
+        { id: 'CON-001', type: 'Technical', description: 'Node only.' },
+      ]);
+      expect(result.assumptions).toEqual(['Users have email', 'Browsers are modern']);
+    });
+
+    it('should keep use case and alternative scenario parsing stable', () => {
+      const result = new SRSParser().parse(irregularSRS);
+
+      expect(result.useCases).toEqual([
+        {
+          id: 'UC-001',
+          name: 'Sign in',
+          primaryActor: 'Member',
+          preconditions: ['Account exists'],
+          mainScenario: ['Open page', 'Submit form'],
+          postconditions: ['Session started'],
+          alternativeScenarios: [
+            { name: 'Alternative Flow', steps: ['Implicit step'] },
+            { name: 'Wrong password  ', steps: ['Show error'] },
+            { name: ' ', steps: ['Retry'] },
+          ],
+          sourceFeatureId: 'SF-001',
+        },
+      ]);
+    });
+
+    it.each([
+      ['# Acme SRS', 'Acme'],
+      ['# Acme   Software Requirements', 'Acme'],
+      ['# Acme Specification', 'Acme'],
+      ['# AcmeSRS', 'Acme'],
+      ['# SRS', 'SRS'],
+      ['# Acme SRS Spec', 'Acme SRS Spec'],
+      ['# Acme\tSRS\t', 'Acme\tSRS'],
+      ['#  ', ''],
+    ])('should derive the product name from title %j', (title, expected) => {
+      expect(new SRSParser().parse(`${title}\n`).productName).toBe(expected);
+    });
+
+    it('should skip Purpose and Product subsection headings in the introduction', () => {
+      const result = new SRSParser().parse(
+        '## 1. Introduction\n### 1.1  **Heading**   Purpose\n###\t**Other** Product\n**Widget** text\n'
+      );
+
+      expect(result.productName).toBe('Widget');
+    });
+
+    it('should not match table rows that end with a carriage return', () => {
+      const result = new SRSParser().parse(
+        '| **Document ID** | SRS-1 |\r\n| **Version** | 2.0 |\r\n'
+      );
+
+      expect(result.metadata.documentId).toBe('');
+      expect(result.metadata.version).toBe('1.0.0');
+    });
+  });
 });
