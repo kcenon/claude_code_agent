@@ -1,16 +1,33 @@
 # AD-SDLC: Agent-Driven Software Development Lifecycle
 
-> **Automate your software development from requirements to deployment, built on the [Claude Agent SDK](https://www.npmjs.com/package/@anthropic-ai/claude-agent-sdk).**
+Status: experimental · Version: [0.1.0](package.json) (unreleased; no tagged release yet)
 
-[![License: BSD-3-Clause](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
-[![Node.js](https://img.shields.io/badge/Node.js-22.22.1%2B-green.svg)](https://nodejs.org/)
-[![Built with Claude Agent SDK](https://img.shields.io/badge/Built%20with-Claude%20Agent%20SDK-blueviolet)](https://www.npmjs.com/package/@anthropic-ai/claude-agent-sdk)
+[![CI](https://github.com/kcenon/claude_code_agent/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/kcenon/claude_code_agent/actions/workflows/ci.yml?query=branch%3Adevelop)
+[![Security Scan](https://github.com/kcenon/claude_code_agent/actions/workflows/security.yml/badge.svg?branch=develop)](https://github.com/kcenon/claude_code_agent/actions/workflows/security.yml?query=branch%3Adevelop)
+[![Document Checks](https://github.com/kcenon/claude_code_agent/actions/workflows/docs-check.yml/badge.svg?branch=develop)](https://github.com/kcenon/claude_code_agent/actions/workflows/docs-check.yml?query=branch%3Adevelop)
 
-Every AI-backed pipeline stage runs through a single Claude Agent SDK entry point (`ExecutionAdapter`). The three modes currently contain 39 stage slots that reuse 29 unique pipeline agent types; the repository also carries 7 support/delegated definitions, for 36 canonical prompt files shipped with every npm scaffold. These axes are [tracked separately and checked from source](docs/architecture/runtime-inventory.md).
+AD-SDLC is a TypeScript command-line tool (`ad-sdlc`) that turns a requirements description into project documents, GitHub issues, code, and pull requests. It runs a pipeline of specialized agents built on the [Claude Agent SDK](https://www.npmjs.com/package/@anthropic-ai/claude-agent-sdk); every AI-backed stage goes through one SDK entry point (`ExecutionAdapter`).
+
+The project is experimental: version 0.1.0 is not tagged as a release and not published to the npm registry, so it is installed from source. The badges show the latest workflow runs on `develop`, the default branch.
+
+<!-- Counts below come from the generated table in docs/architecture/runtime-inventory.md, which npm run docs:check-inventory checks against the source. Update both together. -->
+
+The three pipeline modes contain 39 stage slots that reuse 29 unique pipeline agent types; with 7 support/delegated definitions, 36 agent prompt files ship with every scaffold. The [runtime inventory](docs/architecture/runtime-inventory.md) derives each count from the source and lists every agent definition.
+
+## Contents
+
+- [Quick Start](#quick-start)
+- [Pipeline Modes](#pipeline-modes)
+- [How It Works](#how-it-works)
+- [Features](#features)
+- [CLI Overview](#cli-overview)
+- [Documentation](#documentation)
+- [Contributing](#contributing)
+- [License](#license)
 
 ## Quick Start
 
-Get started in under 5 minutes:
+Prerequisites: Node.js 22.22.1 or later, Git 2.30 or later, and an `ANTHROPIC_API_KEY` or a Claude Code login. Stages that talk to GitHub (`pr-reviewer`, `issue-generator`, `ci-fixer`) also need GitHub CLI 2.0 or later and a `GITHUB_TOKEN`; `--local` runs without GitHub. The [Installation Guide](docs/installation.md) covers each step.
 
 ```bash
 # 1. Install AD-SDLC from source (it is not published to the npm registry yet)
@@ -18,25 +35,25 @@ git clone https://github.com/kcenon/claude_code_agent.git
 cd claude_code_agent
 npm ci
 npm run build
-npm install -g .
+npm install -g .   # links the ad-sdlc command to this clone, so keep the clone in place
 cd ..
 
 # 2. Initialize your project
 ad-sdlc init my-project
 cd my-project
 
-# 3. Start with your requirements (the CLI entry point is `ad-sdlc run`)
+# 3. Run the pipeline with your requirements
+export ANTHROPIC_API_KEY="your-api-key"
 ad-sdlc run "Implement user authentication with OAuth2" --project-dir .
-
-# Or hand the same request to Claude Code inside the project
-claude "Implement user authentication with OAuth2"
 ```
 
-That's it! The agents will generate documents, create issues, implement code, and open PRs.
+Run the pipeline with `ad-sdlc run "<requirements>"`; the agents then generate documents, create issues, implement code, and open pull requests. Add `--dry-run` to validate the configuration and print the stage graph without calling the SDK, or `--local` to run without GitHub. Inside the project you can also hand the same request to Claude Code: `claude "Implement user authentication with OAuth2"`.
 
-## What is AD-SDLC?
+The [Quickstart Guide](docs/quickstart.md) walks through a first run, and the [CLI reference](docs/cli.md) lists every command and option.
 
-AD-SDLC is an automated software development pipeline that uses specialized Claude agents to transform requirements into production-ready code. It supports three modes:
+## Pipeline Modes
+
+`ad-sdlc run` takes the mode from `--mode`, the `AD_SDLC_MODE` environment variable, or `pipeline.default_mode` in `.ad-sdlc/config/workflow.yaml` (`greenfield` in a freshly initialized project).
 
 ### Greenfield Pipeline (New Projects)
 
@@ -76,64 +93,9 @@ GitHub Issues → Issue Reader → Controller → Worker → Validation → PR R
                                                         CI Fixer (delegated on failure)
 ```
 
-### Agent Definition Inventory (36 Prompt Files)
+## How It Works
 
-| Phase             | Agent                 | Role                                                                                                |
-| ----------------- | --------------------- | --------------------------------------------------------------------------------------------------- |
-| **Orchestration** | AD-SDLC Orchestrator  | Coordinates the full pipeline lifecycle                                                             |
-|                   | Analysis Orchestrator | Coordinates the analysis sub-pipeline                                                               |
-| **Setup**         | Mode Detector         | Detects Greenfield vs Enhancement vs Import mode                                                    |
-|                   | Project Initializer   | Creates `.ad-sdlc` directory structure and config                                                   |
-|                   | Repo Detector         | Determines if existing repo or new setup needed                                                     |
-|                   | GitHub Repo Setup     | Creates and initializes GitHub repository                                                           |
-| **Collection**    | Collector             | Gathers requirements from text, files, and URLs                                                     |
-|                   | Issue Reader          | Imports existing GitHub Issues for Import pipeline                                                  |
-|                   | Local Issue Reader    | Local-mode issue import variant without a GitHub dependency                                         |
-| **Documentation** | PRD Writer            | Generates Product Requirements Document                                                             |
-|                   | SRS Writer            | Generates Software Requirements Specification                                                       |
-|                   | SDP Writer            | Generates Software Development Plan from PRD and SRS                                                |
-|                   | SDS Writer            | Generates Software Design Specification (SDS) and a separate Database Schema Specification (DBS)    |
-|                   | Threat Model Writer   | Generates STRIDE/DREAD Threat Model from SDS                                                        |
-|                   | Tech Decision Writer  | Generates Technology Decision documents with alternatives analysis from the SDS technology stack    |
-|                   | UI Spec Writer        | Generates UI screen specifications, user flow documents, and design system references from SRS      |
-|                   | Doc Index Generator   | Generates structured documentation index (manifest, bundles, graph, router) from pipeline artifacts |
-| **Planning**      | Issue Generator       | Creates GitHub Issues from SDS components                                                           |
-|                   | SVP Writer            | Generates Software Verification Plan with test cases from SRS and issues                            |
-| **Execution**     | Controller            | Orchestrates work distribution and monitors progress                                                |
-|                   | Worker                | Implements code based on assigned issues                                                            |
-|                   | Local Reviewer        | Local-mode PR review variant (no GitHub dependency)                                                 |
-| **Quality**       | PR Reviewer           | Creates PRs and performs automated code review                                                      |
-|                   | CI Fixer              | Automatically diagnoses and fixes CI failures                                                       |
-|                   | Regression Tester     | Validates existing functionality after changes                                                      |
-| **V&V**           | Stage Verifier        | Verifies every completed stage; strict mode can halt the live scheduler on failure                  |
-|                   | RTM Builder           | Builds Requirements Traceability Matrix from requirements to implementation                         |
-|                   | Validation Agent      | Validates final implementation against requirements and acceptance criteria                         |
-| **Enhancement**   | Document Reader       | Parses existing PRD/SRS/SDS documents                                                               |
-|                   | Code Reader           | Extracts source code structure and dependencies                                                     |
-|                   | Codebase Analyzer     | Analyzes current architecture and code structure                                                    |
-|                   | Doc-Code Comparator   | Detects gaps between documentation and code                                                         |
-|                   | Impact Analyzer       | Assesses change implications and risks                                                              |
-|                   | PRD Updater           | Incremental PRD updates (delta changes)                                                             |
-|                   | SRS Updater           | Incremental SRS updates (delta changes)                                                             |
-|                   | SDS Updater           | Incremental SDS updates (delta changes)                                                             |
-
-> **Note**: Only 29 of these definitions are direct `agentType` values in the mode arrays. Local aliases, orchestrators, CI repair, Stage Verifier, and RTM Builder are support/delegated definitions. See the [runtime inventory](docs/architecture/runtime-inventory.md) for source-derived counts.
-
-## How it Works
-
-### 3-Tier Architecture
-
-AD-SDLC is structured as three cooperating tiers. The orchestrator owns the pipeline DAG, approval flow, and active validation stage; the execution layer is a single Claude Agent SDK entry point; and the knowledge layer (`.claude/`, MCP servers, claude-config plugin) is consumed by the SDK rather than wired through custom bridges.
-
-```mermaid
-flowchart TB
-    Orch[T1 Orchestrator] -->|stage 단위| Adapter[T2 ExecutionAdapter]
-    Adapter --> SDK[Agent SDK query]
-    Adapter --> Hooks[Hook Pipeline]
-    SDK -.reads.-> Knowledge[T3 .claude/ + plugin]
-    Hooks --> Scratchpad
-    Hooks --> Telemetry
-```
+AD-SDLC is structured as three cooperating tiers. The orchestrator owns the pipeline DAG, approval flow, and active validation stage; the execution layer is a single Claude Agent SDK entry point; and the knowledge layer is consumed by the SDK rather than wired through custom bridges.
 
 | Tier                          | Responsibility                                    | Implementation                                   |
 | ----------------------------- | ------------------------------------------------- | ------------------------------------------------ |
@@ -141,444 +103,64 @@ flowchart TB
 | **T2 Agent Execution Layer**  | Single SDK entry point, hooks, telemetry bridge   | `src/execution/`                                 |
 | **T3 Knowledge Layer**        | Agent definitions, skills, commands, MCP servers  | `.claude/`, `.mcp.json`, claude-config plugin    |
 
-See [`docs/architecture/v0.1-hybrid-pipeline-rfc.md`](docs/architecture/v0.1-hybrid-pipeline-rfc.md) for the full architecture RFC and [`docs/architecture/v0.1-migration-guide.md`](docs/architecture/v0.1-migration-guide.md) for the v0.0.1 → v0.1.0 migration steps.
+- **Shared state**: each agent reads and writes a shared scratchpad under `.ad-sdlc/scratchpad/`, which is how the agents communicate.
+- **Concurrency**: configured stage concurrency limits independent runnable stages; it does not enforce a worker pool inside SDK agents.
+- **Verification**: the Validation Agent is an active stage in all three modes and checks the implementation against acceptance criteria. The scheduler runs the stage verifier on every completed stage and records the result; in strict V&V rigor with `haltOnVerificationFailure` enabled, the first failed check stops the run. The RTM builder and the cross-document consistency check exist as modules but are not called by the orchestrator yet; wiring them in is tracked in [#952](https://github.com/kcenon/claude_code_agent/issues/952). Workflow coverage and complexity thresholds are not enforced and are rejected when configured.
+- **Resume**: `ad-sdlc run "<requirements>" --resume <session-id>` reuses the saved stage graph and runtime policy and skips the stages that session already completed. The CLI has no option to start from a later stage; `--stop-after <stage>` only ends a run early.
 
-### Pipeline Flow
-
-AD-SDLC automates the full software development lifecycle through a coordinated agent pipeline:
-
-1. **Mode Detection**: The system analyzes your project to determine the appropriate pipeline -- Greenfield (new project), Enhancement (existing project), or Import (existing GitHub issues).
-
-2. **Document Generation**: A cascade of writer agents produces structured documents from your requirements. In Greenfield mode: PRD, SRS, SDP, SDS, followed by parallel generation of Threat Model, Technology Decisions, and UI Specifications (when applicable).
-
-3. **Planning**: The Issue Generator transforms design specifications into actionable GitHub Issues with dependencies and labels. The SVP Writer creates a Software Verification Plan with derived test cases.
-
-4. **Implementation**: The canonical graph runs the controller stage followed by the worker stage. Configured stage concurrency limits independent runnable stages; it does not enforce a worker pool inside SDK agents.
-
-5. **Verification & Validation**: The Validation Agent is an active stage in all three modes and checks the implementation against acceptance criteria. Stage Verifier and RTM Builder exist as auxiliary definitions/modules but are not yet orchestrator-enforced gates; their disposition is tracked in #877.
-
-6. **Review & Indexing**: The SDK reviewer stage performs code review; supported verification rules run through the existing stage verifier. Workflow coverage and complexity thresholds are not enforced and are rejected when configured. Finally, the Doc Index Generator creates a searchable documentation index from all pipeline artifacts.
-
-Each agent reads and writes to a shared scratchpad, enabling seamless inter-agent communication. An interrupted run can be resumed with `ad-sdlc run "<requirements>" --resume <session-id>`, which reuses the saved stage graph and runtime policy and skips the stages that session already completed. The CLI has no option to start from a later stage; `--stop-after <stage>` only ends a run early (see [Run the Pipeline from the CLI](#run-the-pipeline-from-the-cli)).
+See the [v0.1 Hybrid Pipeline RFC](docs/architecture/v0.1-hybrid-pipeline-rfc.md) for the architecture and the [v0.1 Migration Guide](docs/architecture/v0.1-migration-guide.md) for the v0.0.1 → v0.1.0 migration steps.
 
 ## Features
 
-- **Automatic Document Generation**: PRD, SRS, SDP, SDS, DBS, TM, SVP, TD, and UI specification documents from natural language requirements
-- **UI Specification Generation**: Screen specifications, user flow documents, and design system references from SRS use cases; auto-skips for CLI/API/library projects
-- **Separate Database Schema Specification (DBS)**: SDS Writer emits a dedicated DBS document alongside the SDS, keeping the full database schema decoupled from architectural design
-- **Document Frontmatter Metadata**: YAML frontmatter with doc_id, version, status, and change history on all generated documents
-- **Enhancement Pipeline**: Incremental updates to existing projects without full rewrites
-- **Import Pipeline**: Process existing GitHub Issues directly, skipping document generation
-- **Local Mode**: Run the full pipeline without GitHub using `--local` (or `AD_SDLC_LOCAL=1`); see [Quickstart](docs/quickstart.md) for details
-- **Mode Detection**: Automatically detects Greenfield, Enhancement, or Import pipeline
-- **Pipeline Resume**: Resume interrupted pipelines from the last completed stage (`--resume`)
-- **Session Persistence**: Automatic state persistence for pipeline recovery
-- **GitHub Integration**: Automatic issue creation with dependencies and labels
-- **Bounded Stage Execution**: Configurable concurrency for independent runnable stages
-- **Automated PR Review**: SDK reviewer execution with the existing verification policy
-- **Progress Tracking**: Real-time visibility into pipeline status
-- **Regression Testing**: Identifies affected tests when modifying existing code
-- **Doc-Code Gap Analysis**: Detects discrepancies between documentation and implementation
-- **V&V Framework**: Final validation is a live pipeline stage, and the scheduler records per-stage verification results; strict `haltOnVerificationFailure` mode stops the DAG on the first failed gate
-- **Document Audit**: Packaged CLI (`ad-sdlc audit-docs --project-dir .`) that validates pipeline-generated PRD/SRS/SDS/SDP/TM/SVP/TD/DBS documents for frontmatter, required sections, cross-references, and PRD→SRS→SDS traceability; see [Document Audit CLI](docs/doc-audit.md)
-- **Resolved Workflow Policy**: Canonical presets with validated stage concurrency, retry, timeout, approval, and verification settings. See the [runtime configuration contract](docs/configuration/RUNTIME_WORKFLOW.md).
-
-## Installation
-
-### Prerequisites
-
-- Node.js 22.22.1+ ([Download](https://nodejs.org/))
-- Git 2.30+
-- GitHub CLI 2.0+ (optional, for issue/PR management)
-- Claude API Key
-- `GITHUB_TOKEN` — required for stages that talk to GitHub (`pr-reviewer`, `issue-generator`, `ci-fixer`). Export a Personal Access Token with `repo`-level scope; the team-shared `.mcp.json` interpolates it via `${GITHUB_TOKEN}` and never stores literals. See [docs/configuration/mcp.md](docs/configuration/mcp.md) for setup, scopes, and troubleshooting.
-
-### Install
-
-AD-SDLC is not published to the npm registry yet and the repository has no releases, so `npm install -g ad-sdlc` and `npx ad-sdlc` do not work. Install it from source:
-
-```bash
-git clone https://github.com/kcenon/claude_code_agent.git
-cd claude_code_agent
-npm ci
-npm run build
-
-# Put the ad-sdlc command on your PATH (this links to the clone, so keep the clone in place)
-npm install -g .
-
-# Or run the built CLI without a global install
-node dist/cli.js --help
-```
-
-### Configure
-
-```bash
-# Set your Anthropic API key
-export ANTHROPIC_API_KEY="your-api-key"
-
-# For GitHub integration
-gh auth login
-```
-
-See [Installation Guide](docs/installation.md) for detailed setup instructions.
-
-### Dependencies
-
-AD-SDLC v0.1 standardizes on the official Claude Agent SDK as the only AI runtime dependency. The legacy raw `@anthropic-ai/sdk` client and the in-tree `AgentBridge`/`AgentDispatcher`/`AgentRegistry` stack were removed in v0.1.0 (#798).
-
-| Package                          | Version    | Role                                                                        |
-| -------------------------------- | ---------- | --------------------------------------------------------------------------- |
-| `@anthropic-ai/claude-agent-sdk` | `^0.3.301` | Single Agent SDK entry point used by `ExecutionAdapter` for every stage     |
-| `commander`                      | `^15.0.0`  | `ad-sdlc` CLI argument parsing                                              |
-| `inquirer`                       | `^14.2.3`  | Interactive prompts for `ad-sdlc init`                                      |
-| `js-yaml`                        | `^5.5.0`   | Pipeline config and document frontmatter parsing                            |
-| `zod`                            | `^4.6.7`   | Runtime schema validation for configs, external data, and checkpoint schema |
-| `ts-morph`                       | `^28.0.0`  | TypeScript AST analysis for the Code Reader / Codebase Analyzer agents      |
-| `chalk`                          | `^6.0.1`   | CLI output styling                                                          |
-| `dotenv`                         | `^18.0.8`  | Environment loading                                                         |
-
-Optional integrations (logging backends, OpenTelemetry exporters, `better-sqlite3`, `ioredis`, `mammoth`, `pdf-parse`) are declared as **optional peer dependencies** so the runtime install stays lean; consumers pull them in only when the matching scratchpad backend or document parser is enabled.
-
-## Usage
-
-### Initialize a New Project
-
-```bash
-# Interactive mode - guides you through configuration
-ad-sdlc init
-
-# Quick setup with defaults
-ad-sdlc init my-project --quick
-
-# With specific options
-ad-sdlc init my-project \
-  --tech-stack typescript \
-  --template standard \
-  --github-repo https://github.com/user/my-project
-```
-
-### Template Options
-
-`--template` accepts `minimal`, `standard` (the `--quick` default), or `enterprise`. All three currently write the same files: the same 36 canonical agents and four commands, the same `agents.yaml`, and the same `workflow.yaml` (`version: 1.0.0`, `pipeline.default_mode: greenfield`).
-
-The worker-count (2/3/5), coverage (50/70/80%), and feature presets (token tracking, dashboard, audit logging, security scanning) that earlier versions of this README listed per template are historical values marked `@deprecated` in `src/project-initializer/types.ts`. They are not written to the project and are not enforced; stage concurrency, retries, timeouts, and verification are configured through the [runtime configuration contract](docs/configuration/RUNTIME_WORKFLOW.md) instead.
-
-### Run the Pipeline
-
-```bash
-# Start with requirements collection
-claude "Collect requirements for [your project description]"
-
-# Generate documents step by step
-claude "Generate PRD from collected information"
-claude "Generate SRS from PRD"
-claude "Generate SDS from SRS"
-
-# Create GitHub Issues
-claude "Generate GitHub issues from SDS"
-
-# Implement and review
-claude "Start implementation with Controller"
-```
-
-### CLI Commands
-
-```bash
-# Initialize new project
-ad-sdlc init [project-name] [--quick] [--template minimal|standard|enterprise] [--tech-stack <stack>] [--github-repo <url>] [--skip-validation]
-
-# Run the pipeline (all options: see "Run the Pipeline from the CLI" below)
-ad-sdlc run "<requirements>" [--mode greenfield|enhancement|import] [--project-dir <dir>] [--resume <session-id>] [--stop-after <stage>] [--local] [--dry-run] [--format text|json]
-
-# Validate configuration files
-ad-sdlc validate [--project-dir <dir>] [--file <path>] [--watch] [--format text|json]
-
-# Check pipeline status and list saved sessions
-ad-sdlc status [--project-dir <dir>] [--project <id>] [--format text|json] [--verbose]
-
-# Check environment prerequisites
-ad-sdlc doctor [--project-dir <dir>]
-
-# Audit generated documents (see "Document Audit" below)
-ad-sdlc audit-docs --project-dir <dir> [--output <dir>] [--quiet]
-
-# Plan or apply updates of the installed canonical agents and commands
-ad-sdlc assets update --project-dir <dir> [--dry-run]
-
-# Analyze project for documentation-code gaps
-ad-sdlc analyze [--project <path>] [--scope full|documents_only|code_only|comparison]
-
-# Manage opt-in telemetry (`telemetry enable --yes` accepts the privacy policy)
-ad-sdlc telemetry <status|enable|disable|policy>
-
-# Generate shell completion script
-ad-sdlc completion --shell <bash|zsh|fish>
-```
-
-### Document Audit
-
-Once the pipeline has generated documents, validate them with the document audit CLI:
-
-```bash
-# Audit the current project (writes reports to .ad-sdlc/audit/)
-ad-sdlc audit-docs --project-dir .
-
-# Audit a different project and pick the output directory
-ad-sdlc audit-docs --project-dir ./my-project --output audit-reports
-
-# Repository contributors may also use the compatible wrapper
-npm run audit:docs -- --project-dir ./my-project
-```
-
-The auditor runs frontmatter, required-section, cross-reference, PRD→SRS→SDS
-traceability, orphan, Mermaid, and relative-link checks across PRD, SRS, SDS,
-SDP, TM, SVP, TD, and DBS documents. It writes both a machine-readable
-`audit-report.json` and a human-readable `audit-report.md`, and exits with a
-non-zero status on any error-severity finding — making it suitable as a local
-pre-merge check or as a CI quality gate. See the
-[Document Audit CLI](docs/doc-audit.md) guide for the full list of checks,
-report format, exit codes, and CI integration.
-
-### Run the Pipeline from the CLI
-
-`ad-sdlc run` runs the complete canonical pipeline end-to-end. It takes the requirements text as its only argument:
-
-```bash
-# Run in an initialized project
-ad-sdlc run "Build a todo app with user accounts" --project-dir .
-
-# Specify the mode explicitly
-ad-sdlc run "<requirements>" --mode greenfield --project-dir .
-ad-sdlc run "<requirements>" --mode enhancement --project-dir .
-ad-sdlc run "<requirements>" --mode import --project-dir .
-
-# Validate the configuration and print the stage graph without calling the SDK
-ad-sdlc run "<requirements>" --project-dir . --dry-run
-
-# Stop after a stage (stages that are runnable alongside it may still run)
-ad-sdlc run "<requirements>" --mode greenfield --project-dir . --stop-after sds_generation
-
-# Run without GitHub, using the local agent variants
-ad-sdlc run "<requirements>" --project-dir . --local
-
-# List saved sessions and their status
-ad-sdlc status --project-dir .
-
-# Resume a saved session
-ad-sdlc run "<requirements>" --resume <session-id> --project-dir .
-```
-
-- **Mode**: without `--mode`, the mode comes from the `AD_SDLC_MODE` environment variable or from `pipeline.default_mode` in `.ad-sdlc/config/workflow.yaml` (`greenfield` in a freshly initialized project).
-- **Session IDs**: a finished run prints `Pipeline <session-id>: <status> (<mode>)`, and `ad-sdlc status --project-dir .` prints one `Session <session-id>: <status>` line per saved run. Each run is saved as `.ad-sdlc/scratchpad/pipeline/<session-id>.yaml`.
-- **Resume**: `--resume` reuses the saved stage graph and runtime policy and skips the stages that session already completed. It rejects `--mode`, `--local`, and policy overrides; only `--stop-after` may change on resume.
-- **No start-from or session-list flag**: `ad-sdlc run` has no option to start from a later stage and no `--list-sessions`; use `ad-sdlc status` to find sessions.
-- **Policy options**: `--approval-mode auto|manual|critical`, `--max-parallel-stages <count>`, `--max-attempts <count>`, `--retry-backoff fixed|linear|exponential|fibonacci`, `--retry-base-delay-seconds <seconds>`, `--retry-max-delay-seconds <seconds>`, `--stage-timeout-ms <ms>`, `--vnv-rigor minimal|standard|strict`, and `--halt-on-verification-failure <boolean>`. See the [runtime configuration contract](docs/configuration/RUNTIME_WORKFLOW.md) for their precedence and validation.
-- **Output and credentials**: `--format json` prints a single JSON result. A live run needs `ANTHROPIC_API_KEY` or a Claude Code session; `--allow-stub` allows execution without detected SDK credentials for offline testing.
-
-Run `ad-sdlc run --help` for the full option list.
-
-### Shell Autocompletion
-
-Enable tab completion for AD-SDLC commands in your shell:
-
-```bash
-# Bash
-ad-sdlc completion --shell bash >> ~/.bashrc
-source ~/.bashrc
-
-# Zsh
-ad-sdlc completion --shell zsh > ~/.zsh/completions/_ad-sdlc
-source ~/.zshrc
-
-# Fish
-ad-sdlc completion --shell fish > ~/.config/fish/completions/ad-sdlc.fish
-```
-
-See [Quickstart Guide](docs/quickstart.md) for a step-by-step tutorial.
-
-## Use Cases
-
-### New Feature Implementation
-
-```bash
-claude "Implement user dashboard with usage statistics and charts"
-```
-
-### Bug Fix Workflow
-
-```bash
-claude "Fix #42: Login fails when email contains +"
-```
-
-### Refactoring Project
-
-```bash
-claude "Refactor auth module to use dependency injection"
-```
-
-### From Requirements File
-
-```bash
-claude "Read requirements from docs/requirements.md and implement"
-```
-
-See [Use Cases Guide](docs/use-cases.md) for more examples.
-
-## Project Structure
-
-`ad-sdlc init` creates the following layout. Pipeline runs then add generated documents, source code, and run state.
-
-```
-your-project/
-├── .claude/
-│   ├── agents/              # Agent definitions (36 prompt files; see runtime inventory)
-│   │   └── *.md             # Agent prompts (English, used by Claude)
-│   └── commands/            # Project slash commands (see Slash Commands)
-├── .ad-sdlc/
-│   ├── asset-lock.json      # Installed asset versions and ownership baselines
-│   ├── config/              # Configuration files
-│   │   ├── agents.yaml      # Agent registry
-│   │   └── workflow.yaml    # Pipeline configuration
-│   ├── logs/                # Audit logs
-│   ├── templates/           # Document templates (PRD, SRS, SDS, issue)
-│   └── scratchpad/          # Inter-agent state (Scratchpad pattern)
-│       ├── info/, documents/, issues/, progress/
-│       └── pipeline/        # Saved run state for --resume (created by ad-sdlc run)
-├── docs/                    # Generated documentation (prd/, srs/, sds/)
-├── .gitignore               # AD-SDLC entries appended
-└── README.md
-```
+- **Document generation**: PRD, SRS, SDP, SDS, DBS, TM, SVP, TD, and UI specification documents from natural-language requirements; the SDS Writer emits the database schema as a separate DBS document, and UI specifications are skipped for CLI, API, and library projects
+- **Document frontmatter**: YAML frontmatter with `doc_id`, version, status, and change history on every generated document; see the [frontmatter reference](docs/reference/document-frontmatter.md)
+- **Enhancement and Import pipelines**: incremental updates to existing projects without full rewrites, or processing of existing GitHub Issues without document generation
+- **Local mode**: run the pipeline without GitHub using `--local` (or `AD_SDLC_LOCAL=1`)
+- **Resume**: saved run state per session, resumed with `--resume <session-id>`; `ad-sdlc status` lists the sessions
+- **GitHub integration**: issue creation with dependencies and labels, pull request creation, and SDK reviewer execution with the existing verification policy
+- **Regression testing and gap analysis**: identifies affected tests when modifying existing code and detects discrepancies between documentation and implementation
+- **Document audit**: `ad-sdlc audit-docs --project-dir .` validates generated documents for frontmatter, required sections, cross-references, and PRD→SRS→SDS traceability; see the [Document Audit CLI](docs/doc-audit.md)
+- **Resolved workflow policy**: canonical presets with validated stage concurrency, retry, timeout, approval, and verification settings; see the [runtime configuration contract](docs/configuration/RUNTIME_WORKFLOW.md)
+
+## CLI Overview
+
+| Command                                     | Purpose                                                                |
+| ------------------------------------------- | ---------------------------------------------------------------------- |
+| `ad-sdlc init [project-name]`               | Scaffold the canonical agents, commands, and `.ad-sdlc/` configuration |
+| `ad-sdlc run "<requirements>"`              | Run the pipeline; `--resume <session-id>` continues a saved run        |
+| `ad-sdlc status`                            | Show pipeline status and list saved sessions                           |
+| `ad-sdlc validate`                          | Validate configuration files                                           |
+| `ad-sdlc doctor`                            | Check environment prerequisites                                        |
+| `ad-sdlc audit-docs --project-dir <dir>`    | Audit generated documents                                              |
+| `ad-sdlc assets update --project-dir <dir>` | Plan or apply updates of the installed canonical agents and commands   |
+| `ad-sdlc analyze`                           | Analyze a project for documentation-code gaps                          |
+| `ad-sdlc telemetry <subcommand>`            | Manage opt-in telemetry (`status`, `enable`, `disable`, `policy`)      |
+| `ad-sdlc completion --shell <shell>`        | Generate a shell completion script (`bash`, `zsh`, `fish`)             |
+
+The [CLI reference](docs/cli.md) documents every option, the template choices, the generated project layout, the project slash commands, and shell completion setup.
 
 ## Documentation
 
-### Getting Started
-
-- [Installation Guide](docs/installation.md) - Detailed setup instructions
-- [Quickstart Guide](docs/quickstart.md) - 5-minute tutorial
-- [Use Cases](docs/use-cases.md) - Common scenarios and examples
-- [FAQ](docs/faq.md) - Frequently asked questions
-
-### Reference
-
-- [System Architecture](docs/system-architecture.md)
-- [Runtime Inventory](docs/architecture/runtime-inventory.md) — source-checked agent, stage, and traceability counts
-- [v0.1 Hybrid Pipeline RFC](docs/architecture/v0.1-hybrid-pipeline-rfc.md) — 3-tier architecture and Claude Agent SDK adoption rationale
-- [v0.1 Migration Guide](docs/architecture/v0.1-migration-guide.md) — v0.0.1 → v0.1.0 contributor and consumer migration steps
-- [Document Status Definitions](docs/DOCUMENT_STATUS_DEFINITIONS.md)
-- [Document Audit CLI](docs/doc-audit.md) — validate generated PRD/SRS/SDS/... documents for integrity and traceability
-- [PRD-001: Agent-Driven SDLC](docs/PRD-001-agent-driven-sdlc.md)
-- [SRS-001: Agent-Driven SDLC](docs/SRS-001-agent-driven-sdlc.md)
-- [SDS-001: Agent-Driven SDLC](docs/SDS-001-agent-driven-sdlc.md)
-
-### Guides
-
-- [Agent Deployment](docs/guides/deployment.md)
-- [Usage Scenarios](docs/guides/usage-scenarios.md) — All execution environments and pipeline modes
-- [Reference Documentation](docs/reference/README.md)
-
-### Korean Documentation
-
-- [PRD-001 (한글)](docs/PRD-001-agent-driven-sdlc.kr.md)
-- [SRS-001 (한글)](docs/SRS-001-agent-driven-sdlc.kr.md)
-- [SDS-001 (한글)](docs/SDS-001-agent-driven-sdlc.kr.md)
-
-## Agent Definitions
-
-All templates install the 36 canonical agents and four commands from the npm package.
-See [Canonical assets and upgrades](docs/agent-assets.md) for manifest regeneration,
-versioning, customization handling, and legacy migration.
-
-```bash
-ad-sdlc assets update --project-dir . --dry-run
-ad-sdlc assets update --project-dir .
-```
-
-Each agent is defined in `.claude/agents/` with:
-
-- YAML frontmatter (name, description, tools, model)
-- Markdown body with role, responsibilities, schemas, and workflows
-
-Agent prompt files (`.md`) are in English and used by Claude during execution.
-
-## Slash Commands
-
-The scaffold installs `.claude/commands/*.md` for use as project slash commands in Claude Code sessions. Each file declares its argument shape via YAML frontmatter (`description`, optional `argument-hint`) and a short markdown body that instructs the assistant which CLI subcommand to run.
-
-| Command           | File                                 | Wraps                                                                                     |
-| ----------------- | ------------------------------------ | ----------------------------------------------------------------------------------------- |
-| `/run-greenfield` | `.claude/commands/run-greenfield.md` | `ad-sdlc init . --quick` + `ad-sdlc run <requirements> --mode greenfield --project-dir .` |
-| `/resume`         | `.claude/commands/resume.md`         | `ad-sdlc run <requirements> --resume <session-id> --project-dir .`                        |
-| `/audit-docs`     | `.claude/commands/audit-docs.md`     | `ad-sdlc audit-docs --project-dir .`                                                      |
-| `/status`         | `.claude/commands/status.md`         | `ad-sdlc status`                                                                          |
-
-To use them, open the project inside a Claude Code session and type the command (for example `/run-greenfield "Build a todo app"`). Claude follows the matching markdown instructions, parsing requirements and supported options separately and keeping unchecked input out of shell source. New commands can be added by dropping a markdown file with valid frontmatter into `.claude/commands/`.
-
-## Document Frontmatter
-
-All documents generated by the pipeline (PRD, SRS, SDP, SDS, DBS, TM, SVP, TD, UI) include structured YAML frontmatter for machine-readable metadata:
-
-```yaml
----
-doc_id: PRD-my-project
-title: Product Requirements Document
-version: 1.0.0
-status: Draft
-generated_by: ad-sdlc v0.1.0
-generated_at: '2026-04-12T09:00:00.000Z'
-source_documents:
-  - collected_info.yaml
-change_history:
-  - version: 1.0.0
-    date: '2026-04-12'
-    author: ad-sdlc
-    description: Initial generation
----
-```
-
-### Frontmatter Fields
-
-| Field              | Type     | Description                                               |
-| ------------------ | -------- | --------------------------------------------------------- |
-| `doc_id`           | string   | Unique document identifier (e.g., `PRD-my-project`)       |
-| `title`            | string   | Human-readable document title                             |
-| `version`          | string   | Semantic version (`MAJOR.MINOR.PATCH`)                    |
-| `status`           | enum     | `Draft`, `Review`, or `Approved`                          |
-| `generated_by`     | string   | Tool and version that generated the document              |
-| `generated_at`     | string   | ISO 8601 generation timestamp                             |
-| `pipeline_session` | string   | Pipeline session ID (optional)                            |
-| `source_documents` | string[] | Input document references (optional)                      |
-| `approval`         | object[] | Approval entries with role, name, date, status (optional) |
-| `change_history`   | object[] | Version history entries (optional)                        |
-
-The frontmatter schema is defined in `src/schemas/document-frontmatter.ts` and validated with Zod at generation time. Utility functions for generating, parsing, and prepending frontmatter are in `src/utilities/frontmatter.ts`.
+| Topic           | Documents                                                                                                                                                                                                                                                      |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Getting started | [Installation Guide](docs/installation.md), [Quickstart Guide](docs/quickstart.md), [CLI Reference](docs/cli.md), [Use Cases](docs/use-cases.md), [FAQ](docs/faq.md)                                                                                           |
+| Architecture    | [System Architecture](docs/system-architecture.md), [Runtime Inventory](docs/architecture/runtime-inventory.md), [v0.1 Hybrid Pipeline RFC](docs/architecture/v0.1-hybrid-pipeline-rfc.md), [v0.1 Migration Guide](docs/architecture/v0.1-migration-guide.md)  |
+| Configuration   | [Runtime Configuration Contract](docs/configuration/RUNTIME_WORKFLOW.md), [MCP Configuration](docs/configuration/mcp.md), [Canonical Assets and Upgrades](docs/agent-assets.md)                                                                                |
+| Documents       | [Document Frontmatter](docs/reference/document-frontmatter.md), [Document Status Definitions](docs/DOCUMENT_STATUS_DEFINITIONS.md), [Document Audit CLI](docs/doc-audit.md)                                                                                    |
+| Specifications  | [PRD-001](docs/PRD-001-agent-driven-sdlc.md), [SRS-001](docs/SRS-001-agent-driven-sdlc.md), [SDS-001](docs/SDS-001-agent-driven-sdlc.md)                                                                                                                       |
+| Guides          | [Agent Deployment](docs/guides/deployment.md), [Usage Scenarios](docs/guides/usage-scenarios.md) (all execution environments and pipeline modes), [Claude Code Reference](docs/reference/README.md)                                                            |
+| Korean          | [PRD-001](docs/PRD-001-agent-driven-sdlc.kr.md), [SRS-001](docs/SRS-001-agent-driven-sdlc.kr.md), [SDS-001](docs/SDS-001-agent-driven-sdlc.kr.md), [System Architecture](docs/system-architecture.kr.md), [Usage Scenarios](docs/guides/usage-scenarios.kr.md) |
 
 ## Contributing
 
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
-
-### Quick Start for Contributors
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes using conventional commits
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+See the [Contributing Guide](CONTRIBUTING.md) for development setup, branch naming, commit messages, and the pull request process. Pull requests target `develop`. If you change this README, run `python3 scripts/readme_lint.py README.md`; the Documentation Audit workflow runs the same check.
 
 ## Related Projects
 
-### claude-config
-
-A Claude Code configuration management and development guidelines system. Agents in this project can reference claude-config's guidelines during code generation and review to improve code quality.
-
-- **Repository**: [kcenon/claude-config](https://github.com/kcenon/claude-config)
-- **Reference Guide**: [docs/claude-config-reference.md](docs/claude-config-reference.md)
-
----
+[kcenon/claude-config](https://github.com/kcenon/claude-config) is a Claude Code configuration management and development guidelines system. Agents in this project can reference its guidelines during code generation and review; see the [claude-config reference](docs/claude-config-reference.md).
 
 ## License
 
-BSD 3-Clause License - see [LICENSE](LICENSE) for details.
-
----
+BSD 3-Clause License; see [LICENSE](LICENSE).
 
 **Need help?** Check the [FAQ](docs/faq.md) or [open an issue](https://github.com/kcenon/claude_code_agent/issues).

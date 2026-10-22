@@ -48,7 +48,7 @@ permissions:
 jobs:
   # Checks documented symbols and inventory counts against the code
   # (npm run docs:check). Policy for dependency-only PRs such as Dependabot
-  # updates: the dependency tables in README.md and
+  # updates: the dependency tables in docs/installation.md and
   # docs/architecture/overview.md are compared by release line
   # (DocInventoryValidator.isSameReleaseLine). A patch or minor bump passes
   # without a doc edit; a major bump, or a minor bump of a 0.x package, fails

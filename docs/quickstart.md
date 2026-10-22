@@ -30,9 +30,9 @@ Before starting, ensure you have:
 ```bash
 git clone https://github.com/kcenon/claude_code_agent.git
 cd claude_code_agent
-npm install
+npm ci
 npm run build
-npm link  # makes 'ad-sdlc' available globally
+npm install -g .  # links the ad-sdlc command to this clone, so keep the clone in place
 ```
 
 Need more options? See the [Installation Guide](installation.md).
