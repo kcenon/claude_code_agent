@@ -220,6 +220,7 @@ jobs:
         uses: github/codeql-action/init@v4
         with:
           languages: javascript-typescript
+          config-file: ./.github/codeql/codeql-config.yml
 
       - name: Autobuild
         if: steps.check-src.outputs.has_source == 'true'
