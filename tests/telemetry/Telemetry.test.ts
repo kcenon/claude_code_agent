@@ -302,6 +302,8 @@ describe('Telemetry', () => {
       expect(session).not.toBeNull();
       expect(session?.platform).toBe(process.platform);
       expect(session?.nodeVersion).toBe(process.version);
+      const packageJson = fs.readFileSync(new URL('../../package.json', import.meta.url), 'utf-8');
+      expect(session?.cliVersion).toBe((JSON.parse(packageJson) as { version: string }).version);
     });
 
     it('should clear session on consent revocation', () => {

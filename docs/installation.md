@@ -239,7 +239,7 @@ Run these commands to verify your installation:
 ```bash
 # Check AD-SDLC CLI
 ad-sdlc --version
-# Expected: ad-sdlc version X.X.X
+# Expected: the version from the installed package.json, such as 0.1.0
 
 # Check Node.js
 node --version

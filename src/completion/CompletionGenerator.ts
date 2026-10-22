@@ -18,12 +18,6 @@ const CLI_COMMANDS: readonly CommandDefinition[] = [
     description: 'Initialize a new AD-SDLC project',
     options: [
       {
-        short: '-g',
-        long: '--github-repo',
-        description: 'GitHub repository URL',
-        takesValue: true,
-      },
-      {
         short: '-t',
         long: '--tech-stack',
         description: 'Primary technology stack',

@@ -29,7 +29,10 @@ export interface InitOptions {
   /** Project description */
   readonly description?: string | undefined;
 
-  /** GitHub repository URL (optional) */
+  /**
+   * @deprecated Ignored: not written to the project and not read by any pipeline stage.
+   * Repository detection reads the project's git remote `origin` during a run.
+   */
   readonly githubRepo?: string | undefined;
 
   /** Primary technology stack */

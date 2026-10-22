@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 import { parseFrontmatter, validateAgentFile } from '../agent-validator/validator.js';
 import type { AgentFrontmatter } from '../agent-validator/types.js';
+import { readPackageVersion } from '../utils/packageVersion.js';
 import {
   GREENFIELD_STAGES,
   ENHANCEMENT_STAGES,
@@ -223,10 +224,7 @@ export function loadAssetBundle(packageRoot = ASSET_PACKAGE_ROOT): AssetBundle {
   let packageVersion = 'unknown';
   let bundleVersion = 'unknown';
   try {
-    const pkg = z
-      .object({ version: z.string() })
-      .parse(JSON.parse(readFileSync(join(packageRoot, 'package.json'), 'utf8')));
-    packageVersion = pkg.version;
+    packageVersion = readPackageVersion(packageRoot);
     const raw: unknown = JSON.parse(readFileSync(join(packageRoot, ASSET_MANIFEST_PATH), 'utf8'));
     const provenance = z.object({ bundleVersion: z.string() }).safeParse(raw);
     if (provenance.success) bundleVersion = provenance.data.bundleVersion;

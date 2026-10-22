@@ -82,7 +82,7 @@ describe('CompletionGenerator', () => {
         const generator = new CompletionGenerator();
         const result = generator.generate('bash');
 
-        expect(result.script).toContain('--github-repo');
+        expect(result.script).toContain('--quick');
         expect(result.script).toContain('--tech-stack');
         expect(result.script).toContain('--template');
       });
@@ -165,8 +165,8 @@ describe('CompletionGenerator', () => {
         const generator = new CompletionGenerator();
         const result = generator.generate('fish');
 
-        expect(result.script).toContain('-l "github-repo"');
-        expect(result.script).toContain('-s "g"');
+        expect(result.script).toContain('-l "tech-stack"');
+        expect(result.script).toContain('-s "t"');
         expect(result.script).toContain('__fish_seen_subcommand_from');
       });
 
@@ -196,6 +196,14 @@ describe('CompletionGenerator', () => {
         const result = generator.generate(shell);
 
         expect(result.script).toContain('ad-sdlc');
+      });
+
+      // init no longer accepts a repository URL; completion must not offer it.
+      it.each(SUPPORTED_SHELLS)('should not offer --github-repo for %s', (shell: ShellType) => {
+        const generator = new CompletionGenerator();
+        const result = generator.generate(shell);
+
+        expect(result.script).not.toContain('github-repo');
       });
     });
   });

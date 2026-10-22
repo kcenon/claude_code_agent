@@ -719,7 +719,8 @@ export async function validateAllConfigs(
 
 /**
  * Check if configuration files exist
- * @param baseDir - Optional base directory override; defaults to project root or cwd
+ * @param baseDir - Optional project root (the directory containing `.ad-sdlc/`, not the
+ *   config directory itself); defaults to the detected project root or cwd
  * @returns Record indicating whether each configuration file exists on disk
  */
 export function configFilesExist(baseDir?: string): { workflow: boolean; agents: boolean } {
