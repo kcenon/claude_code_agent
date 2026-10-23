@@ -8,6 +8,7 @@ const expectedMajor = MINIMUM_NODE_VERSION.split('.')[0];
 const workflowPaths = [
   '.github/workflows/ci.yml',
   '.github/workflows/docs-check.yml',
+  '.github/workflows/live-acceptance.yml',
   '.github/workflows/performance.yml',
   '.github/workflows/release.yml',
   '.github/workflows/security.yml',

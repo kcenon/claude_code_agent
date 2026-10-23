@@ -152,7 +152,7 @@ npm run todo:all
 - Aim for 80%+ code coverage
 
 ```bash
-# Run all tests
+# Run every offline suite (unit, integration, pipeline E2E)
 npm test
 
 # Run tests with coverage
@@ -161,20 +161,26 @@ npm test -- --coverage
 # Run specific test file
 npm test -- path/to/test.spec.ts
 
-# Run E2E tests only
+# Run the offline pipeline E2E lane only
 npm run test:e2e
 
 # Run unit tests only
 npm test -- tests/controller
 ```
 
+The test lanes, the CI trigger matrix, and the required checks are described
+in [docs/guides/testing.md](docs/guides/testing.md). After changing a workflow
+under `.github/workflows/`, regenerate the matrix with
+`npm run ci:trigger-matrix -- --write`.
+
 #### Test Categories
 
-| Category            | Location                              | Description                                            |
-| ------------------- | ------------------------------------- | ------------------------------------------------------ |
-| Unit Tests          | `tests/{module}/`                     | Individual component testing                           |
-| E2E Tests           | `tests/e2e/`                          | Full pipeline and integration testing                  |
-| Orchestration Tests | `tests/e2e/orchestration.e2e.test.ts` | Multi-agent coordination and parallel worker execution |
+| Category            | Location                              | Description                                                      |
+| ------------------- | ------------------------------------- | ---------------------------------------------------------------- |
+| Unit Tests          | `tests/{module}/`                     | Individual component testing                                     |
+| E2E Tests           | `tests/e2e/`                          | Offline pipeline tests with a mocked SDK boundary                |
+| Orchestration Tests | `tests/e2e/orchestration.e2e.test.ts` | Multi-agent coordination and parallel worker execution           |
+| Live Acceptance     | `tests/live/`                         | Paid SDK execution, only through `npm run test:live` (see guide) |
 
 #### Orchestration Tests
 

@@ -521,14 +521,18 @@ describe('Pipeline Smoke E2E', () => {
 });
 
 // =============================================================================
-// Live Integration Test (requires ANTHROPIC_API_KEY)
+// Template PRD Generation (offline)
 // =============================================================================
 
-describe.skipIf(!process.env['ANTHROPIC_API_KEY'])('Live Pipeline Integration', () => {
+// Formerly labelled "Live Pipeline Integration" and gated on ANTHROPIC_API_KEY,
+// although it never reaches the SDK: CollectorAgent runs without an execution
+// adapter and PRDWriterAgent uses template generation. It is an offline test
+// and runs unconditionally (#954). Real SDK execution lives in tests/live/.
+describe('Template PRD Generation (offline, no SDK)', () => {
   let tempDir: string;
 
   beforeEach(async () => {
-    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'pipeline-live-e2e-'));
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'pipeline-template-e2e-'));
     resetAdsdlcOrchestratorAgent();
   });
 
@@ -541,10 +545,9 @@ describe.skipIf(!process.env['ANTHROPIC_API_KEY'])('Live Pipeline Integration', 
     resetAdsdlcOrchestratorAgent();
   });
 
-  it('should generate a PRD from natural language using live agents', async () => {
-    // This test uses real agents with the ANTHROPIC_API_KEY.
-    // It verifies that the collector and PRD writer agents produce
-    // meaningful output from a natural language description.
+  it('should generate a PRD from natural language with template agents', async () => {
+    // No execution adapter and no credentials: the collector and the PRD
+    // writer produce template output from a natural language description.
     const { CollectorAgent } = await import('../../src/collector/index.js');
     const { PRDWriterAgent } = await import('../../src/prd-writer/index.js');
 
@@ -585,5 +588,5 @@ describe.skipIf(!process.env['ANTHROPIC_API_KEY'])('Live Pipeline Integration', 
     const files = await fs.readdir(docsDir);
     const prdFile = files.find((f) => f.includes('prd'));
     expect(prdFile).toBeDefined();
-  }, 120_000); // 2 minutes for live API calls
+  });
 });

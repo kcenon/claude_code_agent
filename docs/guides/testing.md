@@ -4,20 +4,62 @@
 
 ## Overview
 
-This project uses [Vitest](https://vitest.dev/) as the test framework with three testing layers:
+This project uses [Vitest](https://vitest.dev/) as the test framework. Tests are
+grouped into explicit lanes (#954). Every lane except the live acceptance lane
+is offline: it needs no credentials and makes no paid SDK call. The offline
+suite, integration, pipeline E2E, and package delivery lanes run on every pull
+request into `develop` or `main` and on every push to those branches.
 
-| Layer | Purpose | Timeout | Config File |
-|-------|---------|---------|-------------|
-| Unit Tests | Individual module testing | 15s | `vitest.config.ts` |
-| Integration Tests | Cross-module interactions | 30s | `vitest.integration.config.ts` |
-| E2E Tests | Complete pipeline validation | 120s | `vitest.e2e.config.ts` |
+## Test Lanes
+
+| Lane                                            | Command                                   | Selection                                                                                                | Credentials         | CI check                                                                           |
+| ----------------------------------------------- | ----------------------------------------- | -------------------------------------------------------------------------------------------------------- | ------------------- | ---------------------------------------------------------------------------------- |
+| Offline suite (unit, integration, pipeline E2E) | `npm test`                                | `vitest.config.ts`: `tests/**/*.test.ts` except `tests/performance/**` and `tests/live/**`; 30 s timeout | none                | `Test (ubuntu-latest)` (with coverage thresholds), `Test (windows-2022)`           |
+| Offline integration                             | `npm run test:integration`                | `vitest.integration.config.ts`: `tests/integration/**/*.test.ts`                                         | none                | `Integration Tests`                                                                |
+| Offline pipeline E2E                            | `npm run test:e2e`                        | `vitest.e2e.config.ts`: `tests/e2e/**/*.test.ts`; 120 s timeout, no retry                                | none                | `Pipeline E2E (offline)`                                                           |
+| Package delivery                                | `npm run test:package`                    | `tests/package/asset-delivery.smoke.mjs` (packed tarball, production install)                            | none                | `Package Asset Delivery (offline)`                                                 |
+| Performance                                     | `npm run test:bench`, `npm run test:perf` | `vitest.bench.config.ts`, `vitest.perf.config.ts`: `tests/performance/**`                                | none                | `Performance Tests` workflow (pushes and pull requests to `main`, manual dispatch) |
+| Live acceptance                                 | `npm run test:live`                       | `vitest.live.config.ts`: `tests/live/**/*.live.test.ts`, run by `scripts/live-lane.ts`                   | `ANTHROPIC_API_KEY` | `Live Acceptance` (manual `workflow_dispatch` only)                                |
+
+The offline pipeline E2E tests use a mocked SDK boundary (`MockBridge`,
+`MockExecutionAdapter`) or template agents without an execution adapter. A
+passing offline lane is never evidence of live SDK behavior. Only the live
+acceptance lane executes the SDK, and only its metadata records an actual SDK
+execution.
+
+The E2E lane does not retry (`retry: 0`): the first failure of a selected test
+fails the `Pipeline E2E (offline)` job, and a flaky test fails instead of
+passing on a second attempt. The `Integration Tests` and
+`Pipeline E2E (offline)` jobs depend only on `Lint`, so a failing lane test
+fails the lane job itself. Behind `Test` or `Build` the job would be skipped
+instead, and a skipped required check counts as passing.
+
+### Duplicate Execution
+
+`npm test` intentionally keeps `tests/integration/**` and `tests/e2e/**`, so
+those files run twice on Ubuntu: once in `Test (ubuntu-latest)` and once in
+their lane job (`Integration Tests`, `Pipeline E2E (offline)`). The reasons:
+
+- Windows coverage for the integration and E2E tests comes only from
+  `Test (windows-2022)`; moving them out of `npm test` would need two more
+  Windows jobs and a rename of the `Integration Tests` check.
+- The coverage thresholds in `vitest.config.ts` are measured over all offline
+  suites. Measured on `develop` 51e6c2b (2026-10-23), excluding the two
+  directories lowers coverage from 86.05 % to 85.89 % lines and from 72.77 %
+  to 72.43 % branches: still above the thresholds, but with less margin.
+- The lane jobs report each selection under its own check name and apply the
+  lane settings (no retry, 120 s timeout for E2E).
+
+The duplicated work is the two lane jobs' install step plus a few seconds of
+test time. The live lane is never duplicated: `tests/live/**` is excluded from
+every offline configuration.
 
 ## Running Tests
 
-### All Tests
+### All Offline Tests
 
 ```bash
-# Run all unit tests
+# Run every offline suite (unit, integration, pipeline E2E)
 npm test
 
 # Run with coverage
@@ -38,6 +80,16 @@ npm run test:integration
 ```bash
 npm run test:e2e
 ```
+
+### Live Acceptance Lane
+
+```bash
+# Paid: runs the real Claude Agent SDK. Without ANTHROPIC_API_KEY it records
+# "not executed" and exits 2 without calling anything.
+ANTHROPIC_API_KEY=... npm run test:live
+```
+
+See [Live Acceptance Lane](#live-acceptance-lane) for settings and metadata.
 
 ### Specific Test Files
 
@@ -60,7 +112,13 @@ tests/
 │   └── errors.test.ts
 ├── integration/                # Cross-module tests
 │   └── security.integration.test.ts
-└── e2e/                        # End-to-end tests
+├── ci/                         # Offline guards for workflows and the live lane
+│   ├── workflow-trigger-matrix.test.ts
+│   └── live-lane-guard.test.ts
+├── live/                       # Live acceptance lane only (npm run test:live)
+│   ├── harness.ts
+│   └── sdk-cli-smoke.live.test.ts
+└── e2e/                        # Offline end-to-end tests
     ├── helpers/                # Shared test utilities
     │   ├── fixtures.ts
     │   ├── test-environment.ts
@@ -96,14 +154,14 @@ Document Reader → Code Reader → Comparator → Issue Generator
 
 ### Test Scenarios
 
-| Scenario | Description |
-|----------|-------------|
-| Full Pipeline | Complete analysis with docs and code |
-| Document-Only | Analyze only documentation |
-| Code-Only | Analyze only source code |
-| Gap Detection | Identify discrepancies between docs and code |
-| Issue Generation | Create issues from detected gaps |
-| Error Recovery | Handle failures gracefully |
+| Scenario         | Description                                  |
+| ---------------- | -------------------------------------------- |
+| Full Pipeline    | Complete analysis with docs and code         |
+| Document-Only    | Analyze only documentation                   |
+| Code-Only        | Analyze only source code                     |
+| Gap Detection    | Identify discrepancies between docs and code |
+| Issue Generation | Create issues from detected gaps             |
+| Error Recovery   | Handle failures gracefully                   |
 
 ### Running Analysis Pipeline Tests
 
@@ -124,8 +182,8 @@ import { createAnalysisFixture } from './analysis-fixtures.js';
 
 const fixture = await createAnalysisFixture({
   name: 'my-test',
-  includeGaps: true,        // Add documented but unimplemented features
-  includeOrphanCode: true,  // Add undocumented code
+  includeGaps: true, // Add documented but unimplemented features
+  includeOrphanCode: true, // Add undocumented code
 });
 ```
 
@@ -139,16 +197,16 @@ Mode Detection → Document Reading → Impact Analysis
 
 ### Test Scenarios
 
-| Scenario | Description |
-|----------|-------------|
-| Mode Detection | Detect greenfield vs enhancement mode |
-| Document Reading | Read and parse PRD/SRS/SDS documents |
-| Simple Feature Addition | Add isolated new features |
-| Requirement Modification | Modify existing requirements |
-| Multi-Component Change | Changes affecting multiple components |
-| Error Handling | Graceful error recovery |
-| Session Management | Session lifecycle tracking |
-| Performance | Timing benchmarks for each stage |
+| Scenario                 | Description                           |
+| ------------------------ | ------------------------------------- |
+| Mode Detection           | Detect greenfield vs enhancement mode |
+| Document Reading         | Read and parse PRD/SRS/SDS documents  |
+| Simple Feature Addition  | Add isolated new features             |
+| Requirement Modification | Modify existing requirements          |
+| Multi-Component Change   | Changes affecting multiple components |
+| Error Handling           | Graceful error recovery               |
+| Session Management       | Session lifecycle tracking            |
+| Performance              | Timing benchmarks for each stage      |
 
 ### Running Enhancement Pipeline Tests
 
@@ -170,9 +228,9 @@ import { createEnhancementFixture, createCodeOnlyFixture } from './enhancement-f
 // Full project with docs and code
 const fixture = await createEnhancementFixture({
   name: 'my-test',
-  includeTests: true,     // Include test files
-  partialDocs: false,     // Include all doc types
-  partialCode: false,     // Include all source files
+  includeTests: true, // Include test files
+  partialDocs: false, // Include all doc types
+  partialCode: false, // Include all source files
 });
 
 // Code-only project (no docs)
@@ -182,6 +240,7 @@ const codeOnlyFixture = await createCodeOnlyFixture('code-test');
 ### ModeDetector Thresholds
 
 Note that `ModeDetector` requires:
+
 - **minSourceFiles**: 5+ source files for `codebase.exists = true`
 - **minLinesOfCode**: 100+ lines for substantial codebase detection
 
@@ -193,12 +252,12 @@ The error recovery and edge cases tests ensure the system handles failures grace
 
 ### Test Categories
 
-| Category | Description |
-|----------|-------------|
-| Error Injection | Tests for API rate limiting, network timeout, invalid input handling |
-| Edge Cases | Empty input, large documents (100+ requirements), circular dependencies, unicode |
-| Recovery Tests | Mid-pipeline restart, partial completion resume, checkpoint restoration |
-| Graceful Degradation | Missing dependencies, resource exhaustion, fallback behavior |
+| Category             | Description                                                                      |
+| -------------------- | -------------------------------------------------------------------------------- |
+| Error Injection      | Tests for API rate limiting, network timeout, invalid input handling             |
+| Edge Cases           | Empty input, large documents (100+ requirements), circular dependencies, unicode |
+| Recovery Tests       | Mid-pipeline restart, partial completion resume, checkpoint restoration          |
+| Graceful Degradation | Missing dependencies, resource exhaustion, fallback behavior                     |
 
 ### Running Error Recovery Tests
 
@@ -240,13 +299,13 @@ The scalability tests validate system behavior under scale conditions.
 
 ### Test Scenarios
 
-| Scenario | Description |
-|----------|-------------|
-| Large Issue Set | Generate and handle 100+ issues |
-| Large Project Structure | Create projects with many files |
-| Memory Usage | Monitor memory during processing |
-| Concurrent Operations | Parallel execution handling |
-| Performance Benchmarks | Timing benchmarks for operations |
+| Scenario                | Description                      |
+| ----------------------- | -------------------------------- |
+| Large Issue Set         | Generate and handle 100+ issues  |
+| Large Project Structure | Create projects with many files  |
+| Memory Usage            | Monitor memory during processing |
+| Concurrent Operations   | Parallel execution handling      |
+| Performance Benchmarks  | Timing benchmarks for operations |
 
 ### Running Scalability Tests
 
@@ -277,13 +336,13 @@ The GitHub integration tests validate pipeline interactions with GitHub API usin
 
 ### Test Scenarios
 
-| Scenario | Description |
-|----------|-------------|
-| Issue Creation | Create issues via GitHub API |
-| Pull Request Flow | Create, review, and merge PRs |
-| CI Check Status | Retrieve and handle CI status |
-| Error Handling | Handle API failures gracefully |
-| Retry Logic | Transient failure recovery |
+| Scenario          | Description                    |
+| ----------------- | ------------------------------ |
+| Issue Creation    | Create issues via GitHub API   |
+| Pull Request Flow | Create, review, and merge PRs  |
+| CI Check Status   | Retrieve and handle CI status  |
+| Error Handling    | Handle API failures gracefully |
+| Retry Logic       | Transient failure recovery     |
 
 ### Running GitHub Integration Tests
 
@@ -325,14 +384,14 @@ await githubMock.stop();
 
 ### Supported Endpoints
 
-| Endpoint | Methods | Description |
-|----------|---------|-------------|
-| `/repos/:owner/:repo/issues` | GET, POST | List and create issues |
-| `/repos/:owner/:repo/issues/:number` | GET | Get single issue |
-| `/repos/:owner/:repo/pulls` | GET, POST | List and create PRs |
-| `/repos/:owner/:repo/pulls/:number` | GET | Get single PR |
-| `/repos/:owner/:repo/pulls/:number/merge` | PUT | Merge PR |
-| `/repos/:owner/:repo/commits/:sha/check-runs` | GET | Get check runs |
+| Endpoint                                      | Methods   | Description            |
+| --------------------------------------------- | --------- | ---------------------- |
+| `/repos/:owner/:repo/issues`                  | GET, POST | List and create issues |
+| `/repos/:owner/:repo/issues/:number`          | GET       | Get single issue       |
+| `/repos/:owner/:repo/pulls`                   | GET, POST | List and create PRs    |
+| `/repos/:owner/:repo/pulls/:number`           | GET       | Get single PR          |
+| `/repos/:owner/:repo/pulls/:number/merge`     | PUT       | Merge PR               |
+| `/repos/:owner/:repo/commits/:sha/check-runs` | GET       | Get check runs         |
 
 ## Worker Failure E2E Tests
 
@@ -340,19 +399,200 @@ Tests for worker execution failure handling and recovery.
 
 ### Test Scenarios
 
-| Scenario | Description |
-|----------|-------------|
+| Scenario           | Description                               |
+| ------------------ | ----------------------------------------- |
 | Transient Failures | Retry and recover from temporary failures |
-| Permanent Failures | Fail fast on non-recoverable errors |
-| Rate Limiting | Handle 429 errors appropriately |
-| Parallel Failures | Isolate failures between workers |
-| Recovery State | Track retry attempts and state |
+| Permanent Failures | Fail fast on non-recoverable errors       |
+| Rate Limiting      | Handle 429 errors appropriately           |
+| Parallel Failures  | Isolate failures between workers          |
+| Recovery State     | Track retry attempts and state            |
 
 ### Running Worker Failure Tests
 
 ```bash
 npm run test:e2e -- --run tests/e2e/pipelines/worker-failure.e2e.test.ts
 ```
+
+## Live Acceptance Lane
+
+The live lane is the only lane that executes the real Claude Agent SDK. It
+drives the production path: the `ad-sdlc init` and `ad-sdlc run` CLI commands
+(`src/cli.ts`, loaded through tsx), the orchestrator, and
+`SdkExecutionAdapter`. `npm run test:live` runs `scripts/live-lane.ts`, which:
+
+1. Checks the settings below. When a required setting is missing or a budget
+   is invalid, it starts no test and makes no SDK call, records the status
+   `not-executed` with the reason, and exits 2.
+2. Otherwise runs `vitest.live.config.ts`. The run passes only when Vitest
+   exits 0 and every selected live test passed; a failed, skipped, or empty
+   run exits 1.
+3. Writes `live-lane.json` (execution metadata) and `live-lane-summary.md` to
+   the output directory, and appends the summary to `$GITHUB_STEP_SUMMARY`
+   when that variable is set.
+
+Selecting the live suite directly (`vitest run --config vitest.live.config.ts`)
+without the settings fails the test instead of skipping it.
+
+| Setting                         | Required | Default            | Accepted values                                                                                                                |
+| ------------------------------- | -------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
+| `ANTHROPIC_API_KEY`             | yes      | —                  | Non-empty API key                                                                                                              |
+| `AD_SDLC_LIVE_MAX_TURNS`        | no       | `8`                | Integer 1 to 30: the turn budget, written as `maxTurns` into the stage agent's definition, which the adapter passes to the SDK |
+| `AD_SDLC_LIVE_STAGE_TIMEOUT_MS` | no       | `240000`           | Integer 10000 to 1200000: passed as `--stage-timeout-ms`, the total time budget of the stage                                   |
+| `AD_SDLC_LIVE_OUTPUT_DIR`       | no       | `test-output/live` | Directory for the metadata, summary, Vitest report, and smoke evidence                                                         |
+
+The stage time budget is the hard limit: the orchestrator aborts the SDK query
+when it expires, and the workflow's job timeout bounds the whole run.
+
+The metadata (`schemaVersion` 1) records `lane`, `executed`, `status`
+(`passed`, `failed`, or `not-executed`), `reason`, `missingSettings`,
+`invalidSettings`, `budget`, the SDK package with its declared range and
+installed version, the `ad-sdlc` version, the Node.js version and platform,
+`startedAt`, `finishedAt`, `durationMs`, test counts, `exitCode`, the smoke's
+stage evidence (SDK session ID, turn count, token usage, stage status), and
+the GitHub Actions run URL, SHA, and ref when available. Setting values are
+never written; only the names of missing settings are.
+
+The current live test, `tests/live/sdk-cli-smoke.live.test.ts`, is a
+placeholder smoke: it initializes a project, runs only the `initialization`
+stage with one attempt and the lane budget, and asserts that the stage
+completed through the execution adapter with an SDK session and token usage.
+The Import acceptance scenario (#955) replaces it.
+
+The `Live Acceptance` workflow (`.github/workflows/live-acceptance.yml`) runs
+the lane on a manual `workflow_dispatch` only, with inputs `max_turns` and
+`stage_timeout_ms`, `contents: read` permissions, a 30 minute job timeout, and
+one run at a time. It never runs on pull requests (including forks), pushes,
+or schedules. It uploads the output directory as the
+`live-acceptance-metadata` artifact. GitHub dispatches a workflow only from a
+file on the default branch (`develop`). Without an `ANTHROPIC_API_KEY` (or
+`CLAUDE_API_KEY`) repository secret, a dispatched run reports `not-executed`
+and fails.
+
+## CI Trigger Matrix and Required Checks
+
+The tables below are generated from `.github/workflows/*.yml` by
+`scripts/ci/trigger-matrix.ts`, which evaluates each workflow's `on:` filters
+and job-level `if:` conditions for the listed events.
+`tests/ci/workflow-trigger-matrix.test.ts` fails when the tables differ from
+the workflows, when a job's `if:` can never be true under its workflow's own
+triggers, when a required check stops reporting on every pull request, or when
+a workflow other than `live-acceptance.yml` references Anthropic credentials.
+After changing a workflow, regenerate the tables:
+
+```bash
+npm run ci:trigger-matrix -- --write
+npx prettier --write docs/guides/testing.md
+```
+
+A path-filtered workflow (`docs-check.yml`, `doc-audit.yml`, `docker.yml`)
+reports only when a changed file matches its filter, so its checks must not be
+required: a pull request that changes no matching file would wait for them
+forever. "Changed-path filter: yes" marks those rows.
+
+<!-- BEGIN GENERATED: workflow-trigger-matrix (npm run ci:trigger-matrix -- --write) -->
+
+#### Trigger matrix
+
+| Event / ref                                              | Workflow                                | Changed-path filter | Checks that run                                                                                                                                                                       | Checks skipped by `if:`          |
+| -------------------------------------------------------- | --------------------------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------- |
+| `pull_request` → `develop`                               | CI (`ci.yml`)                           | no                  | `Lint`, `Test (ubuntu-latest)`, `Test (windows-2022)`, `Build`, `Package Asset Delivery (offline)`, `Integration Tests`, `Pipeline E2E (offline)`, `Security Scan`                    | `CodeQL Analysis`                |
+| `pull_request` → `develop`                               | Documentation Audit (`doc-audit.yml`)   | yes                 | `README lint`                                                                                                                                                                         | —                                |
+| `pull_request` → `develop`                               | Document Checks (`docs-check.yml`)      | yes                 | `Validate Documentation Against Code`, `Validate .claude/agents Frontmatter`, `Validate Traceability Matrix`, `Check Document Cascade Updates`                                        | —                                |
+| `pull_request` → `develop`                               | Security Scan (`security.yml`)          | no                  | `Dependency Audit`, `Secret Scanning`, `License Check`, `Security Best Practices Check`, `Security Summary`                                                                           | `CodeQL Analysis`                |
+| `pull_request` → `main`                                  | CI (`ci.yml`)                           | no                  | `Lint`, `Test (ubuntu-latest)`, `Test (windows-2022)`, `Build`, `Package Asset Delivery (offline)`, `Integration Tests`, `Pipeline E2E (offline)`, `Security Scan`                    | `CodeQL Analysis`                |
+| `pull_request` → `main`                                  | Documentation Audit (`doc-audit.yml`)   | yes                 | `README lint`                                                                                                                                                                         | —                                |
+| `pull_request` → `main`                                  | Docker (`docker.yml`)                   | yes                 | `Build Docker Image`                                                                                                                                                                  | —                                |
+| `pull_request` → `main`                                  | Document Checks (`docs-check.yml`)      | yes                 | `Validate Documentation Against Code`, `Validate .claude/agents Frontmatter`, `Validate Traceability Matrix`, `Check Document Cascade Updates`                                        | —                                |
+| `pull_request` → `main`                                  | Performance Tests (`performance.yml`)   | no                  | `benchmark`, `memory-profile`, `scalability`                                                                                                                                          | —                                |
+| `pull_request` → `main`                                  | Security Scan (`security.yml`)          | no                  | `Dependency Audit`, `Secret Scanning`, `License Check`, `Security Best Practices Check`, `Security Summary`                                                                           | `CodeQL Analysis`                |
+| `pull_request` → `feature/example`                       | Document Checks (`docs-check.yml`)      | yes                 | `Validate Documentation Against Code`, `Validate .claude/agents Frontmatter`, `Validate Traceability Matrix`, `Check Document Cascade Updates`                                        | —                                |
+| `push` → `develop`                                       | CI (`ci.yml`)                           | no                  | `Lint`, `Test (ubuntu-latest)`, `Test (windows-2022)`, `Build`, `Package Asset Delivery (offline)`, `Integration Tests`, `Pipeline E2E (offline)`, `Security Scan`, `CodeQL Analysis` | —                                |
+| `push` → `develop`                                       | Documentation Audit (`doc-audit.yml`)   | yes                 | `README lint`                                                                                                                                                                         | —                                |
+| `push` → `develop`                                       | Docker (`docker.yml`)                   | yes                 | `Build Docker Image`                                                                                                                                                                  | —                                |
+| `push` → `develop`                                       | Document Checks (`docs-check.yml`)      | yes                 | `Validate Documentation Against Code`, `Validate .claude/agents Frontmatter`, `Validate Traceability Matrix`                                                                          | `Check Document Cascade Updates` |
+| `push` → `develop`                                       | Security Scan (`security.yml`)          | no                  | `Dependency Audit`, `CodeQL Analysis`, `Secret Scanning`, `License Check`, `Security Best Practices Check`, `Security Summary`                                                        | —                                |
+| `push` → `main`                                          | CI (`ci.yml`)                           | no                  | `Lint`, `Test (ubuntu-latest)`, `Test (windows-2022)`, `Build`, `Package Asset Delivery (offline)`, `Integration Tests`, `Pipeline E2E (offline)`, `Security Scan`, `CodeQL Analysis` | —                                |
+| `push` → `main`                                          | Documentation Audit (`doc-audit.yml`)   | yes                 | `README lint`                                                                                                                                                                         | —                                |
+| `push` → `main`                                          | Docker (`docker.yml`)                   | yes                 | `Build Docker Image`                                                                                                                                                                  | —                                |
+| `push` → `main`                                          | Document Checks (`docs-check.yml`)      | yes                 | `Validate Documentation Against Code`, `Validate .claude/agents Frontmatter`, `Validate Traceability Matrix`                                                                          | `Check Document Cascade Updates` |
+| `push` → `main`                                          | Performance Tests (`performance.yml`)   | no                  | `benchmark`, `memory-profile`, `scalability`                                                                                                                                          | —                                |
+| `push` → `main`                                          | Security Scan (`security.yml`)          | no                  | `Dependency Audit`, `CodeQL Analysis`, `Secret Scanning`, `License Check`, `Security Best Practices Check`, `Security Summary`                                                        | —                                |
+| `push` → `release/example`                               | —                                       | —                   | nothing runs                                                                                                                                                                          | —                                |
+| `push` → tag `v0.1.0`                                    | Release (`release.yml`)                 | no                  | `Validate Release`, `Run Tests`, `Build`, `Publish to NPM`, `Create GitHub Release`                                                                                                   | —                                |
+| `schedule` (`develop`)                                   | Security Scan (`security.yml`)          | no                  | `Dependency Audit`, `CodeQL Analysis`, `Secret Scanning`, `License Check`, `Security Best Practices Check`, `Security Summary`                                                        | —                                |
+| `workflow_dispatch` of `live-acceptance.yml` (`develop`) | Live Acceptance (`live-acceptance.yml`) | no                  | `Live Acceptance`                                                                                                                                                                     | —                                |
+| `workflow_dispatch` of `performance.yml` (`develop`)     | Performance Tests (`performance.yml`)   | no                  | `benchmark`, `memory-profile`, `scalability`                                                                                                                                          | —                                |
+
+#### Workflow trigger filters
+
+| Workflow              | Event               | Branch / tag filter         | `paths`                                                                                                                                                                                                                                                                                                                                                                  | `paths-ignore` |
+| --------------------- | ------------------- | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------- |
+| `ci.yml`              | `pull_request`      | branches: `main`, `develop` | —                                                                                                                                                                                                                                                                                                                                                                        | —              |
+| `ci.yml`              | `push`              | branches: `main`, `develop` | —                                                                                                                                                                                                                                                                                                                                                                        | —              |
+| `doc-audit.yml`       | `pull_request`      | branches: `develop`, `main` | `README.md`, `package.json`, `docs/**`, `scripts/readme_lint.py`, `scripts/tests/**`, `.github/workflows/**`                                                                                                                                                                                                                                                             | —              |
+| `doc-audit.yml`       | `push`              | branches: `develop`, `main` | `README.md`, `package.json`, `docs/**`, `scripts/readme_lint.py`, `scripts/tests/**`, `.github/workflows/**`                                                                                                                                                                                                                                                             | —              |
+| `docker.yml`          | `pull_request`      | branches: `main`            | `docker/**`, `.github/workflows/docker.yml`                                                                                                                                                                                                                                                                                                                              | —              |
+| `docker.yml`          | `push`              | branches: `main`, `develop` | `docker/**`, `.github/workflows/docker.yml`                                                                                                                                                                                                                                                                                                                              | —              |
+| `docs-check.yml`      | `pull_request`      | any                         | `README.md`, `docs/**`, `doc-sync-points.yaml`, `.claude/agents/**`, `.claude/commands/**`, `agent-assets.manifest.json`, `scripts/agent-assets.ts`, `scripts/audit-docs.ts`, `tests/package/**`, `tests/project-initializer/**`, `tests/cli/**`, `.github/workflows/**`, `src/**`, `scripts/ci/validate-doc-*.ts`, `package.json`, `package-lock.json`, `tsconfig.json` | —              |
+| `docs-check.yml`      | `push`              | branches: `develop`, `main` | `README.md`, `docs/**`, `doc-sync-points.yaml`, `.claude/agents/**`, `.claude/commands/**`, `agent-assets.manifest.json`, `scripts/agent-assets.ts`, `scripts/audit-docs.ts`, `tests/package/**`, `tests/project-initializer/**`, `tests/cli/**`, `.github/workflows/**`, `src/**`, `scripts/ci/validate-doc-*.ts`, `package.json`, `package-lock.json`, `tsconfig.json` | —              |
+| `live-acceptance.yml` | `workflow_dispatch` | default branch (`develop`)  | —                                                                                                                                                                                                                                                                                                                                                                        | —              |
+| `performance.yml`     | `pull_request`      | branches: `main`            | —                                                                                                                                                                                                                                                                                                                                                                        | —              |
+| `performance.yml`     | `push`              | branches: `main`            | —                                                                                                                                                                                                                                                                                                                                                                        | —              |
+| `performance.yml`     | `workflow_dispatch` | default branch (`develop`)  | —                                                                                                                                                                                                                                                                                                                                                                        | —              |
+| `release.yml`         | `push`              | tags: `v*`                  | —                                                                                                                                                                                                                                                                                                                                                                        | —              |
+| `security.yml`        | `pull_request`      | branches: `main`, `develop` | —                                                                                                                                                                                                                                                                                                                                                                        | —              |
+| `security.yml`        | `push`              | branches: `main`, `develop` | —                                                                                                                                                                                                                                                                                                                                                                        | —              |
+| `security.yml`        | `schedule`          | default branch (`develop`)  | —                                                                                                                                                                                                                                                                                                                                                                        | —              |
+
+#### Check names and required status
+
+| Check                                 | Workflow              | PR → `develop` | PR → `main`    | Push → `develop` | Required (#970) | Note                                                                                                  |
+| ------------------------------------- | --------------------- | -------------- | -------------- | ---------------- | --------------- | ----------------------------------------------------------------------------------------------------- |
+| `Lint`                                | `ci.yml`              | every run      | every run      | every run        | yes             | —                                                                                                     |
+| `Test (ubuntu-latest)`                | `ci.yml`              | every run      | every run      | every run        | yes             | —                                                                                                     |
+| `Test (windows-2022)`                 | `ci.yml`              | every run      | every run      | every run        | yes             | —                                                                                                     |
+| `Build`                               | `ci.yml`              | every run      | every run      | every run        | yes             | —                                                                                                     |
+| `Package Asset Delivery (offline)`    | `ci.yml`              | every run      | every run      | every run        | yes             | —                                                                                                     |
+| `Integration Tests`                   | `ci.yml`              | every run      | every run      | every run        | yes             | —                                                                                                     |
+| `Pipeline E2E (offline)`              | `ci.yml`              | every run      | every run      | every run        | yes             | —                                                                                                     |
+| `Security Scan`                       | `ci.yml`              | every run      | every run      | every run        | yes             | —                                                                                                     |
+| `CodeQL Analysis`                     | `ci.yml`              | skipped by if: | skipped by if: | every run        | no              | Skipped on pull requests by its job-level if:.                                                        |
+| `README lint`                         | `doc-audit.yml`       | path-filtered  | path-filtered  | path-filtered    | no              | Path-filtered: does not report on every PR, so it must not be required.                               |
+| `Build Docker Image`                  | `docker.yml`          | not triggered  | path-filtered  | path-filtered    | no              | Path-filtered, pull requests into main only: does not report on every PR, so it must not be required. |
+| `Validate Documentation Against Code` | `docs-check.yml`      | path-filtered  | path-filtered  | path-filtered    | no              | Path-filtered: does not report on every PR, so it must not be required.                               |
+| `Validate .claude/agents Frontmatter` | `docs-check.yml`      | path-filtered  | path-filtered  | path-filtered    | no              | Path-filtered: does not report on every PR, so it must not be required.                               |
+| `Validate Traceability Matrix`        | `docs-check.yml`      | path-filtered  | path-filtered  | path-filtered    | no              | Path-filtered: does not report on every PR, so it must not be required.                               |
+| `Check Document Cascade Updates`      | `docs-check.yml`      | path-filtered  | path-filtered  | skipped by if:   | no              | Path-filtered: does not report on every PR, so it must not be required.                               |
+| `Live Acceptance`                     | `live-acceptance.yml` | not triggered  | not triggered  | not triggered    | no              | Does not run on pull requests.                                                                        |
+| `benchmark`                           | `performance.yml`     | not triggered  | every run      | not triggered    | no              | Pull requests into main only; not part of the shared develop and main set.                            |
+| `memory-profile`                      | `performance.yml`     | not triggered  | every run      | not triggered    | no              | Pull requests into main only; not part of the shared develop and main set.                            |
+| `scalability`                         | `performance.yml`     | not triggered  | every run      | not triggered    | no              | Pull requests into main only; not part of the shared develop and main set.                            |
+| `Validate Release`                    | `release.yml`         | not triggered  | not triggered  | not triggered    | no              | Does not run on pull requests.                                                                        |
+| `Run Tests`                           | `release.yml`         | not triggered  | not triggered  | not triggered    | no              | Does not run on pull requests.                                                                        |
+| `Build`                               | `release.yml`         | not triggered  | not triggered  | not triggered    | no              | Does not run on pull requests.                                                                        |
+| `Publish to NPM`                      | `release.yml`         | not triggered  | not triggered  | not triggered    | no              | Does not run on pull requests.                                                                        |
+| `Create GitHub Release`               | `release.yml`         | not triggered  | not triggered  | not triggered    | no              | Does not run on pull requests.                                                                        |
+| `Dependency Audit`                    | `security.yml`        | every run      | every run      | every run        | yes             | —                                                                                                     |
+| `CodeQL Analysis`                     | `security.yml`        | skipped by if: | skipped by if: | every run        | no              | Skipped on pull requests by its job-level if:.                                                        |
+| `Secret Scanning`                     | `security.yml`        | every run      | every run      | every run        | no              | Gitleaks runs with continue-on-error, so the job cannot fail.                                         |
+| `License Check`                       | `security.yml`        | every run      | every run      | every run        | yes             | —                                                                                                     |
+| `Security Best Practices Check`       | `security.yml`        | every run      | every run      | every run        | no              | Reports grep findings as warnings only; the job cannot fail.                                          |
+| `Security Summary`                    | `security.yml`        | every run      | every run      | every run        | no              | Writes a summary table with if: always(); the job cannot fail.                                        |
+
+Required check names for the #970 rulesets on `develop` and `main`:
+
+- `Lint` (`ci.yml`)
+- `Test (ubuntu-latest)` (`ci.yml`)
+- `Test (windows-2022)` (`ci.yml`)
+- `Build` (`ci.yml`)
+- `Package Asset Delivery (offline)` (`ci.yml`)
+- `Integration Tests` (`ci.yml`)
+- `Pipeline E2E (offline)` (`ci.yml`)
+- `Security Scan` (`ci.yml`)
+- `Dependency Audit` (`security.yml`)
+- `License Check` (`security.yml`)
+
+<!-- END GENERATED: workflow-trigger-matrix -->
 
 ## Writing Tests
 
@@ -415,12 +655,15 @@ describe('E2E Test', () => {
 
 ## Coverage Requirements
 
-| Metric | Minimum |
-|--------|---------|
-| Lines | 80% |
-| Functions | 78% |
-| Branches | 72% |
-| Statements | 80% |
+The thresholds in `vitest.config.ts`, enforced by `npm test -- --coverage` in
+the `Test (ubuntu-latest)` check:
+
+| Metric     | Minimum |
+| ---------- | ------- |
+| Lines      | 80%     |
+| Functions  | 78%     |
+| Branches   | 70%     |
+| Statements | 80%     |
 
 Run coverage report:
 
@@ -430,4 +673,4 @@ npm run test:coverage
 
 ---
 
-*Part of [Claude Code Agent Documentation](../README.md)*
+_Part of [Claude Code Agent Documentation](../README.md)_
