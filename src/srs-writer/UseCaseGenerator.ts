@@ -104,6 +104,17 @@ function skipWhitespace(text: string, from: number): number {
 function parseUserStory(story: string): UserStoryParts | null {
   const length = story.length;
   const isLineBreak = (index: number): boolean => LINE_TERMINATOR_CHAR.test(story.charAt(index));
+  // First line terminator at or after an index; the last search is reused while
+  // the index stays inside the line it found
+  let lineSearchFrom = 0;
+  let lineSearchEnd = -1;
+  const lineEnd = (from: number): number => {
+    if (from < lineSearchFrom || from > lineSearchEnd) {
+      lineSearchFrom = from;
+      lineSearchEnd = indexOfPattern(story, LINE_TERMINATOR, from);
+    }
+    return lineSearchEnd;
+  };
 
   // "so that <benefit>" with "so" at soStart
   const benefitAt = (soStart: number): string | undefined => {
@@ -114,7 +125,7 @@ function parseUserStory(story: string): UserStoryParts | null {
     }
     const benefitStart = soStart + match[0].length;
     if (benefitStart < length) {
-      return story.slice(benefitStart, indexOfPattern(story, LINE_TERMINATOR, benefitStart)).trim();
+      return story.slice(benefitStart, lineEnd(benefitStart)).trim();
     }
     // Only whitespace follows: the benefit is one character of it that is not a line break
     const runStart = benefitStart - (match[1]?.length ?? 0);
@@ -140,7 +151,7 @@ function parseUserStory(story: string): UserStoryParts | null {
     const runStart = actionStart - (match[1]?.length ?? 0);
     if (actionStart < length) {
       // The action ends at the first whitespace run on its line that starts "so that"
-      const limit = indexOfPattern(story, LINE_TERMINATOR, actionStart);
+      const limit = lineEnd(actionStart);
       if (limit !== failedActionLimit || actionStart < failedActionFrom) {
         let run = indexOfPattern(story, WHITESPACE, actionStart + 1);
         while (run <= limit && run < length) {
@@ -175,7 +186,7 @@ function parseUserStory(story: string): UserStoryParts | null {
     const roleStart = match.index + match[0].length;
     if (roleStart < length) {
       // The role ends at the first comma on its line that the rest of the story follows
-      const limit = indexOfPattern(story, LINE_TERMINATOR, roleStart);
+      const limit = lineEnd(roleStart);
       if (limit !== failedCommaLimit) {
         for (
           let comma = story.indexOf(',', roleStart + 1);
