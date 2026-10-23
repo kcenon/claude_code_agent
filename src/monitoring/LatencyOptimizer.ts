@@ -244,10 +244,17 @@ export class LatencyOptimizer {
     const startTime = performance.now();
 
     try {
-      // Check if file exists
+      // Read the agent definition; a missing file is reported as not found.
+      // Reading directly, instead of checking with access() first, leaves no
+      // gap in which the file can change.
+      let content: string;
       try {
-        await fsp.access(definitionPath);
+        content = await fsp.readFile(definitionPath, 'utf-8');
       } catch (error) {
+        const code = (error as NodeJS.ErrnoException).code;
+        if (code !== 'ENOENT' && code !== 'ENOTDIR') {
+          throw error;
+        }
         getLogger().debug('Agent definition not found during warmup', {
           agent: 'LatencyOptimizer',
           agentName,
@@ -263,8 +270,7 @@ export class LatencyOptimizer {
         return status;
       }
 
-      // Read and cache the agent definition
-      const content = await fsp.readFile(definitionPath, 'utf-8');
+      // Cache the agent definition
       const cacheFile = path.join(this.config.cacheDir, `agent-${agentName}.cache`);
       await fsp.writeFile(cacheFile, content, { mode: 0o644 });
 
