@@ -680,4 +680,59 @@ describe('InformationExtractor', () => {
       }
     });
   });
+
+  describe('characterization of text patterns', () => {
+    type ExtractorInternals = {
+      extractProjectInfo(content: string): { name?: string; description?: string };
+      preprocessContent(content: string): string;
+      splitIntoSegments(content: string): string[];
+    };
+    const internals = (): ExtractorInternals => extractor as unknown as ExtractorInternals;
+
+    it.each([
+      ['Description: A tool for notes. More text.', 'A tool for notes.'],
+      ['Overview:\n\n  Tracks expenses.', 'Tracks expenses.'],
+      ['about: : x.', 'x.'],
+      ['About .', undefined],
+      ['About  .', '.'],
+      ['about:\t.', '.'],
+      ['The project is a CLI that syncs files. Next.', 'a CLI that syncs files.'],
+      ['This application will  help teams.', 'help teams.'],
+      ['the app should\n.', undefined],
+      ['The system is .', undefined],
+      ['No keywords here.', undefined],
+      ['about the project is great.', 'the project is great.'],
+    ])('should extract the project description from %j', (content, expected) => {
+      expect(internals().extractProjectInfo(content).description).toBe(expected);
+    });
+
+    it.each([
+      [
+        'Build an app. Features: add X; delete Y; list Z.',
+        'Build an app. add X. delete Y. list Z.',
+      ],
+      ['Requirements:\n  login; logout!', 'login. logout!'],
+      ['features : ; a ;; b ?', 'a. b?'],
+      ['Intro text. Commands:   run', 'Intro text. run'],
+      ['Capabilities:', ''],
+      ['x. functions: a. b', 'x. a. b'],
+      ['Not at start features: a; b.', 'Not at start features: a; b.'],
+    ])('should expand the label list in %j', (content, expected) => {
+      expect(internals().preprocessContent(content)).toBe(expected);
+    });
+
+    it.each([
+      [
+        '- first item\n* second\n  • third\n1. one\n2) two\n   3.  three',
+        ['first item', 'second', 'third', 'one', 'two', 'three'],
+      ],
+      [
+        '-  \n- x\n\n10.\t\tten\nplain text here. Another sentence!',
+        ['- x', 'ten', 'plain text here.', 'Another sentence!'],
+      ],
+      ['\n\n  - nested\n\t1) tab', ['nested', 'tab']],
+    ])('should split %j into segments', (content, expected) => {
+      expect(internals().splitIntoSegments(content)).toEqual(expected);
+    });
+  });
 });
