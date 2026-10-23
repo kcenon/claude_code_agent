@@ -29,7 +29,9 @@ PRD/SRS/SDS documents by `npm run docs:check-inventory`.
 “Stage slot” means one entry in a mode-specific stage array. Reused stages such
 as `implementation` appear once in each applicable mode, so the sum of slots is
 larger than the number of unique agent types. The 33 cutover targets describe
-the historical v0.1 migration scope; they are not a current runtime count.
+the historical v0.1 migration scope; they are not a current runtime count. The
+verification check set or not-applicable reason of every stage slot is listed in
+[verification coverage](verification-coverage.md), which the same command checks.
 
 The seven support/delegated definitions are the two orchestrators, CI fixer,
 the two local-mode aliases, RTM builder, and stage verifier. They remain prompt

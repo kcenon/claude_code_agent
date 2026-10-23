@@ -11,6 +11,12 @@ import {
   DocInventoryValidator,
   type DocInventoryMetrics,
 } from '../../src/doc-code-comparator/DocInventoryValidator.js';
+import {
+  VERIFICATION_COVERAGE_END,
+  VERIFICATION_COVERAGE_START,
+  renderVerificationCoverageBlock,
+  replaceVerificationCoverageBlock,
+} from '../../src/stage-verifier/applicability.js';
 
 describe('DocInventoryValidator', () => {
   let root: string;
@@ -141,6 +147,34 @@ describe('DocInventoryValidator', () => {
     expect(codes).toContain('RUNTIME_INVENTORY');
   });
 
+  it('reports a stale generated verification coverage block', () => {
+    write(
+      'docs/architecture/verification-coverage.md',
+      `${VERIFICATION_COVERAGE_START}\n| greenfield | 19 | 0 | 19 |\n${VERIFICATION_COVERAGE_END}\n`
+    );
+
+    const result = new DocInventoryValidator(root).validate();
+
+    expect(result.pass).toBe(false);
+    expect(result.violations).toContainEqual(
+      expect.objectContaining({
+        code: 'VERIFICATION_COVERAGE',
+        path: 'docs/architecture/verification-coverage.md',
+      })
+    );
+  });
+
+  it('accepts the coverage block regenerated into a document with surrounding prose', () => {
+    write(
+      'docs/architecture/verification-coverage.md',
+      replaceVerificationCoverageBlock(
+        `# Coverage\n\nProse.\n\n${VERIFICATION_COVERAGE_START}\nstale\n${VERIFICATION_COVERAGE_END}\n`
+      )
+    );
+
+    expect(new DocInventoryValidator(root).validate().violations).toEqual([]);
+  });
+
   function writeValidFixture(): void {
     write('.claude/agents/collector.md', '---\nname: collector\n---\n');
     write('.claude/agents/support.md', '---\nname: support\n---\n');
@@ -169,6 +203,7 @@ describe('DocInventoryValidator', () => {
       'docs/architecture/runtime-inventory.md',
       `${DocInventoryValidator.renderRuntimeInventoryBlock(metrics)}\n`
     );
+    write('docs/architecture/verification-coverage.md', `${renderVerificationCoverageBlock()}\n`);
     write('doc-sync-points.yaml', renderSyncConfig());
   }
 
