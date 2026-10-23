@@ -14,6 +14,7 @@ import {
   IMPORT_ARTIFACTS,
 } from '../../src/ad-sdlc-orchestrator/ArtifactValidator.js';
 import type { StageName } from '../../src/ad-sdlc-orchestrator/types.js';
+import { LONG_INPUT_LENGTH, LONG_INPUT_TIME_LIMIT_MS } from '../helpers/longInput.js';
 
 describe('ArtifactValidator', () => {
   let tempDir: string;
@@ -299,6 +300,48 @@ describe('ArtifactValidator', () => {
         const result = await validator.validateStageOutput('prd_generation', 'greenfield');
         expect(result.quality).toBe('degraded');
         expect(result.warnings).toContain('PRD document not found in scratchpad');
+      });
+
+      describe('HTML comments', () => {
+        const filler = 'Meaningful requirement text. '.repeat(5);
+
+        async function prdQuality(content: string): Promise<string> {
+          const docsDir = path.join(tempDir, '.ad-sdlc', 'scratchpad', 'documents', 'v1');
+          await fs.mkdir(docsDir, { recursive: true });
+          await fs.writeFile(path.join(docsDir, 'prd.md'), content);
+          return (await validator.validateStageOutput('prd_generation', 'greenfield')).quality;
+        }
+
+        it.each([
+          ['a one-line comment', `# PRD\n\n<!-- ${filler} -->\nShort.\n`],
+          ['a multi-line comment', `# PRD\n\n<!--\n${filler}\n${filler}\n-->\nShort.\n`],
+          ['two comments', `<!-- ${filler} -->Short.<!--${filler}-->\n`],
+        ])('should not count the text of %s', async (_label, content) => {
+          expect(await prdQuality(content)).toBe('degraded');
+        });
+
+        it('should count the text outside comments', async () => {
+          expect(await prdQuality(`# PRD\n\n<!-- placeholder -->\n${filler}\n`)).toBe('good');
+        });
+
+        it('should count the text of an unterminated comment', async () => {
+          expect(await prdQuality(`# PRD\n\n<!-- ${filler}\n`)).toBe('good');
+        });
+
+        it('should not count a comment joined by removing another', async () => {
+          expect(await prdQuality(`# PRD\n\n<!<!-- -->-- ${filler} -->\nShort.\n`)).toBe(
+            'degraded'
+          );
+        });
+
+        it('should check a PRD with many unterminated comments quickly', async () => {
+          const start = performance.now();
+
+          const quality = await prdQuality(`${'<!--'.repeat(LONG_INPUT_LENGTH)}\n${filler}\n`);
+
+          expect(quality).toBe('good');
+          expect(performance.now() - start).toBeLessThan(LONG_INPUT_TIME_LIMIT_MS);
+        });
       });
     });
 

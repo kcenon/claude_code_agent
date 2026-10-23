@@ -1137,8 +1137,10 @@ export class SDSUpdaterAgent implements IAgent {
     const modifiedItems: ModifiedAPI[] = [];
     const today = new Date().toISOString().split('T')[0] ?? '';
 
-    // Find the API section
-    const escapedPath = apiPath.replace(/\//g, '\\/');
+    // Find the API section. Escape every regular expression character of the
+    // path (backslashes included), so that `.`, `?`, `*`, or `(` in an
+    // endpoint match themselves.
+    const escapedPath = apiPath.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
     const apiPattern = new RegExp(
       `(####\\s*${method}\\s+${escapedPath})(?:\\s*\\[(NEW|MODIFIED|DEPRECATED)\\])?\\s*\\n([\\s\\S]*?)(?=\\n####\\s|$)`,
       'i'

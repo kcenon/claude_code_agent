@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
@@ -129,6 +129,76 @@ describe('SecureFileHandler', () => {
       const result = await handler.readSecure(tempFile);
 
       expect(result).toBe(content);
+    });
+
+    describe('permission warning', () => {
+      const warnSpy = () =>
+        vi.spyOn((handler as unknown as { logger: { warn: () => void } }).logger, 'warn');
+
+      afterEach(() => {
+        vi.restoreAllMocks();
+      });
+
+      // Windows NTFS does not support Unix-style permission bits
+      it.skipIf(process.platform === 'win32')(
+        'should warn when others can read the file',
+        async () => {
+          const tempFile = await handler.createTempFile('shared');
+          fs.chmodSync(tempFile, 0o644);
+          const warn = warnSpy();
+
+          expect(await handler.readSecure(tempFile)).toBe('shared');
+          expect(warn).toHaveBeenCalledWith('File is readable by others', {
+            filePath: tempFile,
+            mode: '644',
+          });
+        }
+      );
+
+      it.skipIf(process.platform === 'win32')(
+        'should not warn for an owner-only file',
+        async () => {
+          const tempFile = await handler.createTempFile('private');
+          const warn = warnSpy();
+
+          expect(await handler.readSecure(tempFile)).toBe('private');
+          expect(warn).not.toHaveBeenCalled();
+        }
+      );
+
+      // Creating a symbolic link needs privileges on Windows
+      it.skipIf(process.platform === 'win32')(
+        'should read and check the target of a symbolic link',
+        async () => {
+          const tempDir = await handler.createTempDir();
+          const target = path.join(tempDir, 'target.txt');
+          fs.writeFileSync(target, 'target content');
+          fs.chmodSync(target, 0o640);
+          const link = path.join(tempDir, 'link.txt');
+          fs.symlinkSync(target, link);
+          const warn = warnSpy();
+
+          expect(await handler.readSecure(link)).toBe('target content');
+          expect(warn).toHaveBeenCalledWith('File is readable by others', {
+            filePath: link,
+            mode: '640',
+          });
+        }
+      );
+    });
+
+    it('should reject a missing file', async () => {
+      const tempDir = await handler.createTempDir();
+
+      await expect(handler.readSecure(path.join(tempDir, 'missing.txt'))).rejects.toMatchObject({
+        code: 'ENOENT',
+      });
+    });
+
+    it('should reject a directory', async () => {
+      const tempDir = await handler.createTempDir();
+
+      await expect(handler.readSecure(tempDir)).rejects.toMatchObject({ code: 'EISDIR' });
     });
   });
 

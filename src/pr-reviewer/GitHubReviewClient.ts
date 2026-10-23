@@ -17,6 +17,7 @@ import type {
 import { DEFAULT_GITHUB_REVIEW_CLIENT_CONFIG } from './types.js';
 import { ReviewCommentError } from './errors.js';
 import { getCommandSanitizer } from '../security/index.js';
+import { formatGhCommand } from '../security/commandString.js';
 import { tryGetProjectRoot } from '../utils/index.js';
 import { getLogger } from '../logging/index.js';
 
@@ -440,10 +441,7 @@ export class GitHubReviewClient {
   ): Promise<CommandResult> {
     const sanitizer = getCommandSanitizer();
 
-    const cmd = Array.isArray(command)
-      ? 'gh ' +
-        command.map((a) => (/[\s"'\\]/.test(a) ? `"${a.replace(/"/g, '\\"')}"` : a)).join(' ')
-      : command;
+    const cmd = Array.isArray(command) ? formatGhCommand(command) : command;
 
     try {
       const result = await sanitizer.execFromString(cmd, {

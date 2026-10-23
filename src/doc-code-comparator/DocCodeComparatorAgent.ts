@@ -49,6 +49,39 @@ async function loadYaml(): Promise<void> {
 }
 
 /**
+ * Error codes for a path at which no file exists
+ */
+const MISSING_FILE_CODES: ReadonlySet<string | undefined> = new Set([
+  'ENOENT',
+  'ENOTDIR',
+  'ELOOP',
+  'ENAMETOOLONG',
+]);
+
+/**
+ * Read an inventory file.
+ *
+ * The file is read directly instead of being checked with `access` first, so
+ * it cannot change between the check and the read.
+ * @param inventoryPath - Path of the inventory YAML file
+ * @returns The file content, or null when no file exists at the path
+ * @throws InvalidInventoryError when the file exists but cannot be read
+ */
+async function readInventoryFile(inventoryPath: string): Promise<string | null> {
+  try {
+    return await fs.readFile(inventoryPath, 'utf-8');
+  } catch (error) {
+    if (MISSING_FILE_CODES.has((error as NodeJS.ErrnoException).code)) {
+      return null;
+    }
+    throw new InvalidInventoryError(
+      inventoryPath,
+      error instanceof Error ? error.message : String(error)
+    );
+  }
+}
+
+/**
  * Default agent to module mappings based on project structure
  */
 const DEFAULT_AGENT_MAPPINGS: readonly AgentMapping[] = [
@@ -400,15 +433,12 @@ export class DocCodeComparatorAgent implements IAgent {
   }
 
   private async loadDocumentInventory(inventoryPath: string): Promise<DocumentItem[]> {
-    try {
-      await fs.access(inventoryPath);
-    } catch {
+    const content = await readInventoryFile(inventoryPath);
+    if (content === null) {
       throw new DocumentInventoryNotFoundError(inventoryPath);
     }
 
     try {
-      const content = await fs.readFile(inventoryPath, 'utf-8');
-
       if (yaml === null) {
         await loadYaml();
       }
@@ -420,9 +450,6 @@ export class DocCodeComparatorAgent implements IAgent {
       const data = yamlModule.load(content) as RawDocumentState;
       return this.extractDocumentItems(data);
     } catch (error) {
-      if (error instanceof DocumentInventoryNotFoundError) {
-        throw error;
-      }
       throw new InvalidInventoryError(
         inventoryPath,
         error instanceof Error ? error.message : String(error)
@@ -517,15 +544,12 @@ export class DocCodeComparatorAgent implements IAgent {
   }
 
   private async loadCodeInventory(inventoryPath: string): Promise<CodeItem[]> {
-    try {
-      await fs.access(inventoryPath);
-    } catch {
+    const content = await readInventoryFile(inventoryPath);
+    if (content === null) {
       throw new CodeInventoryNotFoundError(inventoryPath);
     }
 
     try {
-      const content = await fs.readFile(inventoryPath, 'utf-8');
-
       if (yaml === null) {
         await loadYaml();
       }
@@ -537,9 +561,6 @@ export class DocCodeComparatorAgent implements IAgent {
       const data = yamlModule.load(content) as RawCodeInventory;
       return this.extractCodeItems(data);
     } catch (error) {
-      if (error instanceof CodeInventoryNotFoundError) {
-        throw error;
-      }
       throw new InvalidInventoryError(
         inventoryPath,
         error instanceof Error ? error.message : String(error)

@@ -9,7 +9,7 @@ import {
   getCompletionGenerator,
   resetCompletionGenerator,
 } from '../../src/completion/CompletionGenerator.js';
-import type { ShellType } from '../../src/completion/types.js';
+import type { CommandDefinition, ShellType } from '../../src/completion/types.js';
 import { SUPPORTED_SHELLS } from '../../src/completion/types.js';
 
 describe('CompletionGenerator', () => {
@@ -127,6 +127,36 @@ describe('CompletionGenerator', () => {
 
         expect(result.script).toContain('init:Initialize a new AD-SDLC project');
         expect(result.script).toContain('validate:Validate AD-SDLC configuration files');
+      });
+
+      it('should write each command and option spec as one single-quoted word', () => {
+        const lines = new CompletionGenerator().generate('zsh').script.split('\n');
+
+        expect(lines).toContain("    'init:Initialize a new AD-SDLC project'");
+        expect(lines).toContain(
+          "        '--tech-stack[Primary technology stack]:value:(typescript python java go rust other)'"
+        );
+        expect(lines).toContain("        '--file[Validate a specific file]:value:_files'");
+        expect(lines).toContain("        '--quick[Quick setup with defaults]'");
+      });
+
+      it("should close and reopen the quotes around a single quote ('\\'')", () => {
+        const generator = new CompletionGenerator();
+        const commands: readonly CommandDefinition[] = [
+          {
+            name: 'demo',
+            description: "Run the team's 'demo'",
+            options: [
+              { long: '--path', description: "Owner's path with \\ inside", takesValue: true },
+            ],
+          },
+        ];
+        (generator as unknown as { commands: readonly CommandDefinition[] }).commands = commands;
+
+        const lines = generator.generate('zsh').script.split('\n');
+
+        expect(lines).toContain("    'demo:Run the team'\\''s '\\''demo'\\'''");
+        expect(lines).toContain("        '--path[Owner'\\''s path with \\ inside]:value:_files'");
       });
 
       it('should include installation instructions', () => {

@@ -369,36 +369,43 @@ export class CodebaseAnalyzerAgent implements IAgent {
 
     for (const filePath of filePaths) {
       try {
-        const stat = await fs.stat(filePath);
-
-        // Skip files exceeding size limit
-        if (stat.size > this.config.maxFileSize) {
-          continue;
-        }
-
-        const relativePath = path.relative(rootPath, filePath);
-        const extension = path.extname(filePath);
-        const language = this.detectLanguage(extension);
-        const isTest = this.isTestFile(relativePath);
-
-        // Count lines
-        let lineCount = 0;
+        // Take the size and the content from one handle, so that both
+        // describe the same file
+        const handle = await fs.open(filePath, 'r');
         try {
-          const content = await fs.readFile(filePath, 'utf-8');
-          lineCount = content.split('\n').length;
-        } catch {
-          // Skip unreadable files
-          continue;
-        }
+          const stat = await handle.stat();
 
-        fileInfos.push({
-          path: relativePath,
-          extension,
-          size: stat.size,
-          language,
-          isTest,
-          lineCount,
-        });
+          // Skip files exceeding size limit
+          if (stat.size > this.config.maxFileSize) {
+            continue;
+          }
+
+          const relativePath = path.relative(rootPath, filePath);
+          const extension = path.extname(filePath);
+          const language = this.detectLanguage(extension);
+          const isTest = this.isTestFile(relativePath);
+
+          // Count lines
+          let lineCount = 0;
+          try {
+            const content = await handle.readFile('utf-8');
+            lineCount = content.split('\n').length;
+          } catch {
+            // Skip unreadable files
+            continue;
+          }
+
+          fileInfos.push({
+            path: relativePath,
+            extension,
+            size: stat.size,
+            language,
+            isTest,
+            lineCount,
+          });
+        } finally {
+          await handle.close();
+        }
       } catch {
         // Skip files that can't be accessed
         continue;

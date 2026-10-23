@@ -984,9 +984,11 @@ export class RegressionTesterAgent implements IAgent {
   private matchesPattern(name: string, pattern: string): boolean {
     if (pattern === '' || pattern === '*') return true;
 
-    // Convert glob pattern to regex
+    // Convert glob pattern to regex. Escape, in one pass, the regular
+    // expression characters that are literal in a glob, backslashes included;
+    // `*`, `?`, and `[...]` keep their glob meaning.
     const regexPattern = pattern
-      .replace(/\./g, '\\.')
+      .replace(/[\\.+$(){}|]/g, '\\$&')
       .replace(/\*\*/g, '.*')
       .replace(/\*/g, '[^/]*')
       .replace(/\?/g, '.');

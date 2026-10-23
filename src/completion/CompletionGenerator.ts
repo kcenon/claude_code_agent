@@ -185,6 +185,18 @@ const GLOBAL_OPTIONS: readonly OptionDefinition[] = [
 ] as const;
 
 /**
+ * Prepare text for a single-quoted zsh word. Inside single quotes zsh takes
+ * every character literally, backslashes included, so `\'` does not escape a
+ * quote; a single quote is written as `'\''` (close the quote, an escaped
+ * quote, reopen the quote).
+ * @param text - Text to place inside single quotes
+ * @returns The text with every single quote replaced by `'\''`
+ */
+function escapeZshSingleQuoted(text: string): string {
+  return text.replace(/'/g, "'\\''");
+}
+
+/**
  * Generates shell completion scripts for the AD-SDLC CLI
  */
 export class CompletionGenerator {
@@ -315,7 +327,7 @@ complete -F _${this.programName.replace(/-/g, '_')}_completions ${this.programNa
    */
   private generateZshCompletion(): string {
     const commandDescriptions = this.commands
-      .map((cmd) => `    '${cmd.name}:${cmd.description}'`)
+      .map((cmd) => `    '${cmd.name}:${escapeZshSingleQuoted(cmd.description)}'`)
       .join('\n');
 
     const commandCases = this.commands
@@ -323,7 +335,7 @@ complete -F _${this.programName.replace(/-/g, '_')}_completions ${this.programNa
         const opts = [...cmd.options, ...this.globalOptions]
           .map((o) => {
             const flag = o.long;
-            const desc = o.description.replace(/'/g, "\\'");
+            const desc = escapeZshSingleQuoted(o.description);
             if (o.takesValue) {
               if (o.values !== undefined && o.values.length > 0) {
                 return `        '${flag}[${desc}]:value:(${o.values.join(' ')})'`;

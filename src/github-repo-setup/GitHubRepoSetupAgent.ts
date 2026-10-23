@@ -299,11 +299,6 @@ export class GitHubRepoSetupAgent implements IAgent {
   private generateReadme(repoDir: string, projectName: string, description: string): void {
     const readmePath = path.join(repoDir, 'README.md');
 
-    // Only generate if not already created by gh repo create
-    if (fs.existsSync(readmePath)) {
-      return;
-    }
-
     const content = [
       `# ${projectName}`,
       '',
@@ -319,7 +314,16 @@ export class GitHubRepoSetupAgent implements IAgent {
       '',
     ].join('\n');
 
-    fs.writeFileSync(readmePath, content, 'utf-8');
+    // Only generate if not already created by gh repo create. The 'wx' flag
+    // creates the file and fails with EEXIST when the name is taken, so there
+    // is no gap between an existence check and the write.
+    try {
+      fs.writeFileSync(readmePath, content, { encoding: 'utf-8', flag: 'wx' });
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') {
+        throw error;
+      }
+    }
   }
 
   /**
@@ -330,22 +334,32 @@ export class GitHubRepoSetupAgent implements IAgent {
   private generateGitignore(repoDir: string, language: string): void {
     const gitignorePath = path.join(repoDir, '.gitignore');
 
-    // Only generate if not already created by gh repo create
-    if (fs.existsSync(gitignorePath)) {
-      // Append AD-SDLC specific entries
-      const existing = fs.readFileSync(gitignorePath, 'utf-8');
+    // Generate from scratch unless gh repo create already wrote one ('wx'
+    // fails with EEXIST instead of overwriting it)
+    const entries = this.getGitignoreEntries(language);
+    try {
+      fs.writeFileSync(gitignorePath, entries.join('\n') + '\n', { encoding: 'utf-8', flag: 'wx' });
+      return;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') {
+        throw error;
+      }
+    }
+
+    // Append AD-SDLC specific entries, reading and appending through one
+    // descriptor of the existing file
+    const fd = fs.openSync(gitignorePath, 'a+');
+    try {
+      const existing = fs.readFileSync(fd, 'utf-8');
       if (!existing.includes('.ad-sdlc/scratchpad')) {
         const adsdlcEntries = ['', '# AD-SDLC', '.ad-sdlc/scratchpad/', '.ad-sdlc/logs/', ''].join(
           '\n'
         );
-        fs.appendFileSync(gitignorePath, adsdlcEntries, 'utf-8');
+        fs.appendFileSync(fd, adsdlcEntries, 'utf-8');
       }
-      return;
+    } finally {
+      fs.closeSync(fd);
     }
-
-    // Generate from scratch
-    const entries = this.getGitignoreEntries(language);
-    fs.writeFileSync(gitignorePath, entries.join('\n') + '\n', 'utf-8');
   }
 
   /**

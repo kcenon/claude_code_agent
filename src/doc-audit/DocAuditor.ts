@@ -11,7 +11,15 @@
  * document's frontmatter and first heading when the filename is ambiguous.
  */
 
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import {
+  closeSync,
+  constants as fsConstants,
+  fstatSync,
+  openSync,
+  readdirSync,
+  readFileSync,
+  statSync,
+} from 'node:fs';
 import { basename, join, relative, resolve } from 'node:path';
 import { NoDocumentsFoundError, ProjectDirNotFoundError } from './errors.js';
 import { CrossReferenceCheck } from './checks/CrossReferenceCheck.js';
@@ -267,21 +275,32 @@ export class DocAuditor {
 }
 
 /**
- * Read a file as UTF-8, returning `null` if it does not exist or cannot be
- * read. Any other error (e.g., permission denied) is surfaced to the caller.
- * @param absolutePath
+ * Flags for opening a document: read-only and non-blocking, so that opening a
+ * named pipe returns at once and the regular-file check can skip it. Windows
+ * has no O_NONBLOCK; there the constant is undefined and adds no bit.
+ */
+const DOCUMENT_OPEN_FLAGS = fsConstants.O_RDONLY | fsConstants.O_NONBLOCK;
+
+/**
+ * Read a regular file as UTF-8, returning `null` if it does not exist, is not
+ * a regular file, or cannot be read. The file is opened once and checked
+ * through its descriptor, so the check and the read see the same file.
+ * @param absolutePath - Absolute path of the document file
+ * @returns The file content, or null
  */
 function safeReadFile(absolutePath: string): string | null {
+  let fd: number;
   try {
-    const stats = statSync(absolutePath);
-    if (!stats.isFile()) return null;
+    fd = openSync(absolutePath, DOCUMENT_OPEN_FLAGS);
   } catch {
     return null;
   }
   try {
-    return readFileSync(absolutePath, 'utf-8');
+    return fstatSync(fd).isFile() ? readFileSync(fd, 'utf-8') : null;
   } catch {
     return null;
+  } finally {
+    closeSync(fd);
   }
 }
 

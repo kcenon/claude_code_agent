@@ -41,6 +41,7 @@ import {
   ResultPersistenceError,
 } from './errors.js';
 import { getCommandSanitizer } from '../security/index.js';
+import { formatGhCommand } from '../security/commandString.js';
 import {
   type ICommandExecutor,
   type ExecutionResult,
@@ -821,10 +822,7 @@ _This escalation was generated automatically by the CI Fix Agent._`;
    * @returns Execution result with stdout, stderr, and exit code
    */
   private async executeCommand(command: string | string[]): Promise<CommandResult> {
-    const cmd = Array.isArray(command)
-      ? 'gh ' +
-        command.map((a) => (/[\s"'\\]/.test(a) ? `"${a.replace(/"/g, '\\"')}"` : a)).join(' ')
-      : command;
+    const cmd = Array.isArray(command) ? formatGhCommand(command) : command;
     return this.commandExecutor.execute(cmd, {
       cwd: this.config.projectRoot,
       timeout: 120000,

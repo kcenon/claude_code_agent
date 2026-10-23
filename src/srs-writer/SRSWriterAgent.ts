@@ -40,6 +40,7 @@ import {
   SessionStateError,
 } from './errors.js';
 import { prependFrontmatter } from '../utilities/frontmatter.js';
+import { findHtmlComments, removeHtmlComments } from '../utils/markupText.js';
 
 /**
  * Default configuration for SRSWriterAgent
@@ -88,44 +89,6 @@ function countPlaceholders(content: string, open: string, close: string): number
     start = content.indexOf(open, matched ? brace + close.length : brace + 1);
   }
   return count;
-}
-
-/**
- * Find HTML comments (`<!-- ... -->`).
- *
- * Same matches as `content.match(/<!--[\s\S]*?-->/g)` in linear time. The lazy
- * expression rescanned the rest of the text from every `<!--` when no `-->`
- * followed.
- * @param content - Text to scan
- * @returns Start (inclusive) and end (exclusive) index of each comment
- */
-function findHtmlComments(content: string): Array<readonly [number, number]> {
-  const comments: Array<readonly [number, number]> = [];
-  let start = content.indexOf('<!--');
-  while (start !== -1) {
-    const close = content.indexOf('-->', start + 4);
-    if (close === -1) {
-      break;
-    }
-    comments.push([start, close + 3]);
-    start = content.indexOf('<!--', close + 3);
-  }
-  return comments;
-}
-
-/**
- * Remove HTML comments, like `content.replace(/<!--[\s\S]*?-->/g, '')`.
- * @param content - Text to clean
- * @returns Text without HTML comments
- */
-function removeHtmlComments(content: string): string {
-  let result = '';
-  let position = 0;
-  for (const [start, end] of findHtmlComments(content)) {
-    result += content.slice(position, start);
-    position = end;
-  }
-  return result + content.slice(position);
 }
 
 /**

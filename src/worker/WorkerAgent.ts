@@ -963,8 +963,10 @@ export class WorkerAgent implements IAgent {
       const commitType = this.determineCommitType(workOrder);
       const commitMessage = this.formatCommitMessage(commitType, workOrder);
 
-      // Commit
-      await this.execGit(`commit -m "${this.escapeQuotes(commitMessage)}"`);
+      // Commit. execFile runs git without a shell, so the message is passed as
+      // one argument instead of being quoted into a string that is split at
+      // whitespace.
+      await this.execGit(['commit', '-m', commitMessage]);
 
       // Get commit hash
       const { stdout: hash } = await this.execGit('rev-parse HEAD');
@@ -1167,13 +1169,20 @@ export class WorkerAgent implements IAgent {
   /**
    * Execute a git command using safe execution
    * Uses execFile to bypass shell and prevent command injection
-   * @param command - Git command string to execute (without 'git' prefix)
+   * @param gitArgs - Git command string split at whitespace, or the argument
+   *   array itself for arguments that contain whitespace (without 'git' prefix)
    * @returns Promise resolving to stdout and stderr output
    */
-  private async execGit(command: string): Promise<{ stdout: string; stderr: string }> {
+  private async execGit(
+    gitArgs: string | readonly string[]
+  ): Promise<{ stdout: string; stderr: string }> {
     const sanitizer = getCommandSanitizer();
     // Split command string into arguments array
-    const args = command.split(/\s+/).filter((arg) => arg.length > 0);
+    const args =
+      typeof gitArgs === 'string'
+        ? gitArgs.split(/\s+/).filter((arg) => arg.length > 0)
+        : [...gitArgs];
+    const command = typeof gitArgs === 'string' ? gitArgs : args.join(' ');
 
     try {
       const result = await sanitizer.execGit(args, {
@@ -1285,15 +1294,6 @@ export class WorkerAgent implements IAgent {
   }
 
   /**
-   * Escape quotes for shell commands
-   * @param text - Text containing quotes to escape
-   * @returns Text with all double quotes escaped for safe shell usage
-   */
-  private escapeQuotes(text: string): string {
-    return text.replace(/"/g, '\\"');
-  }
-
-  /**
    * Create a skipped verification result
    * @returns Verification result with all checks marked as passed and outputs as 'Skipped'
    */
@@ -1384,7 +1384,10 @@ export class WorkerAgent implements IAgent {
         value.startsWith('"') ||
         value.startsWith("'")
       ) {
-        return `"${value.replace(/"/g, '\\"')}"`;
+        // A JSON string is a valid YAML double-quoted scalar: it escapes
+        // backslashes, double quotes, and control characters such as line
+        // breaks, which a YAML reader would otherwise unescape or fold.
+        return JSON.stringify(value);
       }
       return value;
     }
