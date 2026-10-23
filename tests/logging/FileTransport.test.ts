@@ -451,6 +451,31 @@ describe('FileTransport', () => {
     });
   });
 
+  describe('existing log file', () => {
+    const sizeOf = (t: FileTransport): number =>
+      (t as unknown as { currentFileSize: number }).currentFileSize;
+
+    it('should create an empty file and start counting at zero', async () => {
+      transport = new FileTransport({ type: 'file', path: testLogDir, fileNamePattern: 'app.log' });
+      await transport.initialize();
+
+      expect(fs.readFileSync(path.join(testLogDir, 'app.log'), 'utf8')).toBe('');
+      expect(sizeOf(transport)).toBe(0);
+    });
+
+    it('should keep the content of an existing file and count its size', async () => {
+      const file = path.join(testLogDir, 'app.log');
+      fs.writeFileSync(file, 'x'.repeat(100) + '\n');
+
+      transport = new FileTransport({ type: 'file', path: testLogDir, fileNamePattern: 'app.log' });
+      await transport.initialize();
+
+      expect(fs.readFileSync(file, 'utf8')).toBe('x'.repeat(100) + '\n');
+      expect(sizeOf(transport)).toBe(101);
+      expect(transport.getCurrentFilePath()).toBe(file);
+    });
+  });
+
   describe('batching', () => {
     it('should batch logs when enabled', async () => {
       transport = new FileTransport({
