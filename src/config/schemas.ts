@@ -198,11 +198,6 @@ const GlobalSettingsSchema = z.object({
 export { ScratchpadConfigSchema };
 
 /**
- * Telemetry config schema export for use in loader
- */
-export { TelemetryConfigSchema };
-
-/**
  * Pipeline stage input/output
  */
 const StageIOSchema = z.array(z.union([z.string(), z.object({ type: z.string() }).loose()]));
@@ -450,6 +445,11 @@ const TelemetryConfigSchema = z.object({
   max_buffer_size: z.number().int().min(1).max(1000).optional().default(100),
   include_debug_events: z.boolean().optional().default(false),
 });
+
+/**
+ * Telemetry config schema export for use in loader
+ */
+export { TelemetryConfigSchema };
 
 // ============================================================
 // OpenTelemetry Configuration Schemas
