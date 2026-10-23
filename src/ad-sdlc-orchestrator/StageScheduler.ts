@@ -17,6 +17,8 @@ import type { ManifestReference } from '../execution/artifacts/schemas.js';
 import { getLogger } from '../logging/index.js';
 import { RetryExecutor } from '../error-handler/RetryExecutor.js';
 import type { StageVerificationResult } from '../stage-verifier/types.js';
+import { classifyStageVerification } from '../vnv/policy.js';
+import type { VerificationProfile } from '../vnv/types.js';
 import { AppError } from '../errors/AppError.js';
 import {
   MaxRetriesExceededError,
@@ -64,7 +66,10 @@ export interface SchedulerHost {
   readonly retryBackoff?: import('./types.js').ResolvedOrchestratorConfig['retryBackoff'];
   onProgress?(session: OrchestratorSession, results: readonly StageResult[]): Promise<void>;
   readonly maxParallelAgents: number;
+  /** True when the effective verification profile blocks on a failed required check. */
   readonly haltOnVerificationFailure: boolean;
+  /** Effective verification profile; derived from `haltOnVerificationFailure` when absent. */
+  readonly verificationProfile?: VerificationProfile;
   readonly checkpointManager: PipelineCheckpointManager | null;
   getTimeoutForStage(name: StageName): number;
   /** Current adapter budget; fallback includes a margin for diagnostic propagation. */
@@ -524,9 +529,11 @@ async function applyContentValidation(
 }
 
 /**
- * Apply content validation followed by the live V&V gate. In non-blocking
- * modes a failed verification is retained as a warning; strict mode with
- * `haltOnVerificationFailure` converts the stage into a hard failure.
+ * Apply content validation followed by the live V&V gate. Every verified
+ * stage carries its verification record. Under a non-blocking profile
+ * (`advisory`) a failed verification is retained as a warning; under
+ * `delivery` (including the legacy strict + `haltOnVerificationFailure`
+ * mapping) a failed required check converts the stage into a hard failure.
  * @param host
  * @param stage
  * @param session
@@ -544,18 +551,22 @@ async function finalizeStageResult(
   }
 
   const verification = await host.verifyStage(stage, contentValidated, session);
+  const profile =
+    host.verificationProfile ?? (host.haltOnVerificationFailure ? 'delivery' : 'advisory');
+  const record = classifyStageVerification(stage.name, verification, profile);
+  const recorded: StageResult = { ...contentValidated, verification: record };
   if (verification.passed) {
-    return { result: contentValidated, halt: false };
+    return { result: recorded, halt: false };
   }
 
   const details =
     verification.errors.length > 0
       ? verification.errors
       : [`Stage '${stage.name}' did not pass verification`];
-  if (host.haltOnVerificationFailure) {
+  if (record.state === 'failed') {
     return {
       result: {
-        ...contentValidated,
+        ...recorded,
         status: 'failed',
         error: `Verification failed: ${details.join('; ')}`,
         warnings: [...(contentValidated.warnings ?? []), ...verification.warnings],
@@ -566,7 +577,7 @@ async function finalizeStageResult(
 
   return {
     result: {
-      ...contentValidated,
+      ...recorded,
       warnings: [
         ...(contentValidated.warnings ?? []),
         ...details.map((message) => `Verification advisory: ${message}`),

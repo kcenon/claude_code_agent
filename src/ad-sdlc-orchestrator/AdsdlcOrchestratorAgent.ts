@@ -39,6 +39,18 @@ import { getLogger } from '../logging/index.js';
 import { ENV_USE_SDK_FOR_WORKER } from '../config/featureFlags.js';
 import { StageVerifierAgent } from '../stage-verifier/StageVerifierAgent.js';
 import type { StageVerificationResult } from '../stage-verifier/types.js';
+import { verificationDisposition } from '../stage-verifier/applicability.js';
+import {
+  effectiveVerificationPolicy,
+  parseStageVerificationRecord,
+  resolveVerificationProfile,
+  summarizePipelineVerification,
+  verificationPolicySource,
+  VERIFICATION_PROFILE_DEFINITIONS,
+  type EffectiveVerificationPolicy,
+  type VerificationPolicySource,
+} from '../vnv/policy.js';
+import type { VnvConfig } from '../vnv/types.js';
 import { buildCanonicalPlan } from './plan.js';
 import { parseRuntimeSnapshot } from '../config/runtimeSnapshot.js';
 import type { EffectiveExecutionPlan } from '../config/runtimeTypes.js';
@@ -122,6 +134,8 @@ export class AdsdlcOrchestratorAgent implements IAgent {
     { reference: ManifestReference; artifacts: readonly string[] }
   >();
   private readonly checkpointManager: PipelineCheckpointManager | null;
+  /** V&V options supplied by a programmatic caller, used to report the policy source. */
+  private readonly requestedVnv: Partial<VnvConfig> | undefined;
   /**
    * One-shot SDK session id used to resume the FIRST stage of a session
    * recovered from a v2 checkpoint. Cleared on consumption so subsequent
@@ -150,6 +164,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
     };
     const ckptConfig: CheckpointConfig = this.config.checkpoint;
     this.checkpointManager = ckptConfig.enabled ? new PipelineCheckpointManager(ckptConfig) : null;
+    this.requestedVnv = config.vnv;
   }
 
   /**
@@ -311,7 +326,11 @@ export class AdsdlcOrchestratorAgent implements IAgent {
                 ? { stopAfterStage: request.stopAfterStage }
                 : {}),
               preCompletedStages: checkpoint.completedStageNames,
-              stageResults: checkpoint.completedStageResults,
+              // Checkpoints are untrusted YAML; keep only valid verification records.
+              stageResults: checkpoint.completedStageResults.map(({ verification, ...rest }) => {
+                const record = parseStageVerificationRecord(verification);
+                return record === undefined ? rest : { ...rest, verification: record };
+              }),
               ...(checkpoint.sdkSessionId !== undefined && checkpoint.sdkSessionId !== ''
                 ? { resumeSdkSessionId: checkpoint.sdkSessionId }
                 : {}),
@@ -484,10 +503,17 @@ export class AdsdlcOrchestratorAgent implements IAgent {
       // Merge prior + new results
       const stageResults = [...priorResults, ...newResults];
       const failedStages = stageResults.filter((s) => s.status === 'failed');
-      const verificationGateFailed =
-        this.config.vnv.rigor === 'strict' &&
-        this.config.vnv.haltOnVerificationFailure &&
-        this.verificationResults.some((verification) => !verification.passed);
+      const verification = summarizePipelineVerification(
+        this.verificationPolicy(session),
+        stages.map((stage) => stage.name),
+        stageResults,
+        (stage) => {
+          const disposition = verificationDisposition(session.mode, stage);
+          return disposition?.kind === 'not_applicable' ? disposition.reason : undefined;
+        }
+      );
+      // Only a blocking profile produces a `failed` stage verification state.
+      const verificationGateFailed = verification.status === 'failed';
       const overallStatus = verificationGateFailed
         ? 'failed'
         : this.determineOverallStatus(stageResults);
@@ -517,6 +543,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
         ...(this.verificationResults.length > 0
           ? { verificationResults: [...this.verificationResults] }
           : {}),
+        verification,
       };
 
       this.session = { ...this.session, status: overallStatus, stageResults };
@@ -539,7 +566,8 @@ export class AdsdlcOrchestratorAgent implements IAgent {
         throw new PipelineFailedError(
           session.sessionId,
           session.mode,
-          failedStages.map((s) => s.name)
+          failedStages.map((s) => s.name),
+          result
         );
       }
 
@@ -681,7 +709,8 @@ export class AdsdlcOrchestratorAgent implements IAgent {
       onProgress: (session, results) => this.persistProgress(session, results),
       maxParallelAgents: this.config.maxParallelAgents,
       haltOnVerificationFailure:
-        this.config.vnv.rigor === 'strict' && this.config.vnv.haltOnVerificationFailure,
+        VERIFICATION_PROFILE_DEFINITIONS[resolveVerificationProfile(this.config.vnv)].blocking,
+      verificationProfile: resolveVerificationProfile(this.config.vnv),
       checkpointManager: this.checkpointManager,
       getStageManifest: (name) => this.stageManifests.get(name)?.reference,
       getStageArtifacts: (name) => this.stageManifests.get(name)?.artifacts,
@@ -810,6 +839,34 @@ export class AdsdlcOrchestratorAgent implements IAgent {
   /** Create the verifier used by the live scheduler. Tests may override it. */
   protected createStageVerifier(): StageVerifierAgent {
     return new StageVerifierAgent();
+  }
+
+  /**
+   * Effective verification policy of a session. CLI sessions report the
+   * source recorded in their runtime snapshot; a resumed session reuses the
+   * saved policy and reports `resume`. Programmatic sessions without a
+   * snapshot report the orchestrator configuration.
+   * @param session - Session being executed
+   * @returns Effective profile, rigor, blocking behavior, and source
+   */
+  private verificationPolicy(session: OrchestratorSession): EffectiveVerificationPolicy {
+    const resumed = session.resumedFrom !== undefined;
+    let source: VerificationPolicySource;
+    if (session.runtimeSnapshot !== undefined) {
+      source = verificationPolicySource(
+        session.runtimeSnapshot.sources['global.vnv.profile'],
+        resumed
+      );
+    } else {
+      const explicit = this.requestedVnv?.profile !== undefined;
+      const derived = !explicit && resolveVerificationProfile(this.config.vnv) === 'delivery';
+      source = {
+        kind: resumed ? 'resume' : explicit || derived ? 'programmatic' : 'default',
+        path: derived ? 'vnv.haltOnVerificationFailure' : 'vnv.profile',
+        origin: explicit || derived ? 'OrchestratorConfig' : 'default',
+      };
+    }
+    return effectiveVerificationPolicy(this.config.vnv, source);
   }
 
   /**
@@ -1105,6 +1162,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
         artifacts: result.artifacts,
         manifests: result.manifests ?? [],
         verificationResults: result.verificationResults ?? [],
+        ...(result.verification !== undefined ? { verification: result.verification } : {}),
         stages: result.stages.map((s) => ({
           name: s.name,
           agentType: s.agentType,
@@ -1113,6 +1171,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
           output: s.output,
           artifacts: s.artifacts,
           ...(s.manifest !== undefined ? { manifest: s.manifest } : {}),
+          ...(s.verification !== undefined ? { verification: s.verification } : {}),
           error: s.error,
           retryCount: s.retryCount,
         })),
@@ -1219,25 +1278,29 @@ export class AdsdlcOrchestratorAgent implements IAgent {
         vnv: { ...this.config.vnv, ...runtimeSnapshot.config.vnv },
       };
     const stages = Array.isArray(data['stages']) ? data['stages'] : [];
-    const stageResults: StageResult[] = stages.map((s: Record<string, unknown>) => ({
-      name: (s['name'] ?? '') as StageName,
-      agentType: (s['agentType'] ?? '') as string,
-      status: (s['status'] ?? 'failed') as PipelineStageStatus,
-      durationMs: (s['durationMs'] ?? 0) as number,
-      output: (s['output'] ?? '') as string,
-      artifacts: Array.isArray(s['artifacts']) ? (s['artifacts'] as string[]) : [],
-      ...(s['manifest'] !== undefined
-        ? {
-            manifest: parseArtifact(
-              ManifestReferenceSchema,
-              s['manifest'],
-              'session stage manifest'
-            ),
-          }
-        : {}),
-      error: (s['error'] ?? null) as string | null,
-      retryCount: (s['retryCount'] ?? 0) as number,
-    }));
+    const stageResults: StageResult[] = stages.map((s: Record<string, unknown>) => {
+      const verification = parseStageVerificationRecord(s['verification']);
+      return {
+        name: (s['name'] ?? '') as StageName,
+        agentType: (s['agentType'] ?? '') as string,
+        status: (s['status'] ?? 'failed') as PipelineStageStatus,
+        durationMs: (s['durationMs'] ?? 0) as number,
+        output: (s['output'] ?? '') as string,
+        artifacts: Array.isArray(s['artifacts']) ? (s['artifacts'] as string[]) : [],
+        ...(s['manifest'] !== undefined
+          ? {
+              manifest: parseArtifact(
+                ManifestReferenceSchema,
+                s['manifest'],
+                'session stage manifest'
+              ),
+            }
+          : {}),
+        ...(verification !== undefined ? { verification } : {}),
+        error: (s['error'] ?? null) as string | null,
+        retryCount: (s['retryCount'] ?? 0) as number,
+      };
+    });
 
     const completedStageNames = stageResults
       // Legacy degraded results still rerun; validated manifests can retain their output lineage.
