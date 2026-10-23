@@ -129,6 +129,17 @@ describe('CompletionGenerator', () => {
         expect(result.script).toContain('validate:Validate AD-SDLC configuration files');
       });
 
+      it('should write each command and option spec as one single-quoted word', () => {
+        const lines = new CompletionGenerator().generate('zsh').script.split('\n');
+
+        expect(lines).toContain("    'init:Initialize a new AD-SDLC project'");
+        expect(lines).toContain(
+          "        '--tech-stack[Primary technology stack]:value:(typescript python java go rust other)'"
+        );
+        expect(lines).toContain("        '--file[Validate a specific file]:value:_files'");
+        expect(lines).toContain("        '--quick[Quick setup with defaults]'");
+      });
+
       it('should include installation instructions', () => {
         const generator = new CompletionGenerator();
         const result = generator.generate('zsh');
