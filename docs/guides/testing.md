@@ -29,7 +29,10 @@ execution.
 
 The E2E lane does not retry (`retry: 0`): the first failure of a selected test
 fails the `Pipeline E2E (offline)` job, and a flaky test fails instead of
-passing on a second attempt.
+passing on a second attempt. The `Integration Tests` and
+`Pipeline E2E (offline)` jobs depend only on `Lint`, so a failing lane test
+fails the lane job itself. Behind `Test` or `Build` the job would be skipped
+instead, and a skipped required check counts as passing.
 
 ### Duplicate Execution
 

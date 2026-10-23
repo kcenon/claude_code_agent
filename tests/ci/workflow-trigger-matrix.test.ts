@@ -125,6 +125,9 @@ describe('workflow trigger matrix', () => {
       const job = ci.jobs[jobId];
       expect(job?.if).toBeUndefined();
       expect(job?.env).toBeUndefined();
+      // Only Lint: a failing lane test must fail this job, not leave it
+      // skipped behind a failed Test job (a skipped required check passes).
+      expect(job?.needs).toBe('lint');
       const step = job?.steps?.find((entry) => entry.run === script);
       expect(step).toBeDefined();
       expect(step?.env).toBeUndefined();
