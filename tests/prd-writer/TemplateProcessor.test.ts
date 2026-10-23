@@ -4,6 +4,7 @@ import * as path from 'node:path';
 import { TemplateProcessor } from '../../src/prd-writer/TemplateProcessor.js';
 import type { CollectedInfo } from '../../src/scratchpad/index.js';
 import type { PRDMetadata } from '../../src/prd-writer/types.js';
+import { LONG_INPUT_LENGTH, LONG_INPUT_TIME_LIMIT_MS, timed } from '../helpers/longInput.js';
 
 describe('TemplateProcessor', () => {
   const testTemplateDir = path.join(process.cwd(), 'tests', 'prd-writer', 'test-templates');
@@ -615,6 +616,7 @@ Some text <!-- inline comment --> more text
     const nfrHeader =
       '### NFR-001: T\n\n| Attribute | Value |\n|-----------|-------|\n' +
       '| **Category** | Performance |\n| **Priority** | P1 |\n\n**Description:**\n';
+    const NFR_MARKER = '### NFR-001:';
     const nfrBlock = (matched: string, before: string): string =>
       `${nfrHeader}Fast ${matched} and $ and ${before} end\n\n---\n\n\n`;
 
@@ -669,6 +671,31 @@ Some text <!-- inline comment --> more text
           '[To be elaborated]',
         ].join('\n')
       );
+    });
+
+    describe('long input (polynomial ReDoS regression)', () => {
+      it('should replace a section made of repeated NFR markers quickly', () => {
+        const content = NFR_MARKER.repeat(LONG_INPUT_LENGTH / NFR_MARKER.length);
+        const { result, elapsedMs } = timed(() =>
+          internals().generateNonFunctionalRequirementsSection(content, nfrInfo())
+        );
+
+        expect(result).toBe(nfrBlock(content, ''));
+        expect(elapsedMs).toBeLessThan(LONG_INPUT_TIME_LIMIT_MS);
+      });
+
+      it.each([
+        ['blank', `<!--${'\t'.repeat(LONG_INPUT_LENGTH)}x`],
+        ['text', `<!--a${'\t'.repeat(LONG_INPUT_LENGTH)}x`],
+      ])('should keep an unterminated %s comment line quickly', (_kind, line) => {
+        const info = createMinimalCollectedInfo();
+        const { result, elapsedMs } = timed(() =>
+          internals().replaceHtmlCommentPlaceholders(line, info)
+        );
+
+        expect(result).toBe(line);
+        expect(elapsedMs).toBeLessThan(LONG_INPUT_TIME_LIMIT_MS);
+      });
     });
   });
 });
