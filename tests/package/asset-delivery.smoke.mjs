@@ -221,30 +221,19 @@ try {
   }
   const explicitRoot = join(temp, 'explicit dot init');
   mkdirSync(explicitRoot);
-  run(
-    bin,
-    ['init', '.', '--quick', '--skip-validation', '--tech-stack', 'typescript'],
-    explicitRoot
-  );
+  run(bin, ['init', '.', '--quick', '--skip-validation'], explicitRoot);
   assert(!existsSync(join(explicitRoot, 'my-project')));
   run(bin, ['status', '--format', 'json'], explicitRoot);
   // The installed CLI reports its own package version and finds the initialized configuration.
-  // doctor's exit status depends on the AI bridge, which this credential-free env lacks.
+  // This credential-free env has no AI bridge: doctor warns and still exits 0.
   const installedVersion = JSON.parse(readFileSync(join(pkg, 'package.json'), 'utf8')).version;
   assert.equal(run(bin, ['--version'], caller).trim(), installedVersion);
-  const doctor = spawnSync(bin, ['doctor', '--project-dir', explicitRoot], {
-    cwd: caller,
-    env,
-    encoding: 'utf8',
-    timeout: 300_000,
-  });
-  assert.ifError(doctor.error);
-  assert(
-    doctor.stdout.includes('OK  Config files: workflow.yaml + agents.yaml found'),
-    doctor.stdout + doctor.stderr
-  );
+  const doctor = run(bin, ['doctor', '--project-dir', explicitRoot], caller);
+  assert(doctor.includes('OK  Config files: workflow.yaml + agents.yaml found'), doctor);
+  assert(doctor.includes('WARN  AI Bridge: No ANTHROPIC_API_KEY'), doctor);
+  assert(doctor.includes('Environment OK but no AI bridge configured.'), doctor);
   process.stdout.write(
-    `PACKAGE SMOKE: installed --version ${installedVersion}; doctor found config\n`
+    `PACKAGE SMOKE: installed --version ${installedVersion}; doctor found config, exit 0 without a bridge\n`
   );
   const audit = join(temp, 'offline audit fixture');
   cpSync(join(repo, 'tests/doc-audit/fixtures/valid-project'), audit, { recursive: true });
@@ -252,7 +241,7 @@ try {
   assert(JSON.parse(readFileSync(join(audit, '.ad-sdlc/audit/audit-report.json'), 'utf8')).pass);
   assert(existsSync(join(audit, '.ad-sdlc/audit/audit-report.md')));
   for (const [command, requiredFlags] of Object.entries({
-    init: ['--quick', '--tech-stack'],
+    init: ['--quick', '--template', '--skip-validation'],
     run: [
       '--project-dir',
       '--resume',
@@ -269,10 +258,9 @@ try {
     for (const flag of requiredFlags) assert(help.includes(flag), `${command} ${flag}`);
   }
   assert(!run(bin, ['--help'], caller).includes('resume '), 'Resume is a run flag');
-  assert(
-    !run(bin, ['init', '--help'], caller).includes('--github-repo'),
-    'init has no repo option'
-  );
+  const initHelp = run(bin, ['init', '--help'], caller);
+  assert(!initHelp.includes('--github-repo'), 'init has no repo option');
+  assert(!initHelp.includes('--tech-stack'), 'init has no tech stack option');
   process.stdout.write('PACKAGE SMOKE: packaged audit and command CLI contracts passed\n');
 
   // Inspect the shipped instructions, not just an independent list of expected flags.
@@ -296,6 +284,7 @@ try {
   }
   const greenfield = readFileSync(join(pkg, '.claude/commands/run-greenfield.md'), 'utf8');
   assert(greenfield.includes('ad-sdlc init . --quick'));
+  assert(!greenfield.includes('--tech-stack'), 'run-greenfield passes no tech stack to init');
   assert(greenfield.includes('shell: false'));
   const resume = readFileSync(join(pkg, '.claude/commands/resume.md'), 'utf8');
   assert(

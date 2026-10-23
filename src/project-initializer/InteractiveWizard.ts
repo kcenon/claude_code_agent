@@ -8,7 +8,7 @@ import * as path from 'path';
 
 import inquirer from 'inquirer';
 
-import type { InitOptions, TechStack, TemplateType } from './types.js';
+import type { InitOptions, TemplateType } from './types.js';
 import { CLIOutput, getCLIOutput } from '../cli/index.js';
 
 /**
@@ -17,7 +17,6 @@ import { CLIOutput, getCLIOutput } from '../cli/index.js';
 interface WizardAnswers {
   projectName: string;
   description: string;
-  techStack: TechStack;
   template: TemplateType;
 }
 
@@ -67,20 +66,6 @@ export class InteractiveWizard {
       },
       {
         type: 'list',
-        name: 'techStack',
-        message: 'Primary technology stack:',
-        choices: [
-          { name: 'TypeScript', value: 'typescript' },
-          { name: 'Python', value: 'python' },
-          { name: 'Java', value: 'java' },
-          { name: 'Go', value: 'go' },
-          { name: 'Rust', value: 'rust' },
-          { name: 'Other', value: 'other' },
-        ],
-        default: 'typescript',
-      },
-      {
-        type: 'list',
         name: 'template',
         message: 'Project template:',
         choices: [
@@ -104,7 +89,6 @@ export class InteractiveWizard {
     return {
       projectName: answers.projectName,
       description: answers.description.length > 0 ? answers.description : undefined,
-      techStack: answers.techStack,
       template: answers.template,
     };
   }
@@ -139,7 +123,6 @@ export class InteractiveWizard {
     if (options.description !== undefined && options.description.length > 0) {
       summaryData['Description'] = options.description;
     }
-    summaryData['Tech Stack'] = options.techStack;
     summaryData['Template'] = options.template;
 
     this.output.summary('Configuration Summary', summaryData);

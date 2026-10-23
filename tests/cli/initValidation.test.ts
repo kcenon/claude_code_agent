@@ -7,6 +7,7 @@
 import { spawnSync } from 'node:child_process';
 import {
   existsSync,
+  mkdirSync,
   mkdtempSync,
   readFileSync,
   realpathSync,
@@ -38,17 +39,43 @@ const require = createRequire(new URL('../../package.json', import.meta.url));
 // A file URL keeps the absolute loader path usable by --import on Windows too.
 const tsxLoader = pathToFileURL(require.resolve('tsx')).href;
 
-function runCli(args: string[], cwd: string) {
+function runCli(args: string[], cwd: string, env: NodeJS.ProcessEnv = process.env) {
   const result = spawnSync(process.execPath, ['--import', tsxLoader, cliPath, ...args], {
     cwd,
     encoding: 'utf-8',
     timeout: 30_000,
-    env: { ...process.env, NO_COLOR: '1' },
+    env: { ...env, NO_COLOR: '1' },
   });
   expect(result.error).toBeUndefined();
   expect(result.signal).toBeNull();
   return result;
 }
+
+/** API keys and the Claude Code session markers that describeExecutionEnvironment() reads. */
+const AI_BRIDGE_VARIABLES = [
+  'ANTHROPIC_API_KEY',
+  'CLAUDE_API_KEY',
+  'CLAUDE_CODE_SESSION',
+  'CLAUDE_CODE',
+  'CLAUDECODE',
+  'CLAUDE_CODE_ENTRYPOINT',
+];
+
+/**
+ * Child environment without any AI bridge, so doctor's result does not depend on the caller.
+ * @param overrides - Variables to set after the bridge variables are removed
+ * @returns A copy of the test process environment
+ */
+function envWithoutBridge(overrides: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv {
+  const env = { ...process.env };
+  for (const name of Object.keys(env)) {
+    if (AI_BRIDGE_VARIABLES.includes(name.toUpperCase())) delete env[name];
+  }
+  return { ...env, ...overrides };
+}
+
+const NO_BRIDGE_RESULT =
+  'Environment OK but no AI bridge configured. Set ANTHROPIC_API_KEY or run inside a Claude Code session before a live run.';
 
 const expectedAgents = generateAgentsConfig(loadAssetBundle()).agents;
 
@@ -69,16 +96,7 @@ describe('CLI initialization configuration validation', () => {
 
   function initialize(template: TemplateType = 'standard') {
     const result = runCli(
-      [
-        'init',
-        'project',
-        '--template',
-        template,
-        '--tech-stack',
-        'typescript',
-        '--quick',
-        '--skip-validation',
-      ],
+      ['init', 'project', '--template', template, '--quick', '--skip-validation'],
       tempDir
     );
     expect(result.status, result.stdout + result.stderr).toBe(0);
@@ -183,27 +201,77 @@ describe('CLI initialization configuration validation', () => {
     expect(result.stdout.trim()).toBe(version);
   });
 
-  // The exit status depends on the AI bridge of the environment; assert the config check only.
   it('doctor finds the configuration of a quick-initialized project', () => {
     initialize();
     const found = 'OK  Config files: workflow.yaml + agents.yaml found';
     expect(runCli(['doctor', '--project-dir', projectDir], tempDir).stdout).toContain(found);
     // Without --project-dir, doctor checks the current directory.
     expect(runCli(['doctor'], projectDir).stdout).toContain(found);
+    // Missing configuration is a warning: init has not run yet, which doctor may precede.
     expect(runCli(['doctor', '--project-dir', tempDir], tempDir).stdout).toContain(
-      'FAIL  Config files: missing: workflow.yaml, agents.yaml'
+      'WARN  Config files: missing: workflow.yaml, agents.yaml'
     );
   }, 90_000);
 
-  // No pipeline stage reads a repository from init; repo detection uses the git remote.
-  it.each(['--github-repo', '-g'])('rejects the removed %s init option', (flag) => {
+  // A live run needs the bridge, but init, validate, and run --dry-run do not.
+  it('doctor warns about a missing AI bridge and exits 0', () => {
+    initialize();
+    for (const dir of [projectDir, tempDir]) {
+      const result = runCli(['doctor', '--project-dir', dir], tempDir, envWithoutBridge());
+      expect(result.status, result.stdout + result.stderr).toBe(0);
+      expect(result.stdout).toContain(
+        'WARN  AI Bridge: No ANTHROPIC_API_KEY or Claude Code session detected'
+      );
+      expect(result.stdout).toContain(NO_BRIDGE_RESULT);
+      expect(result.stdout).not.toContain('FAIL');
+      expect(result.stdout).not.toContain('Some required checks failed');
+    }
+  }, 90_000);
+
+  it('doctor reports a detected Claude Code session as ready', () => {
     const result = runCli(
-      ['init', 'project', '--quick', '--skip-validation', flag, 'https://github.com/user/project'],
+      ['doctor', '--project-dir', tempDir],
+      tempDir,
+      envWithoutBridge({ CLAUDECODE: '1' })
+    );
+    expect(result.status, result.stdout + result.stderr).toBe(0);
+    expect(result.stdout).toContain('OK  AI Bridge: Claude Code session detected');
+    expect(result.stdout).toContain('Ready for pipeline execution.');
+    expect(result.stdout).not.toContain(NO_BRIDGE_RESULT);
+  }, 60_000);
+
+  // Git is a required check; an empty PATH makes the git lookup fail.
+  it('doctor exits 1 when a required check fails', () => {
+    const emptyPath = join(tempDir, 'empty path');
+    mkdirSync(emptyPath);
+    const env = envWithoutBridge();
+    for (const name of Object.keys(env)) if (name.toUpperCase() === 'PATH') delete env[name];
+    const result = runCli(['doctor', '--project-dir', tempDir], tempDir, {
+      ...env,
+      PATH: emptyPath,
+    });
+    expect(result.status, result.stdout + result.stderr).toBe(1);
+    expect(result.stdout).toContain('FAIL  Git: not found (required)');
+    expect(result.stdout).toContain('Some required checks failed. Fix the issues above.');
+    expect(result.stdout).not.toContain(NO_BRIDGE_RESULT);
+  }, 60_000);
+
+  // No pipeline stage reads a repository or a technology stack from init.
+  it.each([
+    ['--github-repo', 'https://github.com/user/project'],
+    ['-g', 'https://github.com/user/project'],
+    ['--tech-stack', 'typescript'],
+    ['-t', 'typescript'],
+  ])('rejects the removed %s init option', (flag, value) => {
+    const result = runCli(
+      ['init', 'project', '--quick', '--skip-validation', flag, value],
       tempDir
     );
     expect(result.status).toBe(1);
     expect(result.stderr).toContain(`unknown option '${flag}'`);
     expect(existsSync(projectDir)).toBe(false);
-    expect(runCli(['init', '--help'], tempDir).stdout).not.toContain('--github-repo');
+    const help = runCli(['init', '--help'], tempDir).stdout;
+    expect(help).not.toContain('--github-repo');
+    expect(help).not.toContain('--tech-stack');
   });
 });
