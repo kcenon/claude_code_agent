@@ -7,6 +7,8 @@ import { DEFAULT_ORCHESTRATOR_CONFIG, type StageResult } from '../ad-sdlc-orches
 import { CANONICAL_STAGE_NAMES } from '../ad-sdlc-orchestrator/plan.js';
 import { isRecord } from './runtimeSupport.js';
 import { RuntimeConfigError, type EffectiveExecutionPlan } from './runtimeTypes.js';
+import { resolveVerificationProfile } from '../vnv/policy.js';
+import type { VerificationProfile } from '../vnv/types.js';
 
 const integer = z.number().int().min(0).max(2147483647);
 const positive = integer.min(1);
@@ -28,6 +30,8 @@ const snapshotSchema = z.object({
     vnv: z.object({
       rigor: z.enum(['minimal', 'standard', 'strict']),
       haltOnVerificationFailure: z.boolean(),
+      // Absent in snapshots saved before verification profiles existed.
+      profile: z.enum(['advisory', 'delivery']).optional(),
     }),
   }),
   retryPolicy: z.object({
@@ -77,6 +81,38 @@ const snapshotSchema = z.object({
   featureFlags: z.object({ useSdkForWorker: z.boolean() }),
 });
 
+/** A parsed snapshot that may predate verification profiles. */
+type SnapshotWithOptionalProfile = Omit<EffectiveExecutionPlan, 'config'> & {
+  readonly config: Omit<EffectiveExecutionPlan['config'], 'vnv'> & {
+    readonly vnv: Omit<EffectiveExecutionPlan['config']['vnv'], 'profile'> & {
+      readonly profile?: VerificationProfile;
+    };
+  };
+};
+
+/**
+ * Give a snapshot saved before verification profiles the profile its run
+ * actually had (the legacy rigor + halt mapping), so resume keeps it.
+ * @param plan - Validated snapshot
+ * @returns Snapshot with an effective profile and its source
+ */
+function withVerificationProfile(plan: SnapshotWithOptionalProfile): EffectiveExecutionPlan {
+  if (plan.config.vnv.profile !== undefined) return plan as EffectiveExecutionPlan;
+  const profile = resolveVerificationProfile(plan.config.vnv);
+  const haltSource = plan.sources['global.vnv.halt_on_verification_failure'];
+  return {
+    ...plan,
+    config: { ...plan.config, vnv: { ...plan.config.vnv, profile } },
+    sources: {
+      ...plan.sources,
+      'global.vnv.profile':
+        profile === 'delivery' && haltSource !== undefined
+          ? haltSource
+          : { source: 'default', path: 'global.vnv.profile' },
+    },
+  };
+}
+
 /** Validate saved data before it can control resumed work.
  * @param value - Persisted snapshot
  * @param source - Session file
@@ -109,7 +145,7 @@ export function parseRuntimeSnapshot(value: unknown, source: string): EffectiveE
       plan.retryPolicy.backoffStrategy === plan.config.retryBackoff.backoffStrategy &&
       plan.stages.every((stage) => stage.timeoutMs === plan.config.timeouts.overrides[stage.name])
     ) {
-      return plan as EffectiveExecutionPlan;
+      return withVerificationProfile(plan as SnapshotWithOptionalProfile);
     }
     reason =
       'Saved graph has duplicate stages, invalid dependencies, stop condition, or inconsistent budgets.';

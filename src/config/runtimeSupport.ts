@@ -20,6 +20,7 @@ export const RUNTIME_SETTINGS = {
   'execution.retry_delay_ms': integer(0),
   'execution.stage_timeout_ms': integer(1),
   'global.vnv.rigor': z.enum(['minimal', 'standard', 'strict']),
+  'global.vnv.profile': z.enum(['advisory', 'delivery']),
   'global.vnv.halt_on_verification_failure': z.boolean(),
 } satisfies Record<string, z.ZodType>;
 
@@ -35,6 +36,7 @@ export const RUNTIME_ENV_MAPPING = {
   AD_SDLC_RETRY_MAX_DELAY_SECONDS: 'global.retry_policy.max_delay_seconds',
   AD_SDLC_STAGE_TIMEOUT_MS: 'execution.stage_timeout_ms',
   AD_SDLC_VNV_RIGOR: 'global.vnv.rigor',
+  AD_SDLC_VNV_PROFILE: 'global.vnv.profile',
   AD_SDLC_HALT_ON_VERIFICATION_FAILURE: 'global.vnv.halt_on_verification_failure',
 } as const;
 
@@ -206,7 +208,7 @@ export function auditRuntimeLayer(value: unknown, source: string): RuntimeDiagno
         path,
         'unsupported',
         'This toggle does not control the reachable verifier or canonical graph, including when false.',
-        'Remove it; only global.vnv.rigor and halt_on_verification_failure are supported.'
+        'Remove it; only global.vnv.rigor, profile, and halt_on_verification_failure are supported.'
       );
       return;
     }

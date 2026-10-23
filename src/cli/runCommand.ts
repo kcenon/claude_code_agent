@@ -2,11 +2,13 @@
 import { resolve } from 'node:path';
 import { Command } from 'commander';
 import { AdsdlcOrchestratorAgent } from '../ad-sdlc-orchestrator/AdsdlcOrchestratorAgent.js';
+import { PipelineFailedError } from '../ad-sdlc-orchestrator/errors.js';
 import type {
   OrchestratorConfig,
   OrchestratorSession,
   PipelineResult,
 } from '../ad-sdlc-orchestrator/types.js';
+import { pipelineExitCode, type PipelineVerificationSummary } from '../vnv/policy.js';
 import type { ExecutionAdapter } from '../execution/types.js';
 import {
   loadResolvedRuntimeConfig,
@@ -49,8 +51,12 @@ export function configureRunCommand(command: Command): Command {
     .option('--stage-timeout-ms <ms>', 'Positive total budget per stage, across all attempts')
     .option('--vnv-rigor <rigor>', 'minimal | standard | strict')
     .option(
+      '--vnv-profile <profile>',
+      'advisory | delivery (delivery fails the run on a failed required check)'
+    )
+    .option(
       '--halt-on-verification-failure <boolean>',
-      'Block failed verification only when rigor is strict'
+      'Legacy: without a profile, strict rigor plus true selects delivery'
     )
     .option(
       '--use-sdk-for-worker',
@@ -221,4 +227,159 @@ export async function prepareRunCommand(
       return agent.executePipeline(projectDir, requirements);
     },
   };
+}
+
+/** Line sink for run output; the CLI passes its `CLIOutput`. */
+export interface RunCommandOutput {
+  info(message: string): void;
+  warn(message: string): void;
+  error(message: string): void;
+}
+
+/** Process-facing collaborators of {@link executeRunCommand}. */
+export interface RunCommandExecution extends RunCommandDependencies {
+  readonly output: RunCommandOutput;
+  /** Whether SDK credentials or a Claude Code session are available. */
+  readonly hasExecutionEnvironment: () => boolean;
+  /**
+   * Install cancellation handlers (SIGINT/SIGTERM in the CLI) for the active
+   * agent; returns their removal.
+   */
+  readonly onCancel?: (cancel: () => void) => () => void;
+}
+
+/**
+ * Short text summary of a run's verification.
+ * @param verification - Pipeline verification summary
+ * @returns Output lines
+ */
+export function formatVerificationSummary(verification: PipelineVerificationSummary): string[] {
+  const { policy, counts, checkCounts } = verification;
+  const lines = [
+    `Verification: ${verification.status} (profile ${policy.profile} from ${policy.source.kind}, rigor ${policy.rigor})`,
+    `  stages: ${String(counts.verified_pass)} verified_pass, ${String(counts.advisory_findings)} advisory_findings, ${String(counts.failed)} failed, ${String(counts.skipped)} skipped, ${String(counts.not_applicable)} not_applicable; checks: ${String(checkCounts.pass)} passed, ${String(checkCounts.fail)} failed, ${String(checkCounts.skipped)} skipped`,
+  ];
+  for (const stage of verification.stages) {
+    if (stage.state !== 'failed' && stage.state !== 'advisory_findings') continue;
+    const failed = stage.checks.filter((check) => check.outcome === 'fail');
+    if (failed.length === 0 && stage.reason !== undefined)
+      lines.push(`  ${stage.stage}: ${stage.state}: ${stage.reason}`);
+    for (const check of failed)
+      lines.push(
+        `  ${stage.stage}: ${stage.state}: [${check.checkId}${check.required ? '' : ', optional'}] ${check.message}`
+      );
+  }
+  return lines;
+}
+
+/**
+ * Text output of a finished (or failed) run.
+ * @param result - Pipeline result
+ * @returns Output lines
+ */
+export function formatRunResult(result: PipelineResult): string[] {
+  const lines = [`Pipeline ${result.pipelineId}: ${result.overallStatus} (${result.mode})`];
+  for (const stage of result.stages)
+    lines.push(
+      `  ${stage.name}: ${stage.status} (${String(stage.durationMs)} ms)${
+        stage.verification === undefined ? '' : `, verification ${stage.verification.state}`
+      }${stage.error === null ? '' : ` — ${stage.error}`}`
+    );
+  if (result.verification !== undefined)
+    lines.push(...formatVerificationSummary(result.verification));
+  return lines;
+}
+
+/**
+ * Run (or dry-run) the canonical pipeline and report the outcome. This is
+ * the body of `ad-sdlc run`; the CLI supplies its output and signal handling.
+ * @param requirements - User request
+ * @param options - Commander options (absence preserved)
+ * @param execution - Output, environment probe, and optional adapter injection
+ * @returns Process exit status: 1 for configuration errors, failed runs, and
+ *   failed required checks under a blocking profile
+ */
+export async function executeRunCommand(
+  requirements: string,
+  options: Readonly<Record<string, unknown>>,
+  execution: RunCommandExecution
+): Promise<0 | 1> {
+  const { output } = execution;
+  const json = options['format'] === 'json';
+  let runtimeSnapshot: EffectiveExecutionPlan | undefined;
+  try {
+    const prepared = await prepareRunCommand(requirements, options, execution);
+    runtimeSnapshot = prepared.plan;
+    if (options['dryRun'] === true) {
+      if (json) output.info(JSON.stringify({ ready: true, ...prepared.plan }, null, 2));
+      else {
+        const { plan } = prepared;
+        output.info(`Mode: ${plan.config.mode}; local: ${String(plan.config.localMode)}`);
+        output.info(
+          `Stage concurrency: ${String(plan.config.maxParallelAgents)}; total attempts: ${String(plan.config.maxRetries + 1)}`
+        );
+        output.info(
+          `Verification profile: ${plan.config.vnv.profile} (${plan.sources['global.vnv.profile']?.source ?? 'default'}); rigor ${plan.config.vnv.rigor}`
+        );
+        for (const stage of plan.stages)
+          output.info(
+            `  ${stage.name}: ${stage.agentType}, depends on [${stage.dependsOn.join(', ')}], budget ${String(stage.timeoutMs)} ms`
+          );
+        if (plan.stopAfterStage !== undefined)
+          output.info(`Stop after: ${plan.stopAfterStage}. ${plan.stopBehavior}`);
+        for (const diagnostic of plan.diagnostics)
+          output.warn(
+            `${diagnostic.source}: ${diagnostic.path}: ${diagnostic.reason} ${diagnostic.action}`
+          );
+        output.info('Configuration valid. Pipeline is ready to execute.');
+      }
+      return 0;
+    }
+    for (const diagnostic of prepared.plan.diagnostics)
+      output.warn(
+        `${diagnostic.source}: ${diagnostic.path}: ${diagnostic.reason} ${diagnostic.action}`
+      );
+    if (!execution.hasExecutionEnvironment() && options['allowStub'] !== true)
+      throw new Error(
+        'No AI bridge available. Set ANTHROPIC_API_KEY or run inside a Claude Code session. Use --allow-stub for offline testing.'
+      );
+    const agent = prepared.createAgent();
+    const removeCancel = execution.onCancel?.(() => {
+      // Final disposal below awaits and reports the same cleanup outcome.
+      void agent.dispose().catch(() => undefined);
+    });
+    let result: PipelineResult;
+    try {
+      result = await prepared.execute(agent);
+    } finally {
+      removeCancel?.();
+      await agent.dispose();
+    }
+    // Emit one terminal JSON object only after all cleanup has completed.
+    if (json) output.info(JSON.stringify(result, null, 2));
+    else for (const line of formatRunResult(result)) output.info(line);
+    return pipelineExitCode(result);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    const failedRun = error instanceof PipelineFailedError ? error.result : undefined;
+    if (json)
+      output.info(
+        JSON.stringify(
+          {
+            ready: false,
+            error: message,
+            diagnostics: error instanceof RuntimeConfigError ? error.diagnostics : [],
+            ...(runtimeSnapshot === undefined ? {} : { runtimeSnapshot }),
+            ...(failedRun === undefined ? {} : { result: failedRun }),
+          },
+          null,
+          2
+        )
+      );
+    else {
+      if (failedRun !== undefined) for (const line of formatRunResult(failedRun)) output.info(line);
+      output.error(message);
+    }
+    return 1;
+  }
 }
