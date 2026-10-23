@@ -22,7 +22,7 @@ described in the [Installation Guide](installation.md); run
 
 ```bash
 # Initialize new project
-ad-sdlc init [project-name] [--quick] [--template minimal|standard|enterprise] [--tech-stack <stack>] [--skip-validation]
+ad-sdlc init [project-name] [--quick] [--template minimal|standard|enterprise] [--skip-validation]
 
 # Run the pipeline (all options: see "Run the Pipeline" below)
 ad-sdlc run "<requirements>" [--mode greenfield|enhancement|import] [--project-dir <dir>] [--resume <session-id>] [--stop-after <stage>] [--local] [--dry-run] [--format text|json]
@@ -67,12 +67,12 @@ ad-sdlc init
 ad-sdlc init my-project --quick
 
 # With specific options
-ad-sdlc init my-project \
-  --tech-stack typescript \
-  --template standard
+ad-sdlc init my-project --template standard --skip-validation
 ```
 
 `ad-sdlc init` takes no repository URL and records none. During `ad-sdlc run`, the `repo_detection` stage reads the project's git remote `origin`; to work against an existing GitHub repository, add it as `origin` before the run.
+
+`ad-sdlc init` also takes no technology stack: it writes the same project for every language, and no pipeline stage reads a language setting from it. `--tech-stack` is rejected as an unknown option, and the interactive wizard does not ask for a stack.
 
 ### Template Options
 
@@ -117,7 +117,13 @@ ad-sdlc doctor
 ad-sdlc doctor --project-dir ./my-project
 ```
 
-`ad-sdlc doctor` prints one `OK` or `FAIL` line per check: the Node.js version, Git, the GitHub CLI (optional), the AI bridge (`ANTHROPIC_API_KEY` or a Claude Code session), local mode, the configuration files, and free disk space. The configuration check looks for `.ad-sdlc/config/workflow.yaml` and `.ad-sdlc/config/agents.yaml` in the project directory (`--project-dir`, default: the current directory); in an initialized project it prints `OK  Config files: workflow.yaml + agents.yaml found`. Missing configuration files are reported but do not change the exit status; any other failed check, including a missing AI bridge, makes `doctor` exit with status 1.
+`ad-sdlc doctor` prints one line per check: the Node.js version, Git, the GitHub CLI, the AI bridge (`ANTHROPIC_API_KEY` or a Claude Code session), local mode, the configuration files, and free disk space. A passing check prints `OK`. A failed required check (Node.js, Git, disk space) prints `FAIL`; a failed optional check (GitHub CLI, AI bridge, configuration files) prints `WARN`. The configuration check looks for `.ad-sdlc/config/workflow.yaml` and `.ad-sdlc/config/agents.yaml` in the project directory (`--project-dir`, default: the current directory); in an initialized project it prints `OK  Config files: workflow.yaml + agents.yaml found`.
+
+The AI bridge is optional because only a live `ad-sdlc run` needs it: `init`, `validate`, `status`, `audit-docs`, `assets update`, and `run --dry-run` work without one. `doctor` ends with one of three results, and `WARN` lines never change the exit status:
+
+- Every required check passes and an AI bridge is detected: `Ready for pipeline execution.`, exit status 0.
+- Every required check passes but no AI bridge is detected: `Environment OK but no AI bridge configured. Set ANTHROPIC_API_KEY or run inside a Claude Code session before a live run.`, exit status 0.
+- A required check fails: `Some required checks failed. Fix the issues above.`, exit status 1.
 
 `ad-sdlc --version` prints the `version` field of the installed package's `package.json`.
 
@@ -249,7 +255,7 @@ definition file format.
 
 ## Shell Autocompletion
 
-Enable tab completion for AD-SDLC commands in your shell:
+Enable tab completion for AD-SDLC commands in your shell. The scripts complete every command (`init`, `run`, `validate`, `status`, `doctor`, `audit-docs`, `assets update`, `analyze`, `telemetry status|enable|disable|policy`, `completion`), their options, and the values of options with a fixed choice list. The bash script needs the `bash-completion` package.
 
 ```bash
 # Bash

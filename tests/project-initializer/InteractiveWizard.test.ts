@@ -15,11 +15,10 @@ describe('InteractiveWizard', () => {
     prompt.mockReset();
   });
 
-  it('asks only for settings that init uses, without a GitHub repository URL', async () => {
+  it('asks only for settings that init uses, without a repository URL or a tech stack', async () => {
     prompt.mockResolvedValueOnce({
       projectName: 'demo',
       description: '',
-      techStack: 'typescript',
       template: 'standard',
     });
     const wizard = new InteractiveWizard({ summary: vi.fn() } as unknown as CLIOutput);
@@ -30,13 +29,12 @@ describe('InteractiveWizard', () => {
     expect(questions.map((question) => question.name)).toEqual([
       'projectName',
       'description',
-      'techStack',
       'template',
     ]);
-    expect(options).not.toHaveProperty('githubRepo');
+    expect(options).toEqual({ projectName: 'demo', description: undefined, template: 'standard' });
   });
 
-  it('leaves a GitHub repository out of the confirmation summary', async () => {
+  it('leaves the deprecated repository and tech stack out of the confirmation summary', async () => {
     prompt.mockResolvedValueOnce({ confirmed: true });
     const summary = vi.fn();
     const wizard = new InteractiveWizard({ summary } as unknown as CLIOutput);
@@ -44,14 +42,13 @@ describe('InteractiveWizard', () => {
     const confirmed = await wizard.confirmConfiguration({
       projectName: 'demo',
       githubRepo: 'https://github.com/user/demo',
-      techStack: 'typescript',
+      techStack: 'python',
       template: 'standard',
     });
 
     expect(confirmed).toBe(true);
     expect(summary).toHaveBeenCalledWith('Configuration Summary', {
       'Project Name': 'demo',
-      'Tech Stack': 'typescript',
       Template: 'standard',
     });
   });

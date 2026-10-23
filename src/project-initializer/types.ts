@@ -5,7 +5,7 @@
  */
 
 /**
- * Supported technology stacks for project initialization
+ * Values of the deprecated {@link InitOptions.techStack} field
  */
 export type TechStack = 'typescript' | 'python' | 'java' | 'go' | 'rust' | 'other';
 
@@ -35,8 +35,11 @@ export interface InitOptions {
    */
   readonly githubRepo?: string | undefined;
 
-  /** Primary technology stack */
-  readonly techStack: TechStack;
+  /**
+   * @deprecated Ignored: init writes the same project for every stack, and no pipeline
+   * stage reads a language setting from it.
+   */
+  readonly techStack?: TechStack | undefined;
 
   /** Project template variant */
   readonly template: TemplateType;

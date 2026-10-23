@@ -20,7 +20,7 @@ import {
   createProjectInitializer,
   getPrerequisiteValidator,
 } from './project-initializer/index.js';
-import type { InitOptions, TechStack, TemplateType } from './project-initializer/types.js';
+import type { InitOptions, TemplateType } from './project-initializer/types.js';
 import {
   validateAllConfigs,
   validateConfigFile,
@@ -67,10 +67,6 @@ program
 program
   .command('init [project-name]')
   .description('Initialize a new AD-SDLC project')
-  .option(
-    '-t, --tech-stack <stack>',
-    'Primary technology stack (typescript, python, java, go, rust, other)'
-  )
   .option('-T, --template <template>', 'Project template (minimal, standard, enterprise)')
   .option('-q, --quick', 'Quick setup with defaults (skip interactive prompts)')
   .option('--skip-validation', 'Skip prerequisite validation')
@@ -87,10 +83,6 @@ program
 
       if (isQuickMode || (hasProjectName && hasTemplate)) {
         // Non-interactive mode with command-line options
-        const techStack =
-          typeof cmdOptions['techStack'] === 'string'
-            ? (cmdOptions['techStack'] as TechStack)
-            : 'typescript';
         const template =
           typeof cmdOptions['template'] === 'string'
             ? (cmdOptions['template'] as TemplateType)
@@ -99,7 +91,6 @@ program
 
         options = {
           projectName: hasProjectName ? projectName : 'my-project',
-          techStack,
           template,
           quick: true,
           skipValidation,
@@ -923,13 +914,16 @@ program
 
     output.info(chalk.blue('\nAD-SDLC Doctor\n'));
 
-    const checks: Array<{ label: string; ok: boolean; detail: string }> = [];
+    // A failed required check prints FAIL and makes doctor exit 1; a failed optional check
+    // prints WARN only. The AI bridge is optional because only a live run needs it.
+    const checks: Array<{ label: string; ok: boolean; required: boolean; detail: string }> = [];
 
     // 1. Node.js version
     const nodeVersion = process.version;
     checks.push({
       label: 'Node.js',
       ok: isSupportedNodeVersion(nodeVersion),
+      required: true,
       detail: `${nodeVersion} (required: >=${MINIMUM_NODE_VERSION})`,
     });
 
@@ -937,35 +931,47 @@ program
     try {
       const { execSync } = await import('node:child_process');
       const gitVersion = execSync('git --version', { encoding: 'utf8' }).trim();
-      checks.push({ label: 'Git', ok: true, detail: gitVersion });
+      checks.push({ label: 'Git', ok: true, required: true, detail: gitVersion });
     } catch {
-      checks.push({ label: 'Git', ok: false, detail: 'not found (required)' });
+      checks.push({ label: 'Git', ok: false, required: true, detail: 'not found (required)' });
     }
 
     // 3. GitHub CLI (optional)
     try {
       const { execSync } = await import('node:child_process');
       const ghVersion = execSync('gh --version', { encoding: 'utf8' }).trim().split('\n')[0] ?? '';
-      checks.push({ label: 'GitHub CLI', ok: true, detail: `${ghVersion} (optional)` });
-    } catch {
       checks.push({
         label: 'GitHub CLI',
         ok: true,
+        required: false,
+        detail: `${ghVersion} (optional)`,
+      });
+    } catch {
+      checks.push({
+        label: 'GitHub CLI',
+        ok: false,
+        required: false,
         detail: 'not found (optional, for issue/PR management)',
       });
     }
 
-    // 4. API key or Claude Code session
+    // 4. API key or Claude Code session (optional: init, validate, and run --dry-run work without)
     const envLabel = describeExecutionEnvironment();
     const hasRealBridge = envLabel !== 'none';
     if (hasRealBridge) {
       const bridgeLabel = envLabel === 'claude-code' ? 'Claude Code session' : 'ANTHROPIC_API_KEY';
-      checks.push({ label: 'AI Bridge', ok: true, detail: `${bridgeLabel} detected` });
+      checks.push({
+        label: 'AI Bridge',
+        ok: true,
+        required: false,
+        detail: `${bridgeLabel} detected`,
+      });
     } else {
       checks.push({
         label: 'AI Bridge',
         ok: false,
-        detail: 'No ANTHROPIC_API_KEY or Claude Code session detected',
+        required: false,
+        detail: 'No ANTHROPIC_API_KEY or Claude Code session detected (needed for a live run)',
       });
     }
 
@@ -974,6 +980,7 @@ program
     checks.push({
       label: 'Local Mode',
       ok: true,
+      required: false,
       detail: localModeActive
         ? 'active (AD_SDLC_LOCAL=1)'
         : 'available (use --local flag or AD_SDLC_LOCAL=1)',
@@ -982,7 +989,12 @@ program
     // 6. Config files (configFilesExist takes the project root and appends .ad-sdlc/config)
     const configResult = configFilesExist(projectDir);
     if (configResult.workflow && configResult.agents) {
-      checks.push({ label: 'Config files', ok: true, detail: 'workflow.yaml + agents.yaml found' });
+      checks.push({
+        label: 'Config files',
+        ok: true,
+        required: false,
+        detail: 'workflow.yaml + agents.yaml found',
+      });
     } else {
       const missing = [
         !configResult.workflow ? 'workflow.yaml' : null,
@@ -993,6 +1005,7 @@ program
       checks.push({
         label: 'Config files',
         ok: false,
+        required: false,
         detail: `missing: ${missing} (run ad-sdlc init first)`,
       });
     }
@@ -1005,32 +1018,34 @@ program
       checks.push({
         label: 'Disk space',
         ok: freeGB > 0.5,
+        required: true,
         detail: `${freeGB.toFixed(1)} GB available`,
       });
     } catch {
-      checks.push({ label: 'Disk space', ok: true, detail: 'check skipped' });
+      checks.push({ label: 'Disk space', ok: true, required: true, detail: 'check skipped' });
     }
 
     // Display results
-    let allRequired = true;
+    let requiredFailed = false;
     for (const check of checks) {
-      const icon = check.ok ? chalk.green('OK') : chalk.red('FAIL');
+      let icon = chalk.green('OK');
+      if (!check.ok) icon = check.required ? chalk.red('FAIL') : chalk.yellow('WARN');
       output.info(`  ${icon}  ${check.label}: ${check.detail}`);
-      if (!check.ok && check.label !== 'GitHub CLI' && check.label !== 'Config files') {
-        allRequired = false;
-      }
+      if (!check.ok && check.required) requiredFailed = true;
     }
 
     output.blank();
-    if (allRequired && hasRealBridge) {
-      output.info(chalk.green('Ready for pipeline execution.\n'));
-    } else if (allRequired) {
-      output.info(
-        chalk.yellow('Environment OK but no AI bridge configured. Set ANTHROPIC_API_KEY.\n')
-      );
-    } else {
+    if (requiredFailed) {
       output.info(chalk.red('Some required checks failed. Fix the issues above.\n'));
       process.exit(1);
+    } else if (hasRealBridge) {
+      output.info(chalk.green('Ready for pipeline execution.\n'));
+    } else {
+      output.info(
+        chalk.yellow(
+          'Environment OK but no AI bridge configured. Set ANTHROPIC_API_KEY or run inside a Claude Code session before a live run.\n'
+        )
+      );
     }
   });
 

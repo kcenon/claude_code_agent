@@ -20,8 +20,9 @@ import {
 } from '../../src/project-initializer/PrerequisiteValidator.js';
 import { ConfigurationError } from '../../src/project-initializer/errors.js';
 import * as generatedConfig from '../../src/project-initializer/generatedConfig.js';
-import type { InitOptions } from '../../src/project-initializer/types.js';
+import type { InitOptions, TechStack } from '../../src/project-initializer/types.js';
 import { QUALITY_GATE_CONFIGS, TEMPLATE_CONFIGS } from '../../src/project-initializer/types.js';
+import { snapshot } from './assetFixtures.js';
 
 describe('ProjectInitializer', () => {
   let testDir: string;
@@ -289,6 +290,27 @@ describe('ProjectInitializer', () => {
       const readmePath = path.join(testProjectPath, 'README.md');
       const content = fs.readFileSync(readmePath, 'utf-8');
       expect(content).toContain('Test project description');
+    });
+
+    // InitOptions.techStack is deprecated: programmatic callers still compile, but nothing reads it.
+    it('writes the same project whatever the deprecated techStack says', async () => {
+      const generate = async (techStack?: TechStack): Promise<Record<string, string>> => {
+        const targetDir = fs.mkdtempSync(path.join(testDir, 'stack-'));
+        const { techStack: _ignored, ...withoutStack } = defaultOptions;
+        const options: InitOptions = {
+          ...withoutStack,
+          targetDir,
+          ...(techStack === undefined ? {} : { techStack }),
+        };
+        expect((await new ProjectInitializer(options).initialize()).success).toBe(true);
+        return snapshot(path.join(targetDir, testProjectName));
+      };
+
+      const withoutStack = await generate();
+      expect(Object.keys(withoutStack).length).toBeGreaterThan(0);
+      for (const techStack of ['typescript', 'python', 'rust'] as const) {
+        expect(await generate(techStack)).toEqual(withoutStack);
+      }
     });
   });
 

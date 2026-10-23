@@ -23,7 +23,6 @@ This launches an interactive wizard that prompts for:
 
 - Project name
 - Project description (optional)
-- Technology stack (TypeScript, Python, Java, Go, Rust, Other)
 - Project template (minimal, standard, enterprise)
 
 ### Quick Mode
@@ -35,25 +34,24 @@ npx ad-sdlc init my-project --quick
 Skips interactive prompts and uses defaults:
 
 - Template: standard
-- Tech stack: typescript
 
 ### Full Options
 
 ```bash
 npx ad-sdlc init my-project \
-  --tech-stack typescript \
   --template standard \
   --skip-validation
 ```
 
-| Option                      | Description                                                  |
-| --------------------------- | ------------------------------------------------------------ |
-| `-t, --tech-stack <stack>`  | Technology stack (typescript, python, java, go, rust, other) |
-| `-T, --template <template>` | Project template (minimal, standard, enterprise)             |
-| `-q, --quick`               | Skip interactive prompts                                     |
-| `--skip-validation`         | Skip prerequisite validation                                 |
+| Option                      | Description                                      |
+| --------------------------- | ------------------------------------------------ |
+| `-T, --template <template>` | Project template (minimal, standard, enterprise) |
+| `-q, --quick`               | Skip interactive prompts                         |
+| `--skip-validation`         | Skip prerequisite validation                     |
 
 Init takes no repository URL and records none. During `ad-sdlc run`, the `repo_detection` stage reads the project's git remote `origin`.
+
+Init takes no technology stack either: it writes the same project for every language, and no pipeline stage reads a language setting from it. `--tech-stack` is rejected as an unknown option.
 
 ## Templates
 
@@ -145,9 +143,9 @@ const validation = await validator.validate();
 
 if (validation.valid) {
   // Initialize project
+  // InitOptions.techStack is deprecated and ignored; omit it.
   const initializer = createProjectInitializer({
     projectName: 'my-project',
-    techStack: 'typescript',
     template: 'standard',
     targetDir: process.cwd(),
     skipValidation: true,

@@ -96,10 +96,7 @@
       "path": ".claude/agents/controller.md",
       "digest": "ab3947e29de44cb71cc8943a930cb62bcead9d1a03bf7d6f639fb4537c74e3b0",
       "role": "direct",
-      "requires": [
-        "agent:pr-reviewer",
-        "agent:worker"
-      ]
+      "requires": ["agent:pr-reviewer", "agent:worker"]
     },
     {
       "id": "agent:doc-code-comparator",
@@ -155,9 +152,7 @@
       "path": ".claude/agents/issue-reader.md",
       "digest": "e7fbc9796ccb62481286d2ba8849808867f06a4c83699715328273a07bd94d90",
       "role": "direct",
-      "requires": [
-        "agent:issue-reader"
-      ]
+      "requires": ["agent:issue-reader"]
     },
     {
       "id": "agent:local-issue-reader",
@@ -189,9 +184,7 @@
       "path": ".claude/agents/pr-reviewer.md",
       "digest": "f436b650a37a3e29eab781c12d3f20521edbd00b45e3441b4a369b808680a6be",
       "role": "direct",
-      "requires": [
-        "agent:ci-fixer"
-      ]
+      "requires": ["agent:ci-fixer"]
     },
     {
       "id": "agent:prd-updater",
@@ -351,20 +344,15 @@
       "path": ".claude/commands/resume.md",
       "digest": "291217680073d8778dbfb34a865abd071dae6f451b62e22967f00f5356694c8b",
       "role": "command",
-      "requires": [
-        "agent:ad-sdlc-orchestrator"
-      ]
+      "requires": ["agent:ad-sdlc-orchestrator"]
     },
     {
       "id": "command:run-greenfield",
       "kind": "command",
       "path": ".claude/commands/run-greenfield.md",
-      "digest": "d86f4b7ec372808e200a253438a6eaca724b089520ce85ec61c2d3827300017e",
+      "digest": "bc459b203c798c648d46aabdbf01993d048a7cf67eaae77dd45b929cc0b5bc2d",
       "role": "command",
-      "requires": [
-        "agent:ad-sdlc-orchestrator",
-        "command:resume"
-      ]
+      "requires": ["agent:ad-sdlc-orchestrator", "command:resume"]
     },
     {
       "id": "command:status",
