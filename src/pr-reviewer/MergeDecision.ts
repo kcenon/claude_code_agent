@@ -21,6 +21,7 @@ import type {
   PullRequest,
 } from './types.js';
 import { getCommandSanitizer } from '../security/index.js';
+import { formatGhCommand } from '../security/commandString.js';
 import { tryJsonParse, tryGetProjectRoot } from '../utils/index.js';
 import {
   GitHubMergeInfoSchema,
@@ -688,10 +689,7 @@ export class MergeDecision {
   private async executeCommand(command: string | string[]): Promise<CommandResult> {
     const sanitizer = getCommandSanitizer();
 
-    const cmd = Array.isArray(command)
-      ? 'gh ' +
-        command.map((a) => (/[\s"'\\]/.test(a) ? `"${a.replace(/"/g, '\\"')}"` : a)).join(' ')
-      : command;
+    const cmd = Array.isArray(command) ? formatGhCommand(command) : command;
 
     try {
       const result = await sanitizer.execFromString(cmd, {

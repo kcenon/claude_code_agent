@@ -78,6 +78,23 @@ describe.each(CALLERS)('%s gh argument quoting', (_caller, commandFor) => {
     expect(getCommandSanitizer().parseCommandString(command)).toEqual({ command: 'gh', args });
   });
 
+  it('should keep backslashes, including one before a double quote', async () => {
+    const args = [
+      'pr',
+      'comment',
+      '42',
+      '--body',
+      'Path C:\\temp\\new, regex \\d+, \\"quoted\\"\\',
+    ];
+
+    const command = await commandFor(args);
+
+    expect(command).toBe(
+      'gh pr comment 42 --body "Path C:\\\\temp\\\\new, regex \\\\d+, \\\\\\"quoted\\\\\\"\\\\"'
+    );
+    expect(getCommandSanitizer().parseCommandString(command)).toEqual({ command: 'gh', args });
+  });
+
   it('should leave plain arguments unquoted', async () => {
     expect(await commandFor(['pr', 'view', '42', '--json', 'url,state'])).toBe(
       'gh pr view 42 --json url,state'
