@@ -138,6 +138,53 @@ function findSection(content: string, heading: RegExp, terminator: RegExp): stri
 }
 
 /**
+ * `# PRD<separators>` title: group 1 is the separator run, group 2 the
+ * whitespace after it (which may span lines). Neighbouring parts cannot match
+ * the same character, so every part is matched in one way only.
+ */
+const PRD_TITLE_PREFIX = /^#\s*PRD\s*([-–:]+)(\s*)/m;
+const LINE_TERMINATOR_CHARACTER = /[\n\r\u2028\u2029]/;
+
+/**
+ * Read the product name of the first `# PRD<separators> <name>` title.
+ *
+ * Same capture as `content.match(/^#\s*PRD\s*[-–:]+\s*(\S.*|[^\S\n\r\u2028\u2029])$/m)?.[1]`.
+ * There `\S` could also match a separator, so the separator run could end at
+ * any of its characters (CodeQL js/polynomial-redos). Here both runs are matched
+ * once, and the fallbacks the old expression reached by backtracking are explicit.
+ * @param content - PRD markdown content
+ * @returns The captured text (untrimmed), or undefined when no title matches
+ */
+function matchPrdTitle(content: string): string | undefined {
+  const match = PRD_TITLE_PREFIX.exec(content);
+  if (match === null) {
+    return undefined;
+  }
+  const separators = match[1] ?? '';
+  const whitespace = match[2] ?? '';
+  const end = match.index + match[0].length;
+  // A non-space character follows: `\S.*` reads the rest of its line.
+  if (end < content.length) {
+    return sectionBody(content, end, LINE_TERMINATOR);
+  }
+  // Only whitespace follows: `[^\S\n\r\u2028\u2029]$` takes the last space that
+  // ends a line.
+  for (let index = end - 1; index >= end - whitespace.length; index--) {
+    if (
+      !LINE_TERMINATOR_CHARACTER.test(content.charAt(index)) &&
+      (index + 1 === end || LINE_TERMINATOR_CHARACTER.test(content.charAt(index + 1)))
+    ) {
+      return content.charAt(index);
+    }
+  }
+  // Otherwise the separator run gives its last character to `\S.*`; a single
+  // separator cannot, and no later title can start in the trailing whitespace.
+  return separators.length > 1
+    ? sectionBody(content, end - whitespace.length - 1, LINE_TERMINATOR)
+    : undefined;
+}
+
+/**
  * PRD Parser class
  */
 export class PRDParser {
@@ -232,10 +279,9 @@ export class PRDParser {
     }
 
     // 2. Try from "# PRD: <name>" format
-    // `\s*(\S.*|[^\S\n\r\u2028\u2029])$` is the unambiguous form of `\s*(.+)$`
-    const prdPrefixMatch = content.match(/^#\s*PRD\s*[-–:]+\s*(\S.*|[^\S\n\r\u2028\u2029])$/m);
-    if (prdPrefixMatch !== null && prdPrefixMatch[1] !== undefined) {
-      const name = prdPrefixMatch[1].trim();
+    const prdTitle = matchPrdTitle(content);
+    if (prdTitle !== undefined) {
+      const name = prdTitle.trim();
       if (name.length > 0) {
         return name;
       }
