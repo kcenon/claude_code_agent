@@ -3,13 +3,14 @@
  * reader and git unchanged (kcenon/claude_code_agent#973).
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import * as yaml from 'js-yaml';
+import { getCommandSanitizer } from '../../src/security/index.js';
 import { WorkerAgent } from '../../src/worker/index.js';
-import type { ImplementationResult } from '../../src/worker/index.js';
+import type { ImplementationResult, WorkOrder } from '../../src/worker/index.js';
 
 describe('WorkerAgent persistence', () => {
   let projectDir: string;
@@ -94,5 +95,86 @@ describe('WorkerAgent persistence', () => {
       expect(text).toContain('    totalTests: 0\n');
       expect(text).toContain('    testsOutput: All 12 tests passed\n');
     });
+
+    it('should keep backslashes in quoted strings', async () => {
+      const verification = {
+        testsOutput: 'FAIL C:\\temp\\new.ts: expected "\\d+"',
+        buildOutput: 'path: \\\\server\\share\\',
+      };
+
+      const { parsed } = await saved(result(verification));
+
+      expect(parsed).toMatchObject({ verification });
+    });
+
+    it('should keep line breaks and repeated quotes in quoted strings', async () => {
+      const verification = {
+        testsOutput: 'Line 1\nLine 2: "a" and "b"\n\n  indented # not a comment',
+        lintOutput: '"""triple"""\r\nnext',
+      };
+
+      const { text, parsed } = await saved(result(verification));
+
+      expect(parsed).toMatchObject({ verification });
+      expect(text.split('\n').filter((line) => line.startsWith('    testsOutput: '))).toEqual([
+        '    testsOutput: "Line 1\\nLine 2: \\"a\\" and \\"b\\"\\n\\n  indented # not a comment"',
+      ]);
+    });
+  });
+
+  describe('commitChanges', () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    /**
+     * Run commitChanges against a git double and return the arguments of each call.
+     * @param order - Work order whose message is committed
+     * @returns Argument arrays passed to CommandSanitizer.execGit
+     */
+    async function gitCalls(order: WorkOrder): Promise<string[][]> {
+      const execGit = vi
+        .spyOn(getCommandSanitizer(), 'execGit')
+        .mockImplementation(async (args: string[]) => ({
+          success: true,
+          stdout: args[0] === 'status' ? ' M feature.ts\n' : args[0] === 'rev-parse' ? 'abc\n' : '',
+          stderr: '',
+          command: 'git',
+        }));
+      await agent.commitChanges(order);
+      return execGit.mock.calls.map(([args]) => args);
+    }
+
+    it('should pass the formatted message to git as one argument', async () => {
+      const calls = await gitCalls(workOrder('ISS-901-add-login', 'auth'));
+
+      expect(calls).toEqual([
+        ['add', '-A'],
+        ['status', '--porcelain'],
+        ['commit', '-m', 'feat(auth): implement add login\n\nRefs: #ISS-901-add-login'],
+        ['rev-parse', 'HEAD'],
+      ]);
+    });
+
+    it('should keep double quotes and backslashes in the commit message', async () => {
+      const calls = await gitCalls(workOrder('ISS-902', 'say "hi" C:\\temp\\'));
+
+      expect(calls[2]).toEqual([
+        'commit',
+        '-m',
+        'feat(say "hi" C:\\temp\\): implement ISS-902\n\nRefs: #ISS-902',
+      ]);
+    });
   });
 });
+
+function workOrder(issueId: string, sdsComponent: string): WorkOrder {
+  return {
+    orderId: 'WO-901',
+    issueId,
+    createdAt: '2026-10-23T00:00:00.000Z',
+    priority: 50,
+    context: { relatedFiles: [], dependenciesStatus: [], sdsComponent },
+    acceptanceCriteria: [],
+  };
+}
