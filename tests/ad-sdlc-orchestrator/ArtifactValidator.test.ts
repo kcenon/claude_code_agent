@@ -14,6 +14,7 @@ import {
   IMPORT_ARTIFACTS,
 } from '../../src/ad-sdlc-orchestrator/ArtifactValidator.js';
 import type { StageName } from '../../src/ad-sdlc-orchestrator/types.js';
+import { LONG_INPUT_LENGTH, LONG_INPUT_TIME_LIMIT_MS } from '../helpers/longInput.js';
 
 describe('ArtifactValidator', () => {
   let tempDir: string;
@@ -325,6 +326,21 @@ describe('ArtifactValidator', () => {
 
         it('should count the text of an unterminated comment', async () => {
           expect(await prdQuality(`# PRD\n\n<!-- ${filler}\n`)).toBe('good');
+        });
+
+        it('should not count a comment joined by removing another', async () => {
+          expect(await prdQuality(`# PRD\n\n<!<!-- -->-- ${filler} -->\nShort.\n`)).toBe(
+            'degraded'
+          );
+        });
+
+        it('should check a PRD with many unterminated comments quickly', async () => {
+          const start = performance.now();
+
+          const quality = await prdQuality(`${'<!--'.repeat(LONG_INPUT_LENGTH)}\n${filler}\n`);
+
+          expect(quality).toBe('good');
+          expect(performance.now() - start).toBeLessThan(LONG_INPUT_TIME_LIMIT_MS);
         });
       });
     });

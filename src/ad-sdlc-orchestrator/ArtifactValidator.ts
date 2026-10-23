@@ -12,6 +12,7 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 
+import { removeHtmlComments } from '../utils/markupText.js';
 import type { PipelineMode, StageName } from './types.js';
 
 /**
@@ -476,12 +477,13 @@ export class ArtifactValidator {
         warnings.push(`PRD contains ${String(count)} unsubstituted template variable(s)`);
       }
 
-      // Check minimum meaningful content
-      const stripped = content
+      // Check minimum meaningful content (the same stripping as the
+      // SRSWriterAgent PRD check)
+      const withoutRules = content
         .replace(/^#+\s.*$/gm, '')
         .replace(/\|.*\|/g, '')
-        .replace(/---+/g, '')
-        .replace(/<!--[\s\S]*?-->/g, '')
+        .replace(/---+/g, '');
+      const stripped = removeHtmlComments(withoutRules)
         .replace(/\[Not yet generated\]/g, '')
         .replace(/\s+/g, ' ')
         .trim();

@@ -26,6 +26,35 @@ import {
   InputParseError,
 } from './errors.js';
 import { InputValidator } from '../security/InputValidator.js';
+import {
+  decodeCharacterReferences,
+  removeHtmlComments,
+  removeScriptAndStyleElements,
+} from '../utils/markupText.js';
+
+/**
+ * Character references decoded in fetched HTML
+ */
+const HTML_CHARACTER_REFERENCES: Readonly<Record<string, string>> = {
+  '&nbsp;': ' ',
+  '&amp;': '&',
+  '&lt;': '<',
+  '&gt;': '>',
+  '&quot;': '"',
+  '&#39;': "'",
+};
+
+/**
+ * Character references decoded in fetched XML
+ */
+const XML_CHARACTER_REFERENCES: Readonly<Record<string, string>> = {
+  '&nbsp;': ' ',
+  '&amp;': '&',
+  '&lt;': '<',
+  '&gt;': '>',
+  '&quot;': '"',
+  '&apos;': "'",
+};
 
 /**
  * Supported file extensions and their types
@@ -620,8 +649,8 @@ export class InputParser {
       return `__CDATA_PLACEHOLDER_${String(cdataContents.length - 1)}__`;
     });
 
-    // Remove comments
-    text = text.replace(/<!--[\s\S]*?-->/g, '');
+    // Remove comments, including comments formed by the text around a removed one
+    text = removeHtmlComments(text);
 
     // Remove XML tags but keep text content
     text = text.replace(/<[^>]+>/g, ' ');
@@ -631,14 +660,8 @@ export class InputParser {
       text = text.replace(`__CDATA_PLACEHOLDER_${String(index)}__`, content);
     });
 
-    // Decode common XML entities
-    text = text
-      .replace(/&nbsp;/g, ' ')
-      .replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/&quot;/g, '"')
-      .replace(/&apos;/g, "'");
+    // Decode common XML entities in one pass (`&amp;lt;` becomes `&lt;`)
+    text = decodeCharacterReferences(text, XML_CHARACTER_REFERENCES);
 
     // Normalize whitespace
     text = text.replace(/\s+/g, ' ').trim();
@@ -669,21 +692,14 @@ export class InputParser {
    * @returns Plain text content
    */
   private stripHtml(html: string): string {
-    // Remove script and style elements
-    let text = html.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
-    text = text.replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '');
+    // Remove script and style elements (end tags such as `</script >` included)
+    let text = removeScriptAndStyleElements(html);
 
     // Remove HTML tags
     text = text.replace(/<[^>]+>/g, ' ');
 
-    // Decode common HTML entities
-    text = text
-      .replace(/&nbsp;/g, ' ')
-      .replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/&quot;/g, '"')
-      .replace(/&#39;/g, "'");
+    // Decode common HTML entities in one pass (`&amp;lt;` becomes `&lt;`)
+    text = decodeCharacterReferences(text, HTML_CHARACTER_REFERENCES);
 
     // Normalize whitespace
     text = text.replace(/\s+/g, ' ').trim();

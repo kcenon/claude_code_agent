@@ -45,6 +45,25 @@ describe('InputParser markup text', () => {
     ])('should handle %s', (_label, html, expected) => {
       expect(parser.stripHtml(html)).toBe(expected);
     });
+
+    it.each([
+      ['</script >', 'a<script>secret()</script >b', 'ab'],
+      ['</SCRIPT foo="bar">', 'a<script>secret()</SCRIPT foo="bar">b', 'ab'],
+      ['</script\\t\\n bar>', 'a<script>secret()</script\t\n bar>b', 'ab'],
+      ['</style >', 'a<style>p { color: red }</style >b', 'ab'],
+    ])('should remove a script or style element ending in %s', (_label, html, expected) => {
+      expect(parser.stripHtml(html)).toBe(expected);
+    });
+
+    it('should remove a script element joined by removing another', () => {
+      expect(parser.stripHtml('<scr<script></script>ipt>alert(1)</script>after')).toBe('after');
+    });
+
+    it('should decode an encoded entity only once', () => {
+      expect(parser.stripHtml('&amp;lt;b&amp;gt; and &amp;quot;q&amp;quot; &amp;#39;')).toBe(
+        '&lt;b&gt; and &quot;q&quot; &#39;'
+      );
+    });
   });
 
   describe('stripXml', () => {
@@ -68,6 +87,14 @@ describe('InputParser markup text', () => {
       ['an encoded ampersand entity', '<a>&amp;amp;</a>', '&amp;'],
     ])('should handle %s', (_label, xml, expected) => {
       expect(parser.stripXml(xml)).toBe(expected);
+    });
+
+    it('should remove a comment joined by removing another', () => {
+      expect(parser.stripXml('<r>x<!<!-- -->-- a > b -->y</r>')).toBe('xy');
+    });
+
+    it('should decode an encoded entity only once', () => {
+      expect(parser.stripXml('<r>&amp;lt;x&amp;gt; &amp;apos;</r>')).toBe('&lt;x&gt; &apos;');
     });
   });
 });
