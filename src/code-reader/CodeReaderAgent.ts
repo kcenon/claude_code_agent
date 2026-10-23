@@ -336,18 +336,9 @@ export class CodeReaderAgent {
       const relativePath = path.relative(sourceRootPath, filePath);
 
       // Check if file matches any exclude pattern
-      const isExcluded = this.config.excludePatterns.some((pattern) => {
-        // Simple glob matching for common patterns
-        if (pattern.includes('**')) {
-          const regexPattern = pattern
-            .replace(/\./g, '\\.')
-            .replace(/\*\*/g, '<<<GLOBSTAR>>>')
-            .replace(/\*/g, '[^/]*')
-            .replace(/<<<GLOBSTAR>>>/g, '.*');
-          return new RegExp(regexPattern).test(relativePath);
-        }
-        return relativePath.includes(pattern.replace(/\*/g, ''));
-      });
+      const isExcluded = this.config.excludePatterns.some((pattern) =>
+        this.matchesExcludePattern(relativePath, pattern)
+      );
 
       if (!isExcluded) {
         // Check file size
@@ -378,6 +369,25 @@ export class CodeReaderAgent {
     }
 
     return sourceFiles;
+  }
+
+  /**
+   * Check a source file against one exclude pattern
+   * @param relativePath - Source file path relative to the source root
+   * @param pattern - Exclude pattern from the configuration
+   * @returns True when the pattern excludes the file
+   */
+  private matchesExcludePattern(relativePath: string, pattern: string): boolean {
+    // Simple glob matching for common patterns
+    if (pattern.includes('**')) {
+      const regexPattern = pattern
+        .replace(/\./g, '\\.')
+        .replace(/\*\*/g, '<<<GLOBSTAR>>>')
+        .replace(/\*/g, '[^/]*')
+        .replace(/<<<GLOBSTAR>>>/g, '.*');
+      return new RegExp(regexPattern).test(relativePath);
+    }
+    return relativePath.includes(pattern.replace(/\*/g, ''));
   }
 
   private groupFilesByModule(
