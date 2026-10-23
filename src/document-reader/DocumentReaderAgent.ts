@@ -8,6 +8,7 @@
  */
 
 import { randomUUID } from 'node:crypto';
+import type { Stats } from 'node:fs';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 
@@ -337,21 +338,33 @@ export class DocumentReaderAgent implements IAgent {
   }
 
   private async parseDocument(filePath: string, type: DocumentType): Promise<ParsedDocument> {
-    // Check file exists
+    // Open the file once, so that the size check, the content, and the
+    // modification time all describe the same file
+    let handle: fs.FileHandle;
     try {
-      await fs.access(filePath);
-    } catch {
-      throw new DocumentNotFoundError(filePath, type);
+      handle = await fs.open(filePath, 'r');
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code === 'ENOENT' || code === 'ENOTDIR') {
+        throw new DocumentNotFoundError(filePath, type);
+      }
+      throw error;
     }
 
-    // Check file size
-    const stats = await fs.stat(filePath);
-    if (stats.size > this.config.maxFileSize) {
-      throw new FileSizeLimitError(filePath, stats.size, this.config.maxFileSize);
-    }
+    let stats: Stats;
+    let content: string;
+    try {
+      // Check file size
+      stats = await handle.stat();
+      if (stats.size > this.config.maxFileSize) {
+        throw new FileSizeLimitError(filePath, stats.size, this.config.maxFileSize);
+      }
 
-    // Read file content
-    const content = await fs.readFile(filePath, 'utf-8');
+      // Read file content
+      content = await handle.readFile('utf-8');
+    } finally {
+      await handle.close();
+    }
 
     // Parse metadata from frontmatter or content
     const metadata = this.extractMetadata(content, filePath);
