@@ -152,6 +152,38 @@ describe('CommandSanitizer', () => {
       const result = sanitizer.parseCommandString('gh auth status 2>&1');
       expect(result.args).not.toContain('2>&1');
     });
+
+    it.each([
+      ['npm test 2>&1', 'npm', ['test']],
+      ['a  2>&1  b', 'a', ['b']],
+      ['x 2>/dev/null y', 'x', ['y']],
+      ['x >/dev/null', 'x', []],
+      ['x 2> err.log y', 'x', ['y']],
+      ['x 2>', 'x', ['2>']],
+      ['gh auth status 2>&1 | cat', 'gh', ['auth', 'status', '|', 'cat']],
+    ])('should strip redirections from %j', (commandString, command, args) => {
+      expect(sanitizer.parseCommandString(commandString)).toEqual({ command, args });
+    });
+  });
+
+  describe('validateConfigCommand download-and-pipe patterns', () => {
+    it.each([
+      ['curl -s http://x | sh', false],
+      ['curl http://x |bash', false],
+      ['curl  |sh', false],
+      ['curl \t|sh', false],
+      ['curl |sh', true],
+      ['wget -q url -O - | sh', false],
+      ['wget  -O - |', false],
+      ['wget -O - |', true],
+      ['CURL x | SH', false],
+      ['echo curl x | grep y | sh', false],
+      ['curl x\n| sh', true],
+      ['curl\nx | sh', false],
+      ['npm test', true],
+    ])('should validate %j as %s', (commandString, valid) => {
+      expect(sanitizer.validateConfigCommand(commandString).valid).toBe(valid);
+    });
   });
 
   describe('escapeForShell', () => {
@@ -334,8 +366,8 @@ describe('CommandSanitizer', () => {
       const successCount = [result1, result2].filter((r) => r.success).length;
       expect(successCount).toBeGreaterThanOrEqual(1);
 
-      const concurrentError = [result1, result2].find(
-        (r) => r.error?.includes('Another whitelist update is in progress')
+      const concurrentError = [result1, result2].find((r) =>
+        r.error?.includes('Another whitelist update is in progress')
       );
       // Note: Due to JS single-threaded nature, both may succeed sequentially
       // This test verifies the concurrent update protection logic exists

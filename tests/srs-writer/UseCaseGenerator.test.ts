@@ -442,4 +442,57 @@ describe('UseCaseGenerator', () => {
       expect(result.coverage.percentage).toBe(100);
     });
   });
+
+  describe('characterization of user story and exception parsing', () => {
+    type GeneratorInternals = {
+      parseUserStoryToSteps(userStory: string): Array<{ description: string }>;
+      inferExceptionHandling(criterion: string, exceptionType: string): string;
+    };
+    const internals = (): GeneratorInternals =>
+      new UseCaseGenerator() as unknown as GeneratorInternals;
+    const storySteps = (action: string, benefit: string): string[] => [
+      `User initiates: ${action}`,
+      'System validates the request',
+      'System processes the request',
+      `System confirms: ${benefit}`,
+    ];
+
+    it.each([
+      [
+        'As a user, I want to log in so that I can access my account',
+        storySteps('to log in', 'I can access my account'),
+      ],
+      ['as a admin, editor, I want  x so that y', storySteps('x', 'y')],
+      ['As a user,I want x so that', []],
+      ['As a  , I want x so that y', storySteps('x', 'y')],
+      ['As a user, I want   so that y', storySteps('', 'y')],
+      ['Has a dog. As a user, I want x so that y', storySteps('x', 'y')],
+      ['As an admin, I want x so that y', []],
+      ['As a user, I want x\nso that y', storySteps('x', 'y')],
+      ['As a user, I want x so that  ', storySteps('x', '')],
+      ['AS A USER, I WANT X SO THAT Y', storySteps('X', 'Y')],
+      ['As a user, I want x, I want z so that w', storySteps('x, I want z', 'w')],
+    ])('should turn the user story %j into steps', (userStory, expected) => {
+      expect(
+        internals()
+          .parseUserStoryToSteps(userStory)
+          .map((step) => step.description)
+      ).toEqual(expected);
+    });
+
+    it.each([
+      ['then show an error. retry', 'show an error'],
+      ['should retry', 'retry'],
+      ['must', 'Notify user of timeout and offer retry option'],
+      ['then', 'Notify user of timeout and offer retry option'],
+      ['Then   notify user', 'notify user'],
+      ['Athens should be fine.', 'be fine'],
+      ['If X then\n.', '.'],
+      ['no keywords', 'Notify user of timeout and offer retry option'],
+      ['then  .', '.'],
+      ['then .', '.'],
+    ])('should infer the exception handling from %j', (criterion, expected) => {
+      expect(internals().inferExceptionHandling(criterion, 'Operation timeout')).toBe(expected);
+    });
+  });
 });

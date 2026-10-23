@@ -588,4 +588,87 @@ Some text <!-- inline comment --> more text
       expect(template1).toContain('Test Template');
     });
   });
+
+  describe('characterization of section and comment patterns', () => {
+    type ProcessorInternals = {
+      generateNonFunctionalRequirementsSection(content: string, info: CollectedInfo): string;
+      replaceHtmlCommentPlaceholders(content: string, info: CollectedInfo): string;
+    };
+    const internals = (): ProcessorInternals =>
+      new TemplateProcessor() as unknown as ProcessorInternals;
+    // `$&` and `$`` in the description are expanded by String.prototype.replace
+    const nfrInfo = (): CollectedInfo =>
+      createMinimalCollectedInfo({
+        requirements: {
+          functional: [],
+          nonFunctional: [
+            {
+              id: 'NFR-001',
+              category: 'performance',
+              title: 'T',
+              description: 'Fast $& and $$ and $` end',
+              priority: 'P1',
+            },
+          ],
+        },
+      });
+    const nfrHeader =
+      '### NFR-001: T\n\n| Attribute | Value |\n|-----------|-------|\n' +
+      '| **Category** | Performance |\n| **Priority** | P1 |\n\n**Description:**\n';
+    const nfrBlock = (matched: string, before: string): string =>
+      `${nfrHeader}Fast ${matched} and $ and ${before} end\n\n---\n\n\n`;
+
+    it.each([
+      [
+        'A\n### NFR-001: X\nbody\n---\n\n## 7. Next\nTail',
+        `A\n${nfrBlock('### NFR-001: X\nbody\n', 'A\n')}---\n\n## 7. Next\nTail`,
+      ],
+      [
+        'A\n### NFR-001: X\nbody\n---\r\n\r\n## 7. Next',
+        `A\n${nfrBlock('### NFR-001: X\nbody\n', 'A\n')}---\r\n\r\n## 7. Next`,
+      ],
+      ['A\n### NFR-001: X\nbody only', `A\n${nfrBlock('### NFR-001: X\nbody only', 'A\n')}`],
+      [
+        'A\n### NFR-001:### NFR-001: Y\n---\n\n## 7',
+        `A\n${nfrBlock('### NFR-001:### NFR-001: Y\n', 'A\n')}---\n\n## 7`,
+      ],
+      ['no marker', 'no marker'],
+      ['### NFR-001:', nfrBlock('### NFR-001:', '')],
+    ])('should replace the NFR template section in %j', (content, expected) => {
+      expect(internals().generateNonFunctionalRequirementsSection(content, nfrInfo())).toBe(
+        expected
+      );
+    });
+
+    it('should replace only whole-line HTML comments', () => {
+      const content = [
+        '<!-- Describe the purpose -->',
+        '  <!--   -->  ',
+        '<!---->',
+        '<!-- a --> b -->',
+        '<!--\t-->',
+        '<!--->',
+        'x <!-- y -->',
+        '<!-- scope -->',
+        '<!--x-->',
+        '<!-- note -->',
+      ].join('\n');
+      const info = createMinimalCollectedInfo({ project: { name: 'P', description: 'Desc text' } });
+
+      expect(internals().replaceHtmlCommentPlaceholders(content, info)).toBe(
+        [
+          'Desc text',
+          '[To be elaborated]',
+          '<!---->',
+          '[To be elaborated]',
+          '[To be elaborated]',
+          '<!--->',
+          'x <!-- y -->',
+          'Desc text',
+          '[To be elaborated]',
+          '[To be elaborated]',
+        ].join('\n')
+      );
+    });
+  });
 });

@@ -268,6 +268,21 @@ describe('SRSParser', () => {
     parser = new SRSParser();
   });
 
+  describe('characterization of the product name pattern', () => {
+    type ParserInternals = { extractProductName(content: string): string | undefined };
+
+    it.each([
+      ['# SRS: Test Product', 'Test Product'],
+      ['#  SRS:   X  ', 'X'],
+      ['# SRS:', undefined],
+      ['# SRS: \n# SRS: Y', '# SRS: Y'],
+      ['text\n# SRS:\tZ', 'Z'],
+      ['# SRS:\n\nNext', 'Next'],
+    ])('should extract the product name from %j', (content, expected) => {
+      expect((parser as unknown as ParserInternals).extractProductName(content)).toBe(expected);
+    });
+  });
+
   describe('parse', () => {
     it('should parse SRS content and extract metadata', () => {
       const result = parser.parse(SAMPLE_SRS_CONTENT);

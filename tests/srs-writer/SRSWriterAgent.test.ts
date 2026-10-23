@@ -771,6 +771,36 @@ A product overview for {{PROJECT_NAME}} with enough content to pass length check
       const issues = SRSWriterAgent.validatePRDQuality(content);
       expect(issues).toEqual([]);
     });
+
+    it.each([
+      ['${a} {{b}} ${} {{}} ${x${y}', 3],
+      ['{{{a}}}', 1],
+      ['${{${{', 0],
+      ['{{a}', 0],
+      ['${a}}', 1],
+    ])('should count the template variables in %j', (content, count) => {
+      const issues = SRSWriterAgent.validatePRDQuality(content);
+      const variableIssue = issues.find((i) => i.includes('template variable'));
+      expect(variableIssue).toBe(
+        count === 0 ? undefined : `PRD contains ${String(count)} unsubstituted template variable(s)`
+      );
+    });
+
+    it('should ignore closed HTML comments when measuring content', () => {
+      expect(
+        SRSWriterAgent.validatePRDQuality(`${'x'.repeat(60)}<!-- hidden -->${'y'.repeat(50)}`)
+      ).toEqual([]);
+      expect(SRSWriterAgent.validatePRDQuality(`${'x'.repeat(60)}<!-- hidden -->`)).toEqual([
+        'PRD has insufficient content (less than 100 characters of meaningful text)',
+      ]);
+      expect(
+        SRSWriterAgent.validatePRDQuality(`${'z'.repeat(90)}<!-- unclosed ${'w'.repeat(10)}`)
+      ).toEqual([]);
+      expect(SRSWriterAgent.validatePRDQuality('<!-- a --><!-- b')).toEqual([
+        'PRD has insufficient content (less than 100 characters of meaningful text)',
+        'PRD consists mostly of HTML comment placeholders',
+      ]);
+    });
   });
 
   describe('generated content', () => {
