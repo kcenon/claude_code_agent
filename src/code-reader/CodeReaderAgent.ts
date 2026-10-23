@@ -380,8 +380,11 @@ export class CodeReaderAgent {
   private matchesExcludePattern(relativePath: string, pattern: string): boolean {
     // Simple glob matching for common patterns
     if (pattern.includes('**')) {
+      // Escape, in one pass, the regular expression characters that are
+      // literal in a glob, backslashes included. `*`, `?`, and `[...]` keep
+      // their meaning.
       const regexPattern = pattern
-        .replace(/\./g, '\\.')
+        .replace(/[\\.+$(){}|]/g, '\\$&')
         .replace(/\*\*/g, '<<<GLOBSTAR>>>')
         .replace(/\*/g, '[^/]*')
         .replace(/<<<GLOBSTAR>>>/g, '.*');

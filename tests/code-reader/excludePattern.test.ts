@@ -24,4 +24,21 @@ describe('CodeReaderAgent exclude patterns', () => {
   ])('should match %s against %s as %s', (relativePath, pattern, expected) => {
     expect(agent.matchesExcludePattern(relativePath, pattern)).toBe(expected);
   });
+
+  it.each([
+    ['src/c++/a.ts', '**/c++/**', true],
+    ['src/ccc/a.ts', '**/c++/**', false],
+    ['src/a(1)/x.ts', '**/a(1)/**', true],
+    ['src/a1/x.ts', '**/a(1)/**', false],
+    ['src/$tmp/x.ts', '**/$tmp/**', true],
+    ['src/x|y/a.ts', '**/x|y/**', true],
+    ['src/x/a.ts', '**/x|y/**', false],
+    ['lib\\gen\\x.ts', '**\\gen\\**', true],
+    ['src/generator.ts', '**\\gen\\**', false],
+  ])(
+    'should take regular expression characters in %s literally for %s (%s)',
+    (relativePath, pattern, expected) => {
+      expect(agent.matchesExcludePattern(relativePath, pattern)).toBe(expected);
+    }
+  );
 });

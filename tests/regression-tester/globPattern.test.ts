@@ -24,4 +24,20 @@ describe('RegressionTesterAgent glob segments', () => {
   ])('should match %s against %s as %s', (name, pattern, expected) => {
     expect(agent.matchesPattern(name, pattern)).toBe(expected);
   });
+
+  it.each([
+    ['c++.test.ts', 'c++*.ts', true],
+    ['ccc.test.ts', 'c++*.ts', false],
+    ['a(1).test.ts', 'a(1)*.ts', true],
+    ['a1.test.ts', 'a(1)*.ts', false],
+    ['$x.test.ts', '$x*.ts', true],
+    ['x|y.test.ts', 'x|y*.ts', true],
+    ['x', 'x|y*.ts', false],
+    ['dir\\a.ts', 'dir\\*.ts', true],
+  ])(
+    'should take regular expression characters in %s literally for %s (%s)',
+    (name, pattern, expected) => {
+      expect(agent.matchesPattern(name, pattern)).toBe(expected);
+    }
+  );
 });
