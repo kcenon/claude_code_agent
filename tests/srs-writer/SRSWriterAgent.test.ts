@@ -13,6 +13,7 @@ import {
   LowCoverageError,
   GenerationError,
 } from '../../src/srs-writer/errors.js';
+import { LONG_INPUT_LENGTH, LONG_INPUT_TIME_LIMIT_MS, timed } from '../helpers/longInput.js';
 
 describe('SRSWriterAgent', () => {
   const testBasePath = path.join(process.cwd(), 'tests', 'srs-writer', 'test-scratchpad');
@@ -800,6 +801,18 @@ A product overview for {{PROJECT_NAME}} with enough content to pass length check
         'PRD has insufficient content (less than 100 characters of meaningful text)',
         'PRD consists mostly of HTML comment placeholders',
       ]);
+    });
+
+    it.each([
+      ['unclosed ${ placeholders', '${{'],
+      ['unclosed {{ placeholders', '{{{{'],
+      ['unclosed HTML comments', '<!--'],
+    ])('should scan many %s quickly', (_kind, unit) => {
+      const content = unit.repeat(LONG_INPUT_LENGTH / unit.length);
+      const { result, elapsedMs } = timed(() => SRSWriterAgent.validatePRDQuality(content));
+
+      expect(result).toEqual([]);
+      expect(elapsedMs).toBeLessThan(LONG_INPUT_TIME_LIMIT_MS);
     });
   });
 

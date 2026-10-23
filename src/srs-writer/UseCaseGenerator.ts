@@ -40,6 +40,222 @@ const DEFAULT_OPTIONS: Required<UseCaseGeneratorOptions> = {
   includeSecondaryActors: true,
 };
 
+/** Any line terminator (global, for searching); `.` does not match these */
+const LINE_TERMINATOR = /[\n\r\u2028\u2029]/g;
+/** A single line terminator character */
+const LINE_TERMINATOR_CHAR = /[\n\r\u2028\u2029]/;
+/** Any whitespace character (global, for searching) */
+const WHITESPACE = /\s/g;
+/** "As a " with both whitespace runs; group 1 is the run before the role */
+const STORY_ROLE = /as\s+a(\s+)/gi;
+/** ", I want " at a comma; group 1 is the run before the action */
+const STORY_WANT = /,\s*i\s+want(\s+)/iy;
+/** "so that " where "so" starts; group 1 is the run before the benefit */
+const STORY_SO_THAT = /so\s+that(\s+)/iy;
+/** "then", "should", or "must"; group 1 is the whitespace run after it */
+const HANDLING_KEYWORD = /(?:then|should|must)(\s+)/gi;
+
+/**
+ * Action and benefit of a user story
+ */
+interface UserStoryParts {
+  readonly action: string;
+  readonly benefit: string;
+}
+
+/**
+ * Find the first match of a global expression at or after an index.
+ * @param text - Text to search
+ * @param pattern - Global expression
+ * @param from - Index to start at
+ * @returns Index of the match, or `text.length` when there is none
+ */
+function indexOfPattern(text: string, pattern: RegExp, from: number): number {
+  pattern.lastIndex = from;
+  return pattern.exec(text)?.index ?? text.length;
+}
+
+/**
+ * Skip a whitespace run.
+ * @param text - Text to scan
+ * @param from - Index to start at
+ * @returns Index of the first non-whitespace character at or after `from`
+ */
+function skipWhitespace(text: string, from: number): number {
+  let index = from;
+  while (index < text.length && /\s/.test(text.charAt(index))) {
+    index++;
+  }
+  return index;
+}
+
+/**
+ * Parse a user story of the form "As a <role>, I want <action> so that <benefit>".
+ *
+ * Same result as
+ * `story.match(/as\s+a\s+(.+?),\s*i\s+want\s+(.+?)\s+so\s+that\s+(.+)/i)` (groups
+ * 2 and 3, trimmed) in linear time. The lazy groups overlapped the whitespace
+ * around them and were rescanned from every "as a" and every comma (polynomial
+ * ReDoS). The role, action, and benefit cannot contain line breaks; the
+ * whitespace between the parts can.
+ * @param story - User story text
+ * @returns Trimmed action and benefit, or null when the story does not match
+ */
+function parseUserStory(story: string): UserStoryParts | null {
+  const length = story.length;
+  const isLineBreak = (index: number): boolean => LINE_TERMINATOR_CHAR.test(story.charAt(index));
+
+  // "so that <benefit>" with "so" at soStart
+  const benefitAt = (soStart: number): string | undefined => {
+    STORY_SO_THAT.lastIndex = soStart;
+    const match = STORY_SO_THAT.exec(story);
+    if (match === null) {
+      return undefined;
+    }
+    const benefitStart = soStart + match[0].length;
+    if (benefitStart < length) {
+      return story.slice(benefitStart, indexOfPattern(story, LINE_TERMINATOR, benefitStart)).trim();
+    }
+    // Only whitespace follows: the benefit is one character of it that is not a line break
+    const runStart = benefitStart - (match[1]?.length ?? 0);
+    for (let index = length - 1; index > runStart; index--) {
+      if (!isLineBreak(index)) {
+        return '';
+      }
+    }
+    return undefined;
+  };
+
+  // Runs from failedActionFrom up to the line end failedActionLimit never start "so that"
+  let failedActionLimit = -1;
+  let failedActionFrom = length;
+  // ", I want <action> so that <benefit>" at a comma
+  const partsAt = (comma: number): UserStoryParts | null => {
+    STORY_WANT.lastIndex = comma;
+    const match = STORY_WANT.exec(story);
+    if (match === null) {
+      return null;
+    }
+    const actionStart = comma + match[0].length;
+    const runStart = actionStart - (match[1]?.length ?? 0);
+    if (actionStart < length) {
+      // The action ends at the first whitespace run on its line that starts "so that"
+      const limit = indexOfPattern(story, LINE_TERMINATOR, actionStart);
+      if (limit !== failedActionLimit || actionStart < failedActionFrom) {
+        let run = indexOfPattern(story, WHITESPACE, actionStart + 1);
+        while (run <= limit && run < length) {
+          const soStart = skipWhitespace(story, run);
+          const benefit = benefitAt(soStart);
+          if (benefit !== undefined) {
+            return { action: story.slice(actionStart, run).trim(), benefit };
+          }
+          run = indexOfPattern(story, WHITESPACE, soStart);
+        }
+        failedActionFrom =
+          limit === failedActionLimit ? Math.min(failedActionFrom, actionStart) : actionStart;
+        failedActionLimit = limit;
+      }
+    }
+    // Whitespace-only action: one character of the run before "so that"
+    const benefit = benefitAt(actionStart);
+    if (benefit !== undefined) {
+      for (let index = actionStart - 2; index > runStart; index--) {
+        if (!isLineBreak(index)) {
+          return { action: '', benefit };
+        }
+      }
+    }
+    return null;
+  };
+
+  // Commas before failedCommaLimit (the end of a line) were already tried
+  let failedCommaLimit = -1;
+  STORY_ROLE.lastIndex = 0;
+  for (let match = STORY_ROLE.exec(story); match !== null; match = STORY_ROLE.exec(story)) {
+    const roleStart = match.index + match[0].length;
+    if (roleStart < length) {
+      // The role ends at the first comma on its line that the rest of the story follows
+      const limit = indexOfPattern(story, LINE_TERMINATOR, roleStart);
+      if (limit !== failedCommaLimit) {
+        for (
+          let comma = story.indexOf(',', roleStart + 1);
+          comma !== -1 && comma < limit;
+          comma = story.indexOf(',', comma + 1)
+        ) {
+          const parts = partsAt(comma);
+          if (parts !== null) {
+            return parts;
+          }
+        }
+        failedCommaLimit = limit;
+      }
+    }
+    // Whitespace-only role: one character of the run before the comma
+    if (
+      story.charAt(roleStart) === ',' &&
+      (match[1]?.length ?? 0) >= 2 &&
+      !isLineBreak(roleStart - 1)
+    ) {
+      const parts = partsAt(roleStart);
+      if (parts !== null) {
+        return parts;
+      }
+    }
+    STORY_ROLE.lastIndex = match.index + 1;
+  }
+  return null;
+}
+
+/**
+ * Find the handling clause after "then", "should", or "must" in a criterion.
+ *
+ * Same result as `criterion.match(/(?:then|should|must)\s+(.+?)(?:\.|$)/i)?.[1]`
+ * in linear time. That expression overlapped the whitespace run with the clause
+ * and rescanned the rest of the line from every keyword.
+ * @param criterion - Acceptance criterion text
+ * @returns Untrimmed clause up to the next period, or undefined
+ */
+function matchHandlingClause(criterion: string): string | undefined {
+  const length = criterion.length;
+  let period = -1;
+  let lineBreak = -1;
+  HANDLING_KEYWORD.lastIndex = 0;
+  for (
+    let match = HANDLING_KEYWORD.exec(criterion);
+    match !== null;
+    match = HANDLING_KEYWORD.exec(criterion)
+  ) {
+    const clauseStart = match.index + match[0].length;
+    if (clauseStart < length) {
+      if (period <= clauseStart) {
+        const next = criterion.indexOf('.', clauseStart + 1);
+        period = next === -1 ? length : next;
+      }
+      if (lineBreak < clauseStart) {
+        lineBreak = indexOfPattern(criterion, LINE_TERMINATOR, clauseStart);
+      }
+      // From the first non-space character to the next period or the end of the
+      // text, without crossing a line break
+      if (period < lineBreak) {
+        return criterion.slice(clauseStart, period);
+      }
+      if (lineBreak === length) {
+        return criterion.slice(clauseStart);
+      }
+    }
+    // Whitespace-only clause: the last whitespace character before a period or the end
+    if (
+      (match[1]?.length ?? 0) >= 2 &&
+      !LINE_TERMINATOR_CHAR.test(criterion.charAt(clauseStart - 1)) &&
+      (clauseStart === length || criterion.charAt(clauseStart) === '.')
+    ) {
+      return criterion.charAt(clauseStart - 1);
+    }
+    HANDLING_KEYWORD.lastIndex = match.index + 1;
+  }
+  return undefined;
+}
+
 /**
  * Use case generation result for a feature
  */
@@ -452,12 +668,12 @@ export class UseCaseGenerator {
     const steps: FlowStep[] = [];
 
     // User story format: "As a <role>, I want <action> so that <benefit>"
-    const match = userStory.match(/as\s+a\s+(.+?),\s*i\s+want\s+(.+?)\s+so\s+that\s+(.+)/i);
+    const story = parseUserStory(userStory);
 
-    if (match !== null) {
-      const [, , action, benefit] = match;
+    if (story !== null) {
+      const { action, benefit } = story;
       steps.push(
-        { stepNumber: 1, description: `User initiates: ${action?.trim() ?? 'action'}` },
+        { stepNumber: 1, description: `User initiates: ${action}` },
         {
           stepNumber: 2,
           description: 'System validates the request',
@@ -470,7 +686,7 @@ export class UseCaseGenerator {
         },
         {
           stepNumber: 4,
-          description: `System confirms: ${benefit?.trim() ?? 'benefit achieved'}`,
+          description: `System confirms: ${benefit}`,
           systemResponse: 'Operation successful',
         }
       );
@@ -717,9 +933,9 @@ export class UseCaseGenerator {
    */
   private inferExceptionHandling(criterion: string, exceptionType: string): string {
     // Check if criterion specifies handling
-    const handlingMatch = criterion.match(/(?:then|should|must)\s+(.+?)(?:\.|$)/i);
-    if (handlingMatch !== null && handlingMatch[1] !== undefined) {
-      return handlingMatch[1].trim();
+    const handling = matchHandlingClause(criterion);
+    if (handling !== undefined) {
+      return handling.trim();
     }
 
     // Default handling based on exception type

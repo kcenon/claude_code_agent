@@ -8,6 +8,7 @@ import type {
   FlowStep,
 } from '../../src/srs-writer/types.js';
 import type { SRSFeature } from '../../src/architecture-generator/types.js';
+import { LONG_INPUT_LENGTH, LONG_INPUT_TIME_LIMIT_MS, timed } from '../helpers/longInput.js';
 
 describe('UseCaseGenerator', () => {
   let generator: UseCaseGenerator;
@@ -493,6 +494,45 @@ describe('UseCaseGenerator', () => {
       ['then .', '.'],
     ])('should infer the exception handling from %j', (criterion, expected) => {
       expect(internals().inferExceptionHandling(criterion, 'Operation timeout')).toBe(expected);
+    });
+
+    describe('long input (polynomial ReDoS regression)', () => {
+      const tabs = '\t'.repeat(LONG_INPUT_LENGTH);
+
+      it.each([
+        ['after the role prefix', `as\ta\t${tabs}`],
+        ['after "I want"', `as\ta\ta,i\twant\t${tabs}`],
+        ['after the action', `as\ta\ta,i\twant\ta${tabs}`],
+        ['across repeated roles', 'as a x '.repeat(LONG_INPUT_LENGTH / 7)],
+        ['across repeated wants', `As a x${', I want y'.repeat(LONG_INPUT_LENGTH / 10)}`],
+      ])('should reject an incomplete user story with long input %s quickly', (_kind, story) => {
+        const { result, elapsedMs } = timed(() => internals().parseUserStoryToSteps(story));
+
+        expect(result).toEqual([]);
+        expect(elapsedMs).toBeLessThan(LONG_INPUT_TIME_LIMIT_MS);
+      });
+
+      it('should parse a user story with a long action quickly', () => {
+        const action = 'x'.repeat(LONG_INPUT_LENGTH);
+        const { result, elapsedMs } = timed(() =>
+          internals().parseUserStoryToSteps(`As a user,${tabs}I want ${action} so that y`)
+        );
+
+        expect(result.map((step) => step.description)).toEqual(storySteps(action, 'y'));
+        expect(elapsedMs).toBeLessThan(LONG_INPUT_TIME_LIMIT_MS);
+      });
+
+      it.each([
+        ['whitespace before a line break', `then${tabs}x\ny`],
+        ['repeated keywords before a line break', `${'then x '.repeat(LONG_INPUT_LENGTH / 7)}\n`],
+      ])('should give up on a handling clause with %s quickly', (_kind, criterion) => {
+        const { result, elapsedMs } = timed(() =>
+          internals().inferExceptionHandling(criterion, 'Operation timeout')
+        );
+
+        expect(result).toBe('Notify user of timeout and offer retry option');
+        expect(elapsedMs).toBeLessThan(LONG_INPUT_TIME_LIMIT_MS);
+      });
     });
   });
 });
