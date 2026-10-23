@@ -632,6 +632,33 @@ This is not a proper list format
     });
   });
 
+  describe('characterization of the "# PRD" title', () => {
+    // Pins the product name read from `# PRD<separators> <name>` titles, including
+    // the fallbacks of the old `\s*(\S.*|[^\S\n\r\u2028\u2029])$` capture: a later
+    // line after the separators, one trailing space, or the last separator.
+    it.each([
+      ['# PRD - Name', 'Name'],
+      ['# PRD – Name', 'Name'],
+      ['#PRD:Name', 'Name'],
+      ['# PRD :- Name  ', 'Name'],
+      ['# PRD:\n\nNext line\n', 'Next line'],
+      ['#\nPRD: Name', 'Name'],
+      ['# PRD --\t\nmore', 'more'],
+      ['# PRD --\u2028Name', 'Name'],
+      ['# Intro\n# PRD: Second', 'Second'],
+      ['# PRD --', '-'],
+      ['# PRD --\n\n', '-'],
+      ['# PRD :-:\r\n', ':'],
+      ['# PRD -- \t', 'proj'],
+      ['# PRD --  \n', 'proj'],
+      ['# PRD -\n', 'proj'],
+      ['# PRD -\n   ', 'proj'],
+      ['#PRD-', 'proj'],
+    ])('should read the product name of %j as %j', (content, expected) => {
+      expect(new PRDParser().parse(content, 'proj').productName).toBe(expected);
+    });
+  });
+
   describe('characterization of irregular spacing', () => {
     const irregularPRD = [
       '# PRD:  ',
@@ -902,6 +929,28 @@ This is not a proper list format
         expect(elapsedMs).toBeLessThan(LONG_INPUT_TIME_LIMIT_MS);
       }
     );
+
+    it('should read a "#PRD-!" title followed by many separators quickly', () => {
+      const name = '!' + '--'.repeat(LONG_INPUT_LENGTH);
+      const { result, elapsedMs } = parse(`#PRD-${name}`);
+
+      expect(result.productName).toBe(name);
+      expect(elapsedMs).toBeLessThan(LONG_INPUT_TIME_LIMIT_MS);
+    });
+
+    it('should read a title made only of long separators quickly', () => {
+      const { result, elapsedMs } = parse('#PRD' + '-'.repeat(LONG_INPUT_LENGTH));
+
+      expect(result.productName).toBe('-');
+      expect(elapsedMs).toBeLessThan(LONG_INPUT_TIME_LIMIT_MS);
+    });
+
+    it('should read long separators followed by long whitespace quickly', () => {
+      const { result, elapsedMs } = parse('#PRD' + '-'.repeat(LONG_INPUT_LENGTH) + tabs);
+
+      expect(result.productName).toBe('proj');
+      expect(elapsedMs).toBeLessThan(LONG_INPUT_TIME_LIMIT_MS);
+    });
 
     it('should find the summary after a long whitespace run quickly', () => {
       const { result, elapsedMs } = parse(`##1.introduction${newlineTabs}Summary text`);
