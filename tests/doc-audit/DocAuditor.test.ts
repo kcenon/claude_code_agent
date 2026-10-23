@@ -1,4 +1,5 @@
-import { mkdtempSync, rmSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -58,6 +59,46 @@ describe('DocAuditor', () => {
     it('throws NoDocumentsFoundError', () => {
       expect(() => new DocAuditor({ projectDir: empty }).run()).toThrow(NoDocumentsFoundError);
     });
+
+    const presentKinds = (projectDir: string): string[] =>
+      new DocAuditor({ projectDir })
+        .run()
+        .documents.filter((d) => d.present)
+        .map((d) => d.kind);
+
+    it('reads regular document files and skips a directory with a document name', () => {
+      mkdirSync(join(empty, 'prd.md'));
+      writeFileSync(join(empty, 'srs.md'), '# SRS\n');
+
+      expect(presentKinds(empty)).toEqual(['SRS']);
+    });
+
+    it('throws NoDocumentsFoundError when the only document name is a directory', () => {
+      mkdirSync(join(empty, 'prd.md'));
+
+      expect(() => new DocAuditor({ projectDir: empty }).run()).toThrow(NoDocumentsFoundError);
+    });
+
+    it.skipIf(process.platform === 'win32' || process.getuid?.() === 0)(
+      'skips an unreadable document',
+      () => {
+        writeFileSync(join(empty, 'prd.md'), '# PRD\n');
+        chmodSync(join(empty, 'prd.md'), 0o000);
+        writeFileSync(join(empty, 'srs.md'), '# SRS\n');
+
+        expect(presentKinds(empty)).toEqual(['SRS']);
+      }
+    );
+
+    it.skipIf(process.platform === 'win32')(
+      'skips a named pipe without waiting for a writer',
+      () => {
+        execFileSync('mkfifo', [join(empty, 'prd.md')]);
+        writeFileSync(join(empty, 'srs.md'), '# SRS\n');
+
+        expect(presentKinds(empty)).toEqual(['SRS']);
+      }
+    );
   });
 
   it('serializes the report as stable JSON', () => {
