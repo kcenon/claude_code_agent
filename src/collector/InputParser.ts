@@ -187,39 +187,42 @@ export class InputParser {
     }
 
     try {
-      // Check file exists and size
-      const stats = await fs.promises.stat(filePath);
-      if (stats.size > this.options.maxFileSize) {
+      // Handle binary files (PDF, DOCX) differently: their parsers read the file
+      if (fileType === 'pdf' || fileType === 'docx') {
+        // Check file exists and size
+        const stats = await fs.promises.stat(filePath);
+        if (stats.size > this.options.maxFileSize) {
+          return this.fileTooLargeResult(fileType, stats.size);
+        }
+        return fileType === 'pdf'
+          ? await this.parsePdfFile(filePath, stats)
+          : await this.parseDocxFile(filePath, stats);
+      }
+
+      // Handle text-based files through one handle, so that the size check,
+      // the metadata, and the content all describe the same file
+      const handle = await fs.promises.open(filePath, 'r');
+      try {
+        const stats = await handle.stat();
+        if (stats.size > this.options.maxFileSize) {
+          return this.fileTooLargeResult(fileType, stats.size);
+        }
+
+        const rawContent = await handle.readFile('utf8');
+        const content = this.processFileContent(rawContent, fileType);
+
         return {
-          success: false,
-          content: '',
+          success: true,
+          content,
           fileType,
-          error: `File size (${String(stats.size)} bytes) exceeds maximum allowed (${String(this.options.maxFileSize)} bytes)`,
+          metadata: {
+            size: stats.size,
+            modified: stats.mtime.toISOString(),
+          },
         };
+      } finally {
+        await handle.close();
       }
-
-      // Handle binary files (PDF, DOCX) differently
-      if (fileType === 'pdf') {
-        return await this.parsePdfFile(filePath, stats);
-      }
-
-      if (fileType === 'docx') {
-        return await this.parseDocxFile(filePath, stats);
-      }
-
-      // Handle text-based files
-      const rawContent = await fs.promises.readFile(filePath, 'utf8');
-      const content = this.processFileContent(rawContent, fileType);
-
-      return {
-        success: true,
-        content,
-        fileType,
-        metadata: {
-          size: stats.size,
-          modified: stats.mtime.toISOString(),
-        },
-      };
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
         return {
@@ -239,6 +242,22 @@ export class InputParser {
       }
       throw error;
     }
+  }
+
+  /**
+   * Result for a file over the size limit
+   *
+   * @param fileType - Type of the file
+   * @param size - File size in bytes
+   * @returns Failed FileParseResult that names the size and the limit
+   */
+  private fileTooLargeResult(fileType: SupportedFileType, size: number): FileParseResult {
+    return {
+      success: false,
+      content: '',
+      fileType,
+      error: `File size (${String(size)} bytes) exceeds maximum allowed (${String(this.options.maxFileSize)} bytes)`,
+    };
   }
 
   /**
@@ -830,28 +849,30 @@ export class InputParser {
     }
 
     try {
-      const stats = fs.statSync(filePath);
-      if (stats.size > this.options.maxFileSize) {
+      // Read through one descriptor, so that the size check, the metadata,
+      // and the content all describe the same file
+      const fd = fs.openSync(filePath, 'r');
+      try {
+        const stats = fs.fstatSync(fd);
+        if (stats.size > this.options.maxFileSize) {
+          return this.fileTooLargeResult(fileType, stats.size);
+        }
+
+        const rawContent = fs.readFileSync(fd, 'utf8');
+        const content = this.processFileContent(rawContent, fileType);
+
         return {
-          success: false,
-          content: '',
+          success: true,
+          content,
           fileType,
-          error: `File size (${String(stats.size)} bytes) exceeds maximum allowed (${String(this.options.maxFileSize)} bytes)`,
+          metadata: {
+            size: stats.size,
+            modified: stats.mtime.toISOString(),
+          },
         };
+      } finally {
+        fs.closeSync(fd);
       }
-
-      const rawContent = fs.readFileSync(filePath, 'utf8');
-      const content = this.processFileContent(rawContent, fileType);
-
-      return {
-        success: true,
-        content,
-        fileType,
-        metadata: {
-          size: stats.size,
-          modified: stats.mtime.toISOString(),
-        },
-      };
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
         return {

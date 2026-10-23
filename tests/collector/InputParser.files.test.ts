@@ -98,4 +98,24 @@ describe('InputParser file reading', () => {
       await expect(read(path.join(file, 'child.md'))).rejects.toMatchObject({ code: 'ENOTDIR' });
     });
   });
+
+  describe('binary files', () => {
+    it.each(['report.pdf', 'report.docx'])(
+      'should check the size of %s before parsing it',
+      async (name) => {
+        const file = path.join(dir, name);
+        fs.writeFileSync(file, 'x'.repeat(65));
+
+        const result = await parser.parseFileContent(file);
+
+        expect(result.error).toBe('File size (65 bytes) exceeds maximum allowed (64 bytes)');
+      }
+    );
+
+    it.each(['missing.pdf', 'missing.docx'])('should report a missing %s', async (name) => {
+      const result = await parser.parseFileContent(path.join(dir, name));
+
+      expect(result).toMatchObject({ success: false, error: 'File not found' });
+    });
+  });
 });
