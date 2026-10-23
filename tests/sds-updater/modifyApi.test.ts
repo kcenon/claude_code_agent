@@ -62,4 +62,27 @@ describe('SDSUpdaterAgent.modifyAPI', () => {
       APINotFoundError
     );
   });
+
+  it.each([
+    'GET /api/items?sort=name',
+    'GET /api/(legacy)/items',
+    'GET /api/files/*',
+    'GET /api/a+b',
+    'GET /api/$metadata',
+    'GET /api/path\\segment',
+  ])('should match the regular expression characters of %s literally', (endpoint) => {
+    const { content } = modifyComponent(sds('GET /api/v1/health', endpoint), endpoint);
+
+    expect(content).toContain(`#### ${endpoint} [MODIFIED]\n**Component**: CMP-002\n`);
+  });
+
+  it('should not let a dot in the path match another character', () => {
+    const { content } = modifyComponent(
+      sds('GET /api/v1x0/items', 'GET /api/v1.0/items'),
+      'GET /api/v1.0/items'
+    );
+
+    expect(content).toContain('#### GET /api/v1x0/items\n**Component**: CMP-001\n');
+    expect(content).toContain('#### GET /api/v1.0/items [MODIFIED]\n**Component**: CMP-002\n');
+  });
 });
