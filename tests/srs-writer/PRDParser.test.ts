@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { PRDParser } from '../../src/srs-writer/PRDParser.js';
 import { PRDParseError } from '../../src/srs-writer/errors.js';
+import { LONG_INPUT_LENGTH, LONG_INPUT_TIME_LIMIT_MS, timed } from '../helpers/longInput.js';
 
 describe('PRDParser', () => {
   const createSamplePRD = (): string => `
@@ -859,6 +860,161 @@ This is not a proper list format
         { name: 'Developer', role: 'Builder', description: '', goals: [] },
       ]);
       expect(result.goals).toEqual([{ description: 'Adoption', metric: '100 teams' }]);
+    });
+  });
+
+  describe('long input (polynomial ReDoS regression)', () => {
+    const tabs = '\t'.repeat(LONG_INPUT_LENGTH);
+    const newlineTabs = '\n\t'.repeat(LONG_INPUT_LENGTH);
+    const parse = (content: string) => timed(() => new PRDParser().parse(content, 'proj'));
+
+    it.each([['|Document ID|'], ['|Version|'], ['|Status|']])(
+      'should reject an unterminated %s metadata cell quickly',
+      (prefix) => {
+        const { result, elapsedMs } = parse(prefix + tabs);
+
+        expect(result.metadata).toEqual({
+          documentId: 'PRD-proj',
+          version: '1.0.0',
+          status: 'Draft',
+          projectId: 'proj',
+        });
+        expect(elapsedMs).toBeLessThan(LONG_INPUT_TIME_LIMIT_MS);
+      }
+    );
+
+    it.each([['|Project|'], ['|Project'], ['|Product']])(
+      'should reject an unterminated %s product cell quickly',
+      (prefix) => {
+        const { result, elapsedMs } = parse(prefix + tabs);
+
+        expect(result.productName).toBe('proj');
+        expect(elapsedMs).toBeLessThan(LONG_INPUT_TIME_LIMIT_MS);
+      }
+    );
+
+    it.each([['#PRD-'], ['#\t']])(
+      'should read a %j title followed by long whitespace quickly',
+      (prefix) => {
+        const { result, elapsedMs } = parse(prefix + tabs);
+
+        expect(result.productName).toBe('proj');
+        expect(elapsedMs).toBeLessThan(LONG_INPUT_TIME_LIMIT_MS);
+      }
+    );
+
+    it('should find the summary after a long whitespace run quickly', () => {
+      const { result, elapsedMs } = parse(`##1.introduction${newlineTabs}Summary text`);
+
+      expect(result.productDescription).toBe('Summary text');
+      expect(elapsedMs).toBeLessThan(LONG_INPUT_TIME_LIMIT_MS);
+    });
+
+    it.each([['### FR-001:'], ['### NFR-001:']])(
+      'should reject a %s heading without a line break quickly',
+      (prefix) => {
+        const { result, elapsedMs } = parse(prefix + tabs);
+
+        expect(result.functionalRequirements).toHaveLength(0);
+        expect(result.nonFunctionalRequirements).toHaveLength(0);
+        expect(elapsedMs).toBeLessThan(LONG_INPUT_TIME_LIMIT_MS);
+      }
+    );
+
+    it('should reject many requirement headings on a line without a line break quickly', () => {
+      const { result, elapsedMs } = parse('## FR-001: x '.repeat(LONG_INPUT_LENGTH / 5));
+
+      expect(result.functionalRequirements).toHaveLength(0);
+      expect(elapsedMs).toBeLessThan(LONG_INPUT_TIME_LIMIT_MS);
+    });
+
+    it('should find acceptance criteria after a long whitespace run quickly', () => {
+      const { result, elapsedMs } = parse(
+        `### FR-001: Login\n**Acceptance Criteria**:${newlineTabs}\n- Valid`
+      );
+
+      expect(result.functionalRequirements[0]?.acceptanceCriteria).toEqual(['Valid']);
+      expect(elapsedMs).toBeLessThan(LONG_INPUT_TIME_LIMIT_MS);
+    });
+
+    it.each([['##'], ['##Constraint'], ['##Goal']])(
+      'should reject a long %j section heading quickly',
+      (prefix) => {
+        const { result, elapsedMs } = parse(`${prefix}${tabs}- item`);
+
+        expect(result.functionalRequirements).toHaveLength(0);
+        expect(result.nonFunctionalRequirements).toHaveLength(0);
+        expect(result.constraints).toHaveLength(0);
+        expect(result.assumptions).toHaveLength(0);
+        expect(result.userPersonas).toHaveLength(0);
+        expect(result.goals).toHaveLength(0);
+        expect(elapsedMs).toBeLessThan(LONG_INPUT_TIME_LIMIT_MS);
+      }
+    );
+
+    it('should reject a long NFR category heading without a line break quickly', () => {
+      const { result, elapsedMs } = parse(`## Non-Functional Requirements\n###${tabs}`);
+
+      expect(result.nonFunctionalRequirements).toHaveLength(0);
+      expect(elapsedMs).toBeLessThan(LONG_INPUT_TIME_LIMIT_MS);
+    });
+
+    it('should normalize a long NFR category quickly', () => {
+      const { result, elapsedMs } = parse(`## Non-Functional Requirements\n### x${tabs}y\n- item`);
+
+      expect(result.nonFunctionalRequirements).toEqual([
+        { id: 'NFR-001', category: `x${tabs}y`, description: 'item', priority: 'P2' },
+      ]);
+      expect(elapsedMs).toBeLessThan(LONG_INPUT_TIME_LIMIT_MS);
+    });
+
+    it('should parse a long whitespace-only constraint item quickly', () => {
+      const { result, elapsedMs } = parse(`## Constraints\n*\t${tabs}`);
+
+      expect(result.constraints).toEqual([{ id: 'CON-001', type: 'technical', description: '' }]);
+      expect(elapsedMs).toBeLessThan(LONG_INPUT_TIME_LIMIT_MS);
+    });
+
+    it('should parse many constraint items without a type quickly', () => {
+      const count = LONG_INPUT_LENGTH / 5;
+      const { result, elapsedMs } = parse(`## Constraints\n${'- item\n'.repeat(count)}`);
+
+      expect(result.constraints).toHaveLength(count);
+      expect(result.constraints[count - 1]).toEqual({
+        id: `CON-${String(count)}`,
+        type: 'technical',
+        description: 'item',
+      });
+      expect(elapsedMs).toBeLessThan(LONG_INPUT_TIME_LIMIT_MS);
+    });
+
+    it('should find assumptions after a long whitespace run quickly', () => {
+      const { result, elapsedMs } = parse(`### Assumptions${newlineTabs}\n- Stable`);
+
+      expect(result.assumptions).toEqual(['Stable']);
+      expect(elapsedMs).toBeLessThan(LONG_INPUT_TIME_LIMIT_MS);
+    });
+
+    it('should reject a long persona heading without a line break quickly', () => {
+      const { result, elapsedMs } = parse(`## Personas\n###${tabs}`);
+
+      expect(result.userPersonas).toHaveLength(0);
+      expect(elapsedMs).toBeLessThan(LONG_INPUT_TIME_LIMIT_MS);
+    });
+
+    it('should find persona goals after long whitespace quickly', () => {
+      const { result, elapsedMs } = parse(`## Personas\n### Dev\n**Goals**${tabs}\n- Ship`);
+
+      expect(result.userPersonas[0]?.goals).toEqual(['Ship']);
+      expect(elapsedMs).toBeLessThan(LONG_INPUT_TIME_LIMIT_MS);
+    });
+
+    it('should keep a long goal without a metric separator quickly', () => {
+      const goal = 'a'.repeat(LONG_INPUT_LENGTH);
+      const { result, elapsedMs } = parse(`## Goals and Metrics\n- ${goal}`);
+
+      expect(result.goals).toEqual([{ description: goal }]);
+      expect(elapsedMs).toBeLessThan(LONG_INPUT_TIME_LIMIT_MS);
     });
   });
 });
