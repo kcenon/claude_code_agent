@@ -124,6 +124,32 @@ describe('LatencyOptimizer', () => {
       expect(status.error).toContain('not found');
     });
 
+    it('should report a definition below a regular file as not found', async () => {
+      fs.mkdirSync(testCacheDir, { recursive: true });
+      const plainFile = path.join(testCacheDir, 'plain.txt');
+      fs.writeFileSync(plainFile, 'x');
+      const definitionPath = path.join(plainFile, 'agent.md');
+
+      const status = await optimizer.prewarmAgent('nested-agent', definitionPath);
+
+      expect(status).toEqual({
+        resource: 'nested-agent',
+        isWarm: false,
+        error: `Agent definition not found: ${definitionPath}`,
+      });
+      expect(optimizer.isAgentWarmed('nested-agent')).toBe(false);
+    });
+
+    it('should report the read error for a definition directory', async () => {
+      const definitionPath = path.join(testCacheDir, 'agents', 'folder.md');
+      fs.mkdirSync(definitionPath, { recursive: true });
+
+      const status = await optimizer.prewarmAgent('folder-agent', definitionPath);
+
+      expect(status.isWarm).toBe(false);
+      expect(status.error).toContain('EISDIR');
+    });
+
     it('should cache prewarmed agent definition', async () => {
       // Create a test agent definition file
       const agentDir = path.join(testCacheDir, 'agents');
