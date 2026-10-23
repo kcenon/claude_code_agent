@@ -24,8 +24,10 @@ import type {
   StageVerificationResult,
   ConsistencyCheckResult,
   ConsistencyViolation,
+  SkippedVerificationRule,
 } from './types.js';
-import { VERIFICATION_RULES, shouldRunRule } from './rules.js';
+import { shouldRunRule } from './rules.js';
+import { verificationCheckSet, verificationDisposition } from './applicability.js';
 import { StageVerificationError } from './errors.js';
 import { VnvErrorCodes } from '../errors/codes.js';
 import { ErrorSeverity } from '../errors/types.js';
@@ -63,10 +65,13 @@ export class StageVerifierAgent implements IAgent {
   }
 
   /**
-   * Verify a completed pipeline stage against its verification rules.
+   * Verify a completed pipeline stage against its verification disposition.
    *
-   * Executes all rules for the given stage that meet the rigor threshold,
-   * collects results, and returns an aggregated verification result.
+   * The stage's disposition comes from `VERIFICATION_APPLICABILITY` for the
+   * pipeline mode. A `not_applicable` stage passes with its documented
+   * reason. A stage with a check set executes the rules that meet the rigor
+   * threshold and records the filtered rules as skipped. A stage without a
+   * disposition fails closed instead of passing silently.
    *
    * @param stageName - Name of the pipeline stage to verify
    * @param stageResult - The stage's execution result containing artifact paths
@@ -83,31 +88,56 @@ export class StageVerifierAgent implements IAgent {
     const checks: VerificationCheck[] = [];
     const warnings: string[] = [];
     const errors: string[] = [];
+    const finish = (
+      passed: boolean,
+      extra: Partial<
+        Pick<StageVerificationResult, 'checkSet' | 'notApplicableReason' | 'skippedRules'>
+      > = {}
+    ): StageVerificationResult => ({
+      stageName,
+      passed,
+      rigor: context.rigor,
+      checks,
+      warnings,
+      errors,
+      timestamp: new Date().toISOString(),
+      durationMs: Date.now() - startTime,
+      ...extra,
+    });
 
-    // Get rules for this stage
-    const rules = VERIFICATION_RULES.get(stageName);
-
-    if (!rules || rules.length === 0) {
-      // No rules defined for this stage — pass by default
-      return {
-        stageName,
-        passed: true,
-        rigor: context.rigor,
-        checks: [],
-        warnings: [`No verification rules defined for stage '${stageName}'`],
-        errors: [],
-        timestamp: new Date().toISOString(),
-        durationMs: Date.now() - startTime,
-      };
+    const disposition = verificationDisposition(context.pipelineMode, stageName);
+    if (disposition?.kind === 'not_applicable') {
+      return finish(true, { notApplicableReason: disposition.reason });
+    }
+    const rules =
+      disposition === undefined ? undefined : verificationCheckSet(disposition.checkSet);
+    if (disposition === undefined || rules === undefined) {
+      // Unclassified slots fail closed; the inventory check rejects them before release.
+      errors.push(
+        `No verification disposition for stage '${stageName}' in ${context.pipelineMode} mode`
+      );
+      return finish(false);
     }
 
-    // Filter rules by rigor level
+    // Filter rules by rigor level; filtered rules are reported as skipped, never as passed.
     const applicableRules = rules.filter((rule) => shouldRunRule(rule.minRigor, context.rigor));
+    const skippedRules: SkippedVerificationRule[] = rules
+      .filter((rule) => !shouldRunRule(rule.minRigor, context.rigor))
+      .map((rule) => ({
+        checkId: rule.checkId,
+        name: rule.name,
+        severity: rule.severity,
+        minRigor: rule.minRigor,
+      }));
 
     // Execute each applicable rule
     for (const rule of applicableRules) {
       try {
-        const check = await rule.check(stageResult.artifacts, context.projectDir);
+        const check = await rule.check(stageResult.artifacts, context.projectDir, {
+          stageName,
+          agentType: stageResult.agentType,
+          pipelineMode: context.pipelineMode,
+        });
         checks.push(check);
 
         if (!check.passed) {
@@ -137,18 +167,10 @@ export class StageVerifierAgent implements IAgent {
     // Determine overall pass/fail:
     // Passed if no error-severity checks failed
     const hasErrorFailures = checks.some((c) => !c.passed && c.severity === 'error');
-    const passed = !hasErrorFailures;
-
-    return {
-      stageName,
-      passed,
-      rigor: context.rigor,
-      checks,
-      warnings,
-      errors,
-      timestamp: new Date().toISOString(),
-      durationMs: Date.now() - startTime,
-    };
+    return finish(!hasErrorFailures, {
+      checkSet: disposition.checkSet,
+      ...(skippedRules.length > 0 ? { skippedRules } : {}),
+    });
   }
 
   /**
