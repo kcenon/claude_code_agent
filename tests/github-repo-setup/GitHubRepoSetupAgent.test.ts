@@ -606,6 +606,37 @@ describe('GitHubRepoSetupAgent', () => {
           expect.objectContaining({ code: 'EISDIR' })
         );
       });
+
+      it('should keep a README directory without an existence check', () => {
+        fs.mkdirSync(path.join(repoDir, 'README.md'));
+
+        expect(() => generator.generateReadme(repoDir, 'demo', 'A demo project')).not.toThrow();
+        expect(fs.statSync(path.join(repoDir, 'README.md')).isDirectory()).toBe(true);
+      });
+
+      // Creating a symbolic link needs privileges on Windows
+      it.skipIf(process.platform === 'win32')(
+        'should not write through a dangling README symlink',
+        () => {
+          const outside = path.join(tempDir, 'outside.md');
+          fs.symlinkSync(outside, path.join(repoDir, 'README.md'));
+
+          generator.generateReadme(repoDir, 'demo', 'A demo project');
+
+          expect(fs.existsSync(outside)).toBe(false);
+        }
+      );
+
+      it('should rethrow errors other than an existing file', () => {
+        const missingDir = path.join(repoDir, 'missing');
+
+        expect(() => generator.generateReadme(missingDir, 'demo', 'x')).toThrow(
+          expect.objectContaining({ code: 'ENOENT' })
+        );
+        expect(() => generator.generateGitignore(missingDir, 'Go')).toThrow(
+          expect.objectContaining({ code: 'ENOENT' })
+        );
+      });
     });
   });
 
