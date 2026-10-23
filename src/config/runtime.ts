@@ -35,6 +35,8 @@ import {
   type RuntimeDiagnostic,
   type RuntimeValueSource,
 } from './runtimeTypes.js';
+import { resolveVerificationProfile } from '../vnv/policy.js';
+import type { VerificationProfile } from '../vnv/types.js';
 
 /** Commander option keys mapped explicitly to workflow properties. No option defaults here. */
 export const RUNTIME_CLI_MAPPING = {
@@ -48,6 +50,7 @@ export const RUNTIME_CLI_MAPPING = {
   retryMaxDelaySeconds: 'global.retry_policy.max_delay_seconds',
   stageTimeoutMs: 'execution.stage_timeout_ms',
   vnvRigor: 'global.vnv.rigor',
+  vnvProfile: 'global.vnv.profile',
   haltOnVerificationFailure: 'global.vnv.halt_on_verification_failure',
 } as const;
 
@@ -82,6 +85,56 @@ function setValue(target: Record<string, unknown>, path: string, value: unknown)
     current = current[key] as Record<string, unknown>;
   }
   if (last !== undefined) current[last] = value;
+}
+
+/** Reads one runtime property across layers, recording its winning source. */
+type RuntimeRead = <T>(path: string, fallback: T) => T;
+
+/**
+ * Resolve V&V policy. An explicit `global.vnv.profile` wins; without one the
+ * profile keeps the pre-profile behavior (strict + halt blocks, anything else
+ * is advisory) and records the halt flag as its source when it selects
+ * `delivery`. A halt flag that disagrees with an explicit profile is ignored
+ * with a warning.
+ * @param read - Layer reader
+ * @param sources - Winning sources, extended with `global.vnv.profile`
+ * @param diagnostics - Findings, extended with conflict warnings
+ * @returns Resolved V&V policy
+ */
+function resolveVnv(
+  read: RuntimeRead,
+  sources: Record<string, RuntimeValueSource>,
+  diagnostics: RuntimeDiagnostic[]
+): ResolvedRuntimeConfig['vnv'] {
+  const defaults = DEFAULT_ORCHESTRATOR_CONFIG.vnv;
+  const rigor = read('global.vnv.rigor', defaults.rigor);
+  const haltPath = 'global.vnv.halt_on_verification_failure';
+  const haltOnVerificationFailure = read(haltPath, defaults.haltOnVerificationFailure);
+  const explicit = read<VerificationProfile | undefined>('global.vnv.profile', undefined);
+  const profile = resolveVerificationProfile({
+    rigor,
+    haltOnVerificationFailure,
+    ...(explicit !== undefined ? { profile: explicit } : {}),
+  });
+  const haltSource = sources[haltPath];
+  if (explicit === undefined && profile === 'delivery' && haltSource !== undefined)
+    sources['global.vnv.profile'] = haltSource;
+  if (
+    explicit !== undefined &&
+    haltSource !== undefined &&
+    haltSource.source !== 'default' &&
+    haltOnVerificationFailure !== (explicit === 'delivery')
+  )
+    diagnostics.push({
+      severity: 'warning',
+      code: 'conflict',
+      source: haltSource.source,
+      path: haltPath,
+      reason: `global.vnv.profile is ${explicit}, so halt_on_verification_failure: ${String(haltOnVerificationFailure)} has no effect.`,
+      action:
+        'Remove halt_on_verification_failure; it only selects a profile when global.vnv.profile is absent.',
+    });
+  return { rigor, haltOnVerificationFailure, profile };
 }
 
 /** Pure resolution inputs; only explicitly supplied CLI values participate. */
@@ -206,13 +259,7 @@ export function resolveRuntimeConfig(options: ResolveRuntimeOptions = {}): Effec
       backoffStrategy: read('global.retry_policy.backoff', defaults.retryBackoff.backoffStrategy),
     },
     timeouts: { default: defaultBudget, overrides: budgets },
-    vnv: {
-      rigor: read('global.vnv.rigor', defaults.vnv.rigor),
-      haltOnVerificationFailure: read(
-        'global.vnv.halt_on_verification_failure',
-        defaults.vnv.haltOnVerificationFailure
-      ),
-    },
+    vnv: resolveVnv(read, sources, diagnostics),
   };
   const stages = buildCanonicalPlan(mode, localMode).map((stage) => ({
     ...stage,

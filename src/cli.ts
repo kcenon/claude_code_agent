@@ -50,8 +50,7 @@ import { resolve } from 'node:path';
 import { getCompletionGenerator, SUPPORTED_SHELLS, type ShellType } from './completion/index.js';
 import { getTelemetry, PRIVACY_POLICY, PRIVACY_POLICY_VERSION } from './telemetry/index.js';
 import { getCLIOutput } from './cli/CLIOutput.js';
-import { configureRunCommand, prepareRunCommand } from './cli/runCommand.js';
-import { RuntimeConfigError, type EffectiveExecutionPlan } from './config/runtimeTypes.js';
+import { configureRunCommand, executeRunCommand } from './cli/runCommand.js';
 
 const output = getCLIOutput();
 const program = new Command();
@@ -1052,89 +1051,24 @@ program
 /** Run and dry-run share the same validated, side-effect-free preparation boundary. */
 configureRunCommand(program.command('run')).action(
   async (requirements: string, options: Record<string, unknown>) => {
-    const json = options['format'] === 'json';
-    let runtimeSnapshot: EffectiveExecutionPlan | undefined;
     // The CLI owns this process: SDK/library console diagnostics belong on stderr in JSON mode.
     const diagnosticConsole = globalThis.console;
-    if (json) globalThis.console = new Console({ stdout: process.stderr, stderr: process.stderr });
+    if (options['format'] === 'json')
+      globalThis.console = new Console({ stdout: process.stderr, stderr: process.stderr });
     try {
-      const prepared = await prepareRunCommand(requirements, options);
-      runtimeSnapshot = prepared.plan;
-      if (options['dryRun'] === true) {
-        if (json) output.info(JSON.stringify({ ready: true, ...prepared.plan }, null, 2));
-        else {
-          output.info(
-            `Mode: ${prepared.plan.config.mode}; local: ${String(prepared.plan.config.localMode)}`
-          );
-          output.info(
-            `Stage concurrency: ${String(prepared.plan.config.maxParallelAgents)}; total attempts: ${String(prepared.plan.config.maxRetries + 1)}`
-          );
-          for (const stage of prepared.plan.stages)
-            output.info(
-              `  ${stage.name}: ${stage.agentType}, depends on [${stage.dependsOn.join(', ')}], budget ${String(stage.timeoutMs)} ms`
-            );
-          if (prepared.plan.stopAfterStage !== undefined)
-            output.info(
-              `Stop after: ${prepared.plan.stopAfterStage}. ${prepared.plan.stopBehavior}`
-            );
-          for (const diagnostic of prepared.plan.diagnostics)
-            output.warn(
-              `${diagnostic.source}: ${diagnostic.path}: ${diagnostic.reason} ${diagnostic.action}`
-            );
-          output.info('Configuration valid. Pipeline is ready to execute.');
-        }
-        return;
-      }
-      for (const diagnostic of prepared.plan.diagnostics)
-        output.warn(
-          `${diagnostic.source}: ${diagnostic.path}: ${diagnostic.reason} ${diagnostic.action}`
-        );
-      if (!hasRealExecutionEnvironment() && options['allowStub'] !== true)
-        throw new Error(
-          'No AI bridge available. Set ANTHROPIC_API_KEY or run inside a Claude Code session. Use --allow-stub for offline testing.'
-        );
-      const agent = prepared.createAgent();
-      const cancel = (): void => {
-        // Final disposal below awaits and reports the same cleanup outcome.
-        void agent.dispose().catch(() => undefined);
-      };
-      process.once('SIGINT', cancel);
-      process.once('SIGTERM', cancel);
-      let result: Awaited<ReturnType<typeof prepared.execute>>;
-      try {
-        result = await prepared.execute(agent);
-      } finally {
-        process.removeListener('SIGINT', cancel);
-        process.removeListener('SIGTERM', cancel);
-        await agent.dispose();
-      }
-      // Emit one terminal JSON object only after all cleanup has completed.
-      if (json) output.info(JSON.stringify(result, null, 2));
-      else {
-        output.info(`Pipeline ${result.pipelineId}: ${result.overallStatus} (${result.mode})`);
-        for (const stage of result.stages)
-          output.info(
-            `  ${stage.name}: ${stage.status} (${String(stage.durationMs)} ms)${stage.error === null ? '' : ` — ${stage.error}`}`
-          );
-      }
-      if (result.overallStatus === 'failed') process.exitCode = 1;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      if (json)
-        output.info(
-          JSON.stringify(
-            {
-              ready: false,
-              error: message,
-              diagnostics: error instanceof RuntimeConfigError ? error.diagnostics : [],
-              ...(runtimeSnapshot === undefined ? {} : { runtimeSnapshot }),
-            },
-            null,
-            2
-          )
-        );
-      else output.error(message);
-      process.exitCode = 1;
+      const status = await executeRunCommand(requirements, options, {
+        output,
+        hasExecutionEnvironment: hasRealExecutionEnvironment,
+        onCancel: (cancel): (() => void) => {
+          process.once('SIGINT', cancel);
+          process.once('SIGTERM', cancel);
+          return (): void => {
+            process.removeListener('SIGINT', cancel);
+            process.removeListener('SIGTERM', cancel);
+          };
+        },
+      });
+      if (status !== 0) process.exitCode = status;
     } finally {
       globalThis.console = diagnosticConsole;
     }
