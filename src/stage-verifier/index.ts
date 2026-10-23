@@ -15,6 +15,8 @@ export type {
   ConsistencyViolation,
   ConsistencyCheckResult,
   VerificationRule,
+  VerificationRuleContext,
+  SkippedVerificationRule,
 } from './types.js';
 
 // Schemas
@@ -39,7 +41,29 @@ export {
 export { StageVerificationError } from './errors.js';
 
 // Rules
-export { VERIFICATION_RULES, shouldRunRule } from './rules.js';
+export {
+  VERIFICATION_RULES,
+  VERIFICATION_CHECK_SETS,
+  shouldRunRule,
+  type VerificationCheckSetId,
+} from './rules.js';
+
+// Applicability inventory
+export {
+  VERIFICATION_APPLICABILITY,
+  CANONICAL_STAGE_GRAPHS,
+  verificationDisposition,
+  verificationCheckSet,
+  checkVerificationInventory,
+  verificationCoverage,
+  renderVerificationCoverageBlock,
+  type StageVerificationDisposition,
+  type CheckSetDisposition,
+  type NotApplicableDisposition,
+  type VerificationApplicabilityTable,
+  type VerificationInventoryViolation,
+  type VerificationCoverage,
+} from './applicability.js';
 
 // Agent
 export { StageVerifierAgent, STAGE_VERIFIER_AGENT_ID } from './StageVerifierAgent.js';
