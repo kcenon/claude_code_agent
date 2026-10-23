@@ -9,13 +9,14 @@ migration guide, and the worker pilot evaluation report.
 
 ### Overview and design
 
-| File                                               | Purpose                                                                |
-| -------------------------------------------------- | ---------------------------------------------------------------------- |
-| [`overview.md`](overview.md)                       | High-level system goals, capabilities, and component responsibilities. |
-| [`agent-communication.md`](agent-communication.md) | Inter-agent messaging contracts and lifecycle.                         |
-| [`data-flow.md`](data-flow.md)                     | End-to-end data flow across pipeline stages.                           |
-| [`dual-layer-design.md`](dual-layer-design.md)     | Current SDK execution and declarative agent-definition boundaries.     |
-| [`runtime-inventory.md`](runtime-inventory.md)     | Source-checked agent, stage, cutover, and traceability counts.         |
+| File                                                   | Purpose                                                                |
+| ------------------------------------------------------ | ---------------------------------------------------------------------- |
+| [`overview.md`](overview.md)                           | High-level system goals, capabilities, and component responsibilities. |
+| [`agent-communication.md`](agent-communication.md)     | Inter-agent messaging contracts and lifecycle.                         |
+| [`data-flow.md`](data-flow.md)                         | End-to-end data flow across pipeline stages.                           |
+| [`dual-layer-design.md`](dual-layer-design.md)         | Current SDK execution and declarative agent-definition boundaries.     |
+| [`runtime-inventory.md`](runtime-inventory.md)         | Source-checked agent, stage, cutover, and traceability counts.         |
+| [`verification-coverage.md`](verification-coverage.md) | Generated verification disposition of every stage slot, by mode.       |
 
 ### v0.1 Hybrid Pipeline (Phase 2)
 
