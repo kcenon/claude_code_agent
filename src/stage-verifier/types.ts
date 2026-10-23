@@ -7,7 +7,7 @@
  * @module stage-verifier/types
  */
 
-import type { StageName } from '../ad-sdlc-orchestrator/types.js';
+import type { PipelineMode, StageName } from '../ad-sdlc-orchestrator/types.js';
 import type { VnvRigor, VerificationCategory, CheckSeverity } from '../vnv/types.js';
 
 /**
@@ -23,7 +23,7 @@ export interface VerificationCheck {
   readonly name: string;
   /** Verification category */
   readonly category: VerificationCategory;
-  /** Whether the check passed */
+  /** Whether the check passed (true for skipped checks; see `skipReason`) */
   readonly passed: boolean;
   /** Check severity determining failure handling */
   readonly severity: CheckSeverity;
@@ -31,6 +31,34 @@ export interface VerificationCheck {
   readonly message: string;
   /** Additional structured details about the check result */
   readonly details?: Record<string, unknown>;
+  /**
+   * Set when the rule could not evaluate its condition (for example, the
+   * artifact does not report the field it inspects). Such a check is
+   * reported as `skipped`, never as a verified pass.
+   */
+  readonly skipReason?: string;
+}
+
+/**
+ * A rule in the stage's check set that did not run because the effective
+ * rigor is below the rule's minimum.
+ */
+export interface SkippedVerificationRule {
+  readonly checkId: string;
+  readonly name: string;
+  readonly severity: CheckSeverity;
+  /** Minimum rigor the rule requires */
+  readonly minRigor: VnvRigor;
+}
+
+/**
+ * Stage identity passed to rules that depend on the producing agent
+ * (for example, a local review report versus a GitHub pull request review).
+ */
+export interface VerificationRuleContext {
+  readonly stageName: StageName;
+  readonly agentType: string;
+  readonly pipelineMode: PipelineMode;
 }
 
 /**
@@ -56,6 +84,12 @@ export interface StageVerificationResult {
   readonly timestamp: string;
   /** Duration of verification in milliseconds */
   readonly durationMs: number;
+  /** Named check set applied to the stage (from the applicability inventory) */
+  readonly checkSet?: string;
+  /** Present when the stage's disposition is `not_applicable` */
+  readonly notApplicableReason?: string;
+  /** Rules of the check set filtered out by the rigor level */
+  readonly skippedRules?: readonly SkippedVerificationRule[];
 }
 
 /**
@@ -112,9 +146,14 @@ export interface VerificationRule {
   /**
    * Execute the verification check against stage artifacts.
    *
-   * @param artifacts - File paths from the stage result
+   * @param artifacts - File paths from the stage result (project-relative manifest locations)
    * @param projectDir - Absolute path to the project root
+   * @param context - Producing stage identity, when the caller knows it
    * @returns Verification check result
    */
-  check(artifacts: readonly string[], projectDir: string): Promise<VerificationCheck>;
+  check(
+    artifacts: readonly string[],
+    projectDir: string,
+    context?: VerificationRuleContext
+  ): Promise<VerificationCheck>;
 }
