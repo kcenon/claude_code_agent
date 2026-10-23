@@ -527,6 +527,86 @@ describe('GitHubRepoSetupAgent', () => {
       const content = fs.readFileSync(path.join(repoDir, '.gitignore'), 'utf-8');
       expect(content).toContain('node_modules/');
     });
+
+    describe('generated files', () => {
+      type FileGenerator = {
+        generateReadme(repoDir: string, projectName: string, description: string): void;
+        generateGitignore(repoDir: string, language: string): void;
+      };
+      const ADSDLC_ENTRIES = '\n# AD-SDLC\n.ad-sdlc/scratchpad/\n.ad-sdlc/logs/\n';
+      let repoDir: string;
+      let generator: FileGenerator;
+
+      beforeEach(() => {
+        repoDir = path.join(tempDir, 'generated');
+        fs.mkdirSync(repoDir, { recursive: true });
+        generator = agent as unknown as FileGenerator;
+      });
+
+      const read = (name: string): string => fs.readFileSync(path.join(repoDir, name), 'utf-8');
+
+      it('should write a README when none exists', () => {
+        generator.generateReadme(repoDir, 'demo', 'A demo project');
+
+        expect(read('README.md')).toBe(
+          [
+            '# demo',
+            '',
+            'A demo project',
+            '',
+            '## Getting Started',
+            '',
+            'This project was initialized with [AD-SDLC](https://github.com/kcenon/claude_code_agent).',
+            '',
+            '## License',
+            '',
+            'See [LICENSE](LICENSE) for details.',
+            '',
+          ].join('\n')
+        );
+      });
+
+      it('should keep an existing README', () => {
+        fs.writeFileSync(path.join(repoDir, 'README.md'), '# Existing');
+
+        generator.generateReadme(repoDir, 'demo', 'A demo project');
+
+        expect(read('README.md')).toBe('# Existing');
+      });
+
+      it('should write the language template when no .gitignore exists', () => {
+        generator.generateGitignore(repoDir, 'Go');
+
+        const content = read('.gitignore');
+        expect(content.startsWith('# Dependencies\nnode_modules/\n')).toBe(true);
+        expect(content.endsWith('.ad-sdlc/logs/\n\n# Go\nvendor/\n')).toBe(true);
+      });
+
+      it('should append the AD-SDLC entries to an existing .gitignore once', () => {
+        fs.writeFileSync(path.join(repoDir, '.gitignore'), 'node_modules/\n');
+
+        generator.generateGitignore(repoDir, 'TypeScript');
+        generator.generateGitignore(repoDir, 'TypeScript');
+
+        expect(read('.gitignore')).toBe('node_modules/\n' + ADSDLC_ENTRIES);
+      });
+
+      it('should append the AD-SDLC entries to an empty .gitignore', () => {
+        fs.writeFileSync(path.join(repoDir, '.gitignore'), '');
+
+        generator.generateGitignore(repoDir, 'TypeScript');
+
+        expect(read('.gitignore')).toBe(ADSDLC_ENTRIES);
+      });
+
+      it('should throw when .gitignore is a directory', () => {
+        fs.mkdirSync(path.join(repoDir, '.gitignore'));
+
+        expect(() => generator.generateGitignore(repoDir, 'TypeScript')).toThrow(
+          expect.objectContaining({ code: 'EISDIR' })
+        );
+      });
+    });
   });
 
   // ---------------------------------------------------------------------------
