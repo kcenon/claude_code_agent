@@ -5,8 +5,11 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     testTimeout: 30_000, // Increased for CI environments
+    // Every offline suite: unit, tests/integration, and tests/e2e (#954 keeps
+    // the integration and E2E lanes in npm test on purpose; see
+    // docs/guides/testing.md). The paid live lane (tests/live) is never here.
     include: ['tests/**/*.test.ts'],
-    exclude: ['tests/performance/**'],
+    exclude: ['tests/performance/**', 'tests/live/**'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],

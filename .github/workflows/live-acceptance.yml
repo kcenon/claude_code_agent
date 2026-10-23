@@ -1,0 +1,74 @@
+name: Live Acceptance
+
+# Paid, credentialed lane (#954). It drives the production `ad-sdlc run`
+# path (AdsdlcOrchestratorAgent + SdkExecutionAdapter) against the real
+# Claude Agent SDK. It runs only on an explicit manual dispatch: never on
+# pull_request (including forks), push, or schedule. Without the
+# ANTHROPIC_API_KEY secret the lane writes an explicit not-executed status and
+# fails, so missing credentials can never look like a passing live run.
+# Lanes, settings, and metadata: docs/guides/testing.md.
+
+on:
+  workflow_dispatch:
+    inputs:
+      max_turns:
+        description: 'Turn budget for the live stage (agent maxTurns, 1-30)'
+        required: true
+        default: 8
+        type: number
+      stage_timeout_ms:
+        description: 'Total time budget for the live stage in milliseconds (10000-1200000)'
+        required: true
+        default: 240000
+        type: number
+
+permissions:
+  contents: read
+
+concurrency:
+  group: live-acceptance
+  cancel-in-progress: false
+
+jobs:
+  live:
+    name: Live Acceptance
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Exit codes: 0 passed, 1 executed and failed, 2 not executed.
+      # The runner appends its summary to $GITHUB_STEP_SUMMARY.
+      - name: Run live acceptance lane
+        run: npm run test:live
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY || secrets.CLAUDE_API_KEY }}
+          AD_SDLC_LIVE_MAX_TURNS: ${{ inputs.max_turns }}
+          AD_SDLC_LIVE_STAGE_TIMEOUT_MS: ${{ inputs.stage_timeout_ms }}
+          AD_SDLC_LIVE_OUTPUT_DIR: test-output/live
+
+      - name: Report missing execution metadata
+        if: always() && hashFiles('test-output/live/live-lane.json') == ''
+        run: |
+          echo "## Live Acceptance: no execution metadata" >> "$GITHUB_STEP_SUMMARY"
+          echo "::error::The live lane exited before writing test-output/live/live-lane.json"
+          exit 1
+
+      - name: Upload execution metadata
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: live-acceptance-metadata
+          path: test-output/live/
+          if-no-files-found: warn
+          retention-days: 30
