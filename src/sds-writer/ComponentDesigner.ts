@@ -192,12 +192,14 @@ export class ComponentDesigner {
    * @returns PascalCase component name with an appropriate suffix
    */
   private generateComponentName(featureName: string): string {
-    // Remove common prefixes and clean up
+    // Remove common prefixes and clean up. (?<!\s) lets a suffix match start only
+    // at the beginning of a whitespace run, so the run is not rescanned from
+    // every position inside it.
     let name = featureName
       .replace(/^(Feature|Module|Component|System|Service)\s*:?\s*/i, '')
-      .replace(/\s+Management$/i, 'Manager')
-      .replace(/\s+Processing$/i, 'Processor')
-      .replace(/\s+Handling$/i, 'Handler')
+      .replace(/(?<!\s)\s+Management$/i, 'Manager')
+      .replace(/(?<!\s)\s+Processing$/i, 'Processor')
+      .replace(/(?<!\s)\s+Handling$/i, 'Handler')
       .trim();
 
     // Convert to PascalCase
