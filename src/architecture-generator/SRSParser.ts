@@ -189,7 +189,8 @@ export class SRSParser {
    * @returns Product name extracted from the main heading, or undefined if not found
    */
   private extractProductName(content: string): string | undefined {
-    const match = content.match(/^#\s+SRS:\s*(.+)$/m);
+    // `\s*(\S.*|[^\S\n\r\u2028\u2029])$` is the unambiguous form of `\s*(.+)$`
+    const match = content.match(/^#\s+SRS:\s*(\S.*|[^\S\n\r\u2028\u2029])$/m);
     return match?.[1]?.trim();
   }
 

@@ -28,6 +28,7 @@ import {
   resetArchitectureGenerator,
 } from '../../src/architecture-generator/index.js';
 import type { ParsedSRS, ArchitectureAnalysis } from '../../src/architecture-generator/index.js';
+import { LONG_INPUT_LENGTH, LONG_INPUT_TIME_LIMIT_MS, timed } from '../helpers/longInput.js';
 
 // ============================================================
 // Test Data
@@ -280,6 +281,16 @@ describe('SRSParser', () => {
       ['# SRS:\n\nNext', 'Next'],
     ])('should extract the product name from %j', (content, expected) => {
       expect((parser as unknown as ParserInternals).extractProductName(content)).toBe(expected);
+    });
+
+    it('should read a title followed by long whitespace quickly (polynomial ReDoS regression)', () => {
+      const content = `#\tSRS:${'\t'.repeat(LONG_INPUT_LENGTH)}`;
+      const { result, elapsedMs } = timed(() =>
+        (parser as unknown as ParserInternals).extractProductName(content)
+      );
+
+      expect(result).toBe('');
+      expect(elapsedMs).toBeLessThan(LONG_INPUT_TIME_LIMIT_MS);
     });
   });
 
