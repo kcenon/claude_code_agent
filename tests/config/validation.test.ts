@@ -14,6 +14,8 @@ import {
   CONFIG_SCHEMA_VERSION,
   OpenTelemetryConfigSchema,
   ObservabilityConfigSchema,
+  TelemetryConfigSchema,
+  WorkflowConfigSchema,
 } from '../../src/config/index.js';
 
 describe('Config Validation', () => {
@@ -391,6 +393,26 @@ describe('Config Validation', () => {
       // Empty agents should be valid
       const result = assertAgentsConfig(config, 'agents.yaml');
       expect(result.agents).toEqual({});
+    });
+  });
+
+  describe('TelemetryConfigSchema', () => {
+    it('should apply the opt-in defaults to an empty config', () => {
+      expect(TelemetryConfigSchema.parse({})).toEqual({
+        enabled: false,
+        flush_interval_ms: 60000,
+        max_buffer_size: 100,
+        include_debug_events: false,
+      });
+    });
+
+    it('should reject out-of-range values', () => {
+      expect(TelemetryConfigSchema.safeParse({ flush_interval_ms: 999 }).success).toBe(false);
+      expect(TelemetryConfigSchema.safeParse({ max_buffer_size: 1001 }).success).toBe(false);
+    });
+
+    it('should be the schema of the workflow telemetry section', () => {
+      expect(WorkflowConfigSchema.shape.telemetry.unwrap()).toBe(TelemetryConfigSchema);
     });
   });
 
