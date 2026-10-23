@@ -11,6 +11,7 @@ import type { RetryPolicy } from '../error-handler/RetryExecutor.js';
 import type { SerializedError } from '../errors/types.js';
 import type { McpServerConfig } from '../execution/types.js';
 import type { StageVerificationResult } from '../stage-verifier/types.js';
+import type { PipelineVerificationSummary, StageVerificationRecord } from '../vnv/policy.js';
 import { DEFAULT_VNV_CONFIG, type VnvConfig } from '../vnv/types.js';
 
 /**
@@ -176,6 +177,12 @@ export interface StageResult {
   readonly retryCount: number;
   /** Warning messages (e.g., stub backend detection) */
   readonly warnings?: readonly string[];
+  /**
+   * Verification outcome recorded when the stage completed. Persisted in
+   * session and checkpoint state so a resumed run reports it for
+   * pre-completed stages instead of re-deriving it.
+   */
+  readonly verification?: StageVerificationRecord;
 }
 
 /**
@@ -204,6 +211,12 @@ export interface PipelineResult {
   readonly warnings: readonly string[];
   /** V&V stage verification results (one per verified stage) */
   readonly verificationResults?: readonly StageVerificationResult[];
+  /**
+   * Effective verification policy and per-stage verification states. Set by
+   * every orchestrator run; `overallStatus` describes stage execution, and
+   * `verification.status` says whether what ran was verified.
+   */
+  readonly verification?: PipelineVerificationSummary;
   /** V&V validation report (from validation stage) */
   readonly validationReport?: {
     readonly reportId: string;

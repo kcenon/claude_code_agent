@@ -6,6 +6,8 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
 import {
   createTestEnvironment,
   resetAllAgents,
@@ -237,7 +239,50 @@ describe('E2E Pipeline Integration', () => {
 
   describe('Production Orchestrator Path', () => {
     it('halts the production DAG when the real strict verifier rejects a stage', async () => {
-      const adapter = new MockExecutionAdapter();
+      // The issue reader and controller write real, valid outputs; the worker writes none.
+      const issueList = '.ad-sdlc/scratchpad/issues/e2e/issue_list.json';
+      const workOrder = '.ad-sdlc/scratchpad/progress/e2e/work_orders/WO-001.yaml';
+      const success = (path: string) => ({
+        status: 'success' as const,
+        artifacts: [{ path }],
+        sessionId: 'mock-session',
+        toolCallCount: 1,
+        tokenUsage: { input: 0, output: 0, cache: 0 },
+      });
+      const adapter = new MockExecutionAdapter({
+        handlers: [
+          {
+            match: (request) => request.agentType === 'issue-reader',
+            respond: async () => {
+              await mkdir(join(env.rootDir, dirname(issueList)), { recursive: true });
+              await writeFile(
+                join(env.rootDir, issueList),
+                JSON.stringify({
+                  issues: [
+                    {
+                      id: 'ISS-001',
+                      title: 'Add login',
+                      body: '## Acceptance Criteria\n- [ ] Valid credentials sign in',
+                    },
+                  ],
+                })
+              );
+              return success(issueList);
+            },
+          },
+          {
+            match: (request) => request.agentType === 'controller',
+            respond: async () => {
+              await mkdir(join(env.rootDir, dirname(workOrder)), { recursive: true });
+              await writeFile(
+                join(env.rootDir, workOrder),
+                'work_order:\n  id: WO-001\n  issue:\n    id: ISS-001\n'
+              );
+              return success(workOrder);
+            },
+          },
+        ],
+      });
 
       class StrictOrchestrator extends AdsdlcOrchestratorAgent {
         protected override createExecutionAdapter(_session: OrchestratorSession): ExecutionAdapter {
@@ -266,7 +311,21 @@ describe('E2E Pipeline Integration', () => {
       ]);
       expect(orchestrator.getStatus().stages).toEqual(
         expect.arrayContaining([
-          expect.objectContaining({ name: 'implementation', status: 'failed' }),
+          expect.objectContaining({
+            name: 'issue_reading',
+            status: 'completed',
+            verification: expect.objectContaining({ state: 'verified_pass' }),
+          }),
+          expect.objectContaining({
+            name: 'orchestration',
+            status: 'completed',
+            verification: expect.objectContaining({ state: 'verified_pass' }),
+          }),
+          expect.objectContaining({
+            name: 'implementation',
+            status: 'failed',
+            verification: expect.objectContaining({ state: 'failed' }),
+          }),
           expect.objectContaining({ name: 'validation-agent', status: 'skipped' }),
           expect.objectContaining({ name: 'review', status: 'skipped' }),
         ])
