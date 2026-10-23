@@ -185,15 +185,22 @@ export class SecureFileHandler {
    * @returns File content
    */
   public async readSecure(filePath: string): Promise<string> {
-    const stats = await fs.promises.stat(filePath);
+    // Check the permissions of the opened file and read from the same handle,
+    // so that the check and the content describe the same file
+    const handle = await fs.promises.open(filePath, 'r');
+    try {
+      const stats = await handle.stat();
 
-    // Check if file is readable by others (warning)
-    const mode = stats.mode & 0o777;
-    if ((mode & 0o044) !== 0) {
-      this.logger.warn('File is readable by others', { filePath, mode: mode.toString(8) });
+      // Check if file is readable by others (warning)
+      const mode = stats.mode & 0o777;
+      if ((mode & 0o044) !== 0) {
+        this.logger.warn('File is readable by others', { filePath, mode: mode.toString(8) });
+      }
+
+      return await handle.readFile('utf8');
+    } finally {
+      await handle.close();
     }
-
-    return fs.promises.readFile(filePath, 'utf8');
   }
 
   /**
