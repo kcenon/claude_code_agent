@@ -215,6 +215,56 @@ const DEFAULT_OPTIONS: Required<InformationExtractorOptions> = {
   maxQuestions: 5,
 };
 
+/** Keyword before a project description (e.g., "Description: ...") */
+const DESCRIPTION_LABEL = /(?:description|overview|about)/gi;
+/** Characters between {@link DESCRIPTION_LABEL} and the description */
+const DESCRIPTION_LABEL_SEPARATOR = /[:\s]/;
+/** Statement that introduces a project description (e.g., "The app will ...") */
+const PROJECT_STATEMENT =
+  /(?:this|the)\s+(?:project|system|app(?:lication)?)\s+(?:is|will|should)/gi;
+/** A single whitespace character */
+const WHITESPACE = /\s/;
+
+/**
+ * Find the first sentence that follows a prefix and a run of separators.
+ *
+ * Same result as `text.match(/<prefix><separator>+([^.]+\.)/i)?.[1]` for a
+ * separator class that excludes `.`. In that expression the separator run and
+ * the sentence could match the same characters, and every prefix occurrence
+ * rescanned the rest of the text when no period followed (polynomial ReDoS).
+ * @param text - Text to search
+ * @param prefix - Global, case-insensitive expression for the prefix
+ * @param separator - Expression that tests a single separator character
+ * @returns The sentence including its period, or undefined
+ */
+function matchSentenceAfter(text: string, prefix: RegExp, separator: RegExp): string | undefined {
+  prefix.lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = prefix.exec(text)) !== null) {
+    const separatorStart = match.index + match[0].length;
+    let sentenceStart = separatorStart;
+    while (sentenceStart < text.length && separator.test(text.charAt(sentenceStart))) {
+      sentenceStart++;
+    }
+    if (sentenceStart > separatorStart) {
+      if (sentenceStart === text.length) {
+        return undefined;
+      }
+      if (text.charAt(sentenceStart) !== '.') {
+        const period = text.indexOf('.', sentenceStart + 1);
+        // Without a period here, no later prefix is followed by one either
+        return period === -1 ? undefined : text.slice(sentenceStart, period + 1);
+      }
+      if (sentenceStart - separatorStart >= 2) {
+        // A period right after the separators: the sentence is the last separator
+        return text.slice(sentenceStart - 1, sentenceStart + 1);
+      }
+    }
+    prefix.lastIndex = match.index + 1;
+  }
+  return undefined;
+}
+
 /**
  * InformationExtractor class for analyzing and extracting structured information
  */
@@ -378,7 +428,6 @@ export class InformationExtractor {
     description?: string | undefined;
   } {
     let name: string | undefined;
-    let description: string | undefined;
 
     // Try to find project name
     const namePatterns = [
@@ -396,18 +445,10 @@ export class InformationExtractor {
     }
 
     // Try to find project description
-    const descPatterns = [
-      /(?:description|overview|about)[:\s]+([^.]+\.)/i,
-      /(?:this|the)\s+(?:project|system|app(?:lication)?)\s+(?:is|will|should)\s+([^.]+\.)/i,
-    ];
-
-    for (const pattern of descPatterns) {
-      const match = content.match(pattern);
-      if (match?.[1] !== undefined) {
-        description = match[1].trim();
-        break;
-      }
-    }
+    const description = (
+      matchSentenceAfter(content, DESCRIPTION_LABEL, DESCRIPTION_LABEL_SEPARATOR) ??
+      matchSentenceAfter(content, PROJECT_STATEMENT, WHITESPACE)
+    )?.trim();
 
     return { name, description };
   }
@@ -424,9 +465,11 @@ export class InformationExtractor {
    */
   private preprocessContent(content: string): string {
     // Match a label prefix followed by a semicolon-delimited list
-    // The label may appear after a sentence boundary or at the start of content
+    // The label may appear after a sentence boundary or at the start of content.
+    // The list is the text up to the next sentence end; it starts at the first
+    // character after the whitespace so the two cannot overlap.
     return content.replace(
-      /(?:^|(?<=[.!?]\s*))(?:features|requirements|capabilities|functions|commands|abilities)\s*:\s*([^.!?]*(?:;[^.!?]*)*)(?=[.!?]|$)/gi,
+      /(?:^|(?<=[.!?]\s*))(?:features|requirements|capabilities|functions|commands|abilities)\s*:\s*((?:[^\s.!?][^.!?]*)?)(?=[.!?]|$)/gi,
       (_match, list: string) => {
         // Split the captured list on semicolons and rejoin as separate sentences
         return list
@@ -889,7 +932,8 @@ export class InformationExtractor {
     const segments: string[] = [];
 
     // Split by bullet points
-    const bulletPattern = /^[\s]*[-*•]\s+(.+)$/gm;
+    // (`\s+(\S.*|[^\S\n\r\u2028\u2029])$` is the unambiguous form of `\s+(.+)$`)
+    const bulletPattern = /^[\s]*[-*•]\s+(\S.*|[^\S\n\r\u2028\u2029])$/gm;
     let match: RegExpExecArray | null;
     while ((match = bulletPattern.exec(content)) !== null) {
       if (match[1] !== undefined) {
@@ -898,7 +942,7 @@ export class InformationExtractor {
     }
 
     // Split by numbered lists
-    const numberedPattern = /^[\s]*\d+[.)]\s+(.+)$/gm;
+    const numberedPattern = /^[\s]*\d+[.)]\s+(\S.*|[^\S\n\r\u2028\u2029])$/gm;
     while ((match = numberedPattern.exec(content)) !== null) {
       if (match[1] !== undefined) {
         segments.push(match[1]);

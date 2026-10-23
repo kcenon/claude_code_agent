@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { InformationExtractor, InputParser } from '../../src/collector/index.js';
+import { LONG_INPUT_LENGTH, LONG_INPUT_TIME_LIMIT_MS, timed } from '../helpers/longInput.js';
 
 describe('InformationExtractor', () => {
   let extractor: InformationExtractor;
@@ -733,6 +734,50 @@ describe('InformationExtractor', () => {
       ['\n\n  - nested\n\t1) tab', ['nested', 'tab']],
     ])('should split %j into segments', (content, expected) => {
       expect(internals().splitIntoSegments(content)).toEqual(expected);
+    });
+
+    describe('long input (polynomial ReDoS regression)', () => {
+      const tabs = '\t'.repeat(LONG_INPUT_LENGTH);
+
+      it.each([
+        ['description label', `about\t${tabs}`],
+        ['project statement', `the\tapp\tis\t${tabs}`],
+        ['repeated label', 'about x '.repeat(LONG_INPUT_LENGTH / 4)],
+      ])('should give up on a %s without a period quickly', (_kind, content) => {
+        const { result, elapsedMs } = timed(() => internals().extractProjectInfo(content));
+
+        expect(result.description).toBeUndefined();
+        expect(elapsedMs).toBeLessThan(LONG_INPUT_TIME_LIMIT_MS);
+      });
+
+      it('should find a description after long separators quickly', () => {
+        const { result, elapsedMs } = timed(() =>
+          internals().extractProjectInfo(`about:${tabs}Notes app. More.`)
+        );
+
+        expect(result.description).toBe('Notes app.');
+        expect(elapsedMs).toBeLessThan(LONG_INPUT_TIME_LIMIT_MS);
+      });
+
+      it.each([
+        ['whitespace', `features:${tabs}x`, 'x'],
+        ['semicolons', `features:${';'.repeat(LONG_INPUT_LENGTH)}`, ''],
+      ])('should expand a label list with long %s quickly', (_kind, content, expected) => {
+        const { result, elapsedMs } = timed(() => internals().preprocessContent(content));
+
+        expect(result).toBe(expected);
+        expect(elapsedMs).toBeLessThan(LONG_INPUT_TIME_LIMIT_MS);
+      });
+
+      it.each([
+        ['bullet', `*\t${tabs}x`],
+        ['numbered', `0)\t${tabs}x`],
+      ])('should split a %s item with long whitespace quickly', (_kind, content) => {
+        const { result, elapsedMs } = timed(() => internals().splitIntoSegments(content));
+
+        expect(result).toEqual(['x']);
+        expect(elapsedMs).toBeLessThan(LONG_INPUT_TIME_LIMIT_MS);
+      });
     });
   });
 });
