@@ -436,6 +436,8 @@ interface ResultFlag {
   readonly minRigor: VerificationRule['minRigor'];
   /** Word used in messages: tests, build, lint */
   readonly noun: string;
+  /** Word used before "status": test, build, lint */
+  readonly statusNoun: string;
   /** Legacy camelCase field name, also used in messages */
   readonly field: string;
   readonly paths: readonly string[];
@@ -457,7 +459,7 @@ function resultFlagRule(flag: ResultFlag): VerificationRule {
     async check(artifacts, projectDir): Promise<VerificationCheck> {
       const results = findArtifacts(artifacts, IMPLEMENTATION_RESULTS);
       if (results.length === 0)
-        return failCheck(this, `No implementation result to check ${flag.noun} status`);
+        return failCheck(this, `No implementation result to check ${flag.statusNoun} status`);
       const documents = await loadDocuments(results, projectDir);
       const unreadable = documents.find((document) => !document.readable);
       if (unreadable !== undefined)
@@ -479,7 +481,7 @@ function resultFlagRule(flag: ResultFlag): VerificationRule {
         return skipCheck(
           this,
           `No ${flag.field} field found; skipping check`,
-          `implementation result does not report ${flag.noun} status`,
+          `implementation result does not report ${flag.statusNoun} status`,
           { note: 'Field may not be present in all result formats' }
         );
       return passCheck(this, `Implementation ${flag.noun} passed`);
@@ -535,6 +537,7 @@ export const implementationRules: readonly VerificationRule[] = [
     severity: 'error',
     minRigor: 'standard',
     noun: 'tests',
+    statusNoun: 'test',
     field: 'testsPassed',
     paths: ['testsPassed', 'tests_passed', 'verification.tests_passed', 'verification.testsPassed'],
   }),
@@ -544,6 +547,7 @@ export const implementationRules: readonly VerificationRule[] = [
     severity: 'error',
     minRigor: 'standard',
     noun: 'build',
+    statusNoun: 'build',
     field: 'buildPassed',
     paths: ['buildPassed', 'build_passed', 'verification.build_passed', 'verification.buildPassed'],
   }),
@@ -553,6 +557,7 @@ export const implementationRules: readonly VerificationRule[] = [
     severity: 'warning',
     minRigor: 'strict',
     noun: 'lint',
+    statusNoun: 'lint',
     field: 'lintPassed',
     paths: ['lintPassed', 'lint_passed', 'verification.lint_passed', 'verification.lintPassed'],
   }),
