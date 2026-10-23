@@ -21,6 +21,7 @@ import {
   LIVE_EXIT,
   LIVE_FILES,
   decideLaneStatus,
+  escapeTableCell,
   resolveLiveSettings,
   runLiveLane,
   summarizeVitestReport,
@@ -141,6 +142,15 @@ describe('live lane outcome', () => {
     expect(decideLaneStatus(0, counts(1, 0, 1)).status).toBe('failed');
     expect(decideLaneStatus(1, counts(0, 1)).status).toBe('failed');
     expect(decideLaneStatus(null, counts(1)).status).toBe('failed');
+  });
+});
+
+describe('live lane summary', () => {
+  it('escapes backslashes before pipes in table cells', () => {
+    expect(escapeTableCell('a|b')).toBe('a\\|b');
+    expect(escapeTableCell('C:\\out')).toBe('C:\\\\out');
+    // An input backslash before a pipe must not swallow the added escape.
+    expect(escapeTableCell('a\\|b')).toBe('a\\\\\\|b');
   });
 });
 
