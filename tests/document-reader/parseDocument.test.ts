@@ -63,8 +63,12 @@ describe('DocumentReaderAgent.parseDocument', () => {
   it('should throw the read error for a directory', async () => {
     const directory = path.join(dir, 'folder.md');
     fs.mkdirSync(directory);
+    // The default size limit: a directory reports 4096 bytes on ext4
+    const unlimited = new DocumentReaderAgent() as unknown as DocumentParser;
 
-    await expect(agent.parseDocument(directory, 'prd')).rejects.toMatchObject({ code: 'EISDIR' });
+    await expect(unlimited.parseDocument(directory, 'prd')).rejects.toMatchObject({
+      code: 'EISDIR',
+    });
   });
 
   it.skipIf(cannotRemovePermissions)(

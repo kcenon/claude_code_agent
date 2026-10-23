@@ -24,8 +24,11 @@ describe('InputParser file reading', () => {
   });
 
   const readers = [
-    ['parseFileContent', (file: string) => parser.parseFileContent(file)],
-    ['parseFileSync', async (file: string) => Promise.resolve(parser.parseFileSync(file))],
+    ['parseFileContent', (file: string, using = parser) => using.parseFileContent(file)],
+    [
+      'parseFileSync',
+      async (file: string, using = parser) => Promise.resolve(using.parseFileSync(file)),
+    ],
   ] as const;
 
   describe.each(readers)('%s', (_name, read) => {
@@ -88,15 +91,22 @@ describe('InputParser file reading', () => {
       const directory = path.join(dir, 'folder.md');
       fs.mkdirSync(directory);
 
-      await expect(read(directory)).rejects.toMatchObject({ code: 'EISDIR' });
+      // The default size limit: a directory reports 4096 bytes on ext4
+      await expect(read(directory, new InputParser())).rejects.toMatchObject({ code: 'EISDIR' });
     });
 
-    it('should throw for a path below a regular file', async () => {
-      const file = path.join(dir, 'plain.txt');
-      fs.writeFileSync(file, 'x');
+    // Windows reports a path below a regular file as missing (ENOENT), not ENOTDIR
+    it.skipIf(process.platform === 'win32')(
+      'should throw for a path below a regular file',
+      async () => {
+        const file = path.join(dir, 'plain.txt');
+        fs.writeFileSync(file, 'x');
 
-      await expect(read(path.join(file, 'child.md'))).rejects.toMatchObject({ code: 'ENOTDIR' });
-    });
+        await expect(read(path.join(file, 'child.md'))).rejects.toMatchObject({
+          code: 'ENOTDIR',
+        });
+      }
+    );
   });
 
   describe('binary files', () => {
