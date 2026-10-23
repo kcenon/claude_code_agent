@@ -4,11 +4,11 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { mkdtemp, mkdir, realpath, rm, symlink, writeFile } from 'node:fs/promises';
+import { lstat, mkdtemp, mkdir, realpath, rename, rm, symlink, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { inspectArtifact } from '../../src/execution/artifacts/paths.js';
+import { hashCheckedFile, inspectArtifact } from '../../src/execution/artifacts/paths.js';
 import type { ArtifactDeclaration } from '../../src/execution/artifacts/schemas.js';
 
 const sha256 = (text: string): string => createHash('sha256').update(text).digest('hex');
@@ -113,5 +113,67 @@ describe('inspectArtifact', () => {
     } finally {
       await rm(outside, { recursive: true, force: true });
     }
+  });
+});
+
+describe('hashCheckedFile', () => {
+  // The lstat result that inspectArtifact checked, then a change of the file
+  // before it is hashed (the window between the check and the read).
+  const target = (): string => join(projectDir, 'out.txt');
+
+  it('should hash the checked file', async () => {
+    await writeFile(target(), 'checked bytes');
+    const checked = await lstat(target());
+
+    expect(await hashCheckedFile(target(), checked, 'out.txt')).toBe(sha256('checked bytes'));
+  });
+
+  it('should reject a file that replaced the checked one', async () => {
+    await writeFile(target(), 'checked bytes');
+    const checked = await lstat(target());
+    await writeFile(join(projectDir, 'other.txt'), 'replacement');
+    await rename(join(projectDir, 'other.txt'), target());
+
+    await expect(hashCheckedFile(target(), checked, 'out.txt')).rejects.toThrow(
+      'Artifact changed while it was inspected: out.txt'
+    );
+  });
+
+  it.skipIf(!canSymlink)('should not follow a symlink that replaced the checked file', async () => {
+    const outside = await realpath(await mkdtemp(join(tmpdir(), 'artifact-swap-')));
+    try {
+      await writeFile(join(outside, 'secret.txt'), 'outside bytes');
+      await writeFile(target(), 'checked bytes');
+      const checked = await lstat(target());
+      await rm(target());
+      await symlink(join(outside, 'secret.txt'), target());
+
+      await expect(hashCheckedFile(target(), checked, 'out.txt')).rejects.toThrow(
+        'Artifact itself must not be a symlink: out.txt'
+      );
+    } finally {
+      await rm(outside, { recursive: true, force: true });
+    }
+  });
+
+  it('should reject a file that was removed after the check', async () => {
+    await writeFile(target(), 'checked bytes');
+    const checked = await lstat(target());
+    await rm(target());
+
+    await expect(hashCheckedFile(target(), checked, 'out.txt')).rejects.toMatchObject({
+      code: 'ENOENT',
+    });
+  });
+
+  it('should reject a directory that replaced the checked file', async () => {
+    await writeFile(target(), 'checked bytes');
+    const checked = await lstat(target());
+    await rm(target());
+    await mkdir(target());
+
+    await expect(hashCheckedFile(target(), checked, 'out.txt')).rejects.toThrow(
+      'Artifact changed while it was inspected: out.txt'
+    );
   });
 });

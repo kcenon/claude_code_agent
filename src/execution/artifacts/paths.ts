@@ -1,12 +1,52 @@
 /** Portable project-relative locations and explicit external-reference validation. */
 import * as path from 'node:path';
+import type { Stats } from 'node:fs';
 import * as fs from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { artifactError, type ArtifactDeclaration, type ArtifactEntry } from './schemas.js';
 
+/** Read-only without following a final symlink (Windows has no O_NOFOLLOW; it adds no bit there). */
+const READ_NO_FOLLOW = fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW;
+
 function inside(root: string, target: string): boolean {
   const relative = path.relative(root, target);
   return relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative);
+}
+
+/**
+ * Hash the regular file that an earlier lstat checked. The file is opened without following a
+ * final symlink and must be the checked file (same device and inode), so a file or symlink
+ * swapped in after the check is rejected instead of read.
+ * @param target - Absolute filesystem location of the artifact.
+ * @param checked - lstat result for `target` that passed the artifact checks.
+ * @param location - Normalized location for error messages.
+ * @returns SHA-256 digest of the file bytes.
+ */
+export async function hashCheckedFile(
+  target: string,
+  checked: Stats,
+  location: string
+): Promise<string> {
+  let handle: fs.FileHandle;
+  try {
+    handle = await fs.open(target, READ_NO_FOLLOW);
+  } catch (error) {
+    // Linux and macOS report ELOOP for a symlink opened with O_NOFOLLOW, FreeBSD EMLINK
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === 'ELOOP' || code === 'EMLINK')
+      throw artifactError(`Artifact itself must not be a symlink: ${location}`);
+    throw error;
+  }
+  try {
+    const opened = await handle.stat();
+    if (!opened.isFile() || opened.dev !== checked.dev || opened.ino !== checked.ino)
+      throw artifactError(`Artifact changed while it was inspected: ${location}`);
+    return createHash('sha256')
+      .update(await handle.readFile())
+      .digest('hex');
+  } finally {
+    await handle.close();
+  }
 }
 
 /**
@@ -121,9 +161,7 @@ export async function inspectArtifact(
   if (declaration.kind === 'directory' ? !stat.isDirectory() : !stat.isFile())
     throw artifactError(`Expected ${declaration.kind} artifact: ${normalized}`);
   if (stat.isDirectory()) return { path: normalized, availability: 'present' };
-  const checksum = createHash('sha256')
-    .update(await fs.readFile(target))
-    .digest('hex');
+  const checksum = await hashCheckedFile(target, stat, normalized);
   if (declaration.checksum !== undefined && declaration.checksum !== checksum)
     throw artifactError(`SHA-256 mismatch for artifact: ${normalized}`);
   return { path: normalized, availability: 'present', checksum };
