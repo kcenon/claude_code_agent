@@ -10,6 +10,7 @@ import {
   CommandNotAllowedError,
   WhitelistUpdateError,
 } from '../../src/security/index.js';
+import { LONG_INPUT_LENGTH, LONG_INPUT_TIME_LIMIT_MS, timed } from '../helpers/longInput.js';
 
 describe('CommandSanitizer', () => {
   let sanitizer: CommandSanitizer;
@@ -183,6 +184,39 @@ describe('CommandSanitizer', () => {
       ['npm test', true],
     ])('should validate %j as %s', (commandString, valid) => {
       expect(sanitizer.validateConfigCommand(commandString).valid).toBe(valid);
+    });
+  });
+
+  describe('long input (polynomial ReDoS regression)', () => {
+    const tabs = '\t'.repeat(LONG_INPUT_LENGTH);
+
+    it('should strip redirections around a long whitespace run quickly', () => {
+      const { result, elapsedMs } = timed(() =>
+        sanitizer.parseCommandString(`a${' '.repeat(LONG_INPUT_LENGTH)}b`)
+      );
+
+      expect(result).toEqual({ command: 'a', args: ['b'] });
+      expect(elapsedMs).toBeLessThan(LONG_INPUT_TIME_LIMIT_MS);
+    });
+
+    it.each([
+      ['curl followed by whitespace', `curl\t${tabs}`],
+      ['wget followed by whitespace', `wget\t${tabs}`],
+      ['repeated curl without a pipe', 'curl x '.repeat(LONG_INPUT_LENGTH / 7)],
+    ])('should check %s quickly', (_kind, commandString) => {
+      const { result, elapsedMs } = timed(() => sanitizer.validateConfigCommand(commandString));
+
+      expect(result.valid).toBe(true);
+      expect(elapsedMs).toBeLessThan(LONG_INPUT_TIME_LIMIT_MS);
+    });
+
+    it('should still reject a long curl command piped into a shell', () => {
+      const { result, elapsedMs } = timed(() =>
+        sanitizer.validateConfigCommand(`curl ${'x'.repeat(LONG_INPUT_LENGTH)} | sh`)
+      );
+
+      expect(result.valid).toBe(false);
+      expect(elapsedMs).toBeLessThan(LONG_INPUT_TIME_LIMIT_MS);
     });
   });
 
