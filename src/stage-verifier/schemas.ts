@@ -48,6 +48,7 @@ export const VerificationCheckSchema = z.object({
   severity: CheckSeveritySchema,
   message: z.string().min(1, 'message is required'),
   details: z.record(z.string(), z.unknown()).optional(),
+  skipReason: z.string().min(1).optional(),
 });
 
 /** Inferred type from VerificationCheckSchema */
@@ -71,6 +72,18 @@ export const StageVerificationResultSchema = z.object({
   errors: z.array(z.string()),
   timestamp: z.string().min(1, 'timestamp is required'),
   durationMs: z.number().nonnegative('durationMs must be non-negative'),
+  checkSet: z.string().min(1).optional(),
+  notApplicableReason: z.string().min(1).optional(),
+  skippedRules: z
+    .array(
+      z.object({
+        checkId: z.string().min(1),
+        name: z.string().min(1),
+        severity: CheckSeveritySchema,
+        minRigor: VnvRigorSchema,
+      })
+    )
+    .optional(),
 });
 
 /** Inferred type from StageVerificationResultSchema */
