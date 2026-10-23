@@ -230,8 +230,14 @@
               "type": "string",
               "enum": ["strict", "standard", "minimal"]
             },
+            "profile": {
+              "type": "string",
+              "enum": ["advisory", "delivery"],
+              "description": "Verification policy profile. delivery fails the run on a failed required check; absent keeps the legacy rigor plus halt_on_verification_failure mapping."
+            },
             "halt_on_verification_failure": {
-              "type": "boolean"
+              "type": "boolean",
+              "description": "Legacy profile selector: with rigor strict and no profile, true selects delivery."
             },
             "generate_vnv_plan": {
               "type": "boolean",

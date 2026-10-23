@@ -500,9 +500,14 @@ sequenceDiagram
 ### Stage Verifier
 
 Scheduler는 완료 또는 degraded 상태의 각 stage 뒤에 `StageVerifierAgent`를
-호출합니다. standard/minimal rigor에서는 실패한 check를 advisory warning으로
-유지합니다. strict rigor에서 `haltOnVerificationFailure`를 활성화하면 실패한
-check가 해당 stage를 실패 처리하고 미실행 stage를 건너뛰며 pipeline을 실패시킵니다.
+호출합니다. 모든 stage slot에는 이름이 붙은 check set이나 명시적인 not-applicable
+사유가 있습니다([verification coverage](architecture/verification-coverage.md)).
+기본 `advisory` profile에서는 실패한 check를 finding과 advisory warning으로
+유지합니다. `delivery` profile(`global.vnv.profile: delivery`, 또는 기존 방식인
+strict rigor와 `haltOnVerificationFailure`)에서는 실패한 required check가 해당
+stage를 실패 처리하고 미실행 stage를 건너뛰며 pipeline을 실패시킵니다. 각 stage
+result와 pipeline result에 verification 상태가 기록됩니다. 자세한 내용은
+[verification policy guide](guides/verification-policy.md)를 참고하세요.
 
 ### RTM Builder
 
