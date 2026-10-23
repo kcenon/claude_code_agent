@@ -364,6 +364,44 @@ describe('RepoDetector', () => {
     });
   });
 
+  describe('Detection - Remote URL Forms', () => {
+    async function detectRemoteType(remoteUrl: string): Promise<string | null> {
+      createGitDir();
+      detector.startSession('test-project', tempDir);
+      setupGitMockWithCommits({ remoteUrl });
+      mockExecGhSync.mockReturnValue({ success: false, stdout: '', stderr: 'not available' });
+      return (await detector.detect()).remoteStatus.remoteType;
+    }
+
+    it.each([
+      ['https://github.com/owner/repo.git', 'github'],
+      ['HTTPS://GitHub.COM/owner/repo', 'github'],
+      ['https://user:token@github.com/owner/repo.git', 'github'],
+      ['https://www.github.com/owner/repo', 'github'],
+      ['http://github.com:443/owner/repo.git', 'github'],
+      ['git@github.com:owner/repo.git', 'github'],
+      ['github.com:owner/repo.git', 'github'],
+      ['ssh://git@github.com/owner/repo.git', 'github'],
+      ['ssh://git@ssh.github.com:443/owner/repo.git', 'github'],
+      ['git+ssh://git@github.com/owner/repo.git', 'github'],
+      ['git://github.com/owner/repo.git', 'github'],
+      ['github:owner/repo', 'github'],
+      ['https://gitlab.com/group/sub/repo.git', 'gitlab'],
+      ['git@gitlab.com:group/repo.git', 'gitlab'],
+      ['ssh://git@altssh.gitlab.com:443/group/repo.git', 'gitlab'],
+      ['gitlab:group/repo', 'gitlab'],
+      ['https://bitbucket.org/team/repo.git', 'bitbucket'],
+      ['git@bitbucket.org:team/repo.git', 'bitbucket'],
+      ['bitbucket:team/repo', 'bitbucket'],
+      ['https://selfhosted.example.com/owner/repo.git', 'other'],
+      ['git@selfhosted.example.com:owner/repo.git', 'other'],
+      ['/srv/git/repo.git', 'other'],
+      ['file:///srv/git/repo.git', 'other'],
+    ])('should detect %s as %s', async (remoteUrl, expected) => {
+      expect(await detectRemoteType(remoteUrl)).toBe(expected);
+    });
+  });
+
   describe('Detection - GitHub Remote With gh CLI', () => {
     it('should detect existing accessible GitHub repo via gh CLI', async () => {
       createGitDir();
