@@ -234,6 +234,16 @@ export function decideLaneStatus(
 }
 
 /**
+ * Escape a value for a Markdown table cell: backslashes first, then pipes,
+ * so an input backslash cannot turn the added escape into a literal one.
+ * @param value - Cell text
+ * @returns Escaped cell text
+ */
+export function escapeTableCell(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/\|/g, '\\|');
+}
+
+/**
  * Render the Markdown summary for the job summary and the artifact.
  * @param metadata - Execution metadata
  * @returns Markdown
@@ -265,7 +275,7 @@ export function renderLiveSummary(metadata: LiveLaneMetadata): string {
     '',
     '| Field | Value |',
     '| --- | --- |',
-    ...rows.map(([field, value]) => `| ${field} | ${value.replace(/\|/g, '\\|')} |`),
+    ...rows.map(([field, value]) => `| ${field} | ${escapeTableCell(value)} |`),
     '',
     metadata.executed
       ? 'Metadata: `live-lane.json` in the `live-acceptance-metadata` artifact.'
