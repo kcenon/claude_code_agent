@@ -214,13 +214,13 @@ export class FileTransport extends BaseTransport {
     this.currentFilePath = path.join(this.logDir, fileName);
     this.currentFileSize = 0;
 
-    // Check if file already exists and get its size
-    if (fs.existsSync(this.currentFilePath)) {
-      const stats = fs.statSync(this.currentFilePath);
-      this.currentFileSize = stats.size;
-    } else {
-      // Create empty file to ensure it exists
-      fs.closeSync(fs.openSync(this.currentFilePath, 'a'));
+    // Open the file in append mode, which creates it if needed, and take the
+    // size of an existing file from the same descriptor
+    const fd = fs.openSync(this.currentFilePath, 'a');
+    try {
+      this.currentFileSize = fs.fstatSync(fd).size;
+    } finally {
+      fs.closeSync(fd);
     }
 
     // Create write stream with append mode
