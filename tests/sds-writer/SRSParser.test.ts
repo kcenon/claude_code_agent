@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { SRSParser } from '../../src/sds-writer/SRSParser.js';
 import { SRSParseError } from '../../src/sds-writer/errors.js';
+import { LONG_INPUT_LENGTH, LONG_INPUT_TIME_LIMIT_MS, timed } from '../helpers/longInput.js';
 
 describe('SRSParser', () => {
   const createSampleSRS = (): string => `
@@ -537,6 +538,86 @@ Another feature.
 
       expect(result.metadata.documentId).toBe('');
       expect(result.metadata.version).toBe('1.0.0');
+    });
+  });
+
+  describe('long input (polynomial ReDoS regression)', () => {
+    const tabs = '\t'.repeat(LONG_INPUT_LENGTH);
+    const parse = (content: string) => timed(() => new SRSParser().parse(content));
+
+    it('should reject an unterminated metadata row quickly', () => {
+      const { result, elapsedMs } = parse(`|**)**|${tabs}`);
+
+      expect(result.metadata.documentId).toBe('');
+      expect(elapsedMs).toBeLessThan(LONG_INPUT_TIME_LIMIT_MS);
+    });
+
+    it('should reject an unterminated attribute row quickly', () => {
+      const { result, elapsedMs } = parse(`## 2. Features\n### SF-001: Login\n|**)**|${tabs}`);
+
+      expect(result.features[0]?.priority).toBe('P1');
+      expect(elapsedMs).toBeLessThan(LONG_INPUT_TIME_LIMIT_MS);
+    });
+
+    it.each([
+      ['feature', `## 2. Features\n### SF-001:${tabs}\r`],
+      ['use case', `## 3. Use Cases\n#### UC-001:${tabs}\r`],
+      ['NFR', `## 4. Non-Functional Requirements\n### NFR-001:${tabs}\r`],
+      ['constraint', `## 5. Constraints\n### CON-001:${tabs}\r`],
+    ])('should reject a %s header with a whitespace-only name quickly', (_kind, content) => {
+      const { result, elapsedMs } = parse(content);
+
+      expect(result.features).toHaveLength(0);
+      expect(result.useCases).toHaveLength(0);
+      expect(result.nfrs).toHaveLength(0);
+      expect(result.constraints).toHaveLength(0);
+      expect(elapsedMs).toBeLessThan(LONG_INPUT_TIME_LIMIT_MS);
+    });
+
+    it.each([
+      ['bullet', `*\t${tabs}\r`],
+      ['numbered', `0.\t${tabs}\r`],
+    ])('should reject a whitespace-only %s list item quickly', (_kind, item) => {
+      const { result, elapsedMs } = parse(`## 6. Assumptions\n${item}`);
+
+      expect(result.assumptions).toHaveLength(0);
+      expect(elapsedMs).toBeLessThan(LONG_INPUT_TIME_LIMIT_MS);
+    });
+
+    it('should reject a whitespace-only alternative scenario heading quickly', () => {
+      const { result, elapsedMs } = parse(
+        `## 3. Use Cases\n#### UC-001: Sign in\n**Alternative Flows:**\n#####${tabs}\r\n- Retry`
+      );
+
+      expect(result.useCases[0]?.alternativeScenarios).toEqual([
+        { name: 'Alternative Flow', steps: ['Retry'] },
+      ]);
+      expect(elapsedMs).toBeLessThan(LONG_INPUT_TIME_LIMIT_MS);
+    });
+
+    it('should scan long Purpose and Product subsection headings quickly', () => {
+      const { result, elapsedMs } = parse(`## 1. Introduction\n###\t${tabs}\n**Widget** text`);
+
+      expect(result.productName).toBe('Widget');
+      expect(elapsedMs).toBeLessThan(LONG_INPUT_TIME_LIMIT_MS);
+    });
+
+    it('should derive the product name from a long title quickly', () => {
+      const { result, elapsedMs } = parse(`# a${tabs}\rx\n# Fallback SRS`);
+
+      expect(result.productName).toBe('Fallback');
+      expect(elapsedMs).toBeLessThan(LONG_INPUT_TIME_LIMIT_MS);
+    });
+
+    it('should reject a long unnumbered section heading quickly', () => {
+      const { result, elapsedMs } = parse(`##\t${tabs}\n### SF-001: Login`);
+
+      expect(result.features).toHaveLength(0);
+      expect(result.useCases).toHaveLength(0);
+      expect(result.nfrs).toHaveLength(0);
+      expect(result.constraints).toHaveLength(0);
+      expect(result.assumptions).toHaveLength(0);
+      expect(elapsedMs).toBeLessThan(LONG_INPUT_TIME_LIMIT_MS);
     });
   });
 });
