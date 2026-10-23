@@ -300,6 +300,33 @@ describe('ArtifactValidator', () => {
         expect(result.quality).toBe('degraded');
         expect(result.warnings).toContain('PRD document not found in scratchpad');
       });
+
+      describe('HTML comments', () => {
+        const filler = 'Meaningful requirement text. '.repeat(5);
+
+        async function prdQuality(content: string): Promise<string> {
+          const docsDir = path.join(tempDir, '.ad-sdlc', 'scratchpad', 'documents', 'v1');
+          await fs.mkdir(docsDir, { recursive: true });
+          await fs.writeFile(path.join(docsDir, 'prd.md'), content);
+          return (await validator.validateStageOutput('prd_generation', 'greenfield')).quality;
+        }
+
+        it.each([
+          ['a one-line comment', `# PRD\n\n<!-- ${filler} -->\nShort.\n`],
+          ['a multi-line comment', `# PRD\n\n<!--\n${filler}\n${filler}\n-->\nShort.\n`],
+          ['two comments', `<!-- ${filler} -->Short.<!--${filler}-->\n`],
+        ])('should not count the text of %s', async (_label, content) => {
+          expect(await prdQuality(content)).toBe('degraded');
+        });
+
+        it('should count the text outside comments', async () => {
+          expect(await prdQuality(`# PRD\n\n<!-- placeholder -->\n${filler}\n`)).toBe('good');
+        });
+
+        it('should count the text of an unterminated comment', async () => {
+          expect(await prdQuality(`# PRD\n\n<!-- ${filler}\n`)).toBe('good');
+        });
+      });
     });
 
     describe('srs_generation stage', () => {
