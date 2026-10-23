@@ -400,6 +400,21 @@ describe('RepoDetector', () => {
     ])('should detect %s as %s', async (remoteUrl, expected) => {
       expect(await detectRemoteType(remoteUrl)).toBe(expected);
     });
+
+    it.each([
+      'https://github.com.evil.example/owner/repo.git',
+      'https://evilgithub.com/owner/repo.git',
+      'git@github.com.evil.example:owner/repo.git',
+      'git@evilgitlab.com:group/repo.git',
+      'ssh://git@bitbucket.org.evil.example/team/repo.git',
+      'https://evil.example/github.com/owner/repo.git',
+      'https://evil.example/?next=gitlab.com',
+      'https://github.com@evil.example/owner/repo.git',
+      'https://evil.example/mirror/github:owner/repo',
+      'not a url',
+    ])('should not treat %s as a known provider', async (remoteUrl) => {
+      expect(await detectRemoteType(remoteUrl)).toBe('other');
+    });
   });
 
   describe('Detection - GitHub Remote With gh CLI', () => {

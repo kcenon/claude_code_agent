@@ -44,6 +44,53 @@ import {
 export const REPO_DETECTOR_AGENT_ID = 'repo-detector-agent';
 
 /**
+ * Hosting providers recognized from a remote URL: npm-style shorthand
+ * (`github:owner/repo`) and the provider domain with its subdomains
+ * (`ssh.github.com`, `altssh.gitlab.com`).
+ */
+const REMOTE_PROVIDERS: ReadonlyArray<{
+  readonly type: Exclude<RemoteType, 'other' | null>;
+  readonly shorthand: string;
+  readonly domain: string;
+  readonly subdomainSuffix: string;
+}> = [
+  { type: 'github', shorthand: 'github:', domain: 'github.com', subdomainSuffix: '.github.com' },
+  { type: 'gitlab', shorthand: 'gitlab:', domain: 'gitlab.com', subdomainSuffix: '.gitlab.com' },
+  {
+    type: 'bitbucket',
+    shorthand: 'bitbucket:',
+    domain: 'bitbucket.org',
+    subdomainSuffix: '.bitbucket.org',
+  },
+];
+
+/**
+ * Host name of a Git remote URL.
+ *
+ * URLs with a scheme (`https://`, `ssh://`, `git://`, `git+ssh://`, `file://`)
+ * are parsed with `URL`. Otherwise the scp-like form `[user@]host:path` is used
+ * when a colon comes before the first slash; anything else is a local path.
+ * @param url - Remote URL as printed by `git remote get-url`
+ * @returns Lower-case host name, or null when the URL names no host
+ */
+function remoteHost(url: string): string | null {
+  if (url.includes('://')) {
+    try {
+      return new URL(url).hostname.toLowerCase();
+    } catch {
+      return null;
+    }
+  }
+  const colon = url.indexOf(':');
+  const slash = url.indexOf('/');
+  if (colon <= 0 || (slash !== -1 && slash < colon)) {
+    return null;
+  }
+  const authority = url.slice(0, colon);
+  return authority.slice(authority.lastIndexOf('@') + 1).toLowerCase();
+}
+
+/**
  * Repository Detector Agent
  *
  * Analyzes project Git and GitHub state to determine repository mode.
@@ -310,20 +357,25 @@ export class RepoDetector implements IAgent {
 
   /**
    * Detect remote type from URL
+   *
+   * Compares the parsed host name, not substrings of the URL, so a provider
+   * name in a lookalike host (`github.com.evil.example`, `evilgithub.com`), in
+   * the user name, or in the path does not count.
    * @param url - The remote repository URL
    * @returns The detected remote type (github, gitlab, bitbucket, or other)
    */
   private detectRemoteType(url: string): RemoteType {
     const lowerUrl = url.toLowerCase();
+    const host = remoteHost(url);
 
-    if (lowerUrl.includes('github.com') || lowerUrl.includes('github:')) {
-      return 'github';
-    }
-    if (lowerUrl.includes('gitlab.com') || lowerUrl.includes('gitlab:')) {
-      return 'gitlab';
-    }
-    if (lowerUrl.includes('bitbucket.org') || lowerUrl.includes('bitbucket:')) {
-      return 'bitbucket';
+    for (const provider of REMOTE_PROVIDERS) {
+      if (
+        lowerUrl.startsWith(provider.shorthand) ||
+        host === provider.domain ||
+        host?.endsWith(provider.subdomainSuffix) === true
+      ) {
+        return provider.type;
+      }
     }
 
     return 'other';
