@@ -51,6 +51,78 @@ const execFileAsync = promisify(execFileCallback);
  */
 const GITHUB_TOKEN_PATTERN = /\b(?:github_pat_[A-Za-z0-9_]+|gh[oprs]_[A-Za-z0-9]+)\b/g;
 
+/** `curl` in a config command */
+const CURL_KEYWORD = /curl/gi;
+/** Pipe into a shell (`| sh`, `| bash`) */
+const PIPE_TO_SHELL = /\|\s*(?:sh|bash)/gi;
+/** `wget` in a config command */
+const WGET_KEYWORD = /wget/gi;
+/** wget output to stdout piped onward (`-O - |`) */
+const WGET_STDOUT_PIPE = /-O\s*-\s*\|/gi;
+/** Any line terminator; `.` does not match these */
+const LINE_TERMINATOR = /[\n\r\u2028\u2029]/g;
+
+/**
+ * Whether `text` contains `keyword`, whitespace, at least one more character on
+ * the same line, and then `tail`.
+ *
+ * Same result as `/keyword\s+.+tail/i.test(text)` for a tail that starts with a
+ * non-whitespace character, in linear time. In that expression `\s+` and `.+`
+ * overlapped, and every keyword rescanned the rest of its line.
+ * @param text - Command string
+ * @param keyword - Global, case-insensitive expression for the keyword
+ * @param tail - Global, case-insensitive expression for the tail
+ * @returns True when the pattern occurs
+ */
+function hasKeywordThenTail(text: string, keyword: RegExp, tail: RegExp): boolean {
+  const tails: number[] = [];
+  tail.lastIndex = 0;
+  for (let match = tail.exec(text); match !== null; match = tail.exec(text)) {
+    tails.push(match.index);
+    tail.lastIndex = match.index + 1;
+  }
+  if (tails.length === 0) {
+    return false;
+  }
+  let nextTail = 0;
+  let lineEnd = -1;
+  keyword.lastIndex = 0;
+  for (let match = keyword.exec(text); match !== null; match = keyword.exec(text)) {
+    const afterKeyword = match.index + match[0].length;
+    let textStart = afterKeyword;
+    while (textStart < text.length && /\s/.test(text.charAt(textStart))) {
+      textStart++;
+    }
+    if (textStart === afterKeyword) {
+      continue;
+    }
+    while (nextTail < tails.length && (tails[nextTail] ?? 0) < textStart) {
+      nextTail++;
+    }
+    const tailAtTextStart = tails[nextTail] === textStart;
+    // `.+` is a single whitespace character right before the tail
+    if (
+      tailAtTextStart &&
+      textStart - afterKeyword >= 2 &&
+      !/[\n\r\u2028\u2029]/.test(text.charAt(textStart - 1))
+    ) {
+      return true;
+    }
+    // `.+` starts with the first non-space character and ends on the same line
+    const tailAfterText = tails[tailAtTextStart ? nextTail + 1 : nextTail];
+    if (tailAfterText !== undefined && textStart < text.length) {
+      if (lineEnd < textStart) {
+        LINE_TERMINATOR.lastIndex = textStart;
+        lineEnd = LINE_TERMINATOR.exec(text)?.index ?? text.length;
+      }
+      if (tailAfterText < lineEnd) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 /**
  * Singleton instance of CommandSanitizer
  */
@@ -733,12 +805,14 @@ export class CommandSanitizer {
    * @returns Parsed command and arguments
    */
   public parseCommandString(commandString: string): { command: string; args: string[] } {
-    // Remove shell redirections (2>&1, 2>/dev/null, etc.) as execFile doesn't need them
+    // Remove shell redirections (2>&1, 2>/dev/null, etc.) as execFile doesn't need them.
+    // (?<!\s) starts a match only at the beginning of a whitespace run, so a run
+    // without a redirection is not rescanned from every position inside it.
     const cleanedCommand = commandString
-      .replace(/\s+2>&1\s*/g, ' ')
-      .replace(/\s+2>\/dev\/null\s*/g, ' ')
-      .replace(/\s+>\/dev\/null\s*/g, ' ')
-      .replace(/\s+2>\s*\S+/g, ' ')
+      .replace(/(?<!\s)\s+2>&1\s*/g, ' ')
+      .replace(/(?<!\s)\s+2>\/dev\/null\s*/g, ' ')
+      .replace(/(?<!\s)\s+>\/dev\/null\s*/g, ' ')
+      .replace(/(?<!\s)\s+2>\s*\S+/g, ' ')
       .trim();
 
     // Tokenize respecting quoted strings
@@ -926,17 +1000,16 @@ export class CommandSanitizer {
       /\$\(/i, // $( command substitution
       /`[^`]+`/i, // ` command substitution
       />\s*\/etc/i, // redirect to /etc
-      /curl\s+.+\|\s*(sh|bash)/i, // curl | bash
-      /wget\s+.+-O\s*-\s*\|/i, // wget -O - |
     ];
+    const pipesDownload =
+      hasKeywordThenTail(commandString, CURL_KEYWORD, PIPE_TO_SHELL) || // curl ... | bash
+      hasKeywordThenTail(commandString, WGET_KEYWORD, WGET_STDOUT_PIPE); // wget ... -O - |
 
-    for (const pattern of dangerousPatterns) {
-      if (pattern.test(commandString)) {
-        return {
-          valid: false,
-          reason: `Dangerous command pattern detected`,
-        };
-      }
+    if (pipesDownload || dangerousPatterns.some((pattern) => pattern.test(commandString))) {
+      return {
+        valid: false,
+        reason: `Dangerous command pattern detected`,
+      };
     }
 
     // Check for disallowed characters that are commonly used in injection

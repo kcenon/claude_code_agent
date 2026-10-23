@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { InformationExtractor, InputParser } from '../../src/collector/index.js';
+import { LONG_INPUT_LENGTH, LONG_INPUT_TIME_LIMIT_MS, timed } from '../helpers/longInput.js';
 
 describe('InformationExtractor', () => {
   let extractor: InformationExtractor;
@@ -678,6 +679,105 @@ describe('InformationExtractor', () => {
         expect(req.title).not.toMatch(/^-{2,}/);
         expect(req.description).not.toMatch(/^-{2,}\s*Source/);
       }
+    });
+  });
+
+  describe('characterization of text patterns', () => {
+    type ExtractorInternals = {
+      extractProjectInfo(content: string): { name?: string; description?: string };
+      preprocessContent(content: string): string;
+      splitIntoSegments(content: string): string[];
+    };
+    const internals = (): ExtractorInternals => extractor as unknown as ExtractorInternals;
+
+    it.each([
+      ['Description: A tool for notes. More text.', 'A tool for notes.'],
+      ['Overview:\n\n  Tracks expenses.', 'Tracks expenses.'],
+      ['about: : x.', 'x.'],
+      ['About .', undefined],
+      ['About  .', '.'],
+      ['about:\t.', '.'],
+      ['The project is a CLI that syncs files. Next.', 'a CLI that syncs files.'],
+      ['This application will  help teams.', 'help teams.'],
+      ['the app should\n.', undefined],
+      ['The system is .', undefined],
+      ['No keywords here.', undefined],
+      ['about the project is great.', 'the project is great.'],
+    ])('should extract the project description from %j', (content, expected) => {
+      expect(internals().extractProjectInfo(content).description).toBe(expected);
+    });
+
+    it.each([
+      [
+        'Build an app. Features: add X; delete Y; list Z.',
+        'Build an app. add X. delete Y. list Z.',
+      ],
+      ['Requirements:\n  login; logout!', 'login. logout!'],
+      ['features : ; a ;; b ?', 'a. b?'],
+      ['Intro text. Commands:   run', 'Intro text. run'],
+      ['Capabilities:', ''],
+      ['x. functions: a. b', 'x. a. b'],
+      ['Not at start features: a; b.', 'Not at start features: a; b.'],
+    ])('should expand the label list in %j', (content, expected) => {
+      expect(internals().preprocessContent(content)).toBe(expected);
+    });
+
+    it.each([
+      [
+        '- first item\n* second\n  • third\n1. one\n2) two\n   3.  three',
+        ['first item', 'second', 'third', 'one', 'two', 'three'],
+      ],
+      [
+        '-  \n- x\n\n10.\t\tten\nplain text here. Another sentence!',
+        ['- x', 'ten', 'plain text here.', 'Another sentence!'],
+      ],
+      ['\n\n  - nested\n\t1) tab', ['nested', 'tab']],
+    ])('should split %j into segments', (content, expected) => {
+      expect(internals().splitIntoSegments(content)).toEqual(expected);
+    });
+
+    describe('long input (polynomial ReDoS regression)', () => {
+      const tabs = '\t'.repeat(LONG_INPUT_LENGTH);
+
+      it.each([
+        ['description label', `about\t${tabs}`],
+        ['project statement', `the\tapp\tis\t${tabs}`],
+        ['repeated label', 'about x '.repeat(LONG_INPUT_LENGTH / 4)],
+      ])('should give up on a %s without a period quickly', (_kind, content) => {
+        const { result, elapsedMs } = timed(() => internals().extractProjectInfo(content));
+
+        expect(result.description).toBeUndefined();
+        expect(elapsedMs).toBeLessThan(LONG_INPUT_TIME_LIMIT_MS);
+      });
+
+      it('should find a description after long separators quickly', () => {
+        const { result, elapsedMs } = timed(() =>
+          internals().extractProjectInfo(`about:${tabs}Notes app. More.`)
+        );
+
+        expect(result.description).toBe('Notes app.');
+        expect(elapsedMs).toBeLessThan(LONG_INPUT_TIME_LIMIT_MS);
+      });
+
+      it.each([
+        ['whitespace', `features:${tabs}x`, 'x'],
+        ['semicolons', `features:${';'.repeat(LONG_INPUT_LENGTH)}`, ''],
+      ])('should expand a label list with long %s quickly', (_kind, content, expected) => {
+        const { result, elapsedMs } = timed(() => internals().preprocessContent(content));
+
+        expect(result).toBe(expected);
+        expect(elapsedMs).toBeLessThan(LONG_INPUT_TIME_LIMIT_MS);
+      });
+
+      it.each([
+        ['bullet', `*\t${tabs}x`],
+        ['numbered', `0)\t${tabs}x`],
+      ])('should split a %s item with long whitespace quickly', (_kind, content) => {
+        const { result, elapsedMs } = timed(() => internals().splitIntoSegments(content));
+
+        expect(result).toEqual(['x']);
+        expect(elapsedMs).toBeLessThan(LONG_INPUT_TIME_LIMIT_MS);
+      });
     });
   });
 });

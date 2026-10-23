@@ -44,18 +44,24 @@ const DEFAULT_OPTIONS: Required<SRSParserOptions> = {
 
 /**
  * Regular expressions for parsing SRS sections
+ *
+ * No quantifier that can match whitespace directly follows a whitespace run, so
+ * matching stays linear on long lines (polynomial ReDoS). `\s+(\S.*|[^\S\n\r\u2028\u2029])$`
+ * is the unambiguous form of `\s+(.+)$`: the second alternative keeps the old
+ * capture, a single whitespace character, when only whitespace follows. Table cell
+ * values are captured with their surrounding whitespace and trimmed by the callers.
  */
 const PATTERNS = {
   /** Document metadata table row */
-  metadataRow: /^\|\s*\*\*([^*]+)\*\*\s*\|\s*([^|]+)\s*\|$/,
+  metadataRow: /^\|\s*\*\*([^*]+)\*\*\s*\|([^|]+)\|$/,
   /** Feature header (e.g., ### SF-001: Feature Name) */
-  featureHeader: /^###\s+(SF-\d{3}):\s*(.+)$/,
+  featureHeader: /^###\s+(SF-\d{3}):\s*(\S.*|[^\S\n\r\u2028\u2029])$/,
   /** Use case header (e.g., #### UC-001: Use Case Name) */
-  useCaseHeader: /^####\s+(UC-\d{3}):\s*(.+)$/,
+  useCaseHeader: /^####\s+(UC-\d{3}):\s*(\S.*|[^\S\n\r\u2028\u2029])$/,
   /** NFR header (e.g., ### NFR-001: NFR Name) */
-  nfrHeader: /^###\s+(NFR-\d{3}):\s*(.+)$/,
+  nfrHeader: /^###\s+(NFR-\d{3}):\s*(\S.*|[^\S\n\r\u2028\u2029])$/,
   /** Constraint header */
-  constraintHeader: /^###\s+(CON-\d{3}):\s*(.+)$/,
+  constraintHeader: /^###\s+(CON-\d{3}):\s*(\S.*|[^\S\n\r\u2028\u2029])$/,
   /** Priority value (P0-P3) */
   priority: /^P[0-3]$/,
   /** Source requirement reference (e.g., FR-001) */
@@ -65,14 +71,35 @@ const PATTERNS = {
   /** Subsection header */
   subsectionHeader: /^###\s+\d+\.?\d*\s*(.+)$/,
   /** List item */
-  listItem: /^[-*]\s+(.+)$/,
+  listItem: /^[-*]\s+(\S.*|[^\S\n\r\u2028\u2029])$/,
   /** Numbered list item */
-  numberedListItem: /^\d+\.\s+(.+)$/,
+  numberedListItem: /^\d+\.\s+(\S.*|[^\S\n\r\u2028\u2029])$/,
   /** Attribute row in table */
-  attributeRow: /^\|\s*\*\*([^*]+)\*\*\s*\|\s*([^|]+)\s*\|$/,
+  attributeRow: /^\|\s*\*\*([^*]+)\*\*\s*\|([^|]+)\|$/,
   /** Use case ID reference */
   useCaseRef: /UC-\d{3}/g,
+  /** Purpose subsection heading in the introduction (`\s+.*Purpose` without the overlap) */
+  purposeHeading: /^###\s+(?:\S.*)?Purpose/i,
+  /** Product subsection heading in the introduction */
+  productHeading: /^###\s+(?:\S.*)?Product/i,
+  /** Alternative scenario heading (e.g., ##### Invalid password) */
+  alternativeHeading: /^#####\s+(\S.*|[^\S\n\r\u2028\u2029])$/,
+  /**
+   * Major section headings. `\s+(?:\d+\.?\s*|\.\s*)?` matches the same text as
+   * `\s+\d*\.?\s*` without two adjacent whitespace quantifiers.
+   */
+  featuresSection: /^##\s+(?:\d+\.?\s*|\.\s*)?(Software\s+|System\s+)?Features/i,
+  useCasesSection: /^##\s+(?:\d+\.?\s*|\.\s*)?Use Cases/i,
+  nfrSection: /^##\s+(?:\d+\.?\s*|\.\s*)?Non-?Functional Requirements?/i,
+  constraintsSection: /^##\s+(?:\d+\.?\s*|\.\s*)?Constraints?/i,
+  assumptionsSection: /^##\s+(?:\d+\.?\s*|\.\s*)?Assumptions?/i,
 } as const;
+
+/** Suffixes stripped from a level-1 title when it is the product name fallback */
+const TITLE_SUFFIX = /(?:SRS|Software Requirements|Specification)$/i;
+
+/** Any line terminator; `.` does not match these */
+const LINE_TERMINATOR = /[\n\r\u2028\u2029]/;
 
 /**
  * Parser for SRS markdown documents
@@ -185,7 +212,7 @@ export class SRSParser {
 
       if (inIntroduction) {
         // Extract product name from Purpose subsection or first heading
-        if (line.match(/^###\s+.*Purpose/i) || line.match(/^###\s+.*Product/i)) {
+        if (PATTERNS.purposeHeading.test(line) || PATTERNS.productHeading.test(line)) {
           continue;
         }
 
@@ -208,9 +235,9 @@ export class SRSParser {
     if (!productName) {
       for (const line of lines) {
         if (line.startsWith('# ')) {
-          const titleMatch = /^#\s+(.+?)\s*(SRS|Software Requirements|Specification)?$/i.exec(line);
-          if (titleMatch) {
-            productName = titleMatch[1]?.trim() ?? '';
+          const title = SRSParser.matchTitle(line);
+          if (title !== null) {
+            productName = title;
             break;
           }
         }
@@ -218,6 +245,41 @@ export class SRSParser {
     }
 
     return { productName, productDescription };
+  }
+
+  /**
+   * Derive the product name from a level-1 title such as `# Acme SRS`.
+   *
+   * Linear-time equivalent of `/^#\s+(.+?)\s*(SRS|Software Requirements|Specification)?$/i`
+   * followed by `trim()`. In that expression the lazy capture overlapped the
+   * whitespace on both sides, which is quadratic on long whitespace runs.
+   * @param line - Title line
+   * @returns Trimmed title without a trailing document type, or null when the old
+   *   expression did not match
+   */
+  private static matchTitle(line: string): string | null {
+    if (!line.startsWith('#')) {
+      return null;
+    }
+    const rest = line.slice(1);
+    const body = rest.trimStart();
+    if (body.length === rest.length) {
+      return null;
+    }
+    if (body === '') {
+      // Whitespace only: the old expression backtracked and captured one
+      // whitespace character that is not a line terminator.
+      return /[^\n\r\u2028\u2029]/.test(rest.slice(1)) ? '' : null;
+    }
+    const candidates: string[] = [];
+    const suffix = TITLE_SUFFIX.exec(body);
+    if (suffix !== null) {
+      candidates.push(body.slice(0, suffix.index).trimEnd());
+    }
+    candidates.push(body.trimEnd());
+    return (
+      candidates.find((candidate) => candidate !== '' && !LINE_TERMINATOR.test(candidate)) ?? null
+    );
   }
 
   /**
@@ -237,7 +299,7 @@ export class SRSParser {
       const line = lines[i] ?? '';
 
       // Check for Features section
-      if (line.match(/^##\s+\d*\.?\s*(Software\s+|System\s+)?Features/i)) {
+      if (PATTERNS.featuresSection.test(line)) {
         inFeaturesSection = true;
         continue;
       }
@@ -377,7 +439,7 @@ export class SRSParser {
 
     for (const line of lines) {
       // Check for Use Cases section
-      if (line.match(/^##\s+\d*\.?\s*Use Cases/i)) {
+      if (PATTERNS.useCasesSection.test(line)) {
         inUseCasesSection = true;
         continue;
       }
@@ -492,7 +554,7 @@ export class SRSParser {
       ) {
         currentSection = 'alternative';
         continue;
-      } else if (line.match(/^#####\s+(.+)$/) && currentSection === 'alternative') {
+      } else if (PATTERNS.alternativeHeading.test(line) && currentSection === 'alternative') {
         // New alternative scenario
         if (
           currentAltScenario != null &&
@@ -501,7 +563,7 @@ export class SRSParser {
         ) {
           alternativeScenarios.push({ name: currentAltScenario.name, steps: currentAltSteps });
         }
-        const altMatch = /^#####\s+(.+)$/.exec(line);
+        const altMatch = PATTERNS.alternativeHeading.exec(line);
         currentAltScenario = { name: altMatch?.[1] ?? '' };
         currentAltSteps = [];
         continue;
@@ -598,7 +660,7 @@ export class SRSParser {
 
     for (const line of lines) {
       // Check for NFR section
-      if (line.match(/^##\s+\d*\.?\s*Non-?Functional Requirements?/i)) {
+      if (PATTERNS.nfrSection.test(line)) {
         inNFRSection = true;
         continue;
       }
@@ -714,7 +776,7 @@ export class SRSParser {
 
     for (const line of lines) {
       // Check for Constraints section
-      if (line.match(/^##\s+\d*\.?\s*Constraints?/i)) {
+      if (PATTERNS.constraintsSection.test(line)) {
         inConstraintsSection = true;
         continue;
       }
@@ -817,7 +879,7 @@ export class SRSParser {
 
     for (const line of lines) {
       // Check for Assumptions section
-      if (line.match(/^##\s+\d*\.?\s*Assumptions?/i)) {
+      if (PATTERNS.assumptionsSection.test(line)) {
         inAssumptionsSection = true;
         continue;
       }

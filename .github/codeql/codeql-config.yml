@@ -1,0 +1,14 @@
+# CodeQL configuration shared by the CodeQL jobs in ci.yml and security.yml.
+#
+# tests/ is excluded from analysis: it holds unit, integration, E2E, and
+# benchmark code plus fixtures that are never shipped. The npm package only
+# contains the paths listed in the "files" field of package.json (dist/, the
+# README, the license, and the agent assets), and dist/ is compiled from src/.
+# Security queries on test fixtures (temporary files, fake credentials,
+# deliberately malformed input) produce alerts that do not describe the
+# shipped code. No test files live outside tests/.
+#
+# Everything else (src/, scripts/, and the root configuration files) stays
+# analyzed.
+paths-ignore:
+  - tests/**

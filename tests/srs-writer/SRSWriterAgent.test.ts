@@ -13,6 +13,7 @@ import {
   LowCoverageError,
   GenerationError,
 } from '../../src/srs-writer/errors.js';
+import { LONG_INPUT_LENGTH, LONG_INPUT_TIME_LIMIT_MS, timed } from '../helpers/longInput.js';
 
 describe('SRSWriterAgent', () => {
   const testBasePath = path.join(process.cwd(), 'tests', 'srs-writer', 'test-scratchpad');
@@ -770,6 +771,48 @@ A product overview for {{PROJECT_NAME}} with enough content to pass length check
       const content = createSamplePRD();
       const issues = SRSWriterAgent.validatePRDQuality(content);
       expect(issues).toEqual([]);
+    });
+
+    it.each([
+      ['${a} {{b}} ${} {{}} ${x${y}', 3],
+      ['{{{a}}}', 1],
+      ['${{${{', 0],
+      ['{{a}', 0],
+      ['${a}}', 1],
+    ])('should count the template variables in %j', (content, count) => {
+      const issues = SRSWriterAgent.validatePRDQuality(content);
+      const variableIssue = issues.find((i) => i.includes('template variable'));
+      expect(variableIssue).toBe(
+        count === 0 ? undefined : `PRD contains ${String(count)} unsubstituted template variable(s)`
+      );
+    });
+
+    it('should ignore closed HTML comments when measuring content', () => {
+      expect(
+        SRSWriterAgent.validatePRDQuality(`${'x'.repeat(60)}<!-- hidden -->${'y'.repeat(50)}`)
+      ).toEqual([]);
+      expect(SRSWriterAgent.validatePRDQuality(`${'x'.repeat(60)}<!-- hidden -->`)).toEqual([
+        'PRD has insufficient content (less than 100 characters of meaningful text)',
+      ]);
+      expect(
+        SRSWriterAgent.validatePRDQuality(`${'z'.repeat(90)}<!-- unclosed ${'w'.repeat(10)}`)
+      ).toEqual([]);
+      expect(SRSWriterAgent.validatePRDQuality('<!-- a --><!-- b')).toEqual([
+        'PRD has insufficient content (less than 100 characters of meaningful text)',
+        'PRD consists mostly of HTML comment placeholders',
+      ]);
+    });
+
+    it.each([
+      ['unclosed ${ placeholders', '${{'],
+      ['unclosed {{ placeholders', '{{{{'],
+      ['unclosed HTML comments', '<!--'],
+    ])('should scan many %s quickly', (_kind, unit) => {
+      const content = unit.repeat(LONG_INPUT_LENGTH / unit.length);
+      const { result, elapsedMs } = timed(() => SRSWriterAgent.validatePRDQuality(content));
+
+      expect(result).toEqual([]);
+      expect(elapsedMs).toBeLessThan(LONG_INPUT_TIME_LIMIT_MS);
     });
   });
 

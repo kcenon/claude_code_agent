@@ -38,6 +38,105 @@ const DEFAULT_OPTIONS: Required<PRDParserOptions> = {
   parseGoals: true,
 };
 
+/*
+ * Section headings and their bodies.
+ *
+ * The original expressions captured a section body with a lazy `([\s\S]*?)`
+ * right after a whitespace run (`\s*\n([\s\S]*?)(?=\n##\s|$)`). Both quantifiers
+ * could match the same whitespace, which made matching polynomial on long
+ * whitespace runs (CodeQL js/polynomial-redos). The headings below end at the
+ * last line break of that whitespace run, exactly where the old body started,
+ * and {@link sectionBody} finds the end of the body with a separate search.
+ * `##\s*(?:\d+\.\s*)?X` matches the same text as `##\s*(?:\d+\.)?\s*X`.
+ */
+const EXECUTIVE_SUMMARY_HEADING =
+  /##\s*(?:Executive\s*Summary|Product\s*Overview|1\.\s*Introduction)(?:[^\S\n]*\n)+/i;
+const EXECUTIVE_SUMMARY_END = /\n##|\n#\s/g;
+const FUNCTIONAL_SECTION_HEADING = /##\s*(?:\d+\.\s*)?Functional\s*Requirements(?:[^\S\n]*\n)+/i;
+const NON_FUNCTIONAL_SECTION_HEADING =
+  /##\s*(?:\d+\.\s*)?Non[- ]?Functional\s*Requirements(?:[^\S\n]*\n)+/i;
+const CONSTRAINT_SECTION_HEADING =
+  /##\s*(?:\d+\.\s*)?Constraints?(?:\s*and\s*Assumptions)?(?:[^\S\n]*\n)+/i;
+const ASSUMPTION_SECTION_HEADING = /##\s*(?:\d+\.\s*)?Assumptions?(?:[^\S\n]*\n)+/i;
+const ASSUMPTION_SUBSECTION_HEADING = /###?\s*(?:\d+\.\d+\s*)?Assumptions?(?:[^\S\n]*\n)+/i;
+const ASSUMPTION_SUBSECTION_END = /###|##\s/g;
+const PERSONA_SECTION_HEADING = /##\s*(?:\d+\.\s*)?(?:User\s*)?Personas?(?:[^\S\n]*\n)+/i;
+const GOAL_SECTION_HEADING =
+  /##\s*(?:\d+\.\s*)?(?:Goals?\s*(?:(?:and|&)\s*)?)?(?:Success\s*)?Metrics?(?:[^\S\n]*\n)+/i;
+const NEXT_LEVEL_TWO_HEADING = /\n##\s/g;
+const ACCEPTANCE_CRITERIA_HEADING = /\*?\*?Acceptance\s*Criteria\*?\*?(?:(?:[^\S\n]|:)*\n)+/i;
+const ACCEPTANCE_CRITERIA_END = /\n\*?\*?[A-Z][a-z]+\*?\*?[:\s]|\n##/gi;
+const PERSONA_GOALS_FIELD = /\*?\*?Goals?\*?\*?[:\s]*/i;
+const PERSONA_GOALS_END = /\n\*?\*?[A-Z]/gi;
+
+/*
+ * Requirement sections such as `### FR-001: Title`. The heading prefix ends with
+ * the separator run; the title and body are located by
+ * {@link PRDParser.requirementSections}.
+ */
+const FUNCTIONAL_REQUIREMENT_PREFIX = /###?\s*(FR-\d{3})([:\s]+)/gi;
+const FUNCTIONAL_REQUIREMENT_END = /###?\s*FR-\d{3}|##\s/gi;
+const NON_FUNCTIONAL_REQUIREMENT_PREFIX = /###?\s*(NFR-\d{3})([:\s]+)/gi;
+const NON_FUNCTIONAL_REQUIREMENT_END = /###?\s*NFR-\d{3}|##\s/gi;
+
+/**
+ * `###` subsection heading with an optional `1.2` number, anchored at the
+ * heading. Unambiguous form of `###\s*(?:\d+\.\d+\s*)?([^\n]+)\n`: the heading
+ * text starts with a non-space character, or is a single space before the line
+ * break when only whitespace follows. Directly after a number it starts with a
+ * non-digit; the lone `(\d)` alternative reproduces the old fallback that took
+ * the last digit of the number as the heading text.
+ */
+const SUBSECTION_HEADING =
+  /^###\s*(?:\d+\.\d+(?:\s+(\S[^\n]*|[^\S\n])|([^\d\s][^\n]*|[^\S\n])|(\d))|(\S[^\n]*|[^\S\n]))\n/;
+
+/*
+ * Constraint list items (`- Type: description` or `- description`), anchored at
+ * the list marker. Together they replace `[-*]\s+\*?\*?(?:([^:]+):)?\*?\*?\s*([^\n]+)`,
+ * whose whitespace runs overlapped and whose type group rescanned the rest of the
+ * section from every list marker.
+ */
+const LIST_MARKER = /[-*]/g;
+const CONSTRAINT_ITEM_HEAD = /^[-*]\s+\*?\*?/;
+const CONSTRAINT_ITEM_TYPED = /^([^:]+):\*?\*?\s*(\S[^\n]*|[^\S\n])/;
+const CONSTRAINT_ITEM_UNTYPED = /^\*?\*?\s*(\S[^\n]*|[^\S\n])/;
+const CONSTRAINT_ITEM_FALLBACK = /^[-*]\s+(?:\*{1,4}\s*)?(\S[^\n]*|[^\S\n])/;
+
+/**
+ * Goal text split at the first `:`, `–`, or `-` that is followed by more text,
+ * anchored at the start. The unanchored original was retried at every position.
+ */
+const GOAL_METRIC = /^(.+?)(?::|–|-)\s*(\S.*|[^\S\n\r\u2028\u2029])/;
+const LINE_TERMINATOR = /[\n\r\u2028\u2029]/g;
+
+/**
+ * Body of a section that starts at `start`: the text up to the first match of
+ * `terminator` at or after `start`, or to the end of the content.
+ * @param content - Text that contains the section
+ * @param start - Index where the body starts
+ * @param terminator - Global expression for the text that ends the body
+ * @returns Section body
+ */
+function sectionBody(content: string, start: number, terminator: RegExp): string {
+  terminator.lastIndex = start;
+  const end = terminator.exec(content)?.index ?? content.length;
+  return content.slice(start, end);
+}
+
+/**
+ * Find a section by its heading and return its body.
+ * @param content - Text to search
+ * @param heading - Non-global heading expression that ends where the body starts
+ * @param terminator - Global expression for the text that ends the body
+ * @returns Section body, or undefined when the heading is absent
+ */
+function findSection(content: string, heading: RegExp, terminator: RegExp): string | undefined {
+  const match = heading.exec(content);
+  return match === null
+    ? undefined
+    : sectionBody(content, match.index + match[0].length, terminator);
+}
+
 /**
  * PRD Parser class
  */
@@ -88,10 +187,10 @@ export class PRDParser {
    * @returns Extracted document metadata
    */
   private parseMetadata(content: string, projectId: string): PRDDocumentMetadata {
-    // Try to extract from metadata table
-    const documentIdMatch = content.match(/\|\s*Document\s*ID\s*\|\s*([^|]+)\s*\|/i);
-    const versionMatch = content.match(/\|\s*Version\s*\|\s*([^|]+)\s*\|/i);
-    const statusMatch = content.match(/\|\s*Status\s*\|\s*([^|]+)\s*\|/i);
+    // Try to extract from metadata table (the cell keeps its padding until trim())
+    const documentIdMatch = content.match(/\|\s*Document\s*ID\s*\|([^|]+)\|/i);
+    const versionMatch = content.match(/\|\s*Version\s*\|([^|]+)\|/i);
+    const statusMatch = content.match(/\|\s*Status\s*\|([^|]+)\|/i);
 
     return {
       documentId: documentIdMatch?.[1]?.trim() ?? `PRD-${projectId}`,
@@ -120,8 +219,10 @@ export class PRDParser {
    */
   private extractProductName(content: string, projectId: string): string {
     // 1. Try from metadata table (most explicit source)
+    // `Product(?:\s*Name\*?\*?|\s*\*\*?)?` matches the same text as the original
+    // `Product\s*(?:Name)?\*?\*?` without two adjacent whitespace quantifiers
     const productMatch = content.match(
-      /\|\s*\*?\*?(?:Product\s*(?:Name)?|Project)\*?\*?\s*\|\s*([^|]+)\s*\|/i
+      /\|\s*\*?\*?(?:Product(?:\s*Name\*?\*?|\s*\*\*?)?|Project\*?\*?)\s*\|([^|]+)\|/i
     );
     if (productMatch !== null && productMatch[1] !== undefined) {
       const value = productMatch[1].trim();
@@ -131,7 +232,8 @@ export class PRDParser {
     }
 
     // 2. Try from "# PRD: <name>" format
-    const prdPrefixMatch = content.match(/^#\s*PRD\s*[-–:]+\s*(.+)$/m);
+    // `\s*(\S.*|[^\S\n\r\u2028\u2029])$` is the unambiguous form of `\s*(.+)$`
+    const prdPrefixMatch = content.match(/^#\s*PRD\s*[-–:]+\s*(\S.*|[^\S\n\r\u2028\u2029])$/m);
     if (prdPrefixMatch !== null && prdPrefixMatch[1] !== undefined) {
       const name = prdPrefixMatch[1].trim();
       if (name.length > 0) {
@@ -140,7 +242,7 @@ export class PRDParser {
     }
 
     // 3. Try heading with common document title prefix stripping
-    const headingMatch = content.match(/^#\s+(.+)$/m);
+    const headingMatch = content.match(/^#\s+(\S.*|[^\S\n\r\u2028\u2029])$/m);
     if (headingMatch !== null && headingMatch[1] !== undefined) {
       const rawTitle = headingMatch[1].trim();
 
@@ -178,12 +280,10 @@ export class PRDParser {
    */
   private extractProductDescription(content: string): string {
     // Look for Executive Summary or Product Overview section
-    const summaryMatch = content.match(
-      /##\s*(?:Executive\s*Summary|Product\s*Overview|1\.\s*Introduction)\s*\n+([\s\S]*?)(?=\n##|\n#\s|$)/i
-    );
-    if (summaryMatch !== null && summaryMatch[1] !== undefined) {
+    const summary = findSection(content, EXECUTIVE_SUMMARY_HEADING, EXECUTIVE_SUMMARY_END);
+    if (summary !== undefined) {
       // Get first paragraph
-      const paragraphs = summaryMatch[1].trim().split(/\n\n+/);
+      const paragraphs = summary.trim().split(/\n\n+/);
       const firstParagraph = paragraphs[0];
       return firstParagraph !== undefined ? firstParagraph.replace(/^#+\s*/gm, '').trim() : '';
     }
@@ -199,19 +299,12 @@ export class PRDParser {
   private parseFunctionalRequirements(content: string): ParsedPRDRequirement[] {
     const requirements: ParsedPRDRequirement[] = [];
 
-    // Pattern for FR-XXX requirements
-    const frPattern = /###?\s*(FR-\d{3})[:\s]+([^\n]+)\n([\s\S]*?)(?=###?\s*FR-\d{3}|##\s|$)/gi;
-
-    let match: RegExpExecArray | null;
-    while ((match = frPattern.exec(content)) !== null) {
-      const id = match[1];
-      const title = match[2];
-      const body = match[3];
-
-      if (id === undefined || title === undefined || body === undefined) {
-        continue;
-      }
-
+    // FR-XXX requirement sections
+    for (const { id, title, body } of PRDParser.requirementSections(
+      content,
+      FUNCTIONAL_REQUIREMENT_PREFIX,
+      FUNCTIONAL_REQUIREMENT_END
+    )) {
       try {
         const requirement = this.parseRequirementBody(id, title.trim(), body);
         requirements.push(requirement);
@@ -308,15 +401,13 @@ export class PRDParser {
     const criteria: string[] = [];
 
     // Look for Acceptance Criteria section
-    const acSection = body.match(
-      /\*?\*?Acceptance\s*Criteria\*?\*?[:\s]*\n([\s\S]*?)(?=\n\*?\*?[A-Z][a-z]+\*?\*?[:\s]|\n##|$)/i
-    );
+    const acSection = findSection(body, ACCEPTANCE_CRITERIA_HEADING, ACCEPTANCE_CRITERIA_END);
 
-    if (acSection !== null && acSection[1] !== undefined) {
+    if (acSection !== undefined) {
       // Extract list items
       const listPattern = /[-*]\s*\[?\s*[xX ]?\s*\]?\s*(.+)/g;
       let listMatch: RegExpExecArray | null;
-      while ((listMatch = listPattern.exec(acSection[1])) !== null) {
+      while ((listMatch = listPattern.exec(acSection)) !== null) {
         const item = listMatch[1];
         if (item !== undefined) {
           criteria.push(item.trim());
@@ -360,11 +451,9 @@ export class PRDParser {
     const requirements: ParsedPRDRequirement[] = [];
 
     // Look for Functional Requirements section
-    const frSection = content.match(
-      /##\s*(?:\d+\.)?\s*Functional\s*Requirements\s*\n([\s\S]*?)(?=\n##\s|$)/i
-    );
+    const frSection = findSection(content, FUNCTIONAL_SECTION_HEADING, NEXT_LEVEL_TWO_HEADING);
 
-    if (frSection === null || frSection[1] === undefined) {
+    if (frSection === undefined) {
       return requirements;
     }
 
@@ -374,7 +463,7 @@ export class PRDParser {
     let counter = 1;
 
     let itemMatch: RegExpExecArray | null;
-    while ((itemMatch = itemPattern.exec(frSection[1])) !== null) {
+    while ((itemMatch = itemPattern.exec(frSection)) !== null) {
       const title = itemMatch[1];
       const description = itemMatch[2];
 
@@ -402,19 +491,12 @@ export class PRDParser {
   private parseNonFunctionalRequirements(content: string): ParsedNFR[] {
     const nfrs: ParsedNFR[] = [];
 
-    // Pattern for NFR-XXX
-    const nfrPattern = /###?\s*(NFR-\d{3})[:\s]+([^\n]+)\n([\s\S]*?)(?=###?\s*NFR-\d{3}|##\s|$)/gi;
-
-    let match: RegExpExecArray | null;
-    while ((match = nfrPattern.exec(content)) !== null) {
-      const id = match[1];
-      const title = match[2];
-      const body = match[3];
-
-      if (id === undefined || title === undefined || body === undefined) {
-        continue;
-      }
-
+    // NFR-XXX requirement sections
+    for (const { id, title, body } of PRDParser.requirementSections(
+      content,
+      NON_FUNCTIONAL_REQUIREMENT_PREFIX,
+      NON_FUNCTIONAL_REQUIREMENT_END
+    )) {
       const titleTrimmed = title.trim();
       const categoryMatch = body.match(/\*?\*?Category\*?\*?[:\s]+([^\n]+)/i);
       const metricMatch = body.match(/\*?\*?(?:Metric|Target)\*?\*?[:\s]+([^\n]+)/i);
@@ -467,27 +549,16 @@ export class PRDParser {
   private parseNFRAlternative(content: string): ParsedNFR[] {
     const nfrs: ParsedNFR[] = [];
 
-    const nfrSection = content.match(
-      /##\s*(?:\d+\.)?\s*Non[- ]?Functional\s*Requirements\s*\n([\s\S]*?)(?=\n##\s|$)/i
-    );
+    const nfrSection = findSection(content, NON_FUNCTIONAL_SECTION_HEADING, NEXT_LEVEL_TWO_HEADING);
 
-    if (nfrSection === null || nfrSection[1] === undefined) {
+    if (nfrSection === undefined) {
       return nfrs;
     }
 
     // Parse subsections by category
-    const categoryPattern = /###\s*(?:\d+\.\d+\s*)?([^\n]+)\n([\s\S]*?)(?=###|$)/g;
     let counter = 1;
 
-    let catMatch: RegExpExecArray | null;
-    while ((catMatch = categoryPattern.exec(nfrSection[1])) !== null) {
-      const category = catMatch[1];
-      const items = catMatch[2];
-
-      if (category === undefined || items === undefined) {
-        continue;
-      }
-
+    for (const { heading: category, body: items } of PRDParser.subsections(nfrSection)) {
       const itemPattern = /[-*]\s+([^\n]+)/g;
       let itemMatch: RegExpExecArray | null;
       while ((itemMatch = itemPattern.exec(items)) !== null) {
@@ -495,10 +566,11 @@ export class PRDParser {
         if (item !== undefined) {
           nfrs.push({
             id: `NFR-${String(counter).padStart(3, '0')}`,
+            // (?<!\s) starts the match at the beginning of a whitespace run only
             category: category
               .trim()
               .toLowerCase()
-              .replace(/\s+requirements?/i, ''),
+              .replace(/(?<!\s)\s+requirements?/i, ''),
             description: item.trim(),
             priority: 'P2',
           });
@@ -519,15 +591,11 @@ export class PRDParser {
     const constraints: ParsedConstraint[] = [];
 
     // Look for Constraints section
-    const constraintSection = content.match(
-      /##\s*(?:\d+\.)?\s*Constraints?\s*(?:and\s*Assumptions)?\s*\n([\s\S]*?)(?=\n##\s|$)/i
-    );
+    const sectionContent = findSection(content, CONSTRAINT_SECTION_HEADING, NEXT_LEVEL_TWO_HEADING);
 
-    if (constraintSection === null || constraintSection[1] === undefined) {
+    if (sectionContent === undefined) {
       return constraints;
     }
-
-    const sectionContent = constraintSection[1];
 
     // Parse CON-XXX pattern
     const conPattern = /###?\s*(CON-\d{3})[:\s]+([^\n]+)/gi;
@@ -546,20 +614,15 @@ export class PRDParser {
 
     // If no CON-XXX, parse list items
     if (constraints.length === 0) {
-      const itemPattern = /[-*]\s+\*?\*?(?:([^:]+):)?\*?\*?\s*([^\n]+)/g;
       let counter = 1;
-      let itemMatch: RegExpExecArray | null;
-      while ((itemMatch = itemPattern.exec(sectionContent)) !== null) {
-        const description = itemMatch[2];
-        if (description !== undefined) {
-          const type = itemMatch[1]?.toLowerCase().trim() ?? 'technical';
-          constraints.push({
-            id: `CON-${String(counter).padStart(3, '0')}`,
-            type: this.normalizeConstraintType(type),
-            description: description.trim(),
-          });
-          counter++;
-        }
+      for (const item of PRDParser.constraintItems(sectionContent)) {
+        const type = item.type?.toLowerCase().trim() ?? 'technical';
+        constraints.push({
+          id: `CON-${String(counter).padStart(3, '0')}`,
+          type: this.normalizeConstraintType(type),
+          description: item.description.trim(),
+        });
+        counter++;
       }
     }
 
@@ -590,22 +653,26 @@ export class PRDParser {
     const assumptions: string[] = [];
 
     // Look for Assumptions section
-    const assumptionSection = content.match(
-      /##\s*(?:\d+\.)?\s*Assumptions?\s*\n([\s\S]*?)(?=\n##\s|$)/i
+    const assumptionSection = findSection(
+      content,
+      ASSUMPTION_SECTION_HEADING,
+      NEXT_LEVEL_TWO_HEADING
     );
 
-    if (assumptionSection === null || assumptionSection[1] === undefined) {
+    if (assumptionSection === undefined) {
       // Try within Constraints and Assumptions section
-      const combinedSection = content.match(
-        /###?\s*(?:\d+\.\d+\s*)?Assumptions?\s*\n([\s\S]*?)(?=###|##\s|$)/i
+      const combinedSection = findSection(
+        content,
+        ASSUMPTION_SUBSECTION_HEADING,
+        ASSUMPTION_SUBSECTION_END
       );
-      if (combinedSection !== null && combinedSection[1] !== undefined) {
-        return this.extractListItems(combinedSection[1]);
+      if (combinedSection !== undefined) {
+        return this.extractListItems(combinedSection);
       }
       return assumptions;
     }
 
-    return this.extractListItems(assumptionSection[1]);
+    return this.extractListItems(assumptionSection);
   }
 
   /**
@@ -634,31 +701,19 @@ export class PRDParser {
   private parseUserPersonas(content: string): UserPersona[] {
     const personas: UserPersona[] = [];
 
-    const personaSection = content.match(
-      /##\s*(?:\d+\.)?\s*(?:User\s*)?Personas?\s*\n([\s\S]*?)(?=\n##\s|$)/i
-    );
+    const personaSection = findSection(content, PERSONA_SECTION_HEADING, NEXT_LEVEL_TWO_HEADING);
 
-    if (personaSection === null || personaSection[1] === undefined) {
+    if (personaSection === undefined) {
       return personas;
     }
 
     // Parse persona blocks
-    const personaPattern = /###\s*(?:\d+\.\d+\s*)?([^\n]+)\n([\s\S]*?)(?=###|$)/g;
-    let match: RegExpExecArray | null;
-    while ((match = personaPattern.exec(personaSection[1])) !== null) {
-      const name = match[1];
-      const body = match[2];
-
-      if (name === undefined || body === undefined) {
-        continue;
-      }
-
+    for (const { heading: name, body } of PRDParser.subsections(personaSection)) {
       const nameTrimmed = name.trim();
       const roleMatch = body.match(/\*?\*?Role\*?\*?[:\s]+([^\n]+)/i);
       const descMatch = body.match(/\*?\*?Description\*?\*?[:\s]+([^\n]+)/i);
-      const goalsMatch = body.match(/\*?\*?Goals?\*?\*?[:\s]*\n?([\s\S]*?)(?=\n\*?\*?[A-Z]|$)/i);
-
-      const goalsContent = goalsMatch?.[1];
+      // The old `[:\s]*\n?` before the goals body always matched an empty `\n?`
+      const goalsContent = findSection(body, PERSONA_GOALS_FIELD, PERSONA_GOALS_END);
       personas.push({
         name: nameTrimmed,
         role: roleMatch?.[1]?.trim() ?? nameTrimmed,
@@ -678,18 +733,16 @@ export class PRDParser {
   private parseGoals(content: string): Goal[] {
     const goals: Goal[] = [];
 
-    const goalSection = content.match(
-      /##\s*(?:\d+\.)?\s*(?:Goals?\s*(?:and|&)?\s*)?(?:Success\s*)?Metrics?\s*\n([\s\S]*?)(?=\n##\s|$)/i
-    );
+    const goalSection = findSection(content, GOAL_SECTION_HEADING, NEXT_LEVEL_TWO_HEADING);
 
-    if (goalSection === null || goalSection[1] === undefined) {
+    if (goalSection === undefined) {
       return goals;
     }
 
     // Parse goal items
     const itemPattern = /[-*]\s+([^\n]+)/g;
     let match: RegExpExecArray | null;
-    while ((match = itemPattern.exec(goalSection[1])) !== null) {
+    while ((match = itemPattern.exec(goalSection)) !== null) {
       const item = match[1];
       if (item === undefined) {
         continue;
@@ -698,7 +751,7 @@ export class PRDParser {
       const text = item.trim();
 
       // Try to extract metric and target
-      const metricMatch = text.match(/(.+?)(?::|–|-)\s*(.+)/);
+      const metricMatch = PRDParser.splitGoalMetric(text);
       if (metricMatch !== null && metricMatch[1] !== undefined && metricMatch[2] !== undefined) {
         goals.push({
           description: metricMatch[1].trim(),
@@ -712,6 +765,161 @@ export class PRDParser {
     }
 
     return goals;
+  }
+
+  /**
+   * Iterate requirement sections such as `### FR-001: Title` and their bodies.
+   *
+   * Same matches as repeated `exec` of
+   * `/###?\s*(ID-\d{3})[:\s]+([^\n]+)\n([\s\S]*?)(?=###?\s*ID-\d{3}|##\s|$)/gi`,
+   * whose separator run and title overlapped and whose title was rescanned from
+   * every heading when the last line had no line break.
+   * @param content - PRD content
+   * @param prefix - Global heading expression; group 1 is the ID, group 2 the separator run
+   * @param terminator - Global expression for the text that ends a section body
+   * @yields ID, untrimmed title, and body of each section
+   */
+  private static *requirementSections(
+    content: string,
+    prefix: RegExp,
+    terminator: RegExp
+  ): Generator<{ id: string; title: string; body: string }> {
+    prefix.lastIndex = 0;
+    let match: RegExpExecArray | null;
+    while ((match = prefix.exec(content)) !== null) {
+      const runEnd = match.index + match[0].length;
+      const runStart = runEnd - (match[2]?.length ?? 0);
+      const lineEnd = content.indexOf('\n', runEnd);
+      let titleStart = runEnd;
+      let titleEnd = lineEnd;
+      if (lineEnd === -1) {
+        // No line break after the separator: the old expression backtracked into
+        // the separator run and took the last character before a line break.
+        titleEnd = -1;
+        for (let i = runEnd - 2; i > runStart; i--) {
+          if (content[i] !== '\n' && content[i + 1] === '\n') {
+            titleStart = i;
+            titleEnd = i + 1;
+            break;
+          }
+        }
+        if (titleEnd === -1) {
+          // No later heading can be followed by a line break either
+          return;
+        }
+      }
+      const body = sectionBody(content, titleEnd + 1, terminator);
+      yield { id: match[1] ?? '', title: content.slice(titleStart, titleEnd), body };
+      prefix.lastIndex = titleEnd + 1 + body.length;
+    }
+  }
+
+  /**
+   * Iterate `###` subsections (heading text and body up to the next `###`).
+   *
+   * Same matches as repeated `exec` of
+   * `/###\s*(?:\d+\.\d+\s*)?([^\n]+)\n([\s\S]*?)(?=###|$)/g` in linear time.
+   * @param text - Section text
+   * @yields Untrimmed heading text and body of each subsection
+   */
+  private static *subsections(text: string): Generator<{ heading: string; body: string }> {
+    const lastLineBreak = text.lastIndexOf('\n');
+    let start = text.indexOf('###');
+    // A heading needs a line break after it
+    while (start !== -1 && start < lastLineBreak) {
+      const match = SUBSECTION_HEADING.exec(text.slice(start));
+      let position = start + 1;
+      if (match !== null) {
+        const bodyStart = start + match[0].length;
+        const next = text.indexOf('###', bodyStart);
+        position = next === -1 ? text.length : next;
+        yield {
+          heading: match[1] ?? match[2] ?? match[3] ?? match[4] ?? '',
+          body: text.slice(bodyStart, position),
+        };
+      }
+      start = text.indexOf('###', position);
+    }
+  }
+
+  /**
+   * Iterate constraint list items (`- Type: description` or `- description`).
+   *
+   * Same matches as repeated `exec` of
+   * `/[-*]\s+\*?\*?(?:([^:]+):)?\*?\*?\s*([^\n]+)/g` in linear time.
+   * @param text - Constraints section text
+   * @yields Optional untrimmed type and untrimmed description of each item
+   */
+  private static *constraintItems(text: string): Generator<{ type?: string; description: string }> {
+    let position = 0;
+    let nextColon = text.indexOf(':');
+    // Colon whose `Type:` form already failed: the text after it is the same
+    let failedColon = -1;
+    for (;;) {
+      LIST_MARKER.lastIndex = position;
+      const marker = LIST_MARKER.exec(text);
+      if (marker === null) {
+        return;
+      }
+      const start = marker.index;
+      const head = CONSTRAINT_ITEM_HEAD.exec(text.slice(start));
+      if (head === null) {
+        position = start + 1;
+        continue;
+      }
+      const afterHead = start + head[0].length;
+      if (nextColon !== -1 && nextColon < afterHead) {
+        nextColon = text.indexOf(':', afterHead);
+      }
+      if (nextColon > afterHead && nextColon !== failedColon) {
+        const typed = CONSTRAINT_ITEM_TYPED.exec(text.slice(afterHead));
+        if (typed !== null) {
+          yield { type: typed[1] ?? '', description: typed[2] ?? '' };
+          position = afterHead + typed[0].length;
+          continue;
+        }
+        failedColon = nextColon;
+      }
+      const untyped = CONSTRAINT_ITEM_UNTYPED.exec(text.slice(afterHead));
+      if (untyped !== null) {
+        yield { description: untyped[1] ?? '' };
+        position = afterHead + untyped[0].length;
+        continue;
+      }
+      // Only line breaks follow the marker: retry with less of the marker's padding
+      const fallback = CONSTRAINT_ITEM_FALLBACK.exec(text.slice(start));
+      if (fallback !== null) {
+        yield { description: fallback[1] ?? '' };
+        position = start + fallback[0].length;
+      } else {
+        position = start + 1;
+      }
+    }
+  }
+
+  /**
+   * Split goal text into description and metric at the first `:`, `–`, or `-`.
+   *
+   * Same result as `text.match(/(.+?)(?::|–|-)\s*(.+)/)`, which was retried at
+   * every position. A match can only start at the beginning of the text or right
+   * after a line terminator, so the anchored expression is tried only there.
+   * @param text - Goal text
+   * @returns Match with the description in group 1 and the metric in group 2, or null
+   */
+  private static splitGoalMetric(text: string): RegExpExecArray | null {
+    let start = 0;
+    for (;;) {
+      const match = GOAL_METRIC.exec(text.slice(start));
+      if (match !== null) {
+        return match;
+      }
+      LINE_TERMINATOR.lastIndex = start;
+      const lineBreak = LINE_TERMINATOR.exec(text);
+      if (lineBreak === null) {
+        return null;
+      }
+      start = lineBreak.index + 1;
+    }
   }
 
   /**

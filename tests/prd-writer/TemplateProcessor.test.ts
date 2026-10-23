@@ -4,6 +4,7 @@ import * as path from 'node:path';
 import { TemplateProcessor } from '../../src/prd-writer/TemplateProcessor.js';
 import type { CollectedInfo } from '../../src/scratchpad/index.js';
 import type { PRDMetadata } from '../../src/prd-writer/types.js';
+import { LONG_INPUT_LENGTH, LONG_INPUT_TIME_LIMIT_MS, timed } from '../helpers/longInput.js';
 
 describe('TemplateProcessor', () => {
   const testTemplateDir = path.join(process.cwd(), 'tests', 'prd-writer', 'test-templates');
@@ -586,6 +587,115 @@ Some text <!-- inline comment --> more text
 
       expect(template1).toBe(template2);
       expect(template1).toContain('Test Template');
+    });
+  });
+
+  describe('characterization of section and comment patterns', () => {
+    type ProcessorInternals = {
+      generateNonFunctionalRequirementsSection(content: string, info: CollectedInfo): string;
+      replaceHtmlCommentPlaceholders(content: string, info: CollectedInfo): string;
+    };
+    const internals = (): ProcessorInternals =>
+      new TemplateProcessor() as unknown as ProcessorInternals;
+    // `$&` and `$`` in the description are expanded by String.prototype.replace
+    const nfrInfo = (): CollectedInfo =>
+      createMinimalCollectedInfo({
+        requirements: {
+          functional: [],
+          nonFunctional: [
+            {
+              id: 'NFR-001',
+              category: 'performance',
+              title: 'T',
+              description: 'Fast $& and $$ and $` end',
+              priority: 'P1',
+            },
+          ],
+        },
+      });
+    const nfrHeader =
+      '### NFR-001: T\n\n| Attribute | Value |\n|-----------|-------|\n' +
+      '| **Category** | Performance |\n| **Priority** | P1 |\n\n**Description:**\n';
+    const NFR_MARKER = '### NFR-001:';
+    const nfrBlock = (matched: string, before: string): string =>
+      `${nfrHeader}Fast ${matched} and $ and ${before} end\n\n---\n\n\n`;
+
+    it.each([
+      [
+        'A\n### NFR-001: X\nbody\n---\n\n## 7. Next\nTail',
+        `A\n${nfrBlock('### NFR-001: X\nbody\n', 'A\n')}---\n\n## 7. Next\nTail`,
+      ],
+      [
+        'A\n### NFR-001: X\nbody\n---\r\n\r\n## 7. Next',
+        `A\n${nfrBlock('### NFR-001: X\nbody\n', 'A\n')}---\r\n\r\n## 7. Next`,
+      ],
+      ['A\n### NFR-001: X\nbody only', `A\n${nfrBlock('### NFR-001: X\nbody only', 'A\n')}`],
+      [
+        'A\n### NFR-001:### NFR-001: Y\n---\n\n## 7',
+        `A\n${nfrBlock('### NFR-001:### NFR-001: Y\n', 'A\n')}---\n\n## 7`,
+      ],
+      ['no marker', 'no marker'],
+      ['### NFR-001:', nfrBlock('### NFR-001:', '')],
+    ])('should replace the NFR template section in %j', (content, expected) => {
+      expect(internals().generateNonFunctionalRequirementsSection(content, nfrInfo())).toBe(
+        expected
+      );
+    });
+
+    it('should replace only whole-line HTML comments', () => {
+      const content = [
+        '<!-- Describe the purpose -->',
+        '  <!--   -->  ',
+        '<!---->',
+        '<!-- a --> b -->',
+        '<!--\t-->',
+        '<!--->',
+        'x <!-- y -->',
+        '<!-- scope -->',
+        '<!--x-->',
+        '<!-- note -->',
+      ].join('\n');
+      const info = createMinimalCollectedInfo({ project: { name: 'P', description: 'Desc text' } });
+
+      expect(internals().replaceHtmlCommentPlaceholders(content, info)).toBe(
+        [
+          'Desc text',
+          '[To be elaborated]',
+          '<!---->',
+          '[To be elaborated]',
+          '[To be elaborated]',
+          '<!--->',
+          'x <!-- y -->',
+          'Desc text',
+          '[To be elaborated]',
+          '[To be elaborated]',
+        ].join('\n')
+      );
+    });
+
+    describe('long input (polynomial ReDoS regression)', () => {
+      it('should replace a section made of repeated NFR markers quickly', () => {
+        const content = NFR_MARKER.repeat(LONG_INPUT_LENGTH / NFR_MARKER.length);
+        const { result, elapsedMs } = timed(() =>
+          internals().generateNonFunctionalRequirementsSection(content, nfrInfo())
+        );
+
+        expect(result).toBe(nfrBlock(content, ''));
+        expect(elapsedMs).toBeLessThan(LONG_INPUT_TIME_LIMIT_MS);
+      });
+
+      it.each([
+        ['blank', `<!--${'\t'.repeat(LONG_INPUT_LENGTH)}x`],
+        ['text', `<!--a${'\t'.repeat(LONG_INPUT_LENGTH)}x`],
+      ])('should keep an unterminated %s comment line quickly', (_kind, line) => {
+        const info = createMinimalCollectedInfo();
+        const { result, elapsedMs } = timed(() =>
+          internals().replaceHtmlCommentPlaceholders(line, info)
+        );
+
+        expect(result).toBe(line);
+        expect(elapsedMs).toBeLessThan(LONG_INPUT_TIME_LIMIT_MS);
+      });
     });
   });
 });

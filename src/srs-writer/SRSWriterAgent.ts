@@ -60,6 +60,75 @@ const DEFAULT_CONFIG: Required<SRSWriterAgentConfig> = {
 export const SRS_WRITER_AGENT_ID = 'srs-writer-agent';
 
 /**
+ * Count template placeholders such as `${name}` or `{{NAME}}`: `open`, one or
+ * more characters other than `}`, then `close`.
+ *
+ * Same count as `content.match(/\$\{[^}]+\}/g)` (or `/\{\{[^}]+\}\}/g`) in linear
+ * time. The expressions rescanned the rest of the text from every opening when
+ * no closing brace followed.
+ * @param content - Text to scan
+ * @param open - Opening delimiter (`${` or `{{`)
+ * @param close - Closing delimiter (`}` or `}}`)
+ * @returns Number of placeholders
+ */
+function countPlaceholders(content: string, open: string, close: string): number {
+  let count = 0;
+  let start = content.indexOf(open);
+  while (start !== -1) {
+    const bodyStart = start + open.length;
+    const brace = content.indexOf('}', bodyStart);
+    if (brace === -1) {
+      break;
+    }
+    // Every opening before this brace ends its body at the same brace
+    const matched = brace > bodyStart && content.startsWith(close, brace);
+    if (matched) {
+      count++;
+    }
+    start = content.indexOf(open, matched ? brace + close.length : brace + 1);
+  }
+  return count;
+}
+
+/**
+ * Find HTML comments (`<!-- ... -->`).
+ *
+ * Same matches as `content.match(/<!--[\s\S]*?-->/g)` in linear time. The lazy
+ * expression rescanned the rest of the text from every `<!--` when no `-->`
+ * followed.
+ * @param content - Text to scan
+ * @returns Start (inclusive) and end (exclusive) index of each comment
+ */
+function findHtmlComments(content: string): Array<readonly [number, number]> {
+  const comments: Array<readonly [number, number]> = [];
+  let start = content.indexOf('<!--');
+  while (start !== -1) {
+    const close = content.indexOf('-->', start + 4);
+    if (close === -1) {
+      break;
+    }
+    comments.push([start, close + 3]);
+    start = content.indexOf('<!--', close + 3);
+  }
+  return comments;
+}
+
+/**
+ * Remove HTML comments, like `content.replace(/<!--[\s\S]*?-->/g, '')`.
+ * @param content - Text to clean
+ * @returns Text without HTML comments
+ */
+function removeHtmlComments(content: string): string {
+  let result = '';
+  let position = 0;
+  for (const [start, end] of findHtmlComments(content)) {
+    result += content.slice(position, start);
+    position = end;
+  }
+  return result + content.slice(position);
+}
+
+/**
  * SRS Writer Agent class for generating SRS documents
  * Implements IAgent interface for unified agent instantiation through AgentFactory
  */
@@ -864,19 +933,17 @@ export class SRSWriterAgent implements IAgent {
     const issues: string[] = [];
 
     // Check for unsubstituted template variables
-    const dollarVars = content.match(/\$\{[^}]+\}/g);
-    const mustacheVars = content.match(/\{\{[^}]+\}\}/g);
-    if (dollarVars !== null || mustacheVars !== null) {
-      const count = (dollarVars?.length ?? 0) + (mustacheVars?.length ?? 0);
+    const count = countPlaceholders(content, '${', '}') + countPlaceholders(content, '{{', '}}');
+    if (count > 0) {
       issues.push(`PRD contains ${String(count)} unsubstituted template variable(s)`);
     }
 
     // Check minimum meaningful content (strip markdown formatting and whitespace)
-    const stripped = content
+    const withoutRules = content
       .replace(/^#+\s.*$/gm, '') // headings
       .replace(/\|.*\|/g, '') // table rows
-      .replace(/---+/g, '') // horizontal rules
-      .replace(/<!--[\s\S]*?-->/g, '') // HTML comments
+      .replace(/---+/g, ''); // horizontal rules
+    const stripped = removeHtmlComments(withoutRules)
       .replace(/\[Not yet generated\]/g, '')
       .replace(/\s+/g, ' ')
       .trim();
@@ -885,9 +952,10 @@ export class SRSWriterAgent implements IAgent {
     }
 
     // Check if content is mostly HTML comments (template-only)
-    const htmlComments = content.match(/<!--[\s\S]*?-->/g);
-    const htmlCommentLength =
-      htmlComments !== null ? htmlComments.reduce((sum, c) => sum + c.length, 0) : 0;
+    const htmlCommentLength = findHtmlComments(content).reduce(
+      (sum, [start, end]) => sum + end - start,
+      0
+    );
     if (htmlCommentLength > content.length * 0.5) {
       issues.push('PRD consists mostly of HTML comment placeholders');
     }

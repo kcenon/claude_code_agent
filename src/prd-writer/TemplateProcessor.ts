@@ -34,6 +34,30 @@ const DEFAULT_OPTIONS: Required<TemplateProcessorOptions> = {
   defaultAuthor: 'AD-SDLC PRD Writer Agent',
 };
 
+/** First line of the NFR template section */
+const NFR_TEMPLATE_START = '### NFR-001:';
+
+/** Horizontal rule before section 7 that ends the NFR template section */
+const NFR_TEMPLATE_END = /---\r?\n\r?\n## 7/g;
+
+/**
+ * Whether a trimmed line is exactly one HTML comment, such as `<!-- Describe the purpose -->`.
+ *
+ * Same result as `/^<!--\s*.+\s*-->$/.test(line)`, whose `\s*` and `.+`
+ * quantifiers overlapped, in linear time.
+ * @param line - Trimmed line
+ * @returns True when the line is a whole-line HTML comment
+ */
+function isWholeLineHtmlComment(line: string): boolean {
+  if (line.length < 8 || !line.startsWith('<!--') || !line.endsWith('-->')) {
+    return false;
+  }
+  const inner = line.slice(4, -3);
+  const text = inner.trim();
+  // `.+` does not match line terminators and needs one character even in a blank comment
+  return text === '' ? /[^\n\r\u2028\u2029]/.test(inner) : !/[\n\r\u2028\u2029]/.test(text);
+}
+
 /**
  * TemplateProcessor class for PRD template handling
  */
@@ -418,10 +442,15 @@ export class TemplateProcessor {
    */
   private generateNonFunctionalRequirementsSection(content: string, info: CollectedInfo): string {
     const nfrLines = this.generateNonFunctionalRequirements(info);
-    // Replace the NFR template section
-    const nfrPattern = /### NFR-001:[\s\S]*?(?=---\r?\n\r?\n## 7|$)/;
-    if (nfrPattern.test(content)) {
-      return content.replace(nfrPattern, nfrLines.join('\n') + '\n\n');
+    // Replace the NFR template section: from the first "### NFR-001:" up to the
+    // rule before section 7, or to the end of the template
+    const start = content.indexOf(NFR_TEMPLATE_START);
+    if (start !== -1) {
+      NFR_TEMPLATE_END.lastIndex = start + NFR_TEMPLATE_START.length;
+      const end = NFR_TEMPLATE_END.exec(content)?.index ?? content.length;
+      // The section is the first occurrence of its own text, and a string pattern
+      // expands `$&` and the other replacement patterns like the old expression did
+      return content.replace(content.slice(start, end), nfrLines.join('\n') + '\n\n');
     }
     return content;
   }
@@ -832,7 +861,7 @@ export class TemplateProcessor {
       .map((line) => {
         const trimmed = line.trim();
         // Only match lines that are entirely an HTML comment
-        if (!/^<!--\s*.+\s*-->$/.test(trimmed)) {
+        if (!isWholeLineHtmlComment(trimmed)) {
           return line;
         }
 

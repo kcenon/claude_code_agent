@@ -8,6 +8,7 @@ import type {
   FlowStep,
 } from '../../src/srs-writer/types.js';
 import type { SRSFeature } from '../../src/architecture-generator/types.js';
+import { LONG_INPUT_LENGTH, LONG_INPUT_TIME_LIMIT_MS, timed } from '../helpers/longInput.js';
 
 describe('UseCaseGenerator', () => {
   let generator: UseCaseGenerator;
@@ -440,6 +441,98 @@ describe('UseCaseGenerator', () => {
 
       expect(result.useCases.length).toBeGreaterThanOrEqual(1);
       expect(result.coverage.percentage).toBe(100);
+    });
+  });
+
+  describe('characterization of user story and exception parsing', () => {
+    type GeneratorInternals = {
+      parseUserStoryToSteps(userStory: string): Array<{ description: string }>;
+      inferExceptionHandling(criterion: string, exceptionType: string): string;
+    };
+    const internals = (): GeneratorInternals =>
+      new UseCaseGenerator() as unknown as GeneratorInternals;
+    const storySteps = (action: string, benefit: string): string[] => [
+      `User initiates: ${action}`,
+      'System validates the request',
+      'System processes the request',
+      `System confirms: ${benefit}`,
+    ];
+
+    it.each([
+      [
+        'As a user, I want to log in so that I can access my account',
+        storySteps('to log in', 'I can access my account'),
+      ],
+      ['as a admin, editor, I want  x so that y', storySteps('x', 'y')],
+      ['As a user,I want x so that', []],
+      ['As a  , I want x so that y', storySteps('x', 'y')],
+      ['As a user, I want   so that y', storySteps('', 'y')],
+      ['Has a dog. As a user, I want x so that y', storySteps('x', 'y')],
+      ['As an admin, I want x so that y', []],
+      ['As a user, I want x\nso that y', storySteps('x', 'y')],
+      ['As a user, I want x so that  ', storySteps('x', '')],
+      ['AS A USER, I WANT X SO THAT Y', storySteps('X', 'Y')],
+      ['As a user, I want x, I want z so that w', storySteps('x, I want z', 'w')],
+    ])('should turn the user story %j into steps', (userStory, expected) => {
+      expect(
+        internals()
+          .parseUserStoryToSteps(userStory)
+          .map((step) => step.description)
+      ).toEqual(expected);
+    });
+
+    it.each([
+      ['then show an error. retry', 'show an error'],
+      ['should retry', 'retry'],
+      ['must', 'Notify user of timeout and offer retry option'],
+      ['then', 'Notify user of timeout and offer retry option'],
+      ['Then   notify user', 'notify user'],
+      ['Athens should be fine.', 'be fine'],
+      ['If X then\n.', '.'],
+      ['no keywords', 'Notify user of timeout and offer retry option'],
+      ['then  .', '.'],
+      ['then .', '.'],
+    ])('should infer the exception handling from %j', (criterion, expected) => {
+      expect(internals().inferExceptionHandling(criterion, 'Operation timeout')).toBe(expected);
+    });
+
+    describe('long input (polynomial ReDoS regression)', () => {
+      const tabs = '\t'.repeat(LONG_INPUT_LENGTH);
+
+      it.each([
+        ['after the role prefix', `as\ta\t${tabs}`],
+        ['after "I want"', `as\ta\ta,i\twant\t${tabs}`],
+        ['after the action', `as\ta\ta,i\twant\ta${tabs}`],
+        ['across repeated roles', 'as a x '.repeat(LONG_INPUT_LENGTH / 7)],
+        ['across repeated wants', `As a x${', I want y'.repeat(LONG_INPUT_LENGTH / 10)}`],
+      ])('should reject an incomplete user story with long input %s quickly', (_kind, story) => {
+        const { result, elapsedMs } = timed(() => internals().parseUserStoryToSteps(story));
+
+        expect(result).toEqual([]);
+        expect(elapsedMs).toBeLessThan(LONG_INPUT_TIME_LIMIT_MS);
+      });
+
+      it('should parse a user story with a long action quickly', () => {
+        const action = 'x'.repeat(LONG_INPUT_LENGTH);
+        const { result, elapsedMs } = timed(() =>
+          internals().parseUserStoryToSteps(`As a user,${tabs}I want ${action} so that y`)
+        );
+
+        expect(result.map((step) => step.description)).toEqual(storySteps(action, 'y'));
+        expect(elapsedMs).toBeLessThan(LONG_INPUT_TIME_LIMIT_MS);
+      });
+
+      it.each([
+        ['whitespace before a line break', `then${tabs}x\ny`],
+        ['repeated keywords before a line break', `${'then x '.repeat(LONG_INPUT_LENGTH / 7)}\n`],
+      ])('should give up on a handling clause with %s quickly', (_kind, criterion) => {
+        const { result, elapsedMs } = timed(() =>
+          internals().inferExceptionHandling(criterion, 'Operation timeout')
+        );
+
+        expect(result).toBe('Notify user of timeout and offer retry option');
+        expect(elapsedMs).toBeLessThan(LONG_INPUT_TIME_LIMIT_MS);
+      });
     });
   });
 });
