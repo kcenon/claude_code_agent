@@ -211,7 +211,11 @@ const DEFAULT_MASKING_PATTERNS: MaskingPattern[] = [
   { name: 'slack_token', pattern: /xox[baprs]-[0-9]{10,13}-[0-9]{10,13}[a-zA-Z0-9-]*/g },
   {
     name: 'slack_webhook',
-    pattern: /https:\/\/hooks\.slack\.com\/services\/[A-Z0-9]+\/[A-Z0-9]+\/[a-zA-Z0-9]+/g,
+    // Not anchored at the start on purpose: masking has to find the URL anywhere in a
+    // log message. The end is anchored to the end of the token, which the greedy last
+    // segment always reaches, so the masked text is unchanged.
+    pattern:
+      /https:\/\/hooks\.slack\.com\/services\/[A-Z0-9]+\/[A-Z0-9]+\/[a-zA-Z0-9]+(?=[^a-zA-Z0-9]|$)/g,
   },
 
   // NPM tokens
