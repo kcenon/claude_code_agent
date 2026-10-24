@@ -168,6 +168,8 @@ const InvestigationConfigSchema = z.object({
 
 const VnvConfigSchema = z.object({
   rigor: z.enum(['strict', 'standard', 'minimal']).optional(),
+  /** Verification policy profile; absent keeps the legacy rigor + halt mapping. */
+  profile: z.enum(['advisory', 'delivery']).optional(),
   halt_on_verification_failure: z.boolean().optional(),
   generate_vnv_plan: z.boolean().optional(),
   generate_vnv_report: z.boolean().optional(),

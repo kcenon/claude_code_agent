@@ -500,9 +500,15 @@ scheduler gate. Verification outcomes are included in the pipeline result.
 ### Stage Verifier
 
 The scheduler invokes `StageVerifierAgent` after every completed or degraded
-stage. Standard and minimal rigor retain failed checks as advisory warnings.
-With strict rigor and `haltOnVerificationFailure` enabled, a failed check marks
-the stage failed, skips all unprocessed stages, and fails the pipeline.
+stage. Each stage slot has a named check set or an explicit not-applicable
+reason ([verification coverage](architecture/verification-coverage.md)). Under
+the default `advisory` profile, failed checks are retained as findings and
+advisory warnings. Under the `delivery` profile (`global.vnv.profile:
+delivery`, or the legacy strict rigor with `haltOnVerificationFailure`), a
+failed required check marks the stage failed, skips all unprocessed stages, and
+fails the pipeline. Each stage result and the pipeline result record the
+verification state; see the
+[verification policy guide](guides/verification-policy.md).
 
 ### RTM Builder
 

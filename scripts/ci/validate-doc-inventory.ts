@@ -1,16 +1,37 @@
 #!/usr/bin/env tsx
 
-import { resolve } from 'node:path';
+import { readFileSync, writeFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { validateDocumentInventory } from '../../src/doc-code-comparator/DocInventoryValidator.js';
+import { replaceVerificationCoverageBlock } from '../../src/stage-verifier/applicability.js';
+
+const VERIFICATION_COVERAGE_DOC = join('docs', 'architecture', 'verification-coverage.md');
+
+/**
+ * Regenerate the verification coverage block from VERIFICATION_APPLICABILITY.
+ * @param root - Repository root
+ */
+function writeVerificationCoverage(root: string): void {
+  const path = join(root, VERIFICATION_COVERAGE_DOC);
+  const document = readFileSync(path, 'utf8');
+  const updated = replaceVerificationCoverageBlock(document);
+  if (updated !== document) {
+    writeFileSync(path, updated, 'utf8');
+    process.stdout.write(`Updated ${VERIFICATION_COVERAGE_DOC}\n`);
+  }
+}
 
 function main(argv: readonly string[]): number {
   let root = process.cwd();
   let json = false;
+  let write = false;
 
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
     if (argument === '--json') {
       json = true;
+    } else if (argument === '--write') {
+      write = true;
     } else if (argument === '--root') {
       const value = argv[index + 1];
       if (value === undefined) throw new Error('--root requires a path');
@@ -21,6 +42,7 @@ function main(argv: readonly string[]): number {
     }
   }
 
+  if (write) writeVerificationCoverage(root);
   const result = validateDocumentInventory(root);
   if (json) {
     process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);

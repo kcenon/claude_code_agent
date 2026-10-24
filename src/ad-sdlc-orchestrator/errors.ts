@@ -4,7 +4,7 @@
  * Custom error types for pipeline orchestration operations.
  */
 
-import type { PipelineMode, PipelineStatus, StageName } from './types.js';
+import type { PipelineMode, PipelineResult, PipelineStatus, StageName } from './types.js';
 
 /**
  * Base error class for AD-SDLC Orchestrator Agent
@@ -126,13 +126,21 @@ export class PipelineFailedError extends OrchestratorError {
   public readonly pipelineId: string;
   public readonly mode: PipelineMode;
   public readonly failedStages: readonly StageName[];
+  /** The persisted result of the failed run, including its verification summary. */
+  public readonly result?: PipelineResult;
 
-  constructor(pipelineId: string, mode: PipelineMode, failedStages: readonly StageName[]) {
+  constructor(
+    pipelineId: string,
+    mode: PipelineMode,
+    failedStages: readonly StageName[],
+    result?: PipelineResult
+  ) {
     super(`Pipeline "${pipelineId}" (${mode}) failed. Failed stages: ${failedStages.join(', ')}`);
     this.name = 'PipelineFailedError';
     this.pipelineId = pipelineId;
     this.mode = mode;
     this.failedStages = failedStages;
+    if (result !== undefined) this.result = result;
   }
 }
 

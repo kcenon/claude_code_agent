@@ -1,8 +1,10 @@
 /**
  * Stage Verification Rules
  *
- * Defines verification rules for each pipeline stage. Rules are organized
- * by stage name and filtered by rigor level at runtime.
+ * Defines verification rules for each pipeline stage. Rules are grouped into
+ * named check sets; `applicability.ts` assigns a check set (or an explicit
+ * not-applicable record) to every stage slot of every mode. Rules are
+ * filtered by rigor level at runtime.
  *
  * Rule naming convention: VR-{STAGE_ABBREV}-{NNN}
  *   - COL = collection
@@ -10,18 +12,40 @@
  *   - SRS = srs_generation / srs_update
  *   - SDS = sds_generation / sds_update
  *   - ISS = issue_generation
+ *   - IRD = issue_reading
+ *   - ORC = orchestration
  *   - IMP = implementation
+ *   - REG = regression_testing
+ *   - VAL = validation-agent
  *   - REV = review
  *
  * @module stage-verifier/rules
  */
 
-import { readFile } from 'node:fs/promises';
 import { join, extname } from 'node:path';
-import * as yaml from 'js-yaml';
 
 import type { VnvRigor } from '../vnv/types.js';
 import type { VerificationCheck, VerificationRule } from './types.js';
+import {
+  extractIds,
+  extractMarkdownHeadings,
+  failCheck,
+  findArtifact,
+  passCheck,
+  safeParseJson,
+  safeParseYaml,
+  safeReadFile,
+  skipCheck,
+} from './ruleSupport.js';
+import {
+  implementationRules,
+  issueAcceptanceCriteriaRule,
+  issueReadingRules,
+  orchestrationRules,
+  regressionRules,
+  reviewRules,
+  validationRules,
+} from './deliveryRules.js';
 
 // =============================================================================
 // Rigor Helpers
@@ -52,153 +76,6 @@ export function shouldRunRule(ruleRigor: VnvRigor, currentRigor: VnvRigor): bool
 }
 
 // =============================================================================
-// File Reading Helpers
-// =============================================================================
-
-/**
- * Safely read file contents as a UTF-8 string.
- *
- * @param filePath - Absolute or relative file path
- * @returns File contents or null if the file does not exist or cannot be read
- */
-async function safeReadFile(filePath: string): Promise<string | null> {
-  try {
-    return await readFile(filePath, 'utf-8');
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Find an artifact matching a given substring in its path.
- *
- * @param artifacts - List of artifact file paths
- * @param pattern - Substring to match against file paths
- * @returns First matching artifact path or undefined
- */
-function findArtifact(artifacts: readonly string[], pattern: string): string | undefined {
-  return artifacts.find((a) => a.includes(pattern));
-}
-
-/**
- * Parse YAML content safely.
- *
- * @param content - YAML string
- * @returns Parsed object or null on parse failure
- */
-function safeParseYaml(content: string): Record<string, unknown> | null {
-  try {
-    const parsed = yaml.load(content);
-    if (parsed !== null && typeof parsed === 'object') {
-      return parsed as Record<string, unknown>;
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Parse JSON content safely.
- *
- * @param content - JSON string
- * @returns Parsed value or null on parse failure
- */
-function safeParseJson(content: string): unknown {
-  try {
-    return JSON.parse(content);
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Extract markdown headings from content.
- *
- * @param content - Markdown text
- * @returns Array of heading strings (without the `#` prefix)
- */
-function extractMarkdownHeadings(content: string): string[] {
-  const headingRegex = /^#{1,6}\s+(.+)$/gm;
-  const headings: string[] = [];
-  let match: RegExpExecArray | null;
-  while ((match = headingRegex.exec(content)) !== null) {
-    const heading = match[1];
-    if (heading !== undefined) {
-      headings.push(heading.trim());
-    }
-  }
-  return headings;
-}
-
-/**
- * Extract IDs matching a pattern from text content.
- *
- * @param content - Text to search
- * @param pattern - Regex pattern with at least one capture group
- * @returns Array of matched ID strings
- */
-function extractIds(content: string, pattern: RegExp): string[] {
-  const ids: string[] = [];
-  let match: RegExpExecArray | null;
-  const globalPattern = new RegExp(pattern.source, 'g');
-  while ((match = globalPattern.exec(content)) !== null) {
-    ids.push(match[0]);
-  }
-  return [...new Set(ids)];
-}
-
-/**
- * Create a passing VerificationCheck.
- * @param rule
- * @param message
- * @param details
- */
-function passCheck(
-  rule: Pick<VerificationRule, 'checkId' | 'name' | 'category' | 'severity'>,
-  message: string,
-  details?: Record<string, unknown>
-): VerificationCheck {
-  const result: VerificationCheck = {
-    checkId: rule.checkId,
-    name: rule.name,
-    category: rule.category,
-    passed: true,
-    severity: rule.severity,
-    message,
-  };
-  if (details !== undefined) {
-    return { ...result, details };
-  }
-  return result;
-}
-
-/**
- * Create a failing VerificationCheck.
- * @param rule
- * @param message
- * @param details
- */
-function failCheck(
-  rule: Pick<VerificationRule, 'checkId' | 'name' | 'category' | 'severity'>,
-  message: string,
-  details?: Record<string, unknown>
-): VerificationCheck {
-  const result: VerificationCheck = {
-    checkId: rule.checkId,
-    name: rule.name,
-    category: rule.category,
-    passed: false,
-    severity: rule.severity,
-    message,
-  };
-  if (details !== undefined) {
-    return { ...result, details };
-  }
-  return result;
-}
-
-// =============================================================================
 // Collection Stage Rules
 // =============================================================================
 
@@ -223,12 +100,12 @@ const collectionRules: readonly VerificationRule[] = [
     category: 'structure',
     minRigor: 'minimal',
     severity: 'error',
-    async check(artifacts): Promise<VerificationCheck> {
+    async check(artifacts, projectDir): Promise<VerificationCheck> {
       const artifact = findArtifact(artifacts, 'collected_info');
       if (artifact === undefined) {
         return failCheck(this, 'No collected_info artifact to validate');
       }
-      const content = await safeReadFile(artifact);
+      const content = await safeReadFile(artifact, projectDir);
       if (content === null) {
         return failCheck(this, `Cannot read collected_info file: ${artifact}`);
       }
@@ -245,12 +122,12 @@ const collectionRules: readonly VerificationRule[] = [
     category: 'content',
     minRigor: 'standard',
     severity: 'warning',
-    async check(artifacts): Promise<VerificationCheck> {
+    async check(artifacts, projectDir): Promise<VerificationCheck> {
       const artifact = findArtifact(artifacts, 'collected_info');
       if (artifact === undefined) {
         return failCheck(this, 'No collected_info artifact to check requirements');
       }
-      const content = await safeReadFile(artifact);
+      const content = await safeReadFile(artifact, projectDir);
       if (content === null) {
         return failCheck(this, `Cannot read collected_info file: ${artifact}`);
       }
@@ -279,12 +156,12 @@ const collectionRules: readonly VerificationRule[] = [
     category: 'content',
     minRigor: 'strict',
     severity: 'warning',
-    async check(artifacts): Promise<VerificationCheck> {
+    async check(artifacts, projectDir): Promise<VerificationCheck> {
       const artifact = findArtifact(artifacts, 'collected_info');
       if (artifact === undefined) {
         return failCheck(this, 'No collected_info artifact to check acceptance criteria');
       }
-      const content = await safeReadFile(artifact);
+      const content = await safeReadFile(artifact, projectDir);
       if (content === null) {
         return failCheck(this, `Cannot read collected_info file: ${artifact}`);
       }
@@ -324,18 +201,30 @@ const collectionRules: readonly VerificationRule[] = [
     category: 'content',
     minRigor: 'standard',
     severity: 'warning',
-    async check(artifacts): Promise<VerificationCheck> {
+    async check(artifacts, projectDir): Promise<VerificationCheck> {
       const artifact = findArtifact(artifacts, 'collected_info');
       if (artifact === undefined) {
-        return passCheck(this, 'No collected_info artifact — investigation check skipped');
+        return skipCheck(
+          this,
+          'No collected_info artifact — investigation check skipped',
+          'collected_info artifact is missing'
+        );
       }
-      const content = await safeReadFile(artifact);
+      const content = await safeReadFile(artifact, projectDir);
       if (content === null) {
-        return passCheck(this, 'Cannot read collected_info — investigation check skipped');
+        return skipCheck(
+          this,
+          'Cannot read collected_info — investigation check skipped',
+          'collected_info artifact is unreadable'
+        );
       }
       const parsed = safeParseYaml(content);
       if (!parsed) {
-        return passCheck(this, 'Cannot parse collected_info — investigation check skipped');
+        return skipCheck(
+          this,
+          'Cannot parse collected_info — investigation check skipped',
+          'collected_info artifact is not valid YAML'
+        );
       }
 
       const investigation = parsed['investigation'] as Record<string, unknown> | undefined;
@@ -400,12 +289,12 @@ const prdRules: readonly VerificationRule[] = [
     category: 'content',
     minRigor: 'standard',
     severity: 'error',
-    async check(artifacts): Promise<VerificationCheck> {
+    async check(artifacts, projectDir): Promise<VerificationCheck> {
       const artifact = findArtifact(artifacts, 'PRD') ?? findArtifact(artifacts, 'prd');
       if (artifact === undefined) {
         return failCheck(this, 'No PRD artifact to check sections');
       }
-      const content = await safeReadFile(artifact);
+      const content = await safeReadFile(artifact, projectDir);
       if (content === null) {
         return failCheck(this, `Cannot read PRD file: ${artifact}`);
       }
@@ -434,12 +323,12 @@ const prdRules: readonly VerificationRule[] = [
     category: 'traceability',
     minRigor: 'standard',
     severity: 'warning',
-    async check(artifacts): Promise<VerificationCheck> {
+    async check(artifacts, projectDir): Promise<VerificationCheck> {
       const artifact = findArtifact(artifacts, 'PRD') ?? findArtifact(artifacts, 'prd');
       if (artifact === undefined) {
         return failCheck(this, 'No PRD artifact to check FR identifiers');
       }
-      const content = await safeReadFile(artifact);
+      const content = await safeReadFile(artifact, projectDir);
       if (content === null) {
         return failCheck(this, `Cannot read PRD file: ${artifact}`);
       }
@@ -484,12 +373,12 @@ const srsRules: readonly VerificationRule[] = [
     category: 'content',
     minRigor: 'standard',
     severity: 'error',
-    async check(artifacts): Promise<VerificationCheck> {
+    async check(artifacts, projectDir): Promise<VerificationCheck> {
       const artifact = findArtifact(artifacts, 'SRS') ?? findArtifact(artifacts, 'srs');
       if (artifact === undefined) {
         return failCheck(this, 'No SRS artifact to check sections');
       }
-      const content = await safeReadFile(artifact);
+      const content = await safeReadFile(artifact, projectDir);
       if (content === null) {
         return failCheck(this, `Cannot read SRS file: ${artifact}`);
       }
@@ -518,12 +407,12 @@ const srsRules: readonly VerificationRule[] = [
     category: 'traceability',
     minRigor: 'standard',
     severity: 'warning',
-    async check(artifacts): Promise<VerificationCheck> {
+    async check(artifacts, projectDir): Promise<VerificationCheck> {
       const artifact = findArtifact(artifacts, 'SRS') ?? findArtifact(artifacts, 'srs');
       if (artifact === undefined) {
         return failCheck(this, 'No SRS artifact to check SF identifiers');
       }
-      const content = await safeReadFile(artifact);
+      const content = await safeReadFile(artifact, projectDir);
       if (content === null) {
         return failCheck(this, `Cannot read SRS file: ${artifact}`);
       }
@@ -550,7 +439,7 @@ const srsRules: readonly VerificationRule[] = [
       if (srsArtifact === undefined) {
         return failCheck(this, 'No SRS artifact to validate FR references');
       }
-      const srsContent = await safeReadFile(srsArtifact);
+      const srsContent = await safeReadFile(srsArtifact, projectDir);
       if (srsContent === null) {
         return failCheck(this, `Cannot read SRS file: ${srsArtifact}`);
       }
@@ -565,10 +454,15 @@ const srsRules: readonly VerificationRule[] = [
       const prdPath = join(projectDir, 'docs', 'PRD.md');
       const prdContent = await safeReadFile(prdPath);
       if (prdContent === null) {
-        return passCheck(this, 'PRD not found for cross-reference check; skipping', {
-          frRefsInSrs,
-          prdPath,
-        });
+        return skipCheck(
+          this,
+          'PRD not found for cross-reference check; skipping',
+          'PRD is absent',
+          {
+            frRefsInSrs,
+            prdPath,
+          }
+        );
       }
 
       const frIdsInPrd = extractIds(prdContent, /FR-\d{3}/);
@@ -617,12 +511,12 @@ const sdsRules: readonly VerificationRule[] = [
     category: 'content',
     minRigor: 'standard',
     severity: 'error',
-    async check(artifacts): Promise<VerificationCheck> {
+    async check(artifacts, projectDir): Promise<VerificationCheck> {
       const artifact = findArtifact(artifacts, 'SDS') ?? findArtifact(artifacts, 'sds');
       if (artifact === undefined) {
         return failCheck(this, 'No SDS artifact to check sections');
       }
-      const content = await safeReadFile(artifact);
+      const content = await safeReadFile(artifact, projectDir);
       if (content === null) {
         return failCheck(this, `Cannot read SDS file: ${artifact}`);
       }
@@ -651,12 +545,12 @@ const sdsRules: readonly VerificationRule[] = [
     category: 'traceability',
     minRigor: 'standard',
     severity: 'warning',
-    async check(artifacts): Promise<VerificationCheck> {
+    async check(artifacts, projectDir): Promise<VerificationCheck> {
       const artifact = findArtifact(artifacts, 'SDS') ?? findArtifact(artifacts, 'sds');
       if (artifact === undefined) {
         return failCheck(this, 'No SDS artifact to check CMP identifiers');
       }
-      const content = await safeReadFile(artifact);
+      const content = await safeReadFile(artifact, projectDir);
       if (content === null) {
         return failCheck(this, `Cannot read SDS file: ${artifact}`);
       }
@@ -683,7 +577,7 @@ const sdsRules: readonly VerificationRule[] = [
       if (sdsArtifact === undefined) {
         return failCheck(this, 'No SDS artifact to validate SF references');
       }
-      const sdsContent = await safeReadFile(sdsArtifact);
+      const sdsContent = await safeReadFile(sdsArtifact, projectDir);
       if (sdsContent === null) {
         return failCheck(this, `Cannot read SDS file: ${sdsArtifact}`);
       }
@@ -698,10 +592,15 @@ const sdsRules: readonly VerificationRule[] = [
       const srsPath = join(projectDir, 'docs', 'SRS.md');
       const srsContent = await safeReadFile(srsPath);
       if (srsContent === null) {
-        return passCheck(this, 'SRS not found for cross-reference check; skipping', {
-          sfRefsInSds,
-          srsPath,
-        });
+        return skipCheck(
+          this,
+          'SRS not found for cross-reference check; skipping',
+          'SRS is absent',
+          {
+            sfRefsInSds,
+            srsPath,
+          }
+        );
       }
 
       const sfIdsInSrs = extractIds(srsContent, /SF-\d{3}/);
@@ -748,12 +647,12 @@ const issueGenerationRules: readonly VerificationRule[] = [
     category: 'structure',
     minRigor: 'minimal',
     severity: 'error',
-    async check(artifacts): Promise<VerificationCheck> {
+    async check(artifacts, projectDir): Promise<VerificationCheck> {
       const artifact = findArtifact(artifacts, 'issue') ?? findArtifact(artifacts, 'Issue');
       if (artifact === undefined) {
         return failCheck(this, 'No issue list artifact to validate format');
       }
-      const content = await safeReadFile(artifact);
+      const content = await safeReadFile(artifact, projectDir);
       if (content === null) {
         return failCheck(this, `Cannot read issue list file: ${artifact}`);
       }
@@ -794,12 +693,12 @@ const issueGenerationRules: readonly VerificationRule[] = [
     category: 'content',
     minRigor: 'standard',
     severity: 'warning',
-    async check(artifacts): Promise<VerificationCheck> {
+    async check(artifacts, projectDir): Promise<VerificationCheck> {
       const artifact = findArtifact(artifacts, 'issue') ?? findArtifact(artifacts, 'Issue');
       if (artifact === undefined) {
         return failCheck(this, 'No issue list artifact to check entries');
       }
-      const content = await safeReadFile(artifact);
+      const content = await safeReadFile(artifact, projectDir);
       if (content === null) {
         return failCheck(this, `Cannot read issue list file: ${artifact}`);
       }
@@ -836,299 +735,29 @@ const issueGenerationRules: readonly VerificationRule[] = [
 ];
 
 // =============================================================================
-// Implementation Stage Rules
+// Named Check Sets
 // =============================================================================
 
-const implementationRules: readonly VerificationRule[] = [
-  {
-    checkId: 'VR-IMP-001',
-    name: 'Implementation result artifact exists',
-    category: 'structure',
-    minRigor: 'minimal',
-    severity: 'error',
-    check(artifacts): Promise<VerificationCheck> {
-      const artifact =
-        findArtifact(artifacts, 'implementation_result') ??
-        findArtifact(artifacts, 'implementation-result') ??
-        findArtifact(artifacts, 'ImplementationResult');
-      if (artifact === undefined) {
-        return Promise.resolve(
-          failCheck(this, 'No implementation result artifact found in stage output')
-        );
-      }
-      return Promise.resolve(passCheck(this, `Implementation result artifact found: ${artifact}`));
-    },
-  },
-  {
-    checkId: 'VR-IMP-002',
-    name: 'Implementation result is valid',
-    category: 'structure',
-    minRigor: 'minimal',
-    severity: 'error',
-    async check(artifacts): Promise<VerificationCheck> {
-      const artifact =
-        findArtifact(artifacts, 'implementation_result') ??
-        findArtifact(artifacts, 'implementation-result') ??
-        findArtifact(artifacts, 'ImplementationResult');
-      if (artifact === undefined) {
-        return failCheck(this, 'No implementation result artifact to validate');
-      }
-      const content = await safeReadFile(artifact);
-      if (content === null) {
-        return failCheck(this, `Cannot read implementation result file: ${artifact}`);
-      }
+/**
+ * Named check sets. Each stage slot's disposition in
+ * `VERIFICATION_APPLICABILITY` refers to one of these identifiers.
+ */
+export const VERIFICATION_CHECK_SETS = {
+  'collected-info': collectionRules,
+  'prd-document': prdRules,
+  'srs-document': srsRules,
+  'sds-document': sdsRules,
+  'generated-issues': [...issueGenerationRules, issueAcceptanceCriteriaRule('VR-ISS-004')],
+  'imported-issues': issueReadingRules,
+  'work-orders': orchestrationRules,
+  'implementation-results': implementationRules,
+  'regression-report': regressionRules,
+  'validation-report': validationRules,
+  'review-result': reviewRules,
+} as const satisfies Record<string, readonly VerificationRule[]>;
 
-      // Try YAML first, then JSON
-      let data: unknown = safeParseYaml(content);
-      if (data === null) {
-        data = safeParseJson(content);
-      }
-      if (data === null) {
-        return failCheck(this, 'Implementation result is neither valid YAML nor JSON');
-      }
-
-      return passCheck(this, 'Implementation result is a valid data file');
-    },
-  },
-  {
-    checkId: 'VR-IMP-003',
-    name: 'Tests passed',
-    category: 'quality',
-    minRigor: 'standard',
-    severity: 'error',
-    async check(artifacts): Promise<VerificationCheck> {
-      const artifact =
-        findArtifact(artifacts, 'implementation_result') ??
-        findArtifact(artifacts, 'implementation-result') ??
-        findArtifact(artifacts, 'ImplementationResult');
-      if (artifact === undefined) {
-        return failCheck(this, 'No implementation result to check test status');
-      }
-      const content = await safeReadFile(artifact);
-      if (content === null) {
-        return failCheck(this, `Cannot read implementation result file: ${artifact}`);
-      }
-
-      let data: unknown = safeParseYaml(content);
-      if (data === null) {
-        data = safeParseJson(content);
-      }
-      if (data === null || typeof data !== 'object') {
-        return failCheck(this, 'Cannot parse implementation result to check tests');
-      }
-
-      const record = data as Record<string, unknown>;
-      const testsPassed = record['testsPassed'] ?? record['tests_passed'];
-
-      if (testsPassed === undefined) {
-        return passCheck(this, 'No testsPassed field found; skipping check', {
-          note: 'Field may not be present in all result formats',
-        });
-      }
-
-      if (testsPassed !== true) {
-        return failCheck(this, 'Implementation tests did not pass', {
-          testsPassed,
-        });
-      }
-
-      return passCheck(this, 'Implementation tests passed');
-    },
-  },
-  {
-    checkId: 'VR-IMP-004',
-    name: 'Build passed',
-    category: 'quality',
-    minRigor: 'standard',
-    severity: 'error',
-    async check(artifacts): Promise<VerificationCheck> {
-      const artifact =
-        findArtifact(artifacts, 'implementation_result') ??
-        findArtifact(artifacts, 'implementation-result') ??
-        findArtifact(artifacts, 'ImplementationResult');
-      if (artifact === undefined) {
-        return failCheck(this, 'No implementation result to check build status');
-      }
-      const content = await safeReadFile(artifact);
-      if (content === null) {
-        return failCheck(this, `Cannot read implementation result file: ${artifact}`);
-      }
-
-      let data: unknown = safeParseYaml(content);
-      if (data === null) {
-        data = safeParseJson(content);
-      }
-      if (data === null || typeof data !== 'object') {
-        return failCheck(this, 'Cannot parse implementation result to check build');
-      }
-
-      const record = data as Record<string, unknown>;
-      const buildPassed = record['buildPassed'] ?? record['build_passed'];
-
-      if (buildPassed === undefined) {
-        return passCheck(this, 'No buildPassed field found; skipping check', {
-          note: 'Field may not be present in all result formats',
-        });
-      }
-
-      if (buildPassed !== true) {
-        return failCheck(this, 'Implementation build did not pass', {
-          buildPassed,
-        });
-      }
-
-      return passCheck(this, 'Implementation build passed');
-    },
-  },
-  {
-    checkId: 'VR-IMP-005',
-    name: 'Lint passed',
-    category: 'quality',
-    minRigor: 'strict',
-    severity: 'warning',
-    async check(artifacts): Promise<VerificationCheck> {
-      const artifact =
-        findArtifact(artifacts, 'implementation_result') ??
-        findArtifact(artifacts, 'implementation-result') ??
-        findArtifact(artifacts, 'ImplementationResult');
-      if (artifact === undefined) {
-        return failCheck(this, 'No implementation result to check lint status');
-      }
-      const content = await safeReadFile(artifact);
-      if (content === null) {
-        return failCheck(this, `Cannot read implementation result file: ${artifact}`);
-      }
-
-      let data: unknown = safeParseYaml(content);
-      if (data === null) {
-        data = safeParseJson(content);
-      }
-      if (data === null || typeof data !== 'object') {
-        return failCheck(this, 'Cannot parse implementation result to check lint');
-      }
-
-      const record = data as Record<string, unknown>;
-      const lintPassed = record['lintPassed'] ?? record['lint_passed'];
-
-      if (lintPassed === undefined) {
-        return passCheck(this, 'No lintPassed field found; skipping check', {
-          note: 'Field may not be present in all result formats',
-        });
-      }
-
-      if (lintPassed !== true) {
-        return failCheck(this, 'Implementation lint did not pass', {
-          lintPassed,
-        });
-      }
-
-      return passCheck(this, 'Implementation lint passed');
-    },
-  },
-];
-
-// =============================================================================
-// Review Stage Rules
-// =============================================================================
-
-const reviewRules: readonly VerificationRule[] = [
-  {
-    checkId: 'VR-REV-001',
-    name: 'Review result artifact exists',
-    category: 'structure',
-    minRigor: 'minimal',
-    severity: 'error',
-    check(artifacts): Promise<VerificationCheck> {
-      const artifact =
-        findArtifact(artifacts, 'review_result') ??
-        findArtifact(artifacts, 'review-result') ??
-        findArtifact(artifacts, 'PRReviewResult') ??
-        findArtifact(artifacts, 'pr_review');
-      if (artifact === undefined) {
-        return Promise.resolve(failCheck(this, 'No review result artifact found in stage output'));
-      }
-      return Promise.resolve(passCheck(this, `Review result artifact found: ${artifact}`));
-    },
-  },
-  {
-    checkId: 'VR-REV-002',
-    name: 'Review result is valid',
-    category: 'structure',
-    minRigor: 'minimal',
-    severity: 'error',
-    async check(artifacts): Promise<VerificationCheck> {
-      const artifact =
-        findArtifact(artifacts, 'review_result') ??
-        findArtifact(artifacts, 'review-result') ??
-        findArtifact(artifacts, 'PRReviewResult') ??
-        findArtifact(artifacts, 'pr_review');
-      if (artifact === undefined) {
-        return failCheck(this, 'No review result artifact to validate');
-      }
-      const content = await safeReadFile(artifact);
-      if (content === null) {
-        return failCheck(this, `Cannot read review result file: ${artifact}`);
-      }
-
-      let data: unknown = safeParseYaml(content);
-      if (data === null) {
-        data = safeParseJson(content);
-      }
-      if (data === null) {
-        return failCheck(this, 'Review result is neither valid YAML nor JSON');
-      }
-
-      return passCheck(this, 'Review result is a valid data file');
-    },
-  },
-  {
-    checkId: 'VR-REV-003',
-    name: 'Review decision present',
-    category: 'content',
-    minRigor: 'standard',
-    severity: 'warning',
-    async check(artifacts): Promise<VerificationCheck> {
-      const artifact =
-        findArtifact(artifacts, 'review_result') ??
-        findArtifact(artifacts, 'review-result') ??
-        findArtifact(artifacts, 'PRReviewResult') ??
-        findArtifact(artifacts, 'pr_review');
-      if (artifact === undefined) {
-        return failCheck(this, 'No review result to check decision');
-      }
-      const content = await safeReadFile(artifact);
-      if (content === null) {
-        return failCheck(this, `Cannot read review result file: ${artifact}`);
-      }
-
-      let data: unknown = safeParseYaml(content);
-      if (data === null) {
-        data = safeParseJson(content);
-      }
-      if (data === null || typeof data !== 'object') {
-        return failCheck(this, 'Cannot parse review result to check decision');
-      }
-
-      const record = data as Record<string, unknown>;
-      const decision = record['decision'] ?? record['reviewDecision'];
-
-      if (decision === undefined) {
-        return failCheck(this, 'No decision field found in review result');
-      }
-
-      const validDecisions = ['approve', 'request_changes', 'reject'];
-      if (typeof decision !== 'string' || !validDecisions.includes(decision)) {
-        const decisionStr = typeof decision === 'string' ? decision : JSON.stringify(decision);
-        return failCheck(this, `Invalid review decision: ${decisionStr}`, {
-          decision,
-          validDecisions,
-        });
-      }
-
-      return passCheck(this, `Review decision: ${decision}`, { decision });
-    },
-  },
-];
+/** Identifier of a named check set. */
+export type VerificationCheckSetId = keyof typeof VERIFICATION_CHECK_SETS;
 
 // =============================================================================
 // Stage-to-Rules Mapping
@@ -1137,21 +766,27 @@ const reviewRules: readonly VerificationRule[] = [
 /**
  * Master map of stage names to their verification rules.
  *
- * Stages that share the same document type (e.g., prd_generation and prd_update)
- * share the same rule set.
+ * Compatibility view of the applicability inventory: a stage name resolves to
+ * the same check set in every mode that contains it. Stages that share the
+ * same document type (e.g., prd_generation and prd_update) share the same
+ * rule set. Stages with a `not_applicable` disposition have no entry.
  */
 export const VERIFICATION_RULES: ReadonlyMap<string, readonly VerificationRule[]> = new Map<
   string,
   readonly VerificationRule[]
 >([
-  ['collection', collectionRules],
-  ['prd_generation', prdRules],
-  ['prd_update', prdRules],
-  ['srs_generation', srsRules],
-  ['srs_update', srsRules],
-  ['sds_generation', sdsRules],
-  ['sds_update', sdsRules],
-  ['issue_generation', issueGenerationRules],
-  ['implementation', implementationRules],
-  ['review', reviewRules],
+  ['collection', VERIFICATION_CHECK_SETS['collected-info']],
+  ['prd_generation', VERIFICATION_CHECK_SETS['prd-document']],
+  ['prd_update', VERIFICATION_CHECK_SETS['prd-document']],
+  ['srs_generation', VERIFICATION_CHECK_SETS['srs-document']],
+  ['srs_update', VERIFICATION_CHECK_SETS['srs-document']],
+  ['sds_generation', VERIFICATION_CHECK_SETS['sds-document']],
+  ['sds_update', VERIFICATION_CHECK_SETS['sds-document']],
+  ['issue_generation', VERIFICATION_CHECK_SETS['generated-issues']],
+  ['issue_reading', VERIFICATION_CHECK_SETS['imported-issues']],
+  ['orchestration', VERIFICATION_CHECK_SETS['work-orders']],
+  ['implementation', VERIFICATION_CHECK_SETS['implementation-results']],
+  ['regression_testing', VERIFICATION_CHECK_SETS['regression-report']],
+  ['validation-agent', VERIFICATION_CHECK_SETS['validation-report']],
+  ['review', VERIFICATION_CHECK_SETS['review-result']],
 ]);

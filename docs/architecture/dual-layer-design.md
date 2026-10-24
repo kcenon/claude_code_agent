@@ -105,10 +105,13 @@ the same `ExecutionAdapter` request/result contract.
 
 The `validation-agent` is a real pipeline stage in all three modes. The
 TypeScript `StageVerifierAgent` is also wired into the scheduler after every
-completed stage. Its result is retained on `PipelineResult.verificationResults`;
-with `vnv.rigor: strict` and `vnv.haltOnVerificationFailure: true`, a failed
-verification marks the stage failed, cancels further scheduling, and makes the
-pipeline fail. In standard and minimal modes, failed checks remain advisory.
+completed stage. Its raw result is retained on `PipelineResult.verificationResults`,
+and each stage's verification state on `StageResult.verification` and
+`PipelineResult.verification`. Under the `delivery` profile (`vnv.profile:
+'delivery'`, or the legacy `vnv.rigor: strict` with
+`vnv.haltOnVerificationFailure: true`), a failed required check marks the stage
+failed, cancels further scheduling, and makes the pipeline fail. Under the
+default `advisory` profile, failed checks remain advisory findings.
 
 `RtmBuilderAgent` remains an auxiliary traceability builder rather than a
 blocking scheduler component. The document-producing SDP/SVP/threat-model/

@@ -22,13 +22,34 @@ import type { PipelineMode, StageName } from '../ad-sdlc-orchestrator/types.js';
 export type VnvRigor = 'strict' | 'standard' | 'minimal';
 
 /**
+ * Named verification policy profile.
+ *
+ * - `advisory`: checks run at the configured rigor; failures are retained as
+ *   findings and never stop the pipeline.
+ * - `delivery`: a failed required (error-severity) check fails its stage,
+ *   skips every stage not yet run, and fails the run.
+ *
+ * See `src/vnv/policy.ts` and docs/guides/verification-policy.md.
+ */
+export type VerificationProfile = 'advisory' | 'delivery';
+
+/**
  * V&V configuration controlling which checks and reports are enabled.
  */
 export interface VnvConfig {
   /** Rigor level for verification checks */
   readonly rigor: VnvRigor;
-  /** If true, halt pipeline when a verification gate fails (effective only in strict mode) */
+  /**
+   * If true, halt pipeline when a verification gate fails (effective only in strict mode).
+   * Legacy mapping: without `profile`, strict + true selects the `delivery` profile.
+   */
   readonly haltOnVerificationFailure: boolean;
+  /**
+   * Explicit verification profile. When absent, the profile is derived from
+   * `rigor` and `haltOnVerificationFailure` (strict + true is `delivery`,
+   * anything else is `advisory`), so existing configurations keep their behavior.
+   */
+  readonly profile?: VerificationProfile;
   /** Generate V&V Plan document at pipeline start */
   readonly generateVnvPlan: boolean;
   /** Generate V&V Report document at pipeline end */

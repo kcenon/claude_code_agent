@@ -449,13 +449,15 @@ None - This is the top-level orchestration agent.
 # .ad-sdlc/config/workflow.yaml
 global:
   vnv:
-    rigor: strict
-    halt_on_verification_failure: true
+    rigor: standard
+    profile: delivery # advisory (default) | delivery
 ```
 
-The CLI maps these workflow V&V gate fields into the live orchestrator. A
-failed per-stage verification is advisory by default. It becomes a blocking
-gate only when rigor is `strict` and `halt_on_verification_failure` is `true`.
+The CLI maps these workflow V&V fields into the live orchestrator. A failed
+per-stage verification is advisory by default. It becomes a blocking gate under
+the `delivery` profile, which a configuration without `profile` still selects
+with rigor `strict` and `halt_on_verification_failure: true`. See the
+[verification policy guide](../../guides/verification-policy.md).
 
 Programmatic callers can additionally cap concurrent DAG stages. The same
 execution adapter is reused for every stage in one pipeline and disposed once
@@ -465,8 +467,8 @@ when that pipeline finishes.
 const orchestrator = new AdsdlcOrchestratorAgent({
   maxParallelAgents: 3,
   vnv: {
-    rigor: 'strict',
-    haltOnVerificationFailure: true,
+    rigor: 'standard',
+    profile: 'delivery',
   },
 });
 ```

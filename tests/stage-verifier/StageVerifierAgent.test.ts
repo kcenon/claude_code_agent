@@ -102,7 +102,7 @@ describe('StageVerifierAgent', () => {
       expect(result.durationMs).toBeGreaterThanOrEqual(0);
     });
 
-    it('should pass with empty checks for a stage with no rules defined', async () => {
+    it('should pass a not_applicable stage with its documented reason and no checks', async () => {
       const stageResult = createMockStageResult({ name: 'initialization' as StageName });
       const context = createMockContext();
 
@@ -110,8 +110,35 @@ describe('StageVerifierAgent', () => {
 
       expect(result.passed).toBe(true);
       expect(result.checks).toHaveLength(0);
-      expect(result.warnings).toHaveLength(1);
-      expect(result.warnings[0]).toContain('No verification rules');
+      expect(result.warnings).toHaveLength(0);
+      expect(result.notApplicableReason).toContain('scratchpad directory');
+      expect(result.checkSet).toBeUndefined();
+    });
+
+    it('should fail closed for a stage without a disposition in the mode', async () => {
+      const stageResult = createMockStageResult({ name: 'collection' as StageName });
+      const context = createMockContext({ pipelineMode: 'import' });
+
+      const result = await agent.verifyStage('collection', stageResult, context);
+
+      expect(result.passed).toBe(false);
+      expect(result.checks).toHaveLength(0);
+      expect(result.errors[0]).toContain("No verification disposition for stage 'collection'");
+    });
+
+    it('should report rules filtered by rigor as skipped rules', async () => {
+      const stageResult = createMockStageResult();
+      const context = createMockContext({ rigor: 'minimal' });
+
+      const result = await agent.verifyStage('collection', stageResult, context);
+
+      expect(result.checkSet).toBe('collected-info');
+      expect(result.skippedRules?.map((rule) => rule.checkId)).toEqual([
+        'VR-COL-003',
+        'VR-COL-004',
+        'VR-COL-INV-001',
+      ]);
+      expect(result.skippedRules?.[0]).toMatchObject({ minRigor: 'standard' });
     });
 
     it('should filter rules by rigor: minimal should skip standard/strict rules', async () => {
@@ -297,7 +324,11 @@ describe('StageVerifierAgent', () => {
     });
 
     it('should verify issue_generation stage with valid issue list', async () => {
-      mockReadFile.mockResolvedValue('[{"id": 1, "title": "Bug fix"}]');
+      mockReadFile.mockResolvedValue(
+        JSON.stringify([
+          { id: 1, title: 'Bug fix', body: '## Acceptance Criteria\n- [ ] The bug is fixed' },
+        ])
+      );
 
       const stageResult = createMockStageResult({
         name: 'issue_generation' as StageName,
@@ -311,11 +342,28 @@ describe('StageVerifierAgent', () => {
       expect(result.passed).toBe(true);
     });
 
+    it('should fail issue_generation when an issue states no acceptance criteria', async () => {
+      mockReadFile.mockResolvedValue('[{"id": 1, "title": "Bug fix"}]');
+
+      const stageResult = createMockStageResult({
+        name: 'issue_generation' as StageName,
+        artifacts: ['output/issues.json'],
+      });
+
+      const result = await agent.verifyStage('issue_generation', stageResult, createMockContext());
+
+      expect(result.passed).toBe(false);
+      expect(result.errors.join(' ')).toContain('VR-ISS-004');
+    });
+
     it('should verify review stage with valid review result', async () => {
-      mockReadFile.mockResolvedValue('decision: approve\ncomments: []');
+      mockReadFile.mockResolvedValue(
+        'decision: approve\ncomments: []\npull_request:\n  number: 7\n  url: https://github.com/example/project/pull/7\n'
+      );
 
       const stageResult = createMockStageResult({
         name: 'review' as StageName,
+        agentType: 'pr-reviewer',
         artifacts: ['output/review_result.yaml'],
       });
       const context = createMockContext({ rigor: 'standard' });
@@ -324,6 +372,25 @@ describe('StageVerifierAgent', () => {
 
       expect(result.stageName).toBe('review');
       expect(result.passed).toBe(true);
+      // The review result reports no CI/test flags, so that check is skipped, not passed.
+      expect(result.checks.find((check) => check.checkId === 'VR-REV-005')?.skipReason).toContain(
+        'no quality gate data'
+      );
+    });
+
+    it('should fail a pull request review that references no pull request', async () => {
+      mockReadFile.mockResolvedValue('decision: approve\ncomments: []');
+
+      const stageResult = createMockStageResult({
+        name: 'review' as StageName,
+        agentType: 'pr-reviewer',
+        artifacts: ['output/review_result.yaml'],
+      });
+
+      const result = await agent.verifyStage('review', stageResult, createMockContext());
+
+      expect(result.passed).toBe(false);
+      expect(result.errors.join(' ')).toContain('VR-REV-004');
     });
 
     it('should handle rule execution errors gracefully', async () => {

@@ -5,6 +5,7 @@ import type {
   ResolvedOrchestratorConfig,
   StageName,
 } from '../ad-sdlc-orchestrator/types.js';
+import type { VerificationProfile } from '../vnv/types.js';
 
 /** A finding refers to the original input, before schema stripping or defaults. */
 export interface RuntimeDiagnostic {
@@ -35,7 +36,10 @@ export type ResolvedRuntimeConfig = Pick<
   'approvalMode' | 'maxParallelAgents' | 'maxRetries' | 'retryBackoff' | 'timeouts' | 'localMode'
 > & {
   readonly mode: PipelineMode;
-  readonly vnv: Pick<ResolvedOrchestratorConfig['vnv'], 'rigor' | 'haltOnVerificationFailure'>;
+  readonly vnv: Pick<ResolvedOrchestratorConfig['vnv'], 'rigor' | 'haltOnVerificationFailure'> & {
+    /** Effective profile: explicit `global.vnv.profile`, else the legacy rigor + halt mapping. */
+    readonly profile: VerificationProfile;
+  };
 };
 
 /** The exact graph and policy used by execution, dry-run, status, and resume. */

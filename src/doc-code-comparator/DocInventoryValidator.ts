@@ -10,6 +10,10 @@ import {
   GREENFIELD_STAGES,
   IMPORT_STAGES,
 } from '../ad-sdlc-orchestrator/types.js';
+import {
+  checkVerificationInventory,
+  renderVerificationCoverageBlock,
+} from '../stage-verifier/applicability.js';
 
 /** Current inventory derived from source files and pipeline definitions. */
 export interface DocInventoryMetrics {
@@ -34,7 +38,8 @@ export interface DocInventoryViolation {
     | 'DEPENDENCY_VERSION'
     | 'MIRROR_DRIFT'
     | 'MISSING_FILE'
-    | 'RUNTIME_INVENTORY';
+    | 'RUNTIME_INVENTORY'
+    | 'VERIFICATION_COVERAGE';
   readonly message: string;
   readonly path: string;
 }
@@ -126,6 +131,7 @@ export class DocInventoryValidator {
     this.validateAdrTree(violations);
     this.validateDependencyVersions(violations);
     this.validateRuntimeInventory(metrics, violations);
+    this.validateVerificationCoverage(violations);
 
     violations.sort(
       (left, right) => left.path.localeCompare(right.path) || left.code.localeCompare(right.code)
@@ -406,6 +412,34 @@ export class DocInventoryValidator {
         code: 'RUNTIME_INVENTORY',
         path,
         message: 'Generated runtime inventory block does not match source-derived metrics',
+      });
+    }
+  }
+
+  /**
+   * Every stage slot needs a verification disposition, and the generated
+   * coverage document must match the applicability inventory.
+   * @param violations - Collected violations
+   */
+  private validateVerificationCoverage(violations: DocInventoryViolation[]): void {
+    for (const finding of checkVerificationInventory())
+      violations.push({
+        code: 'VERIFICATION_COVERAGE',
+        path: 'src/stage-verifier/applicability.ts',
+        message: finding.message,
+      });
+    const path = 'docs/architecture/verification-coverage.md';
+    const document = this.readRequiredFile(path);
+    if (
+      !this.normalizeRuntimeInventoryBlock(document).includes(
+        this.normalizeRuntimeInventoryBlock(renderVerificationCoverageBlock())
+      )
+    ) {
+      violations.push({
+        code: 'VERIFICATION_COVERAGE',
+        path,
+        message:
+          'Generated verification coverage block does not match VERIFICATION_APPLICABILITY; run npm run docs:check-inventory -- --write',
       });
     }
   }
