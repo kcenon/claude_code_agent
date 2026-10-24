@@ -234,22 +234,17 @@ export function classifyStageVerification(
     };
   const checks: VerificationCheckRecord[] = [
     ...verification.checks.map((check): VerificationCheckRecord => {
-      const outcome: VerificationCheckOutcome = !check.passed
-        ? 'fail'
-        : check.skipReason !== undefined
-          ? 'skipped'
-          : 'pass';
-      return {
+      const base = {
         checkId: check.checkId,
         name: check.name,
         severity: check.severity,
         required: check.severity === REQUIRED_CHECK_SEVERITY,
-        outcome,
         message: check.message,
-        ...(outcome === 'skipped' && check.skipReason !== undefined
-          ? { skipReason: check.skipReason }
-          : {}),
       };
+      if (!check.passed) return { ...base, outcome: 'fail' };
+      if (check.skipReason !== undefined)
+        return { ...base, outcome: 'skipped', skipReason: check.skipReason };
+      return { ...base, outcome: 'pass' };
     }),
     ...(verification.skippedRules ?? []).map((rule): VerificationCheckRecord => ({
       checkId: rule.checkId,

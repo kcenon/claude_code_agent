@@ -11,7 +11,7 @@
  */
 
 import { access } from 'node:fs/promises';
-import { isAbsolute, relative, resolve } from 'node:path';
+import { isAbsolute, relative, resolve, sep } from 'node:path';
 
 import { OverallResultSchema } from '../validation-agent/schemas.js';
 import type { VerificationCheck, VerificationRule, VerificationRuleContext } from './types.js';
@@ -126,7 +126,13 @@ async function projectFileState(
 ): Promise<'present' | 'absent' | 'outside'> {
   const target = resolve(projectDir, location);
   const fromRoot = relative(projectDir, target);
-  if (fromRoot === '' || fromRoot.startsWith('..') || isAbsolute(fromRoot)) return 'outside';
+  if (
+    fromRoot === '' ||
+    fromRoot === '..' ||
+    fromRoot.startsWith(`..${sep}`) ||
+    isAbsolute(fromRoot)
+  )
+    return 'outside';
   try {
     await access(target);
     return 'present';
