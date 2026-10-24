@@ -245,6 +245,15 @@ describe('implementation-results (implementation)', () => {
     expect(result.details).toEqual({ missing: ['src/missing.ts'], stillPresent: [], outside: [] });
   });
 
+  it('treats a file whose name starts with two dots as inside the project', async () => {
+    await file('..notes.md', 'notes\n');
+    const path = await file(
+      RESULT,
+      workerResult('    - file_path: ..notes.md\n      change_type: create')
+    );
+    expect((await run(implementationRules, 'VR-IMP-007', [path])).passed).toBe(true);
+  });
+
   it('fails a deletion that left the file, a path outside the project, and no changes', async () => {
     await file('src/old.ts', 'export {};\n');
     const path = await file(
