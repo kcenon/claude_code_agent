@@ -9,12 +9,22 @@
 export type {
   ArtifactRef,
   ExecutionAdapter,
+  ExecutionMetrics,
   McpServerConfig,
   StageExecutionRequest,
   StageExecutionResult,
   StageExecutionStatus,
   TokenUsage,
+  UsageMetrics,
+  UsageSource,
 } from './types.js';
+
+export {
+  SdkUsageObserver,
+  installedSdkVersion,
+  unobservedExecutionMetrics,
+  OTHER_TOOL_NAME,
+} from './usage.js';
 
 export { MockExecutionAdapter } from './MockExecutionAdapter.js';
 export type { MockExecutionAdapterOptions, MockExecutionHandler } from './MockExecutionAdapter.js';

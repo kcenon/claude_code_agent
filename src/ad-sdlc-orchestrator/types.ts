@@ -11,6 +11,11 @@ import type { RetryPolicy } from '../error-handler/RetryExecutor.js';
 import type { SerializedError } from '../errors/types.js';
 import type { McpServerConfig } from '../execution/types.js';
 import type { StageVerificationResult } from '../stage-verifier/types.js';
+import type {
+  DeliveryMetricsConsentStatus,
+  DeliveryMetricsSink,
+  DeliveryMetricsSummary,
+} from '../telemetry/deliveryMetricsExport.js';
 import type { PipelineVerificationSummary, StageVerificationRecord } from '../vnv/policy.js';
 import { DEFAULT_VNV_CONFIG, type VnvConfig } from '../vnv/types.js';
 import type {
@@ -248,6 +253,12 @@ export interface PipelineResult {
    * approval boundary. Set by every orchestrator run.
    */
   readonly approval?: PipelineApprovalSummary;
+  /**
+   * Delivery metrics records of this run (attempts, stages, pipeline) and
+   * their export state. Set by every orchestrator run; not saved in session
+   * state. See docs/guides/delivery-metrics.md.
+   */
+  readonly metrics?: DeliveryMetricsSummary;
   /** V&V validation report (from validation stage) */
   readonly validationReport?: {
     readonly reportId: string;
@@ -294,6 +305,10 @@ export interface OrchestratorSession {
   readonly scratchpadDir: string;
   /** Session ID that this session was resumed from (if any) */
   readonly resumedFrom?: string;
+  /** Where a resumed session was restored from: a checkpoint or the session file. */
+  readonly resumeSource?: 'checkpoint' | 'session';
+  /** Status saved for the session before this run resumed it (for example `awaiting_decision`). */
+  readonly resumedFromStatus?: PipelineStatus;
   /** Stages treated as pre-completed when resuming */
   readonly preCompletedStages?: readonly StageName[];
   /**
@@ -419,15 +434,31 @@ export interface OrchestratorConfig {
    * project root or `process.cwd()`.
    */
   readonly featureFlagsBaseDir?: string;
+  /**
+   * Delivery metrics export. Records are always built and returned on
+   * `PipelineResult.metrics`; they are written only to the sink created
+   * here. Absent: nothing is written. `ad-sdlc run` creates the JSONL sink
+   * when telemetry consent is granted (docs/guides/delivery-metrics.md).
+   */
+  readonly deliveryMetrics?: DeliveryMetricsExportOptions;
+}
+
+/** Where delivery metrics records of a run are written. */
+export interface DeliveryMetricsExportOptions {
+  /** Creates the sink of a session; absent, records are not written. */
+  readonly sink?: (session: OrchestratorSession) => DeliveryMetricsSink;
+  /** Telemetry consent that decided the export, reported on the result. */
+  readonly consent?: DeliveryMetricsConsentStatus;
 }
 
 /** Fully-resolved orchestrator configuration used at runtime. */
 export type ResolvedOrchestratorConfig = Omit<
   Required<OrchestratorConfig>,
-  'vnv' | 'interactive'
+  'vnv' | 'interactive' | 'deliveryMetrics'
 > & {
   readonly vnv: Readonly<VnvConfig>;
   readonly interactive?: boolean;
+  readonly deliveryMetrics?: DeliveryMetricsExportOptions;
 };
 
 /**

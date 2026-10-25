@@ -35,6 +35,8 @@ import {
   resolveStageManifest,
 } from './stageManifests.js';
 import { manifestArtifacts } from '../execution/artifacts/ArtifactAttempt.js';
+import { unobservedExecutionMetrics } from '../execution/usage.js';
+import type { DeliveryMetricsSink } from '../telemetry/deliveryMetricsExport.js';
 import { getLogger } from '../logging/index.js';
 import { ENV_USE_SDK_FOR_WORKER } from '../config/featureFlags.js';
 import { StageVerifierAgent } from '../stage-verifier/StageVerifierAgent.js';
@@ -98,6 +100,12 @@ import {
   type ApprovalGateInput,
   type SchedulerHost,
 } from './StageScheduler.js';
+import {
+  DeliveryMetricsRecorder,
+  errorType,
+  type AttemptEvent,
+  type AttemptObservation,
+} from './deliveryMetrics.js';
 
 /**
  * Keep only valid verification and approval records of untrusted persisted results.
@@ -175,6 +183,10 @@ export class AdsdlcOrchestratorAgent implements IAgent {
    * stages run as fresh SDK sessions (each stage is a different agent).
    */
   private pendingResumeSdkSessionId: string | undefined = undefined;
+  /** Delivery metrics of the running pipeline; null between runs. */
+  private metricsRecorder: DeliveryMetricsRecorder | null = null;
+  /** Adapter observations of each stage's current attempt, paired by the scheduler's attempt event. */
+  private readonly attemptObservations = new Map<StageName, AttemptObservation>();
 
   constructor(config: OrchestratorConfig = {}) {
     const requestedParallelism =
@@ -348,6 +360,8 @@ export class AdsdlcOrchestratorAgent implements IAgent {
             this.session = {
               ...prior,
               status: 'running',
+              resumeSource: 'checkpoint',
+              resumedFromStatus: prior.status,
               localMode:
                 request.runtimeSnapshot?.config.localMode ??
                 prior.runtimeSnapshot?.config.localMode ??
@@ -383,6 +397,8 @@ export class AdsdlcOrchestratorAgent implements IAgent {
         this.session = {
           ...prior,
           status: 'running',
+          resumeSource: 'session',
+          resumedFromStatus: prior.status,
           localMode:
             request.runtimeSnapshot?.config.localMode ??
             prior.runtimeSnapshot?.config.localMode ??
@@ -475,6 +491,10 @@ export class AdsdlcOrchestratorAgent implements IAgent {
     const startTime = Date.now();
     this.session = { ...session, status: 'running' };
     this.verificationResults = [];
+    this.attemptObservations.clear();
+    const metricsRecorder = this.createMetricsRecorder(session, startTime);
+    this.metricsRecorder = metricsRecorder;
+    let restoredResults: readonly StageResult[] = [];
     let pipelineError: unknown;
 
     try {
@@ -528,6 +548,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
                 (r.status === 'completed' || r.status === 'degraded') && preCompleted.has(r.name)
             )
           : [];
+      restoredResults = priorResults;
 
       const newResults = await this.executeStages(stages, session, preCompleted);
 
@@ -563,7 +584,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
         );
       }
 
-      const result: PipelineResult = {
+      const outcome: PipelineResult = {
         ...(session.runtimeSnapshot !== undefined
           ? { runtimeSnapshot: session.runtimeSnapshot }
           : {}),
@@ -581,6 +602,15 @@ export class AdsdlcOrchestratorAgent implements IAgent {
           : {}),
         verification,
         approval,
+      };
+      const result: PipelineResult = {
+        ...outcome,
+        metrics: await metricsRecorder.finish({
+          session,
+          stages: stageResults,
+          restored: new Set(priorResults),
+          result: outcome,
+        }),
       };
 
       this.session = { ...this.session, status: overallStatus, stageResults };
@@ -614,11 +644,64 @@ export class AdsdlcOrchestratorAgent implements IAgent {
       if (error instanceof PipelineFailedError) {
         throw error;
       }
+      // Record the attempts and stages that ran; a no-op when the run already finished.
+      await metricsRecorder.finish({
+        session,
+        stages: [
+          ...restoredResults,
+          ...this.session.stageResults.slice(session.stageResults.length),
+        ],
+        restored: new Set(restoredResults),
+        error,
+      });
       this.session = { ...this.session, status: 'failed' };
       throw error;
     } finally {
+      this.metricsRecorder = null;
       await this.disposeAfterPipeline(pipelineError);
     }
+  }
+
+  /**
+   * Delivery metrics recorder of a run, with the sink the configuration
+   * creates for the session. A sink that cannot be created is logged and the
+   * records stay on the result only.
+   * @param session - Session about to run
+   * @param startedAt - Run start (epoch milliseconds)
+   * @returns Recorder of the run
+   */
+  private createMetricsRecorder(
+    session: OrchestratorSession,
+    startedAt: number
+  ): DeliveryMetricsRecorder {
+    const options = this.config.deliveryMetrics;
+    let sink: DeliveryMetricsSink | undefined;
+    try {
+      sink = options?.sink?.(session);
+    } catch (error) {
+      getLogger().warn('Delivery metrics export unavailable (non-critical)', {
+        agent: 'AdsdlcOrchestratorAgent',
+        error: errorType(error),
+      });
+    }
+    return new DeliveryMetricsRecorder({
+      sessionId: session.sessionId,
+      runId: randomUUID(),
+      startedAt,
+      ...(sink !== undefined ? { sink } : {}),
+      ...(options?.consent !== undefined ? { consent: options.consent } : {}),
+    });
+  }
+
+  /**
+   * Pair the scheduler's attempt event with the adapter observations of that
+   * attempt and record it.
+   * @param event - Attempt event
+   */
+  private recordAttempt(event: AttemptEvent): void {
+    const observation = this.attemptObservations.get(event.stage.name);
+    this.attemptObservations.delete(event.stage.name);
+    this.metricsRecorder?.recordAttempt(event, observation);
   }
 
   /**
@@ -758,6 +841,9 @@ export class AdsdlcOrchestratorAgent implements IAgent {
       verifyStage: (stage, result, session) => this.verifyStage(stage, result, session),
       checkApprovalGate: (stage, input) => this.checkApprovalGate(stage, input),
       sleep: (ms, signal) => this.sleep(ms, signal),
+      onAttempt: (event): void => {
+        this.recordAttempt(event);
+      },
     };
   }
 
@@ -805,17 +891,36 @@ export class AdsdlcOrchestratorAgent implements IAgent {
     }
     this.executionAdapter ??= this.createExecutionAdapter(session);
     this.stageManifests.delete(stage.name);
+    this.attemptObservations.delete(stage.name);
     const request = this.buildStageExecutionRequest(stage, session, signal);
     const priorManifests = await loadStageManifests(session, session.stageResults);
     const recovered =
       session.resumedFrom !== undefined ? await recoverStageManifest(request) : undefined;
     if (recovered !== undefined && request.resume !== undefined)
       this.pendingResumeSdkSessionId = request.resume;
-    const result = await resolveStageManifest(
-      session,
-      stage,
-      recovered ?? (await this.executionAdapter.execute({ ...request, priorManifests }))
-    );
+    const executed =
+      recovered ?? (await this.executionAdapter.execute({ ...request, priorManifests }));
+    // Kept before manifest resolution so a contract failure keeps the attempt's usage.
+    this.attemptObservations.set(stage.name, {
+      execution:
+        recovered !== undefined
+          ? 'recovered'
+          : executed.metrics !== undefined
+            ? 'sdk'
+            : 'unobserved',
+      sdkResume: request.resume !== undefined,
+      ...(request.artifactContext !== undefined
+        ? { attemptId: request.artifactContext.attemptId }
+        : {}),
+      sdkSessionId: executed.sessionId,
+      ...(recovered !== undefined
+        ? { metrics: unobservedExecutionMetrics('recovered') }
+        : executed.metrics !== undefined
+          ? { metrics: executed.metrics }
+          : {}),
+      ...(executed.manifest !== undefined ? { manifest: executed.manifest } : {}),
+    });
+    const result = await resolveStageManifest(session, stage, executed);
     if (result.manifest !== undefined)
       this.stageManifests.set(stage.name, {
         reference: result.manifest,
@@ -1023,6 +1128,9 @@ export class AdsdlcOrchestratorAgent implements IAgent {
    * @throws Error when `result.status !== 'success'`.
    */
   protected toStageOutput(stage: PipelineStageDefinition, result: StageExecutionResult): string {
+    // The stage output keeps its legacy fields; delivery metrics read `result.metrics`.
+    // eslint-disable-next-line @typescript-eslint/no-deprecated -- unchanged stage output contract
+    const { toolCallCount, tokenUsage } = result;
     if (result.status !== 'success') {
       const error =
         result.error !== undefined
@@ -1036,8 +1144,8 @@ export class AdsdlcOrchestratorAgent implements IAgent {
         stage: stage.name,
         status: result.status,
         sessionId: result.sessionId,
-        toolCallCount: result.toolCallCount,
-        tokenUsage: result.tokenUsage,
+        toolCallCount,
+        tokenUsage,
       });
     }
     return JSON.stringify({
@@ -1047,8 +1155,8 @@ export class AdsdlcOrchestratorAgent implements IAgent {
         ? { manifest: result.manifest }
         : { artifactCompatibility: 'legacy' }),
       sessionId: result.sessionId,
-      toolCallCount: result.toolCallCount,
-      tokenUsage: result.tokenUsage,
+      toolCallCount,
+      tokenUsage,
       artifacts: result.artifacts.map((a) => ({
         path: a.path,
         ...(a.checksum !== undefined ? { checksum: a.checksum } : {}),

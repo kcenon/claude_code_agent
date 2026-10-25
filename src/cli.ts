@@ -51,6 +51,10 @@ import { getCompletionGenerator, SUPPORTED_SHELLS, type ShellType } from './comp
 import { getTelemetry, PRIVACY_POLICY, PRIVACY_POLICY_VERSION } from './telemetry/index.js';
 import { getCLIOutput } from './cli/CLIOutput.js';
 import { configureRunCommand, executeRunCommand } from './cli/runCommand.js';
+import {
+  configureMetricsReportCommand,
+  executeMetricsReportCommand,
+} from './cli/metricsReportCommand.js';
 
 const output = getCLIOutput();
 const program = new Command();
@@ -780,11 +784,23 @@ telemetryCommand
     const consent = telemetry.getConsentStatus();
     const enabled = telemetry.isEnabled();
     const stats = telemetry.getStats();
+    const metrics = telemetry.getDeliveryMetricsConsent();
 
     output.info(chalk.blue('\n📊 Telemetry Status\n'));
     output.info(`  Consent: ${formatConsentStatus(consent)}`);
     output.info(`  Enabled: ${enabled ? chalk.green('Yes') : chalk.dim('No')}`);
     output.info(`  Policy Version: ${PRIVACY_POLICY_VERSION}`);
+    output.info(
+      `  Delivery metrics: ${
+        metrics.export
+          ? chalk.green('exported by ad-sdlc run to .ad-sdlc/scratchpad/metrics/<session>.jsonl')
+          : chalk.dim(
+              metrics.status === 'outdated'
+                ? 'not exported (consent predates the current policy; run: ad-sdlc telemetry enable)'
+                : 'not exported'
+            )
+      }`
+    );
 
     if (consent === 'granted') {
       output.blank();
@@ -805,7 +821,11 @@ telemetryCommand
   .option('-y, --yes', 'Automatically accept privacy policy')
   .action((cmdOptions: Record<string, unknown>) => {
     const telemetry = getTelemetry();
-    const currentConsent = telemetry.getConsentStatus();
+    // Consent recorded under an older policy does not cover what the current one adds.
+    const currentConsent =
+      telemetry.getDeliveryMetricsConsent().status === 'outdated'
+        ? 'pending'
+        : telemetry.getConsentStatus();
     const autoAccept = cmdOptions['yes'] === true;
 
     // Show privacy policy if not auto-accepting
@@ -880,6 +900,13 @@ telemetryCommand
     output.info(chalk.dim('  • Data is automatically deleted after 90 days'));
     output.blank();
   });
+
+configureMetricsReportCommand(telemetryCommand.command('report')).action(
+  async (files: string[], cmdOptions: Record<string, unknown>) => {
+    const status = await executeMetricsReportCommand(files, cmdOptions, output);
+    if (status !== 0) process.exitCode = status;
+  }
+);
 
 /**
  * Format consent status for display

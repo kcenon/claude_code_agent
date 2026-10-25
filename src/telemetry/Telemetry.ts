@@ -24,6 +24,7 @@ import type {
   TelemetryStats,
 } from './types.js';
 import { ConsentRequiredError, ConsentStorageError, InvalidEventError } from './errors.js';
+import { deliveryMetricsConsent, type DeliveryMetricsConsent } from './deliveryMetricsExport.js';
 import { getLogger } from '../logging/index.js';
 import { readPackageVersion } from '../utils/packageVersion.js';
 
@@ -31,8 +32,11 @@ import { readPackageVersion } from '../utils/packageVersion.js';
 // Constants
 // ============================================================
 
-/** Current privacy policy version */
-export const PRIVACY_POLICY_VERSION = '1.0.0';
+/**
+ * Current privacy policy version. 1.1.0 lists the local delivery metrics
+ * export; consent recorded under 1.0.0 does not cover it.
+ */
+export const PRIVACY_POLICY_VERSION = '1.1.0';
 
 /** Valid consent status values for runtime validation */
 const VALID_CONSENT_STATUSES: readonly ConsentStatus[] = ['granted', 'denied', 'pending'];
@@ -48,13 +52,14 @@ export const DEFAULT_TELEMETRY_CONFIG: TelemetryConfig = {
 /** Privacy policy details */
 export const PRIVACY_POLICY: PrivacyPolicy = {
   version: PRIVACY_POLICY_VERSION,
-  lastUpdated: '2025-01-13',
+  lastUpdated: '2026-10-26',
   dataCollected: [
     'Command usage (which CLI commands are run)',
     'Pipeline execution metrics (duration, stage count)',
     'Feature usage patterns',
     'Error types (not error messages or stack traces)',
     'Platform information (OS type, Node.js version)',
+    'Delivery metrics, written only to a local file in the project (.ad-sdlc/scratchpad/metrics/) and never sent: run, stage, and attempt outcomes, durations, retries, SDK token usage, turn and tool-use counts, tool and model names, SDK version',
   ],
   dataNotCollected: [
     'Personal identifying information (name, email, IP address)',
@@ -171,6 +176,17 @@ export class Telemetry {
    */
   isEnabled(): boolean {
     return this.config.enabled && this.isConsentGranted();
+  }
+
+  /**
+   * Whether `ad-sdlc run` writes delivery metrics records to the local export.
+   * Requires consent granted under a privacy policy that lists delivery
+   * metrics (docs/guides/delivery-metrics.md).
+   *
+   * @returns Consent state and export decision
+   */
+  getDeliveryMetricsConsent(): DeliveryMetricsConsent {
+    return deliveryMetricsConsent(this.consentRecord);
   }
 
   /**

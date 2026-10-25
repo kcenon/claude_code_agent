@@ -50,7 +50,7 @@ describe('CompletionGenerator', () => {
         'completion',
       ]);
       expect(commands.find((c) => c.name === 'telemetry')?.subcommands?.map((s) => s.name)).toEqual(
-        ['status', 'enable', 'disable', 'policy']
+        ['status', 'enable', 'disable', 'policy', 'report']
       );
       expect(commands.find((c) => c.name === 'assets')?.subcommands?.map((s) => s.name)).toEqual([
         'update',
@@ -149,7 +149,7 @@ describe('CompletionGenerator', () => {
 
         expect(script).toContain('if [[ ${cword} -eq 2 ]]; then');
         expect(script).toContain(
-          'compgen -W "status enable disable policy -h --help -V --version"'
+          'compgen -W "status enable disable policy report -h --help -V --version"'
         );
         expect(script).toContain('case "${words[2]}" in');
         expect(script).toContain('compgen -W "-y --yes -h --help -V --version"');
@@ -216,7 +216,7 @@ describe('CompletionGenerator', () => {
         });
 
         // One block for the command position, one per command or subcommand without subcommands.
-        expect(blocks).toHaveLength(14);
+        expect(blocks).toHaveLength(15);
         for (const specs of blocks) {
           expect(specs.length).toBeGreaterThan(1);
           for (const spec of specs.slice(0, -1)) expect(spec).toMatch(/' \\$/);
@@ -304,7 +304,7 @@ describe('CompletionGenerator', () => {
         const lines = new CompletionGenerator().generate('fish').script.split('\n');
 
         expect(lines).toContain(
-          'complete -c ad-sdlc -n "__fish_seen_subcommand_from telemetry; and not __fish_seen_subcommand_from status enable disable policy" -a "enable" -d "Enable telemetry (requires consent)"'
+          'complete -c ad-sdlc -n "__fish_seen_subcommand_from telemetry; and not __fish_seen_subcommand_from status enable disable policy report" -a "enable" -d "Enable telemetry (requires consent)"'
         );
         expect(lines).toContain(
           'complete -c ad-sdlc -n "__fish_seen_subcommand_from telemetry; and __fish_seen_subcommand_from enable" -l "yes" -s "y" -d "Automatically accept privacy policy"'

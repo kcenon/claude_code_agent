@@ -6,13 +6,7 @@
  * @packageDocumentation
  */
 
-import type {
-  Options,
-  Query,
-  SDKMessage,
-  SDKResultMessage,
-  query,
-} from '@anthropic-ai/claude-agent-sdk';
+import type { Options, Query, SDKMessage, query } from '@anthropic-ai/claude-agent-sdk';
 import {
   DEFAULT_CLEANUP_GRACE_MS,
   ExecutionCleanupError,
@@ -31,12 +25,12 @@ import {
   type ManifestReference,
 } from './artifacts/schemas.js';
 import { normalizeArtifactPath, inspectArtifact } from './artifacts/paths.js';
+import { SdkUsageObserver } from './usage.js';
 import type {
   ArtifactRef,
   ExecutionAdapter,
   StageExecutionRequest,
   StageExecutionResult,
-  TokenUsage,
 } from './types.js';
 
 /** Official query input, retained under the existing exported name. */
@@ -97,8 +91,8 @@ interface OwnedExecution {
   outcome: 'running' | 'success' | 'failed' | 'aborted';
   reason?: unknown;
   sessionId: string;
-  toolCallCount: number;
-  tokenUsage: TokenUsage;
+  /** Usage, turns, and tool invocations observed so far; kept on every outcome. */
+  readonly usage: SdkUsageObserver;
   resultText?: string;
 }
 
@@ -175,8 +169,7 @@ export class SdkExecutionAdapter implements ExecutionAdapter {
       executionSettled: false,
       outcome: 'running',
       sessionId: req.resume ?? 'unknown',
-      toolCallCount: 0,
-      tokenUsage: { input: 0, output: 0, cache: 0 },
+      usage: new SdkUsageObserver(),
     };
     this.active.add(execution);
     req.signal?.addEventListener('abort', forwardAbort, { once: true });
@@ -253,36 +246,16 @@ export class SdkExecutionAdapter implements ExecutionAdapter {
       ...(req.artifactContext !== undefined ? { outputFormat: ARTIFACT_OUTPUT_FORMAT } : {}),
     };
     execution.query = sdk.query({ prompt: renderPrompt(req), options: sdkOptions });
-    const assistantUsage = new Map<string, TokenUsage>();
-    let hasResultUsage = false;
     for await (const message of execution.query) {
       if ('session_id' in message && message.session_id !== '')
         execution.sessionId = message.session_id;
-      if (message.type === 'assistant') {
-        const previous = assistantUsage.get(message.message.id) ?? {
-          input: 0,
-          output: 0,
-          cache: 0,
-        };
-        const usage = mapUsage(message.message.usage);
-        assistantUsage.set(message.message.id, usage);
-        execution.toolCallCount = Math.max(execution.toolCallCount, assistantUsage.size);
-        if (!hasResultUsage) {
-          execution.tokenUsage = {
-            input: execution.tokenUsage.input + usage.input - previous.input,
-            output: execution.tokenUsage.output + usage.output - previous.output,
-            cache: execution.tokenUsage.cache + usage.cache - previous.cache,
-          };
-        }
-      }
+      // Observed before any outcome change, so failures keep the usage seen so far.
+      execution.usage.observe(message);
       if (message.type === 'result') {
         if (message.subtype === 'success') execution.structuredOutput = message.structured_output;
         execution.resultText =
           message.subtype === 'success' ? message.result : message.errors.join('\n');
         const isError = message.is_error || message.subtype !== 'success';
-        execution.toolCallCount = Math.max(execution.toolCallCount, message.num_turns);
-        execution.tokenUsage = mapUsage(message.usage);
-        hasResultUsage = true;
         if (isError && execution.outcome === 'running') {
           execution.outcome = 'failed';
           execution.reason = new Error(execution.resultText);
@@ -322,8 +295,8 @@ export class SdkExecutionAdapter implements ExecutionAdapter {
                 status: outcome,
                 artifacts: [],
                 sessionId: execution.sessionId,
-                toolCallCount: execution.toolCallCount,
-                tokenUsage: execution.tokenUsage,
+                toolCallCount: execution.usage.legacyToolCallCount(),
+                tokenUsage: execution.usage.legacyTokenUsage(),
               },
               execution.structuredOutput
             );
@@ -342,8 +315,8 @@ export class SdkExecutionAdapter implements ExecutionAdapter {
                 status: execution.outcome === 'aborted' ? 'aborted' : 'failed',
                 artifacts: [],
                 sessionId: execution.sessionId,
-                toolCallCount: execution.toolCallCount,
-                tokenUsage: execution.tokenUsage,
+                toolCallCount: execution.usage.legacyToolCallCount(),
+                tokenUsage: execution.usage.legacyTokenUsage(),
               },
               (execution.reason as Error).message
             );
@@ -410,13 +383,16 @@ export class SdkExecutionAdapter implements ExecutionAdapter {
               ...(reason !== undefined ? { cause } : {}),
             }
           ));
+    // Completion is the usage finalization point for every outcome, including
+    // failures and cancellations that never reach the SDK Stop hook.
     return {
       status,
       artifacts: status === 'success' ? (execution.artifacts ?? []) : [],
       ...(execution.manifest !== undefined ? { manifest: execution.manifest } : {}),
       sessionId: execution.sessionId,
-      toolCallCount: execution.toolCallCount,
-      tokenUsage: execution.tokenUsage,
+      toolCallCount: execution.usage.legacyToolCallCount(),
+      tokenUsage: execution.usage.legacyTokenUsage(),
+      metrics: execution.usage.metrics(),
       ...(error !== undefined ? { error: error.toJSON() } : {}),
     };
   }
@@ -576,20 +552,6 @@ function copyMcpServers(
     }
   }
   return copied;
-}
-
-function mapUsage(
-  usage: Pick<SDKResultMessage['usage'], 'input_tokens' | 'output_tokens'> & {
-    cache_read_input_tokens?: number | null;
-    cache_creation_input_tokens?: number | null;
-  }
-): TokenUsage {
-  const cache = (usage.cache_read_input_tokens ?? 0) + (usage.cache_creation_input_tokens ?? 0);
-  return {
-    input: usage.input_tokens,
-    output: usage.output_tokens,
-    cache,
-  };
 }
 
 /**
