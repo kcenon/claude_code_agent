@@ -2,14 +2,14 @@
 
 ## Agent-Driven Software Development Lifecycle System
 
-| Field | Value |
-|-------|-------|
-| **Document ID** | PRD-001 |
-| **Version** | 1.1.0 |
-| **Status** | Review |
-| **Implementation** | Partial |
-| **Created** | 2025-12-27 |
-| **Author** | System Architect |
+| Field              | Value            |
+| ------------------ | ---------------- |
+| **Document ID**    | PRD-001          |
+| **Version**        | 1.1.0            |
+| **Status**         | Review           |
+| **Implementation** | Partial          |
+| **Created**        | 2025-12-27       |
+| **Author**         | System Architect |
 
 ---
 
@@ -35,12 +35,15 @@
 ## 1. Executive Summary
 
 ### 1.1 Product Name
+
 **Agent-Driven SDLC (AD-SDLC)** - Agent-Based Software Development Lifecycle Automation System
 
 ### 1.2 Overview
+
 AD-SDLC is a multi-agent system built on the Claude Agent SDK that automates the entire software development lifecycle. This product-role catalog defines 25 specialized roles and 3 infrastructure services. The current implementation is larger and uses separate count axes: 36 checked-in prompt definitions, 29 unique pipeline agent types, and 39 mode-specific stage slots across Greenfield, Enhancement, and Import. The source-checked [runtime inventory](architecture/runtime-inventory.md) is authoritative for those implementation counts.
 
 ### 1.3 Key Value Propositions
+
 - **End-to-End Automation**: Full process automation from requirements gathering to code deployment
 - **Document Consistency Guarantee**: Hierarchical document generation ensures traceability
 - **Quality Gates**: Quality assurance through verification at each stage
@@ -52,13 +55,13 @@ AD-SDLC is a multi-agent system built on the Claude Agent SDK that automates the
 
 ### 2.1 Current Challenges
 
-| Challenge | Description | Impact |
-|-----------|-------------|--------|
-| **Lack of Documentation** | Requirements communicated only verbally, making them untraceable | Increased project failure rate |
-| **Manual Processes** | Manual conversion from PRD → SRS → SDS → Issues | Time waste, human error |
-| **Lack of Consistency** | Inconsistencies between documents, version control confusion | Rework, quality degradation |
-| **Inefficient Work Distribution** | Manual issue assignment and tracking | Bottlenecks, delays |
-| **Review Delays** | Extended PR review wait times | Increased deployment cycles |
+| Challenge                         | Description                                                      | Impact                         |
+| --------------------------------- | ---------------------------------------------------------------- | ------------------------------ |
+| **Lack of Documentation**         | Requirements communicated only verbally, making them untraceable | Increased project failure rate |
+| **Manual Processes**              | Manual conversion from PRD → SRS → SDS → Issues                  | Time waste, human error        |
+| **Lack of Consistency**           | Inconsistencies between documents, version control confusion     | Rework, quality degradation    |
+| **Inefficient Work Distribution** | Manual issue assignment and tracking                             | Bottlenecks, delays            |
+| **Review Delays**                 | Extended PR review wait times                                    | Increased deployment cycles    |
 
 ### 2.2 Target Users Pain Points
 
@@ -80,6 +83,7 @@ Developer Journey (Current State):
 ## 3. Product Vision
 
 ### 3.1 Vision Statement
+
 > "An intelligent development partner where AI agents handle repetitive documentation and process management, allowing developers to focus on creative problem-solving"
 
 ### 3.2 Target State
@@ -110,12 +114,12 @@ Developer Journey (Future State with AD-SDLC):
 
 ### 4.1 Primary Goals
 
-| Goal ID | Goal | Measurement |
-|---------|------|-------------|
-| G-001 | Reduce documentation time by 80% | PRD creation time: 8 hours → 1.5 hours |
-| G-002 | 100% requirements-to-code traceability | All code changes linked to Issue/SRS |
-| G-003 | Document consistency above 95% | Automated consistency check pass rate |
-| G-004 | Reduce PR review time by 50% | Average review wait: 24 hours → 12 hours |
+| Goal ID | Goal                                   | Measurement                              |
+| ------- | -------------------------------------- | ---------------------------------------- |
+| G-001   | Reduce documentation time by 80%       | PRD creation time: 8 hours → 1.5 hours   |
+| G-002   | 100% requirements-to-code traceability | All code changes linked to Issue/SRS     |
+| G-003   | Document consistency above 95%         | Automated consistency check pass rate    |
+| G-004   | Reduce PR review time by 50%           | Average review wait: 24 hours → 12 hours |
 
 ### 4.2 Key Performance Indicators (KPIs)
 
@@ -141,33 +145,33 @@ User Satisfaction:
 
 ### 5.1 Primary Persona: Product Manager (PM)
 
-| Attribute | Description |
-|-----------|-------------|
-| **Name** | Kim PM |
-| **Role** | Product Manager |
-| **Goals** | Clearly communicate requirements and track progress |
-| **Pain Points** | Document creation takes too much time, communication gap with development team |
-| **Needs** | Natural language input for requirements, automated documentation, real-time progress tracking |
+| Attribute       | Description                                                                                   |
+| --------------- | --------------------------------------------------------------------------------------------- |
+| **Name**        | Kim PM                                                                                        |
+| **Role**        | Product Manager                                                                               |
+| **Goals**       | Clearly communicate requirements and track progress                                           |
+| **Pain Points** | Document creation takes too much time, communication gap with development team                |
+| **Needs**       | Natural language input for requirements, automated documentation, real-time progress tracking |
 
 ### 5.2 Secondary Persona: Tech Lead
 
-| Attribute | Description |
-|-----------|-------------|
-| **Name** | Park TL |
-| **Role** | Tech Lead |
-| **Goals** | Technical design review, optimized work distribution |
-| **Pain Points** | SDS creation burden, time spent on issue distribution |
-| **Needs** | Automated SDS generation, intelligent work distribution, code review support |
+| Attribute       | Description                                                                  |
+| --------------- | ---------------------------------------------------------------------------- |
+| **Name**        | Park TL                                                                      |
+| **Role**        | Tech Lead                                                                    |
+| **Goals**       | Technical design review, optimized work distribution                         |
+| **Pain Points** | SDS creation burden, time spent on issue distribution                        |
+| **Needs**       | Automated SDS generation, intelligent work distribution, code review support |
 
 ### 5.3 Tertiary Persona: Developer
 
-| Attribute | Description |
-|-----------|-------------|
-| **Name** | Lee Dev |
-| **Role** | Software Developer |
-| **Goals** | Efficient implementation with clear scope of work |
-| **Pain Points** | Unclear requirements, time spent understanding context |
-| **Needs** | Detailed Issue descriptions, related code context, automated PR generation |
+| Attribute       | Description                                                                |
+| --------------- | -------------------------------------------------------------------------- |
+| **Name**        | Lee Dev                                                                    |
+| **Role**        | Software Developer                                                         |
+| **Goals**       | Efficient implementation with clear scope of work                          |
+| **Pain Points** | Unclear requirements, time spent understanding context                     |
+| **Needs**       | Detailed Issue descriptions, related code context, automated PR generation |
 
 ---
 
@@ -213,43 +217,43 @@ User Satisfaction:
 
 #### 6.2.1 Core Agents (Greenfield Pipeline)
 
-| # | Agent Name | Description | Primary Responsibility |
-|---|------------|-------------|----------------------|
-| 1 | Collector Agent | Information Collection Agent | Analyze user input, gather and structure relevant information |
-| 2 | PRD Writer Agent | PRD Creation Agent | Auto-generate PRD documents based on collected information |
-| 3 | SRS Writer Agent | SRS Creation Agent | Create SRS (functional specification) after analyzing PRD |
-| 4 | SDS Writer Agent | SDS Creation Agent | Create SDS (design specification) after analyzing SRS |
-| 5 | Issue Generator Agent | Issue Creation Agent | Auto-generate GitHub Issues based on SDS |
-| 6 | Controller Agent | Control Agent | Analyze issues and assign work to Worker Agents |
-| 7 | Worker Agent | Task Agent | Execute implementation work for assigned Issues |
-| 8 | PR Review Agent | PR Review Agent | Create PRs, perform reviews, determine results |
+| #   | Agent Name            | Description                  | Primary Responsibility                                        |
+| --- | --------------------- | ---------------------------- | ------------------------------------------------------------- |
+| 1   | Collector Agent       | Information Collection Agent | Analyze user input, gather and structure relevant information |
+| 2   | PRD Writer Agent      | PRD Creation Agent           | Auto-generate PRD documents based on collected information    |
+| 3   | SRS Writer Agent      | SRS Creation Agent           | Create SRS (functional specification) after analyzing PRD     |
+| 4   | SDS Writer Agent      | SDS Creation Agent           | Create SDS (design specification) after analyzing SRS         |
+| 5   | Issue Generator Agent | Issue Creation Agent         | Auto-generate GitHub Issues based on SDS                      |
+| 6   | Controller Agent      | Control Agent                | Analyze issues and assign work to Worker Agents               |
+| 7   | Worker Agent          | Task Agent                   | Execute implementation work for assigned Issues               |
+| 8   | PR Review Agent       | PR Review Agent              | Create PRs, perform reviews, determine results                |
 
 #### 6.2.2 Enhancement Pipeline Agents
 
-| # | Agent Name | Description | Primary Responsibility |
-|---|------------|-------------|----------------------|
-| 9 | Document Reader Agent | Document Parsing Agent | Parse existing PRD/SRS/SDS and extract structured state |
-| 10 | Codebase Analyzer Agent | Codebase Analysis Agent | Analyze architecture patterns and dependencies |
-| 11 | Impact Analyzer Agent | Impact Analysis Agent | Assess change impact and risk levels |
-| 12 | PRD Updater Agent | PRD Update Agent | Incrementally update PRD with new/modified/deprecated requirements |
-| 13 | SRS Updater Agent | SRS Update Agent | Incrementally update SRS maintaining PRD→SRS traceability |
-| 14 | SDS Updater Agent | SDS Update Agent | Incrementally update SDS maintaining SRS→SDS traceability |
-| 15 | Regression Tester Agent | Regression Test Agent | Run regression tests and report compatibility |
-| 16 | Code Reader Agent | Code Analysis Agent | AST-based source code analysis |
-| 17 | Doc-Code Comparator Agent | Gap Analysis Agent | Compare specifications against code implementation |
-| 18 | CI Fixer Agent | CI Fix Agent | Diagnose and fix CI/CD failures automatically |
+| #   | Agent Name                | Description             | Primary Responsibility                                             |
+| --- | ------------------------- | ----------------------- | ------------------------------------------------------------------ |
+| 9   | Document Reader Agent     | Document Parsing Agent  | Parse existing PRD/SRS/SDS and extract structured state            |
+| 10  | Codebase Analyzer Agent   | Codebase Analysis Agent | Analyze architecture patterns and dependencies                     |
+| 11  | Impact Analyzer Agent     | Impact Analysis Agent   | Assess change impact and risk levels                               |
+| 12  | PRD Updater Agent         | PRD Update Agent        | Incrementally update PRD with new/modified/deprecated requirements |
+| 13  | SRS Updater Agent         | SRS Update Agent        | Incrementally update SRS maintaining PRD→SRS traceability          |
+| 14  | SDS Updater Agent         | SDS Update Agent        | Incrementally update SDS maintaining SRS→SDS traceability          |
+| 15  | Regression Tester Agent   | Regression Test Agent   | Run regression tests and report compatibility                      |
+| 16  | Code Reader Agent         | Code Analysis Agent     | AST-based source code analysis                                     |
+| 17  | Doc-Code Comparator Agent | Gap Analysis Agent      | Compare specifications against code implementation                 |
+| 18  | CI Fixer Agent            | CI Fix Agent            | Diagnose and fix CI/CD failures automatically                      |
 
 #### 6.2.3 Infrastructure & Orchestration Agents
 
-| # | Agent Name | Description | Primary Responsibility |
-|---|------------|-------------|----------------------|
-| 19 | AD-SDLC Orchestrator Agent | Pipeline Orchestrator | Coordinate full pipeline execution across all modes |
-| 20 | Analysis Orchestrator Agent | Analysis Orchestrator | Coordinate Enhancement analysis sub-pipeline |
-| 21 | Mode Detector Agent | Mode Detection Agent | Auto-detect Greenfield/Enhancement pipeline mode |
-| 22 | Project Initializer Agent | Project Init Agent | Initialize .ad-sdlc directory structure and configuration |
-| 23 | Repo Detector Agent | Repo Detection Agent | Detect existing GitHub repository presence |
-| 24 | GitHub Repo Setup Agent | Repo Setup Agent | Create and initialize GitHub repository |
-| 25 | Issue Reader Agent | Issue Import Agent | Import existing GitHub Issues to AD-SDLC format |
+| #   | Agent Name                  | Description           | Primary Responsibility                                    |
+| --- | --------------------------- | --------------------- | --------------------------------------------------------- |
+| 19  | AD-SDLC Orchestrator Agent  | Pipeline Orchestrator | Coordinate full pipeline execution across all modes       |
+| 20  | Analysis Orchestrator Agent | Analysis Orchestrator | Coordinate Enhancement analysis sub-pipeline              |
+| 21  | Mode Detector Agent         | Mode Detection Agent  | Auto-detect Greenfield/Enhancement pipeline mode          |
+| 22  | Project Initializer Agent   | Project Init Agent    | Initialize .ad-sdlc directory structure and configuration |
+| 23  | Repo Detector Agent         | Repo Detection Agent  | Detect existing GitHub repository presence                |
+| 24  | GitHub Repo Setup Agent     | Repo Setup Agent      | Create and initialize GitHub repository                   |
+| 25  | Issue Reader Agent          | Issue Import Agent    | Import existing GitHub Issues to AD-SDLC format           |
 
 ---
 
@@ -258,16 +262,17 @@ User Satisfaction:
 ### 7.1 Agent 1: Collector Agent (Information Collection Agent)
 
 #### 7.1.1 Purpose
+
 Analyzes various forms of input (text, files, URLs, etc.) received from users and converts them into structured information documents.
 
 #### 7.1.2 Capabilities
 
-| Capability | Description |
-|------------|-------------|
-| **Multi-source Input** | Process text, files (.md, .pdf, .docx), URLs |
+| Capability                 | Description                                                         |
+| -------------------------- | ------------------------------------------------------------------- |
+| **Multi-source Input**     | Process text, files (.md, .pdf, .docx), URLs                        |
 | **Information Extraction** | Extract core requirements, constraints, non-functional requirements |
-| **Clarification Loop** | Query users about unclear parts |
-| **Structured Output** | Structured information documents in JSON/YAML format |
+| **Clarification Loop**     | Query users about unclear parts                                     |
+| **Structured Output**      | Structured information documents in JSON/YAML format                |
 
 #### 7.1.3 Input/Output Specification
 
@@ -293,18 +298,18 @@ Output:
       constraints: list
       assumptions: list
       dependencies: list
-      questions: list  # Items requiring additional clarification
+      questions: list # Items requiring additional clarification
 ```
 
 #### 7.1.4 Tools Required
 
-| Tool | Purpose |
-|------|---------|
-| `Read` | Read file contents |
-| `WebFetch` | Fetch URL content |
-| `WebSearch` | Search for related information |
-| `Grep` | Pattern-based information extraction |
-| `Write` | Save information documents |
+| Tool        | Purpose                              |
+| ----------- | ------------------------------------ |
+| `Read`      | Read file contents                   |
+| `WebFetch`  | Fetch URL content                    |
+| `WebSearch` | Search for related information       |
+| `Grep`      | Pattern-based information extraction |
+| `Write`     | Save information documents           |
 
 #### 7.1.5 State Management
 
@@ -323,16 +328,17 @@ State:
 ### 7.2 Agent 2: PRD Writer Agent (PRD Creation Agent)
 
 #### 7.2.1 Purpose
+
 Analyzes the information document generated by the Collector Agent and automatically generates a document in standard PRD format.
 
 #### 7.2.2 Capabilities
 
-| Capability | Description |
-|------------|-------------|
-| **Template-based Generation** | Document generation based on standard PRD template |
-| **Gap Analysis** | Identify missing information and request supplements |
-| **Consistency Check** | Check for conflicts between requirements |
-| **Priority Assignment** | Auto-suggest requirement priorities |
+| Capability                    | Description                                          |
+| ----------------------------- | ---------------------------------------------------- |
+| **Template-based Generation** | Document generation based on standard PRD template   |
+| **Gap Analysis**              | Identify missing information and request supplements |
+| **Consistency Check**         | Check for conflicts between requirements             |
+| **Priority Assignment**       | Auto-suggest requirement priorities                  |
 
 #### 7.2.3 Input/Output Specification
 
@@ -364,46 +370,58 @@ Output:
 # PRD: [Product Name]
 
 ## 1. Executive Summary
+
 ## 2. Problem Statement
+
 ## 3. Goals & Success Metrics
+
 ## 4. User Personas
+
 ## 5. Functional Requirements
-   ### FR-001: [Requirement Title]
-   - Description:
-   - Acceptance Criteria:
-   - Priority: [P0/P1/P2/P3]
-   - Dependencies:
+
+### FR-001: [Requirement Title]
+
+- Description:
+- Acceptance Criteria:
+- Priority: [P0/P1/P2/P3]
+- Dependencies:
+
 ## 6. Non-Functional Requirements
+
 ## 7. Constraints & Assumptions
+
 ## 8. Timeline & Milestones
+
 ## 9. Risks & Mitigations
+
 ## 10. Appendix
 ```
 
 #### 7.2.5 Tools Required
 
-| Tool | Purpose |
-|------|---------|
-| `Read` | Read information documents |
-| `Write` | Save PRD documents |
-| `Edit` | Modify/supplement PRD |
-| `Glob` | Search for related documents |
+| Tool    | Purpose                      |
+| ------- | ---------------------------- |
+| `Read`  | Read information documents   |
+| `Write` | Save PRD documents           |
+| `Edit`  | Modify/supplement PRD        |
+| `Glob`  | Search for related documents |
 
 ---
 
 ### 7.3 Agent 3: SRS Writer Agent (SRS Creation Agent)
 
 #### 7.3.1 Purpose
+
 Creates detailed Software Requirements Specification (SRS) based on the PRD.
 
 #### 7.3.2 Capabilities
 
-| Capability | Description |
-|------------|-------------|
+| Capability                    | Description                                       |
+| ----------------------------- | ------------------------------------------------- |
 | **Requirement Decomposition** | Decompose PRD requirements into detailed features |
-| **Use Case Generation** | Auto-generate use case scenarios |
-| **Interface Definition** | Define system interfaces |
-| **Traceability Matrix** | Generate requirements traceability matrix |
+| **Use Case Generation**       | Auto-generate use case scenarios                  |
+| **Interface Definition**      | Define system interfaces                          |
+| **Traceability Matrix**       | Generate requirements traceability matrix         |
 
 #### 7.3.3 Input/Output Specification
 
@@ -431,13 +449,13 @@ Output:
 
 ```yaml
 system_features:
-  - feature_id: "SF-001"
+  - feature_id: 'SF-001'
     name: string
     description: string
     priority: enum[P0, P1, P2, P3]
-    source_requirement: "FR-XXX"  # PRD traceability
+    source_requirement: 'FR-XXX' # PRD traceability
     use_cases:
-      - uc_id: "UC-001"
+      - uc_id: 'UC-001'
         actor: string
         preconditions: list
         main_flow: list
@@ -452,16 +470,17 @@ system_features:
 ### 7.4 Agent 4: SDS Writer Agent (SDS Creation Agent)
 
 #### 7.4.1 Purpose
+
 Creates Software Design Specification (SDS) based on the SRS.
 
 #### 7.4.2 Capabilities
 
-| Capability | Description |
-|------------|-------------|
-| **Architecture Design** | System architecture design and diagram generation |
-| **Component Definition** | Component/module structure definition |
-| **API Design** | API endpoint and data model design |
-| **Database Schema** | Database schema design |
+| Capability               | Description                                       |
+| ------------------------ | ------------------------------------------------- |
+| **Architecture Design**  | System architecture design and diagram generation |
+| **Component Definition** | Component/module structure definition             |
+| **API Design**           | API endpoint and data model design                |
+| **Database Schema**      | Database schema design                            |
 
 #### 7.4.3 Input/Output Specification
 
@@ -488,10 +507,10 @@ Output:
 
 ```yaml
 component_design:
-  - component_id: "CMP-001"
+  - component_id: 'CMP-001'
     name: string
     responsibility: string
-    source_feature: "SF-XXX"  # SRS traceability
+    source_feature: 'SF-XXX' # SRS traceability
     interfaces:
       - interface_id: string
         type: enum[API, Event, File]
@@ -500,9 +519,9 @@ component_design:
     implementation_notes: string
 
 api_specification:
-  - endpoint: "/api/v1/users"
-    method: "POST"
-    source_use_case: "UC-XXX"  # SRS traceability
+  - endpoint: '/api/v1/users'
+    method: 'POST'
+    source_use_case: 'UC-XXX' # SRS traceability
     request:
       headers: object
       body: object
@@ -516,16 +535,17 @@ api_specification:
 ### 7.5 Agent 5: Issue Generator Agent (Issue Creation Agent)
 
 #### 7.5.1 Purpose
+
 Analyzes the SDS and automatically creates GitHub Issues in development-ready units.
 
 #### 7.5.2 Capabilities
 
-| Capability | Description |
-|------------|-------------|
-| **Work Breakdown** | Decompose SDS components into work units |
-| **Issue Templating** | Apply standard issue template |
-| **Dependency Mapping** | Set dependencies between issues |
-| **Label Assignment** | Auto-labeling (priority, type, component) |
+| Capability             | Description                               |
+| ---------------------- | ----------------------------------------- |
+| **Work Breakdown**     | Decompose SDS components into work units  |
+| **Issue Templating**   | Apply standard issue template             |
+| **Dependency Mapping** | Set dependencies between issues           |
+| **Label Assignment**   | Auto-labeling (priority, type, component) |
 
 #### 7.5.3 Input/Output Specification
 
@@ -546,8 +566,8 @@ Output:
           labels: list
           assignees: list
           milestone: string
-          dependencies: list  # blocked_by issue_ids
-          source_component: "CMP-XXX"  # SDS traceability
+          dependencies: list # blocked_by issue_ids
+          source_component: 'CMP-XXX' # SDS traceability
           estimated_effort: enum[XS, S, M, L, XL]
 ```
 
@@ -555,54 +575,62 @@ Output:
 
 ```markdown
 ## Description
+
 [Auto-generated task description]
 
 ## Source References
+
 - **SDS Component**: CMP-XXX
 - **SRS Feature**: SF-XXX
 - **PRD Requirement**: FR-XXX
 
 ## Acceptance Criteria
+
 - [ ] Criterion 1
 - [ ] Criterion 2
 
 ## Technical Notes
+
 [Technical guidance for implementation]
 
 ## Dependencies
+
 - Blocked by: #issue_number
 - Blocks: #issue_number
 
 ## Estimated Effort
+
 [XS/S/M/L/XL]
 
 ---
+
 _Auto-generated by AD-SDLC Issue Generator Agent_
 ```
 
 #### 7.5.5 Tools Required
 
-| Tool | Purpose |
-|------|---------|
-| `Read` | Read SDS documents |
-| `Bash` | Execute `gh issue create` command |
-| `Write` | Save issue list document |
+| Tool    | Purpose                           |
+| ------- | --------------------------------- |
+| `Read`  | Read SDS documents                |
+| `Bash`  | Execute `gh issue create` command |
+| `Write` | Save issue list document          |
 
 ---
 
 ### 7.6 Agent 6: Controller Agent (Control Agent)
 
 #### 7.6.1 Purpose
+
 Analyzes generated GitHub Issues, assigns work to Worker Agents, and monitors progress.
 
 #### 7.6.2 Capabilities
 
-| Capability | Description |
-|------------|-------------|
+| Capability               | Description                                |
+| ------------------------ | ------------------------------------------ |
 | **Issue Prioritization** | Determine work order based on dependencies |
-| **Worker Management** | Worker Agent assignment and monitoring |
-| **Progress Tracking** | Track and report overall progress |
-| **Bottleneck Detection** | Detect bottlenecks and send alerts |
+| **Worker Management**    | Worker Agent assignment and monitoring     |
+| **Progress Tracking**    | Track and report overall progress          |
+| **Bottleneck Detection** | Detect bottlenecks and send alerts         |
 
 #### 7.6.3 Input/Output Specification
 
@@ -662,7 +690,7 @@ class ControllerAgent:
 ```yaml
 Controller State:
   active_issues: list
-  assigned_work: dict  # issue_id -> worker_id
+  assigned_work: dict # issue_id -> worker_id
   completed_issues: list
   blocked_issues: list
   worker_pool:
@@ -677,16 +705,17 @@ Controller State:
 ### 7.7 Agent 7: Worker Agent (Task Agent)
 
 #### 7.7.1 Purpose
+
 Actually implements the Issues assigned by the Controller Agent.
 
 #### 7.7.2 Capabilities
 
-| Capability | Description |
-|------------|-------------|
-| **Code Generation** | Auto-generate code based on Issue |
-| **Test Writing** | Auto-write unit tests |
-| **Codebase Integration** | Integrate with existing codebase |
-| **Self-Verification** | Self-verify before implementation completion |
+| Capability               | Description                                  |
+| ------------------------ | -------------------------------------------- |
+| **Code Generation**      | Auto-generate code based on Issue            |
+| **Test Writing**         | Auto-write unit tests                        |
+| **Codebase Integration** | Integrate with existing codebase             |
+| **Self-Verification**    | Self-verify before implementation completion |
 
 #### 7.7.3 Input/Output Specification
 
@@ -755,30 +784,31 @@ Output:
 
 #### 7.7.5 Tools Required
 
-| Tool | Purpose |
-|------|---------|
-| `Read` | Analyze existing code |
-| `Glob` | Search for related files |
-| `Grep` | Pattern search |
-| `Write` | Create new files |
-| `Edit` | Modify existing files |
-| `Bash` | Execute tests/builds |
+| Tool    | Purpose                  |
+| ------- | ------------------------ |
+| `Read`  | Analyze existing code    |
+| `Glob`  | Search for related files |
+| `Grep`  | Pattern search           |
+| `Write` | Create new files         |
+| `Edit`  | Modify existing files    |
+| `Bash`  | Execute tests/builds     |
 
 ---
 
 ### 7.8 Agent 8: PR Review Agent (PR Review Agent)
 
 #### 7.8.1 Purpose
+
 Creates PRs based on Worker Agent implementation results, performs code reviews, and determines final results.
 
 #### 7.8.2 Capabilities
 
-| Capability | Description |
-|------------|-------------|
-| **PR Creation** | Auto-create PR for completed Issues |
-| **Code Review** | Perform automated code review |
-| **Quality Gate** | Determine quality criteria compliance |
-| **Feedback Loop** | Request revisions and re-review |
+| Capability        | Description                           |
+| ----------------- | ------------------------------------- |
+| **PR Creation**   | Auto-create PR for completed Issues   |
+| **Code Review**   | Perform automated code review         |
+| **Quality Gate**  | Determine quality criteria compliance |
+| **Feedback Loop** | Request revisions and re-review       |
 
 #### 7.8.3 Input/Output Specification
 
@@ -806,7 +836,7 @@ Output:
         security_issues: integer
         style_violations: integer
       final_decision: enum[merge, revise, reject]
-      merge_commit: string  # if merged
+      merge_commit: string # if merged
 ```
 
 #### 7.8.4 Review Criteria
@@ -835,11 +865,11 @@ Review Checklist:
 
 #### 7.8.5 Tools Required
 
-| Tool | Purpose |
-|------|---------|
+| Tool   | Purpose                                |
+| ------ | -------------------------------------- |
 | `Bash` | Execute `gh pr create`, `gh pr review` |
-| `Read` | Analyze changed files |
-| `Grep` | Code pattern inspection |
+| `Read` | Analyze changed files                  |
+| `Grep` | Code pattern inspection                |
 
 ---
 
@@ -847,61 +877,61 @@ Review Checklist:
 
 ### 8.1 Core Requirements
 
-| Req ID | Requirement | Priority | Agent(s) |
-|--------|-------------|----------|----------|
-| FR-001 | Extract structured information from natural language input | P0 | Collector |
-| FR-002 | Auto-generate PRD based on standard template | P0 | PRD Writer |
-| FR-003 | Auto-generate SRS based on PRD | P0 | SRS Writer |
-| FR-004 | Auto-generate SDS based on SRS | P0 | SDS Writer |
-| FR-005 | Auto-generate GitHub Issues based on SDS | P0 | Issue Generator |
-| FR-006 | Issue dependency analysis and work order determination | P0 | Controller |
-| FR-007 | Auto-implement code based on Issues | P0 | Worker |
-| FR-008 | Auto-create PR and code review | P0 | PR Review |
+| Req ID | Requirement                                                | Priority | Agent(s)        |
+| ------ | ---------------------------------------------------------- | -------- | --------------- |
+| FR-001 | Extract structured information from natural language input | P0       | Collector       |
+| FR-002 | Auto-generate PRD based on standard template               | P0       | PRD Writer      |
+| FR-003 | Auto-generate SRS based on PRD                             | P0       | SRS Writer      |
+| FR-004 | Auto-generate SDS based on SRS                             | P0       | SDS Writer      |
+| FR-005 | Auto-generate GitHub Issues based on SDS                   | P0       | Issue Generator |
+| FR-006 | Issue dependency analysis and work order determination     | P0       | Controller      |
+| FR-007 | Auto-implement code based on Issues                        | P0       | Worker          |
+| FR-008 | Auto-create PR and code review                             | P0       | PR Review       |
 
 ### 8.2 Supporting Requirements
 
-| Req ID | Requirement | Priority | Agent(s) |
-|--------|-------------|----------|----------|
-| FR-009 | Maintain traceability matrix between documents | P1 | Orchestrator |
-| FR-010 | User approval gate at each stage | P1 | Orchestrator |
-| FR-011 | Real-time work progress monitoring | P1 | Controller |
-| FR-012 | Auto-retry on failure (max 3 times) | P1 | Worker, PR Review |
-| FR-013 | Agent activity logging and audit trail | P1 | All |
+| Req ID | Requirement                                    | Priority | Agent(s)          |
+| ------ | ---------------------------------------------- | -------- | ----------------- |
+| FR-009 | Maintain traceability matrix between documents | P1       | Orchestrator      |
+| FR-010 | User approval gate at each stage               | P1       | Orchestrator      |
+| FR-011 | Real-time work progress monitoring             | P1       | Controller        |
+| FR-012 | Auto-retry on failure (max 3 times)            | P1       | Worker, PR Review |
+| FR-013 | Agent activity logging and audit trail         | P1       | All               |
 
 ### 8.3 Integration Requirements
 
-| Req ID | Requirement | Priority |
-|--------|-------------|----------|
-| FR-014 | GitHub API integration (Issues, PRs, Actions) | P0 |
-| FR-015 | File system-based state sharing (Scratchpad) | P0 |
-| FR-016 | External document source integration (URLs, files) | P1 |
+| Req ID | Requirement                                        | Priority |
+| ------ | -------------------------------------------------- | -------- |
+| FR-014 | GitHub API integration (Issues, PRs, Actions)      | P0       |
+| FR-015 | File system-based state sharing (Scratchpad)       | P0       |
+| FR-016 | External document source integration (URLs, files) | P1       |
 
 ### 8.4 Enhancement Pipeline Requirements
 
-| Req ID | Requirement | Priority | Agent(s) |
-|--------|-------------|----------|----------|
-| FR-017 | Parse existing PRD/SRS/SDS documents and extract current state | P0 | Document Reader |
-| FR-018 | Analyze existing codebase structure, patterns, and dependencies | P0 | Codebase Analyzer |
-| FR-019 | Analyze change impact on existing system and assess risk | P0 | Impact Analyzer |
-| FR-020 | Incrementally update PRD with new/modified/deprecated requirements | P0 | PRD Updater |
-| FR-021 | Incrementally update SRS maintaining PRD→SRS traceability | P0 | SRS Updater |
-| FR-022 | Incrementally update SDS maintaining SRS→SDS traceability | P0 | SDS Updater |
-| FR-023 | Run regression tests for affected areas and report compatibility | P1 | Regression Tester |
-| FR-024 | Compare document specifications against code implementation (Gap Analysis) | P1 | Doc-Code Comparator |
-| FR-025 | Read and analyze source code AST for classes, functions, and dependencies | P1 | Code Reader |
-| FR-026 | Automatically diagnose and fix CI/CD failures | P1 | CI Fixer |
+| Req ID | Requirement                                                                | Priority | Agent(s)            |
+| ------ | -------------------------------------------------------------------------- | -------- | ------------------- |
+| FR-017 | Parse existing PRD/SRS/SDS documents and extract current state             | P0       | Document Reader     |
+| FR-018 | Analyze existing codebase structure, patterns, and dependencies            | P0       | Codebase Analyzer   |
+| FR-019 | Analyze change impact on existing system and assess risk                   | P0       | Impact Analyzer     |
+| FR-020 | Incrementally update PRD with new/modified/deprecated requirements         | P0       | PRD Updater         |
+| FR-021 | Incrementally update SRS maintaining PRD→SRS traceability                  | P0       | SRS Updater         |
+| FR-022 | Incrementally update SDS maintaining SRS→SDS traceability                  | P0       | SDS Updater         |
+| FR-023 | Run regression tests for affected areas and report compatibility           | P1       | Regression Tester   |
+| FR-024 | Compare document specifications against code implementation (Gap Analysis) | P1       | Doc-Code Comparator |
+| FR-025 | Read and analyze source code AST for classes, functions, and dependencies  | P1       | Code Reader         |
+| FR-026 | Automatically diagnose and fix CI/CD failures                              | P1       | CI Fixer            |
 
 ### 8.5 Infrastructure & Pipeline Requirements
 
-| Req ID | Requirement | Priority | Agent(s) |
-|--------|-------------|----------|----------|
-| FR-027 | Automatically detect Greenfield/Enhancement pipeline mode | P0 | Mode Detector |
-| FR-028 | Initialize .ad-sdlc directory structure and configuration | P0 | Project Initializer |
-| FR-029 | Create and initialize GitHub repository from project documents | P1 | GitHub Repo Setup |
-| FR-030 | Detect existing GitHub repository presence | P1 | Repo Detector |
-| FR-031 | Coordinate full pipeline execution by invoking subagents | P0 | AD-SDLC Orchestrator |
-| FR-032 | Coordinate Enhancement analysis pipeline (Document→Code→Compare→Issue) | P1 | Analysis Orchestrator |
-| FR-033 | Import existing GitHub Issues and convert to AD-SDLC format | P1 | Issue Reader |
+| Req ID | Requirement                                                            | Priority | Agent(s)              |
+| ------ | ---------------------------------------------------------------------- | -------- | --------------------- |
+| FR-027 | Automatically detect Greenfield/Enhancement pipeline mode              | P0       | Mode Detector         |
+| FR-028 | Initialize .ad-sdlc directory structure and configuration              | P0       | Project Initializer   |
+| FR-029 | Create and initialize GitHub repository from project documents         | P1       | GitHub Repo Setup     |
+| FR-030 | Detect existing GitHub repository presence                             | P1       | Repo Detector         |
+| FR-031 | Coordinate full pipeline execution by invoking subagents               | P0       | AD-SDLC Orchestrator  |
+| FR-032 | Coordinate Enhancement analysis pipeline (Document→Code→Compare→Issue) | P1       | Analysis Orchestrator |
+| FR-033 | Import existing GitHub Issues and convert to AD-SDLC format            | P1       | Issue Reader          |
 
 ---
 
@@ -909,50 +939,50 @@ Review Checklist:
 
 ### 9.1 Performance
 
-| NFR ID | Requirement | Target | Priority |
-|--------|-------------|--------|----------|
-| NFR-001 | Document generation response time | < 5 min / document | P0 |
-| NFR-002 | Issue creation throughput | > 20 issues / min | P0 |
-| NFR-003 | Worker Agent concurrent execution | Max 5 parallel | P0 |
-| NFR-004 | Status check interval | 30s | P1 |
-| NFR-005 | PR review completion time | < 5 min | P1 |
+| NFR ID  | Requirement                       | Target             | Priority |
+| ------- | --------------------------------- | ------------------ | -------- |
+| NFR-001 | Document generation response time | < 5 min / document | P0       |
+| NFR-002 | Issue creation throughput         | > 20 issues / min  | P0       |
+| NFR-003 | Worker Agent concurrent execution | Max 5 parallel     | P0       |
+| NFR-004 | Status check interval             | 30s                | P1       |
+| NFR-005 | PR review completion time         | < 5 min            | P1       |
 
 ### 9.2 Reliability
 
-| NFR ID | Requirement | Target | Priority |
-|--------|-------------|--------|----------|
-| NFR-006 | System availability | 99.5% | P1 |
-| NFR-007 | Document generation success rate | > 95% | P0 |
-| NFR-008 | Code implementation success rate | > 85% | P0 |
-| NFR-009 | Data loss prevention guarantee | 100% | P0 |
-| NFR-010 | Recovery rate after retry | > 90% | P1 |
+| NFR ID  | Requirement                      | Target | Priority |
+| ------- | -------------------------------- | ------ | -------- |
+| NFR-006 | System availability              | 99.5%  | P1       |
+| NFR-007 | Document generation success rate | > 95%  | P0       |
+| NFR-008 | Code implementation success rate | > 85%  | P0       |
+| NFR-009 | Data loss prevention guarantee   | 100%   | P0       |
+| NFR-010 | Recovery rate after retry        | > 90%  | P1       |
 
 ### 9.3 Security
 
-| NFR ID | Requirement | Target | Priority |
-|--------|-------------|--------|----------|
-| NFR-011 | Secure storage of API keys/tokens | Environment variables or Secret Manager | P0 |
-| NFR-012 | Sensitive information masking | Auto-masking in logs | P0 |
-| NFR-013 | Access permission management | GitHub OAuth or PAT-based authentication | P0 |
-| NFR-014 | Code security check | Prohibit hardcoded secrets in generated code | P0 |
-| NFR-015 | Input validation | Validate user input and external data | P1 |
+| NFR ID  | Requirement                       | Target                                       | Priority |
+| ------- | --------------------------------- | -------------------------------------------- | -------- |
+| NFR-011 | Secure storage of API keys/tokens | Environment variables or Secret Manager      | P0       |
+| NFR-012 | Sensitive information masking     | Auto-masking in logs                         | P0       |
+| NFR-013 | Access permission management      | GitHub OAuth or PAT-based authentication     | P0       |
+| NFR-014 | Code security check               | Prohibit hardcoded secrets in generated code | P0       |
+| NFR-015 | Input validation                  | Validate user input and external data        | P1       |
 
 ### 9.4 Maintainability
 
-| NFR ID | Requirement | Target | Priority |
-|--------|-------------|--------|----------|
-| NFR-016 | Agent configuration externalization | YAML-based configuration | P0 |
-| NFR-017 | Template customization | User-defined template support | P1 |
-| NFR-018 | Log level adjustment | DEBUG/INFO/WARN/ERROR runtime adjustment | P1 |
-| NFR-019 | Agent definition separation | Independent definition file per agent | P0 |
-| NFR-020 | Workflow configuration | Pipeline stage and approval gate configuration | P1 |
+| NFR ID  | Requirement                         | Target                                         | Priority |
+| ------- | ----------------------------------- | ---------------------------------------------- | -------- |
+| NFR-016 | Agent configuration externalization | YAML-based configuration                       | P0       |
+| NFR-017 | Template customization              | User-defined template support                  | P1       |
+| NFR-018 | Log level adjustment                | DEBUG/INFO/WARN/ERROR runtime adjustment       | P1       |
+| NFR-019 | Agent definition separation         | Independent definition file per agent          | P0       |
+| NFR-020 | Workflow configuration              | Pipeline stage and approval gate configuration | P1       |
 
 ### 9.5 Scalability
 
-| NFR ID | Requirement | Target | Priority |
-|--------|-------------|--------|----------|
-| NFR-021 | Parallel Worker scaling | Maximum Worker count configurable via settings | P1 |
-| NFR-022 | Large document processing | Process large inputs via context splitting | P1 |
+| NFR ID  | Requirement               | Target                                         | Priority |
+| ------- | ------------------------- | ---------------------------------------------- | -------- |
+| NFR-021 | Parallel Worker scaling   | Maximum Worker count configurable via settings | P1       |
+| NFR-022 | Large document processing | Process large inputs via context splitting     | P1       |
 
 ---
 
@@ -1178,20 +1208,20 @@ Traceability:
 
 ### 12.1 Technical Risks
 
-| Risk ID | Risk | Probability | Impact | Mitigation |
-|---------|------|-------------|--------|------------|
-| TR-001 | LLM response inconsistency | Medium | High | Template-based validation, retry logic |
-| TR-002 | Context limit reached | Medium | Medium | Context Compaction, step-by-step processing |
-| TR-003 | GitHub API rate limiting | Low | Medium | Rate limiting, caching |
-| TR-004 | Code generation errors | High | High | Self-verification, mandatory testing |
+| Risk ID | Risk                       | Probability | Impact | Mitigation                                  |
+| ------- | -------------------------- | ----------- | ------ | ------------------------------------------- |
+| TR-001  | LLM response inconsistency | Medium      | High   | Template-based validation, retry logic      |
+| TR-002  | Context limit reached      | Medium      | Medium | Context Compaction, step-by-step processing |
+| TR-003  | GitHub API rate limiting   | Low         | Medium | Rate limiting, caching                      |
+| TR-004  | Code generation errors     | High        | High   | Self-verification, mandatory testing        |
 
 ### 12.2 Process Risks
 
-| Risk ID | Risk | Probability | Impact | Mitigation |
-|---------|------|-------------|--------|------------|
-| PR-001 | User approval delays | Medium | Medium | Notification system, SLA setting |
-| PR-002 | Requirements changes | High | High | Change management process, version control |
-| PR-003 | Cascading agent failures | Medium | High | Circuit breaker, isolated retry |
+| Risk ID | Risk                     | Probability | Impact | Mitigation                                 |
+| ------- | ------------------------ | ----------- | ------ | ------------------------------------------ |
+| PR-001  | User approval delays     | Medium      | Medium | Notification system, SLA setting           |
+| PR-002  | Requirements changes     | High        | High   | Change management process, version control |
+| PR-003  | Cascading agent failures | Medium      | High   | Circuit breaker, isolated retry            |
 
 ### 12.3 Mitigation Strategies
 
@@ -1217,85 +1247,92 @@ Validation Gates:
 
 ### Phase 1: Foundation (4 weeks)
 
-| Week | Deliverable |
-|------|-------------|
-| 1-2 | Agent definition file structure and basic configuration |
-| 3 | Collector Agent implementation |
-| 4 | PRD Writer Agent implementation |
+| Week | Deliverable                                             |
+| ---- | ------------------------------------------------------- |
+| 1-2  | Agent definition file structure and basic configuration |
+| 3    | Collector Agent implementation                          |
+| 4    | PRD Writer Agent implementation                         |
 
 **Exit Criteria:**
+
 - [ ] Natural language input to information document conversion working
 - [ ] Information document to PRD generation working
 - [ ] Basic Scratchpad state management
 
 ### Phase 2: Document Pipeline (4 weeks)
 
-| Week | Deliverable |
-|------|-------------|
-| 5-6 | SRS Writer Agent implementation |
-| 7-8 | SDS Writer Agent implementation |
+| Week | Deliverable                     |
+| ---- | ------------------------------- |
+| 5-6  | SRS Writer Agent implementation |
+| 7-8  | SDS Writer Agent implementation |
 
 **Exit Criteria:**
+
 - [ ] Full PRD to SRS to SDS pipeline working
 - [ ] Traceability matrix between documents generated
 
 ### Phase 3: Issue Management (3 weeks)
 
-| Week | Deliverable |
-|------|-------------|
+| Week | Deliverable                          |
+| ---- | ------------------------------------ |
 | 9-10 | Issue Generator Agent implementation |
-| 11 | Controller Agent implementation |
+| 11   | Controller Agent implementation      |
 
 **Exit Criteria:**
+
 - [ ] SDS to GitHub Issues auto-generation
 - [ ] Issue dependency graph generation
 - [ ] Work prioritization logic
 
 ### Phase 4: Implementation Engine (4 weeks)
 
-| Week | Deliverable |
-|------|-------------|
-| 12-13 | Worker Agent implementation |
+| Week  | Deliverable                    |
+| ----- | ------------------------------ |
+| 12-13 | Worker Agent implementation    |
 | 14-15 | PR Review Agent implementation |
 
 **Exit Criteria:**
+
 - [ ] Issue-based auto code implementation
 - [ ] Auto PR creation and review
 - [ ] Self-verification working
 
 ### Phase 5: Integration & Polish (2 weeks)
 
-| Week | Deliverable |
-|------|-------------|
-| 16 | End-to-End integration testing |
-| 17 | Documentation and user guide |
+| Week | Deliverable                    |
+| ---- | ------------------------------ |
+| 16   | End-to-End integration testing |
+| 17   | Documentation and user guide   |
 
 **Exit Criteria:**
+
 - [ ] Full workflow E2E test passing
 - [ ] User guide completed
 - [ ] Performance benchmarks achieved
 
 ### Phase 6: Enhancement Pipeline (4 weeks)
 
-| Week | Deliverable |
-|------|-------------|
+| Week  | Deliverable                                                    |
+| ----- | -------------------------------------------------------------- |
 | 18-19 | Document Reader, Codebase Analyzer, Code Reader implementation |
-| 20-21 | Impact Analyzer, PRD/SRS/SDS Updater agents implementation |
+| 20-21 | Impact Analyzer, PRD/SRS/SDS Updater agents implementation     |
 
 **Exit Criteria:**
+
 - [ ] Existing document parsing and traceability extraction working
 - [ ] Change impact analysis with risk assessment working
 - [ ] Incremental document update pipeline (PRD→SRS→SDS) working
 
 ### Phase 7: Infrastructure & Advanced Features (3 weeks)
 
-| Week | Deliverable |
-|------|-------------|
-| 22 | Mode Detector, Project Initializer, Repo Detector implementation |
-| 23 | AD-SDLC Orchestrator, Analysis Orchestrator, Issue Reader implementation |
-| 24 | Regression Tester, CI Fixer, Doc-Code Comparator implementation |
+| Week | Deliverable                                                              |
+| ---- | ------------------------------------------------------------------------ |
+| 22   | Mode Detector, Project Initializer, Repo Detector implementation         |
+| 23   | AD-SDLC Orchestrator, Analysis Orchestrator, Issue Reader implementation |
+| 24   | Regression Tester, CI Fixer, Doc-Code Comparator implementation          |
 
 **Exit Criteria:**
+
 - [ ] Auto-detection of Greenfield/Enhancement mode working
 - [ ] Import pipeline (existing GitHub Issues → Implementation) working
 - [ ] Regression testing and CI auto-fix working
@@ -1307,13 +1344,13 @@ Validation Gates:
 
 ### 14.1 Glossary
 
-| Term | Definition |
-|------|------------|
-| **PRD** | Product Requirements Document - Document describing product requirements |
-| **SRS** | Software Requirements Specification - Software requirements specification document |
-| **SDS** | Software Design Specification - Software design specification document |
-| **Scratchpad** | File-based storage for state sharing between agents |
-| **Traceability** | Ability to trace from requirements to implementation |
+| Term             | Definition                                                                         |
+| ---------------- | ---------------------------------------------------------------------------------- |
+| **PRD**          | Product Requirements Document - Document describing product requirements           |
+| **SRS**          | Software Requirements Specification - Software requirements specification document |
+| **SDS**          | Software Design Specification - Software design specification document             |
+| **Scratchpad**   | File-based storage for state sharing between agents                                |
+| **Traceability** | Ability to trace from requirements to implementation                               |
 
 ### 14.2 References
 
@@ -1323,10 +1360,10 @@ Validation Gates:
 
 ### 14.3 Document History
 
-| Version | Date | Author | Changes |
-|---------|------|--------|---------|
-| 1.0.0 | 2025-12-27 | System Architect | Initial draft |
-| 1.1.0 | 2026-02-07 | System Architect | Enhancement Pipeline features (FR-017~FR-033), correct agent count to 28 total components |
+| Version | Date       | Author           | Changes                                                                                   |
+| ------- | ---------- | ---------------- | ----------------------------------------------------------------------------------------- |
+| 1.0.0   | 2025-12-27 | System Architect | Initial draft                                                                             |
+| 1.1.0   | 2026-02-07 | System Architect | Enhancement Pipeline features (FR-017~FR-033), correct agent count to 28 total components |
 
 ---
 
