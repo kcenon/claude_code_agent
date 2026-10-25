@@ -68,3 +68,48 @@ export {
   PRIVACY_POLICY_VERSION,
   DEFAULT_TELEMETRY_CONFIG,
 } from './Telemetry.js';
+
+// Delivery metrics (#956): event schema, local export, and report
+export {
+  ATTEMPT_EXECUTIONS,
+  ATTEMPT_OUTCOMES,
+  AttemptMetricsRecordSchema,
+  DELIVERY_METRICS_SCHEMA_VERSION,
+  DeliveryMetricsRecordSchema,
+  PIPELINE_STATUSES,
+  PipelineMetricsRecordSchema,
+  RESUME_SOURCES,
+  STAGE_STATUSES,
+  StageMetricsRecordSchema,
+  USAGE_SOURCES,
+  UsageMetricsSchema,
+  parseDeliveryMetricsRecord,
+} from './deliveryMetrics.js';
+export type {
+  AttemptExecution,
+  AttemptMetricsRecord,
+  AttemptOutcome,
+  DeliveryMetricsRecord,
+  PipelineApprovalProjection,
+  PipelineMetricsRecord,
+  PipelineVerificationProjection,
+  ResumeSource,
+  StageApprovalProjection,
+  StageMetricsRecord,
+  StageVerificationProjection,
+} from './deliveryMetrics.js';
+export {
+  DELIVERY_METRICS_DIRECTORY,
+  DELIVERY_METRICS_POLICY_VERSION,
+  JsonlDeliveryMetricsSink,
+  deliveryMetricsConsent,
+  deliveryMetricsFile,
+  jsonlDeliveryMetricsSink,
+} from './deliveryMetricsExport.js';
+export type {
+  DeliveryMetricsConsent,
+  DeliveryMetricsConsentStatus,
+  DeliveryMetricsExportStatus,
+  DeliveryMetricsSink,
+  DeliveryMetricsSummary,
+} from './deliveryMetricsExport.js';

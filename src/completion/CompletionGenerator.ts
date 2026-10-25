@@ -368,6 +368,33 @@ const CLI_COMMANDS: readonly CommandDefinition[] = [
         description: 'Display the privacy policy',
         options: [],
       },
+      {
+        name: 'report',
+        description: 'Report delivery metrics and supplied review data',
+        options: [
+          {
+            long: '--project-dir',
+            description: 'Project whose exports are read when no file is given',
+            takesValue: true,
+          },
+          {
+            long: '--session',
+            description: 'Use only the records of this session',
+            takesValue: true,
+          },
+          {
+            long: '--supplied',
+            description: 'Review data a person supplied',
+            takesValue: true,
+          },
+          {
+            long: '--format',
+            description: 'Output format',
+            takesValue: true,
+            values: ['text', 'json'],
+          },
+        ],
+      },
     ],
   },
   {

@@ -20,6 +20,16 @@ import {
   type ArtifactProvenance,
 } from './schemas.js';
 
+/**
+ * Manifest `execution` block: the legacy totals, whose persisted schema is unchanged.
+ * @param result - Execution outcome
+ * @returns Legacy turn count and token totals
+ */
+function manifestExecution(result: StageExecutionResult): ArtifactManifest['execution'] {
+  // eslint-disable-next-line @typescript-eslint/no-deprecated -- persisted manifest schema v1
+  return { toolCallCount: result.toolCallCount, tokenUsage: result.tokenUsage };
+}
+
 /** Owns durable observations and the terminal manifest for one invocation. */
 export class ArtifactAttempt implements ArtifactSink {
   readonly context: ArtifactContext;
@@ -117,7 +127,7 @@ export class ArtifactAttempt implements ArtifactSink {
       requiredOutputs: this.context.requiredOutputs,
       externalReferences: this.context.externalReferences ?? [],
       diagnostic,
-      execution: { tokenUsage: result.tokenUsage, toolCallCount: result.toolCallCount },
+      execution: manifestExecution(result),
     });
   }
 
@@ -296,7 +306,7 @@ export class ArtifactAttempt implements ArtifactSink {
       entries: [...entries.values()].sort((a, b) => a.id.localeCompare(b.id)),
       requiredOutputs: context.requiredOutputs,
       externalReferences: context.externalReferences ?? [],
-      execution: { toolCallCount: result.toolCallCount, tokenUsage: result.tokenUsage },
+      execution: manifestExecution(result),
       ...(result.error !== undefined ? { diagnostic: result.error.message } : {}),
     };
     let reference = await this.store.publish(manifest);

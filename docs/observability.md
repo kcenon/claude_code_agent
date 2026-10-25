@@ -11,6 +11,10 @@ The AD-SDLC monitoring module provides OpenTelemetry integration for:
 - **Token Usage Tracking** - Monitor LLM token consumption per span
 - **Multiple Exporters** - Send traces to Jaeger, Grafana Tempo, Datadog, and more
 
+The SDK CLI run path does not start this integration. For the SDK usage,
+attempt outcomes, and run outcomes that every `ad-sdlc run` records, see the
+[delivery metrics guide](guides/delivery-metrics.md).
+
 ## Quick Start
 
 ### 1. Create Configuration File
@@ -89,23 +93,23 @@ opentelemetry:
 
 ### Configuration Options
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `enabled` | `boolean` | `false` | Enable/disable OpenTelemetry |
-| `serviceName` | `string` | `ad-sdlc-pipeline` | Service name in traces |
-| `exporters` | `array` | `[{type: 'console', enabled: false}]` | Exporter configurations |
-| `sampling.type` | `string` | `always_on` | Sampling strategy |
-| `sampling.probability` | `number` | `1.0` | Probability for sampling (0.0-1.0) |
-| `sampling.rateLimit` | `number` | - | Max spans per second |
-| `resourceAttributes` | `object` | - | Custom resource attributes |
+| Option                 | Type      | Default                               | Description                        |
+| ---------------------- | --------- | ------------------------------------- | ---------------------------------- |
+| `enabled`              | `boolean` | `false`                               | Enable/disable OpenTelemetry       |
+| `serviceName`          | `string`  | `ad-sdlc-pipeline`                    | Service name in traces             |
+| `exporters`            | `array`   | `[{type: 'console', enabled: false}]` | Exporter configurations            |
+| `sampling.type`        | `string`  | `always_on`                           | Sampling strategy                  |
+| `sampling.probability` | `number`  | `1.0`                                 | Probability for sampling (0.0-1.0) |
+| `sampling.rateLimit`   | `number`  | -                                     | Max spans per second               |
+| `resourceAttributes`   | `object`  | -                                     | Custom resource attributes         |
 
 ### Exporter Types
 
-| Type | Description | Required Options |
-|------|-------------|------------------|
-| `console` | Prints traces to stdout | - |
-| `otlp` | OpenTelemetry Protocol (HTTP) | `endpoint` |
-| `jaeger` | Jaeger collector endpoint | `endpoint` |
+| Type      | Description                   | Required Options |
+| --------- | ----------------------------- | ---------------- |
+| `console` | Prints traces to stdout       | -                |
+| `otlp`    | OpenTelemetry Protocol (HTTP) | `endpoint`       |
+| `jaeger`  | Jaeger collector endpoint     | `endpoint`       |
 
 ## Platform Setup Guides
 
@@ -159,18 +163,18 @@ version: '3.8'
 services:
   tempo:
     image: grafana/tempo:latest
-    command: ["-config.file=/etc/tempo.yaml"]
+    command: ['-config.file=/etc/tempo.yaml']
     volumes:
       - ./tempo.yaml:/etc/tempo.yaml
     ports:
-      - "4317:4317"   # OTLP gRPC
-      - "4318:4318"   # OTLP HTTP
-      - "3200:3200"   # Tempo query
+      - '4317:4317' # OTLP gRPC
+      - '4318:4318' # OTLP HTTP
+      - '3200:3200' # Tempo query
 
   grafana:
     image: grafana/grafana:latest
     ports:
-      - "3000:3000"
+      - '3000:3000'
     environment:
       - GF_AUTH_ANONYMOUS_ENABLED=true
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
@@ -274,7 +278,7 @@ opentelemetry:
         DD-API-KEY: <your-api-key>
   sampling:
     type: probability
-    probability: 0.1  # Sample 10% in production
+    probability: 0.1 # Sample 10% in production
   resourceAttributes:
     environment: production
     serviceVersion: ${npm_package_version}
@@ -313,10 +317,7 @@ opentelemetry:
 ### Basic Tracing
 
 ```typescript
-import {
-  getOpenTelemetryProvider,
-  initializeOpenTelemetry
-} from 'ad-sdlc';
+import { getOpenTelemetryProvider, initializeOpenTelemetry } from 'ad-sdlc';
 
 // Initialize at startup
 await initializeOpenTelemetry();
@@ -348,7 +349,7 @@ const span = startAgentSpan({
   agentType: 'processor',
   correlationId: 'uuid-123',
   pipelineStage: 'implementation',
-  pipelineMode: 'greenfield'
+  pipelineMode: 'greenfield',
 });
 
 try {
@@ -366,7 +367,7 @@ const result = await withAgentSpan(
   {
     agentName: 'collector',
     agentType: 'analyzer',
-    correlationId: 'uuid-123'
+    correlationId: 'uuid-123',
   },
   async (span) => {
     span.addEvent('processing_started');
@@ -385,7 +386,7 @@ import { startToolSpan, withToolSpan, recordToolResult } from 'ad-sdlc';
 // Manual span management
 const toolSpan = startToolSpan({
   toolName: 'Read',
-  parentContext: agentSpan.getContext()
+  parentContext: agentSpan.getContext(),
 });
 
 try {
@@ -395,7 +396,7 @@ try {
 } catch (error) {
   recordToolResult(toolSpan, {
     success: false,
-    error: error instanceof Error ? error : new Error(String(error))
+    error: error instanceof Error ? error : new Error(String(error)),
   });
   throw error;
 }
@@ -418,16 +419,12 @@ import { startLLMSpan, withLLMSpan } from 'ad-sdlc';
 // Manual span management
 const llmSpan = startLLMSpan({
   modelName: 'claude-3-sonnet',
-  parentContext: agentSpan.getContext()
+  parentContext: agentSpan.getContext(),
 });
 
 try {
   const response = await callLLMAPI(prompt);
-  llmSpan.recordTokenUsage(
-    response.inputTokens,
-    response.outputTokens,
-    response.cost
-  );
+  llmSpan.recordTokenUsage(response.inputTokens, response.outputTokens, response.cost);
   llmSpan.endSuccess();
   return response;
 } catch (error) {
@@ -442,13 +439,13 @@ const response = await withLLMSpan(
     span.addEvent('llm_request_sent');
     const apiResponse = await anthropic.messages.create({
       model: 'claude-3-sonnet-20240229',
-      messages: [{ role: 'user', content: prompt }]
+      messages: [{ role: 'user', content: prompt }],
     });
     return {
       result: apiResponse.content,
       inputTokens: apiResponse.usage.input_tokens,
       outputTokens: apiResponse.usage.output_tokens,
-      costUsd: calculateCost(apiResponse.usage)
+      costUsd: calculateCost(apiResponse.usage),
     };
   }
 );
@@ -462,7 +459,7 @@ import { propagateToSubagent, startAgentSpan } from 'ad-sdlc';
 // Parent agent
 const parentSpan = startAgentSpan({
   agentName: 'orchestrator',
-  agentType: 'coordinator'
+  agentType: 'coordinator',
 });
 
 // Propagate context to subagent
@@ -473,7 +470,7 @@ const childSpan = startAgentSpan({
   agentName: 'worker',
   agentType: 'processor',
   parentToolUseId: 'tool-use-123',
-  parentContext: subagentContext
+  parentContext: subagentContext,
 });
 ```
 
@@ -487,7 +484,7 @@ const result = await withTracedAgent(
     agentName: 'worker',
     agentType: 'processor',
     pipelineStage: 'implementation',
-    pipelineMode: 'greenfield'
+    pipelineMode: 'greenfield',
   },
   getMetricsCollector(),
   async (span, recordTokens) => {
@@ -525,31 +522,31 @@ pipeline_execution (root)
 
 AD-SDLC adds custom attributes to spans for pipeline-specific context:
 
-| Attribute | Description | Example |
-|-----------|-------------|---------|
-| `adsdlc.agent.name` | Agent name | `worker` |
-| `adsdlc.agent.type` | Agent type | `processor` |
-| `adsdlc.pipeline.stage` | Pipeline stage | `implementation` |
-| `adsdlc.pipeline.mode` | Pipeline mode | `greenfield` |
-| `adsdlc.tool.name` | Tool name | `Read` |
-| `adsdlc.tool.result` | Tool result status | `success` |
-| `adsdlc.tokens.input` | Input tokens used | `1000` |
-| `adsdlc.tokens.output` | Output tokens generated | `500` |
-| `adsdlc.tokens.cost` | Cost in USD | `0.05` |
-| `adsdlc.model.name` | LLM model name | `claude-3-sonnet` |
-| `adsdlc.correlation_id` | Correlation ID | `uuid-123` |
-| `adsdlc.parent_tool_use_id` | Parent tool use ID | `tool-use-456` |
+| Attribute                   | Description             | Example           |
+| --------------------------- | ----------------------- | ----------------- |
+| `adsdlc.agent.name`         | Agent name              | `worker`          |
+| `adsdlc.agent.type`         | Agent type              | `processor`       |
+| `adsdlc.pipeline.stage`     | Pipeline stage          | `implementation`  |
+| `adsdlc.pipeline.mode`      | Pipeline mode           | `greenfield`      |
+| `adsdlc.tool.name`          | Tool name               | `Read`            |
+| `adsdlc.tool.result`        | Tool result status      | `success`         |
+| `adsdlc.tokens.input`       | Input tokens used       | `1000`            |
+| `adsdlc.tokens.output`      | Output tokens generated | `500`             |
+| `adsdlc.tokens.cost`        | Cost in USD             | `0.05`            |
+| `adsdlc.model.name`         | LLM model name          | `claude-3-sonnet` |
+| `adsdlc.correlation_id`     | Correlation ID          | `uuid-123`        |
+| `adsdlc.parent_tool_use_id` | Parent tool use ID      | `tool-use-456`    |
 
 ## Sampling Strategies
 
 Choose the right sampling strategy based on your needs:
 
-| Strategy | Use Case | Configuration |
-|----------|----------|---------------|
-| `always_on` | Development/debugging | `type: always_on` |
-| `always_off` | Disable tracing | `type: always_off` |
-| `probability` | Production with sampling | `type: probability`, `probability: 0.1` |
-| `rate_limiting` | High-volume production | `type: rate_limiting`, `rateLimit: 100` |
+| Strategy        | Use Case                 | Configuration                           |
+| --------------- | ------------------------ | --------------------------------------- |
+| `always_on`     | Development/debugging    | `type: always_on`                       |
+| `always_off`    | Disable tracing          | `type: always_off`                      |
+| `probability`   | Production with sampling | `type: probability`, `probability: 0.1` |
+| `rate_limiting` | High-volume production   | `type: rate_limiting`, `rateLimit: 100` |
 
 ## Troubleshooting
 
@@ -560,6 +557,7 @@ Choose the right sampling strategy based on your needs:
 2. **Verify enabled flag**: `enabled: true` must be set
 
 3. **Check exporter connectivity**:
+
    ```bash
    curl -v http://localhost:4318/v1/traces
    ```
@@ -596,17 +594,20 @@ Choose the right sampling strategy based on your needs:
 ## Best Practices
 
 1. **Use meaningful span names**: Include operation type and identifier
+
    ```typescript
-   startSpan('agent:worker:process-issue-123')
+   startSpan('agent:worker:process-issue-123');
    ```
 
 2. **Add relevant attributes**: Include context that helps with debugging
+
    ```typescript
    span.setAttribute('issue.number', 123);
    span.setAttribute('issue.priority', 'high');
    ```
 
 3. **Record errors properly**: Use `recordException` for full stack traces
+
    ```typescript
    span.recordException(error);
    span.setStatus({ code: SpanStatusCode.ERROR, message: error.message });

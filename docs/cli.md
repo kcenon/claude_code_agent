@@ -14,7 +14,8 @@ described in the [Installation Guide](installation.md); run
 6. [Slash Commands](#slash-commands)
 7. [Document Audit](#document-audit)
 8. [Update Installed Agents and Commands](#update-installed-agents-and-commands)
-9. [Shell Autocompletion](#shell-autocompletion)
+9. [Delivery Metrics Report](#delivery-metrics-report)
+10. [Shell Autocompletion](#shell-autocompletion)
 
 ---
 
@@ -50,6 +51,9 @@ ad-sdlc analyze [--project <path>] [--scope full|documents_only|code_only|compar
 
 # Manage opt-in telemetry (`telemetry enable --yes` accepts the privacy policy)
 ad-sdlc telemetry <status|enable|disable|policy>
+
+# Report delivery metrics (see "Delivery Metrics Report" below)
+ad-sdlc telemetry report [files...] [--project-dir <dir>] [--session <id>] [--supplied <file>] [--format text|json]
 
 # Generate shell completion script
 ad-sdlc completion --shell <bash|zsh|fish>
@@ -166,6 +170,7 @@ ad-sdlc run "<requirements>" --resume <session-id> --project-dir .
 - **Policy options**: `--approval-mode auto|manual|critical`, `--max-parallel-stages <count>`, `--max-attempts <count>`, `--retry-backoff fixed|linear|exponential|fibonacci`, `--retry-base-delay-seconds <seconds>`, `--retry-max-delay-seconds <seconds>`, `--stage-timeout-ms <ms>`, `--vnv-rigor minimal|standard|strict`, `--vnv-profile advisory|delivery`, and `--halt-on-verification-failure <boolean>`. See the [runtime configuration contract](configuration/RUNTIME_WORKFLOW.md) for their precedence and validation.
 - **Verification**: every completed stage is verified. Under the default `advisory` profile, failed checks are kept as findings and the run continues; `--vnv-profile delivery` (or `global.vnv.profile: delivery`) fails the run with exit status 1 when a required check fails. The text output ends with a `Verification: <status> (profile <profile> from <source>, rigor <rigor>)` summary, and JSON results carry the same data under `verification`. See the [verification policy guide](guides/verification-policy.md).
 - **Approval**: the built-in default is `auto`, a deliberate autonomous profile: no decision is requested, and every review and delivery gate is approved by policy and recorded. `--approval-mode manual` asks a person at every review and delivery gate; `critical` asks before every externally visible effect (repository and issue creation, pushes, pull requests, merges) and after a failed required check. A decision request shows the inputs, the completed upstream artifacts, failed checks, and the proposed action; a rejection skips the stage and its dependents. Without an interactive terminal (or with `--non-interactive`), a requested decision pauses the run instead of approving it; resume it in a terminal with `--resume`. The text output ends with an `Approval: <status> (mode <mode> from <source>; ...)` summary, and JSON results carry every decision under `approval`. See the [approval policy guide](guides/approval-policy.md).
+- **Delivery metrics**: every run records each attempt (including failed, retried, timed-out, and cancelled ones), stage, and the run: SDK token usage (`unknown` when the SDK reported none), turns, tool invocations, durations, and outcomes. The text output ends with a `Usage:` line and a `Metrics:` line; JSON results carry the records under `metrics`. With telemetry consent (`ad-sdlc telemetry enable --yes`) the records are also appended to `.ad-sdlc/scratchpad/metrics/<session-id>.jsonl`. See the [delivery metrics guide](guides/delivery-metrics.md).
 - **Exit status**: 0 completed, 1 failed (or a configuration error), 2 rejected at an approval gate, 3 paused awaiting an approval decision.
 - **Output and credentials**: `--format json` prints a single JSON result; a failed run prints `ready: false`, the error, and the failed run under `result`. A live run needs `ANTHROPIC_API_KEY` or a Claude Code session; `--allow-stub` allows execution without detected SDK credentials for offline testing.
 
@@ -256,9 +261,40 @@ definition file format.
 
 ---
 
+## Delivery Metrics Report
+
+`ad-sdlc run` appends delivery metrics records to
+`.ad-sdlc/scratchpad/metrics/<session-id>.jsonl` when telemetry consent is
+granted (`ad-sdlc telemetry enable --yes`; `ad-sdlc telemetry status` shows
+whether runs export them). The report reads them back:
+
+```bash
+# Every export of the project (Markdown text)
+ad-sdlc telemetry report --project-dir .
+
+# One session, as JSON
+ad-sdlc telemetry report --project-dir . --session <session-id> --format json
+
+# Given export files, with review data a person supplied
+ad-sdlc telemetry report a.jsonl b.jsonl --supplied review.json
+```
+
+The report covers run, stage, and attempt outcomes; completed, verified, and
+resumed runs; approval decisions; and totals and means of duration, token
+usage, turns, and tool invocations per attempt outcome, failed, retried,
+timed-out, and cancelled attempts included. Accepted pull requests, human
+rework time, and requirement evidence coverage come only from the `--supplied`
+file. Every metric states its source (`observed` or `supplied`), sample,
+missing count, and denominator. Invalid lines are listed, not fatal; the
+command exits 1 when no export is found or an input cannot be read. See the
+[delivery metrics guide](guides/delivery-metrics.md) for the record schema,
+the supplied file, and the privacy defaults.
+
+---
+
 ## Shell Autocompletion
 
-Enable tab completion for AD-SDLC commands in your shell. The scripts complete every command (`init`, `run`, `validate`, `status`, `doctor`, `audit-docs`, `assets update`, `analyze`, `telemetry status|enable|disable|policy`, `completion`), their options, and the values of options with a fixed choice list. The bash script needs the `bash-completion` package.
+Enable tab completion for AD-SDLC commands in your shell. The scripts complete every command (`init`, `run`, `validate`, `status`, `doctor`, `audit-docs`, `assets update`, `analyze`, `telemetry status|enable|disable|policy|report`, `completion`), their options, and the values of options with a fixed choice list. The bash script needs the `bash-completion` package.
 
 ```bash
 # Bash

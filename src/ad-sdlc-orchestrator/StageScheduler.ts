@@ -37,6 +37,8 @@ import { StageTimeoutError } from './errors.js';
 import type { ArtifactValidator } from './ArtifactValidator.js';
 import type { PipelineCheckpointManager } from './PipelineCheckpointManager.js';
 import type { ApprovalDecisionRecord } from './approvalPolicy.js';
+import type { AttemptEvent } from './deliveryMetrics.js';
+import type { AttemptOutcome } from '../telemetry/deliveryMetrics.js';
 import type {
   OrchestratorSession,
   PipelineStageDefinition,
@@ -101,6 +103,57 @@ export interface SchedulerHost {
     input: ApprovalGateInput
   ): Promise<ApprovalDecisionRecord | undefined>;
   sleep(ms: number, signal?: AbortSignal): Promise<void>;
+  /**
+   * Called once after every execution attempt with its outcome, including
+   * failed, timed-out, and cancelled attempts (delivery metrics). Must not throw.
+   */
+  onAttempt?(event: AttemptEvent): void;
+}
+
+/**
+ * Outcome of an unsuccessful attempt. A timeout wins (also when its cleanup
+ * failed afterwards), then cancellation of the pipeline or the execution.
+ * @param error - Error that ended the attempt
+ * @param pipelineAborted - Whether the pipeline was cancelled when the attempt ended
+ * @returns Attempt outcome
+ */
+export function classifyAttemptOutcome(error: unknown, pipelineAborted: boolean): AttemptOutcome {
+  if (error instanceof StageTimeoutError) return 'timed_out';
+  if (isExecutionCleanupError(error) && error.cause instanceof StageTimeoutError)
+    return 'timed_out';
+  if (
+    pipelineAborted ||
+    error instanceof OperationAbortedError ||
+    (error instanceof AppError && error.code === 'EXEC-005')
+  )
+    return 'cancelled';
+  return 'failed';
+}
+
+/**
+ * Whether the pipeline has been cancelled (read at call time).
+ * @param host - Scheduler host
+ * @returns True after the pipeline abort signal fired
+ */
+function pipelineAborted(host: SchedulerHost): boolean {
+  return host.abortController?.signal.aborted === true;
+}
+
+/**
+ * Report an attempt without letting the observer change the stage outcome.
+ * @param host - Scheduler host
+ * @param event - Attempt event
+ */
+function reportAttempt(host: SchedulerHost, event: AttemptEvent): void {
+  try {
+    host.onAttempt?.(event);
+  } catch (err) {
+    getLogger().warn('Attempt observer failed (non-critical)', {
+      agent: 'AdsdlcOrchestratorAgent',
+      stage: event.stage.name,
+      error: err instanceof Error ? err.name : String(err),
+    });
+  }
 }
 
 /**
@@ -390,8 +443,29 @@ export async function executeStageWithRetry(
       const attemptTimeoutMs = Math.min(remainingMs, stageTimeoutMs);
 
       attempt++;
-      const output = await runStageAgentWithTimeout(host, stage, session, attemptTimeoutMs);
-      return output;
+      const retryIndex = attempt - 1;
+      const startedAt = Date.now();
+      try {
+        const output = await runStageAgentWithTimeout(host, stage, session, attemptTimeoutMs);
+        reportAttempt(host, {
+          stage,
+          retryIndex,
+          startedAt,
+          endedAt: Date.now(),
+          outcome: 'succeeded',
+        });
+        return output;
+      } catch (error) {
+        reportAttempt(host, {
+          stage,
+          retryIndex,
+          startedAt,
+          endedAt: Date.now(),
+          outcome: classifyAttemptOutcome(error, pipelineAborted(host)),
+          error,
+        });
+        throw error;
+      }
     },
     {
       operationName: `pipeline-stage:${stage.name}`,

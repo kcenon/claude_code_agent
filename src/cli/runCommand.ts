@@ -28,6 +28,13 @@ import {
 import { readSavedPipelineRun } from '../config/runtimeSnapshot.js';
 import { RuntimeConfigError, type EffectiveExecutionPlan } from '../config/runtimeTypes.js';
 import { configFilesExist, loadAgentsConfig } from '../config/loader.js';
+import { getTelemetry } from '../telemetry/Telemetry.js';
+import {
+  jsonlDeliveryMetricsSink,
+  type DeliveryMetricsConsent,
+  type DeliveryMetricsSummary,
+} from '../telemetry/deliveryMetricsExport.js';
+import type { PipelineMetricsRecord } from '../telemetry/deliveryMetrics.js';
 
 /** The same Commander declarations are used by actual CLI process and injectable offline tests.
  * @param command - Command to configure
@@ -90,6 +97,12 @@ export interface RunCommandDependencies {
    * still wins. Tests use it to reach the prompt without a real terminal.
    */
   readonly interactive?: boolean;
+  /**
+   * Replaces the telemetry consent lookup (`~/.ad-sdlc/telemetry-consent.json`)
+   * that decides the delivery metrics export. Tests use it to stay independent
+   * of the machine's consent.
+   */
+  readonly deliveryMetricsConsent?: () => DeliveryMetricsConsent;
 }
 
 /** Prepared run has no SDK side effects; execution uses this exact snapshot. */
@@ -222,11 +235,20 @@ export async function prepareRunCommand(
   // paused in CI can resume in a terminal.
   const interactive = options['nonInteractive'] === true ? false : dependencies.interactive;
   const createAgent = (): AdsdlcOrchestratorAgent => {
+    // Delivery metrics follow the telemetry consent; records always stay on the result.
+    const consent = (
+      dependencies.deliveryMetricsConsent ??
+      ((): DeliveryMetricsConsent => getTelemetry().getDeliveryMetricsConsent())
+    )();
     const config: OrchestratorConfig = {
       ...plan.config,
       featureFlagsBaseDir: projectDir,
       featureFlagsCli: plan.featureFlags,
       ...(interactive !== undefined ? { interactive } : {}),
+      deliveryMetrics: {
+        consent: consent.status,
+        ...(consent.export ? { sink: jsonlDeliveryMetricsSink } : {}),
+      },
     };
     const factory = dependencies.createAdapter;
     if (factory === undefined) return new AdsdlcOrchestratorAgent(config);
@@ -326,6 +348,40 @@ export function formatApprovalSummary(approval: PipelineApprovalSummary): string
 }
 
 /**
+ * Short text summary of a run's delivery metrics: attempt outcomes, usage
+ * (`unknown` where the SDK reported none), and where the records went.
+ * @param metrics - Records of the run and their export state
+ * @returns Output lines
+ */
+export function formatMetricsSummary(metrics: DeliveryMetricsSummary): string[] {
+  const lines: string[] = [];
+  const pipeline = metrics.records.find(
+    (record): record is PipelineMetricsRecord => record.kind === 'pipeline'
+  );
+  if (pipeline !== undefined) {
+    const known = (value: number | null): string => (value === null ? 'unknown' : String(value));
+    const { attempts, usage } = pipeline;
+    const tokens =
+      usage === null
+        ? 'tokens: no attempt'
+        : `tokens (${usage.source}): input ${known(usage.inputTokens)}, output ${known(usage.outputTokens)}, cache read ${known(usage.cacheReadInputTokens)}, cache creation ${known(usage.cacheCreationInputTokens)}`;
+    lines.push(
+      `Usage: ${String(attempts.total)} attempts (${String(attempts.byOutcome.succeeded)} succeeded, ${String(attempts.byOutcome.failed)} failed, ${String(attempts.byOutcome.timed_out)} timed out, ${String(attempts.byOutcome.cancelled)} cancelled, ${String(attempts.retries)} retries); ${tokens}; tool uses ${known(pipeline.toolUseCount)}; turns ${known(pipeline.turnCount)}`
+    );
+  }
+  const exported = metrics.export;
+  if (exported.enabled)
+    lines.push(
+      `Metrics: ${String(exported.written)} records appended to ${exported.location ?? 'the configured sink'}${exported.failed > 0 ? `; ${String(exported.failed)} not written` : ''}`
+    );
+  else
+    lines.push(
+      `Metrics: not exported${exported.consent === null ? '' : ` (telemetry consent ${exported.consent}; 'ad-sdlc telemetry enable --yes' exports them)`}`
+    );
+  return lines;
+}
+
+/**
  * Text output of a finished (or failed) run.
  * @param result - Pipeline result
  * @returns Output lines
@@ -345,6 +401,7 @@ export function formatRunResult(result: PipelineResult): string[] {
   if (result.verification !== undefined)
     lines.push(...formatVerificationSummary(result.verification));
   if (result.approval !== undefined) lines.push(...formatApprovalSummary(result.approval));
+  if (result.metrics !== undefined) lines.push(...formatMetricsSummary(result.metrics));
   return lines;
 }
 

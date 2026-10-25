@@ -14,6 +14,7 @@
 | [Artifact Manifests](artifact-manifests.md)   | Durable outputs, lineage, validation, and resume                             |
 | [Verification Policy](verification-policy.md) | Advisory and delivery profiles, verification states, and migration           |
 | [Approval Policy](approval-policy.md)         | Approval modes, review and delivery boundaries, decision records, and resume |
+| [Delivery Metrics](delivery-metrics.md)       | Attempt, stage, and run records, SDK usage, local export, and the report     |
 | [Troubleshooting](troubleshooting.md)         | Diagnose and resolve common issues                                           |
 | [Usage Scenarios](usage-scenarios.md)         | All execution environments and pipeline modes                                |
 | [사용 시나리오](usage-scenarios.kr.md)        | 모든 실행 환경 및 파이프라인 모드 (한글)                                     |

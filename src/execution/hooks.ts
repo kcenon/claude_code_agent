@@ -8,12 +8,17 @@
  * and forwards it to an injected {@link ArtifactSink} so the next stage can
  * consume the artifact via its `priorOutputs`.
  *
- * Scope is intentionally narrow — `PreToolUse` and `Stop` matchers are
- * declared as TODO stubs that currently no-op. They will be expanded in
- * follow-up issues:
+ * Scope is intentionally narrow — a `PreToolUse` matcher is declared as a TODO
+ * stub that currently no-ops:
  *
  * - `PreToolUse` policy enforcement → AD-SDLC P3 (telemetry / policy engine)
- * - `Stop` finalization → AD-SDLC P3 (telemetry bridge)
+ *
+ * No `Stop` hook is registered. Usage finalization (the telemetry bridge)
+ * happens when {@link SdkExecutionAdapter} completes an execution: the SDK
+ * `Stop` hook does not fire for failed, cancelled, or timed-out executions,
+ * whose partial usage the delivery metrics must keep. The adapter reports
+ * `StageExecutionResult.metrics`, and the orchestrator writes delivery metrics
+ * records (docs/guides/delivery-metrics.md).
  *
  * Failure semantics: any hook callback that throws aborts the SDK stage.
  * This module never swallows errors — it surfaces them up so the
@@ -139,11 +144,10 @@ export function buildHookPipeline(
     },
   ];
 
-  // PreToolUse and Stop are placeholders. We do NOT register no-op callbacks
-  // with the SDK — the matcher list is empty so the SDK skips the hook event
-  // entirely. The keys stay in the type for downstream wiring discoverability.
+  // PreToolUse is a placeholder. We do NOT register no-op callbacks with the
+  // SDK — the matcher list is empty so the SDK skips the hook event entirely.
+  // Stop finalization is done at adapter completion (see the module comment).
   // TODO(AD-P3): PreToolUse policy enforcement (issue follow-up).
-  // TODO(AD-P3): Stop finalization → telemetry bridge (issue follow-up).
   return {
     PostToolUse: postToolUse,
   };

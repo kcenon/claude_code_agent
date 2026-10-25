@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "kind": "delivery_review",
+  "collectedAt": "2026-10-26",
+  "pullRequests": [
+    {
+      "id": "example/demo#1",
+      "sessionId": "11111111-1111-4111-8111-111111111111",
+      "accepted": true,
+      "reworkMinutes": 0
+    },
+    {
+      "id": "example/demo#2",
+      "sessionId": "22222222-2222-4222-8222-222222222222",
+      "accepted": true,
+      "reworkMinutes": 25
+    },
+    {
+      "id": "example/demo#3",
+      "sessionId": "33333333-3333-4333-8333-333333333333",
+      "accepted": false,
+      "reworkMinutes": null
+    },
+    { "id": "example/demo#4", "accepted": null, "reworkMinutes": 40 }
+  ],
+  "requirements": [
+    { "id": "FR-001", "evidence": true },
+    { "id": "FR-002", "evidence": true },
+    { "id": "FR-003", "evidence": false },
+    { "id": "FR-004", "evidence": null }
+  ]
+}

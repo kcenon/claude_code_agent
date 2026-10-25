@@ -36,14 +36,68 @@ export type McpServerConfig =
   | Readonly<McpHttpServerConfig>;
 
 /**
- * Available token usage on every outcome. SDK result usage is authoritative;
- * before a result, distinct assistant messages supply the fallback. Cache includes
- * both cache-read and cache-creation tokens.
+ * Legacy token totals, kept for compatibility. SDK result `usage` (main agent
+ * loop only) is used when the result reports it; otherwise distinct assistant
+ * messages supply partial totals. `cache` merges cache-read and cache-creation
+ * tokens, and a value the SDK did not report is 0. Use
+ * {@link ExecutionMetrics.usage} to tell unknown from zero.
  */
 export interface TokenUsage {
   readonly input: number;
   readonly output: number;
   readonly cache: number;
+}
+
+/**
+ * Where the token counts of {@link UsageMetrics} come from.
+ *
+ * - `result`: the SDK result message (`modelUsage` totals over every model
+ *   call, else its `usage`).
+ * - `partial`: no usable result (failure, cancellation, timeout, or a zeroed
+ *   error result); the sum of distinct assistant messages seen so far, which
+ *   is a lower bound.
+ * - `recovered`: no SDK call was made; resume reused a committed manifest, so
+ *   the attempt consumed no tokens.
+ * - `none`: nothing was reported; every token field is `null`.
+ */
+export type UsageSource = 'result' | 'partial' | 'recovered' | 'none';
+
+/**
+ * SDK token usage of one execution. A field is `null` when the SDK did not
+ * report it (unknown), which is never the same as a measured 0.
+ */
+export interface UsageMetrics {
+  readonly inputTokens: number | null;
+  readonly outputTokens: number | null;
+  readonly cacheReadInputTokens: number | null;
+  readonly cacheCreationInputTokens: number | null;
+  readonly source: UsageSource;
+}
+
+/**
+ * SDK observations of one execution, reported on every outcome. See
+ * docs/guides/delivery-metrics.md.
+ */
+export interface ExecutionMetrics {
+  readonly usage: UsageMetrics;
+  /** SDK `num_turns` of the result message; `null` without a result. */
+  readonly turnCount: number | null;
+  /**
+   * Tool invocations: distinct `tool_use` (and server or MCP tool use) content
+   * blocks of assistant messages, deduplicated by block id. `null` when no SDK
+   * message was observed.
+   */
+  readonly toolUseCount: number | null;
+  /** Invocations per tool name; names that are not plain identifiers count as `other`. */
+  readonly toolUses: Readonly<Record<string, number>>;
+  /** Model of the SDK session (`system/init`), else the first model observed. */
+  readonly modelId: string | null;
+  /** Every model observed (init, assistant messages, result `modelUsage`), sorted. */
+  readonly models: readonly string[];
+  /** Installed `@anthropic-ai/claude-agent-sdk` package version. */
+  readonly sdkVersion: string | null;
+  /** Claude Code version reported by `system/init`. */
+  readonly claudeCodeVersion: string | null;
 }
 
 /**
@@ -89,8 +143,26 @@ export interface StageExecutionResult {
   readonly status: StageExecutionStatus;
   readonly artifacts: readonly ArtifactRef[];
   readonly sessionId: string;
+  /**
+   * The larger of the distinct assistant messages and the SDK `num_turns`.
+   * It counts turns, not tool invocations; the value is unchanged for
+   * compatibility.
+   * @deprecated Use `metrics.turnCount` for turns and `metrics.toolUseCount`
+   * for tool invocations.
+   */
   readonly toolCallCount: number;
+  /**
+   * Legacy totals with unknown values as 0.
+   * @deprecated Use `metrics.usage`, which keeps unknown (`null`) apart from 0
+   * and cache reads apart from cache creation.
+   */
   readonly tokenUsage: TokenUsage;
+  /**
+   * SDK observations (usage, turns, tool invocations, model, versions),
+   * including partial usage on failure, cancellation, and timeout. Optional
+   * so adapters that cannot observe them stay valid.
+   */
+  readonly metrics?: ExecutionMetrics;
   readonly error?: SerializedError;
 }
 
