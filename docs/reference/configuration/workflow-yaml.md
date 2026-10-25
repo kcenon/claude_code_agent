@@ -26,7 +26,7 @@ execution:
     orchestration: 300000
     implementation: 1800000
 global:
-  approval_mode: auto
+  approval_mode: auto # auto (autonomous default) | manual | critical
   retry_policy:
     max_attempts: 4 # total attempts including the first
     backoff: exponential
@@ -40,6 +40,8 @@ global:
 Without `profile`, the legacy `halt_on_verification_failure: true` with
 `rigor: strict` selects `delivery`. See the
 [verification policy guide](../../guides/verification-policy.md).
+`approval_mode` decides which review and delivery gates ask a person; see the
+[approval policy guide](../../guides/approval-policy.md).
 
 Run `ad-sdlc run "requirements" --dry-run --format json` to inspect the exact
 resolved plan and its value sources. Explicit CLI values override documented

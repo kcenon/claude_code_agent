@@ -103,7 +103,7 @@ Developer Journey (Future State with AD-SDLC):
 
 ### 3.3 Core Principles
 
-1. **Human-in-the-Loop**: User approval required at critical decision points
+1. **Human-in-the-Loop**: A selectable approval policy decides where a person decides. Every stage passes an approval gate at its review and delivery boundaries (externally visible effects such as issue creation, pushes, pull requests, and merges). `manual` asks a person at every boundary and `critical` before every externally visible effect and after a failed required check. The CLI default `auto` is a deliberate autonomous profile: it asks nobody and records every boundary as approved by policy. An unattended run that needs a decision pauses instead of proceeding (`docs/guides/approval-policy.md`)
 2. **Transparency**: All agent activities logged and traceable
 3. **Incremental Delivery**: Review possible after each stage completion
 4. **Fail-Safe Design**: Safe rollback and retry on failure
@@ -890,13 +890,13 @@ Review Checklist:
 
 ### 8.2 Supporting Requirements
 
-| Req ID | Requirement                                    | Priority | Agent(s)          |
-| ------ | ---------------------------------------------- | -------- | ----------------- |
-| FR-009 | Maintain traceability matrix between documents | P1       | Orchestrator      |
-| FR-010 | User approval gate at each stage               | P1       | Orchestrator      |
-| FR-011 | Real-time work progress monitoring             | P1       | Controller        |
-| FR-012 | Auto-retry on failure (max 3 times)            | P1       | Worker, PR Review |
-| FR-013 | Agent activity logging and audit trail         | P1       | All               |
+| Req ID | Requirement                                                                                                                           | Priority | Agent(s)          |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------- | -------- | ----------------- |
+| FR-009 | Maintain traceability matrix between documents                                                                                        | P1       | Orchestrator      |
+| FR-010 | Approval gate at review and delivery boundaries, with a selectable mode (auto, manual, critical, custom) and durable decision records | P1       | Orchestrator      |
+| FR-011 | Real-time work progress monitoring                                                                                                    | P1       | Controller        |
+| FR-012 | Auto-retry on failure (max 3 times)                                                                                                   | P1       | Worker, PR Review |
+| FR-013 | Agent activity logging and audit trail                                                                                                | P1       | All               |
 
 ### 8.3 Integration Requirements
 
@@ -969,13 +969,13 @@ Review Checklist:
 
 ### 9.4 Maintainability
 
-| NFR ID  | Requirement                         | Target                                         | Priority |
-| ------- | ----------------------------------- | ---------------------------------------------- | -------- |
-| NFR-016 | Agent configuration externalization | YAML-based configuration                       | P0       |
-| NFR-017 | Template customization              | User-defined template support                  | P1       |
-| NFR-018 | Log level adjustment                | DEBUG/INFO/WARN/ERROR runtime adjustment       | P1       |
-| NFR-019 | Agent definition separation         | Independent definition file per agent          | P0       |
-| NFR-020 | Workflow configuration              | Pipeline stage and approval gate configuration | P1       |
+| NFR ID  | Requirement                         | Target                                                                                    | Priority |
+| ------- | ----------------------------------- | ----------------------------------------------------------------------------------------- | -------- |
+| NFR-016 | Agent configuration externalization | YAML-based configuration                                                                  | P0       |
+| NFR-017 | Template customization              | User-defined template support                                                             | P1       |
+| NFR-018 | Log level adjustment                | DEBUG/INFO/WARN/ERROR runtime adjustment                                                  | P1       |
+| NFR-019 | Agent definition separation         | Independent definition file per agent                                                     | P0       |
+| NFR-020 | Workflow configuration              | Pipeline mode and approval mode configuration (approval boundaries are defined in source) | P1       |
 
 ### 9.5 Scalability
 

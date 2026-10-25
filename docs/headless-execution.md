@@ -27,7 +27,7 @@ By default, the Claude CLI runs in interactive mode, waiting for user input and 
 - Limits execution turns
 - Provides structured output for parsing
 
-> **Approval mode in non-interactive environments**: When the pipeline's `approval_mode` is set to `manual`, it requires an interactive TTY to prompt the user. If no TTY is available (CI/CD runners, Docker containers, cron jobs), `manual` mode **denies approval by default** and the pipeline will not proceed past approval gates. Always use `--approval-mode auto` (or set `approval_mode: "auto"` in `workflow.yaml`) when running without a terminal.
+> **Approval mode in non-interactive environments**: `manual` and `critical` ask a person for decisions at approval boundaries, which needs an interactive terminal (stdin and stderr). If none is available (CI/CD runners, Docker containers, cron jobs), or `--non-interactive` is passed, the run **pauses** at the first requested decision: the stage is not executed, the session is saved, and `ad-sdlc run` exits with status 3. Resume it in a terminal with `--resume <session-id>`. Use `--approval-mode auto` (the default, or `approval_mode: "auto"` in `workflow.yaml`) for fully unattended runs; every boundary is then approved by policy and recorded. See the [approval policy guide](guides/approval-policy.md).
 
 ### Interactive vs Headless
 
@@ -201,7 +201,7 @@ export GH_TOKEN="ghp_..."
 
 ## CI/CD Integration
 
-CI/CD environments do not have an interactive TTY. Set `--approval-mode auto` on the command line or `approval_mode: "auto"` in `workflow.yaml` so the pipeline never blocks waiting for user input. Using `manual` mode in CI will cause all approval gates to be denied by default.
+CI/CD environments do not have an interactive TTY. Keep the default `--approval-mode auto` (or `approval_mode: "auto"` in `workflow.yaml`) so the pipeline never waits for user input. With `manual` or `critical` in CI, the run pauses at the first requested decision and exits with status 3; a person resumes the saved session in a terminal with `--resume`. A rejected run exits with status 2.
 
 ### GitHub Actions
 

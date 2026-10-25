@@ -463,14 +463,14 @@ execution:
 
 Available values:
 
-| Mode       | Behavior                                                                                                                                      |
-| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| `auto`     | All approval gates pass automatically                                                                                                         |
-| `manual`   | Prompts for interactive approval at every gate (requires TTY; gates are denied by default in non-interactive environments — do not use in CI) |
-| `critical` | Approves existing gates unless prior stage results contain failures                                                                           |
-| `custom`   | Programmatic custom strategy only; rejected in CLI workflows                                                                                  |
+| Mode       | Behavior                                                                                                             |
+| ---------- | -------------------------------------------------------------------------------------------------------------------- |
+| `auto`     | Default. No decision is requested; every gate is approved by policy and recorded                                     |
+| `manual`   | A person decides at every review and delivery gate (needs a terminal; without one the run pauses with exit status 3) |
+| `critical` | A person decides before external effects (issues, pushes, pull requests, merges) and after a failed required check   |
+| `custom`   | Programmatic custom strategy only; rejected in CLI workflows                                                         |
 
-Use `auto` in CI and `manual` during local development when you want to review gate outputs before proceeding. `critical` uses the existing prior-failure check; it does not prompt based on risk.
+Use `auto` in CI and `manual` during local development when you want to review gate outputs before proceeding. `critical` keeps planning steps autonomous and asks only before anything leaves the project. A paused run resumes with `--resume <session-id>` in a terminal. See the [approval policy guide](approval-policy.md).
 
 ---
 
@@ -524,19 +524,21 @@ The `ClaudeCodeBridge` polls for output files every 1 second, with a default tim
 
 ## Approval Modes Reference
 
-| Mode       | Behavior                                     | Use Case                                      |
-| ---------- | -------------------------------------------- | --------------------------------------------- |
-| `auto`     | All gates pass without prompting             | CI/CD, fully automated runs                   |
-| `manual`   | Every gate requires explicit `y` input       | Local development, first-time runs            |
-| `critical` | Only gates marked `risk: high` require input | Balanced for production-adjacent workflows    |
-| `custom`   | Per-stage overrides in `workflow.yaml`       | Mixed environments with specific requirements |
+| Mode       | Behavior                                                                   | Use Case                                   |
+| ---------- | -------------------------------------------------------------------------- | ------------------------------------------ |
+| `auto`     | Default. Every gate is approved by policy and recorded; nobody is asked    | CI/CD, fully automated runs                |
+| `manual`   | A person decides at every review and delivery gate                         | Local development, first-time runs         |
+| `critical` | A person decides before external effects and after a failed required check | Balanced for production-adjacent workflows |
+| `custom`   | The programmatic `approveStage` strategy decides; not available in the CLI | Embedding the orchestrator in another tool |
 
 Configure in `.ad-sdlc/config/workflow.yaml`:
 
 ```yaml
 global:
-  approval_mode: manual # or: auto, critical, custom
+  approval_mode: manual # or: auto, critical
 ```
+
+The [approval policy guide](approval-policy.md) lists every gate per mode and stage.
 
 ---
 
@@ -544,16 +546,16 @@ global:
 
 ### Common Issues by Scenario
 
-| Problem                             | Scenario   | Solution                                                                     |
-| ----------------------------------- | ---------- | ---------------------------------------------------------------------------- |
-| `❌ No AD-SDLC configuration found` | A, B, C, D | Run `ad-sdlc init` first                                                     |
-| GitHub rate limit exceeded          | A, C, D    | Wait for reset or reduce `execution.max_parallel_stages` (stage concurrency) |
-| Pipeline stuck at approval gate     | A, C, G    | Use `approval_mode: auto` in CI, or type `y` to proceed                      |
-| Worktree already exists             | F          | Remove with `git worktree remove <path>` and re-run setup                    |
-| Container exits immediately         | E, F       | Check `docker compose logs claude-a` for errors                              |
-| Agent timeout (5 min exceeded)      | H          | Increase `timeoutMs` in the bridge configuration                             |
-| `AD_SDLC_LOCAL` ignored             | B, D       | Verify the variable is exported: `export AD_SDLC_LOCAL=1`                    |
-| Wrong mode auto-detected            | C          | Pass `--mode enhancement` explicitly                                         |
+| Problem                                        | Scenario   | Solution                                                                                            |
+| ---------------------------------------------- | ---------- | --------------------------------------------------------------------------------------------------- |
+| `❌ No AD-SDLC configuration found`            | A, B, C, D | Run `ad-sdlc init` first                                                                            |
+| GitHub rate limit exceeded                     | A, C, D    | Wait for reset or reduce `execution.max_parallel_stages` (stage concurrency)                        |
+| Run paused at an approval gate (exit status 3) | A, C, G    | Use `approval_mode: auto` in CI, or resume with `--resume <id>` in a terminal and answer the prompt |
+| Worktree already exists                        | F          | Remove with `git worktree remove <path>` and re-run setup                                           |
+| Container exits immediately                    | E, F       | Check `docker compose logs claude-a` for errors                                                     |
+| Agent timeout (5 min exceeded)                 | H          | Increase `timeoutMs` in the bridge configuration                                                    |
+| `AD_SDLC_LOCAL` ignored                        | B, D       | Verify the variable is exported: `export AD_SDLC_LOCAL=1`                                           |
+| Wrong mode auto-detected                       | C          | Pass `--mode enhancement` explicitly                                                                |
 
 For detailed error codes and recovery procedures, see the [Troubleshooting Guide](troubleshooting.md).
 

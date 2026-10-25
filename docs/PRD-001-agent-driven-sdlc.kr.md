@@ -99,7 +99,7 @@ Developer Journey (Future State with AD-SDLC):
 
 ### 3.3 Core Principles
 
-1. **Human-in-the-Loop**: 중요 결정점에서 사용자 승인 필수
+1. **Human-in-the-Loop**: 선택 가능한 승인 정책이 사람이 결정할 지점을 정함. 모든 스테이지는 검토 경계와 전달 경계(이슈 생성, 푸시, 풀 리퀘스트, 병합 같은 외부에서 보이는 효과)에서 승인 게이트를 통과함. `manual`은 모든 경계에서, `critical`은 외부에서 보이는 모든 효과 전과 필수 검사 실패 후에 사람에게 결정을 요청함. CLI 기본값 `auto`는 의도된 자율 프로필로, 아무에게도 묻지 않고 모든 경계를 정책 승인으로 기록함. 결정이 필요한 무인 실행은 진행하지 않고 일시 중지함 (`docs/guides/approval-policy.md`)
 2. **Transparency**: 모든 에이전트 활동 로깅 및 추적 가능
 3. **Incremental Delivery**: 각 단계 완료 후 검토 가능
 4. **Fail-Safe Design**: 실패 시 안전한 롤백 및 재시도
@@ -885,13 +885,13 @@ Review Checklist:
 
 ### 8.2 Supporting Requirements
 
-| Req ID | Requirement                     | Priority | Agent(s)          |
-| ------ | ------------------------------- | -------- | ----------------- |
-| FR-009 | 문서 간 추적성 매트릭스 유지    | P1       | Orchestrator      |
-| FR-010 | 각 단계별 사용자 승인 게이트    | P1       | Orchestrator      |
-| FR-011 | 작업 진행률 실시간 모니터링     | P1       | Controller        |
-| FR-012 | 실패 시 자동 재시도 (최대 3회)  | P1       | Worker, PR Review |
-| FR-013 | 에이전트 활동 로깅 및 감사 추적 | P1       | All               |
+| Req ID | Requirement                                                                                            | Priority | Agent(s)          |
+| ------ | ------------------------------------------------------------------------------------------------------ | -------- | ----------------- |
+| FR-009 | 문서 간 추적성 매트릭스 유지                                                                           | P1       | Orchestrator      |
+| FR-010 | 검토 및 전달 경계의 승인 게이트, 선택 가능한 모드(auto, manual, critical, custom)와 영속적인 결정 기록 | P1       | Orchestrator      |
+| FR-011 | 작업 진행률 실시간 모니터링                                                                            | P1       | Controller        |
+| FR-012 | 실패 시 자동 재시도 (최대 3회)                                                                         | P1       | Worker, PR Review |
+| FR-013 | 에이전트 활동 로깅 및 감사 추적                                                                        | P1       | All               |
 
 ### 8.3 Integration Requirements
 
@@ -964,13 +964,13 @@ Review Checklist:
 
 ### 9.4 Maintainability
 
-| NFR ID  | Requirement          | Target                                  | Priority |
-| ------- | -------------------- | --------------------------------------- | -------- |
-| NFR-016 | 에이전트 설정 외부화 | YAML 기반 설정                          | P0       |
-| NFR-017 | 템플릿 커스터마이징  | 사용자 정의 템플릿 지원                 | P1       |
-| NFR-018 | 로그 레벨 조정       | DEBUG/INFO/WARN/ERROR 런타임 조정       | P1       |
-| NFR-019 | 에이전트 정의 분리   | 에이전트당 독립 정의 파일               | P0       |
-| NFR-020 | 워크플로우 설정      | 파이프라인 스테이지 및 승인 게이트 설정 | P1       |
+| NFR ID  | Requirement          | Target                                                      | Priority |
+| ------- | -------------------- | ----------------------------------------------------------- | -------- |
+| NFR-016 | 에이전트 설정 외부화 | YAML 기반 설정                                              | P0       |
+| NFR-017 | 템플릿 커스터마이징  | 사용자 정의 템플릿 지원                                     | P1       |
+| NFR-018 | 로그 레벨 조정       | DEBUG/INFO/WARN/ERROR 런타임 조정                           | P1       |
+| NFR-019 | 에이전트 정의 분리   | 에이전트당 독립 정의 파일                                   | P0       |
+| NFR-020 | 워크플로우 설정      | 파이프라인 모드 및 승인 모드 설정 (승인 경계는 소스에 정의) | P1       |
 
 ### 9.5 Scalability
 
