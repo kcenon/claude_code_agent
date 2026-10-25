@@ -645,12 +645,11 @@ export class AdsdlcOrchestratorAgent implements IAgent {
         throw error;
       }
       // Record the attempts and stages that ran; a no-op when the run already finished.
+      // A concurrent dispose() may have cleared the session; results then come from the run start.
+      const reached = this.getSession()?.stageResults ?? session.stageResults;
       await metricsRecorder.finish({
         session,
-        stages: [
-          ...restoredResults,
-          ...this.session.stageResults.slice(session.stageResults.length),
-        ],
+        stages: [...restoredResults, ...reached.slice(session.stageResults.length)],
         restored: new Set(restoredResults),
         error,
       });

@@ -348,14 +348,31 @@ export class DeliveryMetricsRecorder {
 
   /**
    * Add the stage and pipeline records and wait for the sink. Later calls
-   * return the first summary.
+   * return the first summary. Never throws: a record that cannot be built is
+   * logged and counted, so metrics cannot change the run's outcome.
    * @param end - Stage results and the run's result or error
    * @returns Records of the run and the export state
    */
   async finish(end: DeliveryMetricsRunEnd): Promise<DeliveryMetricsSummary> {
     if (this.summary !== undefined) return this.summary;
-    for (const stage of end.stages) this.emit(this.stageRecord(stage, end.restored.has(stage)));
-    this.emit(this.pipelineRecord(end));
+    const build = (
+      kind: DeliveryMetricsRecord['kind'],
+      record: () => DeliveryMetricsRecord
+    ): void => {
+      try {
+        this.emit(record());
+      } catch (error) {
+        this.failed++;
+        getLogger().warn('Delivery metrics record could not be built (non-critical)', {
+          agent: 'AdsdlcOrchestratorAgent',
+          kind,
+          error: errorType(error),
+        });
+      }
+    };
+    for (const stage of end.stages)
+      build('stage', () => this.stageRecord(stage, end.restored.has(stage)));
+    build('pipeline', () => this.pipelineRecord(end));
     await Promise.all(this.pending);
     this.summary = {
       records: [...this.records],

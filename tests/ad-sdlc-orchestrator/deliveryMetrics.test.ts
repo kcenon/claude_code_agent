@@ -8,9 +8,9 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import type { SDKMessage } from '@anthropic-ai/claude-agent-sdk';
 
 import { AdsdlcOrchestratorAgent } from '../../src/ad-sdlc-orchestrator/AdsdlcOrchestratorAgent.js';
+import { DeliveryMetricsRecorder } from '../../src/ad-sdlc-orchestrator/deliveryMetrics.js';
 import { PipelineFailedError } from '../../src/ad-sdlc-orchestrator/errors.js';
 import { classifyAttemptOutcome } from '../../src/ad-sdlc-orchestrator/StageScheduler.js';
 import { StageTimeoutError } from '../../src/ad-sdlc-orchestrator/errors.js';
@@ -419,5 +419,39 @@ describe('run records and the sink', () => {
       approval: null,
       attempts: { total: 1 },
     });
+  });
+
+  it('a stage result that cannot be projected is counted, never thrown', async () => {
+    const recorder = new DeliveryMetricsRecorder({ sessionId: 's-1', runId: 'r-1', startedAt: 0 });
+    const summary = await recorder.finish({
+      session: {
+        sessionId: 's-1',
+        projectDir,
+        userRequest: 'offline',
+        mode: 'import',
+        startedAt: new Date(0).toISOString(),
+        status: 'running',
+        stageResults: [],
+        scratchpadDir: join(projectDir, '.ad-sdlc/scratchpad'),
+        localMode: false,
+      },
+      stages: [
+        {
+          name: 'issue_reading',
+          agentType: 'issue-reader',
+          status: 'completed',
+          durationMs: 1,
+          output: '',
+          artifacts: [],
+          error: null,
+          retryCount: 0,
+          // A malformed record (no checks) from an untrusted source.
+          verification: { stage: 'issue_reading', state: 'verified_pass' } as never,
+        },
+      ],
+      restored: new Set(),
+    });
+    expect(summary.export.failed).toBe(1);
+    expect(summary.records.map((record) => record.kind)).toEqual(['pipeline']);
   });
 });
