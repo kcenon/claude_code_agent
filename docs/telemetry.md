@@ -89,7 +89,7 @@ Telemetry settings can also be configured in `workflow.yaml`:
 
 ```yaml
 telemetry:
-  enabled: false  # Must be combined with CLI consent
+  enabled: false # Must be combined with CLI consent
   flush_interval_ms: 60000
   max_buffer_size: 100
   include_debug_events: false
@@ -156,9 +156,9 @@ telemetry.revokeConsent();
 
 ```typescript
 const stats = telemetry.getStats();
-console.log(stats.eventsRecorded);    // Total events in session
-console.log(stats.eventsPending);      // Events waiting to flush
-console.log(stats.sessionDurationMs);  // Session duration
+console.log(stats.eventsRecorded); // Total events in session
+console.log(stats.eventsPending); // Events waiting to flush
+console.log(stats.sessionDurationMs); // Session duration
 ```
 
 ## API Reference
@@ -167,55 +167,55 @@ console.log(stats.sessionDurationMs);  // Session duration
 
 #### Constructor Options
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `baseDir` | `string` | `~/.ad-sdlc` | Directory for consent file |
-| `config.enabled` | `boolean` | `false` | Enable telemetry (requires consent) |
-| `config.flushIntervalMs` | `number` | `60000` | Auto-flush interval |
-| `config.maxBufferSize` | `number` | `100` | Max events before flush |
-| `autoFlush` | `boolean` | `true` | Enable automatic flushing |
+| Option                   | Type      | Default      | Description                         |
+| ------------------------ | --------- | ------------ | ----------------------------------- |
+| `baseDir`                | `string`  | `~/.ad-sdlc` | Directory for consent file          |
+| `config.enabled`         | `boolean` | `false`      | Enable telemetry (requires consent) |
+| `config.flushIntervalMs` | `number`  | `60000`      | Auto-flush interval                 |
+| `config.maxBufferSize`   | `number`  | `100`        | Max events before flush             |
+| `autoFlush`              | `boolean` | `true`       | Enable automatic flushing           |
 
 #### Methods
 
-| Method | Returns | Description |
-|--------|---------|-------------|
-| `getConsentStatus()` | `ConsentStatus` | Get current consent status |
-| `setConsent(granted)` | `ConsentRecord` | Set consent status |
-| `revokeConsent()` | `ConsentRecord` | Revoke consent and clear data |
-| `getPrivacyPolicy()` | `PrivacyPolicy` | Get privacy policy details |
-| `isEnabled()` | `boolean` | Check if telemetry is active |
-| `recordEvent(type, props)` | `TelemetryEvent \| null` | Record a telemetry event |
-| `recordCommandExecution(...)` | `TelemetryEvent \| null` | Record command execution |
-| `recordPipelineEvent(...)` | `TelemetryEvent \| null` | Record pipeline event |
-| `recordFeatureUsage(...)` | `TelemetryEvent \| null` | Record feature usage |
-| `flush()` | `number` | Flush buffered events |
-| `getStats()` | `TelemetryStats` | Get session statistics |
-| `shutdown()` | `number` | Shutdown and flush |
+| Method                        | Returns                  | Description                   |
+| ----------------------------- | ------------------------ | ----------------------------- |
+| `getConsentStatus()`          | `ConsentStatus`          | Get current consent status    |
+| `setConsent(granted)`         | `ConsentRecord`          | Set consent status            |
+| `revokeConsent()`             | `ConsentRecord`          | Revoke consent and clear data |
+| `getPrivacyPolicy()`          | `PrivacyPolicy`          | Get privacy policy details    |
+| `isEnabled()`                 | `boolean`                | Check if telemetry is active  |
+| `recordEvent(type, props)`    | `TelemetryEvent \| null` | Record a telemetry event      |
+| `recordCommandExecution(...)` | `TelemetryEvent \| null` | Record command execution      |
+| `recordPipelineEvent(...)`    | `TelemetryEvent \| null` | Record pipeline event         |
+| `recordFeatureUsage(...)`     | `TelemetryEvent \| null` | Record feature usage          |
+| `flush()`                     | `number`                 | Flush buffered events         |
+| `getStats()`                  | `TelemetryStats`         | Get session statistics        |
+| `shutdown()`                  | `number`                 | Shutdown and flush            |
 
 ### Event Types
 
-| Type | Description |
-|------|-------------|
-| `command_executed` | CLI command was run |
-| `pipeline_started` | Pipeline execution started |
+| Type                 | Description                  |
+| -------------------- | ---------------------------- |
+| `command_executed`   | CLI command was run          |
+| `pipeline_started`   | Pipeline execution started   |
 | `pipeline_completed` | Pipeline execution completed |
-| `pipeline_failed` | Pipeline execution failed |
-| `agent_invoked` | Agent was invoked |
-| `error_occurred` | Error occurred |
-| `feature_used` | Feature was used |
+| `pipeline_failed`    | Pipeline execution failed    |
+| `agent_invoked`      | Agent was invoked            |
+| `error_occurred`     | Error occurred               |
+| `feature_used`       | Feature was used             |
 
 ## Error Handling
 
 The telemetry module defines the following error types:
 
-| Error | Code | Description |
-|-------|------|-------------|
-| `TelemetryError` | - | Base error class |
-| `ConsentRequiredError` | `CONSENT_REQUIRED` | Action requires consent |
-| `ConsentStorageError` | `CONSENT_STORAGE_ERROR` | Failed to store consent |
-| `InvalidEventError` | `INVALID_EVENT` | Invalid event type |
-| `FlushError` | `FLUSH_ERROR` | Failed to flush events |
-| `TelemetryDisabledError` | `TELEMETRY_DISABLED` | Telemetry is disabled |
+| Error                    | Code                    | Description             |
+| ------------------------ | ----------------------- | ----------------------- |
+| `TelemetryError`         | -                       | Base error class        |
+| `ConsentRequiredError`   | `CONSENT_REQUIRED`      | Action requires consent |
+| `ConsentStorageError`    | `CONSENT_STORAGE_ERROR` | Failed to store consent |
+| `InvalidEventError`      | `INVALID_EVENT`         | Invalid event type      |
+| `FlushError`             | `FLUSH_ERROR`           | Failed to flush events  |
+| `TelemetryDisabledError` | `TELEMETRY_DISABLED`    | Telemetry is disabled   |
 
 ## Best Practices
 
