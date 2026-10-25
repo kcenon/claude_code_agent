@@ -11,6 +11,10 @@ The AD-SDLC monitoring module provides OpenTelemetry integration for:
 - **Token Usage Tracking** - Monitor LLM token consumption per span
 - **Multiple Exporters** - Send traces to Jaeger, Grafana Tempo, Datadog, and more
 
+The SDK CLI run path does not start this integration. For the SDK usage,
+attempt outcomes, and run outcomes that every `ad-sdlc run` records, see the
+[delivery metrics guide](guides/delivery-metrics.md).
+
 ## Quick Start
 
 ### 1. Create Configuration File

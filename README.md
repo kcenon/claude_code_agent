@@ -135,6 +135,7 @@ See the [v0.1 Hybrid Pipeline RFC](docs/architecture/v0.1-hybrid-pipeline-rfc.md
 | `ad-sdlc assets update --project-dir <dir>` | Plan or apply updates of the installed canonical agents and commands   |
 | `ad-sdlc analyze`                           | Analyze a project for documentation-code gaps                          |
 | `ad-sdlc telemetry <subcommand>`            | Manage opt-in telemetry (`status`, `enable`, `disable`, `policy`)      |
+| `ad-sdlc telemetry report`                  | Report delivery metrics: outcomes, SDK usage, and resume success       |
 | `ad-sdlc completion --shell <shell>`        | Generate a shell completion script (`bash`, `zsh`, `fish`)             |
 
 The [CLI reference](docs/cli.md) documents every option, the template choices, the generated project layout, the project slash commands, and shell completion setup.

@@ -83,9 +83,17 @@ SDK call:
 | `artifacts`     | `ArtifactRef[]` — present project files/directories derived from the manifest |
 | `manifest`      | Optional immutable versioned manifest reference; authoritative when present   |
 | `sessionId`     | SDK session id (for `resume` on a later call)                                 |
-| `toolCallCount` | Number of agent turns observed                                                |
-| `tokenUsage`    | `{ input, output, cache }` token counts                                       |
+| `metrics`       | Optional `ExecutionMetrics`: usage with unknown as `null`, turns, tool uses   |
+| `toolCallCount` | Deprecated: the larger of distinct assistant messages and SDK turns           |
+| `tokenUsage`    | Deprecated: `{ input, output, cache }` totals, unknown as 0                   |
 | `error`         | `SerializedError`, populated only when `status !== 'success'`                 |
+
+`metrics` is reported on every outcome. `usage.source` says whether the token
+counts come from the SDK result (`result`), from the assistant messages seen
+before a failure, cancellation, or timeout (`partial`), from a reused manifest
+(`recovered`), or nowhere (`none`, every field `null`). `toolUseCount` counts
+distinct `tool_use` blocks by id; `turnCount` is the SDK's `num_turns`. See the
+[delivery metrics guide](../../docs/guides/delivery-metrics.md).
 
 ### `priorOutputs` contract
 
@@ -546,7 +554,8 @@ Checklist when implementing a new adapter:
       (mirror the existing contract test).
 - [ ] Returns the canonical `StageExecutionResult` shape, including a
       `tokenUsage` object even when the upstream API does not provide one
-      (use zeros).
+      (use zeros), and `metrics` when the adapter can observe usage (use
+      `null` for what the upstream API does not report, never 0).
 - [ ] Honours `req.signal?.aborted` both before issuing the call and on
       mid-call cancellation, returning `status: 'aborted'`.
 - [ ] Maps any thrown error to `status: 'failed'` with a `SerializedError`
@@ -558,8 +567,12 @@ Checklist when implementing a new adapter:
 
 ## What this module does NOT do (yet)
 
-- Telemetry bridge (`Stop` finalisation) — Phase 3.
 - Bedrock / Vertex endpoint selection — Phase 4.
+
+Usage finalisation (the telemetry bridge once planned for the `Stop` hook) is
+done when `SdkExecutionAdapter` completes an execution, because the SDK `Stop`
+hook does not fire for failed or cancelled executions; the orchestrator turns
+`metrics` into delivery metrics records.
 
 ## Issue references
 

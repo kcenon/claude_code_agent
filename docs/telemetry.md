@@ -41,7 +41,17 @@ ad-sdlc telemetry disable
 ad-sdlc telemetry policy
 ```
 
+### Report Delivery Metrics
+
+```bash
+ad-sdlc telemetry report --project-dir .
+```
+
 ## Privacy Policy
+
+The current policy version is `1.1.0`. It adds the local delivery metrics
+export; consent recorded under `1.0.0` does not cover it, and
+`ad-sdlc telemetry enable` shows the policy again until it is accepted.
 
 ### Data We Collect (Anonymous Only)
 
@@ -52,6 +62,7 @@ When telemetry is enabled, the following anonymous data is collected:
 - **Feature usage patterns**: Which features are used
 - **Error types**: Categories of errors (not error messages or stack traces)
 - **Platform information**: OS type and Node.js version
+- **Delivery metrics**: Run, stage, and attempt outcomes, durations, retries, SDK token usage, turn and tool-use counts, tool and model names, and the SDK version. They are written only to a local file in the project (`.ad-sdlc/scratchpad/metrics/<session-id>.jsonl`) and never sent. See [Delivery Metrics](#delivery-metrics).
 
 ### Data We DO NOT Collect
 
@@ -68,6 +79,26 @@ The following data is **never** collected:
 ### Data Retention
 
 - All telemetry data is automatically deleted after **90 days**
+- Delivery metrics files stay in the project until you delete them
+
+## Delivery Metrics
+
+`ad-sdlc run` builds delivery metrics records for every attempt, stage, and
+run (returned on `PipelineResult.metrics` and in `run --format json`). The
+telemetry consent decides whether they are also appended to
+`.ad-sdlc/scratchpad/metrics/<session-id>.jsonl`:
+
+| Consent status (`getDeliveryMetricsConsent().status`) | Export                                                |
+| ----------------------------------------------------- | ----------------------------------------------------- |
+| `granted` (policy `1.1.0` or later)                   | Records are appended                                  |
+| `outdated` (granted under `1.0.0`)                    | Nothing is written until the policy is accepted again |
+| `pending` or `denied`                                 | Nothing is written                                    |
+
+`ad-sdlc telemetry status` prints whether runs export delivery metrics, and
+`ad-sdlc telemetry report` reads the exports. The records never contain prompts,
+requirement text, tool inputs, error messages, approval reasons, paths, or
+credentials. See the [delivery metrics guide](guides/delivery-metrics.md) for
+the schema, the unknown-versus-zero semantics, and the report.
 
 ## Configuration
 
@@ -177,20 +208,21 @@ console.log(stats.sessionDurationMs); // Session duration
 
 #### Methods
 
-| Method                        | Returns                  | Description                   |
-| ----------------------------- | ------------------------ | ----------------------------- |
-| `getConsentStatus()`          | `ConsentStatus`          | Get current consent status    |
-| `setConsent(granted)`         | `ConsentRecord`          | Set consent status            |
-| `revokeConsent()`             | `ConsentRecord`          | Revoke consent and clear data |
-| `getPrivacyPolicy()`          | `PrivacyPolicy`          | Get privacy policy details    |
-| `isEnabled()`                 | `boolean`                | Check if telemetry is active  |
-| `recordEvent(type, props)`    | `TelemetryEvent \| null` | Record a telemetry event      |
-| `recordCommandExecution(...)` | `TelemetryEvent \| null` | Record command execution      |
-| `recordPipelineEvent(...)`    | `TelemetryEvent \| null` | Record pipeline event         |
-| `recordFeatureUsage(...)`     | `TelemetryEvent \| null` | Record feature usage          |
-| `flush()`                     | `number`                 | Flush buffered events         |
-| `getStats()`                  | `TelemetryStats`         | Get session statistics        |
-| `shutdown()`                  | `number`                 | Shutdown and flush            |
+| Method                        | Returns                  | Description                                             |
+| ----------------------------- | ------------------------ | ------------------------------------------------------- |
+| `getConsentStatus()`          | `ConsentStatus`          | Get current consent status                              |
+| `setConsent(granted)`         | `ConsentRecord`          | Set consent status                                      |
+| `revokeConsent()`             | `ConsentRecord`          | Revoke consent and clear data                           |
+| `getPrivacyPolicy()`          | `PrivacyPolicy`          | Get privacy policy details                              |
+| `isEnabled()`                 | `boolean`                | Check if telemetry is active                            |
+| `getDeliveryMetricsConsent()` | `DeliveryMetricsConsent` | Whether `ad-sdlc run` exports delivery metrics, and why |
+| `recordEvent(type, props)`    | `TelemetryEvent \| null` | Record a telemetry event                                |
+| `recordCommandExecution(...)` | `TelemetryEvent \| null` | Record command execution                                |
+| `recordPipelineEvent(...)`    | `TelemetryEvent \| null` | Record pipeline event                                   |
+| `recordFeatureUsage(...)`     | `TelemetryEvent \| null` | Record feature usage                                    |
+| `flush()`                     | `number`                 | Flush buffered events                                   |
+| `getStats()`                  | `TelemetryStats`         | Get session statistics                                  |
+| `shutdown()`                  | `number`                 | Shutdown and flush                                      |
 
 ### Event Types
 
