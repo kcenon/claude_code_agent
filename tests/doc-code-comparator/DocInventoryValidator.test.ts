@@ -17,6 +17,12 @@ import {
   renderVerificationCoverageBlock,
   replaceVerificationCoverageBlock,
 } from '../../src/stage-verifier/applicability.js';
+import {
+  APPROVAL_POLICY_END,
+  APPROVAL_POLICY_START,
+  renderApprovalPolicyBlock,
+  replaceApprovalPolicyBlock,
+} from '../../src/ad-sdlc-orchestrator/approvalMatrix.js';
 
 describe('DocInventoryValidator', () => {
   let root: string;
@@ -175,6 +181,24 @@ describe('DocInventoryValidator', () => {
     expect(new DocInventoryValidator(root).validate().violations).toEqual([]);
   });
 
+  it('reports a stale approval policy matrix and accepts the regenerated one', () => {
+    write(
+      'docs/guides/approval-policy.md',
+      `# Approval\n\n${APPROVAL_POLICY_START}\n| import | \`review\` | no gate |\n${APPROVAL_POLICY_END}\n`
+    );
+    expect(new DocInventoryValidator(root).validate().violations).toContainEqual(
+      expect.objectContaining({ code: 'APPROVAL_POLICY', path: 'docs/guides/approval-policy.md' })
+    );
+
+    write(
+      'docs/guides/approval-policy.md',
+      replaceApprovalPolicyBlock(
+        `# Approval\n\n${APPROVAL_POLICY_START}\nstale\n${APPROVAL_POLICY_END}\n\nMore prose.\n`
+      )
+    );
+    expect(new DocInventoryValidator(root).validate().violations).toEqual([]);
+  });
+
   function writeValidFixture(): void {
     write('.claude/agents/collector.md', '---\nname: collector\n---\n');
     write('.claude/agents/support.md', '---\nname: support\n---\n');
@@ -204,6 +228,7 @@ describe('DocInventoryValidator', () => {
       `${DocInventoryValidator.renderRuntimeInventoryBlock(metrics)}\n`
     );
     write('docs/architecture/verification-coverage.md', `${renderVerificationCoverageBlock()}\n`);
+    write('docs/guides/approval-policy.md', `${renderApprovalPolicyBlock()}\n`);
     write('doc-sync-points.yaml', renderSyncConfig());
   }
 

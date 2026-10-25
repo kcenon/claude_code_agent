@@ -9,6 +9,11 @@ import { isRecord } from './runtimeSupport.js';
 import { RuntimeConfigError, type EffectiveExecutionPlan } from './runtimeTypes.js';
 import { resolveVerificationProfile } from '../vnv/policy.js';
 import type { VerificationProfile } from '../vnv/types.js';
+import {
+  agentApprovalEffects,
+  APPROVAL_EFFECTS,
+  type ApprovalEffect,
+} from '../ad-sdlc-orchestrator/approvalPolicy.js';
 
 const integer = z.number().int().min(0).max(2147483647);
 const positive = integer.min(1);
@@ -48,6 +53,8 @@ const snapshotSchema = z.object({
         description: z.string(),
         parallel: z.boolean(),
         approvalRequired: z.boolean(),
+        // Absent in snapshots saved before approval effects existed.
+        effects: z.array(z.enum(APPROVAL_EFFECTS)).optional(),
         dependsOn: z.array(stageName),
         timeoutMs: positive,
         skills: z.array(z.string()).optional(),
@@ -81,14 +88,39 @@ const snapshotSchema = z.object({
   featureFlags: z.object({ useSdkForWorker: z.boolean() }),
 });
 
-/** A parsed snapshot that may predate verification profiles. */
-type SnapshotWithOptionalProfile = Omit<EffectiveExecutionPlan, 'config'> & {
+/** A parsed snapshot that may predate verification profiles and approval effects. */
+type SavedSnapshot = Omit<EffectiveExecutionPlan, 'config' | 'stages'> & {
   readonly config: Omit<EffectiveExecutionPlan['config'], 'vnv'> & {
     readonly vnv: Omit<EffectiveExecutionPlan['config']['vnv'], 'profile'> & {
       readonly profile?: VerificationProfile;
     };
   };
+  readonly stages: readonly (Omit<EffectiveExecutionPlan['stages'][number], 'effects'> & {
+    readonly effects?: readonly ApprovalEffect[];
+  })[];
 };
+
+/** A saved snapshot whose stages carry their effects. */
+type SnapshotWithOptionalProfile = Omit<SavedSnapshot, 'stages'> &
+  Pick<EffectiveExecutionPlan, 'stages'>;
+
+/**
+ * Give the stages of a snapshot saved before approval effects the effects
+ * their agents have. Effects describe what an agent does, not a policy
+ * choice, so a resumed session gets the delivery boundaries of the current
+ * effect table.
+ * @param plan - Validated snapshot
+ * @returns Snapshot whose stages carry effects
+ */
+function withApprovalEffects(plan: SavedSnapshot): SnapshotWithOptionalProfile {
+  return {
+    ...plan,
+    stages: plan.stages.map((stage) => ({
+      ...stage,
+      effects: stage.effects ?? [...agentApprovalEffects(stage.agentType)],
+    })),
+  };
+}
 
 /**
  * Give a snapshot saved before verification profiles the profile its run
@@ -145,7 +177,7 @@ export function parseRuntimeSnapshot(value: unknown, source: string): EffectiveE
       plan.retryPolicy.backoffStrategy === plan.config.retryBackoff.backoffStrategy &&
       plan.stages.every((stage) => stage.timeoutMs === plan.config.timeouts.overrides[stage.name])
     ) {
-      return withVerificationProfile(plan as SnapshotWithOptionalProfile);
+      return withVerificationProfile(withApprovalEffects(plan as SavedSnapshot));
     }
     reason =
       'Saved graph has duplicate stages, invalid dependencies, stop condition, or inconsistent budgets.';

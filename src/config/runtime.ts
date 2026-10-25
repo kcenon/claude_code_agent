@@ -36,6 +36,7 @@ import {
   type RuntimeValueSource,
 } from './runtimeTypes.js';
 import { resolveVerificationProfile } from '../vnv/policy.js';
+import { stageApprovalEffects } from '../ad-sdlc-orchestrator/approvalPolicy.js';
 import type { VerificationProfile } from '../vnv/types.js';
 
 /** Commander option keys mapped explicitly to workflow properties. No option defaults here. */
@@ -264,6 +265,7 @@ export function resolveRuntimeConfig(options: ResolveRuntimeOptions = {}): Effec
   const stages = buildCanonicalPlan(mode, localMode).map((stage) => ({
     ...stage,
     timeoutMs: budgets[stage.name] ?? defaultBudget,
+    effects: [...stageApprovalEffects(stage)],
   }));
   const stopAfterStage = options.cli?.['stopAfter'];
   if (stopAfterStage !== undefined && !stages.some((stage) => stage.name === stopAfterStage)) {

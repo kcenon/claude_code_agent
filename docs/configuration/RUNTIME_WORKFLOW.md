@@ -61,24 +61,24 @@ It is not a concurrency control.
 All timeout values are **total stage budgets**, including attempts and backoff.
 The default values below are live defaults; parsing does not insert them.
 
-| Workflow property                              | Unit/range                                        | Runtime default                           | Enforcement owner                                                           | CLI option                                 | Direct environment override            |
-| ---------------------------------------------- | ------------------------------------------------- | ----------------------------------------- | --------------------------------------------------------------------------- | ------------------------------------------ | -------------------------------------- |
-| `pipeline.default_mode`                        | greenfield/enhancement/import                     | greenfield                                | Canonical plan builder                                                      | `--mode`                                   | `AD_SDLC_MODE`                         |
-| `execution.local_mode`                         | boolean                                           | false                                     | Canonical plan builder                                                      | `--local` / `--no-local`                   | `AD_SDLC_LOCAL`                        |
-| `global.approval_mode`                         | auto/manual/critical                              | auto                                      | Existing `ApprovalGate` at canonical approval stages                        | `--approval-mode`                          | `AD_SDLC_APPROVAL_MODE`                |
-| `execution.max_parallel_stages`                | stages, 1–100                                     | 3                                         | `StageScheduler` / `maxParallelAgents`                                      | `--max-parallel-stages`                    | `AD_SDLC_MAX_PARALLEL_STAGES`          |
-| `global.retry_policy.max_attempts`             | total attempts, 1–100                             | **4**                                     | Scheduler / `RetryExecutor`                                                 | `--max-attempts`                           | `AD_SDLC_MAX_ATTEMPTS`                 |
-| `global.retry_policy.backoff`                  | fixed/linear/exponential/fibonacci                | exponential                               | `RetryExecutor`                                                             | `--retry-backoff`                          | `AD_SDLC_RETRY_BACKOFF`                |
-| `global.retry_policy.base_delay_seconds`       | seconds, 0–2147483                                | 5                                         | `RetryExecutor`, converted to ms once                                       | `--retry-base-delay-seconds`               | `AD_SDLC_RETRY_BASE_DELAY_SECONDS`     |
-| `global.retry_policy.max_delay_seconds`        | seconds, 0–2147483, at least effective base delay | 60                                        | `RetryExecutor`, converted to ms once                                       | `--retry-max-delay-seconds`                | `AD_SDLC_RETRY_MAX_DELAY_SECONDS`      |
-| `execution.stage_timeout_ms`                   | ms, 1–2147483647                                  | 300000                                    | Scheduler deadline                                                          | `--stage-timeout-ms`                       | `AD_SDLC_STAGE_TIMEOUT_MS`             |
-| `execution.stage_timeouts_ms.<canonical-name>` | ms, 1–2147483647                                  | inherited budget                          | Scheduler deadline; graph unchanged                                         | none                                       | none                                   |
-| `global.timeouts.<phase>`                      | seconds, 1–2147483                                | inherited budget, normally 300 seconds    | Phase-to-stage mapping, then scheduler deadline                             | none                                       | none                                   |
-| `global.vnv.rigor`                             | minimal/standard/strict                           | standard                                  | Existing `StageVerifierAgent` rules                                         | `--vnv-rigor`                              | `AD_SDLC_VNV_RIGOR`                    |
-| `global.vnv.profile`                           | advisory/delivery                                 | absent: legacy mapping, normally advisory | Scheduler verification gate and run exit status                             | `--vnv-profile`                            | `AD_SDLC_VNV_PROFILE`                  |
-| `global.vnv.halt_on_verification_failure`      | boolean                                           | false                                     | Legacy profile selector: strict + true is `delivery` when no profile is set | `--halt-on-verification-failure <boolean>` | `AD_SDLC_HALT_ON_VERIFICATION_FAILURE` |
-| `execution.retry_attempts` (deprecated)        | retries, 0–99                                     | absent                                    | Validated alias for max attempts, **add one**                               | none                                       | none                                   |
-| `execution.retry_delay_ms` (deprecated)        | ms, 0–2147483647                                  | absent                                    | Validated alias for base delay                                              | none                                       | none                                   |
+| Workflow property                              | Unit/range                                        | Runtime default                           | Enforcement owner                                                              | CLI option                                 | Direct environment override            |
+| ---------------------------------------------- | ------------------------------------------------- | ----------------------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------ | -------------------------------------- |
+| `pipeline.default_mode`                        | greenfield/enhancement/import                     | greenfield                                | Canonical plan builder                                                         | `--mode`                                   | `AD_SDLC_MODE`                         |
+| `execution.local_mode`                         | boolean                                           | false                                     | Canonical plan builder                                                         | `--local` / `--no-local`                   | `AD_SDLC_LOCAL`                        |
+| `global.approval_mode`                         | auto/manual/critical                              | auto                                      | Scheduler approval gate before review and delivery boundaries; run exit status | `--approval-mode`                          | `AD_SDLC_APPROVAL_MODE`                |
+| `execution.max_parallel_stages`                | stages, 1–100                                     | 3                                         | `StageScheduler` / `maxParallelAgents`                                         | `--max-parallel-stages`                    | `AD_SDLC_MAX_PARALLEL_STAGES`          |
+| `global.retry_policy.max_attempts`             | total attempts, 1–100                             | **4**                                     | Scheduler / `RetryExecutor`                                                    | `--max-attempts`                           | `AD_SDLC_MAX_ATTEMPTS`                 |
+| `global.retry_policy.backoff`                  | fixed/linear/exponential/fibonacci                | exponential                               | `RetryExecutor`                                                                | `--retry-backoff`                          | `AD_SDLC_RETRY_BACKOFF`                |
+| `global.retry_policy.base_delay_seconds`       | seconds, 0–2147483                                | 5                                         | `RetryExecutor`, converted to ms once                                          | `--retry-base-delay-seconds`               | `AD_SDLC_RETRY_BASE_DELAY_SECONDS`     |
+| `global.retry_policy.max_delay_seconds`        | seconds, 0–2147483, at least effective base delay | 60                                        | `RetryExecutor`, converted to ms once                                          | `--retry-max-delay-seconds`                | `AD_SDLC_RETRY_MAX_DELAY_SECONDS`      |
+| `execution.stage_timeout_ms`                   | ms, 1–2147483647                                  | 300000                                    | Scheduler deadline                                                             | `--stage-timeout-ms`                       | `AD_SDLC_STAGE_TIMEOUT_MS`             |
+| `execution.stage_timeouts_ms.<canonical-name>` | ms, 1–2147483647                                  | inherited budget                          | Scheduler deadline; graph unchanged                                            | none                                       | none                                   |
+| `global.timeouts.<phase>`                      | seconds, 1–2147483                                | inherited budget, normally 300 seconds    | Phase-to-stage mapping, then scheduler deadline                                | none                                       | none                                   |
+| `global.vnv.rigor`                             | minimal/standard/strict                           | standard                                  | Existing `StageVerifierAgent` rules                                            | `--vnv-rigor`                              | `AD_SDLC_VNV_RIGOR`                    |
+| `global.vnv.profile`                           | advisory/delivery                                 | absent: legacy mapping, normally advisory | Scheduler verification gate and run exit status                                | `--vnv-profile`                            | `AD_SDLC_VNV_PROFILE`                  |
+| `global.vnv.halt_on_verification_failure`      | boolean                                           | false                                     | Legacy profile selector: strict + true is `delivery` when no profile is set    | `--halt-on-verification-failure <boolean>` | `AD_SDLC_HALT_ON_VERIFICATION_FAILURE` |
+| `execution.retry_attempts` (deprecated)        | retries, 0–99                                     | absent                                    | Validated alias for max attempts, **add one**                                  | none                                       | none                                   |
+| `execution.retry_delay_ms` (deprecated)        | ms, 0–2147483647                                  | absent                                    | Validated alias for base delay                                                 | none                                       | none                                   |
 
 `maxRetries: 3` in the programmatic API still permits four attempts;
 `maxRetries: 0` permits one. The old schema's inserted `max_attempts: 3` was never
@@ -95,12 +95,20 @@ The concurrency limit bounds runnable stage invocations, including the graph's
 single worker stage. The CLI does **not** instantiate `WorkerPoolManager` and
 does not claim to bound worker fan-out within agent behavior.
 
-`auto` approves existing gates. `manual` prompts at those gates and denies when
-there is no interactive terminal. `critical` approves unless prior results
-contain failures; it does not introduce new criticality semantics. `custom` is
-rejected in CLI workflows because the CLI does not supply a custom approval
-strategy. Existing programmatic subclass strategies remain available. This
-change adds no new approval semantics (#953 remains separate).
+`global.approval_mode` selects which approval boundaries request a decision.
+`auto` (the default) is a deliberate autonomous profile: it requests no
+decision and records every review and delivery boundary as approved by policy.
+`manual` asks a person at every review, delivery, and failed-verification
+boundary; `critical` asks before every externally visible effect and after a
+failed required check, and approves review boundaries by policy. Without an
+interactive terminal, or with `--non-interactive`, a requested decision pauses
+the run (exit status 3) instead of approving it. A rejection skips the stage
+and its dependents and exits 2. `custom` is rejected in CLI workflows because
+the CLI does not supply a custom approval strategy; programmatic subclass
+strategies remain available. The boundaries are data in source, not workflow
+keys (`global.approval_gates` stays retired); the
+[approval policy guide](../guides/approval-policy.md) has the generated
+matrix, the decision record fields, and the resume rules.
 
 `global.vnv.profile: delivery` fails a stage whose required (error-severity)
 check fails, skips every stage that has not run, fails the run, and exits 1;

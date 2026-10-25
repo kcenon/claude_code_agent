@@ -81,8 +81,39 @@ import {
   StatePersistenceError,
 } from './errors.js';
 import { ArtifactValidator } from './ArtifactValidator.js';
-import { checkApprovalGate as evaluateApprovalGate } from './ApprovalGate.js';
-import { runStages as schedulerRunStages, type SchedulerHost } from './StageScheduler.js';
+import { evaluateApprovalGate, isInteractiveTerminal } from './ApprovalGate.js';
+import {
+  approvalPolicySource,
+  effectiveApprovalPolicy,
+  parseApprovalDecisionRecord,
+  summarizePipelineApproval,
+  type ApprovalDecisionRecord,
+  type ApprovalPolicySource,
+  type ApprovalRequest,
+  type EffectiveApprovalPolicy,
+  type PipelineApprovalStatus,
+} from './approvalPolicy.js';
+import {
+  runStages as schedulerRunStages,
+  type ApprovalGateInput,
+  type SchedulerHost,
+} from './StageScheduler.js';
+
+/**
+ * Keep only valid verification and approval records of untrusted persisted results.
+ * @param result - Result read from session or checkpoint YAML
+ * @returns Result with validated records
+ */
+function withValidatedRecords(result: StageResult): StageResult {
+  const { verification, approval, ...rest } = result;
+  const verificationRecord = parseStageVerificationRecord(verification);
+  const approvalRecord = parseApprovalDecisionRecord(approval);
+  return {
+    ...rest,
+    ...(verificationRecord !== undefined ? { verification: verificationRecord } : {}),
+    ...(approvalRecord !== undefined ? { approval: approvalRecord } : {}),
+  };
+}
 
 // YAML parser (dynamically loaded)
 let yaml: { dump: (obj: unknown) => string; load: (str: string) => unknown } | null = null;
@@ -136,6 +167,8 @@ export class AdsdlcOrchestratorAgent implements IAgent {
   private readonly checkpointManager: PipelineCheckpointManager | null;
   /** V&V options supplied by a programmatic caller, used to report the policy source. */
   private readonly requestedVnv: Partial<VnvConfig> | undefined;
+  /** Approval mode supplied by a programmatic caller, used to report the policy source. */
+  private readonly requestedApprovalMode: OrchestratorConfig['approvalMode'];
   /**
    * One-shot SDK session id used to resume the FIRST stage of a session
    * recovered from a v2 checkpoint. Cleared on consumption so subsequent
@@ -165,6 +198,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
     const ckptConfig: CheckpointConfig = this.config.checkpoint;
     this.checkpointManager = ckptConfig.enabled ? new PipelineCheckpointManager(ckptConfig) : null;
     this.requestedVnv = config.vnv;
+    this.requestedApprovalMode = config.approvalMode;
   }
 
   /**
@@ -326,11 +360,8 @@ export class AdsdlcOrchestratorAgent implements IAgent {
                 ? { stopAfterStage: request.stopAfterStage }
                 : {}),
               preCompletedStages: checkpoint.completedStageNames,
-              // Checkpoints are untrusted YAML; keep only valid verification records.
-              stageResults: checkpoint.completedStageResults.map(({ verification, ...rest }) => {
-                const record = parseStageVerificationRecord(verification);
-                return record === undefined ? rest : { ...rest, verification: record };
-              }),
+              // Checkpoints are untrusted YAML; keep only valid verification and approval records.
+              stageResults: checkpoint.completedStageResults.map(withValidatedRecords),
               ...(checkpoint.sdkSessionId !== undefined && checkpoint.sdkSessionId !== ''
                 ? { resumeSdkSessionId: checkpoint.sdkSessionId }
                 : {}),
@@ -512,11 +543,16 @@ export class AdsdlcOrchestratorAgent implements IAgent {
           return disposition?.kind === 'not_applicable' ? disposition.reason : undefined;
         }
       );
+      const approval = summarizePipelineApproval(
+        this.approvalPolicy(session),
+        stages.map((stage) => stage.name),
+        stageResults
+      );
       // Only a blocking profile produces a `failed` stage verification state.
       const verificationGateFailed = verification.status === 'failed';
       const overallStatus = verificationGateFailed
         ? 'failed'
-        : this.determineOverallStatus(stageResults);
+        : this.determineOverallStatus(stageResults, approval.status);
 
       // Add warnings for partial completion (graceful degradation)
       const warnings: string[] = [];
@@ -544,6 +580,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
           ? { verificationResults: [...this.verificationResults] }
           : {}),
         verification,
+        approval,
       };
 
       this.session = { ...this.session, status: overallStatus, stageResults };
@@ -719,7 +756,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
       createArtifactValidator: (projectDir) => this.createArtifactValidator(projectDir),
       invokeAgent: (stage, session, signal) => this.invokeAgent(stage, session, signal),
       verifyStage: (stage, result, session) => this.verifyStage(stage, result, session),
-      checkApprovalGate: (stage, prior) => this.checkApprovalGate(stage, prior),
+      checkApprovalGate: (stage, input) => this.checkApprovalGate(stage, input),
       sleep: (ms, signal) => this.sleep(ms, signal),
     };
   }
@@ -1028,32 +1065,80 @@ export class AdsdlcOrchestratorAgent implements IAgent {
    * Evaluate the approval gate for a stage. Thin delegate to
    * {@link evaluateApprovalGate} (`ApprovalGate.ts`) — the actual
    * mode-specific logic lives in that module so this class stays focused
-   * on pipeline coordination.
+   * on pipeline coordination. The latest record saved for the stage by an
+   * earlier run of the session is offered for reuse.
    *
-   * @param stage - The stage awaiting approval
-   * @param priorResults - Results from previously executed stages used for decision-making
-   * @returns The approval decision indicating whether the stage may proceed
+   * @param stage - The stage about to run
+   * @param input - Session, stage graph, and available results
+   * @returns The decision record, or undefined when the stage has no boundary
    */
   private async checkApprovalGate(
     stage: PipelineStageDefinition,
-    priorResults: readonly StageResult[]
-  ): Promise<ApprovalDecision> {
-    return evaluateApprovalGate(this.config.approvalMode, stage, priorResults, (s, prior) =>
-      this.approveStage(s, prior)
-    );
+    input: ApprovalGateInput
+  ): Promise<ApprovalDecisionRecord | undefined> {
+    const priorRecord = [...input.session.stageResults]
+      .reverse()
+      .find((result) => result.name === stage.name && result.approval !== undefined)?.approval;
+    return evaluateApprovalGate(stage, {
+      mode: this.config.approvalMode,
+      interactive: this.approvalInteractive(),
+      session: input.session,
+      graph: input.graph,
+      results: input.results,
+      ...(priorRecord !== undefined ? { priorRecord } : {}),
+      customApproval: (s, prior, request) => this.approveStage(s, prior, request),
+    });
   }
 
   /**
-   * Custom approval logic for 'custom' approval mode.
+   * Whether requested approval decisions can be answered at a terminal prompt.
+   * @returns The configured value, else terminal detection
+   */
+  private approvalInteractive(): boolean {
+    return this.config.interactive ?? isInteractiveTerminal();
+  }
+
+  /**
+   * Effective approval policy of a session, reported like the verification
+   * policy: CLI sessions report the source recorded in their runtime
+   * snapshot, a resumed session reports `resume`, and programmatic sessions
+   * without a snapshot report the orchestrator configuration.
+   * @param session - Session being executed
+   * @returns Effective mode, requested boundaries, interaction, and source
+   */
+  private approvalPolicy(session: OrchestratorSession): EffectiveApprovalPolicy {
+    const resumed = session.resumedFrom !== undefined;
+    let source: ApprovalPolicySource;
+    if (session.runtimeSnapshot !== undefined)
+      source = approvalPolicySource(
+        session.runtimeSnapshot.sources['global.approval_mode'],
+        resumed
+      );
+    else {
+      const explicit = this.requestedApprovalMode !== undefined;
+      source = {
+        kind: resumed ? 'resume' : explicit ? 'programmatic' : 'default',
+        path: 'approvalMode',
+        origin: explicit ? 'OrchestratorConfig' : 'default',
+      };
+    }
+    return effectiveApprovalPolicy(this.config.approvalMode, this.approvalInteractive(), source);
+  }
+
+  /**
+   * Custom approval logic for 'custom' approval mode. Called at every
+   * approval boundary (review, delivery, and failed verification).
    *
    * Override this method to implement project-specific approval logic.
    * @param _stage - The stage awaiting approval (unused in default implementation)
-   * @param _priorResults - Results from previously executed stages (unused in default implementation)
+   * @param _priorResults - Results available to the stage (unused in default implementation)
+   * @param _request - Decision request content: inputs, artifacts, findings, and proposed action
    * @returns The approval decision (default: always approved)
    */
   protected approveStage(
     _stage: PipelineStageDefinition,
-    _priorResults: readonly StageResult[]
+    _priorResults: readonly StageResult[],
+    _request?: ApprovalRequest
   ): Promise<ApprovalDecision> {
     return Promise.resolve({
       approved: true,
@@ -1098,20 +1183,25 @@ export class AdsdlcOrchestratorAgent implements IAgent {
    *
    * Uses graceful degradation: if some stages fail but others succeed,
    * the pipeline reports 'partial' instead of 'failed', allowing
-   * downstream consumers to inspect individual stage results.
+   * downstream consumers to inspect individual stage results. A stage
+   * failure outranks approval outcomes; otherwise a paused run is
+   * `awaiting_decision` and a run with a rejected stage is `rejected`, so
+   * neither reports `completed`.
    * @param stages - The stage results to evaluate for overall status
-   * @returns The aggregated pipeline status ('completed', 'partial', or 'failed')
+   * @param approval - Pipeline approval status
+   * @returns The aggregated pipeline status
    */
-  private determineOverallStatus(stages: readonly StageResult[]): PipelineStatus {
-    if (stages.length === 0) return 'completed';
-
+  private determineOverallStatus(
+    stages: readonly StageResult[],
+    approval: PipelineApprovalStatus = 'not_required'
+  ): PipelineStatus {
     const hasFailures = stages.some((s) => s.status === 'failed');
     const hasCompletions = stages.some((s) => s.status === 'completed' || s.status === 'degraded');
-    const allSkipped = stages.every((s) => s.status === 'skipped');
-
-    if (allSkipped) return 'failed';
-    if (hasFailures && hasCompletions) return 'partial';
-    if (hasFailures) return 'failed';
+    if (hasFailures) return hasCompletions ? 'partial' : 'failed';
+    if (approval === 'awaiting_decision') return 'awaiting_decision';
+    if (approval === 'rejected') return 'rejected';
+    if (stages.length === 0) return 'completed';
+    if (stages.every((s) => s.status === 'skipped')) return 'failed';
     return 'completed';
   }
 
@@ -1163,6 +1253,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
         manifests: result.manifests ?? [],
         verificationResults: result.verificationResults ?? [],
         ...(result.verification !== undefined ? { verification: result.verification } : {}),
+        ...(result.approval !== undefined ? { approval: result.approval } : {}),
         stages: result.stages.map((s) => ({
           name: s.name,
           agentType: s.agentType,
@@ -1172,6 +1263,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
           artifacts: s.artifacts,
           ...(s.manifest !== undefined ? { manifest: s.manifest } : {}),
           ...(s.verification !== undefined ? { verification: s.verification } : {}),
+          ...(s.approval !== undefined ? { approval: s.approval } : {}),
           error: s.error,
           retryCount: s.retryCount,
         })),
@@ -1280,6 +1372,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
     const stages = Array.isArray(data['stages']) ? data['stages'] : [];
     const stageResults: StageResult[] = stages.map((s: Record<string, unknown>) => {
       const verification = parseStageVerificationRecord(s['verification']);
+      const approval = parseApprovalDecisionRecord(s['approval']);
       return {
         name: (s['name'] ?? '') as StageName,
         agentType: (s['agentType'] ?? '') as string,
@@ -1297,6 +1390,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
             }
           : {}),
         ...(verification !== undefined ? { verification } : {}),
+        ...(approval !== undefined ? { approval } : {}),
         error: (s['error'] ?? null) as string | null,
         retryCount: (s['retryCount'] ?? 0) as number,
       };

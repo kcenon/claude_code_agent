@@ -163,11 +163,12 @@ export function resolveVerificationProfile(
 }
 
 /**
- * Classify a runtime snapshot source label.
+ * Classify a runtime snapshot source label. Shared by the verification and
+ * approval policy sources.
  * @param origin - Layer label (`default`, `CLI`, `environment:NAME`, or a file path)
  * @returns Source kind
  */
-function sourceKind(origin: string): VerificationPolicySourceKind {
+export function policySourceKind(origin: string): VerificationPolicySourceKind {
   if (origin === 'default') return 'default';
   if (origin === 'CLI') return 'cli';
   if (origin.startsWith('environment:')) return 'environment';
@@ -186,7 +187,7 @@ export function verificationPolicySource(
 ): VerificationPolicySource {
   const origin = entry?.source ?? 'default';
   return {
-    kind: resumed ? 'resume' : sourceKind(origin),
+    kind: resumed ? 'resume' : policySourceKind(origin),
     path: entry?.path ?? 'global.vnv.profile',
     origin,
   };
@@ -353,19 +354,69 @@ export function summarizePipelineVerification(
 }
 
 /**
- * Process exit status for a finished run: 1 when the run failed or a
- * required check failed under a blocking profile, 0 otherwise. Advisory
- * findings and unverified stages do not change the exit status.
- * @param result - Pipeline status and verification summary
+ * Whether a stage record holds a failed required verification: a blocking
+ * `failed` state, or `advisory_findings` with a failed required check or a
+ * verifier error (the verifier fails closed without check records). Failed
+ * warning checks alone do not count.
+ * @param record - Stage verification record, absent when the stage was not verified
+ * @returns Whether a required verification failed
+ */
+export function hasFailedRequiredVerification(
+  record: StageVerificationRecord | undefined
+): boolean {
+  if (record === undefined) return false;
+  if (record.state === 'failed') return true;
+  if (record.state !== 'advisory_findings') return false;
+  return (
+    record.checks.some((check) => check.outcome === 'fail' && check.required) ||
+    record.reason !== undefined
+  );
+}
+
+/**
+ * Process exit statuses of `ad-sdlc run`. Configuration errors also exit 1.
+ *
+ * - `completed` (0): the run finished; advisory findings and unverified stages do not change it.
+ * - `failed` (1): the run failed, or a required check failed under a blocking profile.
+ * - `rejected` (2): an approval decision rejected a stage, so its covered work did not run.
+ * - `awaitingDecision` (3): the run paused at an approval decision nobody could answer.
+ */
+export const PIPELINE_EXIT_CODES = {
+  completed: 0,
+  failed: 1,
+  rejected: 2,
+  awaitingDecision: 3,
+} as const;
+
+/** One of {@link PIPELINE_EXIT_CODES}. */
+export type PipelineExitCode = (typeof PIPELINE_EXIT_CODES)[keyof typeof PIPELINE_EXIT_CODES];
+
+/**
+ * Process exit status for a finished run. A failure wins over a pending
+ * decision, and a pending decision wins over a rejection, because only a
+ * pending decision can still change the outcome on resume.
+ * @param result - Pipeline status, verification summary, and approval summary
  * @param result.overallStatus - Stage execution status
  * @param result.verification - Verification summary, absent for legacy results
+ * @param result.approval - Approval summary, absent for legacy results
+ * @param result.approval.status - Pipeline approval status
  * @returns Exit status
  */
 export function pipelineExitCode(result: {
   readonly overallStatus: string;
   readonly verification?: Pick<PipelineVerificationSummary, 'status'>;
-}): 0 | 1 {
-  return result.overallStatus === 'failed' || result.verification?.status === 'failed' ? 1 : 0;
+  readonly approval?: { readonly status: string };
+}): PipelineExitCode {
+  if (result.overallStatus === 'failed' || result.verification?.status === 'failed')
+    return PIPELINE_EXIT_CODES.failed;
+  if (
+    result.overallStatus === 'awaiting_decision' ||
+    result.approval?.status === 'awaiting_decision'
+  )
+    return PIPELINE_EXIT_CODES.awaitingDecision;
+  if (result.overallStatus === 'rejected' || result.approval?.status === 'rejected')
+    return PIPELINE_EXIT_CODES.rejected;
+  return PIPELINE_EXIT_CODES.completed;
 }
 
 /** Runtime schema for a persisted stage verification record. */

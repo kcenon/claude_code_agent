@@ -6,6 +6,7 @@ import type {
   StageName,
 } from '../ad-sdlc-orchestrator/types.js';
 import type { VerificationProfile } from '../vnv/types.js';
+import type { ApprovalEffect } from '../ad-sdlc-orchestrator/approvalPolicy.js';
 
 /** A finding refers to the original input, before schema stripping or defaults. */
 export interface RuntimeDiagnostic {
@@ -50,7 +51,11 @@ export interface EffectiveExecutionPlan {
   readonly retryPolicy: ResolvedOrchestratorConfig['retryBackoff'] & {
     readonly maxAttempts: number;
   };
-  readonly stages: readonly (PipelineStageDefinition & { readonly timeoutMs: number })[];
+  /** Graph with each stage's budget and externally visible effects (its delivery boundary). */
+  readonly stages: readonly (PipelineStageDefinition & {
+    readonly timeoutMs: number;
+    readonly effects: readonly ApprovalEffect[];
+  })[];
   readonly stopAfterStage?: StageName;
   readonly stopBehavior: string;
   readonly sources: Readonly<Record<string, RuntimeValueSource>>;

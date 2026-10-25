@@ -4,18 +4,19 @@
 
 ## Available Guides
 
-| Guide                                         | Description                                                        |
-| --------------------------------------------- | ------------------------------------------------------------------ |
-| [Deployment Guide](deployment.md)             | Install, configure, and deploy agents                              |
-| [배포 가이드](deployment.kr.md)               | 에이전트 설치, 구성 및 배포 (한글)                                 |
-| [Agent Customization](agent-customization.md) | Create and customize agents                                        |
-| [Enhancement Mode](enhancement-mode.md)       | Guide for enhancement pipeline mode                                |
-| [Testing Guide](testing.md)                   | Running and writing tests                                          |
-| [Artifact Manifests](artifact-manifests.md)   | Durable outputs, lineage, validation, and resume                   |
-| [Verification Policy](verification-policy.md) | Advisory and delivery profiles, verification states, and migration |
-| [Troubleshooting](troubleshooting.md)         | Diagnose and resolve common issues                                 |
-| [Usage Scenarios](usage-scenarios.md)         | All execution environments and pipeline modes                      |
-| [사용 시나리오](usage-scenarios.kr.md)        | 모든 실행 환경 및 파이프라인 모드 (한글)                           |
+| Guide                                         | Description                                                                  |
+| --------------------------------------------- | ---------------------------------------------------------------------------- |
+| [Deployment Guide](deployment.md)             | Install, configure, and deploy agents                                        |
+| [배포 가이드](deployment.kr.md)               | 에이전트 설치, 구성 및 배포 (한글)                                           |
+| [Agent Customization](agent-customization.md) | Create and customize agents                                                  |
+| [Enhancement Mode](enhancement-mode.md)       | Guide for enhancement pipeline mode                                          |
+| [Testing Guide](testing.md)                   | Running and writing tests                                                    |
+| [Artifact Manifests](artifact-manifests.md)   | Durable outputs, lineage, validation, and resume                             |
+| [Verification Policy](verification-policy.md) | Advisory and delivery profiles, verification states, and migration           |
+| [Approval Policy](approval-policy.md)         | Approval modes, review and delivery boundaries, decision records, and resume |
+| [Troubleshooting](troubleshooting.md)         | Diagnose and resolve common issues                                           |
+| [Usage Scenarios](usage-scenarios.md)         | All execution environments and pipeline modes                                |
+| [사용 시나리오](usage-scenarios.kr.md)        | 모든 실행 환경 및 파이프라인 모드 (한글)                                     |
 
 ## Guide Contents
 

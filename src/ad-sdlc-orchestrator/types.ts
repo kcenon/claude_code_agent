@@ -13,6 +13,11 @@ import type { McpServerConfig } from '../execution/types.js';
 import type { StageVerificationResult } from '../stage-verifier/types.js';
 import type { PipelineVerificationSummary, StageVerificationRecord } from '../vnv/policy.js';
 import { DEFAULT_VNV_CONFIG, type VnvConfig } from '../vnv/types.js';
+import type {
+  ApprovalDecisionRecord,
+  ApprovalEffect,
+  PipelineApprovalSummary,
+} from './approvalPolicy.js';
 
 /**
  * Pipeline execution mode
@@ -81,12 +86,18 @@ export type PipelineStageStatus =
   'pending' | 'running' | 'completed' | 'degraded' | 'failed' | 'skipped';
 
 /**
- * Overall pipeline status
+ * Overall pipeline status.
+ *
+ * `rejected`: an approval decision rejected a stage; no stage failed.
+ * `awaiting_decision`: the run paused at a requested approval decision that
+ * nobody could answer; `--resume` continues it.
  */
-export type PipelineStatus = 'pending' | 'running' | 'completed' | 'failed' | 'partial';
+export type PipelineStatus =
+  'pending' | 'running' | 'completed' | 'failed' | 'partial' | 'rejected' | 'awaiting_decision';
 
 /**
- * Approval mode for pipeline execution
+ * Approval mode for pipeline execution. See `APPROVAL_MODE_DEFINITIONS` in
+ * `approvalPolicy.ts` and docs/guides/approval-policy.md.
  */
 export type ApprovalMode = 'auto' | 'manual' | 'critical' | 'custom';
 
@@ -122,8 +133,18 @@ export interface PipelineStageDefinition {
   readonly description: string;
   /** Whether this stage can run in parallel with siblings */
   readonly parallel: boolean;
-  /** Whether approval is required after this stage */
+  /**
+   * Review boundary: before this stage runs, the approval gate covers the
+   * planning output it consumes. Whether a decision is requested depends on
+   * the approval mode.
+   */
   readonly approvalRequired: boolean;
+  /**
+   * Externally visible effects (a delivery boundary). The canonical plan
+   * sets them from `AGENT_APPROVAL_EFFECTS`; when absent they are derived
+   * from `agentType`.
+   */
+  readonly effects?: readonly ApprovalEffect[];
   /** Stages that must complete before this one */
   readonly dependsOn: readonly StageName[];
   /**
@@ -183,6 +204,11 @@ export interface StageResult {
    * pre-completed stages instead of re-deriving it.
    */
   readonly verification?: StageVerificationRecord;
+  /**
+   * Approval decision that admitted, rejected, or paused the stage. Persisted
+   * in session and checkpoint state so a resumed run can reuse it.
+   */
+  readonly approval?: ApprovalDecisionRecord;
 }
 
 /**
@@ -217,6 +243,11 @@ export interface PipelineResult {
    * `verification.status` says whether what ran was verified.
    */
   readonly verification?: PipelineVerificationSummary;
+  /**
+   * Effective approval policy and the decision of every stage that reached an
+   * approval boundary. Set by every orchestrator run.
+   */
+  readonly approval?: PipelineApprovalSummary;
   /** V&V validation report (from validation stage) */
   readonly validationReport?: {
     readonly reportId: string;
@@ -355,6 +386,12 @@ export interface OrchestratorConfig {
   readonly outputDocsDir?: string;
   /** Approval mode */
   readonly approvalMode?: ApprovalMode;
+  /**
+   * Whether a requested approval decision may prompt in the terminal. `false`
+   * never prompts (the run pauses at a requested decision), `true` prompts,
+   * and absent prompts only when stdin and stderr are terminals.
+   */
+  readonly interactive?: boolean;
   /** Stage timeout configuration */
   readonly timeouts?: StageTimeoutConfig;
   /** Maximum retries after the first attempt per stage */
@@ -385,8 +422,12 @@ export interface OrchestratorConfig {
 }
 
 /** Fully-resolved orchestrator configuration used at runtime. */
-export type ResolvedOrchestratorConfig = Omit<Required<OrchestratorConfig>, 'vnv'> & {
+export type ResolvedOrchestratorConfig = Omit<
+  Required<OrchestratorConfig>,
+  'vnv' | 'interactive'
+> & {
   readonly vnv: Readonly<VnvConfig>;
+  readonly interactive?: boolean;
 };
 
 /**
@@ -802,6 +843,9 @@ export const ENHANCEMENT_STAGES: readonly PipelineStageDefinition[] = [
  *
  * Lightweight pipeline that imports existing GitHub issues and
  * proceeds directly to orchestration, implementation, and review.
+ * Approval boundaries: `orchestration` is the review boundary (the imported
+ * issues are the scope of the work), and `review` is the delivery boundary
+ * (it pushes, opens, and merges pull requests).
  */
 export const IMPORT_STAGES: readonly PipelineStageDefinition[] = [
   {
@@ -817,7 +861,7 @@ export const IMPORT_STAGES: readonly PipelineStageDefinition[] = [
     agentType: 'controller',
     description: 'Orchestrate work distribution from imported issues',
     parallel: false,
-    approvalRequired: false,
+    approvalRequired: true,
     dependsOn: ['issue_reading'],
   },
   {
@@ -850,7 +894,8 @@ export const IMPORT_STAGES: readonly PipelineStageDefinition[] = [
 ];
 
 /**
- * Approval gate decision
+ * Decision returned by a custom `approveStage` strategy. The orchestrator
+ * turns it into an `ApprovalDecisionRecord`.
  */
 export interface ApprovalDecision {
   /** Whether to proceed */
