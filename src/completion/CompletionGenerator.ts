@@ -96,9 +96,14 @@ const CLI_COMMANDS: readonly CommandDefinition[] = [
       },
       {
         long: '--approval-mode',
-        description: 'Approval policy',
+        description: 'Approval mode (auto is the built-in default)',
         takesValue: true,
         values: ['auto', 'manual', 'critical'],
+      },
+      {
+        long: '--non-interactive',
+        description: 'Never prompt; a requested approval decision pauses the run',
+        takesValue: false,
       },
       {
         long: '--max-parallel-stages',

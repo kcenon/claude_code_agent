@@ -14,6 +14,7 @@ import {
   checkVerificationInventory,
   renderVerificationCoverageBlock,
 } from '../stage-verifier/applicability.js';
+import { renderApprovalPolicyBlock } from '../ad-sdlc-orchestrator/approvalMatrix.js';
 
 /** Current inventory derived from source files and pipeline definitions. */
 export interface DocInventoryMetrics {
@@ -34,6 +35,7 @@ export interface DocInventoryMetrics {
 export interface DocInventoryViolation {
   readonly code:
     | 'ADR_TREE'
+    | 'APPROVAL_POLICY'
     | 'CONFIG_COUNT'
     | 'DEPENDENCY_VERSION'
     | 'MIRROR_DRIFT'
@@ -132,6 +134,7 @@ export class DocInventoryValidator {
     this.validateDependencyVersions(violations);
     this.validateRuntimeInventory(metrics, violations);
     this.validateVerificationCoverage(violations);
+    this.validateApprovalPolicy(violations);
 
     violations.sort(
       (left, right) => left.path.localeCompare(right.path) || left.code.localeCompare(right.code)
@@ -440,6 +443,28 @@ export class DocInventoryValidator {
         path,
         message:
           'Generated verification coverage block does not match VERIFICATION_APPLICABILITY; run npm run docs:check-inventory -- --write',
+      });
+    }
+  }
+
+  /**
+   * The generated approval policy matrix must match the stage graphs, the
+   * agent effect table, and the approval mode definitions.
+   * @param violations - Collected violations
+   */
+  private validateApprovalPolicy(violations: DocInventoryViolation[]): void {
+    const path = 'docs/guides/approval-policy.md';
+    const document = this.readRequiredFile(path);
+    if (
+      !this.normalizeRuntimeInventoryBlock(document).includes(
+        this.normalizeRuntimeInventoryBlock(renderApprovalPolicyBlock())
+      )
+    ) {
+      violations.push({
+        code: 'APPROVAL_POLICY',
+        path,
+        message:
+          'Generated approval policy block does not match the approval policy data; run npm run docs:check-inventory -- --write',
       });
     }
   }

@@ -8,7 +8,17 @@ import type {
   OrchestratorSession,
   PipelineResult,
 } from '../ad-sdlc-orchestrator/types.js';
-import { pipelineExitCode, type PipelineVerificationSummary } from '../vnv/policy.js';
+import {
+  PIPELINE_EXIT_CODES,
+  pipelineExitCode,
+  type PipelineExitCode,
+  type PipelineVerificationSummary,
+} from '../vnv/policy.js';
+import {
+  stageApprovalBoundaries,
+  stageApprovalEffects,
+  type PipelineApprovalSummary,
+} from '../ad-sdlc-orchestrator/approvalPolicy.js';
 import type { ExecutionAdapter } from '../execution/types.js';
 import {
   loadResolvedRuntimeConfig,
@@ -39,7 +49,14 @@ export function configureRunCommand(command: Command): Command {
     )
     .option('-L, --local', 'Run with local agents and remove GitHub setup')
     .option('--no-local', 'Explicitly disable local mode')
-    .option('--approval-mode <mode>', 'Existing approval policy: auto | manual | critical')
+    .option(
+      '--approval-mode <mode>',
+      'auto (built-in default): no decision is requested, every gate is approved and recorded | manual: decide at every review and delivery gate | critical: decide before external effects and after failed required checks'
+    )
+    .option(
+      '--non-interactive',
+      'Never prompt: a requested approval decision pauses the run (exit status 3) for --resume'
+    )
     .option(
       '--max-parallel-stages <count>',
       'Maximum concurrent runnable DAG stages (not worker-pool size)'
@@ -68,6 +85,11 @@ export function configureRunCommand(command: Command): Command {
 export interface RunCommandDependencies {
   readonly env?: NodeJS.ProcessEnv;
   readonly createAdapter?: (session: OrchestratorSession) => ExecutionAdapter;
+  /**
+   * Replaces terminal detection for approval prompts. `--non-interactive`
+   * still wins. Tests use it to reach the prompt without a real terminal.
+   */
+  readonly interactive?: boolean;
 }
 
 /** Prepared run has no SDK side effects; execution uses this exact snapshot. */
@@ -196,11 +218,15 @@ export async function prepareRunCommand(
   const environment = env['AD_SDLC_ENV'] ?? env['NODE_ENV'] ?? false;
   if (configFilesExist(projectDir).agents)
     await loadAgentsConfig({ baseDir: projectDir, environment });
+  // Interaction belongs to this invocation, not to the saved policy: a run
+  // paused in CI can resume in a terminal.
+  const interactive = options['nonInteractive'] === true ? false : dependencies.interactive;
   const createAgent = (): AdsdlcOrchestratorAgent => {
     const config: OrchestratorConfig = {
       ...plan.config,
       featureFlagsBaseDir: projectDir,
       featureFlagsCli: plan.featureFlags,
+      ...(interactive !== undefined ? { interactive } : {}),
     };
     const factory = dependencies.createAdapter;
     if (factory === undefined) return new AdsdlcOrchestratorAgent(config);
@@ -273,6 +299,33 @@ export function formatVerificationSummary(verification: PipelineVerificationSumm
 }
 
 /**
+ * Short text summary of a run's approval decisions.
+ * @param approval - Pipeline approval summary
+ * @returns Output lines
+ */
+export function formatApprovalSummary(approval: PipelineApprovalSummary): string[] {
+  const { policy, counts } = approval;
+  const lines = [
+    `Approval: ${approval.status} (mode ${policy.mode} from ${policy.source.kind}; ${policy.interactive ? 'interactive' : 'not interactive, a requested decision pauses the run'})`,
+    `  decisions: ${String(counts.approved)} approved, ${String(counts.rejected)} rejected, ${String(counts.pending)} pending; ${String(approval.requested)} requested, ${String(approval.decisions.length - approval.requested)} by policy`,
+  ];
+  for (const record of approval.decisions) {
+    if (record.basis === 'policy') continue;
+    const by =
+      record.outcome === 'pending'
+        ? 'awaiting a decision'
+        : `${record.outcome} by ${record.basis === 'callback' ? 'custom strategy' : record.decidedBy}${record.reused === true ? ' (reused on resume)' : ''}`;
+    lines.push(`  ${record.stage}: ${by} [${record.boundaries.join(', ')}]: ${record.reason}`);
+    if (record.outcome === 'pending')
+      lines.push(
+        `    proposed action: ${record.proposedAction}`,
+        `    effects: ${record.effects.length === 0 ? 'none' : record.effects.join(', ')}; findings: ${String(record.scope.findings.length)}; scope ${record.scope.fingerprint.slice(0, 16)}`
+      );
+  }
+  return lines;
+}
+
+/**
  * Text output of a finished (or failed) run.
  * @param result - Pipeline result
  * @returns Output lines
@@ -283,11 +336,29 @@ export function formatRunResult(result: PipelineResult): string[] {
     lines.push(
       `  ${stage.name}: ${stage.status} (${String(stage.durationMs)} ms)${
         stage.verification === undefined ? '' : `, verification ${stage.verification.state}`
+      }${
+        stage.approval === undefined || stage.approval.basis === 'policy'
+          ? ''
+          : `, approval ${stage.approval.outcome}`
       }${stage.error === null ? '' : ` — ${stage.error}`}`
     );
   if (result.verification !== undefined)
     lines.push(...formatVerificationSummary(result.verification));
+  if (result.approval !== undefined) lines.push(...formatApprovalSummary(result.approval));
   return lines;
+}
+
+/**
+ * Dry-run description of a stage's approval gate. A failed-verification
+ * boundary depends on the run, so only the static boundaries are shown.
+ * @param stage - Planned stage
+ * @returns Text such as `gate review, delivery (create_issues)`, or `no gate`
+ */
+function describeStageGate(stage: EffectiveExecutionPlan['stages'][number]): string {
+  const boundaries = stageApprovalBoundaries(stage);
+  const effects = stageApprovalEffects(stage);
+  if (boundaries.length === 0) return 'no gate';
+  return `gate ${boundaries.join(', ')}${effects.length === 0 ? '' : ` (${effects.join(', ')})`}`;
 }
 
 /**
@@ -296,14 +367,16 @@ export function formatRunResult(result: PipelineResult): string[] {
  * @param requirements - User request
  * @param options - Commander options (absence preserved)
  * @param execution - Output, environment probe, and optional adapter injection
- * @returns Process exit status: 1 for configuration errors, failed runs, and
- *   failed required checks under a blocking profile
+ * @returns Process exit status ({@link PIPELINE_EXIT_CODES}): 1 for
+ *   configuration errors, failed runs, and failed required checks under a
+ *   blocking profile; 2 for a rejected stage; 3 for a run paused at an
+ *   approval decision
  */
 export async function executeRunCommand(
   requirements: string,
   options: Readonly<Record<string, unknown>>,
   execution: RunCommandExecution
-): Promise<0 | 1> {
+): Promise<PipelineExitCode> {
   const { output } = execution;
   const json = options['format'] === 'json';
   let runtimeSnapshot: EffectiveExecutionPlan | undefined;
@@ -321,9 +394,12 @@ export async function executeRunCommand(
         output.info(
           `Verification profile: ${plan.config.vnv.profile} (${plan.sources['global.vnv.profile']?.source ?? 'default'}); rigor ${plan.config.vnv.rigor}`
         );
+        output.info(
+          `Approval mode: ${plan.config.approvalMode} (${plan.sources['global.approval_mode']?.source ?? 'default'}); a requested decision without an interactive terminal pauses the run (exit status 3)`
+        );
         for (const stage of plan.stages)
           output.info(
-            `  ${stage.name}: ${stage.agentType}, depends on [${stage.dependsOn.join(', ')}], budget ${String(stage.timeoutMs)} ms`
+            `  ${stage.name}: ${stage.agentType}, depends on [${stage.dependsOn.join(', ')}], budget ${String(stage.timeoutMs)} ms, ${describeStageGate(stage)}`
           );
         if (plan.stopAfterStage !== undefined)
           output.info(`Stop after: ${plan.stopAfterStage}. ${plan.stopBehavior}`);
@@ -333,7 +409,7 @@ export async function executeRunCommand(
           );
         output.info('Configuration valid. Pipeline is ready to execute.');
       }
-      return 0;
+      return PIPELINE_EXIT_CODES.completed;
     }
     for (const diagnostic of prepared.plan.diagnostics)
       output.warn(
@@ -380,6 +456,6 @@ export async function executeRunCommand(
       if (failedRun !== undefined) for (const line of formatRunResult(failedRun)) output.info(line);
       output.error(message);
     }
-    return 1;
+    return PIPELINE_EXIT_CODES.failed;
   }
 }

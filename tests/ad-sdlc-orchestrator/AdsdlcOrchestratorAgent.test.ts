@@ -438,7 +438,7 @@ describe('AdsdlcOrchestratorAgent', () => {
       await autoAgent.dispose();
     });
 
-    it('should deny approval in critical mode when prior stages failed', async () => {
+    it('should skip dependents of a failed stage in critical mode without requesting a decision', async () => {
       class CriticalFailOrchestrator extends AdsdlcOrchestratorAgent {
         protected override async invokeAgent(
           stage: { name: string; agentType: string },
@@ -475,9 +475,14 @@ describe('AdsdlcOrchestratorAgent', () => {
       }
 
       const status = criticalAgent.getStatus();
-      // document_reading failed → doc_code_comparison skipped → impact_analysis denied
-      expect(status.stages.some((s) => s.status === 'failed')).toBe(true);
-      expect(status.stages.some((s) => s.status === 'skipped')).toBe(true);
+      // document_reading failed → doc_code_comparison and every later stage skipped by
+      // dependency; no gate was reached, so no decision was recorded (#953).
+      expect(status.stages.find((s) => s.name === 'document_reading')?.status).toBe('failed');
+      expect(status.stages.find((s) => s.name === 'impact_analysis')).toMatchObject({
+        status: 'skipped',
+        error: 'Skipped due to failed or missing dependencies',
+      });
+      expect(status.stages.some((s) => s.approval !== undefined)).toBe(false);
       await criticalAgent.dispose();
     });
 

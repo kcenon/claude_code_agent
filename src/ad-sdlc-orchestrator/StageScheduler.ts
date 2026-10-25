@@ -36,13 +36,23 @@ import { DEFAULT_ORCHESTRATOR_CONFIG } from './types.js';
 import { StageTimeoutError } from './errors.js';
 import type { ArtifactValidator } from './ArtifactValidator.js';
 import type { PipelineCheckpointManager } from './PipelineCheckpointManager.js';
+import type { ApprovalDecisionRecord } from './approvalPolicy.js';
 import type {
-  ApprovalDecision,
   OrchestratorSession,
   PipelineStageDefinition,
   StageName,
   StageResult,
 } from './types.js';
+
+/** What the approval gate sees for one stage. */
+export interface ApprovalGateInput {
+  /** Session as the run started (restored results of a resumed session) */
+  readonly session: OrchestratorSession;
+  /** The run's stage graph */
+  readonly graph: readonly PipelineStageDefinition[];
+  /** Restored results followed by this run's results */
+  readonly results: readonly StageResult[];
+}
 
 /**
  * Narrow interface the scheduler needs from its host orchestrator.
@@ -54,7 +64,7 @@ import type {
  *   - `checkpointManager` and `createArtifactValidator` for the
  *     checkpoint + content-quality side effects each stage triggers
  *   - `invokeAgent` to actually drive the agent
- *   - `checkApprovalGate` to evaluate the approval gate
+ *   - `checkApprovalGate` to evaluate the approval gate before a stage runs
  *   - `sleep` so test subclasses can short-circuit retry backoffs
  */
 export interface SchedulerHost {
@@ -85,10 +95,11 @@ export interface SchedulerHost {
     result: StageResult,
     session: OrchestratorSession
   ): Promise<StageVerificationResult>;
+  /** Decision record of the stage's approval boundary, or undefined when it has none. */
   checkApprovalGate(
     stage: PipelineStageDefinition,
-    priorResults: readonly StageResult[]
-  ): Promise<ApprovalDecision>;
+    input: ApprovalGateInput
+  ): Promise<ApprovalDecisionRecord | undefined>;
   sleep(ms: number, signal?: AbortSignal): Promise<void>;
 }
 
@@ -628,10 +639,133 @@ function skipUnprocessedStages(
   }
 }
 
+/** Outcome of the approval gate of one stage. */
+type GateOutcome =
+  | { readonly kind: 'run'; readonly approval: ApprovalDecisionRecord | undefined }
+  | { readonly kind: 'rejected'; readonly result: StageResult }
+  | { readonly kind: 'paused'; readonly result: StageResult };
+
+/**
+ * Evaluate the approval gate of a stage before it runs. A rejected or paused
+ * stage is not executed; its result carries the decision record.
+ * @param host - Scheduler host that evaluates the gate
+ * @param stage - Stage about to run
+ * @param session - Session as the run started
+ * @param graph - The run's stage graph
+ * @param results - This run's results so far
+ * @returns Whether to run the stage (with its record), or its skipped result
+ */
+async function gateStage(
+  host: SchedulerHost,
+  stage: PipelineStageDefinition,
+  session: OrchestratorSession,
+  graph: readonly PipelineStageDefinition[],
+  results: readonly StageResult[]
+): Promise<GateOutcome> {
+  const approval = await host.checkApprovalGate(stage, {
+    session,
+    graph,
+    results: [...session.stageResults, ...results],
+  });
+  if (approval === undefined || approval.outcome === 'approved') return { kind: 'run', approval };
+  const result: StageResult = {
+    name: stage.name,
+    agentType: stage.agentType,
+    status: 'skipped',
+    durationMs: 0,
+    output: '',
+    artifacts: [],
+    error:
+      approval.outcome === 'rejected'
+        ? `Approval rejected: ${approval.reason}`
+        : `Awaiting decision: ${approval.reason}`,
+    retryCount: 0,
+    approval,
+  };
+  return approval.outcome === 'rejected'
+    ? { kind: 'rejected', result }
+    : { kind: 'paused', result };
+}
+
+/**
+ * Attach the decision record that admitted a stage to its result.
+ * @param result - Stage result
+ * @param approval - Decision record, absent when the stage has no boundary
+ * @returns Result with the record
+ */
+function withApproval(
+  result: StageResult,
+  approval: ApprovalDecisionRecord | undefined
+): StageResult {
+  return approval === undefined ? result : { ...result, approval };
+}
+
+/**
+ * Skipped result for a stage whose dependencies failed or were skipped. When
+ * every blocking dependency traces back to a rejected stage, the reason names
+ * that stage and the stage joins its rejection.
+ * @param stage - Stage that cannot run
+ * @param failedDeps - Dependencies that failed or were skipped
+ * @param rejectedRoots - Stage name to the rejected stage it traces back to
+ * @returns Skipped result
+ */
+function dependencySkippedResult(
+  stage: PipelineStageDefinition,
+  failedDeps: readonly StageName[],
+  rejectedRoots: Map<StageName, StageName>
+): StageResult {
+  const roots = failedDeps.map((dep) => rejectedRoots.get(dep));
+  const root = roots[0];
+  if (root === undefined || roots.some((candidate) => candidate === undefined))
+    return createSkippedResult(stage);
+  rejectedRoots.set(stage.name, root);
+  return {
+    ...createSkippedResult(stage),
+    error: `Skipped: '${root}' was rejected at its approval gate`,
+  };
+}
+
+/**
+ * Stop the run at a pending decision. Stages admitted in the same ready group
+ * keep their decision records, so a resumed run can reuse them; every stage
+ * that has not run is skipped. Progress and a checkpoint are saved.
+ * @param host - Scheduler host
+ * @param stages - The run's stage graph
+ * @param session - Session as the run started
+ * @param results - This run's results, extended in place
+ * @param completedStages - Stages completed so far
+ * @param pausedAt - Stage whose decision is pending
+ * @param admitted - Approved members of the same ready group that did not run
+ * @returns The run's results
+ */
+async function pauseRun(
+  host: SchedulerHost,
+  stages: readonly PipelineStageDefinition[],
+  session: OrchestratorSession,
+  results: StageResult[],
+  completedStages: ReadonlySet<StageName>,
+  pausedAt: StageName,
+  admitted: readonly { stage: PipelineStageDefinition; approval?: ApprovalDecisionRecord }[]
+): Promise<StageResult[]> {
+  const reason = `Skipped: run paused awaiting a decision at '${pausedAt}'`;
+  for (const { stage, approval } of admitted)
+    results.push(withApproval({ ...createSkippedResult(stage), error: reason }, approval));
+  skipUnprocessedStages(stages, results, completedStages, reason);
+  await host.onProgress?.(session, results);
+  await saveCheckpoint(host, session, results, [...completedStages]);
+  return results;
+}
+
 /**
  * Run the dependency DAG of pipeline stages, honouring approval gates,
  * parallelism, retries, content-quality validation, and checkpoint
  * persistence.
+ *
+ * Every stage passes its approval gate before it runs, including members of a
+ * parallel group (all members are gated before the group starts). A rejected
+ * stage is not executed and its dependents are skipped with the rejection as
+ * the reason; independent stages continue. A pending decision pauses the run:
+ * every stage that has not run is skipped.
  *
  * The loop terminates when every remaining stage has either produced a
  * result or been transitively skipped because its dependencies failed.
@@ -649,6 +783,14 @@ export async function runStages(
   const results: StageResult[] = [];
   const completedStages = new Set<StageName>(preCompleted);
   const remaining = stages.filter((s) => !completedStages.has(s.name));
+  const rejectedRoots = new Map<StageName, StageName>();
+  const recordRejection = async (result: StageResult): Promise<void> => {
+    results.push(result);
+    rejectedRoots.set(result.name, result.name);
+    // Persist the decision now; a later crash must not lose it.
+    await host.onProgress?.(session, results);
+    await saveCheckpoint(host, session, results, [...completedStages]);
+  };
 
   while (remaining.length > 0) {
     if (host.abortController !== null && host.abortController.signal.aborted) {
@@ -666,7 +808,7 @@ export async function runStages(
       const allDepsMet = stage.dependsOn.every((dep) => completedStages.has(dep));
 
       if (failedDeps.length > 0) {
-        results.push(createSkippedResult(stage));
+        results.push(dependencySkippedResult(stage, failedDeps, rejectedRoots));
       } else if (allDepsMet) {
         ready.push(stage);
       } else {
@@ -681,8 +823,39 @@ export async function runStages(
       break;
     }
 
-    const parallelGroup = ready.filter((s) => s.parallel);
+    const readyParallel = ready.filter((s) => s.parallel);
+    let parallelGroup = readyParallel;
     const sequentialGroup = ready.filter((s) => !s.parallel);
+    // Stages whose gate was already evaluated in this iteration.
+    const gated = new Map<StageName, ApprovalDecisionRecord | undefined>();
+    // stopAfterStage in a ready parallel group halts after the whole group.
+    const haltAfterGroup =
+      session.stopAfterStage !== undefined &&
+      readyParallel.length > 1 &&
+      readyParallel.some((s) => s.name === session.stopAfterStage);
+
+    if (parallelGroup.length > 1) {
+      // Gate every member before the group starts.
+      const admitted: { stage: PipelineStageDefinition; approval?: ApprovalDecisionRecord }[] = [];
+      let pausedAt: StageName | undefined;
+      for (const stage of parallelGroup) {
+        const gate = await gateStage(host, stage, session, stages, results);
+        if (gate.kind === 'run')
+          admitted.push({
+            stage,
+            ...(gate.approval !== undefined ? { approval: gate.approval } : {}),
+          });
+        else if (gate.kind === 'rejected') await recordRejection(gate.result);
+        else {
+          results.push(gate.result);
+          pausedAt ??= stage.name;
+        }
+      }
+      if (pausedAt !== undefined)
+        return pauseRun(host, stages, session, results, completedStages, pausedAt, admitted);
+      for (const { stage, approval } of admitted) gated.set(stage.name, approval);
+      parallelGroup = admitted.map(({ stage }) => stage);
+    }
 
     if (parallelGroup.length > 1) {
       const executionSession = withStageResults(session, results);
@@ -694,7 +867,7 @@ export async function runStages(
         if (stage === undefined || rawResult === undefined) continue;
 
         const finalized = await finalizeStageResult(host, stage, executionSession, rawResult);
-        results.push(finalized.result);
+        results.push(withApproval(finalized.result, gated.get(stage.name)));
         if (finalized.result.status === 'completed' || finalized.result.status === 'degraded') {
           completedStages.add(finalized.result.name);
         }
@@ -716,15 +889,12 @@ export async function runStages(
       }
 
       // Stop the pipeline if stopAfterStage was in the parallel group
-      if (
-        session.stopAfterStage !== undefined &&
-        parallelGroup.some((s) => s.name === session.stopAfterStage)
-      ) {
+      if (haltAfterGroup) {
         skipUnprocessedStages(
           stages,
           results,
           completedStages,
-          `Skipped: pipeline halted after '${session.stopAfterStage}'`
+          `Skipped: pipeline halted after '${session.stopAfterStage ?? ''}'`
         );
         return results;
       }
@@ -734,6 +904,8 @@ export async function runStages(
         sequentialGroup.unshift(singleStage);
       }
     }
+    // A rejection left at most one member of a stop-after group: run it, then halt.
+    if (haltAfterGroup) sequentialGroup.splice(parallelGroup.length);
 
     for (const stage of sequentialGroup) {
       if (host.abortController !== null && host.abortController.signal.aborted) {
@@ -741,27 +913,33 @@ export async function runStages(
         continue;
       }
 
-      if (stage.approvalRequired) {
-        const decision = await host.checkApprovalGate(stage, results);
-        if (!decision.approved) {
-          results.push({
-            name: stage.name,
-            agentType: stage.agentType,
-            status: 'skipped',
-            durationMs: 0,
-            output: '',
-            artifacts: [],
-            error: `Approval denied: ${decision.reason}`,
-            retryCount: 0,
-          });
+      let approval = gated.get(stage.name);
+      if (!gated.has(stage.name)) {
+        const gate = await gateStage(host, stage, session, stages, results);
+        if (gate.kind === 'paused') {
+          results.push(gate.result);
+          return pauseRun(host, stages, session, results, completedStages, stage.name, []);
+        }
+        if (gate.kind === 'rejected') {
+          await recordRejection(gate.result);
+          if (session.stopAfterStage === stage.name) {
+            skipUnprocessedStages(
+              stages,
+              results,
+              completedStages,
+              `Skipped: pipeline halted after '${stage.name}'`
+            );
+            return results;
+          }
           continue;
         }
+        approval = gate.approval;
       }
 
       const executionSession = withStageResults(session, results);
       let result = await executeStageWithRetry(host, stage, executionSession);
       const finalized = await finalizeStageResult(host, stage, executionSession, result);
-      result = finalized.result;
+      result = withApproval(finalized.result, approval);
       results.push(result);
 
       if (result.status === 'completed' || result.status === 'degraded') {
@@ -791,6 +969,16 @@ export async function runStages(
         );
         return results;
       }
+    }
+
+    if (haltAfterGroup) {
+      skipUnprocessedStages(
+        stages,
+        results,
+        completedStages,
+        `Skipped: pipeline halted after '${session.stopAfterStage ?? ''}'`
+      );
+      return results;
     }
 
     const processedNames = new Set(results.map((r) => r.name));

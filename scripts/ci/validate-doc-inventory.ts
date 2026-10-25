@@ -4,21 +4,39 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { validateDocumentInventory } from '../../src/doc-code-comparator/DocInventoryValidator.js';
 import { replaceVerificationCoverageBlock } from '../../src/stage-verifier/applicability.js';
+import { replaceApprovalPolicyBlock } from '../../src/ad-sdlc-orchestrator/approvalMatrix.js';
 
 const VERIFICATION_COVERAGE_DOC = join('docs', 'architecture', 'verification-coverage.md');
+const APPROVAL_POLICY_DOC = join('docs', 'guides', 'approval-policy.md');
 
 /**
- * Regenerate the verification coverage block from VERIFICATION_APPLICABILITY.
+ * Regenerate one generated block of a document.
+ * @param root - Repository root
+ * @param relativePath - Document path
+ * @param replace - Block replacement for the document text
+ */
+function writeGeneratedBlock(
+  root: string,
+  relativePath: string,
+  replace: (document: string) => string
+): void {
+  const path = join(root, relativePath);
+  const document = readFileSync(path, 'utf8');
+  const updated = replace(document);
+  if (updated !== document) {
+    writeFileSync(path, updated, 'utf8');
+    process.stdout.write(`Updated ${relativePath}\n`);
+  }
+}
+
+/**
+ * Regenerate the verification coverage block from VERIFICATION_APPLICABILITY
+ * and the approval policy matrix from the approval policy data.
  * @param root - Repository root
  */
 function writeVerificationCoverage(root: string): void {
-  const path = join(root, VERIFICATION_COVERAGE_DOC);
-  const document = readFileSync(path, 'utf8');
-  const updated = replaceVerificationCoverageBlock(document);
-  if (updated !== document) {
-    writeFileSync(path, updated, 'utf8');
-    process.stdout.write(`Updated ${VERIFICATION_COVERAGE_DOC}\n`);
-  }
+  writeGeneratedBlock(root, VERIFICATION_COVERAGE_DOC, replaceVerificationCoverageBlock);
+  writeGeneratedBlock(root, APPROVAL_POLICY_DOC, replaceApprovalPolicyBlock);
 }
 
 function main(argv: readonly string[]): number {

@@ -52,8 +52,11 @@ const notApplicable = (reason: string): NotApplicableDisposition => ({
 
 const ANALYSIS_INPUT =
   'Analysis input for later stages. Its required output file is enforced by the artifact manifest contract, and no delivery claim rests on its content.';
+// Whether a person reviews a planning document depends on the approval mode:
+// it is listed in the decision request at later approval boundaries, and only
+// some modes request a decision there (docs/guides/approval-policy.md).
 const APPROVAL_DOCUMENT =
-  'Planning document reviewed at its approval gate. It does not gate delivery, and no machine-checkable content contract is defined for it.';
+  'Planning document. It does not gate delivery, and no machine-checkable content contract is defined for it. It is listed in the decision request of later approval boundaries; whether a decision is requested there depends on the approval mode.';
 
 /**
  * Disposition of every stage slot, per canonical mode. The mapped types make
@@ -84,13 +87,13 @@ export const VERIFICATION_APPLICABILITY: {
     ),
     sds_generation: checks('sds-document'),
     ui_spec_generation: notApplicable(
-      'Conditional design document (skipped for CLI, API, and library projects) reviewed at its approval gate. It does not gate delivery.'
+      'Conditional design document (skipped for CLI, API, and library projects). It does not gate delivery. It is listed in the decision request of later approval boundaries; whether a decision is requested there depends on the approval mode.'
     ),
     threat_modeling: notApplicable(APPROVAL_DOCUMENT),
     tech_decisions: notApplicable(APPROVAL_DOCUMENT),
     issue_generation: checks('generated-issues'),
     svp_generation: notApplicable(
-      'Verification plan document reviewed at its approval gate. Test evidence is checked at implementation, validation, and review.'
+      'Verification plan document. Test evidence is checked at implementation, validation, and review. The plan is listed in the decision request of later approval boundaries; whether a decision is requested there depends on the approval mode.'
     ),
     orchestration: checks('work-orders'),
     implementation: checks('implementation-results'),
@@ -106,7 +109,7 @@ export const VERIFICATION_APPLICABILITY: {
     code_reading: notApplicable(ANALYSIS_INPUT),
     doc_code_comparison: notApplicable(ANALYSIS_INPUT),
     impact_analysis: notApplicable(
-      'Impact report reviewed at its approval gate. Its required output file is enforced by the artifact manifest contract.'
+      'Impact report. Its required output file is enforced by the artifact manifest contract. It is listed in the decision request of the prd_update review boundary, where manual and custom modes request a decision and auto and critical approve by policy.'
     ),
     prd_update: checks('prd-document'),
     srs_update: checks('srs-document'),

@@ -82,6 +82,76 @@ export {
   CI_FIXER_MCP_SERVERS,
 } from './types.js';
 
+// Approval policy and decision record vocabulary (#953)
+export {
+  APPROVAL_MODES,
+  APPROVAL_BOUNDARIES,
+  APPROVAL_BOUNDARY_DESCRIPTIONS,
+  APPROVAL_EFFECTS,
+  APPROVAL_EFFECT_DESCRIPTIONS,
+  AGENT_APPROVAL_EFFECTS,
+  APPROVAL_MODE_DEFINITIONS,
+  APPROVAL_OUTCOMES,
+  APPROVAL_BASES,
+  PIPELINE_APPROVAL_STATUSES,
+  UNATTENDED_APPROVAL_BEHAVIOR,
+  ApprovalDecisionRecordSchema,
+  agentApprovalEffects,
+  stageApprovalEffects,
+  stageApprovalBoundaries,
+  approvalRequirement,
+  approvalPolicySource,
+  effectiveApprovalPolicy,
+  approvalScopeFingerprint,
+  reusableApprovalDecision,
+  summarizePipelineApproval,
+  parseApprovalDecisionRecord,
+} from './approvalPolicy.js';
+
+export type {
+  ApprovalBoundary,
+  ApprovalEffect,
+  ApprovalDecider,
+  ApprovalModeDefinition,
+  ApprovalRequirement,
+  ApprovalPolicySourceKind,
+  ApprovalPolicySource,
+  EffectiveApprovalPolicy,
+  ApprovalOutcome,
+  ApprovalBasis,
+  ApprovalArtifactReference,
+  ApprovalFinding,
+  ApprovalScope,
+  ApprovalRequest,
+  ApprovalDecisionRecord,
+  PipelineApprovalStatus,
+  PipelineApprovalSummary,
+} from './approvalPolicy.js';
+
+export {
+  buildApprovalRequest,
+  evaluateApprovalGate,
+  formatApprovalRequest,
+  isInteractiveTerminal,
+  promptForApproval,
+  defaultCustomApproval,
+} from './ApprovalGate.js';
+
+export type {
+  ApprovalAnswer,
+  ApprovalGateContext,
+  ApprovalPrompter,
+  CustomApprovalFn,
+} from './ApprovalGate.js';
+
+export {
+  approvalPolicyMatrix,
+  renderApprovalPolicyBlock,
+  replaceApprovalPolicyBlock,
+} from './approvalMatrix.js';
+
+export type { ApprovalMatrixRow } from './approvalMatrix.js';
+
 // Error exports
 export {
   OrchestratorError,

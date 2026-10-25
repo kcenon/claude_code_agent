@@ -8,8 +8,10 @@ import {
   type PipelineStageDefinition,
   type StageName,
 } from './types.js';
+import { agentApprovalEffects } from './approvalPolicy.js';
 
 /** Build the canonical preset, including local substitutions and dependency rewiring.
+ * Every stage carries the externally visible effects of its (substituted) agent.
  * @param mode - Canonical preset
  * @param localMode - Disable GitHub stages
  * @returns Independent stage definitions
@@ -26,15 +28,17 @@ export function buildCanonicalPlan(
   return structuredClone(presets[mode])
     .filter((stage) => !localMode || stage.name !== 'github_repo_setup')
     .map((stage) => {
-      if (!localMode) return stage;
+      if (!localMode) return { ...stage, effects: [...agentApprovalEffects(stage.agentType)] };
       const dependsOn = stage.dependsOn.filter((name) => name !== 'github_repo_setup');
       if (stage.dependsOn.includes('github_repo_setup') && !dependsOn.includes('repo_detection')) {
         dependsOn.push('repo_detection');
       }
+      const agentType = LOCAL_AGENT_SUBSTITUTIONS[stage.agentType] ?? stage.agentType;
       return {
         ...stage,
         dependsOn,
-        agentType: LOCAL_AGENT_SUBSTITUTIONS[stage.agentType] ?? stage.agentType,
+        agentType,
+        effects: [...agentApprovalEffects(agentType)],
       };
     });
 }
