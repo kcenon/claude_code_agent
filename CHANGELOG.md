@@ -9,10 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Verification policy profiles and coverage (#951). `global.vnv.profile` / `AD_SDLC_VNV_PROFILE` / `--vnv-profile` select `advisory` (failed checks are findings; the default) or `delivery` (a failed required check fails its stage, skips the stages that have not run, fails the run, and exits 1). Every stage slot of every mode now has a named check set or an explicit not-applicable reason (`VERIFICATION_APPLICABILITY`, generated into [verification coverage](docs/architecture/verification-coverage.md) and checked by `npm run docs:check-inventory`), and new check sets cover `issue_reading`, `orchestration`, `regression_testing`, and `validation-agent`. Run results, session/checkpoint state, and `run --format json` carry the effective profile and its source and a per-stage state (`verified_pass`, `failed`, `advisory_findings`, `skipped`, `not_applicable`); see the [verification policy guide](docs/guides/verification-policy.md)
 - [ADR-0006](docs/adr/ADR-0006-keep-or-kill-orphaned-public-subsystems.md) recording the accepted keep-or-kill verdict for orphaned-but-public subsystems on two axes — run-loop reachability and `src/index.ts` public-export status — with a per-subsystem disposition and SemVer impact. No subsystem source is deleted; per-disposition execution is deferred to follow-up issues (#874, part of #866)
 
 ### Changed
 
+- Stage verification (#951): the default stays advisory, and without a profile `strict` rigor plus `halt_on_verification_failure: true` still blocks (now reported as the `delivery` profile). Under every profile, the implementation and review check sets now read the worker (`results/WO-*-result.yaml`) and reviewer (`reviews/*`) outputs, `issue_generation` requires acceptance criteria, checks that cannot evaluate their input are reported as skipped instead of passed, not-applicable stages no longer add a `No verification rules defined` warning, and an unclassified stage fails verification. Under `advisory` these changes add findings only; under `delivery` the newly covered stages can fail a run. See the migration section of the [verification policy guide](docs/guides/verification-policy.md)
 - Reconciled `package.json` `version` from `0.0.1` to `0.1.0` to match the released `[0.1.0]` CHANGELOG baseline (the cutover already shipped under `0.1.0`); fixes the stale-version disagreement so future SemVer bumps have a correct baseline (#874)
 
 ### Fixed

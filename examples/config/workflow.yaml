@@ -26,7 +26,7 @@ global:
     pr_review: 300
   vnv:
     rigor: standard # minimal | standard | strict
-    halt_on_verification_failure: false # blocks only with rigor: strict
+    profile: advisory # advisory | delivery; delivery fails the run on a failed required check
 # Descriptive extension data is accepted but never interpreted as runtime policy.
 extensions:
   team: example

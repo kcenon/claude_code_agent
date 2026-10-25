@@ -138,8 +138,14 @@ const CLI_COMMANDS: readonly CommandDefinition[] = [
         values: ['minimal', 'standard', 'strict'],
       },
       {
+        long: '--vnv-profile',
+        description: 'Verification policy profile',
+        takesValue: true,
+        values: ['advisory', 'delivery'],
+      },
+      {
         long: '--halt-on-verification-failure',
-        description: 'Block failed verification when rigor is strict',
+        description: 'Legacy flag; strict rigor plus true selects delivery',
         takesValue: true,
         values: ['true', 'false'],
       },

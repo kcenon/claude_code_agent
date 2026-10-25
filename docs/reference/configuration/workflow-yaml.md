@@ -34,8 +34,12 @@ global:
     max_delay_seconds: 60
   vnv:
     rigor: standard
-    halt_on_verification_failure: false
+    profile: advisory # advisory | delivery (fails the run on a failed required check)
 ```
+
+Without `profile`, the legacy `halt_on_verification_failure: true` with
+`rigor: strict` selects `delivery`. See the
+[verification policy guide](../../guides/verification-policy.md).
 
 Run `ad-sdlc run "requirements" --dry-run --format json` to inspect the exact
 resolved plan and its value sources. Explicit CLI values override documented
