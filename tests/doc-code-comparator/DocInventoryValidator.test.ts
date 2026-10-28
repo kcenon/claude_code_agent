@@ -23,6 +23,13 @@ import {
   renderApprovalPolicyBlock,
   replaceApprovalPolicyBlock,
 } from '../../src/ad-sdlc-orchestrator/approvalMatrix.js';
+import {
+  CAPABILITY_MATRIX_END,
+  CAPABILITY_MATRIX_START,
+  countInstalledAssets,
+  renderCapabilityMatrixBlock,
+  replaceCapabilityMatrixBlock,
+} from '../../src/doc-code-comparator/capabilityMatrix.js';
 
 describe('DocInventoryValidator', () => {
   let root: string;
@@ -199,6 +206,29 @@ describe('DocInventoryValidator', () => {
     expect(new DocInventoryValidator(root).validate().violations).toEqual([]);
   });
 
+  it('reports a capability matrix that claims a capability the source does not have', () => {
+    const stale = renderCapabilityMatrixBlock(countInstalledAssets(root)).replace(
+      /\| Deployment stage \| none \| none \| none \|/u,
+      '| Deployment stage | `deploy` | none | none |'
+    );
+    write('docs/architecture/capability-matrix.md', `# Capabilities\n\n${stale}\n`);
+    expect(new DocInventoryValidator(root).validate().violations).toContainEqual(
+      expect.objectContaining({
+        code: 'CAPABILITY_MATRIX',
+        path: 'docs/architecture/capability-matrix.md',
+      })
+    );
+
+    write(
+      'docs/architecture/capability-matrix.md',
+      replaceCapabilityMatrixBlock(
+        `# Capabilities\n\n${CAPABILITY_MATRIX_START}\nstale\n${CAPABILITY_MATRIX_END}\n\nEvidence.\n`,
+        countInstalledAssets(root)
+      )
+    );
+    expect(new DocInventoryValidator(root).validate().violations).toEqual([]);
+  });
+
   it('reports invalid ad-sdlc command lines only in configured live documents', () => {
     write(
       'doc-sync-points.yaml',
@@ -251,6 +281,10 @@ describe('DocInventoryValidator', () => {
     );
     write('docs/architecture/verification-coverage.md', `${renderVerificationCoverageBlock()}\n`);
     write('docs/guides/approval-policy.md', `${renderApprovalPolicyBlock()}\n`);
+    write(
+      'docs/architecture/capability-matrix.md',
+      `${renderCapabilityMatrixBlock(countInstalledAssets(root))}\n`
+    );
     write('doc-sync-points.yaml', renderSyncConfig());
   }
 

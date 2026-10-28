@@ -16,6 +16,7 @@ import {
 } from '../stage-verifier/applicability.js';
 import { renderApprovalPolicyBlock } from '../ad-sdlc-orchestrator/approvalMatrix.js';
 import { validateCliReferences } from './DocCliReferenceValidator.js';
+import { countInstalledAssets, renderCapabilityMatrixBlock } from './capabilityMatrix.js';
 
 /** Current inventory derived from source files and pipeline definitions. */
 export interface DocInventoryMetrics {
@@ -37,6 +38,7 @@ export interface DocInventoryViolation {
   readonly code:
     | 'ADR_TREE'
     | 'APPROVAL_POLICY'
+    | 'CAPABILITY_MATRIX'
     | 'CLI_REFERENCE'
     | 'CONFIG_COUNT'
     | 'DEPENDENCY_VERSION'
@@ -165,6 +167,7 @@ export class DocInventoryValidator {
     this.validateRuntimeInventory(metrics, violations);
     this.validateVerificationCoverage(violations);
     this.validateApprovalPolicy(violations);
+    this.validateCapabilityMatrix(violations);
     this.validateCliReferences(config, violations);
 
     violations.sort(
@@ -496,6 +499,30 @@ export class DocInventoryValidator {
         path,
         message:
           'Generated approval policy block does not match the approval policy data; run npm run docs:check-inventory -- --write',
+      });
+    }
+  }
+
+  /**
+   * The generated capability matrix must match the stage graphs, the policy
+   * definitions, the CLI definitions, and the canonical asset files.
+   * @param violations - Collected violations
+   */
+  private validateCapabilityMatrix(violations: DocInventoryViolation[]): void {
+    const path = 'docs/architecture/capability-matrix.md';
+    const document = this.readRequiredFile(path);
+    if (
+      !this.normalizeRuntimeInventoryBlock(document).includes(
+        this.normalizeRuntimeInventoryBlock(
+          renderCapabilityMatrixBlock(countInstalledAssets(this.projectRoot))
+        )
+      )
+    ) {
+      violations.push({
+        code: 'CAPABILITY_MATRIX',
+        path,
+        message:
+          'Generated capability matrix does not match the stage graphs, policies, CLI, and assets; run npm run docs:check-inventory -- --write',
       });
     }
   }
