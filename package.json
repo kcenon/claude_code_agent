@@ -84,7 +84,7 @@
     "@opentelemetry/exporter-trace-otlp-http": "^0.300.0",
     "@opentelemetry/resources": "^3.0.0",
     "@opentelemetry/sdk-node": "^0.300.0",
-    "@opentelemetry/sdk-trace-base": "^2.4.0",
+    "@opentelemetry/sdk-trace": "^3.0.0",
     "@opentelemetry/semantic-conventions": "^1.43.0",
     "@types/better-sqlite3": "^9.6.0",
     "@types/inquirer": "^9.0.10",
@@ -128,7 +128,7 @@
     "@opentelemetry/exporter-trace-otlp-http": "^0.300.0",
     "@opentelemetry/resources": "^3.0.0",
     "@opentelemetry/sdk-node": "^0.300.0",
-    "@opentelemetry/sdk-trace-base": "^2.4.0",
+    "@opentelemetry/sdk-trace": "^3.0.0",
     "@opentelemetry/semantic-conventions": "^1.43.0",
     "better-sqlite3": "^13.0.3",
     "ioredis": "^6.0.0",
@@ -154,7 +154,7 @@
     "@opentelemetry/sdk-node": {
       "optional": true
     },
-    "@opentelemetry/sdk-trace-base": {
+    "@opentelemetry/sdk-trace": {
       "optional": true
     },
     "@opentelemetry/semantic-conventions": {

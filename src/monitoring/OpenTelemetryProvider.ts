@@ -13,7 +13,7 @@
  */
 
 import type { Resource } from '@opentelemetry/resources';
-import type { SpanProcessor, SpanExporter } from '@opentelemetry/sdk-trace-base';
+import type { SpanProcessor, SpanExporter } from '@opentelemetry/sdk-trace';
 import type { Tracer, Span, SpanOptions, Context } from '@opentelemetry/api';
 
 const ATTR_DEPLOYMENT_ENVIRONMENT = 'deployment.environment';
@@ -32,8 +32,8 @@ const getOTelResources = async (): Promise<typeof import('@opentelemetry/resourc
 const getOTelSemanticConventions = async (): Promise<
   typeof import('@opentelemetry/semantic-conventions')
 > => import('@opentelemetry/semantic-conventions');
-const getOTelSdkTraceBase = async (): Promise<typeof import('@opentelemetry/sdk-trace-base')> =>
-  import('@opentelemetry/sdk-trace-base');
+const getOTelSdkTrace = async (): Promise<typeof import('@opentelemetry/sdk-trace')> =>
+  import('@opentelemetry/sdk-trace');
 const getOTelExporterOtlp = async (): Promise<
   typeof import('@opentelemetry/exporter-trace-otlp-http')
 > => import('@opentelemetry/exporter-trace-otlp-http');
@@ -241,7 +241,7 @@ export class OpenTelemetryProvider {
    */
   private async createSpanProcessors(): Promise<SpanProcessor[]> {
     const processors: SpanProcessor[] = [];
-    const traceBase = await getOTelSdkTraceBase();
+    const sdkTrace = await getOTelSdkTrace();
 
     for (const exporterConfig of this.config.exporters) {
       if (exporterConfig.enabled === false) {
@@ -252,10 +252,11 @@ export class OpenTelemetryProvider {
       if (exporter !== null) {
         // Use SimpleSpanProcessor for console (for immediate output)
         // Use BatchSpanProcessor for network exporters (for efficiency)
+        // sdk-trace 3.x takes an options object instead of a bare exporter
         const processor =
           exporterConfig.type === 'console'
-            ? new traceBase.SimpleSpanProcessor(exporter)
-            : new traceBase.BatchSpanProcessor(exporter);
+            ? new sdkTrace.SimpleSpanProcessor({ exporter })
+            : new sdkTrace.BatchSpanProcessor({ exporter });
         processors.push(processor);
       }
     }
@@ -271,7 +272,7 @@ export class OpenTelemetryProvider {
   private async createExporter(config: OpenTelemetryExporterConfig): Promise<SpanExporter | null> {
     switch (config.type) {
       case 'console': {
-        const { ConsoleSpanExporter } = await getOTelSdkTraceBase();
+        const { ConsoleSpanExporter } = await getOTelSdkTrace();
         return new ConsoleSpanExporter();
       }
 
