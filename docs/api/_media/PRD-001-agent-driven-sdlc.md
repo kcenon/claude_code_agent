@@ -40,11 +40,11 @@
 
 ### 1.2 Overview
 
-AD-SDLC is a multi-agent system built on the Claude Agent SDK that automates the entire software development lifecycle. This product-role catalog defines 25 specialized roles and 3 infrastructure services. The current implementation is larger and uses separate count axes: 36 checked-in prompt definitions, 29 unique pipeline agent types, and 39 mode-specific stage slots across Greenfield, Enhancement, and Import. The source-checked [runtime inventory](architecture/runtime-inventory.md) is authoritative for those implementation counts.
+AD-SDLC is a multi-agent system built on the Claude Agent SDK that automates the software development lifecycle from requirements to a reviewable pull request with linked requirements and verification evidence. Deployment is out of scope; the [capability matrix](architecture/capability-matrix.md) states the completion boundary and what each pipeline mode delivers. This product-role catalog defines 25 specialized roles and 3 infrastructure services. The current implementation is larger and uses separate count axes: 36 checked-in prompt definitions, 29 unique pipeline agent types, and 39 mode-specific stage slots across Greenfield, Enhancement, and Import. The source-checked [runtime inventory](architecture/runtime-inventory.md) is authoritative for those implementation counts.
 
 ### 1.3 Key Value Propositions
 
-- **End-to-End Automation**: Full process automation from requirements gathering to code deployment
+- **End-to-End Automation**: Full process automation from requirements gathering to a reviewable pull request (deployment is out of scope)
 - **Document Consistency Guarantee**: Hierarchical document generation ensures traceability
 - **Quality Gates**: Quality assurance through verification at each stage
 - **Extensible Architecture**: Support for adding new agents and customizing workflows
@@ -112,18 +112,23 @@ Developer Journey (Future State with AD-SDLC):
 
 ## 4. Goals & Success Metrics
 
+Every goal and KPI value in this section is a **target**. None has been
+measured on live runs yet; section 4.3 records the measurement status and links
+the evidence when it exists.
+
 ### 4.1 Primary Goals
 
-| Goal ID | Goal                                   | Measurement                              |
-| ------- | -------------------------------------- | ---------------------------------------- |
-| G-001   | Reduce documentation time by 80%       | PRD creation time: 8 hours → 1.5 hours   |
-| G-002   | 100% requirements-to-code traceability | All code changes linked to Issue/SRS     |
-| G-003   | Document consistency above 95%         | Automated consistency check pass rate    |
-| G-004   | Reduce PR review time by 50%           | Average review wait: 24 hours → 12 hours |
+| Goal ID | Goal                                   | Measurement                              | Status             |
+| ------- | -------------------------------------- | ---------------------------------------- | ------------------ |
+| G-001   | Reduce documentation time by 80%       | PRD creation time: 8 hours → 1.5 hours   | Target, unmeasured |
+| G-002   | 100% requirements-to-code traceability | All code changes linked to Issue/SRS     | Target, unmeasured |
+| G-003   | Document consistency above 95%         | Automated consistency check pass rate    | Target, unmeasured |
+| G-004   | Reduce PR review time by 50%           | Average review wait: 24 hours → 12 hours | Target, unmeasured |
 
 ### 4.2 Key Performance Indicators (KPIs)
 
 ```yaml
+# Targets; none is measured yet (see 4.3).
 Efficiency Metrics:
   - document_generation_time: < 30 min per document
   - issue_creation_accuracy: > 95%
@@ -138,6 +143,15 @@ User Satisfaction:
   - developer_adoption_rate: > 70%
   - nps_score: > 50
 ```
+
+### 4.3 Measurement Status
+
+| Metric                                                   | Status                | Evidence                                                                                               |
+| -------------------------------------------------------- | --------------------- | ------------------------------------------------------------------------------------------------------ |
+| G-001 to G-004 and the KPIs above                        | Target, unmeasured    | No live-run measurement has been published                                                             |
+| Import pipeline outcomes on a real repository            | Unmeasured            | Evaluation report planned in [#955](https://github.com/kcenon/claude_code_agent/issues/955)            |
+| Enhancement pipeline outcomes on a real repository       | Unmeasured            | Evaluation report planned in [#957](https://github.com/kcenon/claude_code_agent/issues/957)            |
+| Delivery metrics of one run (outcome, SDK usage, resume) | Measured on every run | Run result; exported for `ad-sdlc telemetry report` with telemetry consent ([telemetry](telemetry.md)) |
 
 ---
 

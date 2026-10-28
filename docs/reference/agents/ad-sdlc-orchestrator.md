@@ -6,7 +6,7 @@
 
 ## Overview
 
-The AD-SDLC Pipeline Orchestrator is the top-level coordination agent that manages the entire software development lifecycle. It automatically detects the appropriate pipeline mode (Greenfield or Enhancement) and orchestrates the execution of all relevant subagents in the correct sequence.
+The AD-SDLC Pipeline Orchestrator is the top-level coordination agent that runs the pipeline from requirements to a reviewable pull request; deployment is out of scope (see the [capability matrix](../../architecture/capability-matrix.md)). It detects the pipeline mode (Greenfield, Enhancement, or Import) and orchestrates the execution of all relevant subagents in the correct sequence.
 
 ## Configuration
 
