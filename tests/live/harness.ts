@@ -9,11 +9,15 @@
  */
 
 import { spawnSync, type SpawnSyncReturns } from 'node:child_process';
-import { readFile, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import type { LiveBudget } from '../../scripts/live-lane.js';
+import {
+  claudeCredentialsPath,
+  type LiveBudget,
+  type LiveSettings,
+} from '../../scripts/live-lane.js';
 import { RUNTIME_ENV_MAPPING } from '../../src/config/runtimeSupport.js';
 
 const require = createRequire(import.meta.url);
@@ -56,6 +60,56 @@ export function liveChildEnv(base: NodeJS.ProcessEnv, claudeConfigDir: string): 
   ])
     delete env[key];
   return env;
+}
+
+/**
+ * Minimum remaining validity of the Claude Code login's access token. The
+ * copy used by a run must not refresh: with rotating refresh tokens that
+ * could invalidate the user's own login, and the copy is never written back.
+ */
+export const LOGIN_MIN_VALIDITY_MS = 120 * 60_000;
+
+/**
+ * Create the isolated Claude configuration directory of a live run. In
+ * `local-login` mode it receives a copy of the machine's Claude Code login
+ * credentials and nothing else, so the user's settings, hooks, and plugins
+ * never reach the run; the copy is removed with the run's directory.
+ * @param dir - Isolated CLAUDE_CONFIG_DIR
+ * @param settings - Lane settings
+ * @param env - Environment that locates the user's Claude configuration
+ * @param now - Current time in milliseconds
+ * @throws Error when the login's access token expires within {@link LOGIN_MIN_VALIDITY_MS}
+ */
+export async function prepareClaudeConfigDir(
+  dir: string,
+  settings: Pick<LiveSettings, 'auth'>,
+  env: NodeJS.ProcessEnv = process.env,
+  now: number = Date.now()
+): Promise<void> {
+  await mkdir(dir, { recursive: true });
+  if (settings.auth !== 'local-login') return;
+  const source = claudeCredentialsPath(env);
+  const credentials = JSON.parse(await readFile(source, 'utf8')) as {
+    claudeAiOauth?: { expiresAt?: unknown };
+  };
+  const expiresAt = credentials.claudeAiOauth?.expiresAt;
+  if (typeof expiresAt !== 'number' || expiresAt - now < LOGIN_MIN_VALIDITY_MS)
+    throw new Error(
+      `The Claude Code login must stay valid for ${String(LOGIN_MIN_VALIDITY_MS / 60_000)} more minutes so the run never refreshes it (expires ${typeof expiresAt === 'number' ? new Date(expiresAt).toISOString() : 'unknown'}); use Claude Code until it refreshes the login, then run again`
+    );
+  await copyFile(source, join(dir, '.credentials.json'));
+}
+
+/**
+ * Extra `ad-sdlc run` flags of the authentication mode. With a Claude Code
+ * login there is no API key or session marker for the CLI to detect, so the
+ * run passes `--allow-stub`, which only skips that detection: the stages still
+ * run through the SDK adapter, which uses the copied login.
+ * @param settings - Lane settings
+ * @returns Flags
+ */
+export function liveAuthArguments(settings: Pick<LiveSettings, 'auth'>): string[] {
+  return settings.auth === 'local-login' ? ['--allow-stub'] : [];
 }
 
 /**

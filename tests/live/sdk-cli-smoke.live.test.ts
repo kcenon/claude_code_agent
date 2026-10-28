@@ -20,9 +20,11 @@ import { describe, expect, it } from 'vitest';
 import { LIVE_FILES, notExecutedMessage, resolveLiveSettings } from '../../scripts/live-lane.js';
 import {
   LIVE_SMOKE_STAGE,
+  liveAuthArguments,
   liveChildEnv,
   liveRunArguments,
   parseCliJson,
+  prepareClaudeConfigDir,
   prepareLiveProject,
   runSourceCli,
   stageEvidence,
@@ -39,13 +41,17 @@ describe('live lane plumbing smoke (#954)', () => {
       const root = await mkdtemp(join(tmpdir(), 'ad-sdlc-live-'));
       try {
         const claudeConfigDir = join(root, 'claude-config');
-        await mkdir(claudeConfigDir);
+        await prepareClaudeConfigDir(claudeConfigDir, settings);
         const env = liveChildEnv(process.env, claudeConfigDir);
         const project = join(root, 'project');
         await prepareLiveProject(project, settings.budget, env);
 
         const startedAt = Date.now();
-        const run = runSourceCli(liveRunArguments(project, settings.budget), env, cliTimeoutMs);
+        const run = runSourceCli(
+          liveRunArguments(project, settings.budget, liveAuthArguments(settings)),
+          env,
+          cliTimeoutMs
+        );
         const durationMs = Date.now() - startedAt;
         const evidence = stageEvidence(parseCliJson(run.stdout), LIVE_SMOKE_STAGE);
         await mkdir(settings.outputDir, { recursive: true });

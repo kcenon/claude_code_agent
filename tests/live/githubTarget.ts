@@ -14,16 +14,21 @@ import {
 } from './importScenario.js';
 
 /**
- * Environment for `gh` and `git`: the repository-scoped token, an isolated
- * `gh` configuration, and an isolated global git configuration with a commit
- * identity and `gh` as the credential helper. The caller's own git and `gh`
- * configuration are never read or changed.
+ * Environment for `gh` and `git`: an isolated global git configuration with a
+ * commit identity and `gh` as the only credential helper, and either the
+ * repository-scoped token with an isolated `gh` configuration (`secrets`
+ * mode) or the account `gh` is logged in to (`local-login` mode, no token).
+ * The caller's own git configuration is never changed.
  * @param base - Environment to copy
- * @param token - Repository-scoped token
+ * @param token - Repository-scoped token; undefined to use the logged-in `gh` account
  * @param dir - Directory for the isolated configuration
  * @returns Environment
  */
-export function githubEnv(base: NodeJS.ProcessEnv, token: string, dir: string): NodeJS.ProcessEnv {
+export function githubEnv(
+  base: NodeJS.ProcessEnv,
+  token: string | undefined,
+  dir: string
+): NodeJS.ProcessEnv {
   const gitConfig = join(dir, 'gitconfig');
   writeFileSync(
     gitConfig,
@@ -39,16 +44,18 @@ export function githubEnv(base: NodeJS.ProcessEnv, token: string, dir: string): 
       '',
     ].join('\n')
   );
-  return {
+  const env: NodeJS.ProcessEnv = {
     ...base,
-    GH_TOKEN: token,
-    GITHUB_TOKEN: token,
-    GH_CONFIG_DIR: join(dir, 'gh'),
     GH_PROMPT_DISABLED: '1',
     GIT_CONFIG_GLOBAL: gitConfig,
-    GIT_CONFIG_NOSYSTEM: '1',
     GIT_TERMINAL_PROMPT: '0',
   };
+  if (token === undefined) {
+    delete env['GH_TOKEN'];
+    delete env['GITHUB_TOKEN'];
+    return env;
+  }
+  return { ...env, GH_TOKEN: token, GITHUB_TOKEN: token, GH_CONFIG_DIR: join(dir, 'gh') };
 }
 
 /**

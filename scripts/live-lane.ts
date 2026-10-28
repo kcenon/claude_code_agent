@@ -18,7 +18,15 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { appendFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  appendFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
+import { homedir } from 'node:os';
 import { isAbsolute, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -28,7 +36,21 @@ export const LIVE_LANE = 'live-acceptance';
 /** Process exit codes of the runner. */
 export const LIVE_EXIT = { passed: 0, failed: 1, notExecuted: 2 } as const;
 
-/** Settings that must be present for the lane to execute. */
+/** Environment variable selecting how the lane authenticates. */
+export const LIVE_AUTH_ENV = 'AD_SDLC_LIVE_AUTH';
+
+/**
+ * Authentication modes. `secrets` (the default, used by the workflow) takes
+ * an Anthropic API key and a repository-scoped GitHub token. `local-login`
+ * uses the Claude Code login of the machine (its `.credentials.json`) and the
+ * GitHub account `gh` is logged in to, for a run on a developer machine.
+ */
+export const LIVE_AUTH_MODES = ['secrets', 'local-login'] as const;
+
+/** One of {@link LIVE_AUTH_MODES}. */
+export type LiveAuthMode = (typeof LIVE_AUTH_MODES)[number];
+
+/** Settings that must be present for the lane to execute in `secrets` mode. */
 export const REQUIRED_LIVE_SETTINGS = [
   { name: 'ANTHROPIC_API_KEY', purpose: 'Anthropic API key used by the Claude Agent SDK' },
   {
@@ -41,6 +63,24 @@ export const REQUIRED_LIVE_SETTINGS = [
     purpose: 'GitHub token with access to that repository only',
   },
 ] as const;
+
+/** Settings that `local-login` mode replaces with the machine's logins. */
+const LOCAL_LOGIN_REPLACED: readonly string[] = ['ANTHROPIC_API_KEY', 'AD_SDLC_LIVE_GITHUB_TOKEN'];
+
+/**
+ * Claude Code login credentials file that `local-login` mode copies into the
+ * isolated Claude configuration directory of each run.
+ * @param env - Process environment
+ * @returns Path of `.credentials.json` in the user's Claude configuration directory
+ */
+export function claudeCredentialsPath(env: NodeJS.ProcessEnv): string {
+  const configured = env['CLAUDE_CONFIG_DIR'];
+  const home = env['HOME'] ?? env['USERPROFILE'] ?? homedir();
+  return join(
+    configured !== undefined && configured.trim() !== '' ? configured : join(home, '.claude'),
+    '.credentials.json'
+  );
+}
 
 /** Accepted form of `AD_SDLC_LIVE_GITHUB_REPO`. */
 const GITHUB_REPO_PATTERN = /^[A-Za-z0-9-]+\/[A-Za-z0-9._-]+$/;
@@ -86,6 +126,7 @@ export interface LiveSettings {
   readonly reason: string | null;
   readonly budget: LiveBudget;
   readonly outputDir: string;
+  readonly auth: LiveAuthMode;
 }
 
 /** Test counts taken from the Vitest JSON report. */
@@ -108,6 +149,7 @@ export interface LiveLaneMetadata {
   readonly reason: string | null;
   readonly missingSettings: readonly string[];
   readonly invalidSettings: readonly string[];
+  readonly auth: LiveAuthMode;
   readonly budget: LiveBudget;
   readonly sdk: {
     readonly package: string;
@@ -149,16 +191,32 @@ function nonEmpty(value: string | undefined): value is string {
  * Resolve the lane settings without reading any secret value beyond presence.
  * @param env - Process environment
  * @param root - Repository root, for the default output directory
+ * @param exists - File existence check (for the Claude Code login in `local-login` mode)
  * @returns Settings; `ready` is false when a required setting is missing or a budget is invalid
  */
 export function resolveLiveSettings(
   env: NodeJS.ProcessEnv,
-  root: string = process.cwd()
+  root: string = process.cwd(),
+  exists: (path: string) => boolean = existsSync
 ): LiveSettings {
-  const missing = REQUIRED_LIVE_SETTINGS.filter((setting) => !nonEmpty(env[setting.name])).map(
-    (setting) => setting.name
-  );
   const invalid: string[] = [];
+  const authValue = env[LIVE_AUTH_ENV];
+  let auth: LiveAuthMode = 'secrets';
+  if (nonEmpty(authValue)) {
+    const mode = LIVE_AUTH_MODES.find((candidate) => candidate === authValue.trim());
+    if (mode === undefined)
+      invalid.push(
+        `${LIVE_AUTH_ENV}=${JSON.stringify(authValue)} (expected ${LIVE_AUTH_MODES.join(' or ')})`
+      );
+    else auth = mode;
+  }
+  const missing = REQUIRED_LIVE_SETTINGS.filter(
+    (setting) =>
+      !(auth === 'local-login' && LOCAL_LOGIN_REPLACED.includes(setting.name)) &&
+      !nonEmpty(env[setting.name])
+  ).map((setting) => setting.name);
+  if (auth === 'local-login' && !exists(claudeCredentialsPath(env)))
+    missing.unshift('Claude Code login');
   const budgetValue = (key: keyof typeof LIVE_BUDGET_SETTINGS): number => {
     const setting = LIVE_BUDGET_SETTINGS[key];
     const raw = env[setting.env];
@@ -196,6 +254,7 @@ export function resolveLiveSettings(
     reason: reasons.length === 0 ? null : reasons.join('; '),
     budget,
     outputDir,
+    auth,
   };
 }
 
@@ -277,6 +336,7 @@ export function renderLiveSummary(metadata: LiveLaneMetadata): string {
     ['Executed', String(metadata.executed)],
     ['Reason', metadata.reason ?? '—'],
     ['Missing settings', metadata.missingSettings.join(', ') || '—'],
+    ['Authentication', metadata.auth],
     [
       'Budget',
       `maxTurns ${String(metadata.budget.maxTurns)}, stage ${String(metadata.budget.stageTimeoutMs)} ms`,
@@ -426,6 +486,7 @@ export function runLiveLane(options: RunLiveLaneOptions): {
     reason,
     missingSettings: settings.missing,
     invalidSettings: settings.invalid,
+    auth: settings.auth,
     budget: settings.budget,
     sdk: {
       package: SDK_PACKAGE,

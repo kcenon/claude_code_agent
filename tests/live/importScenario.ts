@@ -136,18 +136,22 @@ export function materializeTarget(dir: string): void {
  * Initialize the AD-SDLC project in a clone of the target repository with
  * the installed CLI, exactly as a user would (`ad-sdlc init . --quick`), and
  * give every Import agent the lane's turn budget.
- * @param bin - Installed `ad-sdlc` executable
+ * @param cli - Installed `ad-sdlc` CLI
  * @param checkout - Clone of the target repository
  * @param budget - Lane budget
  * @param env - Environment
  */
 export function prepareImportProject(
-  bin: string,
+  cli: InstalledCli,
   checkout: string,
   budget: LiveBudget,
   env: NodeJS.ProcessEnv
 ): void {
-  exec(bin, ['init', '.', '--quick'], { cwd: checkout, env, timeoutMs: 120_000 });
+  exec(cli.command, [...cli.args, 'init', '.', '--quick'], {
+    cwd: checkout,
+    env,
+    timeoutMs: 120_000,
+  });
   applyTurnBudget(checkout, budget);
 }
 
@@ -319,12 +323,14 @@ export function importRunArguments(
  * @param projectDir - Clone of the target repository
  * @param requirements - The original requirements text
  * @param sessionId - Saved session
+ * @param extra - Additional flags, such as the authentication flags
  * @returns CLI arguments
  */
 export function importResumeArguments(
   projectDir: string,
   requirements: string,
-  sessionId: string
+  sessionId: string,
+  extra: readonly string[] = []
 ): string[] {
   return [
     'run',
@@ -336,6 +342,7 @@ export function importResumeArguments(
     '--non-interactive',
     '--format',
     'json',
+    ...extra,
   ];
 }
 
@@ -766,7 +773,13 @@ export function renderImportReport(
 export function exec(
   command: string,
   args: readonly string[],
-  options: { readonly cwd?: string; readonly env: NodeJS.ProcessEnv; readonly timeoutMs?: number }
+  options: {
+    readonly cwd?: string;
+    readonly env: NodeJS.ProcessEnv;
+    readonly timeoutMs?: number;
+    /** Run through the platform shell (Windows `.cmd` launchers need it) */
+    readonly shell?: boolean;
+  }
 ): string {
   const result = spawnSync(command, args, {
     cwd: options.cwd,
@@ -774,6 +787,7 @@ export function exec(
     encoding: 'utf8',
     timeout: options.timeoutMs ?? 300_000,
     maxBuffer: 20 * 1024 * 1024,
+    shell: options.shell ?? false,
   });
   if (result.error !== undefined) throw result.error;
   if (result.status !== 0)
@@ -783,33 +797,57 @@ export function exec(
   return result.stdout;
 }
 
+/** How to start the installed `ad-sdlc` CLI: `command ...args <cli arguments>`. */
+export interface InstalledCli {
+  readonly command: string;
+  readonly args: readonly string[];
+}
+
+/** Git for Windows' bash, which runs the package scripts (`rm -rf`) on Windows. */
+const WINDOWS_SCRIPT_SHELL = 'C:\\Program Files\\Git\\bin\\bash.exe';
+
 /**
  * Pack this repository and install the tarball, production dependencies only,
- * in a separate consumer directory.
+ * in a separate consumer directory. On Windows npm runs through its `.cmd`
+ * launcher, and the package scripts run in Git for Windows' bash.
  * @param repoRoot - AD-SDLC checkout
  * @param dir - Consumer directory
  * @param env - Environment
- * @returns Installed `ad-sdlc` executable
+ * @returns The installed package's CLI entry, run with this Node.js
  */
 export function installPackedPackage(
   repoRoot: string,
   dir: string,
   env: NodeJS.ProcessEnv
-): string {
+): InstalledCli {
   const pack = join(dir, 'pack');
   const consumer = join(dir, 'consumer');
   mkdirSync(pack, { recursive: true });
   mkdirSync(consumer, { recursive: true });
-  exec('npm', ['pack', '--pack-destination', pack], { cwd: repoRoot, env, timeoutMs: 600_000 });
+  const windows = process.platform === 'win32';
+  if (windows && !existsSync(WINDOWS_SCRIPT_SHELL))
+    throw new Error(`npm pack on Windows needs Git for Windows' bash at ${WINDOWS_SCRIPT_SHELL}`);
+  const npmEnv: NodeJS.ProcessEnv = windows
+    ? { ...env, npm_config_script_shell: WINDOWS_SCRIPT_SHELL }
+    : env;
+  const npm = (args: readonly string[], cwd: string): string =>
+    exec(windows ? 'npm.cmd' : 'npm', args, {
+      cwd,
+      env: npmEnv,
+      timeoutMs: 600_000,
+      shell: windows,
+    });
+  npm(['pack', '--pack-destination', pack], repoRoot);
   const tarball = readdirSync(pack).find((file) => file.endsWith('.tgz'));
   if (tarball === undefined) throw new Error('npm pack wrote no tarball');
-  exec('npm', ['init', '-y'], { cwd: consumer, env });
-  exec('npm', ['install', '--omit=dev', '--no-audit', '--no-fund', join(pack, tarball)], {
-    cwd: consumer,
-    env,
-    timeoutMs: 600_000,
-  });
-  const bin = join(consumer, 'node_modules', '.bin', 'ad-sdlc');
-  if (!existsSync(bin)) throw new Error(`Installed package has no ad-sdlc executable: ${bin}`);
-  return bin;
+  npm(['init', '-y'], consumer);
+  npm(['install', '--omit=dev', '--no-audit', '--no-fund', join(pack, tarball)], consumer);
+  const pkg = join(consumer, 'node_modules', 'ad-sdlc');
+  const manifest = JSON.parse(readFileSync(join(pkg, 'package.json'), 'utf8')) as {
+    bin?: Record<string, string>;
+  };
+  const entry = manifest.bin?.['ad-sdlc'];
+  if (entry === undefined || !existsSync(join(pkg, entry)))
+    throw new Error(`Installed package has no ad-sdlc executable: ${pkg}`);
+  return { command: process.execPath, args: [join(pkg, entry)] };
 }

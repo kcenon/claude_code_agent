@@ -16,15 +16,22 @@
 
 import { spawnSync } from 'node:child_process';
 import { cpSync, readFileSync, readdirSync } from 'node:fs';
-import { mkdir, mkdtemp, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { resolveLiveSettings } from '../../scripts/live-lane.js';
+import { claudeCredentialsPath, resolveLiveSettings } from '../../scripts/live-lane.js';
 import { IMPORT_STAGES } from '../../src/ad-sdlc-orchestrator/types.js';
 import { resolveProjectAgent } from '../../src/execution/resolveProjectAgent.js';
 import { issueAcceptanceCriteria } from '../../src/rtm-builder/issueCriteria.js';
-import { liveChildEnv, parseCliJson, runSourceCli } from '../live/harness.js';
+import {
+  LOGIN_MIN_VALIDITY_MS,
+  liveAuthArguments,
+  liveChildEnv,
+  parseCliJson,
+  prepareClaudeConfigDir,
+  runSourceCli,
+} from '../live/harness.js';
 import {
   IMPORT_AGENTS,
   IMPORT_FIXTURE,
@@ -193,9 +200,18 @@ describe('live Import invocation (offline)', () => {
     );
     for (const stage of plan.stages) expect(stage.timeoutMs).toBe(budget.stageTimeoutMs);
 
-    // The resume invocation passes only flags resume accepts; a missing session is reported.
+    // The resume invocation, with the local-login flag, passes only flags resume
+    // accepts (a runtime override would be rejected first); a missing session is reported.
     const resume = runSourceCli(
-      [...importResumeArguments(project, requirements, 'offline-session'), '--dry-run'],
+      [
+        ...importResumeArguments(
+          project,
+          requirements,
+          'offline-session',
+          liveAuthArguments({ auth: 'local-login' })
+        ),
+        '--dry-run',
+      ],
       env,
       60_000
     );
@@ -572,5 +588,45 @@ describe('live lane settings for the Import scenarios', () => {
         dir
       ).ready
     ).toBe(true);
+  });
+
+  it('replaces the API key and token with the machine logins in local-login mode', () => {
+    const repo = { AD_SDLC_LIVE_AUTH: 'local-login', AD_SDLC_LIVE_GITHUB_REPO: 'owner/target' };
+    const withLogin = resolveLiveSettings({ ...repo, HOME: dir }, dir, () => true);
+    expect(withLogin).toMatchObject({ ready: true, auth: 'local-login', missing: [] });
+    const withoutLogin = resolveLiveSettings({ ...repo, HOME: dir }, dir, () => false);
+    expect(withoutLogin.missing).toEqual(['Claude Code login']);
+    expect(claudeCredentialsPath({ CLAUDE_CONFIG_DIR: join(dir, 'cfg') })).toBe(
+      join(dir, 'cfg', '.credentials.json')
+    );
+    expect(resolveLiveSettings({ AD_SDLC_LIVE_AUTH: 'sso' }, dir).reason).toMatch(
+      /invalid AD_SDLC_LIVE_AUTH="sso"/
+    );
+    expect(liveAuthArguments({ auth: 'secrets' })).toEqual([]);
+  });
+
+  it('copies only a login that stays valid, and nothing in secrets mode', async () => {
+    const userConfig = join(dir, 'user-claude');
+    await mkdir(userConfig);
+    const now = Date.parse('2026-10-28T00:00:00Z');
+    const write = (minutes: number): Promise<void> =>
+      writeFile(
+        join(userConfig, '.credentials.json'),
+        JSON.stringify({ claudeAiOauth: { expiresAt: now + minutes * 60_000 } })
+      );
+    const env = { CLAUDE_CONFIG_DIR: userConfig };
+
+    await write(LOGIN_MIN_VALIDITY_MS / 60_000 + 30);
+    await prepareClaudeConfigDir(join(dir, 'run-1'), { auth: 'local-login' }, env, now);
+    expect(readdirSync(join(dir, 'run-1'))).toEqual(['.credentials.json']);
+
+    await write(LOGIN_MIN_VALIDITY_MS / 60_000 - 1);
+    await expect(
+      prepareClaudeConfigDir(join(dir, 'run-2'), { auth: 'local-login' }, env, now)
+    ).rejects.toThrow(/must stay valid/);
+    expect(readdirSync(join(dir, 'run-2'))).toEqual([]);
+
+    await prepareClaudeConfigDir(join(dir, 'run-3'), { auth: 'secrets' }, env, now);
+    expect(readdirSync(join(dir, 'run-3'))).toEqual([]);
   });
 });

@@ -42,12 +42,13 @@ import {
   listLabeledIssues,
   listPullRequests,
 } from './githubTarget.js';
-import { liveChildEnv } from './harness.js';
+import { liveAuthArguments, liveChildEnv, prepareClaudeConfigDir } from './harness.js';
 import {
   IMPORT_SCENARIOS,
   evaluateScenario,
   exec,
   importRequirements,
+  type InstalledCli,
   importResumeArguments,
   importRunArguments,
   installPackedPackage,
@@ -78,7 +79,7 @@ const scenarioTimeoutMs = cliTimeoutMs * 3 + 600_000;
 
 interface LiveContext {
   readonly root: string;
-  readonly bin: string;
+  readonly cli: InstalledCli;
   readonly env: NodeJS.ProcessEnv;
   readonly packageVersion: string | null;
   readonly sdkVersion: string | null;
@@ -106,18 +107,20 @@ async function versionOf(packageJson: string): Promise<string | null> {
 async function setUp(): Promise<LiveContext> {
   if (!settings.ready) throw new Error(notExecutedMessage(settings));
   const root = await mkdtemp(join(tmpdir(), 'ad-sdlc-import-live-'));
-  await mkdir(join(root, 'claude-config'));
+  await prepareClaudeConfigDir(join(root, 'claude-config'), settings);
   const base = liveChildEnv(process.env, join(root, 'claude-config'));
-  const token = base['AD_SDLC_LIVE_GITHUB_TOKEN'] ?? '';
+  const token = settings.auth === 'secrets' ? base['AD_SDLC_LIVE_GITHUB_TOKEN'] : undefined;
   delete base['AD_SDLC_LIVE_GITHUB_TOKEN'];
   const env = githubEnv(base, token, root);
+  // local-login mode: fail early when gh is not logged in.
+  if (token === undefined) exec('gh', ['auth', 'status'], { env });
   const branch = assertDisposableRepository(repo, env);
   ensureFixture(repo, branch, join(root, 'fixture'), env);
-  const bin = installPackedPackage(process.cwd(), join(root, 'package'), env);
+  const cli = installPackedPackage(process.cwd(), join(root, 'package'), env);
   const modules = join(root, 'package', 'consumer', 'node_modules');
   return {
     root,
-    bin,
+    cli,
     env,
     packageVersion: await versionOf(join(modules, 'ad-sdlc', 'package.json')),
     sdkVersion: await versionOf(join(modules, '@anthropic-ai', 'claude-agent-sdk', 'package.json')),
@@ -192,7 +195,8 @@ async function runScenario(live: LiveContext, scenario: ImportScenario): Promise
     }
     const checkout = join(live.root, `checkout-${scenario.id}`);
     cloneRepository(repo, checkout, live.env);
-    prepareImportProject(live.bin, checkout, settings.budget, live.env);
+    prepareImportProject(live.cli, checkout, settings.budget, live.env);
+    const auth = liveAuthArguments(settings);
     const runEnv = { ...live.env, ...scenario.env };
     const snapshot = (): void => {
       const owned = ownedPullRequests(prsBefore, listPullRequests(repo, live.env));
@@ -204,7 +208,7 @@ async function runScenario(live: LiveContext, scenario: ImportScenario): Promise
     };
     const invoke = (name: string, args: string[]): InvocationEvidence => {
       const started = Date.now();
-      const child = spawnSync(live.bin, args, {
+      const child = spawnSync(live.cli.command, [...live.cli.args, ...args], {
         cwd: checkout,
         env: runEnv,
         encoding: 'utf8',
@@ -224,13 +228,13 @@ async function runScenario(live: LiveContext, scenario: ImportScenario): Promise
         checkout,
         settings.budget,
         requirements,
-        scenario.stopAfter === undefined ? [] : ['--stop-after', scenario.stopAfter]
+        scenario.stopAfter === undefined ? auth : [...auth, '--stop-after', scenario.stopAfter]
       )
     );
     if (scenario.stopAfter !== undefined) {
       if (first.sessionId === null) throw new Error('The stopped run reported no session ID');
-      invoke('resume-1', importResumeArguments(checkout, requirements, first.sessionId));
-      invoke('resume-2', importResumeArguments(checkout, requirements, first.sessionId));
+      invoke('resume-1', importResumeArguments(checkout, requirements, first.sessionId, auth));
+      invoke('resume-2', importResumeArguments(checkout, requirements, first.sessionId, auth));
     }
     pullRequests = pullRequestEvidence(
       live,
