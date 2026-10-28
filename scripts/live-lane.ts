@@ -31,7 +31,19 @@ export const LIVE_EXIT = { passed: 0, failed: 1, notExecuted: 2 } as const;
 /** Settings that must be present for the lane to execute. */
 export const REQUIRED_LIVE_SETTINGS = [
   { name: 'ANTHROPIC_API_KEY', purpose: 'Anthropic API key used by the Claude Agent SDK' },
+  {
+    name: 'AD_SDLC_LIVE_GITHUB_REPO',
+    purpose:
+      'Disposable GitHub repository (`owner/name`, with the `ad-sdlc-live-target` topic) of the Import scenarios',
+  },
+  {
+    name: 'AD_SDLC_LIVE_GITHUB_TOKEN',
+    purpose: 'GitHub token with access to that repository only',
+  },
 ] as const;
+
+/** Accepted form of `AD_SDLC_LIVE_GITHUB_REPO`. */
+const GITHUB_REPO_PATTERN = /^[A-Za-z0-9-]+\/[A-Za-z0-9._-]+$/;
 
 /** Budget settings with their defaults and accepted ranges. */
 export const LIVE_BUDGET_SETTINGS = {
@@ -56,6 +68,8 @@ export const LIVE_FILES = {
   summary: 'live-lane-summary.md',
   vitestReport: 'vitest-report.json',
   evidence: 'smoke-evidence.json',
+  importReport: 'import-acceptance-report.json',
+  importSummary: 'import-acceptance-report.md',
 } as const;
 
 /** Turn and time limits applied to every live stage. */
@@ -110,6 +124,8 @@ export interface LiveLaneMetadata {
   readonly exitCode: number;
   /** Stage evidence written by the live smoke (session, turns, tokens), when present. */
   readonly evidence: unknown;
+  /** Outcome per Import scenario (#955) from `import-acceptance-report.json`, when present. */
+  readonly importScenarios: readonly { readonly id: string; readonly outcome: string }[];
   readonly ci: {
     readonly runUrl: string | null;
     readonly sha: string | null;
@@ -160,6 +176,9 @@ export function resolveLiveSettings(
     maxTurns: budgetValue('maxTurns'),
     stageTimeoutMs: budgetValue('stageTimeoutMs'),
   };
+  const repo = env['AD_SDLC_LIVE_GITHUB_REPO'];
+  if (nonEmpty(repo) && !GITHUB_REPO_PATTERN.test(repo.trim()))
+    invalid.push(`AD_SDLC_LIVE_GITHUB_REPO=${JSON.stringify(repo)} (expected owner/name)`);
   const configuredDir = env[LIVE_OUTPUT_DIR_ENV];
   const outputDir = nonEmpty(configuredDir)
     ? isAbsolute(configuredDir)
@@ -266,6 +285,11 @@ export function renderLiveSummary(metadata: LiveLaneMetadata): string {
       'Tests',
       `${String(metadata.tests.passed)} passed, ${String(metadata.tests.failed)} failed, ${String(metadata.tests.skipped)} skipped, ${String(metadata.tests.total)} total`,
     ],
+    [
+      'Import scenarios',
+      metadata.importScenarios.map((scenario) => `${scenario.id} ${scenario.outcome}`).join(', ') ||
+        '—',
+    ],
     ['SDK', `${metadata.sdk.package} ${metadata.sdk.installed ?? 'not installed'}`],
     ['Node.js', metadata.node],
     ['Started / finished', `${metadata.startedAt} / ${metadata.finishedAt}`],
@@ -278,7 +302,7 @@ export function renderLiveSummary(metadata: LiveLaneMetadata): string {
     ...rows.map(([field, value]) => `| ${field} | ${escapeTableCell(value)} |`),
     '',
     metadata.executed
-      ? 'Metadata: `live-lane.json` in the `live-acceptance-metadata` artifact.'
+      ? 'Metadata: `live-lane.json`, and the Import run report `import-acceptance-report.md`, in the `live-acceptance-metadata` artifact.'
       : 'No live test ran and no SDK call was made. This is not a passing live acceptance run.',
     '',
   ].join('\n');
@@ -299,6 +323,25 @@ function stringField(value: unknown, ...keys: string[]): string | null {
     current = (current as Record<string, unknown>)[key];
   }
   return typeof current === 'string' ? current : null;
+}
+
+/**
+ * Scenario outcomes of an Import run report (`import-acceptance-report.json`).
+ * @param report - Parsed report, or undefined when the live suite wrote none
+ * @returns `{ id, outcome }` per scenario; empty without a report
+ */
+export function importScenarioOutcomes(
+  report: unknown
+): { readonly id: string; readonly outcome: string }[] {
+  const scenarios =
+    typeof report === 'object' && report !== null
+      ? (report as Record<string, unknown>)['scenarios']
+      : undefined;
+  if (!Array.isArray(scenarios)) return [];
+  return scenarios.map((scenario: unknown) => ({
+    id: stringField(scenario, 'id') ?? 'unknown',
+    outcome: stringField(scenario, 'outcome') ?? 'unknown',
+  }));
 }
 
 /** Options for {@link runLiveLane}. */
@@ -398,6 +441,7 @@ export function runLiveLane(options: RunLiveLaneOptions): {
     tests: counts,
     exitCode,
     evidence: readJson(file('evidence')) ?? null,
+    importScenarios: importScenarioOutcomes(readJson(file('importReport'))),
     ci: {
       runUrl:
         nonEmpty(server) && nonEmpty(repository) && nonEmpty(runId)

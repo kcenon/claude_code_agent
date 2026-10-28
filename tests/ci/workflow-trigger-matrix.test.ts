@@ -95,6 +95,8 @@ describe('workflow trigger matrix', () => {
     expect(job?.['timeout-minutes']).toBeLessThanOrEqual(60);
     const run = job?.steps?.find((step) => step.run === 'npm run test:live');
     expect(run?.env).toMatchObject({
+      AD_SDLC_LIVE_GITHUB_REPO: '${{ vars.AD_SDLC_LIVE_GITHUB_REPO }}',
+      AD_SDLC_LIVE_GITHUB_TOKEN: '${{ secrets.AD_SDLC_LIVE_GITHUB_TOKEN }}',
       AD_SDLC_LIVE_MAX_TURNS: '${{ inputs.max_turns }}',
       AD_SDLC_LIVE_STAGE_TIMEOUT_MS: '${{ inputs.stage_timeout_ms }}',
     });
