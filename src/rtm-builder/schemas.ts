@@ -30,6 +30,12 @@ export const RtmAcceptanceCriterionSchema = z.object({
   description: z.string().min(1, 'Description is required'),
   validated: z.boolean(),
   validationMethod: z.string().optional(),
+  issueId: z.string().min(1).optional(),
+  implemented: z.boolean().optional(),
+  workOrders: z.array(z.string()).readonly().optional(),
+  changedFiles: z.array(z.string()).readonly().optional(),
+  tests: z.array(z.string()).readonly().optional(),
+  uncoveredReason: z.string().optional(),
 });
 export type RtmAcceptanceCriterionParsed = z.infer<typeof RtmAcceptanceCriterionSchema>;
 
@@ -56,7 +62,8 @@ export type RtmImplStatusParsed = z.infer<typeof RtmImplStatusSchema>;
  * Zod schema for RtmEntry
  */
 export const RtmEntrySchema = z.object({
-  requirementId: z.string().regex(/^FR-\d{3}$/, 'Must be in format FR-XXX'),
+  // FR-XXX, or an imported issue identifier (ISS-XXX or a GitHub number) in Import mode
+  requirementId: z.string().min(1, 'Requirement ID is required'),
   requirementTitle: z.string().min(1, 'Requirement title is required'),
   priority: z.string().regex(/^P[0-3]$/, 'Must be P0, P1, P2, or P3'),
   features: z.array(z.string()).readonly(),
@@ -81,6 +88,7 @@ export type RtmEntryParsed = z.infer<typeof RtmEntrySchema>;
 export const RtmGapTypeSchema = z.enum([
   'uncovered_requirement',
   'orphan_component',
+  'orphan_issue',
   'missing_test',
   'unvalidated_acceptance_criteria',
   'broken_chain',

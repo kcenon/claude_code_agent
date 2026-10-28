@@ -16,6 +16,8 @@ import * as path from 'node:path';
 import type { IAgent } from '../agents/types.js';
 import { getLogger } from '../logging/index.js';
 import type { Logger } from '../logging/index.js';
+import type { PipelineMode } from '../ad-sdlc-orchestrator/types.js';
+import { issueAcceptanceCriteria, normalizeCriterionId } from './issueCriteria.js';
 import { RTM_SCHEMA_VERSION } from './schemas.js';
 import type {
   RtmBuildContext,
@@ -26,7 +28,11 @@ import type {
   RtmValidationResult,
   RtmAcceptanceCriterion,
   RtmImplStatus,
+  RtmSourceLocations,
 } from './types.js';
+
+/** Explicit PRD, SRS, and SDS locations */
+type RtmDocumentLocations = NonNullable<RtmSourceLocations['documents']>;
 
 // =============================================================================
 // Constants
@@ -70,7 +76,12 @@ interface ParsedComponent {
 /** Issue record extracted from scratchpad */
 interface ParsedIssue {
   readonly id: string;
+  readonly title: string;
+  readonly priority: string;
   readonly components: readonly string[];
+  /** PRD requirements the issue implements (its traceability links) */
+  readonly requirements: readonly string[];
+  readonly acceptanceCriteria: readonly { readonly id: string; readonly description: string }[];
 }
 
 /** Work order extracted from scratchpad */
@@ -79,12 +90,24 @@ interface ParsedWorkOrder {
   readonly issueId: string;
 }
 
+/** Evidence an implementation result reports for one acceptance criterion */
+interface ParsedCriterionEvidence {
+  readonly id: string;
+  readonly met: boolean;
+  readonly tests: readonly string[];
+}
+
 /** Implementation result extracted from scratchpad */
 interface ParsedImplResult {
   readonly workOrderId: string;
+  readonly issueId: string;
   readonly status: 'completed' | 'failed' | 'blocked';
   readonly testsPassed: boolean;
   readonly buildPassed: boolean;
+  readonly changedFiles: readonly string[];
+  /** Whether the result has an acceptance criteria evidence list at all */
+  readonly reportsCriteria: boolean;
+  readonly criteria: readonly ParsedCriterionEvidence[];
 }
 
 /** Review result extracted from scratchpad */
@@ -92,6 +115,22 @@ interface ParsedReview {
   readonly workOrderId: string;
   readonly pullRequestId: string;
 }
+
+/** Work, results, and per-criterion evidence found for one issue */
+interface IssueTrace {
+  readonly workOrders: readonly string[];
+  readonly implementations: readonly RtmImplStatus[];
+  readonly criteria: readonly RtmAcceptanceCriterion[];
+}
+
+/** A structured file read from a source location */
+interface StructuredFile {
+  readonly path: string;
+  readonly data: unknown;
+}
+
+/** Status values a worker may use for a criterion it implemented */
+const MET_STATUSES = new Set(['met', 'pass', 'passed', 'done', 'completed', 'satisfied']);
 
 // =============================================================================
 // Agent class
@@ -147,45 +186,59 @@ export class RtmBuilderAgent implements IAgent {
    * @returns Complete RTM with entries, coverage metrics, and gap analysis
    */
   public async buildRTM(context: RtmBuildContext): Promise<RequirementsTraceabilityMatrix> {
-    const { projectDir, projectId, pipelineMode } = context;
+    const { projectDir, projectId, pipelineMode, sources } = context;
 
-    // 1. Parse all source artifacts
-    const requirements = await this.parseRequirements(projectDir, projectId);
-    const features = await this.parseFeatures(projectDir, projectId);
-    const components = await this.parseComponents(projectDir, projectId);
-    const issues = await this.parseIssues(projectDir, projectId);
-    const workOrders = await this.parseWorkOrders(projectDir, projectId);
-    const implResults = await this.parseImplementationResults(projectDir, projectId);
-    const reviews = await this.parseReviews(projectDir, projectId);
+    // 1. Parse the delivery artifacts shared by every mode
+    const issues = await this.parseIssues(projectDir, projectId, sources?.issueLists);
+    const workOrders = await this.parseWorkOrders(projectDir, projectId, sources?.workOrders);
+    const implResults = await this.parseImplementationResults(
+      projectDir,
+      projectId,
+      sources?.implementationResults
+    );
+    const reviews = await this.parseReviews(projectDir, projectId, sources?.reviews);
 
     // 2. Build lookup maps for efficient linking
-    const featuresByReq = this.buildFeaturesByRequirement(features);
-    const useCasesByFeature = this.buildUseCasesByFeature(features);
-    const componentsByFeature = this.buildComponentsByFeature(components);
-    const issuesByComponent = this.buildIssuesByComponent(issues);
     const workOrdersByIssue = this.buildWorkOrdersByIssue(workOrders);
-    const implByWorkOrder = this.buildImplByWorkOrder(implResults);
     const reviewByWorkOrder = this.buildReviewByWorkOrder(reviews);
+    const issueTraces = await this.traceIssues(projectDir, issues, workOrdersByIssue, implResults);
 
-    // 3. Assemble RTM entries
-    const entries = this.assembleEntries(
-      requirements,
-      featuresByReq,
-      useCasesByFeature,
-      componentsByFeature,
-      issuesByComponent,
-      workOrdersByIssue,
-      implByWorkOrder,
-      reviewByWorkOrder
-    );
+    // 3. Assemble RTM entries. Import mode has no PRD, SRS, or SDS: each
+    // imported issue is a root, and no upstream document is read or implied.
+    let entries: readonly RtmEntry[];
+    let allComponentIds: ReadonlySet<string> = new Set();
+    if (pipelineMode === 'import') {
+      entries = this.assembleIssueEntries(issues, issueTraces, reviewByWorkOrder);
+    } else {
+      const documents = sources?.documents;
+      const requirements = await this.parseRequirements(projectDir, projectId, documents);
+      const features = await this.parseFeatures(projectDir, projectId, documents);
+      const components = await this.parseComponents(projectDir, projectId, documents);
+      allComponentIds = new Set(components.map((c) => c.id));
+      entries = this.assembleEntries(
+        requirements,
+        this.buildFeaturesByRequirement(features),
+        this.buildUseCasesByFeature(features),
+        this.buildComponentsByFeature(components),
+        this.buildIssuesByComponent(issues),
+        this.buildIssuesByRequirement(issues),
+        issueTraces,
+        reviewByWorkOrder
+      );
+    }
 
     // 4. Calculate coverage metrics
-    const allComponentIds = new Set(components.map((c) => c.id));
     const tracedComponentIds = new Set(entries.flatMap((e) => e.components));
     const coverageMetrics = this.calculateCoverage(entries, allComponentIds, tracedComponentIds);
 
     // 5. Identify gaps
-    const gaps = this.identifyGaps(entries, allComponentIds, tracedComponentIds);
+    const gaps = this.identifyGaps(
+      entries,
+      allComponentIds,
+      tracedComponentIds,
+      pipelineMode,
+      issues.map((issue) => issue.id)
+    );
 
     return {
       version: RTM_SCHEMA_VERSION,
@@ -287,9 +340,10 @@ export class RtmBuilderAgent implements IAgent {
         lines.push('| AC | Description | Validated | Method |');
         lines.push('|----|-------------|-----------|--------|');
         for (const ac of entry.acceptanceCriteria) {
+          const id = ac.issueId === undefined ? ac.id : `${ac.issueId}/${ac.id}`;
           const validated = ac.validated ? 'Yes' : 'No';
-          const method = ac.validationMethod ?? '-';
-          lines.push(`| ${ac.id} | ${ac.description} | ${validated} | ${method} |`);
+          const method = ac.validationMethod ?? ac.uncoveredReason ?? '-';
+          lines.push(`| ${id} | ${ac.description} | ${validated} | ${method} |`);
         }
         lines.push('');
       }
@@ -386,13 +440,15 @@ export class RtmBuilderAgent implements IAgent {
    *
    * @param projectDir - Absolute path to project root
    * @param projectId - Unique project identifier
+   * @param documents - Explicit document locations, replacing discovery when present
    * @returns Parsed requirements extracted from the PRD
    */
   private async parseRequirements(
     projectDir: string,
-    projectId: string
+    projectId: string,
+    documents?: RtmDocumentLocations
   ): Promise<readonly ParsedRequirement[]> {
-    const content = await this.readDocumentMarkdown(projectDir, projectId, 'prd');
+    const content = await this.readDocumentMarkdown(projectDir, projectId, 'prd', documents);
     if (content === null) {
       this.logger.warn('No PRD document found; returning empty requirements');
       return [];
@@ -430,13 +486,15 @@ export class RtmBuilderAgent implements IAgent {
    *
    * @param projectDir - Absolute path to project root
    * @param projectId - Unique project identifier
+   * @param documents - Explicit document locations, replacing discovery when present
    * @returns Parsed features with their source requirements and use cases
    */
   private async parseFeatures(
     projectDir: string,
-    projectId: string
+    projectId: string,
+    documents?: RtmDocumentLocations
   ): Promise<readonly ParsedFeature[]> {
-    const content = await this.readDocumentMarkdown(projectDir, projectId, 'srs');
+    const content = await this.readDocumentMarkdown(projectDir, projectId, 'srs', documents);
     if (content === null) {
       this.logger.warn('No SRS document found; returning empty features');
       return [];
@@ -490,13 +548,15 @@ export class RtmBuilderAgent implements IAgent {
    *
    * @param projectDir - Absolute path to project root
    * @param projectId - Unique project identifier
+   * @param documents - Explicit document locations, replacing discovery when present
    * @returns Parsed components with their source feature mappings
    */
   private async parseComponents(
     projectDir: string,
-    projectId: string
+    projectId: string,
+    documents?: RtmDocumentLocations
   ): Promise<readonly ParsedComponent[]> {
-    const content = await this.readDocumentMarkdown(projectDir, projectId, 'sds');
+    const content = await this.readDocumentMarkdown(projectDir, projectId, 'sds', documents);
     if (content === null) {
       this.logger.warn('No SDS document found; returning empty components');
       return [];
@@ -533,65 +593,90 @@ export class RtmBuilderAgent implements IAgent {
   /**
    * Parse issues from scratchpad
    *
+   * Accepts a top-level array or the `issues`/`items` list that issue
+   * generators and readers write.
+   *
    * @param projectDir - Absolute path to project root
    * @param projectId - Unique project identifier
-   * @returns Parsed issues with their component references
+   * @param locations - Explicit issue list locations, replacing discovery when present
+   * @returns Parsed issues with their component, requirement, and criteria references
    */
   private async parseIssues(
     projectDir: string,
-    projectId: string
+    projectId: string,
+    locations?: readonly string[]
   ): Promise<readonly ParsedIssue[]> {
+    const issueDir = path.join(projectDir, SCRATCHPAD_BASE, 'issues', projectId);
+    let files: readonly StructuredFile[];
+    if (locations !== undefined) {
+      files = await this.readStructuredFiles(projectDir, locations);
+    } else {
+      // Conventional lookup: the JSON list wins over the legacy YAML list
+      files = await this.readStructuredFiles(projectDir, [path.join(issueDir, 'issue_list.json')]);
+      if (files.length === 0)
+        files = await this.readStructuredFiles(projectDir, [path.join(issueDir, 'issues.yaml')]);
+    }
+
     const issues: ParsedIssue[] = [];
-
-    // Try JSON format first
-    const jsonPath = path.join(projectDir, SCRATCHPAD_BASE, 'issues', projectId, 'issue_list.json');
-    const jsonContent = await this.readFileGracefully(jsonPath);
-    if (jsonContent !== null) {
-      try {
-        const parsed = JSON.parse(jsonContent) as unknown;
-        if (Array.isArray(parsed)) {
-          for (const item of parsed) {
-            const issue = item as Record<string, unknown>;
-            const id = this.safeToString(issue['id'] ?? issue['issueId'] ?? issue['number'] ?? '');
-            const comps = this.extractStringArray(
-              issue['components'] ?? issue['relatedComponents']
-            );
-            if (id.length > 0) {
-              issues.push({ id, components: comps });
-            }
-          }
-        }
-        return issues;
-      } catch {
-        this.logger.warn(`Failed to parse issues JSON at ${jsonPath}`);
+    for (const file of files) {
+      const list = Array.isArray(file.data)
+        ? file.data
+        : this.isRecord(file.data)
+          ? (file.data['issues'] ?? file.data['items'])
+          : undefined;
+      if (!Array.isArray(list)) {
+        this.logger.warn(`Issue list has no issues array: ${file.path}`);
+        continue;
+      }
+      for (const item of list) {
+        if (!this.isRecord(item)) continue;
+        const issue = this.parseIssue(item);
+        if (issue !== null && !issues.some((existing) => existing.id === issue.id))
+          issues.push(issue);
       }
     }
-
-    // Try YAML format
-    const yamlPath = path.join(projectDir, SCRATCHPAD_BASE, 'issues', projectId, 'issues.yaml');
-    const yamlContent = await this.readFileGracefully(yamlPath);
-    if (yamlContent !== null) {
-      try {
-        const jsYaml = await import('js-yaml');
-        const parsed = jsYaml.load(yamlContent);
-        if (Array.isArray(parsed)) {
-          for (const item of parsed) {
-            const issue = item as Record<string, unknown>;
-            const id = this.safeToString(issue['id'] ?? issue['issueId'] ?? issue['number'] ?? '');
-            const comps = this.extractStringArray(
-              issue['components'] ?? issue['relatedComponents']
-            );
-            if (id.length > 0) {
-              issues.push({ id, components: comps });
-            }
-          }
-        }
-      } catch {
-        this.logger.warn(`Failed to parse issues YAML at ${yamlPath}`);
-      }
-    }
-
     return issues;
+  }
+
+  /**
+   * Parse one issue entry.
+   * @param issue - Issue object from an issue list
+   * @returns Parsed issue, or null when it has no identifier
+   */
+  private parseIssue(issue: Record<string, unknown>): ParsedIssue | null {
+    const id = this.safeToString(
+      issue['id'] ?? issue['issueId'] ?? issue['github_number'] ?? issue['number'] ?? ''
+    );
+    if (id.length === 0) return null;
+    const traceability = this.isRecord(issue['traceability']) ? issue['traceability'] : {};
+    const labels = this.isRecord(issue['labels']) ? issue['labels'] : {};
+    const priority = this.safeToString(labels['priority'] ?? issue['priority'] ?? '');
+    const structuredRequirements = this.stringList(
+      traceability['prd_requirement'] ??
+        traceability['prdRequirement'] ??
+        issue['requirements'] ??
+        issue['prd_requirement']
+    );
+    const body = issue['body'] ?? issue['description'];
+    // The issue template cites its PRD requirement in the body; use it only
+    // when the issue has no structured traceability.
+    const requirements =
+      structuredRequirements.length > 0 || typeof body !== 'string'
+        ? structuredRequirements
+        : [...new Set(body.match(/FR-\d{3}/g) ?? [])];
+    return {
+      id,
+      title: this.safeToString(issue['title'] ?? '') || id,
+      priority: /^P[0-3]$/.test(priority) ? priority : 'P2',
+      components: this.stringList(
+        issue['components'] ??
+          issue['relatedComponents'] ??
+          traceability['sds_component'] ??
+          traceability['sdsComponent']
+      ),
+      requirements,
+      acceptanceCriteria: issueAcceptanceCriteria(issue),
+    };
   }
 
   /**
@@ -599,91 +684,130 @@ export class RtmBuilderAgent implements IAgent {
    *
    * @param projectDir - Absolute path to project root
    * @param projectId - Unique project identifier
+   * @param locations - Explicit work order locations, replacing discovery when present
    * @returns Parsed work orders with their issue mappings
    */
   private async parseWorkOrders(
     projectDir: string,
-    projectId: string
+    projectId: string,
+    locations?: readonly string[]
   ): Promise<readonly ParsedWorkOrder[]> {
+    const files = await this.readSourceFiles(
+      projectDir,
+      path.join(projectDir, SCRATCHPAD_BASE, 'progress', projectId, 'work_orders'),
+      locations
+    );
     const workOrders: ParsedWorkOrder[] = [];
-    const dirPath = path.join(projectDir, SCRATCHPAD_BASE, 'progress', projectId, 'work_orders');
-    const files = await this.readDirGracefully(dirPath);
-
     for (const file of files) {
-      if (!file.endsWith('.yaml') && !file.endsWith('.yml') && !file.endsWith('.json')) {
-        continue;
-      }
-      const filePath = path.join(dirPath, file);
-      const content = await this.readFileGracefully(filePath);
-      if (content === null) continue;
-
-      try {
-        let parsed: unknown;
-        if (file.endsWith('.json')) {
-          parsed = JSON.parse(content);
-        } else {
-          const jsYaml = await import('js-yaml');
-          parsed = jsYaml.load(content);
-        }
-        const wo = parsed as Record<string, unknown>;
-        const id = this.safeToString(wo['id'] ?? wo['workOrderId'] ?? '');
-        const issueId = this.safeToString(wo['issueId'] ?? wo['issue'] ?? '');
-        if (id.length > 0) {
-          workOrders.push({ id, issueId });
-        }
-      } catch {
-        this.logger.warn(`Failed to parse work order file: ${filePath}`);
+      const wo = this.unwrap(file.data, 'work_order');
+      if (wo === null) continue;
+      const issue = wo['issue'];
+      const id = this.safeToString(wo['id'] ?? wo['workOrderId'] ?? wo['work_order_id'] ?? '');
+      const issueId = this.safeToString(
+        wo['issueId'] ??
+          wo['issue_id'] ??
+          (this.isRecord(issue) ? (issue['id'] ?? issue['github_number']) : issue) ??
+          ''
+      );
+      if (id.length > 0) {
+        workOrders.push({ id, issueId });
       }
     }
-
     return workOrders;
   }
 
   /**
    * Parse implementation results from scratchpad
    *
+   * The worker writes its result under an `implementation_result` root with
+   * the test, build, and lint flags under `verification`; older results are
+   * flat. `acceptance_criteria` lists the evidence for each criterion of the
+   * issue: `{ id, status: met | not_met, tests: [test file, ...] }`.
+   *
    * @param projectDir - Absolute path to project root
    * @param projectId - Unique project identifier
-   * @returns Parsed implementation results with status and test info
+   * @param locations - Explicit result locations, replacing discovery when present
+   * @returns Parsed implementation results with status, test info, and evidence
    */
   private async parseImplementationResults(
     projectDir: string,
-    projectId: string
+    projectId: string,
+    locations?: readonly string[]
   ): Promise<readonly ParsedImplResult[]> {
+    const files = await this.readSourceFiles(
+      projectDir,
+      path.join(projectDir, SCRATCHPAD_BASE, 'progress', projectId, 'results'),
+      locations
+    );
     const results: ParsedImplResult[] = [];
-    const dirPath = path.join(projectDir, SCRATCHPAD_BASE, 'progress', projectId, 'results');
-    const files = await this.readDirGracefully(dirPath);
-
     for (const file of files) {
-      if (!file.endsWith('.yaml') && !file.endsWith('.yml') && !file.endsWith('.json')) {
-        continue;
-      }
-      const filePath = path.join(dirPath, file);
-      const content = await this.readFileGracefully(filePath);
-      if (content === null) continue;
-
-      try {
-        let parsed: unknown;
-        if (file.endsWith('.json')) {
-          parsed = JSON.parse(content);
-        } else {
-          const jsYaml = await import('js-yaml');
-          parsed = jsYaml.load(content);
-        }
-        const res = parsed as Record<string, unknown>;
-        const workOrderId = this.safeToString(res['workOrderId'] ?? res['work_order_id'] ?? '');
-        const status = this.normalizeImplStatus(res['status']);
-        const testsPassed = Boolean(res['testsPassed'] ?? res['tests_passed'] ?? false);
-        const buildPassed = Boolean(res['buildPassed'] ?? res['build_passed'] ?? false);
-        if (workOrderId.length > 0) {
-          results.push({ workOrderId, status, testsPassed, buildPassed });
-        }
-      } catch {
-        this.logger.warn(`Failed to parse implementation result: ${filePath}`);
-      }
+      const res = this.unwrap(file.data, 'implementation_result');
+      if (res === null) continue;
+      const verification = this.isRecord(res['verification']) ? res['verification'] : {};
+      const workOrderId = this.safeToString(res['workOrderId'] ?? res['work_order_id'] ?? '');
+      const issueId = this.safeToString(res['issueId'] ?? res['issue_id'] ?? '');
+      const evidence = res['acceptance_criteria'] ?? res['acceptanceCriteria'];
+      if (workOrderId.length === 0 && issueId.length === 0) continue;
+      results.push({
+        workOrderId,
+        issueId,
+        status: this.normalizeImplStatus(res['status']),
+        testsPassed:
+          (res['testsPassed'] ??
+            res['tests_passed'] ??
+            verification['tests_passed'] ??
+            verification['testsPassed']) === true,
+        buildPassed:
+          (res['buildPassed'] ??
+            res['build_passed'] ??
+            verification['build_passed'] ??
+            verification['buildPassed']) === true,
+        changedFiles: this.changedFiles(
+          res['changes'] ?? res['changed_files'] ?? res['changedFiles']
+        ),
+        reportsCriteria: Array.isArray(evidence),
+        criteria: Array.isArray(evidence) ? this.criterionEvidence(evidence) : [],
+      });
     }
-
     return results;
+  }
+
+  /**
+   * Locations of the files an implementation result records as changed.
+   * @param changes - `changes` list of strings or `{ file_path }` objects
+   * @returns Changed file locations
+   */
+  private changedFiles(changes: unknown): readonly string[] {
+    if (!Array.isArray(changes)) return [];
+    const locations = changes.map((change: unknown) =>
+      this.safeToString(
+        this.isRecord(change)
+          ? (change['file_path'] ?? change['filePath'] ?? change['path'] ?? '')
+          : change
+      )
+    );
+    return [...new Set(locations.filter((location) => location.length > 0))];
+  }
+
+  /**
+   * Per-criterion evidence reported by an implementation result.
+   * @param list - `acceptance_criteria` entries
+   * @returns Evidence entries that name a criterion
+   */
+  private criterionEvidence(list: readonly unknown[]): readonly ParsedCriterionEvidence[] {
+    return list.flatMap((item): ParsedCriterionEvidence[] => {
+      if (!this.isRecord(item)) return [];
+      const id = this.safeToString(item['id'] ?? item['criterion_id'] ?? item['criterionId'] ?? '');
+      if (id.length === 0) return [];
+      const status = this.safeToString(item['status'] ?? '').toLowerCase();
+      return [
+        {
+          id: normalizeCriterionId(id),
+          met: item['met'] === true || MET_STATUSES.has(status),
+          tests: this.stringList(item['tests'] ?? item['test_files'] ?? item['testFiles']),
+        },
+      ];
+    });
   }
 
   /**
@@ -691,45 +815,38 @@ export class RtmBuilderAgent implements IAgent {
    *
    * @param projectDir - Absolute path to project root
    * @param projectId - Unique project identifier
+   * @param locations - Explicit review locations, replacing discovery when present
    * @returns Parsed review results with PR info
    */
   private async parseReviews(
     projectDir: string,
-    projectId: string
+    projectId: string,
+    locations?: readonly string[]
   ): Promise<readonly ParsedReview[]> {
+    const files = await this.readSourceFiles(
+      projectDir,
+      path.join(projectDir, SCRATCHPAD_BASE, 'progress', projectId, 'reviews'),
+      locations
+    );
     const reviews: ParsedReview[] = [];
-    const dirPath = path.join(projectDir, SCRATCHPAD_BASE, 'progress', projectId, 'reviews');
-    const files = await this.readDirGracefully(dirPath);
-
     for (const file of files) {
-      if (!file.endsWith('.yaml') && !file.endsWith('.yml') && !file.endsWith('.json')) {
-        continue;
-      }
-      const filePath = path.join(dirPath, file);
-      const content = await this.readFileGracefully(filePath);
-      if (content === null) continue;
-
-      try {
-        let parsed: unknown;
-        if (file.endsWith('.json')) {
-          parsed = JSON.parse(content);
-        } else {
-          const jsYaml = await import('js-yaml');
-          parsed = jsYaml.load(content);
-        }
-        const rev = parsed as Record<string, unknown>;
-        const workOrderId = this.safeToString(rev['workOrderId'] ?? rev['work_order_id'] ?? '');
-        const pullRequestId = this.safeToString(
-          rev['pullRequestId'] ?? rev['pull_request_id'] ?? rev['prNumber'] ?? rev['pr_url'] ?? ''
-        );
-        if (workOrderId.length > 0 && pullRequestId.length > 0) {
-          reviews.push({ workOrderId, pullRequestId });
-        }
-      } catch {
-        this.logger.warn(`Failed to parse review result: ${filePath}`);
+      const rev = this.unwrap(file.data, 'pr_review_result');
+      if (rev === null) continue;
+      const pullRequest = this.isRecord(rev['pull_request']) ? rev['pull_request'] : {};
+      const workOrderId = this.safeToString(rev['workOrderId'] ?? rev['work_order_id'] ?? '');
+      const pullRequestId = this.safeToString(
+        rev['pullRequestId'] ??
+          rev['pull_request_id'] ??
+          rev['prNumber'] ??
+          rev['pr_url'] ??
+          pullRequest['url'] ??
+          pullRequest['number'] ??
+          ''
+      );
+      if (workOrderId.length > 0 && pullRequestId.length > 0) {
+        reviews.push({ workOrderId, pullRequestId });
       }
     }
-
     return reviews;
   }
 
@@ -836,18 +953,150 @@ export class RtmBuilderAgent implements IAgent {
   }
 
   /**
-   * Build a map from work order ID to implementation result
-   * @param results - Parsed implementation results
-   * @returns Map of work order ID to implementation result
+   * Build a map from requirement ID to the issues that cite it directly
+   * @param issues - Parsed issues from scratchpad
+   * @returns Map of requirement ID to array of issue IDs
    */
-  private buildImplByWorkOrder(
-    results: readonly ParsedImplResult[]
-  ): ReadonlyMap<string, ParsedImplResult> {
-    const map = new Map<string, ParsedImplResult>();
-    for (const result of results) {
-      map.set(result.workOrderId, result);
+  private buildIssuesByRequirement(
+    issues: readonly ParsedIssue[]
+  ): ReadonlyMap<string, readonly string[]> {
+    const map = new Map<string, string[]>();
+    for (const issue of issues) {
+      for (const reqId of issue.requirements) {
+        const existing = map.get(reqId) ?? [];
+        if (!existing.includes(issue.id)) {
+          existing.push(issue.id);
+        }
+        map.set(reqId, existing);
+      }
     }
     return map;
+  }
+
+  /**
+   * Trace every issue to its work orders, implementation results, and the
+   * evidence for each acceptance criterion it states.
+   * @param projectDir - Absolute path to project root
+   * @param issues - Parsed issues
+   * @param workOrdersByIssue - Map of issue ID to work order IDs
+   * @param results - Parsed implementation results
+   * @returns Map of issue ID to its trace
+   */
+  private async traceIssues(
+    projectDir: string,
+    issues: readonly ParsedIssue[],
+    workOrdersByIssue: ReadonlyMap<string, readonly string[]>,
+    results: readonly ParsedImplResult[]
+  ): Promise<ReadonlyMap<string, IssueTrace>> {
+    const traces = new Map<string, IssueTrace>();
+    for (const issue of issues) {
+      const assigned = workOrdersByIssue.get(issue.id) ?? [];
+      const issueResults = results.filter(
+        (result) => assigned.includes(result.workOrderId) || result.issueId === issue.id
+      );
+      const workOrders = [
+        ...new Set([...assigned, ...issueResults.map((result) => result.workOrderId)]),
+      ].filter((id) => id.length > 0);
+      const criteria: RtmAcceptanceCriterion[] = [];
+      for (const criterion of issue.acceptanceCriteria)
+        criteria.push(
+          await this.traceCriterion(projectDir, issue.id, criterion, workOrders, issueResults)
+        );
+      traces.set(issue.id, {
+        workOrders,
+        implementations: issueResults
+          .filter((result) => result.workOrderId.length > 0)
+          .map((result) => ({
+            workOrderId: result.workOrderId,
+            status: result.status,
+            testsPassed: result.testsPassed,
+            buildPassed: result.buildPassed,
+          })),
+        criteria,
+      });
+    }
+    return traces;
+  }
+
+  /**
+   * Decide whether one issue criterion is implemented and tested.
+   *
+   * Implemented: a completed implementation result of the issue reports the
+   * criterion as met. Tested: additionally, that result reports passing tests
+   * and links at least one test file to the criterion, and every linked test
+   * file exists inside the project.
+   *
+   * @param projectDir - Absolute path to project root
+   * @param issueId - Issue stating the criterion
+   * @param criterion - Criterion identifier and text
+   * @param criterion.id - Identifier within the issue
+   * @param criterion.description - Criterion text
+   * @param workOrders - Work orders of the issue
+   * @param results - Implementation results of the issue
+   * @returns Criterion with its evidence and, when not validated, the reason
+   */
+  private async traceCriterion(
+    projectDir: string,
+    issueId: string,
+    criterion: { readonly id: string; readonly description: string },
+    workOrders: readonly string[],
+    results: readonly ParsedImplResult[]
+  ): Promise<RtmAcceptanceCriterion> {
+    const completed = results.filter((result) => result.status === 'completed');
+    const base = {
+      id: criterion.id,
+      description: criterion.description,
+      issueId,
+      workOrders: [...workOrders],
+      changedFiles: [...new Set(completed.flatMap((result) => result.changedFiles))],
+    };
+    const uncovered = (
+      reason: string,
+      implemented: boolean,
+      tests: readonly string[] = []
+    ): RtmAcceptanceCriterion => ({
+      ...base,
+      validated: false,
+      implemented,
+      tests: [...tests],
+      uncoveredReason: reason,
+    });
+
+    if (results.length === 0)
+      return uncovered('No work order or implementation result covers the issue', false);
+    if (completed.length === 0)
+      return uncovered('No implementation result of the issue reports status completed', false);
+    const evidence = completed.flatMap((result) =>
+      result.criteria
+        .filter((entry) => entry.id === criterion.id)
+        .map((entry) => ({ entry, result }))
+    );
+    if (evidence.length === 0)
+      return uncovered(
+        completed.some((result) => result.reportsCriteria)
+          ? 'The implementation result does not report this criterion'
+          : 'The implementation result reports no acceptance criteria evidence',
+        false
+      );
+    const met = evidence.filter(({ entry }) => entry.met);
+    if (met.length === 0)
+      return uncovered('The implementation result reports the criterion as not met', false);
+    const tests = [...new Set(met.flatMap(({ entry }) => entry.tests))];
+    if (tests.length === 0) return uncovered('No test is linked to the criterion', true);
+    if (!met.every(({ result }) => result.testsPassed))
+      return uncovered('The implementation result does not report passing tests', true, tests);
+    const missing: string[] = [];
+    for (const test of tests)
+      if (!(await this.projectFileExists(projectDir, test))) missing.push(test);
+    if (missing.length > 0)
+      return uncovered(`Linked test file not found: ${missing.join(', ')}`, true, tests);
+    return {
+      ...base,
+      validated: true,
+      validationMethod: 'automated-test',
+      implemented: true,
+      tests,
+    };
   }
 
   /**
@@ -871,13 +1120,20 @@ export class RtmBuilderAgent implements IAgent {
 
   /**
    * Assemble RtmEntry array by following the chain forward from each FR
+   *
+   * An issue belongs to a requirement through the FR → SF → CMP chain or by
+   * citing the requirement in its traceability. The entry lists the PRD
+   * criteria followed by the criteria of its issues. A PRD criterion is
+   * validated (method `issue-acceptance-tests`) when every linked issue states
+   * criteria and all of them are validated.
+   *
    * @param requirements - Parsed functional requirements
    * @param featuresByReq - Map of requirement ID to feature IDs
    * @param useCasesByFeature - Map of feature ID to use case IDs
    * @param componentsByFeature - Map of feature ID to component IDs
    * @param issuesByComponent - Map of component ID to issue IDs
-   * @param workOrdersByIssue - Map of issue ID to work order IDs
-   * @param implByWorkOrder - Map of work order ID to implementation result
+   * @param issuesByRequirement - Map of requirement ID to issues citing it
+   * @param issueTraces - Map of issue ID to its trace
    * @param reviewByWorkOrder - Map of work order ID to review record
    * @returns Assembled RTM entries
    */
@@ -887,8 +1143,8 @@ export class RtmBuilderAgent implements IAgent {
     useCasesByFeature: ReadonlyMap<string, readonly string[]>,
     componentsByFeature: ReadonlyMap<string, readonly string[]>,
     issuesByComponent: ReadonlyMap<string, readonly string[]>,
-    workOrdersByIssue: ReadonlyMap<string, readonly string[]>,
-    implByWorkOrder: ReadonlyMap<string, ParsedImplResult>,
+    issuesByRequirement: ReadonlyMap<string, readonly string[]>,
+    issueTraces: ReadonlyMap<string, IssueTrace>,
     reviewByWorkOrder: ReadonlyMap<string, ParsedReview>
   ): readonly RtmEntry[] {
     return requirements.map((req) => {
@@ -913,8 +1169,8 @@ export class RtmBuilderAgent implements IAgent {
         }
       }
 
-      // CMP -> ISS
-      const issueIds = new Set<string>();
+      // CMP -> ISS, plus issues citing the requirement directly
+      const issueIds = new Set<string>(issuesByRequirement.get(req.id) ?? []);
       for (const cmpId of componentIds) {
         const iss = issuesByComponent.get(cmpId) ?? [];
         for (const i of iss) {
@@ -922,44 +1178,36 @@ export class RtmBuilderAgent implements IAgent {
         }
       }
 
-      // ISS -> WO
-      const workOrderIds = new Set<string>();
-      for (const issId of issueIds) {
-        const wos = workOrdersByIssue.get(issId) ?? [];
-        for (const wo of wos) {
-          workOrderIds.add(wo);
-        }
-      }
-
-      // WO -> Implementations
-      const implementations: RtmImplStatus[] = [];
-      for (const woId of workOrderIds) {
-        const impl = implByWorkOrder.get(woId);
-        if (impl) {
-          implementations.push({
-            workOrderId: impl.workOrderId,
-            status: impl.status,
-            testsPassed: impl.testsPassed,
-            buildPassed: impl.buildPassed,
-          });
-        }
-      }
-
-      // WO -> PRs (from reviews)
-      const pullRequests = new Set<string>();
-      for (const woId of workOrderIds) {
-        const review = reviewByWorkOrder.get(woId);
-        if (review !== undefined && review.pullRequestId.length > 0) {
-          pullRequests.add(review.pullRequestId);
-        }
-      }
+      // ISS -> WO -> Implementations and issue criteria
+      const traces = [...issueIds].flatMap((id) => {
+        const trace = issueTraces.get(id);
+        return trace === undefined ? [] : [trace];
+      });
+      const workOrderIds = new Set(traces.flatMap((trace) => trace.workOrders));
+      const implementations = this.uniqueImplementations(traces);
+      const issueCriteria = traces.flatMap((trace) => trace.criteria);
+      const issuesValidated =
+        traces.length > 0 &&
+        traces.length === issueIds.size &&
+        traces.every(
+          (trace) => trace.criteria.length > 0 && trace.criteria.every((c) => c.validated)
+        );
+      const acceptanceCriteria = [
+        ...req.acceptanceCriteria.map((criterion) =>
+          issuesValidated
+            ? { ...criterion, validated: true, validationMethod: 'issue-acceptance-tests' }
+            : criterion
+        ),
+        ...issueCriteria,
+      ];
 
       // Determine status
       const status = this.determineStatus(
         featureIds,
         [...componentIds],
         implementations,
-        req.acceptanceCriteria
+        acceptanceCriteria,
+        [...issueIds]
       );
 
       return {
@@ -972,11 +1220,87 @@ export class RtmBuilderAgent implements IAgent {
         issues: [...issueIds],
         workOrders: [...workOrderIds],
         implementations,
-        pullRequests: [...pullRequests],
-        acceptanceCriteria: [...req.acceptanceCriteria],
+        pullRequests: this.pullRequestsFor(workOrderIds, reviewByWorkOrder),
+        acceptanceCriteria,
         status,
       };
     });
+  }
+
+  /**
+   * Assemble one entry per imported issue (Import mode). The issue's own
+   * criteria are the traceability roots; no PRD, SRS, or SDS link is implied.
+   * @param issues - Parsed imported issues
+   * @param issueTraces - Map of issue ID to its trace
+   * @param reviewByWorkOrder - Map of work order ID to review record
+   * @returns One entry per issue
+   */
+  private assembleIssueEntries(
+    issues: readonly ParsedIssue[],
+    issueTraces: ReadonlyMap<string, IssueTrace>,
+    reviewByWorkOrder: ReadonlyMap<string, ParsedReview>
+  ): readonly RtmEntry[] {
+    return issues.map((issue) => {
+      const trace = issueTraces.get(issue.id) ?? {
+        workOrders: [],
+        implementations: [],
+        criteria: [],
+      };
+      const completed = trace.implementations.some((impl) => impl.status === 'completed');
+      const verified = trace.criteria.length > 0 && trace.criteria.every((c) => c.validated);
+      return {
+        requirementId: issue.id,
+        requirementTitle: issue.title,
+        priority: issue.priority,
+        features: [],
+        useCases: [],
+        components: [...issue.components],
+        issues: [issue.id],
+        workOrders: [...trace.workOrders],
+        implementations: [...trace.implementations],
+        pullRequests: this.pullRequestsFor(new Set(trace.workOrders), reviewByWorkOrder),
+        acceptanceCriteria: [...trace.criteria],
+        status: verified
+          ? 'verified'
+          : completed
+            ? 'implemented'
+            : trace.workOrders.length > 0
+              ? 'in_progress'
+              : 'not_started',
+      };
+    });
+  }
+
+  /**
+   * Implementation results of several issue traces, one per work order.
+   * @param traces - Issue traces
+   * @returns Implementation results in trace order
+   */
+  private uniqueImplementations(traces: readonly IssueTrace[]): RtmImplStatus[] {
+    const byWorkOrder = new Map<string, RtmImplStatus>();
+    for (const impl of traces.flatMap((trace) => trace.implementations))
+      if (!byWorkOrder.has(impl.workOrderId)) byWorkOrder.set(impl.workOrderId, impl);
+    return [...byWorkOrder.values()];
+  }
+
+  /**
+   * Pull requests reviewed for a set of work orders.
+   * @param workOrderIds - Work order IDs
+   * @param reviewByWorkOrder - Map of work order ID to review record
+   * @returns Pull request identifiers or URLs
+   */
+  private pullRequestsFor(
+    workOrderIds: ReadonlySet<string>,
+    reviewByWorkOrder: ReadonlyMap<string, ParsedReview>
+  ): string[] {
+    const pullRequests = new Set<string>();
+    for (const woId of workOrderIds) {
+      const review = reviewByWorkOrder.get(woId);
+      if (review !== undefined && review.pullRequestId.length > 0) {
+        pullRequests.add(review.pullRequestId);
+      }
+    }
+    return [...pullRequests];
   }
 
   // ---------------------------------------------------------------------------
@@ -1033,20 +1357,40 @@ export class RtmBuilderAgent implements IAgent {
 
   /**
    * Identify gaps in the traceability chain
+   * Import mode has no PRD, SRS, or SDS, so the document-chain gaps
+   * (uncovered requirement, orphan component, broken chain) do not apply.
+   *
    * @param entries - Assembled RTM entries
    * @param allComponentIds - Set of all component IDs found in SDS
    * @param tracedComponentIds - Set of component IDs traced to requirements
+   * @param pipelineMode - Mode that produced the traced artifacts
+   * @param issueIds - Every parsed issue, for the backward issue check
    * @returns Array of identified gaps
    */
   private identifyGaps(
     entries: readonly RtmEntry[],
     allComponentIds: ReadonlySet<string>,
-    tracedComponentIds: ReadonlySet<string>
+    tracedComponentIds: ReadonlySet<string>,
+    pipelineMode: PipelineMode,
+    issueIds: readonly string[] = []
   ): readonly RtmGap[] {
     const gaps: RtmGap[] = [];
+    const documentChain = pipelineMode !== 'import';
+
+    // Orphan issues: issues that trace back to no requirement
+    const tracedIssues = new Set(entries.flatMap((e) => e.issues));
+    const orphanIssues = documentChain ? issueIds.filter((id) => !tracedIssues.has(id)) : [];
+    if (orphanIssues.length > 0) {
+      gaps.push({
+        type: 'orphan_issue',
+        severity: 'warning',
+        affectedIds: orphanIssues,
+        message: `${String(orphanIssues.length)} issue(s) are not traced to any requirement`,
+      });
+    }
 
     // Uncovered requirements: FR with no SF
-    const uncovered = entries.filter((e) => e.features.length === 0);
+    const uncovered = documentChain ? entries.filter((e) => e.features.length === 0) : [];
     if (uncovered.length > 0) {
       gaps.push({
         type: 'uncovered_requirement',
@@ -1102,7 +1446,7 @@ export class RtmBuilderAgent implements IAgent {
     }
 
     // Broken chain: entries with components but no features (shouldn't happen if chain is intact)
-    for (const entry of entries) {
+    for (const entry of documentChain ? entries : []) {
       if (entry.components.length > 0 && entry.features.length === 0) {
         gaps.push({
           type: 'broken_chain',
@@ -1123,17 +1467,28 @@ export class RtmBuilderAgent implements IAgent {
   /**
    * Read a document markdown file from scratchpad or docs directory
    *
-   * Checks scratchpad first, then falls back to docs/ directory.
+   * Checks scratchpad first, then falls back to docs/ directory. Explicit
+   * document locations replace this discovery: a document type they do not
+   * list is treated as absent.
    * @param projectDir - Absolute path to project root
    * @param projectId - Unique project identifier
    * @param docType - Document type to read
+   * @param documents - Explicit document locations
    * @returns Document content or null if not found
    */
   private async readDocumentMarkdown(
     projectDir: string,
     projectId: string,
-    docType: 'prd' | 'srs' | 'sds'
+    docType: 'prd' | 'srs' | 'sds',
+    documents?: RtmDocumentLocations
   ): Promise<string | null> {
+    if (documents !== undefined) {
+      const location = documents[docType];
+      return location === undefined
+        ? null
+        : this.readFileGracefully(path.resolve(projectDir, location));
+    }
+
     // Try scratchpad first
     const scratchpadPath = path.join(
       projectDir,
@@ -1190,6 +1545,82 @@ export class RtmBuilderAgent implements IAgent {
       return await fs.readdir(dirPath);
     } catch {
       return [];
+    }
+  }
+
+  /**
+   * Read and parse structured files. Missing files are skipped; files that
+   * are neither JSON nor YAML are skipped with a warning.
+   * @param projectDir - Absolute path to project root
+   * @param locations - Absolute or project-relative locations
+   * @returns Parsed files in input order
+   */
+  private async readStructuredFiles(
+    projectDir: string,
+    locations: readonly string[]
+  ): Promise<readonly StructuredFile[]> {
+    const files: StructuredFile[] = [];
+    for (const location of locations) {
+      const filePath = path.resolve(projectDir, location);
+      const content = await this.readFileGracefully(filePath);
+      if (content === null) continue;
+      try {
+        const data: unknown = filePath.endsWith('.json')
+          ? JSON.parse(content)
+          : (await import('js-yaml')).load(content);
+        files.push({ path: location, data });
+      } catch {
+        this.logger.warn(`Failed to parse structured file: ${filePath}`);
+      }
+    }
+    return files;
+  }
+
+  /**
+   * Read the structured files of one source category: the explicit
+   * locations when given, otherwise every YAML or JSON file of the
+   * conventional directory.
+   * @param projectDir - Absolute path to project root
+   * @param conventionalDir - Directory used without explicit locations
+   * @param locations - Explicit locations
+   * @returns Parsed files
+   */
+  private async readSourceFiles(
+    projectDir: string,
+    conventionalDir: string,
+    locations: readonly string[] | undefined
+  ): Promise<readonly StructuredFile[]> {
+    if (locations !== undefined) return this.readStructuredFiles(projectDir, locations);
+    const names = await this.readDirGracefully(conventionalDir);
+    return this.readStructuredFiles(
+      projectDir,
+      names
+        .filter((name) => /\.(?:ya?ml|json)$/.test(name))
+        .map((name) => path.join(conventionalDir, name))
+    );
+  }
+
+  /**
+   * Whether a project-relative file exists inside the project.
+   * @param projectDir - Absolute path to project root
+   * @param location - Recorded file location
+   * @returns False for missing files and for locations outside the project
+   */
+  private async projectFileExists(projectDir: string, location: string): Promise<boolean> {
+    const target = path.resolve(projectDir, location);
+    const fromRoot = path.relative(projectDir, target);
+    if (
+      fromRoot === '' ||
+      fromRoot === '..' ||
+      fromRoot.startsWith(`..${path.sep}`) ||
+      path.isAbsolute(fromRoot)
+    )
+      return false;
+    try {
+      await fs.access(target);
+      return true;
+    } catch {
+      return false;
     }
   }
 
@@ -1318,16 +1749,18 @@ export class RtmBuilderAgent implements IAgent {
    * @param components - Component IDs linked through features
    * @param implementations - Implementation results for linked work orders
    * @param acceptanceCriteria - Acceptance criteria for this requirement
+   * @param issues - Issues linked to the requirement
    * @returns Overall status of the requirement chain
    */
   private determineStatus(
     features: readonly string[],
     components: readonly string[],
     implementations: readonly RtmImplStatus[],
-    acceptanceCriteria: readonly RtmAcceptanceCriterion[]
+    acceptanceCriteria: readonly RtmAcceptanceCriterion[],
+    issues: readonly string[] = []
   ): 'not_started' | 'in_progress' | 'implemented' | 'verified' {
-    // No features mapped yet — not started
-    if (features.length === 0) {
+    // No features mapped and no issue cites the requirement — not started
+    if (features.length === 0 && issues.length === 0) {
       return 'not_started';
     }
 
@@ -1342,7 +1775,7 @@ export class RtmBuilderAgent implements IAgent {
     }
 
     // Some work is in progress (has components or issues)
-    if (components.length > 0) {
+    if (components.length > 0 || issues.length > 0) {
       return 'in_progress';
     }
 
@@ -1350,15 +1783,35 @@ export class RtmBuilderAgent implements IAgent {
   }
 
   /**
-   * Extract a string array from an unknown value
+   * Extract a string list from a single string or an array
    * @param value - Unknown value to extract strings from
-   * @returns Array of strings, or empty array if value is not an array
+   * @returns Non-empty strings; empty when the value is neither
    */
-  private extractStringArray(value: unknown): readonly string[] {
-    if (Array.isArray(value)) {
-      return value.filter((v): v is string => typeof v === 'string');
-    }
-    return [];
+  private stringList(value: unknown): readonly string[] {
+    const items: unknown[] = Array.isArray(value) ? value : [value];
+    return items.filter((v): v is string => typeof v === 'string' && v.trim() !== '');
+  }
+
+  /**
+   * Narrow an unknown value to a plain object
+   * @param value - Candidate value
+   * @returns Whether the value is a non-array object
+   */
+  private isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
+  }
+
+  /**
+   * Return the object under a documented root key (for example
+   * `implementation_result:`), or the flat object of an older format
+   * @param value - Parsed document
+   * @param rootKey - Documented root key
+   * @returns The wrapped object, the flat object, or null
+   */
+  private unwrap(value: unknown, rootKey: string): Record<string, unknown> | null {
+    if (!this.isRecord(value)) return null;
+    const inner = value[rootKey];
+    return this.isRecord(inner) ? inner : value;
   }
 
   /**

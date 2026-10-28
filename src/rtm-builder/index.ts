@@ -16,6 +16,13 @@ export {
   RTM_BUILDER_AGENT_ID,
 } from './RtmBuilderAgent.js';
 
+// Acceptance criteria stated in issues
+export {
+  issueAcceptanceCriteria,
+  normalizeCriterionId,
+  type IssueCriterion,
+} from './issueCriteria.js';
+
 // Error classes
 export { RtmBuildError } from './errors.js';
 
@@ -58,4 +65,5 @@ export type {
   RequirementsTraceabilityMatrix,
   RtmValidationResult,
   RtmBuildContext,
+  RtmSourceLocations,
 } from './types.js';
