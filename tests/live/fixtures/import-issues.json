@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "rules": "Implement only what this issue asks, in src/text.mjs, and add unit tests under test/. Do not modify test/required-gate.test.mjs or the package.json scripts.",
+  "issues": [
+    {
+      "key": "slugify",
+      "title": "Add slugify(text) to src/text.mjs",
+      "summary": "Add an exported function `slugify(text)` to `src/text.mjs` that turns a title into a URL slug.",
+      "acceptanceCriteria": [
+        "AC-001: `slugify('Hello World')` returns `'hello-world'`",
+        "AC-002: Every run of characters other than ASCII letters and digits becomes one `-`, and the result has no leading or trailing `-`: `slugify('  Hello,   World!  ')` returns `'hello-world'`",
+        "AC-003: `slugify('')` returns `''`",
+        "AC-004: `npm test` passes, including new unit tests for `slugify` under `test/`"
+      ]
+    },
+    {
+      "key": "count-words",
+      "title": "Add countWords(text) to src/text.mjs",
+      "summary": "Add an exported function `countWords(text)` to `src/text.mjs` that counts the whitespace-separated words of a text.",
+      "acceptanceCriteria": [
+        "AC-001: `countWords('one two  three')` returns `3`",
+        "AC-002: `countWords('   ')` and `countWords('')` return `0`",
+        "AC-003: `npm test` passes, including new unit tests for `countWords` under `test/`"
+      ]
+    }
+  ]
+}

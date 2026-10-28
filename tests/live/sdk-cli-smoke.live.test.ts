@@ -1,12 +1,12 @@
 /**
- * Live acceptance lane: PLACEHOLDER smoke (#954).
+ * Live acceptance lane: plumbing smoke (#954).
  *
  * Drives the production path end to end against the real Claude Agent SDK:
  * the `ad-sdlc init` and `ad-sdlc run` CLI commands, the orchestrator, and
  * SdkExecutionAdapter. It runs a single stage (initialization) with one
  * attempt, the lane's turn budget (agent `maxTurns`), and the lane's stage
- * time budget. It is a minimal plumbing check for the lane, not an acceptance
- * scenario: the Import acceptance scenario that replaces it belongs to #955.
+ * time budget. It is the lane's cheapest plumbing check, not an acceptance
+ * scenario; the acceptance scenarios are in import-acceptance.live.test.ts (#955).
  *
  * Selected only by vitest.live.config.ts through `npm run test:live`. When
  * the required settings are absent the test fails instead of skipping, so
@@ -31,7 +31,7 @@ import {
 const settings = resolveLiveSettings(process.env);
 const cliTimeoutMs = settings.budget.stageTimeoutMs + 60_000;
 
-describe('live lane placeholder smoke (#954; replaced by the #955 Import scenario)', () => {
+describe('live lane plumbing smoke (#954)', () => {
   it(
     'runs the initialization stage through ad-sdlc run and the real SDK within the lane budget',
     async () => {
