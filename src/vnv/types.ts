@@ -50,28 +50,42 @@ export interface VnvConfig {
    * anything else is `advisory`), so existing configurations keep their behavior.
    */
   readonly profile?: VerificationProfile;
-  /** Generate V&V Plan document at pipeline start */
-  readonly generateVnvPlan: boolean;
-  /** Generate V&V Report document at pipeline end */
-  readonly generateVnvReport: boolean;
-  /** Generate standalone RTM artifact */
+  /**
+   * @deprecated Not supported. No pipeline stage or orchestrator step generates
+   * a V&V plan; setting this to true only adds a deprecation warning to the run
+   * result. See docs/guides/verification-policy.md.
+   */
+  readonly generateVnvPlan?: boolean;
+  /**
+   * @deprecated Not supported. The run result's `verification` and
+   * `traceability` summaries replace a generated V&V report; setting this to
+   * true only adds a deprecation warning to the run result.
+   */
+  readonly generateVnvReport?: boolean;
+  /** Write the run's requirements traceability matrix (JSON and Markdown) */
   readonly generateRtm: boolean;
-  /** Run cross-document consistency checks after document-producing stages */
+  /** Run the cross-document consistency check (VR-XDOC-001) after document-producing stages */
   readonly crossDocumentConsistency: boolean;
-  /** Validate acceptance criteria against implementation results */
+  /** Check at final validation that every acceptance criterion is implemented and tested (VR-VAL-004) */
   readonly acceptanceCriteriaValidation: boolean;
 }
 
 /**
+ * The supported V&V output and check toggles passed to stage verification.
+ */
+export type VerificationOptions = Pick<
+  VnvConfig,
+  'generateRtm' | 'crossDocumentConsistency' | 'acceptanceCriteriaValidation'
+>;
+
+/**
  * Default V&V configuration.
  *
- * Standard rigor with all documentation features enabled.
+ * Standard rigor with traceability, consistency, and acceptance checks enabled.
  */
 export const DEFAULT_VNV_CONFIG: Readonly<VnvConfig> = {
   rigor: 'standard',
   haltOnVerificationFailure: false,
-  generateVnvPlan: true,
-  generateVnvReport: true,
   generateRtm: true,
   crossDocumentConsistency: true,
   acceptanceCriteriaValidation: true,
@@ -91,6 +105,13 @@ export interface VerificationContext {
   readonly rigor: VnvRigor;
   /** Unique pipeline execution identifier */
   readonly pipelineId: string;
+  /**
+   * Effective V&V options. Without them the consistency and traceability
+   * checks are skipped and no traceability record is built.
+   */
+  readonly options?: VerificationOptions;
+  /** Artifact locations of the run's earlier completed stages (manifest-derived) */
+  readonly upstreamArtifacts?: readonly string[];
 }
 
 /**

@@ -17,6 +17,7 @@ import type {
   DeliveryMetricsSummary,
 } from '../telemetry/deliveryMetricsExport.js';
 import type { PipelineVerificationSummary, StageVerificationRecord } from '../vnv/policy.js';
+import type { PipelineTraceabilitySummary, TraceabilityRecord } from '../vnv/traceability.js';
 import { DEFAULT_VNV_CONFIG, type VnvConfig } from '../vnv/types.js';
 import type {
   ApprovalDecisionRecord,
@@ -214,6 +215,12 @@ export interface StageResult {
    * in session and checkpoint state so a resumed run can reuse it.
    */
   readonly approval?: ApprovalDecisionRecord;
+  /**
+   * Requirements traceability record, set on the final validation stage.
+   * Persisted in session and checkpoint state so a resumed run reports and
+   * regenerates the RTM from it.
+   */
+  readonly traceability?: TraceabilityRecord;
 }
 
 /**
@@ -253,6 +260,13 @@ export interface PipelineResult {
    * approval boundary. Set by every orchestrator run.
    */
   readonly approval?: PipelineApprovalSummary;
+  /**
+   * Requirements traceability: the identifiers that are not implemented and
+   * tested, and the RTM files written for the run. Absent when acceptance
+   * criteria validation and RTM generation are both turned off. See
+   * docs/guides/verification-policy.md.
+   */
+  readonly traceability?: PipelineTraceabilitySummary;
   /**
    * Delivery metrics records of this run (attempts, stages, pipeline) and
    * their export state. Set by every orchestrator run; not saved in session

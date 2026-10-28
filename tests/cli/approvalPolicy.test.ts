@@ -40,6 +40,33 @@ const issueList = (criteria: boolean) =>
     ],
   });
 
+/**
+ * Implementation result of one work order whose criterion AC-001 is met and tested.
+ * @param order - Work order number
+ * @param issue - Issue number
+ * @param name - Changed source file name
+ * @returns Result YAML
+ */
+const implementationResult = (order: string, issue: string, name: string): string =>
+  [
+    'implementation_result:',
+    `  work_order_id: WO-${order}`,
+    `  issue_id: ISS-${issue}`,
+    '  status: completed',
+    '  changes:',
+    `    - file_path: src/${name}.ts`,
+    '      change_type: create',
+    '  verification:',
+    '    tests_passed: true',
+    '    build_passed: true',
+    '    lint_passed: true',
+    '  acceptance_criteria:',
+    '    - id: AC-001',
+    '      status: met',
+    `      tests: [tests/${name}.test.ts]`,
+    '',
+  ].join('\n');
+
 /** Files every Import agent writes; all verification checks pass. */
 function importOutputs(criteria = true): Record<string, Record<string, string>> {
   return {
@@ -47,23 +74,24 @@ function importOutputs(criteria = true): Record<string, Record<string, string>> 
     controller: {
       [`${S}/progress/demo/work_orders/WO-001.yaml`]:
         'work_order:\n  id: WO-001\n  status: assigned\n  issue:\n    id: ISS-001\n',
+      [`${S}/progress/demo/work_orders/WO-002.yaml`]:
+        'work_order:\n  id: WO-002\n  status: assigned\n  issue:\n    id: ISS-002\n',
     },
     worker: {
       'src/login.ts': 'export const login = (): boolean => true;\n',
-      [`${S}/progress/demo/results/WO-001-result.yaml`]: [
-        'implementation_result:',
-        '  work_order_id: WO-001',
-        '  issue_id: ISS-001',
-        '  status: completed',
-        '  changes:',
-        '    - file_path: src/login.ts',
-        '      change_type: create',
-        '  verification:',
-        '    tests_passed: true',
-        '    build_passed: true',
-        '    lint_passed: true',
-        '',
-      ].join('\n'),
+      'src/logout.ts': 'export const logout = (): boolean => true;\n',
+      'tests/login.test.ts': "it('signs in', () => undefined);\n",
+      'tests/logout.test.ts': "it('signs out', () => undefined);\n",
+      [`${S}/progress/demo/results/WO-001-result.yaml`]: implementationResult(
+        '001',
+        '001',
+        'login'
+      ),
+      [`${S}/progress/demo/results/WO-002-result.yaml`]: implementationResult(
+        '002',
+        '002',
+        'logout'
+      ),
     },
     'validation-agent': {
       [`${S}/vnv/demo/validation-report.yaml`]:

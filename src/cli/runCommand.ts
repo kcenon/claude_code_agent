@@ -14,6 +14,7 @@ import {
   type PipelineExitCode,
   type PipelineVerificationSummary,
 } from '../vnv/policy.js';
+import type { PipelineTraceabilitySummary } from '../vnv/traceability.js';
 import {
   stageApprovalBoundaries,
   stageApprovalEffects,
@@ -321,6 +322,26 @@ export function formatVerificationSummary(verification: PipelineVerificationSumm
 }
 
 /**
+ * Short text summary of a run's requirements traceability.
+ * @param traceability - Pipeline traceability summary
+ * @returns Output lines
+ */
+export function formatTraceabilitySummary(traceability: PipelineTraceabilitySummary): string[] {
+  const { counts } = traceability;
+  const detail =
+    counts === undefined
+      ? (traceability.reason ?? '')
+      : `${String(counts.roots)} ${traceability.roots === 'issue_acceptance_criteria' ? 'imported issue(s)' : 'requirement(s)'}, ${String(counts.validatedCriteria)} of ${String(counts.criteria)} acceptance criteria implemented and tested${traceability.reason === undefined ? '' : `; ${traceability.reason}`}`;
+  const lines = [`Traceability: ${traceability.status} (${detail})`];
+  if (traceability.uncovered.length > 0)
+    lines.push(`  uncovered: ${traceability.uncovered.join(', ')}`);
+  if (traceability.untraced.length > 0)
+    lines.push(`  issues not traced to a requirement: ${traceability.untraced.join(', ')}`);
+  if (traceability.rtm !== undefined) lines.push(`  RTM: ${traceability.rtm.markdown}`);
+  return lines;
+}
+
+/**
  * Short text summary of a run's approval decisions.
  * @param approval - Pipeline approval summary
  * @returns Output lines
@@ -400,6 +421,8 @@ export function formatRunResult(result: PipelineResult): string[] {
     );
   if (result.verification !== undefined)
     lines.push(...formatVerificationSummary(result.verification));
+  if (result.traceability !== undefined)
+    lines.push(...formatTraceabilitySummary(result.traceability));
   if (result.approval !== undefined) lines.push(...formatApprovalSummary(result.approval));
   if (result.metrics !== undefined) lines.push(...formatMetricsSummary(result.metrics));
   return lines;

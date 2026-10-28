@@ -89,6 +89,34 @@ class PolicyOrchestrator extends AdsdlcOrchestratorAgent {
 const S = '.ad-sdlc/scratchpad';
 const AC = '## Acceptance Criteria\n- [ ] Valid credentials sign in';
 
+/**
+ * Completed implementation result of WO-NNN for ISS-NNN whose criterion
+ * AC-001 is met and tested.
+ * @param number - Work order and issue number
+ * @param name - Changed source and test file name
+ * @returns Result YAML
+ */
+function implementationResult(number: string, name: string): string {
+  return [
+    'implementation_result:',
+    `  work_order_id: WO-${number}`,
+    `  issue_id: ISS-${number}`,
+    '  status: completed',
+    '  changes:',
+    `    - file_path: src/${name}.ts`,
+    '      change_type: create',
+    '  verification:',
+    '    tests_passed: true',
+    '    build_passed: true',
+    '    lint_passed: true',
+    '  acceptance_criteria:',
+    '    - id: AC-001',
+    '      status: met',
+    `      tests: [tests/${name}.test.ts]`,
+    '',
+  ].join('\n');
+}
+
 /** Valid outputs for every Import stage. */
 function importOutputs(): StageOutputs {
   return {
@@ -109,23 +137,16 @@ function importOutputs(): StageOutputs {
     controller: {
       [`${S}/progress/demo/work_orders/WO-001.yaml`]:
         'work_order:\n  id: WO-001\n  status: assigned\n  issue:\n    id: ISS-001\n',
+      [`${S}/progress/demo/work_orders/WO-002.yaml`]:
+        'work_order:\n  id: WO-002\n  status: assigned\n  issue:\n    id: ISS-002\n',
     },
     worker: {
       'src/login.ts': 'export const login = (): boolean => true;\n',
-      [`${S}/progress/demo/results/WO-001-result.yaml`]: [
-        'implementation_result:',
-        '  work_order_id: WO-001',
-        '  issue_id: ISS-001',
-        '  status: completed',
-        '  changes:',
-        '    - file_path: src/login.ts',
-        '      change_type: create',
-        '  verification:',
-        '    tests_passed: true',
-        '    build_passed: true',
-        '    lint_passed: true',
-        '',
-      ].join('\n'),
+      'src/logout.ts': 'export const logout = (): boolean => true;\n',
+      'tests/login.test.ts': "it('signs in', () => undefined);\n",
+      'tests/logout.test.ts': "it('signs out', () => undefined);\n",
+      [`${S}/progress/demo/results/WO-001-result.yaml`]: implementationResult('001', 'login'),
+      [`${S}/progress/demo/results/WO-002-result.yaml`]: implementationResult('002', 'logout'),
     },
     'validation-agent': {
       [`${S}/vnv/demo/rtm.yaml`]: 'rtm:\n  entries: []\n',
@@ -274,8 +295,11 @@ describe('verification policy on the production orchestrator path', () => {
       expect(stage(result, 'issue_reading').warnings?.join(' ')).toContain(
         'Verification advisory: [VR-IRD-003]'
       );
+      // The issue without criteria stays uncovered at final validation.
+      expect(failingChecks(result, 'validation-agent')).toEqual(['VR-VAL-004']);
+      expect(result.traceability).toMatchObject({ status: 'uncovered', uncovered: ['ISS-002'] });
       expect(result.verification?.status).toBe('advisory_findings');
-      expect(result.verification?.counts.verified_pass).toBe(4);
+      expect(result.verification?.counts.verified_pass).toBe(3);
       expect(pipelineExitCode(result)).toBe(0);
     });
   });

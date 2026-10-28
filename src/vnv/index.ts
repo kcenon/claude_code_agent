@@ -12,6 +12,7 @@ export {
   type VnvRigor,
   type VerificationProfile,
   type VnvConfig,
+  type VerificationOptions,
   type VerificationContext,
   type VerificationCategory,
   type CheckSeverity,
@@ -53,6 +54,26 @@ export {
   type PipelineVerificationSummary,
   type VerifiedStageResult,
 } from './policy.js';
+
+// Requirements traceability record and summary
+export {
+  TRACEABILITY_BOUNDARY_STAGE,
+  TraceabilityRecordSchema,
+  buildTraceabilityRecord,
+  locateDocuments,
+  parseTraceabilityRecord,
+  renderTraceabilityFiles,
+  runTraceabilityRecord,
+  summarizeTraceability,
+  traceabilitySources,
+  uncoveredTraceIds,
+  type PipelineTraceabilityStatus,
+  type PipelineTraceabilitySummary,
+  type TraceabilityInput,
+  type TraceabilityRecord,
+  type TraceabilityRoots,
+  type TracedStageResult,
+} from './traceability.js';
 
 // Errors
 export {

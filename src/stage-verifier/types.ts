@@ -8,7 +8,14 @@
  */
 
 import type { PipelineMode, StageName } from '../ad-sdlc-orchestrator/types.js';
-import type { VnvRigor, VerificationCategory, CheckSeverity } from '../vnv/types.js';
+import type { TraceabilityRecord } from '../vnv/traceability.js';
+import type {
+  VnvRigor,
+  VerificationCategory,
+  CheckSeverity,
+  DocumentType,
+  VerificationOptions,
+} from '../vnv/types.js';
 
 /**
  * Single verification check result.
@@ -59,6 +66,17 @@ export interface VerificationRuleContext {
   readonly stageName: StageName;
   readonly agentType: string;
   readonly pipelineMode: PipelineMode;
+  /**
+   * Effective V&V options. Absent for callers that predate them; rules gated
+   * by an option then report a skipped check.
+   */
+  readonly options?: VerificationOptions;
+  /** PRD, SRS, and SDS located among this stage's and earlier stages' artifacts */
+  readonly documents?: Readonly<Partial<Record<DocumentType, string>>>;
+  /** Traceability record built for the final validation stage */
+  readonly traceability?: TraceabilityRecord;
+  /** Why the traceability record could not be built */
+  readonly traceabilityError?: string;
 }
 
 /**
@@ -90,6 +108,8 @@ export interface StageVerificationResult {
   readonly notApplicableReason?: string;
   /** Rules of the check set filtered out by the rigor level */
   readonly skippedRules?: readonly SkippedVerificationRule[];
+  /** Traceability record built at the final validation stage */
+  readonly traceability?: TraceabilityRecord;
 }
 
 /**
@@ -121,6 +141,8 @@ export interface ConsistencyCheckResult {
   readonly passed: boolean;
   /** Number of sync points that were checked */
   readonly syncPointsChecked: number;
+  /** Sync points whose value was compared across at least two available documents */
+  readonly syncPointsEvaluated?: number;
   /** Detected consistency violations */
   readonly violations: readonly ConsistencyViolation[];
 }

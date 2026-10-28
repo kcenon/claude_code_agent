@@ -34,12 +34,9 @@ describe('DEFAULT_VNV_CONFIG', () => {
     expect(DEFAULT_VNV_CONFIG.haltOnVerificationFailure).toBe(false);
   });
 
-  it('should enable V&V plan generation by default', () => {
-    expect(DEFAULT_VNV_CONFIG.generateVnvPlan).toBe(true);
-  });
-
-  it('should enable V&V report generation by default', () => {
-    expect(DEFAULT_VNV_CONFIG.generateVnvReport).toBe(true);
+  it('should not default the deprecated V&V plan and report options', () => {
+    expect(DEFAULT_VNV_CONFIG.generateVnvPlan).toBeUndefined();
+    expect(DEFAULT_VNV_CONFIG.generateVnvReport).toBeUndefined();
   });
 
   it('should enable RTM generation by default', () => {
@@ -54,15 +51,14 @@ describe('DEFAULT_VNV_CONFIG', () => {
     expect(DEFAULT_VNV_CONFIG.acceptanceCriteriaValidation).toBe(true);
   });
 
-  it('should have all expected keys', () => {
-    const keys = Object.keys(DEFAULT_VNV_CONFIG);
-    expect(keys).toContain('rigor');
-    expect(keys).toContain('haltOnVerificationFailure');
-    expect(keys).toContain('generateVnvPlan');
-    expect(keys).toContain('generateVnvReport');
-    expect(keys).toContain('generateRtm');
-    expect(keys).toContain('crossDocumentConsistency');
-    expect(keys).toContain('acceptanceCriteriaValidation');
+  it('should have exactly the supported keys', () => {
+    expect(Object.keys(DEFAULT_VNV_CONFIG).sort()).toEqual([
+      'acceptanceCriteriaValidation',
+      'crossDocumentConsistency',
+      'generateRtm',
+      'haltOnVerificationFailure',
+      'rigor',
+    ]);
   });
 });
 

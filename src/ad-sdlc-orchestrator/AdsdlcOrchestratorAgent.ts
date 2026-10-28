@@ -52,7 +52,13 @@ import {
   type EffectiveVerificationPolicy,
   type VerificationPolicySource,
 } from '../vnv/policy.js';
-import type { VnvConfig } from '../vnv/types.js';
+import {
+  parseTraceabilityRecord,
+  renderTraceabilityFiles,
+  runTraceabilityRecord,
+  summarizeTraceability,
+} from '../vnv/traceability.js';
+import type { VerificationOptions, VnvConfig } from '../vnv/types.js';
 import { buildCanonicalPlan } from './plan.js';
 import { parseRuntimeSnapshot } from '../config/runtimeSnapshot.js';
 import type { EffectiveExecutionPlan } from '../config/runtimeTypes.js';
@@ -113,13 +119,15 @@ import {
  * @returns Result with validated records
  */
 function withValidatedRecords(result: StageResult): StageResult {
-  const { verification, approval, ...rest } = result;
+  const { verification, approval, traceability, ...rest } = result;
   const verificationRecord = parseStageVerificationRecord(verification);
   const approvalRecord = parseApprovalDecisionRecord(approval);
+  const traceabilityRecord = parseTraceabilityRecord(traceability);
   return {
     ...rest,
     ...(verificationRecord !== undefined ? { verification: verificationRecord } : {}),
     ...(approvalRecord !== undefined ? { approval: approvalRecord } : {}),
+    ...(traceabilityRecord !== undefined ? { traceability: traceabilityRecord } : {}),
   };
 }
 
@@ -583,6 +591,12 @@ export class AdsdlcOrchestratorAgent implements IAgent {
             `${String(stageResults.filter((s) => s.status === 'completed').length)} completed`
         );
       }
+      warnings.push(...this.deprecatedVnvWarnings());
+      const traceability = summarizeTraceability(
+        this.verificationOptions(),
+        stageResults,
+        await this.writeRtmFiles(session, stageResults, warnings)
+      );
 
       const outcome: PipelineResult = {
         ...(session.runtimeSnapshot !== undefined
@@ -602,6 +616,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
           : {}),
         verification,
         approval,
+        ...(traceability !== undefined ? { traceability } : {}),
       };
       const result: PipelineResult = {
         ...outcome,
@@ -1011,6 +1026,76 @@ export class AdsdlcOrchestratorAgent implements IAgent {
   }
 
   /**
+   * Warnings for deprecated V&V options a programmatic caller turned on.
+   * No pipeline step generates a V&V plan or report, so these options are
+   * reported instead of being ignored silently.
+   * @returns One warning per deprecated option set to true
+   */
+  private deprecatedVnvWarnings(): string[] {
+    const outputs = { generateVnvPlan: 'plan', generateVnvReport: 'report' } as const;
+    return (Object.keys(outputs) as (keyof typeof outputs)[])
+      .filter((key) => this.requestedVnv?.[key] === true)
+      .map(
+        (key) =>
+          `vnv.${key} is deprecated and not supported: no V&V ${outputs[key]} was generated. ` +
+          'Use the verification and traceability summaries of the run result (docs/guides/verification-policy.md).'
+      );
+  }
+
+  /**
+   * Write the run's RTM (JSON record and Markdown report) next to the
+   * session state, from the traceability record of the final validation
+   * stage. A resumed run rewrites the files from the persisted record.
+   * @param session - Session being finished
+   * @param results - Stage results, including restored pre-completed results
+   * @param warnings - Receives a warning when the files cannot be written
+   * @returns Project-relative file locations, or undefined when none were written
+   */
+  private async writeRtmFiles(
+    session: OrchestratorSession,
+    results: readonly StageResult[],
+    warnings: string[]
+  ): Promise<{ readonly json: string; readonly markdown: string } | undefined> {
+    const record = runTraceabilityRecord(results);
+    if (!this.config.vnv.generateRtm || record === undefined) return undefined;
+    const dir = path.join(session.scratchpadDir, 'traceability');
+    const files = {
+      json: path.join(dir, `${session.sessionId}.json`),
+      markdown: path.join(dir, `${session.sessionId}.md`),
+    };
+    try {
+      const rendered = await renderTraceabilityFiles(record);
+      await fs.mkdir(dir, { recursive: true });
+      await fs.writeFile(files.json, rendered.json, 'utf-8');
+      await fs.writeFile(files.markdown, rendered.markdown, 'utf-8');
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      getLogger().error(
+        'RTM files could not be written',
+        error instanceof Error ? error : undefined,
+        {
+          agent: 'AdsdlcOrchestratorAgent',
+          dir,
+        }
+      );
+      warnings.push(`RTM files could not be written to ${dir}: ${message}`);
+      return undefined;
+    }
+    const relative = (file: string): string =>
+      path.relative(session.projectDir, file).split(path.sep).join('/');
+    return { json: relative(files.json), markdown: relative(files.markdown) };
+  }
+
+  /**
+   * The supported V&V check and output toggles in effect for this run.
+   * @returns Options passed to stage verification and the traceability summary
+   */
+  private verificationOptions(): VerificationOptions {
+    const { generateRtm, crossDocumentConsistency, acceptanceCriteriaValidation } = this.config.vnv;
+    return { generateRtm, crossDocumentConsistency, acceptanceCriteriaValidation };
+  }
+
+  /**
    * Verify one completed stage and retain the outcome for the final pipeline
    * result. Unexpected verifier errors are converted into failed verification
    * records so strict mode cannot fail open.
@@ -1038,6 +1123,15 @@ export class AdsdlcOrchestratorAgent implements IAgent {
         pipelineMode: session.mode,
         rigor: this.config.vnv.rigor,
         pipelineId: session.sessionId,
+        options: this.verificationOptions(),
+        // Manifest-derived outputs of the stages that completed before this one
+        upstreamArtifacts: session.stageResults
+          .filter(
+            (prior) =>
+              prior.name !== stage.name &&
+              (prior.status === 'completed' || prior.status === 'degraded')
+          )
+          .flatMap((prior) => prior.artifacts),
       });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
@@ -1361,6 +1455,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
         verificationResults: result.verificationResults ?? [],
         ...(result.verification !== undefined ? { verification: result.verification } : {}),
         ...(result.approval !== undefined ? { approval: result.approval } : {}),
+        ...(result.traceability !== undefined ? { traceability: result.traceability } : {}),
         stages: result.stages.map((s) => ({
           name: s.name,
           agentType: s.agentType,
@@ -1371,6 +1466,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
           ...(s.manifest !== undefined ? { manifest: s.manifest } : {}),
           ...(s.verification !== undefined ? { verification: s.verification } : {}),
           ...(s.approval !== undefined ? { approval: s.approval } : {}),
+          ...(s.traceability !== undefined ? { traceability: s.traceability } : {}),
           error: s.error,
           retryCount: s.retryCount,
         })),
@@ -1480,6 +1576,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
     const stageResults: StageResult[] = stages.map((s: Record<string, unknown>) => {
       const verification = parseStageVerificationRecord(s['verification']);
       const approval = parseApprovalDecisionRecord(s['approval']);
+      const traceability = parseTraceabilityRecord(s['traceability']);
       return {
         name: (s['name'] ?? '') as StageName,
         agentType: (s['agentType'] ?? '') as string,
@@ -1498,6 +1595,7 @@ export class AdsdlcOrchestratorAgent implements IAgent {
           : {}),
         ...(verification !== undefined ? { verification } : {}),
         ...(approval !== undefined ? { approval } : {}),
+        ...(traceability !== undefined ? { traceability } : {}),
         error: (s['error'] ?? null) as string | null,
         retryCount: (s['retryCount'] ?? 0) as number,
       };

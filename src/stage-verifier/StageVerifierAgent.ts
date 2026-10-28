@@ -11,26 +11,27 @@
  * @module stage-verifier/StageVerifierAgent
  */
 
-import { readFile } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
-import { join } from 'node:path';
-import * as yaml from 'js-yaml';
+import path from 'node:path';
 
 import type { IAgent } from '../agents/types.js';
 import type { StageName, StageResult } from '../ad-sdlc-orchestrator/types.js';
+import {
+  buildTraceabilityRecord,
+  locateDocuments,
+  TRACEABILITY_BOUNDARY_STAGE,
+  type TraceabilityRecord,
+} from '../vnv/traceability.js';
 import type { VerificationContext, DocumentType } from '../vnv/types.js';
 import type {
   VerificationCheck,
   StageVerificationResult,
   ConsistencyCheckResult,
-  ConsistencyViolation,
   SkippedVerificationRule,
+  VerificationRuleContext,
 } from './types.js';
 import { shouldRunRule } from './rules.js';
 import { verificationCheckSet, verificationDisposition } from './applicability.js';
-import { StageVerificationError } from './errors.js';
-import { VnvErrorCodes } from '../errors/codes.js';
-import { ErrorSeverity } from '../errors/types.js';
+import { checkCrossDocumentConsistency } from './consistency.js';
 
 /**
  * Agent ID for StageVerifierAgent used in AgentFactory
@@ -91,7 +92,10 @@ export class StageVerifierAgent implements IAgent {
     const finish = (
       passed: boolean,
       extra: Partial<
-        Pick<StageVerificationResult, 'checkSet' | 'notApplicableReason' | 'skippedRules'>
+        Pick<
+          StageVerificationResult,
+          'checkSet' | 'notApplicableReason' | 'skippedRules' | 'traceability'
+        >
       > = {}
     ): StageVerificationResult => ({
       stageName,
@@ -130,14 +134,12 @@ export class StageVerifierAgent implements IAgent {
         minRigor: rule.minRigor,
       }));
 
+    const ruleContext = await this.ruleContext(stageName, stageResult, context);
+
     // Execute each applicable rule
     for (const rule of applicableRules) {
       try {
-        const check = await rule.check(stageResult.artifacts, context.projectDir, {
-          stageName,
-          agentType: stageResult.agentType,
-          pipelineMode: context.pipelineMode,
-        });
+        const check = await rule.check(stageResult.artifacts, context.projectDir, ruleContext);
         checks.push(check);
 
         if (!check.passed) {
@@ -170,7 +172,54 @@ export class StageVerifierAgent implements IAgent {
     return finish(!hasErrorFailures, {
       checkSet: disposition.checkSet,
       ...(skippedRules.length > 0 ? { skippedRules } : {}),
+      ...(ruleContext.traceability !== undefined ? { traceability: ruleContext.traceability } : {}),
     });
+  }
+
+  /**
+   * Context passed to every rule of a stage: the stage identity, the V&V
+   * options, the run's documents, and, at the final validation stage, the
+   * traceability record built from the run's artifacts.
+   * @param stageName - Stage being verified
+   * @param stageResult - The stage's execution result
+   * @param context - Verification context
+   * @returns Rule context
+   */
+  private async ruleContext(
+    stageName: StageName,
+    stageResult: StageResult,
+    context: VerificationContext
+  ): Promise<VerificationRuleContext> {
+    const artifacts = [...(context.upstreamArtifacts ?? []), ...stageResult.artifacts];
+    const base: VerificationRuleContext = {
+      stageName,
+      agentType: stageResult.agentType,
+      pipelineMode: context.pipelineMode,
+      ...(context.options !== undefined ? { options: context.options } : {}),
+      documents: locateDocuments(artifacts),
+    };
+    const options = context.options;
+    if (
+      stageName !== TRACEABILITY_BOUNDARY_STAGE ||
+      options === undefined ||
+      (!options.acceptanceCriteriaValidation && !options.generateRtm)
+    )
+      return base;
+    let traceability: TraceabilityRecord;
+    try {
+      traceability = await buildTraceabilityRecord({
+        projectDir: context.projectDir,
+        projectId: context.projectId || path.basename(context.projectDir),
+        mode: context.pipelineMode,
+        artifacts,
+      });
+    } catch (error: unknown) {
+      return {
+        ...base,
+        traceabilityError: error instanceof Error ? error.message : String(error),
+      };
+    }
+    return { ...base, traceability };
   }
 
   /**
@@ -180,155 +229,15 @@ export class StageVerifierAgent implements IAgent {
    * referenced values are consistent across PRD, SRS, and SDS documents.
    *
    * @param projectDir - Absolute path to the project root
-   * @param modifiedDocument - The document type that was just modified
-   * @param _modifiedDocument
+   * @param _modifiedDocument - The document type that was just modified
+   * @param documents - Document locations; defaults to `docs/PRD.md`, `docs/SRS.md`, `docs/SDS.md`
    * @returns Consistency check result with any violations found
    */
   async verifyCrossDocumentConsistency(
     projectDir: string,
-    _modifiedDocument: DocumentType
+    _modifiedDocument: DocumentType,
+    documents?: Readonly<Partial<Record<DocumentType, string>>>
   ): Promise<ConsistencyCheckResult> {
-    const syncPointsPath = join(projectDir, 'doc-sync-points.yaml');
-
-    // Check if sync points file exists
-    if (!existsSync(syncPointsPath)) {
-      return {
-        passed: true,
-        syncPointsChecked: 0,
-        violations: [],
-      };
-    }
-
-    // Read and parse sync points
-    let syncPointsContent: string;
-    try {
-      syncPointsContent = await readFile(syncPointsPath, 'utf-8');
-    } catch (err) {
-      throw new StageVerificationError(
-        VnvErrorCodes.VNV_CONSISTENCY_VIOLATION,
-        `Failed to read doc-sync-points.yaml: ${err instanceof Error ? err.message : String(err)}`,
-        {
-          severity: ErrorSeverity.MEDIUM,
-          category: 'recoverable',
-          context: { projectDir, syncPointsPath },
-        }
-      );
-    }
-
-    let syncPointsData: Record<string, unknown>;
-    try {
-      const parsed = yaml.load(syncPointsContent);
-      if (parsed === null || typeof parsed !== 'object') {
-        throw new Error('Parsed content is not an object');
-      }
-      syncPointsData = parsed as Record<string, unknown>;
-    } catch (err) {
-      throw new StageVerificationError(
-        VnvErrorCodes.VNV_CONSISTENCY_VIOLATION,
-        `Failed to parse doc-sync-points.yaml: ${err instanceof Error ? err.message : String(err)}`,
-        {
-          severity: ErrorSeverity.MEDIUM,
-          category: 'recoverable',
-          context: { projectDir },
-        }
-      );
-    }
-
-    // Extract sync points array
-    const syncPoints = syncPointsData['syncPoints'] ?? syncPointsData['sync_points'];
-    if (!Array.isArray(syncPoints)) {
-      return {
-        passed: true,
-        syncPointsChecked: 0,
-        violations: [],
-      };
-    }
-
-    // Read the documents that exist
-    const docPaths: Record<DocumentType, string> = {
-      prd: join(projectDir, 'docs', 'PRD.md'),
-      srs: join(projectDir, 'docs', 'SRS.md'),
-      sds: join(projectDir, 'docs', 'SDS.md'),
-    };
-
-    const docContents: Partial<Record<DocumentType, string>> = {};
-    for (const [docType, docPath] of Object.entries(docPaths) as [DocumentType, string][]) {
-      if (existsSync(docPath)) {
-        try {
-          docContents[docType] = await readFile(docPath, 'utf-8');
-        } catch {
-          // Skip unreadable documents
-        }
-      }
-    }
-
-    const violations: ConsistencyViolation[] = [];
-    let syncPointsChecked = 0;
-
-    for (const syncPoint of syncPoints) {
-      if (typeof syncPoint !== 'object' || syncPoint === null) {
-        continue;
-      }
-
-      const sp = syncPoint as Record<string, unknown>;
-      const rawName = sp['name'] ?? sp['id'];
-      const name =
-        typeof rawName === 'string'
-          ? rawName
-          : typeof rawName === 'number'
-            ? String(rawName)
-            : 'unknown';
-      const sourceDocs = sp['documents'] ?? sp['docs'];
-
-      if (!Array.isArray(sourceDocs) || sourceDocs.length < 2) {
-        continue;
-      }
-
-      syncPointsChecked++;
-
-      // Check if the value/pattern exists in all referenced documents
-      const pattern = sp['pattern'] ?? sp['value'];
-      if (typeof pattern !== 'string') {
-        continue;
-      }
-
-      const docsWithPattern: string[] = [];
-      const docsWithoutPattern: string[] = [];
-
-      for (const docRef of sourceDocs) {
-        const docType = String(docRef).toLowerCase() as DocumentType;
-        const content = docContents[docType];
-        if (content === undefined) {
-          // Document not available; skip
-          continue;
-        }
-
-        if (content.includes(pattern)) {
-          docsWithPattern.push(docType);
-        } else {
-          docsWithoutPattern.push(docType);
-        }
-      }
-
-      // If pattern found in some but not all available docs, report violation
-      if (docsWithPattern.length > 0 && docsWithoutPattern.length > 0) {
-        const severity = sp['severity'] as 'critical' | 'high' | 'medium' | undefined;
-        const sourceDoc = docsWithPattern[0] ?? 'unknown';
-        const targetDoc = docsWithoutPattern[0] ?? 'unknown';
-        violations.push({
-          syncPointName: name,
-          severity: severity ?? 'medium',
-          sourceDoc,
-          targetDoc,
-          description: `Sync point '${name}' pattern '${pattern}' found in ${docsWithPattern.join(', ')} but missing from ${docsWithoutPattern.join(', ')}`,
-        });
-      }
-    }
-
-    return {
-      passed: violations.length === 0,
-      syncPointsChecked,
-      violations,
-    };
+    return checkCrossDocumentConsistency(projectDir, documents);
   }
 }
