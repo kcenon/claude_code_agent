@@ -63,9 +63,12 @@ The generated SVP captures:
 
 ## CLI Integration
 
+The SVP Writer has no command of its own: it runs as the `svp_generation` stage
+of `ad-sdlc run`, after issue generation.
+
 ```bash
-# Generate SVP for a project (after issues are generated)
-ad-sdlc generate-svp --project 001
+# Run the pipeline through SVP generation
+ad-sdlc run "<requirements>" --stop-after svp_generation
 ```
 
 ## API Reference

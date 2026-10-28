@@ -41,6 +41,15 @@ describe('PrerequisiteValidator', () => {
       expect(result.checks.some((c) => c.name === 'Node.js Version' && c.passed)).toBe(true);
     });
 
+    it('passes the Git check where git is installed', async () => {
+      // The test environment has git (the suite runs in a checkout). The
+      // command whitelist used to reject `git --version`, which failed this
+      // required check, and every `ad-sdlc init` without --skip-validation.
+      const result = await new PrerequisiteValidator().validate();
+
+      expect(result.checks.find((c) => c.name === 'Git')?.passed).toBe(true);
+    });
+
     it('should mark optional check failures as warnings', async () => {
       const validator = new PrerequisiteValidator();
       const result = await validator.validate();

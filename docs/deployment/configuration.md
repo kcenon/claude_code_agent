@@ -51,18 +51,18 @@ Edit `.ad-sdlc/config/workflow.yaml`:
 ```yaml
 global_settings:
   # Project settings
-  project_root: "."
-  output_dir: "docs"
+  project_root: '.'
+  output_dir: 'docs'
 
   # Execution settings
-  default_model: "sonnet"
-  approval_gates: true      # Set to false for automated runs
+  default_model: 'sonnet'
+  approval_gates: true # Set to false for automated runs
   parallel_workers: 5
 
   # Timeouts (ms)
   timeouts:
-    document_generation: 300000   # 5 min
-    implementation: 1800000       # 30 min
+    document_generation: 300000 # 5 min
+    implementation: 1800000 # 30 min
 ```
 
 ### 3. Quality Gates
@@ -70,7 +70,7 @@ global_settings:
 ```yaml
 quality_gates:
   code:
-    coverage_threshold: 80    # Minimum test coverage
+    coverage_threshold: 80 # Minimum test coverage
     require_tests: true
     require_lint_pass: true
 
@@ -88,25 +88,25 @@ quality_gates:
 ```yaml
 # .ad-sdlc/config/workflow.yaml
 global_settings:
-  default_model: "haiku"      # Faster, cheaper
-  approval_gates: false       # No manual approval
-  parallel_workers: 10        # More parallelism
+  default_model: 'haiku' # Faster, cheaper
+  approval_gates: false # No manual approval
+  parallel_workers: 10 # More parallelism
 
 quality_gates:
   code:
-    coverage_threshold: 60    # Lower threshold
+    coverage_threshold: 60 # Lower threshold
 ```
 
 ### Production (High Quality)
 
 ```yaml
 global_settings:
-  default_model: "sonnet"     # Better quality
-  approval_gates: true        # Require approval
+  default_model: 'sonnet' # Better quality
+  approval_gates: true # Require approval
 
 quality_gates:
   code:
-    coverage_threshold: 90    # Higher threshold
+    coverage_threshold: 90 # Higher threshold
     max_complexity: 8
 
   security:
@@ -118,13 +118,13 @@ quality_gates:
 
 ```yaml
 global_settings:
-  approval_gates: false       # No manual gates
-  default_model: "haiku"      # Cost-efficient
+  approval_gates: false # No manual gates
+  default_model: 'haiku' # Cost-efficient
 
 github:
   pull_requests:
     auto_create: true
-    require_approvals: 0      # Auto-merge
+    require_approvals: 0 # Auto-merge
 ```
 
 ---
@@ -145,16 +145,16 @@ pipelines:
 
 ```yaml
 global_settings:
-  output_dir: "documentation"   # Custom output path
+  output_dir: 'documentation' # Custom output path
 
 # Stage-specific paths
 pipelines:
   greenfield:
     stages:
-      - name: "prd_generation"
-        agent: "prd-writer"
+      - name: 'prd_generation'
+        agent: 'prd-writer'
         output:
-          path: "specs/prd/PRD-{project}.md"
+          path: 'specs/prd/PRD-{project}.md'
 ```
 
 ### Custom Agent Models
@@ -163,10 +163,10 @@ pipelines:
 # In agents.yaml
 agents:
   worker:
-    model: "opus"           # Use opus for code generation
+    model: 'opus' # Use opus for code generation
 
   controller:
-    model: "haiku"          # Fast decisions
+    model: 'haiku' # Fast decisions
 ```
 
 ---
@@ -175,13 +175,13 @@ agents:
 
 ```bash
 # Validate configuration
-ad-sdlc config validate
-
-# Show effective configuration
-ad-sdlc config show
+ad-sdlc validate
 
 # Check specific file
-ad-sdlc config validate --file workflow.yaml
+ad-sdlc validate --file .ad-sdlc/config/workflow.yaml
+
+# Show the effective runtime policy and stage graph without calling the SDK
+ad-sdlc run "<requirements>" --dry-run
 ```
 
 ---
@@ -193,4 +193,4 @@ ad-sdlc config validate --file workflow.yaml
 
 ---
 
-*Part of [Deployment Guide](./README.md)*
+_Part of [Deployment Guide](./README.md)_

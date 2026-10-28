@@ -1,19 +1,19 @@
 # 5-Minute Quickstart
 
-> **Version**: 1.0.0
-> **Time Required**: 5 minutes
+> **Version**: 1.1.0
+> **Time Required**: 5 minutes, plus the pipeline run
 
-This tutorial walks you through creating your first automated feature with AD-SDLC.
+This tutorial installs AD-SDLC, checks a first project without calling the
+model, and then runs the pipeline with `ad-sdlc run`.
 
 ## Table of Contents
 
 1. [Prerequisites](#prerequisites)
-2. [Step 1: Setup (1 minute)](#step-1-setup-1-minute)
-3. [Step 2: Initialize Project (1 minute)](#step-2-initialize-project-1-minute)
-4. [Step 3: Describe Your Feature (30 seconds)](#step-3-describe-your-feature-30-seconds)
-5. [Step 4: Watch the Pipeline (2+ minutes)](#step-4-watch-the-pipeline-2-minutes)
-6. [Step 5: Review Results (30 seconds)](#step-5-review-results-30-seconds)
-7. [What's Next](#whats-next)
+2. [Steps 1-3: First-Run Check (offline)](#steps-1-3-first-run-check-offline)
+3. [Step 4: Run the Pipeline](#step-4-run-the-pipeline)
+4. [Step 5: Review Results](#step-5-review-results)
+5. [Using Claude Code Instead](#using-claude-code-instead)
+6. [What's Next](#whats-next)
 
 ---
 
@@ -21,8 +21,8 @@ This tutorial walks you through creating your first automated feature with AD-SD
 
 Before starting, ensure you have:
 
-- ✅ AD-SDLC CLI installed (see below)
-- ✅ API key configured (`export ANTHROPIC_API_KEY="..."`)
+- ✅ Node.js 22.22.1 or later and Git 2.30 or later
+- ✅ An `ANTHROPIC_API_KEY` or a Claude Code login, for Step 4 only
 - ✅ GitHub CLI authenticated (`gh auth login`) - _optional; not required for local mode_
 
 ### Install from Source
@@ -33,43 +33,46 @@ cd claude_code_agent
 npm ci
 npm run build
 npm install -g .  # links the ad-sdlc command to this clone, so keep the clone in place
+cd ..
 ```
 
 Need more options? See the [Installation Guide](installation.md).
 
 ---
 
-## Step 1: Setup (1 minute)
+## Steps 1-3: First-Run Check (offline)
 
-Verify your environment is ready:
+These steps need no API key and make no model calls. The package smoke test
+(`npm run test:package`) runs exactly the commands of this section against the
+packed package, so they stay accurate.
+
+<!-- onboarding-smoke:start -->
+
+**Step 1: Check the installation.** `doctor` reports the prerequisites; without
+an API key it warns about the missing AI bridge and still succeeds.
 
 ```bash
-# Check AD-SDLC is installed
 ad-sdlc --version
-
-# Check API key is set
-echo $ANTHROPIC_API_KEY | head -c 10
-# Should show: sk-ant-api
-
-# Check GitHub CLI (optional)
-gh auth status
+ad-sdlc doctor
 ```
 
-All checks passed? Let's continue!
-
----
-
-## Step 2: Initialize Project (1 minute)
-
-Create a new project with the quick setup:
+**Step 2: Initialize a project.**
 
 ```bash
-# Create and initialize a new project
 ad-sdlc init my-first-project --quick
-
-# Navigate to the project
 cd my-first-project
 ```
+
+**Step 3: Validate the configuration and preview the pipeline.** `--dry-run`
+resolves the configuration and prints the mode, the policies, and every stage
+without creating an SDK adapter.
+
+```bash
+ad-sdlc validate
+ad-sdlc run "Implement a REST API endpoint for user registration with email and password" --dry-run
+```
+
+<!-- onboarding-smoke:end -->
 
 For an existing project directory, use `ad-sdlc init . --quick` from that root.
 All templates currently write the same files, including the same canonical assets and
@@ -77,7 +80,7 @@ the same default `workflow.yaml`; the historical quality/worker presets are not 
 or enforced. Review later changes with `ad-sdlc assets update --project-dir . --dry-run`.
 See [asset upgrades and customization](agent-assets.md).
 
-This creates the following structure:
+Initialization creates the following structure:
 
 ```
 my-first-project/
@@ -93,131 +96,92 @@ my-first-project/
 
 ---
 
-## Step 3: Describe Your Feature (30 seconds)
+## Step 4: Run the Pipeline
 
-Tell Claude what you want to build:
+Set the API key (or run inside a Claude Code session) and start the run with
+the same requirements:
 
 ```bash
-claude "Implement a REST API endpoint for user registration with email and password"
+export ANTHROPIC_API_KEY="your-api-key"
+ad-sdlc run "Implement a REST API endpoint for user registration with email and password"
 ```
 
-This starts the automated pipeline. Claude will:
+The CLI prints the session ID when it starts; keep it to resume an interrupted
+run. The Greenfield pipeline runs 19 stages:
 
-1. Detect project mode (Greenfield, Enhancement, or Import)
+1. Initialize the project state and detect the mode (Greenfield, Enhancement, or Import)
 2. Collect and clarify requirements
 3. Generate documentation (PRD, SRS, SDP, SDS, DBS, TM, SVP, TD, UI Specs)
 4. Create GitHub issues from design components
-5. Implement the code in parallel
-6. Validate and review the results
+5. Implement the issues
+6. Validate the implementation against the requirements and acceptance criteria
+7. Open a pull request and review it (`review` stage), then index the documentation
+
+**Where the run stops:** the supported result is a pull request with linked
+requirements and verification evidence, ready for review. The `review` stage
+can also merge the pull request: with the default approval mode `auto` the
+merge is approved by policy, so pass `--approval-mode critical` (or `manual`)
+to decide before the branch is pushed and the pull request is opened or
+merged. Nothing is deployed. See the [capability matrix](architecture/capability-matrix.md).
+
+To stop earlier, pass `--stop-after <stage>`, for example
+`--stop-after sds_generation` for documents only.
 
 ---
 
-## Step 4: Watch the Pipeline (2+ minutes)
-
-The Greenfield pipeline runs through 19 stages, grouped into logical phases.
-Here is a simplified view of the key phases:
-
-```
-Phase                         Status
-──────────────────────────────────────────
-[Setup]
-  Initialization              Done
-  Mode Detection              Done
-[Requirements]
-  Collection                  Done
-  PRD Generation              Done
-  SRS Generation              Done
-[Design]
-  SDP Generation              Done
-  SDS + DBS Generation        Done
-  Parallel Analysis (TM/TD/UI) Done
-[Planning]
-  Issue Generation            Done
-  SVP Generation              Done
-[Execution]
-  Implementation              In Progress (3/5 issues)
-  Validation                  Pending
-  Review                      Pending
-  Doc Indexing                Pending
-```
-
-### What's Happening?
-
-The pipeline coordinates specialized agents across each phase:
-
-**Setup** -- The **Project Initializer** creates the project structure, then the
-**Mode Detector** identifies whether this is a Greenfield, Enhancement, or Import project.
-
-**Requirements** -- The **Collector** gathers requirements from text, files, and URLs.
-The **PRD Writer** produces a Product Requirements Document, and the **SRS Writer**
-produces a Software Requirements Specification.
-
-**Design** -- The **SDP Writer** generates a Software Development Plan. The **SDS Writer**
-generates a Software Design Specification along with a Database Specification (DBS).
-Then the **TM Writer**, **TD Writer**, and **UI Writer** run in parallel to produce a
-Threat Model, Tech Decisions document, and UI Specs.
-
-**Planning** -- The **Issue Generator** creates GitHub Issues from the SDS components.
-The **SVP Writer** creates a Software Verification Plan.
-
-**Execution** -- The **Controller** distributes work to **Worker** agents that implement
-code in parallel. The **Validation Agent** checks the implementation against requirements.
-The **PR Reviewer** performs automated code review. Finally, the **Doc Index Generator**
-creates a searchable documentation index.
-
----
-
-## Step 5: Review Results (30 seconds)
+## Step 5: Review Results
 
 When the pipeline completes, review what was created:
 
 ```bash
-# View generated documents
-ls docs/
-# PRD-001.md  SRS-001.md  SDP-001.md  SDS-001.md  DBS-001.md
-# TM-001.md   SVP-001.md  TD-001.md   UI-001.md
+# Pipeline status and the saved session
+ad-sdlc status
 
-# View the PRD
-cat docs/PRD-001.md
+# Generated documents, one directory per document type
+ls docs/prd docs/srs docs/sdp docs/sds docs/tm docs/decisions docs/svp docs/ui
 
-# Check GitHub issues (if using gh)
+# GitHub issues and the pull request (if using gh)
 gh issue list
-
-# View merged PRs
-gh pr list --state merged
-
-# See what code was generated
-ls src/
+gh pr list --state all
 ```
 
-### Example Output
+**Documents generated (up to 9 types):**
 
-**Documents Generated (up to 9 types):**
+| Directory         | Documents                                                      |
+| ----------------- | -------------------------------------------------------------- |
+| `docs/prd/`       | Product Requirements Document (`PRD-<project-id>.md`)          |
+| `docs/srs/`       | Software Requirements Specification (`SRS-<project-id>.md`)    |
+| `docs/sdp/`       | Software Development Plan                                      |
+| `docs/sds/`       | Software Design Specification and Database Specification (DBS) |
+| `docs/tm/`        | Threat Model                                                   |
+| `docs/decisions/` | Technology Decisions (`TD-<number>-<topic>.md`)                |
+| `docs/svp/`       | Software Verification Plan                                     |
+| `docs/ui/`        | UI Specifications (skipped for CLI, API, and library projects) |
 
-- `docs/PRD-001.md` - Product Requirements Document
-- `docs/SRS-001.md` - Software Requirements Specification
-- `docs/SDP-001.md` - Software Development Plan
-- `docs/SDS-001.md` - Software Design Specification
-- `docs/DBS-001.md` - Database Specification
-- `docs/TM-001.md` - Threat Model
-- `docs/SVP-001.md` - Software Verification Plan
-- `docs/TD-001.md` - Tech Decisions
-- `docs/UI-001.md` - UI Specs
+The traceability record of the run (requirements, issues, acceptance criteria,
+and evidence) is written under `.ad-sdlc/scratchpad/traceability/`.
 
-**Issues Created:**
+---
 
-- #1: Setup project structure
-- #2: Implement user model
-- #3: Create registration endpoint
-- #4: Add input validation
-- #5: Write unit tests
+## Using Claude Code Instead
 
-**Code Implemented:**
+`ad-sdlc init` installs four Claude Code project commands in
+`.claude/commands/`. Inside the project, `claude` sessions can use them; each
+runs the installed `ad-sdlc` executable, so the result is the same pipeline as
+`ad-sdlc run`:
 
-- `src/models/user.ts`
-- `src/routes/auth.ts`
-- `src/validators/user.ts`
-- `tests/auth.test.ts`
+| Command                                      | Runs                                                                                      |
+| -------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `/run-greenfield <requirements> [options]`   | `ad-sdlc init . --quick` when needed, then `ad-sdlc run <requirements> --mode greenfield` |
+| `/resume <session-id> [--project-dir <dir>]` | `ad-sdlc run <original requirements> --resume <session-id>`                               |
+| `/status [options]`                          | `ad-sdlc status`                                                                          |
+| `/audit-docs [options]`                      | `ad-sdlc audit-docs --project-dir .`                                                      |
+
+They need the `ad-sdlc` command on `PATH` and the canonical agent prompts that
+`init` installed (`ad-sdlc-orchestrator` among them). A plain prompt such as
+`claude "Implement user registration"` does **not** start the pipeline: it is
+an ordinary Claude Code session that may use the project's agent prompts, with
+no stage graph, approval policy, verification records, or saved session.
 
 ---
 
@@ -229,7 +193,9 @@ Run the pipeline without GitHub integration using the `--local` flag:
 ad-sdlc run "Your requirements" --local
 ```
 
-In local mode, the pipeline skips GitHub issue creation and PR operations. Documents and code are generated locally.
+In local mode, the pipeline skips GitHub repository setup, and the `review`
+stage reviews and merges the work branch locally instead of opening a pull
+request. Documents and code are generated locally.
 
 You can also enable local mode via environment variable:
 
@@ -250,10 +216,10 @@ Congratulations! You've completed your first AD-SDLC project. Here's what to exp
 
 ```bash
 # Multi-component feature
-claude "Implement a user dashboard with profile management and activity logs"
+ad-sdlc run "Implement a user dashboard with profile management and activity logs"
 
-# Integration with external services
-claude "Add OAuth2 authentication with Google and GitHub providers"
+# Change an existing project with existing documents
+ad-sdlc run "Add OAuth2 authentication with Google and GitHub providers" --mode enhancement
 ```
 
 ### Customize the Pipeline
@@ -264,6 +230,7 @@ claude "Add OAuth2 authentication with Google and GitHub providers"
 
 ### Learn More
 
+- **[Capability Matrix](architecture/capability-matrix.md)** - What each mode delivers
 - **[Use Cases](use-cases.md)** - Common scenarios and patterns
 - **[Headless Execution](headless-execution.md)** - CI/CD and automation guide
 - **[FAQ](faq.md)** - Frequently asked questions
@@ -363,6 +330,7 @@ See [FAQ](faq.md) for more troubleshooting tips.
 | -------------------------------------------- | ---------------------------------- |
 | `ad-sdlc init`                               | Initialize new project             |
 | `ad-sdlc run "<requirements>"`               | Run the pipeline                   |
+| `ad-sdlc run "<requirements>" --dry-run`     | Preview the pipeline offline       |
 | `ad-sdlc status`                             | Check pipeline status and sessions |
 | `ad-sdlc validate`                           | Validate configuration             |
 | `ad-sdlc run "<requirements>" --resume <id>` | Resume a saved run                 |
@@ -381,9 +349,9 @@ See [FAQ](faq.md) for more troubleshooting tips.
 | Parallel Analysis | TM/TD/UI Writers     | Threat Model, Tech Decisions, UI Specs (parallel) |
 | Issue Generation  | Issue Generator      | Creates GitHub Issues from SDS components         |
 | SVP Generation    | SVP Writer           | Creates Software Verification Plan                |
-| Implementation    | Controller + Workers | Distributes and implements work in parallel       |
+| Implementation    | Controller + Workers | Distributes and implements work                   |
 | Validation        | Validation Agent     | Validates implementation against requirements     |
-| Review            | PR Reviewer          | Automated code review and quality gates           |
+| Review            | PR Reviewer          | Opens and reviews the pull request                |
 | Doc Indexing      | Doc Index Generator  | Creates searchable documentation index            |
 
 ---

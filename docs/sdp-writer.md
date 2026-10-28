@@ -60,9 +60,12 @@ The generated SDP captures:
 
 ## CLI Integration
 
+The SDP Writer has no command of its own: it runs as the `sdp_generation` stage
+of `ad-sdlc run`, after SRS generation.
+
 ```bash
-# Generate SDP for a project (after SRS is approved)
-ad-sdlc generate-sdp --project 001
+# Run the pipeline through SDP generation
+ad-sdlc run "<requirements>" --stop-after sdp_generation
 ```
 
 ## API Reference

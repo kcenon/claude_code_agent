@@ -40,11 +40,11 @@
 
 ### 1.2 Overview
 
-AD-SDLC는 Claude Agent SDK를 기반으로 구축된 멀티 에이전트 시스템으로, 소프트웨어 개발의 전체 생명주기를 자동화합니다. 이 제품 역할 카탈로그는 25개의 특화 역할과 3개의 인프라 서비스를 정의합니다. 현재 구현 수치는 별도 축으로 관리되며, 체크인된 프롬프트 정의 36개, 고유 파이프라인 에이전트 유형 29개, Greenfield/Enhancement/Import 모드별 stage slot 합계 39개입니다. 구현 수치는 소스에서 검증되는 [runtime inventory](architecture/runtime-inventory.md)를 기준으로 합니다.
+AD-SDLC는 Claude Agent SDK를 기반으로 구축된 멀티 에이전트 시스템으로, 요구사항부터 요구사항 링크와 검증 근거를 갖춘 검토 가능한 풀 리퀘스트까지 소프트웨어 개발 생명주기를 자동화합니다. 배포는 범위 밖이며, 완료 경계와 파이프라인 모드별 산출물은 [capability matrix](architecture/capability-matrix.md)에 있습니다. 이 제품 역할 카탈로그는 25개의 특화 역할과 3개의 인프라 서비스를 정의합니다. 현재 구현 수치는 별도 축으로 관리되며, 체크인된 프롬프트 정의 36개, 고유 파이프라인 에이전트 유형 29개, Greenfield/Enhancement/Import 모드별 stage slot 합계 39개입니다. 구현 수치는 소스에서 검증되는 [runtime inventory](architecture/runtime-inventory.md)를 기준으로 합니다.
 
 ### 1.3 Key Value Propositions
 
-- **End-to-End 자동화**: 요구사항 수집부터 코드 배포까지 전 과정 자동화
+- **End-to-End 자동화**: 요구사항 수집부터 검토 가능한 풀 리퀘스트까지 전 과정 자동화 (배포는 범위 밖)
 - **문서 일관성 보장**: 계층적 문서 생성으로 추적성(Traceability) 확보
 - **품질 게이트**: 각 단계별 검증을 통한 품질 보증
 - **확장 가능한 아키텍처**: 새로운 에이전트 추가 및 워크플로우 커스터마이징 지원
@@ -108,18 +108,22 @@ Developer Journey (Future State with AD-SDLC):
 
 ## 4. Goals & Success Metrics
 
+이 절의 목표와 KPI 값은 모두 **목표치**입니다. 실제 실행에서 측정한 값은
+아직 없으며, 측정 상태와 근거 링크는 4.3절에 기록합니다.
+
 ### 4.1 Primary Goals
 
-| Goal ID | Goal                      | Measurement                     |
-| ------- | ------------------------- | ------------------------------- |
-| G-001   | 문서화 시간 80% 단축      | PRD 작성 시간: 8시간 → 1.5시간  |
-| G-002   | 요구사항-코드 추적성 100% | 모든 코드 변경에 Issue/SRS 링크 |
-| G-003   | 문서 일관성 95% 이상      | 자동화된 일관성 검사 통과율     |
-| G-004   | PR 리뷰 시간 50% 단축     | 평균 리뷰 대기: 24시간 → 12시간 |
+| Goal ID | Goal                      | Measurement                     | 상태           |
+| ------- | ------------------------- | ------------------------------- | -------------- |
+| G-001   | 문서화 시간 80% 단축      | PRD 작성 시간: 8시간 → 1.5시간  | 목표치, 미측정 |
+| G-002   | 요구사항-코드 추적성 100% | 모든 코드 변경에 Issue/SRS 링크 | 목표치, 미측정 |
+| G-003   | 문서 일관성 95% 이상      | 자동화된 일관성 검사 통과율     | 목표치, 미측정 |
+| G-004   | PR 리뷰 시간 50% 단축     | 평균 리뷰 대기: 24시간 → 12시간 | 목표치, 미측정 |
 
 ### 4.2 Key Performance Indicators (KPIs)
 
 ```yaml
+# 목표치이며 아직 측정하지 않았습니다(4.3 참조).
 Efficiency Metrics:
   - document_generation_time: < 30 min per document
   - issue_creation_accuracy: > 95%
@@ -134,6 +138,15 @@ User Satisfaction:
   - developer_adoption_rate: > 70%
   - nps_score: > 50
 ```
+
+### 4.3 측정 상태
+
+| 지표                                                  | 상태           | 근거                                                                                                       |
+| ----------------------------------------------------- | -------------- | ---------------------------------------------------------------------------------------------------------- |
+| G-001~G-004와 위 KPI                                  | 목표치, 미측정 | 공개된 실제 실행 측정 없음                                                                                 |
+| 실제 저장소에서의 Import 파이프라인 결과              | 미측정         | 평가 보고서 예정: [#955](https://github.com/kcenon/claude_code_agent/issues/955)                           |
+| 실제 저장소에서의 Enhancement 파이프라인 결과         | 미측정         | 평가 보고서 예정: [#957](https://github.com/kcenon/claude_code_agent/issues/957)                           |
+| 한 번의 실행에 대한 전달 지표(결과, SDK 사용량, 재개) | 실행마다 측정  | 실행 결과에 기록되며, 원격 측정 동의 시 `ad-sdlc telemetry report`용으로 내보냄([telemetry](telemetry.md)) |
 
 ---
 

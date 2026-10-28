@@ -249,6 +249,41 @@ await assert.rejects(scratchpad.atomicWrite(join(dir, 'x.txt'), 'x'), /better-sq
     'PACKAGE SMOKE: ad-sdlc/monitoring loads @opentelemetry/api once installed\n'
   );
 }
+/**
+ * Quickstart first-run sequence (#960): the commands of the fenced blocks
+ * between the onboarding-smoke markers of docs/quickstart.md run in order
+ * against the installed package, in a fresh directory and without
+ * credentials. Only `ad-sdlc` commands and `cd` are allowed, so the documented
+ * sequence stays executable as written.
+ */
+function checkOnboarding(bin) {
+  const quickstart = readFileSync(join(repo, 'docs/quickstart.md'), 'utf8');
+  const section = /<!-- onboarding-smoke:start -->([\s\S]*?)<!-- onboarding-smoke:end -->/u.exec(
+    quickstart
+  )?.[1];
+  assert(section, 'docs/quickstart.md has no onboarding-smoke section');
+  const lines = [...section.matchAll(/```bash\r?\n([\s\S]*?)```/gu)]
+    .flatMap((block) => block[1].split(/\r?\n/u))
+    .map((line) => line.replace(/(^|\s)#.*$/u, '').trim())
+    .filter((line) => line !== '');
+  let cwd = join(temp, 'onboarding');
+  mkdirSync(cwd);
+  let output = '';
+  for (const line of lines) {
+    const words = [...line.matchAll(/"([^"]*)"|(\S+)/gu)].map((match) => match[1] ?? match[2]);
+    if (words[0] === 'cd' && words.length === 2) {
+      cwd = join(cwd, words[1]);
+      continue;
+    }
+    assert.equal(words[0], 'ad-sdlc', `onboarding line is not an ad-sdlc command: ${line}`);
+    output = run(bin, words.slice(1), cwd);
+  }
+  assert(existsSync(join(cwd, '.ad-sdlc/config/workflow.yaml')), 'onboarding did not initialize');
+  assert(output.includes('Pipeline is ready to execute.'), output);
+  process.stdout.write(
+    `PACKAGE SMOKE: quickstart first-run sequence passed (${String(lines.length)} commands)\n`
+  );
+}
 try {
   process.stdout.write('PACKAGE SMOKE: build via prepack, create and inspect real tarball\n');
   const tarball = pack(repo, join(temp, 'pack'));
@@ -285,6 +320,7 @@ try {
   );
   checkEntryPoints();
   checkOptionalSubsystems();
+  checkOnboarding(bin);
   for (const template of ['minimal', 'standard', 'enterprise']) {
     const project = join(temp, `${template} target with spaces`);
     run(bin, ['init', project, '--quick', '--skip-validation', '--template', template], caller);

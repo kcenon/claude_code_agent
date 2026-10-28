@@ -9,20 +9,20 @@
 # Document hierarchy and file mappings
 documents:
   PRD-001:
-    path: "docs/PRD-001-agent-driven-sdlc.md"
-    kr_path: "docs/PRD-001-agent-driven-sdlc.kr.md"
-    mirror_path: "docs/api/_media/PRD-001-agent-driven-sdlc.md"
-    kr_mirror_path: "docs/api/_media/PRD-001-agent-driven-sdlc.kr.md"
+    path: 'docs/PRD-001-agent-driven-sdlc.md'
+    kr_path: 'docs/PRD-001-agent-driven-sdlc.kr.md'
+    mirror_path: 'docs/api/_media/PRD-001-agent-driven-sdlc.md'
+    kr_mirror_path: 'docs/api/_media/PRD-001-agent-driven-sdlc.kr.md'
   SRS-001:
-    path: "docs/SRS-001-agent-driven-sdlc.md"
-    kr_path: "docs/SRS-001-agent-driven-sdlc.kr.md"
-    mirror_path: "docs/api/_media/SRS-001-agent-driven-sdlc.md"
-    kr_mirror_path: "docs/api/_media/SRS-001-agent-driven-sdlc.kr.md"
+    path: 'docs/SRS-001-agent-driven-sdlc.md'
+    kr_path: 'docs/SRS-001-agent-driven-sdlc.kr.md'
+    mirror_path: 'docs/api/_media/SRS-001-agent-driven-sdlc.md'
+    kr_mirror_path: 'docs/api/_media/SRS-001-agent-driven-sdlc.kr.md'
   SDS-001:
-    path: "docs/SDS-001-agent-driven-sdlc.md"
-    kr_path: "docs/SDS-001-agent-driven-sdlc.kr.md"
-    mirror_path: "docs/api/_media/SDS-001-agent-driven-sdlc.md"
-    kr_mirror_path: "docs/api/_media/SDS-001-agent-driven-sdlc.kr.md"
+    path: 'docs/SDS-001-agent-driven-sdlc.md'
+    kr_path: 'docs/SDS-001-agent-driven-sdlc.kr.md'
+    mirror_path: 'docs/api/_media/SDS-001-agent-driven-sdlc.md'
+    kr_mirror_path: 'docs/api/_media/SDS-001-agent-driven-sdlc.kr.md'
 
 # Source-derived inventory. scripts/ci/validate-doc-inventory.ts compares every
 # value below with the current checkout and fails CI when code or documents
@@ -41,138 +41,156 @@ inventory:
     softwareFeatures: 31
     designComponents: 36
 
+# Live documents whose `ad-sdlc` command lines (code blocks and inline code)
+# must name real commands, options, and option values. Checked by
+# scripts/ci/validate-doc-inventory.ts against the CLI definitions. Product
+# requirement and design documents, decision records, generated API pages, and
+# historical records are excluded.
+cli_references:
+  documents:
+    - 'README.md'
+    - 'docs/**/*.md'
+    - '.claude/commands/*.md'
+  exclude:
+    - 'docs/api/**'
+    - 'docs/adr/**'
+    - 'docs/architecture/v0.1-*.md'
+    - 'docs/PRD-001-agent-driven-sdlc*.md'
+    - 'docs/SRS-001-agent-driven-sdlc*.md'
+    - 'docs/SDS-001-agent-driven-sdlc*.md'
+
 # Cascade propagation rules
 # direction: "downward" means PRD change -> review SRS -> review SDS
 # direction: "upward" means SDS change -> review SRS -> review PRD
 cascade_rules:
-  - trigger: "PRD-001"
-    direction: "downward"
+  - trigger: 'PRD-001'
+    direction: 'downward'
     review_required:
-      - "SRS-001"
-      - "SDS-001"
-    description: "PRD changes may affect SRS scope and SDS component designs"
+      - 'SRS-001'
+      - 'SDS-001'
+    description: 'PRD changes may affect SRS scope and SDS component designs'
 
-  - trigger: "SRS-001"
-    direction: "both"
+  - trigger: 'SRS-001'
+    direction: 'both'
     review_required:
-      - "PRD-001"
-      - "SDS-001"
-    description: "SRS changes may need PRD alignment and SDS component updates"
+      - 'PRD-001'
+      - 'SDS-001'
+    description: 'SRS changes may need PRD alignment and SDS component updates'
 
-  - trigger: "SDS-001"
-    direction: "upward"
+  - trigger: 'SDS-001'
+    direction: 'upward'
     review_required:
-      - "SRS-001"
-      - "PRD-001"
-    description: "SDS changes may indicate SRS/PRD overview sections need updating"
+      - 'SRS-001'
+      - 'PRD-001'
+    description: 'SDS changes may indicate SRS/PRD overview sections need updating'
 
 # Sync points: sections that must stay aligned across documents
 sync_points:
   agent_count:
-    description: "Distinct runtime inventory axes; see docs/architecture/runtime-inventory.md"
-    severity: "critical"
+    description: 'Distinct runtime inventory axes; see docs/architecture/runtime-inventory.md'
+    severity: 'critical'
     locations:
-      - file: "PRD-001"
-        section: "1.2"
+      - file: 'PRD-001'
+        section: '1.2'
         pattern: "\\d+ specialized agents"
-        description: "Overview agent count"
-      - file: "PRD-001"
-        section: "6.2"
-        pattern: "agent summary table"
-        description: "Agent roles summary table"
-      - file: "SRS-001"
-        section: "1.2"
+        description: 'Overview agent count'
+      - file: 'PRD-001'
+        section: '6.2'
+        pattern: 'agent summary table'
+        description: 'Agent roles summary table'
+      - file: 'SRS-001'
+        section: '1.2'
         pattern: "\\d+ specialized Claude agents"
-        description: "Scope agent count and list"
-      - file: "SDS-001"
-        section: "1.2"
+        description: 'Scope agent count and list'
+      - file: 'SDS-001'
+        section: '1.2'
         pattern: "\\d+ (component|agent)"
-        description: "Scope component count"
-      - file: "SDS-001"
-        section: "3.1"
-        pattern: "Component Overview"
-        description: "Component overview table row count"
+        description: 'Scope component count'
+      - file: 'SDS-001'
+        section: '3.1'
+        pattern: 'Component Overview'
+        description: 'Component overview table row count'
 
   pipeline_modes:
-    description: "Pipeline mode names and descriptions (Greenfield, Enhancement, Import)"
-    severity: "critical"
+    description: 'Pipeline mode names and descriptions (Greenfield, Enhancement, Import)'
+    severity: 'critical'
     locations:
-      - file: "PRD-001"
-        section: "6.1"
-        description: "System architecture pipeline modes"
-      - file: "SRS-001"
-        section: "2"
-        description: "Software features by pipeline mode"
-      - file: "SDS-001"
-        section: "3"
-        description: "Component designs grouped by pipeline"
+      - file: 'PRD-001'
+        section: '6.1'
+        description: 'System architecture pipeline modes'
+      - file: 'SRS-001'
+        section: '2'
+        description: 'Software features by pipeline mode'
+      - file: 'SDS-001'
+        section: '3'
+        description: 'Component designs grouped by pipeline'
 
   agent_categories:
-    description: "Product-role groupings; do not treat these as runtime definition or stage counts"
-    severity: "high"
+    description: 'Product-role groupings; do not treat these as runtime definition or stage counts'
+    severity: 'high'
     locations:
-      - file: "PRD-001"
-        section: "6.2"
-        description: "Product-role summary grouped by pipeline responsibility"
-      - file: "SRS-001"
-        section: "1.2"
-        description: "Agent list by category"
-      - file: "SDS-001"
-        section: "3.1"
-        description: "Component table by category"
+      - file: 'PRD-001'
+        section: '6.2'
+        description: 'Product-role summary grouped by pipeline responsibility'
+      - file: 'SRS-001'
+        section: '1.2'
+        description: 'Agent list by category'
+      - file: 'SDS-001'
+        section: '3.1'
+        description: 'Component table by category'
 
   document_versions:
-    description: "Version numbers in document metadata headers"
-    severity: "high"
+    description: 'Version numbers in document metadata headers'
+    severity: 'high'
     locations:
-      - file: "PRD-001"
-        section: "metadata"
+      - file: 'PRD-001'
+        section: 'metadata'
         pattern: "Version.*\\d+\\.\\d+\\.\\d+"
-      - file: "SRS-001"
-        section: "metadata"
+      - file: 'SRS-001'
+        section: 'metadata'
         pattern: "Version.*\\d+\\.\\d+\\.\\d+"
-      - file: "SDS-001"
-        section: "metadata"
+      - file: 'SDS-001'
+        section: 'metadata'
         pattern: "Version.*\\d+\\.\\d+\\.\\d+"
 
   traceability_chain:
-    description: "Requirement traceability counts (FR -> SF -> UC -> CMP)"
-    severity: "high"
+    description: 'Requirement traceability counts (FR -> SF -> UC -> CMP)'
+    severity: 'high'
     locations:
-      - file: "PRD-001"
-        section: "8"
-        description: "Functional requirements (FR-001 to FR-033)"
-      - file: "SRS-001"
-        section: "3"
-        description: "Software features (SF-001 to SF-031) with FR sources"
-      - file: "SRS-001"
-        section: "traceability"
-        description: "Traceability matrix summary"
-      - file: "SDS-001"
-        section: "3"
-        description: "Components (CMP-001 to CMP-036) with SF sources"
+      - file: 'PRD-001'
+        section: '8'
+        description: 'Functional requirements (FR-001 to FR-033)'
+      - file: 'SRS-001'
+        section: '3'
+        description: 'Software features (SF-001 to SF-031) with FR sources'
+      - file: 'SRS-001'
+        section: 'traceability'
+        description: 'Traceability matrix summary'
+      - file: 'SDS-001'
+        section: '3'
+        description: 'Components (CMP-001 to CMP-036) with SF sources'
 
   implementation_phases:
-    description: "Implementation phase descriptions and timelines"
-    severity: "medium"
+    description: 'Implementation phase descriptions and timelines'
+    severity: 'medium'
     locations:
-      - file: "PRD-001"
-        section: "13"
-        description: "Implementation phases with agent assignments"
-      - file: "SRS-001"
-        section: "1.2"
-        description: "Scope references to phases"
+      - file: 'PRD-001'
+        section: '13'
+        description: 'Implementation phases with agent assignments'
+      - file: 'SRS-001'
+        section: '1.2'
+        description: 'Scope references to phases'
 
   feature_scope:
-    description: "Feature list scope and boundaries"
-    severity: "medium"
+    description: 'Feature list scope and boundaries'
+    severity: 'medium'
     locations:
-      - file: "PRD-001"
-        section: "8"
-        description: "Functional requirement scope"
-      - file: "SRS-001"
-        section: "2"
-        description: "Software feature boundaries"
-      - file: "SDS-001"
-        section: "1.2"
-        description: "Design coverage scope"
+      - file: 'PRD-001'
+        section: '8'
+        description: 'Functional requirement scope'
+      - file: 'SRS-001'
+        section: '2'
+        description: 'Software feature boundaries'
+      - file: 'SDS-001'
+        section: '1.2'
+        description: 'Design coverage scope'

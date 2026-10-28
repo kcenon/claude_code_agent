@@ -25,18 +25,18 @@ The central agent registry at `.ad-sdlc/config/agents.yaml` contains metadata fo
 ```yaml
 agents:
   my-agent:
-    id: "my-agent"
-    name: "My Agent"
-    korean_name: "내 에이전트"
-    description: "Brief description of what this agent does"
-    definition_file: ".claude/agents/my-agent.md"
-    category: "document_pipeline"
+    id: 'my-agent'
+    name: 'My Agent'
+    korean_name: '내 에이전트'
+    description: 'Brief description of what this agent does'
+    definition_file: '.claude/agents/my-agent.md'
+    category: 'document_pipeline'
     order: 5
 
     capabilities:
-      - "capability_one"
-      - "capability_two"
-      - "capability_three"
+      - 'capability_one'
+      - 'capability_two'
+      - 'capability_three'
 
     io:
       inputs:
@@ -56,20 +56,20 @@ agents:
 
 #### Key Fields
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `id` | string | Yes | Unique identifier (kebab-case) |
-| `name` | string | Yes | Display name |
-| `description` | string | Yes | What the agent does |
-| `definition_file` | string | Yes | Path to Markdown definition |
-| `category` | string | Yes | Agent category for grouping |
-| `order` | number | Yes | Execution order within category |
-| `capabilities` | array | Yes | List of agent capabilities |
-| `io.inputs` | array | Yes | Expected input files/types |
-| `io.outputs` | array | Yes | Generated output files |
-| `parallelizable` | boolean | No | Can run in parallel (default: false) |
-| `max_instances` | number | No | Max parallel instances |
-| `metrics` | object | No | Performance metrics |
+| Field             | Type    | Required | Description                          |
+| ----------------- | ------- | -------- | ------------------------------------ |
+| `id`              | string  | Yes      | Unique identifier (kebab-case)       |
+| `name`            | string  | Yes      | Display name                         |
+| `description`     | string  | Yes      | What the agent does                  |
+| `definition_file` | string  | Yes      | Path to Markdown definition          |
+| `category`        | string  | Yes      | Agent category for grouping          |
+| `order`           | number  | Yes      | Execution order within category      |
+| `capabilities`    | array   | Yes      | List of agent capabilities           |
+| `io.inputs`       | array   | Yes      | Expected input files/types           |
+| `io.outputs`      | array   | Yes      | Generated output files               |
+| `parallelizable`  | boolean | No       | Can run in parallel (default: false) |
+| `max_instances`   | number  | No       | Max parallel instances               |
+| `metrics`         | object  | No       | Performance metrics                  |
 
 ### 2. Agent Definition File (Markdown)
 
@@ -91,24 +91,29 @@ Describe the agent's primary role and purpose in the pipeline.
 ## Workflow
 
 ### Input Processing
+
 1. Receive input from previous stage
 2. Validate input format
 
 ### Core Processing
+
 1. Perform main task
 2. Generate intermediate results
 
 ### Output Generation
+
 1. Format output
 2. Write to scratchpad
 
 ## Input/Output
 
 ### Inputs
+
 - `input_file.yaml`: Description of input format
 - `user_message`: User-provided context
 
 ### Outputs
+
 - `output_file.yaml`: Description of output format
 
 ## File Locations
@@ -132,7 +137,7 @@ You can customize an agent's behavior by modifying its configuration in `workflo
 ```yaml
 agents:
   worker:
-    model: "sonnet"  # Change to opus for complex tasks
+    model: 'sonnet' # Change to opus for complex tasks
     tools:
       - Read
       - Write
@@ -141,16 +146,16 @@ agents:
       - Glob
       - Grep
     coding:
-      language: "python"        # Changed from typescript
-      test_framework: "pytest"  # Changed from jest
-      lint_command: "ruff check ."
-      test_command: "pytest"
-      build_command: "python -m build"
+      language: 'python' # Changed from typescript
+      test_framework: 'pytest' # Changed from jest
+      lint_command: 'ruff check .'
+      test_command: 'pytest'
+      build_command: 'python -m build'
     verification:
       run_tests: true
       run_lint: true
       run_build: true
-      coverage_threshold: 90    # Increased from 80
+      coverage_threshold: 90 # Increased from 80
 ```
 
 ### Changing Model Selection
@@ -161,24 +166,24 @@ Each agent can use a different AI model based on task complexity:
 agents:
   # Simple, fast tasks
   collector:
-    model: "haiku"
+    model: 'haiku'
 
   # Standard complexity
   prd-writer:
-    model: "sonnet"
+    model: 'sonnet'
 
   # Complex reasoning
   impact-analyzer:
-    model: "opus"
+    model: 'opus'
 ```
 
 **Model Selection Guidelines:**
 
-| Model | Best For | Context Window | Speed |
-|-------|----------|----------------|-------|
-| Haiku | Quick searches, simple transformations, status checks | 200K | Fastest |
-| Sonnet | Document generation, code generation, analysis | 200K | Balanced |
-| Opus | Complex reasoning, architecture decisions, critical reviews | 200K | Slowest |
+| Model  | Best For                                                    | Context Window | Speed    |
+| ------ | ----------------------------------------------------------- | -------------- | -------- |
+| Haiku  | Quick searches, simple transformations, status checks       | 200K           | Fastest  |
+| Sonnet | Document generation, code generation, analysis              | 200K           | Balanced |
+| Opus   | Complex reasoning, architecture decisions, critical reviews | 200K           | Slowest  |
 
 ### Adding Tools to Agents
 
@@ -187,30 +192,30 @@ Agents can access various tools. Add or remove tools in the `agents` section of 
 ```yaml
 agents:
   my-custom-agent:
-    model: "sonnet"
+    model: 'sonnet'
     tools:
-      - Read        # Read files
-      - Write       # Write new files
-      - Edit        # Edit existing files
-      - Bash        # Execute shell commands
-      - Glob        # Find files by pattern
-      - Grep        # Search file contents
-      - WebFetch    # Fetch web content
-      - WebSearch   # Search the web
+      - Read # Read files
+      - Write # Write new files
+      - Edit # Edit existing files
+      - Bash # Execute shell commands
+      - Glob # Find files by pattern
+      - Grep # Search file contents
+      - WebFetch # Fetch web content
+      - WebSearch # Search the web
 ```
 
 **Available Tools:**
 
-| Tool | Description | Use Cases |
-|------|-------------|-----------|
-| Read | Read file contents | Reading configuration, source code |
-| Write | Create new files | Generating documents, creating code |
-| Edit | Modify existing files | Updating configuration, fixing code |
-| Bash | Execute shell commands | Running tests, build commands |
-| Glob | Find files by pattern | `**/*.ts`, `src/**/*.py` |
-| Grep | Search file contents | Finding function definitions |
-| WebFetch | Fetch URL content | API documentation, external resources |
-| WebSearch | Search the web | Research, finding solutions |
+| Tool      | Description            | Use Cases                             |
+| --------- | ---------------------- | ------------------------------------- |
+| Read      | Read file contents     | Reading configuration, source code    |
+| Write     | Create new files       | Generating documents, creating code   |
+| Edit      | Modify existing files  | Updating configuration, fixing code   |
+| Bash      | Execute shell commands | Running tests, build commands         |
+| Glob      | Find files by pattern  | `**/*.ts`, `src/**/*.py`              |
+| Grep      | Search file contents   | Finding function definitions          |
+| WebFetch  | Fetch URL content      | API documentation, external resources |
+| WebSearch | Search the web         | Research, finding solutions           |
 
 ### Example: Custom Worker for Python Projects
 
@@ -218,7 +223,7 @@ agents:
 # In workflow.yaml
 agents:
   worker:
-    model: "sonnet"
+    model: 'sonnet'
     tools:
       - Read
       - Write
@@ -227,11 +232,11 @@ agents:
       - Glob
       - Grep
     coding:
-      language: "python"
-      test_framework: "pytest"
-      lint_command: "ruff check . && mypy ."
-      test_command: "pytest --cov=src --cov-report=xml"
-      build_command: "python -m build"
+      language: 'python'
+      test_framework: 'pytest'
+      lint_command: 'ruff check . && mypy .'
+      test_command: 'pytest --cov=src --cov-report=xml'
+      build_command: 'python -m build'
     verification:
       run_tests: true
       run_lint: true
@@ -250,19 +255,19 @@ agents:
   # ... existing agents ...
 
   security-scanner:
-    id: "security-scanner"
-    name: "Security Scanner Agent"
-    korean_name: "보안 스캐너 에이전트"
-    description: "Scans code for security vulnerabilities and compliance issues"
-    definition_file: ".claude/agents/security-scanner.md"
-    category: "execution"
+    id: 'security-scanner'
+    name: 'Security Scanner Agent'
+    korean_name: '보안 스캐너 에이전트'
+    description: 'Scans code for security vulnerabilities and compliance issues'
+    definition_file: '.claude/agents/security-scanner.md'
+    category: 'execution'
     order: 9
 
     capabilities:
-      - "vulnerability_detection"
-      - "dependency_audit"
-      - "secret_detection"
-      - "compliance_check"
+      - 'vulnerability_detection'
+      - 'dependency_audit'
+      - 'secret_detection'
+      - 'compliance_check'
 
     io:
       inputs:
@@ -299,26 +304,31 @@ compliance issues before code is merged.
 ## Workflow
 
 ### Input Processing
+
 1. Receive list of changed files from Worker Agent
 2. Load project security policy configuration
 
 ### Vulnerability Scanning
+
 1. Run static analysis for security patterns
 2. Check for injection vulnerabilities
 3. Identify authentication/authorization issues
 4. Detect insecure data handling
 
 ### Dependency Audit
+
 1. Parse dependency files (package.json, requirements.txt, etc.)
 2. Check dependencies against vulnerability databases
 3. Identify outdated packages with known CVEs
 
 ### Secret Detection
+
 1. Scan for API keys, passwords, tokens
 2. Check configuration files
 3. Review environment variable usage
 
 ### Report Generation
+
 1. Compile findings with severity levels
 2. Provide remediation guidance
 3. Generate compliance summary
@@ -326,11 +336,13 @@ compliance issues before code is merged.
 ## Input/Output
 
 ### Inputs
+
 - `changed_files`: List of modified source files
 - `dependency_files`: package.json, requirements.txt, etc.
 - `security_policy.yaml`: Project security configuration
 
 ### Outputs
+
 - `security_report.yaml`: Detailed security findings
 
 ## Quality Criteria
@@ -348,13 +360,13 @@ Update the categories section in `agents.yaml`:
 ```yaml
 categories:
   execution:
-    name: "Execution"
-    description: "Agents that implement code and review PRs"
+    name: 'Execution'
+    description: 'Agents that implement code and review PRs'
     agents:
       - worker
       - pr-reviewer
-      - security-scanner  # Add new agent
-    execution_mode: "parallel"
+      - security-scanner # Add new agent
+    execution_mode: 'parallel'
 ```
 
 ### Step 4: Define Dependencies
@@ -368,7 +380,7 @@ relationships:
     security-scanner:
       requires: [worker]
     pr-reviewer:
-      requires: [worker, security-scanner]  # Updated
+      requires: [worker, security-scanner] # Updated
 
   data_flow:
     # ... existing data flows ...
@@ -390,7 +402,7 @@ agents:
   # ... existing agents ...
 
   security-scanner:
-    model: "sonnet"
+    model: 'sonnet'
     tools:
       - Read
       - Write
@@ -402,9 +414,9 @@ agents:
       dependency_audit: true
       secret_detection: true
       compliance_standards:
-        - "SOC2"
-        - "GDPR"
-    severity_threshold: "medium"  # Block on medium or higher
+        - 'SOC2'
+        - 'GDPR'
+    severity_threshold: 'medium' # Block on medium or higher
 ```
 
 ### Step 6: Add to Pipeline Stage
@@ -418,18 +430,18 @@ pipeline:
       stages:
         # ... existing stages ...
 
-        - name: "security_scan"
-          agent: "security-scanner"
-          description: "Scan implementation for security issues"
+        - name: 'security_scan'
+          agent: 'security-scanner'
+          description: 'Scan implementation for security issues'
           inputs:
-            - "${scratchpad_dir}/progress/${project_id}/results/*.yaml"
+            - '${scratchpad_dir}/progress/${project_id}/results/*.yaml'
           outputs:
-            - "${scratchpad_dir}/security/${project_id}/security_report.yaml"
-          next: "review"
+            - '${scratchpad_dir}/security/${project_id}/security_report.yaml'
+          next: 'review'
           approval_required: false
 
-        - name: "review"
-          agent: "pr-reviewer"
+        - name: 'review'
+          agent: 'pr-reviewer'
           # ... now receives security report ...
 ```
 
@@ -444,9 +456,9 @@ pipeline:
   modes:
     greenfield:
       stages:
-        - name: "security_scan"
-          agent: "security-scanner"
-          approval_required: true  # Require human approval
+        - name: 'security_scan'
+          agent: 'security-scanner'
+          approval_required: true # Require human approval
           # ...
 ```
 
@@ -455,14 +467,14 @@ pipeline:
 Run multiple agents simultaneously:
 
 ```yaml
-- name: "parallel_analysis"
+- name: 'parallel_analysis'
   parallel: true
   substages:
-    - name: "security_scan"
-      agent: "security-scanner"
-    - name: "performance_check"
-      agent: "performance-analyzer"
-  next: "review"
+    - name: 'security_scan'
+      agent: 'security-scanner'
+    - name: 'performance_check'
+      agent: 'performance-analyzer'
+  next: 'review'
 ```
 
 ### Conditional Stages
@@ -470,11 +482,11 @@ Run multiple agents simultaneously:
 Execute stages based on conditions (in custom implementation):
 
 ```yaml
-- name: "security_scan"
-  agent: "security-scanner"
+- name: 'security_scan'
+  agent: 'security-scanner'
   condition:
-    type: "file_pattern"
-    pattern: "*.ts"
+    type: 'file_pattern'
+    pattern: '*.ts'
     min_changes: 10
 ```
 
@@ -486,12 +498,12 @@ Each agent should do one thing well:
 
 ```yaml
 # Good: Focused agents
-security-scanner:    # Only security scanning
+security-scanner: # Only security scanning
 performance-analyzer: # Only performance analysis
-documentation-gen:   # Only documentation
+documentation-gen: # Only documentation
 
 # Avoid: Overloaded agents
-super-agent:         # Does security, performance, AND documentation
+super-agent: # Does security, performance, AND documentation
 ```
 
 ### 2. Clear Input/Output Contracts
@@ -503,22 +515,22 @@ io:
   inputs:
     - type: yaml
       file: changed_files.yaml
-      schema: ".ad-sdlc/schemas/changed_files.schema.json"
+      schema: '.ad-sdlc/schemas/changed_files.schema.json'
   outputs:
     - type: yaml
       file: security_report.yaml
-      schema: ".ad-sdlc/schemas/security_report.schema.json"
+      schema: '.ad-sdlc/schemas/security_report.schema.json'
 ```
 
 ### 3. Appropriate Model Selection
 
 Match model to task complexity:
 
-| Task Type | Recommended Model |
-|-----------|-------------------|
-| File searching, simple parsing | Haiku |
-| Document generation, standard code | Sonnet |
-| Architecture decisions, complex analysis | Opus |
+| Task Type                                | Recommended Model |
+| ---------------------------------------- | ----------------- |
+| File searching, simple parsing           | Haiku             |
+| Document generation, standard code       | Sonnet            |
+| Architecture decisions, complex analysis | Opus              |
 
 ### 4. Minimal Tool Access
 
@@ -549,11 +561,11 @@ Define how agents handle failures:
 ```yaml
 retry_policy:
   max_attempts: 3
-  backoff: "exponential"
+  backoff: 'exponential'
   base_delay_seconds: 5
 
 on_failure:
-  action: "report"  # report, skip, or abort
+  action: 'report' # report, skip, or abort
   notification: true
 ```
 
@@ -623,20 +635,18 @@ describe('Pipeline with SecurityScanner', () => {
 
 ### Manual Testing
 
-Test agent manually using the CLI:
+Check the configuration and the resolved pipeline with the CLI:
 
 ```bash
-# Validate agent configuration
-ad-sdlc validate-agent security-scanner
+# Validate the configuration files (workflow.yaml and agents.yaml)
+ad-sdlc validate
 
-# Run agent in isolation
-ad-sdlc run-agent security-scanner \
-  --input changed_files.yaml \
-  --output security_report.yaml
-
-# Dry run in pipeline
-ad-sdlc run --mode greenfield --dry-run --start-from security_scan
+# Print the resolved stage graph without calling the SDK
+ad-sdlc run "<requirements>" --mode greenfield --dry-run
 ```
+
+The CLI has no command to run one agent in isolation or to start a run from a
+later stage; test a single agent with the integration test pattern above.
 
 ## Troubleshooting
 
@@ -647,6 +657,7 @@ Error: Agent 'my-agent' not found in registry
 ```
 
 **Solutions:**
+
 1. Check agent ID matches in `agents.yaml`
 2. Verify `definition_file` path exists
 3. Ensure agent is added to a category
@@ -658,6 +669,7 @@ Error: Tool 'Bash' not allowed for agent 'my-agent'
 ```
 
 **Solutions:**
+
 1. Add the tool to agent's `tools` list in `workflow.yaml`
 2. Verify tool name is correctly spelled
 
@@ -668,6 +680,7 @@ Error: Circular dependency detected: A -> B -> C -> A
 ```
 
 **Solutions:**
+
 1. Review `dependencies` section in `agents.yaml`
 2. Remove circular references
 3. Consider restructuring agent responsibilities
@@ -679,6 +692,7 @@ Error: Required input 'collected_info.yaml' not found
 ```
 
 **Solutions:**
+
 1. Ensure previous stage completed successfully
 2. Check file path in scratchpad directory
 3. Verify `io.inputs` configuration matches actual files
@@ -690,10 +704,11 @@ Error: Agent 'my-agent' timed out after 600000ms
 ```
 
 **Solutions:**
+
 1. Increase timeout in `workflow.yaml`:
    ```yaml
    timeouts:
-     my_agent_stage: 900  # 15 minutes
+     my_agent_stage: 900 # 15 minutes
    ```
 2. Break task into smaller subtasks
 3. Consider using a faster model for simpler parts

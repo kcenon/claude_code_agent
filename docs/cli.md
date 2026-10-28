@@ -178,9 +178,14 @@ Run `ad-sdlc run --help` for the full option list.
 
 ---
 
-## Drive the Pipeline from Claude Code
+## Use the Agents from Claude Code
 
-Inside an initialized project, Claude Code can also run individual steps with the installed agent definitions:
+To run the pipeline from Claude Code, use the `/run-greenfield` and `/resume`
+[slash commands](#slash-commands), which run the installed `ad-sdlc`. A plain
+`claude` prompt does not start the pipeline: it is an ordinary Claude Code
+session that can use the installed agent definitions for individual steps,
+without the stage graph, approval policy, verification records, or a saved
+session:
 
 ```bash
 # Start with requirements collection

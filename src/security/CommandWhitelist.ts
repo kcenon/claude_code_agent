@@ -86,6 +86,7 @@ export const DEFAULT_COMMAND_WHITELIST: CommandWhitelistConfig = {
       'clean',
       'restore',
       'switch',
+      'version',
     ],
     argPatterns: {
       branch: BRANCH_NAME_PATTERN,

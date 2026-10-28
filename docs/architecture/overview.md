@@ -18,11 +18,11 @@
 
 ## Introduction
 
-AD-SDLC (Agent-Driven Software Development Lifecycle) is an automated software development system that transforms requirements into production-ready code using a pipeline of specialized Claude AI agents.
+AD-SDLC (Agent-Driven Software Development Lifecycle) is an automated software development system that turns requirements into a reviewable pull request, with linked requirements and verification evidence, using a pipeline of specialized Claude AI agents. Deployment is out of scope; see the [capability matrix](capability-matrix.md).
 
 ### System Goals
 
-- **Automation**: Automate the entire SDLC from requirements to code
+- **Automation**: Automate the lifecycle from requirements to a reviewable pull request
 - **Traceability**: Maintain bidirectional links between requirements, design, and implementation
 - **Quality**: Enforce quality gates at each stage
 - **Flexibility**: Support both new projects (Greenfield) and existing projects (Enhancement)

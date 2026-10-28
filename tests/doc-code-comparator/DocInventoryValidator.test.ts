@@ -23,6 +23,13 @@ import {
   renderApprovalPolicyBlock,
   replaceApprovalPolicyBlock,
 } from '../../src/ad-sdlc-orchestrator/approvalMatrix.js';
+import {
+  CAPABILITY_MATRIX_END,
+  CAPABILITY_MATRIX_START,
+  countInstalledAssets,
+  renderCapabilityMatrixBlock,
+  replaceCapabilityMatrixBlock,
+} from '../../src/doc-code-comparator/capabilityMatrix.js';
 
 describe('DocInventoryValidator', () => {
   let root: string;
@@ -199,6 +206,51 @@ describe('DocInventoryValidator', () => {
     expect(new DocInventoryValidator(root).validate().violations).toEqual([]);
   });
 
+  it('reports a capability matrix that claims a capability the source does not have', () => {
+    const stale = renderCapabilityMatrixBlock(countInstalledAssets(root)).replace(
+      /\| Deployment stage \| none \| none \| none \|/u,
+      '| Deployment stage | `deploy` | none | none |'
+    );
+    write('docs/architecture/capability-matrix.md', `# Capabilities\n\n${stale}\n`);
+    expect(new DocInventoryValidator(root).validate().violations).toContainEqual(
+      expect.objectContaining({
+        code: 'CAPABILITY_MATRIX',
+        path: 'docs/architecture/capability-matrix.md',
+      })
+    );
+
+    write(
+      'docs/architecture/capability-matrix.md',
+      replaceCapabilityMatrixBlock(
+        `# Capabilities\n\n${CAPABILITY_MATRIX_START}\nstale\n${CAPABILITY_MATRIX_END}\n\nEvidence.\n`,
+        countInstalledAssets(root)
+      )
+    );
+    expect(new DocInventoryValidator(root).validate().violations).toEqual([]);
+  });
+
+  it('reports invalid ad-sdlc command lines only in configured live documents', () => {
+    write(
+      'doc-sync-points.yaml',
+      `${renderSyncConfig()}cli_references:\n  documents: ["README.md", "docs/**/*.md"]\n  exclude: ["docs/history/**"]\n`
+    );
+    write('README.md', '```bash\nad-sdlc run "x" --mode import\n```\n');
+    write('docs/guides/first-run.md', '# First run\n\n`ad-sdlc run "x" --stop-after deploy`\n');
+    write('docs/history/v0.0.1-notes.md', '`ad-sdlc resume`\n');
+    write('notes/draft.md', '`ad-sdlc resume`\n');
+
+    const result = new DocInventoryValidator(root).validate();
+
+    expect(result.pass).toBe(false);
+    expect(result.violations).toEqual([
+      expect.objectContaining({
+        code: 'CLI_REFERENCE',
+        path: 'docs/guides/first-run.md:3',
+        message: expect.stringContaining('--stop-after deploy is not one of'),
+      }),
+    ]);
+  });
+
   function writeValidFixture(): void {
     write('.claude/agents/collector.md', '---\nname: collector\n---\n');
     write('.claude/agents/support.md', '---\nname: support\n---\n');
@@ -229,6 +281,10 @@ describe('DocInventoryValidator', () => {
     );
     write('docs/architecture/verification-coverage.md', `${renderVerificationCoverageBlock()}\n`);
     write('docs/guides/approval-policy.md', `${renderApprovalPolicyBlock()}\n`);
+    write(
+      'docs/architecture/capability-matrix.md',
+      `${renderCapabilityMatrixBlock(countInstalledAssets(root))}\n`
+    );
     write('doc-sync-points.yaml', renderSyncConfig());
   }
 

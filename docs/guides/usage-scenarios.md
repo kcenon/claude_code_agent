@@ -423,8 +423,11 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Install AD-SDLC
-        run: npm install -g ad-sdlc
+      - name: Install AD-SDLC (from source; it is not on the npm registry yet)
+        run: |
+          git clone https://github.com/kcenon/claude_code_agent.git "$RUNNER_TEMP/ad-sdlc"
+          (cd "$RUNNER_TEMP/ad-sdlc" && npm ci && npm run build)
+          npm install -g "$RUNNER_TEMP/ad-sdlc"
 
       - name: Initialize project
         run: ad-sdlc init --quick
@@ -436,14 +439,14 @@ jobs:
         run: |
           ad-sdlc run "${{ github.event.inputs.requirements || 'Analyze and improve code quality' }}" \
             --mode greenfield \
-            --yes
+            --non-interactive
 ```
 
 ### Key Flags for CI
 
 | Flag                    | Purpose                                                                                            |
 | ----------------------- | -------------------------------------------------------------------------------------------------- |
-| `--yes`                 | Auto-accept privacy policy prompt on first run                                                     |
+| `--non-interactive`     | Never prompt; a requested approval decision pauses the run (exit status 3) for `--resume`          |
 | `--local`               | Skip all GitHub calls (useful for build-only pipelines)                                            |
 | `--dry-run`             | Validate configuration without running agents                                                      |
 | `--stop-after <stage>`  | Halt after a specific stage (e.g., `sds_generation`; peers in a ready parallel group can also run) |

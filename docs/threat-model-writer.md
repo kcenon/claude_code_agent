@@ -57,9 +57,12 @@ The generated Threat Model captures:
 
 ## CLI Integration
 
+The Threat Model Writer has no command of its own: it runs as the
+`threat_modeling` stage of `ad-sdlc run`, after SDS generation.
+
 ```bash
-# Generate Threat Model for a project (after SDS is approved)
-ad-sdlc generate-threat-model --project 001
+# Run the pipeline through threat modeling
+ad-sdlc run "<requirements>" --stop-after threat_modeling
 ```
 
 ## API Reference

@@ -15,6 +15,7 @@ Collector → PRD Writer → SRS Writer → GitHub Repo Setup → SDS Writer →
 ## Purpose
 
 The SRS Writer Agent:
+
 1. Reads and parses PRD documents
 2. Decomposes high-level requirements into detailed features
 3. Generates use cases with complete flows
@@ -35,13 +36,13 @@ The SRS Writer Agent:
 
 ## ID Conventions
 
-| Type | Pattern | Example |
-|------|---------|---------|
-| SRS Document | SRS-{project_id} | SRS-001 |
-| Feature | SF-XXX | SF-001, SF-002 |
-| Use Case | UC-XXX | UC-001, UC-002 |
-| NFR | NFR-XXX | NFR-001 |
-| Constraint | CON-XXX | CON-001 |
+| Type         | Pattern          | Example        |
+| ------------ | ---------------- | -------------- |
+| SRS Document | SRS-{project_id} | SRS-001        |
+| Feature      | SF-XXX           | SF-001, SF-002 |
+| Use Case     | UC-XXX           | UC-001, UC-002 |
+| NFR          | NFR-XXX          | NFR-001        |
+| Constraint   | CON-XXX          | CON-001        |
 
 ## Traceability
 
@@ -63,12 +64,12 @@ Use Cases (UC-XXX)
 
 ## CLI Integration
 
-```bash
-# Generate SRS for a project
-ad-sdlc generate-srs --project 001
+The SRS Writer has no command of its own: it runs as the `srs_generation` stage
+of `ad-sdlc run`.
 
-# Generate with custom options
-ad-sdlc generate-srs --project 001 --coverage-threshold 90
+```bash
+# Run the pipeline through SRS generation
+ad-sdlc run "<requirements>" --stop-after srs_generation
 ```
 
 ## API Reference
@@ -79,15 +80,15 @@ Main orchestrator class for SRS generation.
 
 #### Methods
 
-| Method | Description |
-|--------|-------------|
-| `startSession(projectId)` | Start new generation session |
-| `decompose()` | Decompose requirements into features |
-| `buildTraceability()` | Build traceability matrix |
-| `generate()` | Generate SRS content |
-| `finalize()` | Save to files |
-| `generateFromProject(projectId)` | Complete generation in one call |
-| `reset()` | Clear current session |
+| Method                           | Description                          |
+| -------------------------------- | ------------------------------------ |
+| `startSession(projectId)`        | Start new generation session         |
+| `decompose()`                    | Decompose requirements into features |
+| `buildTraceability()`            | Build traceability matrix            |
+| `generate()`                     | Generate SRS content                 |
+| `finalize()`                     | Save to files                        |
+| `generateFromProject(projectId)` | Complete generation in one call      |
+| `reset()`                        | Clear current session                |
 
 ### PRDParser
 
@@ -135,20 +136,20 @@ The SRS Writer Agent ensures:
 
 ## Error Handling
 
-| Error | Cause | Resolution |
-|-------|-------|------------|
-| PRDNotFoundError | PRD document missing | Ensure PRD exists at expected path |
-| PRDParseError | Invalid PRD format | Fix PRD structure |
-| LowCoverageError | Coverage below threshold | Map unmapped requirements |
-| SessionStateError | Invalid operation sequence | Follow session workflow |
+| Error             | Cause                      | Resolution                         |
+| ----------------- | -------------------------- | ---------------------------------- |
+| PRDNotFoundError  | PRD document missing       | Ensure PRD exists at expected path |
+| PRDParseError     | Invalid PRD format         | Fix PRD structure                  |
+| LowCoverageError  | Coverage below threshold   | Map unmapped requirements          |
+| SessionStateError | Invalid operation sequence | Follow session workflow            |
 
 ## Configuration
 
 ```yaml
 # .ad-sdlc/config/srs-writer.yaml
 srs_writer:
-  scratchpad_base_path: ".ad-sdlc/scratchpad"
-  public_docs_path: "docs/srs"
+  scratchpad_base_path: '.ad-sdlc/scratchpad'
+  public_docs_path: 'docs/srs'
   coverage_threshold: 80
   fail_on_low_coverage: false
   include_traceability: true

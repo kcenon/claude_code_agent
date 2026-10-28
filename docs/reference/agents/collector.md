@@ -32,10 +32,10 @@ model: sonnet
 ```yaml
 # .ad-sdlc/config/agents.yaml
 collector:
-  id: "collector"
-  name: "Collector Agent"
+  id: 'collector'
+  name: 'Collector Agent'
   model: sonnet
-  timeout: 300000  # 5 minutes
+  timeout: 300000 # 5 minutes
   max_retries: 3
 
   capabilities:
@@ -57,7 +57,7 @@ collector:
       - urls
 
   output:
-    path: ".ad-sdlc/scratchpad/{project}/info/collected_info.yaml"
+    path: '.ad-sdlc/scratchpad/{project}/info/collected_info.yaml'
     format: yaml
 ```
 
@@ -67,11 +67,11 @@ collector:
 
 ### Source Types
 
-| Type | Description | Example |
-|------|-------------|---------|
-| **User Input** | Natural language requirements | "Build a task management app" |
-| **Files** | Markdown, DOCX, PDF documents | `requirements.md`, `spec.docx` |
-| **URLs** | Web pages with requirements | `https://wiki.example.com/spec` |
+| Type           | Description                   | Example                         |
+| -------------- | ----------------------------- | ------------------------------- |
+| **User Input** | Natural language requirements | "Build a task management app"   |
+| **Files**      | Markdown, DOCX, PDF documents | `requirements.md`, `spec.docx`  |
+| **URLs**       | Web pages with requirements   | `https://wiki.example.com/spec` |
 
 ### Input Processing
 
@@ -104,63 +104,63 @@ interface CollectorInput {
 
 ```yaml
 # collected_info.yaml
-schema_version: "1.0"
-created_at: "2025-01-01T00:00:00Z"
-created_by: "collector-agent"
+schema_version: '1.0'
+created_at: '2025-01-01T00:00:00Z'
+created_by: 'collector-agent'
 
 project:
-  name: "my-project"
-  description: "Brief project description"
+  name: 'my-project'
+  description: 'Brief project description'
 
 requirements:
   functional:
-    - id: "REQ-001"
-      description: "User can create an account"
-      priority: "high"
-      source: "user_input"
-      rationale: "Core feature for user management"
+    - id: 'REQ-001'
+      description: 'User can create an account'
+      priority: 'high'
+      source: 'user_input'
+      rationale: 'Core feature for user management'
 
-    - id: "REQ-002"
-      description: "User can log in with email/password"
-      priority: "high"
-      source: "requirements.md"
-      rationale: "Authentication requirement"
+    - id: 'REQ-002'
+      description: 'User can log in with email/password'
+      priority: 'high'
+      source: 'requirements.md'
+      rationale: 'Authentication requirement'
 
   non_functional:
-    - id: "NFR-001"
-      description: "Response time under 200ms"
-      category: "performance"
-      source: "user_input"
+    - id: 'NFR-001'
+      description: 'Response time under 200ms'
+      category: 'performance'
+      source: 'user_input'
 
-    - id: "NFR-002"
-      description: "Support 10,000 concurrent users"
-      category: "scalability"
-      source: "spec.docx"
+    - id: 'NFR-002'
+      description: 'Support 10,000 concurrent users'
+      category: 'scalability'
+      source: 'spec.docx'
 
 constraints:
-  - "Must integrate with existing OAuth provider"
-  - "Budget limited to $10,000/month for infrastructure"
+  - 'Must integrate with existing OAuth provider'
+  - 'Budget limited to $10,000/month for infrastructure'
 
 assumptions:
-  - "Users have valid email addresses"
-  - "Modern browser support only (Chrome, Firefox, Safari, Edge)"
+  - 'Users have valid email addresses'
+  - 'Modern browser support only (Chrome, Firefox, Safari, Edge)'
 
 out_of_scope:
-  - "Mobile native apps (web only for MVP)"
-  - "Multi-language support"
+  - 'Mobile native apps (web only for MVP)'
+  - 'Multi-language support'
 
 stakeholders:
-  - role: "Product Owner"
-    name: "John Doe"
-  - role: "Tech Lead"
-    name: "Jane Smith"
+  - role: 'Product Owner'
+    name: 'John Doe'
+  - role: 'Tech Lead'
+    name: 'Jane Smith'
 
 sources:
-  - type: "user_input"
-    processed_at: "2025-01-01T00:00:00Z"
-  - type: "file"
-    path: "requirements.md"
-    processed_at: "2025-01-01T00:01:00Z"
+  - type: 'user_input'
+    processed_at: '2025-01-01T00:00:00Z'
+  - type: 'file'
+    path: 'requirements.md'
+    processed_at: '2025-01-01T00:01:00Z'
 ```
 
 ---
@@ -199,13 +199,13 @@ sources:
 
 ### Decision Points
 
-| Situation | Decision |
-|-----------|----------|
-| Ambiguous requirement | Flag for clarification, include as-is |
-| Conflicting requirements | Include both, add conflict note |
-| Missing priority | Default to "medium" |
-| Large file (>1MB) | Process in chunks |
-| URL timeout | Retry 3 times, then skip with warning |
+| Situation                | Decision                              |
+| ------------------------ | ------------------------------------- |
+| Ambiguous requirement    | Flag for clarification, include as-is |
+| Conflicting requirements | Include both, add conflict note       |
+| Missing priority         | Default to "medium"                   |
+| Large file (>1MB)        | Process in chunks                     |
+| URL timeout              | Retry 3 times, then skip with warning |
 
 ---
 
@@ -213,36 +213,36 @@ sources:
 
 ### Recoverable Errors
 
-| Error | Recovery Action |
-|-------|-----------------|
-| File not found | Skip file, log warning, continue |
-| URL fetch timeout | Retry with exponential backoff |
-| Parse error | Log error, include raw content for review |
-| Rate limit | Wait and retry |
+| Error             | Recovery Action                           |
+| ----------------- | ----------------------------------------- |
+| File not found    | Skip file, log warning, continue          |
+| URL fetch timeout | Retry with exponential backoff            |
+| Parse error       | Log error, include raw content for review |
+| Rate limit        | Wait and retry                            |
 
 ### Non-Recoverable Errors
 
-| Error | User Action Required |
-|-------|---------------------|
-| No input provided | Provide at least one input source |
-| All sources failed | Check input paths/URLs and retry |
-| Permission denied | Check file/directory permissions |
+| Error              | User Action Required              |
+| ------------------ | --------------------------------- |
+| No input provided  | Provide at least one input source |
+| All sources failed | Check input paths/URLs and retry  |
+| Permission denied  | Check file/directory permissions  |
 
 ### Error Output
 
 ```yaml
 # On partial failure
 errors:
-  - source: "broken-link.md"
-    error: "File not found"
-    severity: "warning"
+  - source: 'broken-link.md'
+    error: 'File not found'
+    severity: 'warning'
 
-  - source: "https://example.com/spec"
-    error: "Connection timeout after 3 retries"
-    severity: "warning"
+  - source: 'https://example.com/spec'
+    error: 'Connection timeout after 3 retries'
+    severity: 'warning'
 
 # Processing continued with available sources
-status: "partial_success"
+status: 'partial_success'
 ```
 
 ---
@@ -252,65 +252,73 @@ status: "partial_success"
 ### Basic Usage
 
 **Input:**
+
 ```
 User input: "Build a todo app with user authentication,
 task CRUD operations, and due date reminders"
 ```
 
 **Output:**
+
 ```yaml
 requirements:
   functional:
-    - id: "REQ-001"
-      description: "User can create an account and log in"
-      priority: "high"
-      source: "user_input"
+    - id: 'REQ-001'
+      description: 'User can create an account and log in'
+      priority: 'high'
+      source: 'user_input'
 
-    - id: "REQ-002"
-      description: "User can create, read, update, delete tasks"
-      priority: "high"
-      source: "user_input"
+    - id: 'REQ-002'
+      description: 'User can create, read, update, delete tasks'
+      priority: 'high'
+      source: 'user_input'
 
-    - id: "REQ-003"
-      description: "System sends due date reminder notifications"
-      priority: "medium"
-      source: "user_input"
+    - id: 'REQ-003'
+      description: 'System sends due date reminder notifications'
+      priority: 'medium'
+      source: 'user_input'
 ```
 
 ### File-Based Collection
 
-**Input:**
-```bash
-ad-sdlc collect --file requirements.md --file user-stories.docx
+**Input:** the CLI passes only the requirements text of `ad-sdlc run`; file
+sources go through the `CollectorAgent` API:
+
+```typescript
+await collector.collectFromFiles(['requirements.md', 'user-stories.docx']);
 ```
 
 **Output:**
+
 ```yaml
 sources:
-  - type: "file"
-    path: "requirements.md"
-    format: "markdown"
+  - type: 'file'
+    path: 'requirements.md'
+    format: 'markdown'
     requirements_extracted: 15
 
-  - type: "file"
-    path: "user-stories.docx"
-    format: "docx"
+  - type: 'file'
+    path: 'user-stories.docx'
+    format: 'docx'
     requirements_extracted: 8
 ```
 
 ### URL Collection
 
-**Input:**
-```bash
-ad-sdlc collect --url https://wiki.company.com/project-spec
+**Input:** through the `CollectorAgent` API (no CLI command):
+
+```typescript
+await collector.startSession('my-project');
+await collector.addUrlInput('https://wiki.company.com/project-spec');
 ```
 
 **Output:**
+
 ```yaml
 sources:
-  - type: "url"
-    url: "https://wiki.company.com/project-spec"
-    fetched_at: "2025-01-01T00:00:00Z"
+  - type: 'url'
+    url: 'https://wiki.company.com/project-spec'
+    fetched_at: '2025-01-01T00:00:00Z'
     requirements_extracted: 12
 ```
 
@@ -319,25 +327,28 @@ sources:
 ## Related Agents
 
 ### Upstream
+
 - None (first agent in pipeline)
 
 ### Downstream
+
 - **PRD Writer**: Reads `collected_info.yaml` to generate PRD
 
 ### Dependencies
+
 - None
 
 ---
 
 ## Configuration Reference
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `timeout` | number | 300000 | Max execution time (ms) |
-| `max_retries` | number | 3 | Retry attempts on failure |
-| `chunk_size` | number | 50000 | Max chars per file chunk |
-| `url_timeout` | number | 30000 | URL fetch timeout (ms) |
+| Parameter     | Type   | Default | Description               |
+| ------------- | ------ | ------- | ------------------------- |
+| `timeout`     | number | 300000  | Max execution time (ms)   |
+| `max_retries` | number | 3       | Retry attempts on failure |
+| `chunk_size`  | number | 50000   | Max chars per file chunk  |
+| `url_timeout` | number | 30000   | URL fetch timeout (ms)    |
 
 ---
 
-*Part of [Agent Reference Documentation](./README.md)*
+_Part of [Agent Reference Documentation](./README.md)_

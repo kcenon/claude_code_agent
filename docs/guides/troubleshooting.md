@@ -203,10 +203,11 @@ yamllint .ad-sdlc/scratchpad/documents/prd.yaml
       .ad-sdlc/scratchpad/documents/prd.yaml
    ```
 
-3. **Regenerate stage:**
+3. **Regenerate:** the CLI cannot rerun a single completed stage. Start a new
+   session (run without `--resume`), or resume the saved session if the stage
+   did not complete:
    ```bash
-   ad-sdlc reset --stage prd
-   ad-sdlc resume
+   ad-sdlc run "<requirements>" --resume <session-id>
    ```
 
 ---
@@ -340,9 +341,6 @@ Error: Unresolved dependency: issue-15 requires issue-99 (not found)
 ```bash
 # View dependency graph
 cat .ad-sdlc/scratchpad/issues/dependency_graph.yaml
-
-# Validate issues
-ad-sdlc validate --issues
 ```
 
 **Solutions:**
@@ -350,10 +348,7 @@ ad-sdlc validate --issues
 1. **For circular dependencies:**
 
    ```bash
-   # Visualize the cycle
-   ad-sdlc visualize-deps
-
-   # Manually break the cycle by editing issues
+   # Find the cycle in the dependency graph, then break it by editing issues
    vim .ad-sdlc/scratchpad/issues/issues.yaml
    ```
 
@@ -400,11 +395,8 @@ The combined input (agent prompt + scratchpad content + conversation) exceeds mo
          overlap: 1000
    ```
 
-3. **Clean up old scratchpad data:**
-   ```bash
-   # Remove completed issue data
-   ad-sdlc cleanup --keep-recent 5
-   ```
+3. **Clean up old scratchpad data:** there is no cleanup command; remove the
+   saved data of sessions you no longer need from `.ad-sdlc/scratchpad/`.
 
 ---
 
@@ -518,93 +510,43 @@ logging:
 
 ### Resume from Failure
 
-When a pipeline fails, it saves a checkpoint for resumption:
+Every run saves its state per session in
+`.ad-sdlc/scratchpad/pipeline/<session-id>.yaml`. Resuming reuses the saved
+stage graph and runtime policy and skips the stages that session already
+completed:
 
 ```bash
-# Check checkpoint status
-cat .ad-sdlc/scratchpad/progress/checkpoint.yaml
+# List saved sessions and their state
+ad-sdlc status --verbose
 
-# Resume from last checkpoint
-ad-sdlc resume
-
-# Resume with verbose output
-ad-sdlc resume --verbose
+# Resume a session
+ad-sdlc run "<requirements>" --resume <session-id>
 ```
 
-**Checkpoint Contents:**
+Only `--stop-after` may change on resume; other runtime overrides are
+rejected.
 
-```yaml
-# checkpoint.yaml
-last_completed_stage: 'srs-writer'
-next_stage: 'sds-writer'
-timestamp: '2024-12-30T10:30:00Z'
-context:
-  project_id: 'abc123'
-  issues_completed: [1, 2, 3]
-  issues_pending: [4, 5, 6, 7, 8, 9, 10]
-```
+### Redo a Stage
 
-### Reset Specific Stage
-
-When a stage produces incorrect output:
+The CLI cannot reset or rerun a single completed stage, mark a stage complete,
+or start from a later stage. When a completed stage produced incorrect output,
+start a new session:
 
 ```bash
-# Reset single stage (keeps previous stages)
-ad-sdlc reset --stage srs
-
-# Reset from stage onwards (resets srs and all after)
-ad-sdlc reset --from srs
-
-# Confirm and resume
-ad-sdlc resume
+ad-sdlc run "<requirements>"
 ```
 
-**Reset Options:**
-
-| Option           | Effect                                      |
-| ---------------- | ------------------------------------------- |
-| `--stage <name>` | Reset only specified stage                  |
-| `--from <name>`  | Reset stage and all subsequent stages       |
-| `--issues`       | Reset only issue implementation (keep docs) |
-| `--all`          | Complete reset (start fresh)                |
+To keep earlier documents and only update them, use the Enhancement pipeline
+(`--mode enhancement`), which reads the existing documents and code.
 
 ### Manual Intervention
 
-When automated recovery fails:
+Stop a running pipeline with `Ctrl+C`, back up the state before editing
+anything by hand, then resume:
 
 ```bash
-# 1. Pause if running
-ad-sdlc pause
-
-# 2. Backup current state
 cp -r .ad-sdlc/scratchpad .ad-sdlc/scratchpad.manual-backup
-
-# 3. Edit problematic file
-vim .ad-sdlc/scratchpad/documents/sds.yaml
-
-# 4. Mark stage as complete
-ad-sdlc mark-complete --stage sds
-
-# 5. Resume from next stage
-ad-sdlc resume
-```
-
-### Emergency Recovery
-
-For severe issues:
-
-```bash
-# 1. Export any valuable outputs
-cp -r .ad-sdlc/scratchpad/documents ~/backup-documents/
-
-# 2. Complete reset
-ad-sdlc reset --all
-
-# 3. Optionally restore documents
-cp ~/backup-documents/*.yaml .ad-sdlc/scratchpad/documents/
-
-# 4. Start fresh with existing docs
-ad-sdlc run --skip-stages prd,srs,sds
+ad-sdlc run "<requirements>" --resume <session-id>
 ```
 
 ---
@@ -664,8 +606,8 @@ grep "Worker" .ad-sdlc/logs/pipeline.log | grep -E "start|complete"
 grep "tokens_used" .ad-sdlc/logs/api-calls.log | \
   awk '{stage=$2; tokens+=$NF} END {for(s in stage) print s, tokens[s]}'
 
-# View current run total
-ad-sdlc status --tokens
+# Token usage of recorded runs (part of the delivery metrics report)
+ad-sdlc telemetry report
 ```
 
 **Reduction Strategies:**
@@ -913,8 +855,9 @@ If issues persist after following this guide:
 2. **Open new issue with diagnostics:**
 
    ```bash
-   # Generate diagnostic report
-   ad-sdlc diagnose > diagnostic-report.txt
+   # Collect environment checks and pipeline status
+   ad-sdlc doctor > diagnostic-report.txt
+   ad-sdlc status --verbose >> diagnostic-report.txt
 
    # Include in issue
    gh issue create --title "Issue: <description>" \

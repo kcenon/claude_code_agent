@@ -5,9 +5,14 @@ import { join, resolve } from 'node:path';
 import { validateDocumentInventory } from '../../src/doc-code-comparator/DocInventoryValidator.js';
 import { replaceVerificationCoverageBlock } from '../../src/stage-verifier/applicability.js';
 import { replaceApprovalPolicyBlock } from '../../src/ad-sdlc-orchestrator/approvalMatrix.js';
+import {
+  countInstalledAssets,
+  replaceCapabilityMatrixBlock,
+} from '../../src/doc-code-comparator/capabilityMatrix.js';
 
 const VERIFICATION_COVERAGE_DOC = join('docs', 'architecture', 'verification-coverage.md');
 const APPROVAL_POLICY_DOC = join('docs', 'guides', 'approval-policy.md');
+const CAPABILITY_MATRIX_DOC = join('docs', 'architecture', 'capability-matrix.md');
 
 /**
  * Regenerate one generated block of a document.
@@ -30,13 +35,18 @@ function writeGeneratedBlock(
 }
 
 /**
- * Regenerate the verification coverage block from VERIFICATION_APPLICABILITY
- * and the approval policy matrix from the approval policy data.
+ * Regenerate the verification coverage block from VERIFICATION_APPLICABILITY,
+ * the approval policy matrix from the approval policy data, and the
+ * capability matrix from the stage graphs, policies, CLI, and assets.
  * @param root - Repository root
  */
 function writeVerificationCoverage(root: string): void {
   writeGeneratedBlock(root, VERIFICATION_COVERAGE_DOC, replaceVerificationCoverageBlock);
   writeGeneratedBlock(root, APPROVAL_POLICY_DOC, replaceApprovalPolicyBlock);
+  const assets = countInstalledAssets(root);
+  writeGeneratedBlock(root, CAPABILITY_MATRIX_DOC, (document) =>
+    replaceCapabilityMatrixBlock(document, assets)
+  );
 }
 
 function main(argv: readonly string[]): number {

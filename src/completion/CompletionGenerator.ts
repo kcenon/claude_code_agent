@@ -15,8 +15,10 @@ import { SHELL_COMPLETION_PATHS } from './types.js';
  * `tests/completion/registeredCommands.test.ts` fails when the two drift apart.
  * Descriptions are plain text: no brackets, colons, double quotes, `$`, or backslashes,
  * which the zsh option specs and the double-quoted fish arguments would interpret.
+ * The documentation inventory check also validates documented `ad-sdlc` command
+ * lines against these definitions.
  */
-const CLI_COMMANDS: readonly CommandDefinition[] = [
+export const CLI_COMMANDS: readonly CommandDefinition[] = [
   {
     name: 'init',
     description: 'Initialize a new AD-SDLC project',
@@ -415,7 +417,7 @@ const CLI_COMMANDS: readonly CommandDefinition[] = [
 /**
  * Global options available for all commands
  */
-const GLOBAL_OPTIONS: readonly OptionDefinition[] = [
+export const GLOBAL_OPTIONS: readonly OptionDefinition[] = [
   {
     short: '-h',
     long: '--help',
