@@ -111,12 +111,16 @@ export class ProjectInitializer {
         }
       }
 
-      // Check if project already exists
-      if (fs.existsSync(projectPath)) {
-        const adSdlcPath = path.join(projectPath, '.ad-sdlc');
-        if (fs.existsSync(adSdlcPath)) {
-          throw new ProjectExistsError(projectPath);
-        }
+      // Check if project already exists. Runtime logs do not make a directory
+      // a project: the prerequisite checks above write the security audit log
+      // to .ad-sdlc/logs/ of the working directory, which is the target of
+      // `ad-sdlc init .`.
+      const adSdlcPath = path.join(projectPath, '.ad-sdlc');
+      if (
+        fs.existsSync(adSdlcPath) &&
+        fs.readdirSync(adSdlcPath).some((entry) => entry !== 'logs')
+      ) {
+        throw new ProjectExistsError(projectPath);
       }
 
       // Always validate generated configuration, even when prerequisites are skipped.
