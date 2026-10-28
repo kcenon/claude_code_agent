@@ -35,11 +35,15 @@ global:
   vnv:
     rigor: standard
     profile: advisory # advisory | delivery (fails the run on a failed required check)
+    generate_rtm: true # write the run's RTM
+    cross_document_consistency: true # check doc-sync-points.yaml at document stages
+    acceptance_criteria_validation: true # check that acceptance criteria are implemented and tested
 ```
 
 Without `profile`, the legacy `halt_on_verification_failure: true` with
 `rigor: strict` selects `delivery`. See the
-[verification policy guide](../../guides/verification-policy.md).
+[verification policy guide](../../guides/verification-policy.md), which also
+describes the traceability toggles.
 `approval_mode` decides which review and delivery gates ask a person; see the
 [approval policy guide](../../guides/approval-policy.md).
 

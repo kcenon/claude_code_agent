@@ -639,7 +639,11 @@ async function finalizeStageResult(
   const profile =
     host.verificationProfile ?? (host.haltOnVerificationFailure ? 'delivery' : 'advisory');
   const record = classifyStageVerification(stage.name, verification, profile);
-  const recorded: StageResult = { ...contentValidated, verification: record };
+  const recorded: StageResult = {
+    ...contentValidated,
+    verification: record,
+    ...(verification.traceability !== undefined ? { traceability: verification.traceability } : {}),
+  };
   if (verification.passed) {
     return { result: recorded, halt: false };
   }

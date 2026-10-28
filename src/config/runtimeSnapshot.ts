@@ -37,6 +37,15 @@ const snapshotSchema = z.object({
       haltOnVerificationFailure: z.boolean(),
       // Absent in snapshots saved before verification profiles existed.
       profile: z.enum(['advisory', 'delivery']).optional(),
+      // Absent in snapshots saved before these toggles were supported; such
+      // runs could not turn them off, so they resume with the defaults.
+      generateRtm: z.boolean().default(DEFAULT_ORCHESTRATOR_CONFIG.vnv.generateRtm),
+      crossDocumentConsistency: z
+        .boolean()
+        .default(DEFAULT_ORCHESTRATOR_CONFIG.vnv.crossDocumentConsistency),
+      acceptanceCriteriaValidation: z
+        .boolean()
+        .default(DEFAULT_ORCHESTRATOR_CONFIG.vnv.acceptanceCriteriaValidation),
     }),
   }),
   retryPolicy: z.object({

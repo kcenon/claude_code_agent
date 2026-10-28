@@ -135,7 +135,20 @@ function resolveVnv(
       action:
         'Remove halt_on_verification_failure; it only selects a profile when global.vnv.profile is absent.',
     });
-  return { rigor, haltOnVerificationFailure, profile };
+  return {
+    rigor,
+    haltOnVerificationFailure,
+    profile,
+    generateRtm: read('global.vnv.generate_rtm', defaults.generateRtm),
+    crossDocumentConsistency: read(
+      'global.vnv.cross_document_consistency',
+      defaults.crossDocumentConsistency
+    ),
+    acceptanceCriteriaValidation: read(
+      'global.vnv.acceptance_criteria_validation',
+      defaults.acceptanceCriteriaValidation
+    ),
+  };
 }
 
 /** Pure resolution inputs; only explicitly supplied CLI values participate. */

@@ -22,7 +22,19 @@ export function copyBundle(root: string): void {
     fs.copyFileSync(join(ASSET_PACKAGE_ROOT, file), join(root, file));
 }
 
-export function regenerate(root: string, version = '1.0.0'): void {
+/**
+ * Regenerate a bundle manifest. Like `scripts/agent-assets.ts --write`
+ * without `--bundle-version`, it keeps the bundle's current version unless
+ * a version is given.
+ */
+export function regenerate(
+  root: string,
+  version: string = (
+    JSON.parse(fs.readFileSync(join(root, ASSET_MANIFEST_PATH), 'utf8')) as {
+      bundleVersion: string;
+    }
+  ).bundleVersion
+): void {
   write(
     root,
     ASSET_MANIFEST_PATH,

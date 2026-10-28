@@ -117,6 +117,9 @@ describe('run verification policy', () => {
       rigor: 'standard',
       haltOnVerificationFailure: false,
       profile: 'delivery',
+      generateRtm: true,
+      crossDocumentConsistency: true,
+      acceptanceCriteriaValidation: true,
     });
     expect(output.result.overallStatus).toBe('failed');
     expect(output.result.verification).toMatchObject({
@@ -163,6 +166,22 @@ describe('run verification policy', () => {
     });
     expect(result.verification.status).toBe('advisory_findings');
     expect(result.stages[0].verification.state).toBe('advisory_findings');
+  });
+
+  it('prints the traceability summary with the uncovered identifiers and the RTM', async () => {
+    await workflow();
+    const adapter = new FileAdapter({ 'issue-reader': { [ISSUES]: issueList(false) } });
+
+    const { status, stdout } = await run(['--allow-stub'], adapter);
+
+    expect(status).toBe(0);
+    expect(stdout).toContain(
+      'Traceability: uncovered (1 imported issue(s), 0 of 0 acceptance criteria implemented and tested)'
+    );
+    expect(stdout).toContain('  uncovered: ISS-001');
+    expect(
+      stdout.some((line) => /^ {2}RTM: \.ad-sdlc\/scratchpad\/traceability\/.+\.md$/.test(line))
+    ).toBe(true);
   });
 
   it('prints a short text summary and fails when the CLI selects delivery', async () => {

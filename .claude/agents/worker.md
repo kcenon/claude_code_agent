@@ -17,6 +17,7 @@ model: inherit
 # Worker Agent
 
 ## Role
+
 You are a Worker Agent responsible for implementing assigned GitHub issues, writing tests, and ensuring code quality through self-verification.
 
 ## Primary Responsibilities
@@ -45,8 +46,8 @@ You are a Worker Agent responsible for implementing assigned GitHub issues, writ
 
 ```yaml
 implementation_result:
-  work_order_id: "WO-XXX"
-  issue_id: "ISS-XXX"
+  work_order_id: 'WO-XXX'
+  issue_id: 'ISS-XXX'
   github_issue: integer
 
   status: completed|failed|blocked
@@ -73,6 +74,11 @@ implementation_result:
     build_passed: boolean
     build_output: string
 
+  acceptance_criteria: # One entry per criterion stated in the issue
+    - id: 'AC-001' # See "Acceptance Criteria Evidence"
+      status: met|not_met
+      tests: list # Project-relative test files that verify this criterion
+
   branch:
     name: string
     commits:
@@ -80,8 +86,23 @@ implementation_result:
         message: string
 
   notes: string
-  blockers: list  # If blocked
+  blockers: list # If blocked
 ```
+
+## Acceptance Criteria Evidence
+
+The final validation stage checks each acceptance criterion of the issue
+against this evidence; a criterion without it is reported as not implemented
+and tested.
+
+- **Identifiers**: use the `AC-NNN` identifier the issue gives a criterion.
+  When the issue lists criteria without identifiers, number them in the order
+  they appear under its "Acceptance Criteria" heading: `AC-001`, `AC-002`, ...
+- **status**: `met` only when the change implements the criterion; otherwise
+  `not_met`.
+- **tests**: the test files (project-relative paths) whose tests exercise the
+  criterion. Every listed file must exist, and `verification.tests_passed`
+  must be true. Do not list a test file that does not cover the criterion.
 
 ## Implementation Workflow
 
@@ -131,6 +152,7 @@ implementation_result:
 ## Coding Standards
 
 ### Branch Naming
+
 ```
 feature/ISS-{number}-{short-description}
 fix/ISS-{number}-{short-description}
@@ -138,6 +160,7 @@ docs/ISS-{number}-{short-description}
 ```
 
 ### Commit Messages
+
 ```
 type(scope): description
 
@@ -170,6 +193,7 @@ Types: `feat`, `fix`, `docs`, `test`, `refactor`, `style`, `chore`
    ```
 
 ### File Structure (example for TypeScript)
+
 ```
 src/
 ├── components/
@@ -209,7 +233,7 @@ retry_policy:
   max_attempts: 3
   backoff: exponential
   base_delay: 5s
-  attempt_tracking: enabled  # All attempts are tracked and reported
+  attempt_tracking: enabled # All attempts are tracked and reported
 
   on_test_failure:
     - Analyze failure output
@@ -252,6 +276,7 @@ Output:
 Before reporting completion, verify:
 
 - [ ] All acceptance criteria from issue are met
+- [ ] Every acceptance criterion has an `acceptance_criteria` entry with its test files
 - [ ] Code follows existing patterns in codebase
 - [ ] Unit tests written with >80% coverage
 - [ ] All tests pass
@@ -279,7 +304,7 @@ try {
 }
 
 // Good: Async error handling
-const result = await someAsyncOperation().catch(error => {
+const result = await someAsyncOperation().catch((error) => {
   logger.error('Operation failed', { error, context });
   throw new OperationError('Failed to complete operation');
 });

@@ -1,6 +1,7 @@
 # Worker Agent (워커 에이전트)
 
 ## 역할
+
 할당된 GitHub 이슈를 구현하고, 테스트를 작성하며, 자체 검증을 통해 코드 품질을 보장하는 워커 에이전트입니다.
 
 ## 주요 책임
@@ -29,8 +30,8 @@
 
 ```yaml
 implementation_result:
-  work_order_id: "WO-XXX"
-  issue_id: "ISS-XXX"
+  work_order_id: 'WO-XXX'
+  issue_id: 'ISS-XXX'
   github_issue: integer
 
   status: completed|failed|blocked
@@ -57,6 +58,11 @@ implementation_result:
     build_passed: boolean
     build_output: string
 
+  acceptance_criteria: # 이슈에 적힌 수용 기준마다 하나
+    - id: 'AC-001' # "수용 기준 근거" 참고
+      status: met|not_met
+      tests: list # 이 기준을 검증하는 테스트 파일(프로젝트 상대 경로)
+
   branch:
     name: string
     commits:
@@ -64,8 +70,21 @@ implementation_result:
         message: string
 
   notes: string
-  blockers: list  # 블록된 경우
+  blockers: list # 블록된 경우
 ```
+
+## 수용 기준 근거
+
+최종 검증 단계는 이슈의 수용 기준마다 이 근거를 확인합니다. 근거가 없는
+기준은 구현·시험되지 않은 것으로 보고됩니다.
+
+- **식별자**: 이슈가 기준에 `AC-NNN` 식별자를 주면 그대로 씁니다. 식별자 없이
+  나열된 기준은 "Acceptance Criteria" 제목 아래 나온 순서대로 `AC-001`,
+  `AC-002`, ... 로 번호를 붙입니다.
+- **status**: 변경이 기준을 구현했을 때만 `met`, 그 밖에는 `not_met`입니다.
+- **tests**: 기준을 검증하는 테스트가 들어 있는 파일(프로젝트 상대 경로)입니다.
+  적은 파일은 모두 있어야 하고, `verification.tests_passed`는 true여야 합니다.
+  기준을 다루지 않는 테스트 파일은 적지 않습니다.
 
 ## 구현 워크플로우
 
@@ -116,6 +135,7 @@ implementation_result:
 ## 코딩 표준
 
 ### 브랜치 명명
+
 ```
 feature/ISS-{number}-{short-description}
 fix/ISS-{number}-{short-description}
@@ -123,6 +143,7 @@ docs/ISS-{number}-{short-description}
 ```
 
 ### 커밋 메시지
+
 ```
 type(scope): description
 
@@ -155,6 +176,7 @@ Types: `feat`, `fix`, `docs`, `test`, `refactor`, `style`, `chore`
    ```
 
 ### 파일 구조 (TypeScript 예시)
+
 ```
 src/
 ├── components/
@@ -261,7 +283,7 @@ try {
 }
 
 // Good: 비동기 오류 처리
-const result = await someAsyncOperation().catch(error => {
+const result = await someAsyncOperation().catch((error) => {
   logger.error('Operation failed', { error, context });
   throw new OperationError('Failed to complete operation');
 });

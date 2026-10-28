@@ -18,14 +18,17 @@
  *   - REG = regression_testing
  *   - VAL = validation-agent
  *   - REV = review
+ *   - XDOC = cross-document consistency (every document-producing stage)
  *
  * @module stage-verifier/rules
  */
 
+import { existsSync } from 'node:fs';
 import { join, extname } from 'node:path';
 
 import type { VnvRigor } from '../vnv/types.js';
 import type { VerificationCheck, VerificationRule } from './types.js';
+import { checkCrossDocumentConsistency, DOC_SYNC_POINTS_FILE } from './consistency.js';
 import {
   extractIds,
   extractMarkdownHeadings,
@@ -735,6 +738,60 @@ const issueGenerationRules: readonly VerificationRule[] = [
 ];
 
 // =============================================================================
+// Cross-document consistency (prd/srs/sds generation and update)
+// =============================================================================
+
+/**
+ * The run's documents agree at the sync points of `doc-sync-points.yaml`.
+ * Only documents this run produced are compared, so a document that a later
+ * update stage of the same run rewrites is not compared before it is rewritten.
+ */
+const crossDocumentConsistencyRule: VerificationRule = {
+  checkId: 'VR-XDOC-001',
+  name: 'Documents agree at their sync points',
+  category: 'consistency',
+  minRigor: 'standard',
+  severity: 'error',
+  async check(_artifacts, projectDir, context): Promise<VerificationCheck> {
+    if (context?.options === undefined)
+      return skipCheck(
+        this,
+        'Cross-document consistency check skipped: the caller supplied no V&V options',
+        'V&V options not supplied'
+      );
+    if (!context.options.crossDocumentConsistency)
+      return skipCheck(
+        this,
+        'Cross-document consistency check is turned off',
+        'disabled by global.vnv.cross_document_consistency'
+      );
+    const documents = context.documents ?? {};
+    const result = await checkCrossDocumentConsistency(projectDir, documents);
+    if (result.violations.length > 0)
+      return failCheck(
+        this,
+        `${String(result.violations.length)} sync point violation(s): ${result.violations
+          .map((violation) => violation.description)
+          .join('; ')}`,
+        { violations: result.violations, documents }
+      );
+    if ((result.syncPointsEvaluated ?? 0) === 0) {
+      const reason = !existsSync(join(projectDir, DOC_SYNC_POINTS_FILE))
+        ? `no ${DOC_SYNC_POINTS_FILE} in the project`
+        : Object.keys(documents).length < 2
+          ? 'fewer than two of the run documents exist yet'
+          : 'no sync point lists two of the run documents';
+      return skipCheck(this, `No sync point could be compared: ${reason}`, reason, { documents });
+    }
+    return passCheck(
+      this,
+      `${String(result.syncPointsEvaluated)} sync point(s) agree across ${Object.keys(documents).join(', ')}`,
+      { documents }
+    );
+  },
+};
+
+// =============================================================================
 // Named Check Sets
 // =============================================================================
 
@@ -744,9 +801,9 @@ const issueGenerationRules: readonly VerificationRule[] = [
  */
 export const VERIFICATION_CHECK_SETS = {
   'collected-info': collectionRules,
-  'prd-document': prdRules,
-  'srs-document': srsRules,
-  'sds-document': sdsRules,
+  'prd-document': [...prdRules, crossDocumentConsistencyRule],
+  'srs-document': [...srsRules, crossDocumentConsistencyRule],
+  'sds-document': [...sdsRules, crossDocumentConsistencyRule],
   'generated-issues': [...issueGenerationRules, issueAcceptanceCriteriaRule('VR-ISS-004')],
   'imported-issues': issueReadingRules,
   'work-orders': orchestrationRules,

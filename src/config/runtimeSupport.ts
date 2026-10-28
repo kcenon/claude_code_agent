@@ -22,6 +22,9 @@ export const RUNTIME_SETTINGS = {
   'global.vnv.rigor': z.enum(['minimal', 'standard', 'strict']),
   'global.vnv.profile': z.enum(['advisory', 'delivery']),
   'global.vnv.halt_on_verification_failure': z.boolean(),
+  'global.vnv.generate_rtm': z.boolean(),
+  'global.vnv.cross_document_consistency': z.boolean(),
+  'global.vnv.acceptance_criteria_validation': z.boolean(),
 } satisfies Record<string, z.ZodType>;
 
 /** Explicit direct environment mapping; other workflow properties have no implicit override. */
@@ -129,13 +132,7 @@ const retiredGlobals = [
   'global.output_docs_dir',
   'global.log_level',
 ];
-const retiredVnv = [
-  'generate_vnv_plan',
-  'generate_vnv_report',
-  'generate_rtm',
-  'cross_document_consistency',
-  'acceptance_criteria_validation',
-].map((key) => `global.vnv.${key}`);
+const retiredVnv = ['generate_vnv_plan', 'generate_vnv_report'].map((key) => `global.vnv.${key}`);
 
 /** Diagnose all runtime-facing raw keys, including unsupported active settings.
  * @param value - Raw source mapping
@@ -207,8 +204,8 @@ export function auditRuntimeLayer(value: unknown, source: string): RuntimeDiagno
       add(
         path,
         'unsupported',
-        'This toggle does not control the reachable verifier or canonical graph, including when false.',
-        'Remove it; only global.vnv.rigor, profile, and halt_on_verification_failure are supported.'
+        'Deprecated: no pipeline step generates a V&V plan or report, including when false.',
+        'Remove it; the run result reports verification and traceability, and generate_rtm writes the RTM.'
       );
       return;
     }

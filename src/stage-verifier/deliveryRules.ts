@@ -13,7 +13,9 @@
 import { access } from 'node:fs/promises';
 import { isAbsolute, relative, resolve, sep } from 'node:path';
 
+import { issueAcceptanceCriteria } from '../rtm-builder/issueCriteria.js';
 import { OverallResultSchema } from '../validation-agent/schemas.js';
+import type { TraceabilityRecord } from '../vnv/traceability.js';
 import type { VerificationCheck, VerificationRule, VerificationRuleContext } from './types.js';
 import {
   failCheck,
@@ -34,13 +36,13 @@ import {
 // =============================================================================
 
 /** `issues/<project>/issue_list.json` (issue-reader, local-issue-reader, issue-generator). */
-const ISSUE_LIST = [/(?:^|\/)issue_list\.json$/u];
+export const ISSUE_LIST = [/(?:^|\/)issue_list\.json$/u];
 /** `issues/<project>/dependency_graph.json` (issue-reader, local-issue-reader). */
 const DEPENDENCY_GRAPH = [/(?:^|\/)dependency_graph\.json$/u];
 /** `progress/<project>/work_orders/WO-XXX.yaml` (controller). */
-const WORK_ORDERS = [/(?:^|\/)work_orders\/[^/]+\.(?:ya?ml|json)$/u];
+export const WORK_ORDERS = [/(?:^|\/)work_orders\/[^/]+\.(?:ya?ml|json)$/u];
 /** `progress/<project>/results/WO-XXX-result.yaml` (worker), plus legacy names. */
-const IMPLEMENTATION_RESULTS = [
+export const IMPLEMENTATION_RESULTS = [
   /(?:^|\/)results\/[^/]+-result\.(?:ya?ml|json)$/u,
   /implementation[_-]result/u,
   /ImplementationResult/u,
@@ -50,7 +52,7 @@ const REGRESSION_REPORT = [/(?:^|\/)regression_report\.(?:ya?ml|json)$/u];
 /** `vnv/<project>/validation-report.yaml` (validation-agent). */
 const VALIDATION_REPORT = [/(?:^|\/)validation[-_]report\.(?:ya?ml|json)$/u];
 /** `reviews/PR-XXX-review.yaml` (pr-reviewer), `reviews/review_report.json` (local-reviewer), legacy names. */
-const REVIEW_RESULTS = [
+export const REVIEW_RESULTS = [
   /(?:^|\/)reviews\/[^/]+\.(?:ya?ml|json)$/u,
   /review[_-]result/u,
   /PRReviewResult/u,
@@ -182,40 +184,16 @@ function issueLabel(issue: Record<string, unknown>, index: number): string {
 }
 
 /**
- * Whether a markdown line starts a list item with content.
- * @param line - Trimmed line
- * @returns True for `- item`, `* item`, `+ item`, `1. item`, and checklist items
- */
-function isListItem(line: string): boolean {
-  return /^(?:[-*+]|\d+\.)\s+\S/u.test(line);
-}
-
-/**
  * Whether an issue states acceptance criteria, either as a structured list or
  * as a list under an "Acceptance Criteria" heading in its body (the format
  * IssueTransformer, LocalIssueWriter, and GitHub issue templates produce).
+ * Traceability reads the same criteria, so a passing check means the
+ * traceability roots exist.
  * @param issue - Issue entry
  * @returns True when at least one criterion is stated
  */
 export function hasAcceptanceCriteria(issue: Record<string, unknown>): boolean {
-  for (const key of ['acceptance_criteria', 'acceptanceCriteria']) {
-    const criteria = issue[key];
-    if (Array.isArray(criteria) && criteria.length > 0) return true;
-  }
-  const body = issue['body'] ?? issue['description'];
-  if (typeof body !== 'string') return false;
-  let inSection = false;
-  for (const raw of body.split('\n')) {
-    const line = raw.trim();
-    const lower = line.toLowerCase();
-    const isHeading = line.startsWith('#') || (line.startsWith('**') && line.endsWith('**'));
-    if (isHeading) {
-      inSection = lower.includes('acceptance criteria');
-      continue;
-    }
-    if (inSection && isListItem(line)) return true;
-  }
-  return false;
+  return issueAcceptanceCriteria(issue).length > 0;
 }
 
 /**
@@ -809,7 +787,157 @@ export const validationRules: readonly VerificationRule[] = [
       return passCheck(this, `All ${String(gates.length)} validation quality gate(s) passed`);
     },
   },
+  {
+    checkId: 'VR-VAL-004',
+    name: 'Acceptance criteria are implemented and tested',
+    category: 'traceability',
+    minRigor: 'standard',
+    severity: 'error',
+    check(_artifacts, _projectDir, context): Promise<VerificationCheck> {
+      const gate = traceabilityGate(this, context);
+      if ('check' in gate) return Promise.resolve(gate.check);
+      const { record } = gate;
+      if (record.rtm.entries.length === 0)
+        return Promise.resolve(
+          failCheck(
+            this,
+            record.roots === 'issue_acceptance_criteria'
+              ? 'No imported issue found to trace; the run produced no issue list'
+              : 'No PRD requirement found to trace',
+            { sources: record.sources }
+          )
+        );
+      const criteria = record.rtm.entries.flatMap((entry) =>
+        entry.acceptanceCriteria.filter((criterion) => criterion.issueId !== undefined)
+      );
+      if (record.uncovered.length > 0)
+        return Promise.resolve(
+          failCheck(
+            this,
+            `${String(record.uncovered.length)} requirement(s), issue(s), or acceptance criteria are not implemented and tested: ${listIds(record.uncovered)}`,
+            { uncovered: uncoveredReasons(record) }
+          )
+        );
+      return Promise.resolve(
+        passCheck(
+          this,
+          `All ${String(criteria.length)} acceptance criteria of ${String(record.rtm.entries.length)} traced root(s) are implemented and tested`,
+          { roots: record.rtm.entries.length, criteria: criteria.length }
+        )
+      );
+    },
+  },
+  {
+    checkId: 'VR-VAL-005',
+    name: 'Every issue traces to a requirement',
+    category: 'traceability',
+    minRigor: 'standard',
+    severity: 'warning',
+    check(_artifacts, _projectDir, context): Promise<VerificationCheck> {
+      const gate = traceabilityGate(this, context);
+      if ('check' in gate) return Promise.resolve(gate.check);
+      const { record } = gate;
+      if (record.roots === 'issue_acceptance_criteria')
+        return Promise.resolve(
+          skipCheck(
+            this,
+            'Import mode traces imported issues as roots; there is no requirement to trace back to',
+            'imported issues are the traceability roots'
+          )
+        );
+      if (record.untraced.length > 0)
+        return Promise.resolve(
+          failCheck(
+            this,
+            `${String(record.untraced.length)} issue(s) trace to no PRD requirement: ${listIds(record.untraced)}`,
+            { untraced: record.untraced }
+          )
+        );
+      return Promise.resolve(passCheck(this, 'Every issue traces to a PRD requirement'));
+    },
+  },
 ];
+
+// =============================================================================
+// Traceability support (validation-agent)
+// =============================================================================
+
+/** Identifiers listed in a check message before the rest is counted. */
+const LISTED_IDS = 10;
+
+/**
+ * List identifiers for a check message.
+ * @param ids - Identifiers
+ * @returns The first identifiers, followed by a count of the rest
+ */
+function listIds(ids: readonly string[]): string {
+  const listed = ids.slice(0, LISTED_IDS).join(', ');
+  return ids.length > LISTED_IDS
+    ? `${listed}, and ${String(ids.length - LISTED_IDS)} more`
+    : listed;
+}
+
+/**
+ * Resolve the traceability record for a rule, or the check that replaces it:
+ * skipped when the V&V options are absent or acceptance criteria validation
+ * is turned off, failed when the record could not be built.
+ * @param rule - Rule identity
+ * @param context - Rule context
+ * @returns The record, or the check to return instead
+ */
+function traceabilityGate(
+  rule: RuleIdentity,
+  context: VerificationRuleContext | undefined
+): { readonly record: TraceabilityRecord } | { readonly check: VerificationCheck } {
+  if (context?.options === undefined)
+    return {
+      check: skipCheck(
+        rule,
+        'Traceability check skipped: the caller supplied no V&V options',
+        'V&V options not supplied'
+      ),
+    };
+  if (!context.options.acceptanceCriteriaValidation)
+    return {
+      check: skipCheck(
+        rule,
+        'Acceptance criteria validation is turned off',
+        'disabled by global.vnv.acceptance_criteria_validation'
+      ),
+    };
+  if (context.traceabilityError !== undefined)
+    return {
+      check: failCheck(rule, `Traceability could not be built: ${context.traceabilityError}`),
+    };
+  if (context.traceability === undefined)
+    return { check: failCheck(rule, 'No traceability record was built for this stage') };
+  return { record: context.traceability };
+}
+
+/**
+ * Why each uncovered identifier of a record is uncovered.
+ * @param record - Traceability record
+ * @returns One `{ id, reason }` per uncovered identifier
+ */
+function uncoveredReasons(
+  record: TraceabilityRecord
+): { readonly id: string; readonly reason: string }[] {
+  const reasons = new Map<string, string>();
+  for (const entry of record.rtm.entries) {
+    if (entry.issues.length === 0)
+      reasons.set(entry.requirementId, 'No issue implements the requirement');
+    for (const issueId of entry.issues)
+      if (!entry.acceptanceCriteria.some((criterion) => criterion.issueId === issueId))
+        reasons.set(issueId, 'The issue states no acceptance criteria');
+    for (const criterion of entry.acceptanceCriteria)
+      if (criterion.issueId !== undefined && criterion.uncoveredReason !== undefined)
+        reasons.set(`${criterion.issueId}/${criterion.id}`, criterion.uncoveredReason);
+  }
+  return record.uncovered.map((id) => ({
+    id,
+    reason: reasons.get(id) ?? 'Not implemented and tested',
+  }));
+}
 
 // =============================================================================
 // Review result (review)

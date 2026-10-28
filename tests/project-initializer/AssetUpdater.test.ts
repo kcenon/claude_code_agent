@@ -23,7 +23,7 @@ const read = (file: string) => fs.readFileSync(join(project, file), 'utf8');
 const lock = (): AssetLock => JSON.parse(read(ASSET_LOCK_PATH));
 const update = (dryRun = false) =>
   updateAssets({ projectDir: project, packageRoot: source, dryRun });
-function incoming(version = '1.1.0'): void {
+function incoming(version = '1.2.0'): void {
   for (const file of [agent, command])
     write(
       source,
@@ -69,7 +69,7 @@ describe('conservative asset upgrades', () => {
     expect(update().status).toBe('updated');
     for (const file of [agent, command]) {
       expect(read(file)).toBe(fs.readFileSync(join(source, file), 'utf8'));
-      expect(lock().files[file]!.installedVersion).toBe('1.1.0');
+      expect(lock().files[file]!.installedVersion).toBe('1.2.0');
     }
     expect(read('.claude/agents/custom.md')).toBe('user prompt');
     expect(read('.claude/settings.json')).toBe('{"personal":true}');
@@ -89,8 +89,8 @@ describe('conservative asset upgrades', () => {
         expect(result.status).toBe('conflicted');
         expect(result.changes.find((c) => c.path === file)).toMatchObject({
           action: 'conflict',
-          oldVersion: '1.0.0',
-          targetVersion: '1.1.0',
+          oldVersion: '1.1.0',
+          targetVersion: '1.2.0',
           message: expect.stringContaining('Compare'),
         });
         expect(snapshot(project)).toEqual(before);
@@ -99,7 +99,7 @@ describe('conservative asset upgrades', () => {
       // Explicit manual reconciliation to incoming content safely reestablishes ownership.
       write(project, file, fs.readFileSync(join(source, file)));
       expect(update().status).toBe('updated');
-      expect(lock().files[file]!.installedVersion).toBe('1.1.0');
+      expect(lock().files[file]!.installedVersion).toBe('1.2.0');
     }
   );
 
@@ -119,7 +119,7 @@ describe('conservative asset upgrades', () => {
       '.claude/agents/new-helper.md',
       fs.readFileSync(join(source, agent), 'utf8').replace('name: collector', 'name: new-helper')
     );
-    regenerate(source, '1.1.0');
+    regenerate(source, '1.2.0');
     const result = update();
     expect(result.status).toBe('updated');
     expect(result.changes.find((c) => c.path === '.claude/agents/new-helper.md')!.action).toBe(
@@ -143,11 +143,11 @@ describe('conservative asset upgrades', () => {
         .readFileSync(join(source, agent), 'utf8')
         .replace('name: collector', 'name: standalone-helper')
     );
-    regenerate(source, '1.1.0');
+    regenerate(source, '1.2.0');
     update();
     const baseline = lock().files[retired];
     fs.unlinkSync(join(source, retired));
-    regenerate(source, '1.2.0');
+    regenerate(source, '1.3.0');
     expect(update().warnings).toContain(`Retired asset preserved: ${retired}`);
     expect(fs.existsSync(join(project, retired))).toBe(true);
     expect(lock().files[retired]).toEqual(baseline);
@@ -323,13 +323,13 @@ describe('conservative asset upgrades', () => {
     expect(read(ASSET_LOCK_PATH)).toBe(priorLock);
     vi.restoreAllMocks();
     expect(update().status).toBe('updated');
-    expect(lock().bundleVersion).toBe('1.1.0');
+    expect(lock().bundleVersion).toBe('1.2.0');
   });
 
   it('rejects conflicting content that reuses an existing bundle version', () => {
-    incoming('1.0.0');
+    incoming('1.1.0');
     const before = snapshot(project);
-    expect(() => update()).toThrow(/reuses bundle version 1.0.0/);
+    expect(() => update()).toThrow(/reuses bundle version 1.1.0/);
     expect(snapshot(project)).toEqual(before);
   });
 
@@ -346,7 +346,7 @@ describe('conservative asset upgrades', () => {
     expect(read(agent)).toBe(fs.readFileSync(join(source, agent), 'utf8'));
     vi.restoreAllMocks();
     expect(update().status).toBe('updated');
-    expect(lock().bundleVersion).toBe('1.1.0');
+    expect(lock().bundleVersion).toBe('1.2.0');
     expect(Object.keys(snapshot(project)).some((p) => p.endsWith('.tmp'))).toBe(false);
   });
 });
