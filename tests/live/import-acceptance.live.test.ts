@@ -43,7 +43,12 @@ import {
   listLabeledIssues,
   listPullRequests,
 } from './githubTarget.js';
-import { liveAuthArguments, liveChildEnv, prepareClaudeConfigDir } from './harness.js';
+import {
+  LIVE_PERMISSIONS,
+  liveAuthArguments,
+  liveChildEnv,
+  prepareClaudeConfigDir,
+} from './harness.js';
 import {
   IMPORT_SCENARIOS,
   evaluateScenario,
@@ -294,6 +299,8 @@ async function writeReport(): Promise<string> {
     packageVersion: context?.packageVersion ?? null,
     sdkVersion: context?.sdkVersion ?? null,
     budget: settings.budget,
+    auth: settings.auth,
+    permissions: LIVE_PERMISSIONS,
     startedAt,
     finishedAt: new Date().toISOString(),
   };

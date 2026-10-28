@@ -713,6 +713,14 @@ export interface ImportReportMeta {
   readonly packageVersion: string | null;
   readonly sdkVersion: string | null;
   readonly budget: LiveBudget;
+  /** Authentication mode of the lane */
+  readonly auth: string;
+  /** Tool permissions granted to the pipeline's agent sessions */
+  readonly permissions: {
+    readonly defaultMode: string;
+    readonly allow: readonly string[];
+    readonly deny: readonly string[];
+  };
   readonly startedAt: string;
   readonly finishedAt: string;
 }
@@ -737,7 +745,9 @@ export function renderImportReport(
   const lines = [
     '# Import Live Acceptance Report (#955)',
     '',
-    `Run \`${meta.runId}\` against \`${meta.repository}\`; package ${cell(meta.packageVersion)}, SDK ${cell(meta.sdkVersion)}; budget maxTurns ${String(meta.budget.maxTurns)}, stage ${String(meta.budget.stageTimeoutMs)} ms; ${meta.startedAt} to ${meta.finishedAt}.`,
+    `Run \`${meta.runId}\` against \`${meta.repository}\`; package ${cell(meta.packageVersion)}, SDK ${cell(meta.sdkVersion)}; authentication ${meta.auth}; budget maxTurns ${String(meta.budget.maxTurns)}, stage ${String(meta.budget.stageTimeoutMs)} ms; ${meta.startedAt} to ${meta.finishedAt}.`,
+    '',
+    `Agent session permissions: mode \`${meta.permissions.defaultMode}\`; allowed ${meta.permissions.allow.map((rule) => `\`${rule}\``).join(', ')}; denied ${meta.permissions.deny.map((rule) => `\`${rule}\``).join(', ')}.`,
     '',
     '| Scenario | Outcome | Reason |',
     '| --- | --- | --- |',

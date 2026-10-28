@@ -440,25 +440,34 @@ drives the production path: the `ad-sdlc init` and `ad-sdlc run` CLI commands
 Selecting the live suite directly (`vitest run --config vitest.live.config.ts`)
 without the settings fails the test instead of skipping it.
 
-| Setting                     | Required  | Default   | Accepted values                                                                                                             |
-| --------------------------- | --------- | --------- | --------------------------------------------------------------------------------------------------------------------------- |
-| `AD_SDLC_LIVE_AUTH`         | no        | `secrets` | `secrets`: the API key and token below; `local-login`: the machine's Claude Code login and the account `gh` is logged in to |
-| `ANTHROPIC_API_KEY`         | `secrets` | —         | Non-empty API key                                                                                                           |
-| `AD_SDLC_LIVE_GITHUB_REPO`  | yes       | —         | `owner/name` of the disposable target repository of the Import scenarios (see below)                                        |
-| `AD_SDLC_LIVE_GITHUB_TOKEN` | `secrets` | —         | GitHub token scoped to that repository only                                                                                 |
+| Setting                         | Required  | Default            | Accepted values                                                                                                                |
+| ------------------------------- | --------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
+| `AD_SDLC_LIVE_AUTH`             | no        | `secrets`          | `secrets`: the API key and token below; `local-login`: the machine's Claude Code login and the account `gh` is logged in to    |
+| `ANTHROPIC_API_KEY`             | `secrets` | —                  | Non-empty API key                                                                                                              |
+| `AD_SDLC_LIVE_GITHUB_REPO`      | yes       | —                  | `owner/name` of the disposable target repository of the Import scenarios (see below)                                           |
+| `AD_SDLC_LIVE_GITHUB_TOKEN`     | `secrets` | —                  | GitHub token scoped to that repository only                                                                                    |
+| `AD_SDLC_LIVE_MAX_TURNS`        | no        | `8`                | Integer 1 to 30: the turn budget, written as `maxTurns` into the stage agent's definition, which the adapter passes to the SDK |
+| `AD_SDLC_LIVE_STAGE_TIMEOUT_MS` | no        | `240000`           | Integer 10000 to 1200000: passed as `--stage-timeout-ms`, the total time budget of the stage                                   |
+| `AD_SDLC_LIVE_OUTPUT_DIR`       | no        | `test-output/live` | Directory for the metadata, summary, Vitest report, and smoke evidence                                                         |
 
-`local-login` is for a run on a developer machine. Each run gets an isolated
-Claude configuration directory holding only a copy of the login's
-`.credentials.json`, so the user's settings, hooks, and plugins do not reach
-the run; the run refuses to start unless the login stays valid for two more
-hours, so the copy never refreshes it, and the copy is deleted afterwards.
-Because no API key or session marker is visible to the CLI, the runs pass
-`--allow-stub`, which only skips that detection: every stage still runs through
-the SDK adapter. GitHub calls use the account `gh` is logged in to. On Windows,
-npm runs the package scripts in Git for Windows' bash.
-| `AD_SDLC_LIVE_MAX_TURNS` | no | `8` | Integer 1 to 30: the turn budget, written as `maxTurns` into the stage agent's definition, which the adapter passes to the SDK |
-| `AD_SDLC_LIVE_STAGE_TIMEOUT_MS` | no | `240000` | Integer 10000 to 1200000: passed as `--stage-timeout-ms`, the total time budget of the stage |
-| `AD_SDLC_LIVE_OUTPUT_DIR` | no | `test-output/live` | Directory for the metadata, summary, Vitest report, and smoke evidence |
+Each run gets an isolated Claude configuration directory. Its `settings.json`
+holds only the tool permissions of the pipeline's agent sessions
+(`LIVE_PERMISSIONS` in `tests/live/harness.ts`): the SDK runs them without a
+terminal, so a command that needs approval would be denied, and AD-SDLC
+installs no permission settings itself. It accepts file edits, allows the
+`gh issue`, `gh pr` (create, view, list, diff, checks, comment, review, edit),
+`git`, `npm`, `node`, and read-only shell commands the Import stages use, and
+denies merging or closing pull requests, `gh api`, repository administration,
+and force pushes. The user's settings, hooks, and plugins do not reach the run.
+
+`local-login` is for a run on a developer machine. The isolated directory also
+receives a copy of the login's `.credentials.json`; the run refuses to start
+unless the login stays valid for two more hours, so the copy never refreshes
+it, and the copy is deleted afterwards. Because no API key or session marker
+is visible to the CLI, the runs pass `--allow-stub`, which only skips that
+detection: every stage still runs through the SDK adapter. GitHub calls use the
+account `gh` is logged in to. On Windows, npm runs the package scripts in Git
+for Windows' bash.
 
 The stage time budget is the hard limit: the orchestrator aborts the SDK query
 when it expires, and the workflow's job timeout bounds the whole run.

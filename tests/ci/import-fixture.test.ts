@@ -25,6 +25,7 @@ import { IMPORT_STAGES } from '../../src/ad-sdlc-orchestrator/types.js';
 import { resolveProjectAgent } from '../../src/execution/resolveProjectAgent.js';
 import { issueAcceptanceCriteria } from '../../src/rtm-builder/issueCriteria.js';
 import {
+  LIVE_PERMISSIONS,
   LOGIN_MIN_VALIDITY_MS,
   liveAuthArguments,
   liveChildEnv,
@@ -543,6 +544,8 @@ describe('scenario evidence and verdicts', () => {
       packageVersion: '0.1.0',
       sdkVersion: '1.0.0',
       budget,
+      auth: 'secrets',
+      permissions: LIVE_PERMISSIONS,
       startedAt: '2026-10-28T00:00:00.000Z',
       finishedAt: '2026-10-28T01:00:00.000Z',
     };
@@ -605,7 +608,7 @@ describe('live lane settings for the Import scenarios', () => {
     expect(liveAuthArguments({ auth: 'secrets' })).toEqual([]);
   });
 
-  it('copies only a login that stays valid, and nothing in secrets mode', async () => {
+  it('writes only the lane permissions, plus a login that stays valid in local-login mode', async () => {
     const userConfig = join(dir, 'user-claude');
     await mkdir(userConfig);
     const now = Date.parse('2026-10-28T00:00:00Z');
@@ -618,15 +621,21 @@ describe('live lane settings for the Import scenarios', () => {
 
     await write(LOGIN_MIN_VALIDITY_MS / 60_000 + 30);
     await prepareClaudeConfigDir(join(dir, 'run-1'), { auth: 'local-login' }, env, now);
-    expect(readdirSync(join(dir, 'run-1'))).toEqual(['.credentials.json']);
+    expect(readdirSync(join(dir, 'run-1')).sort()).toEqual(['.credentials.json', 'settings.json']);
+    const written = JSON.parse(readFileSync(join(dir, 'run-1', 'settings.json'), 'utf8')) as {
+      permissions: typeof LIVE_PERMISSIONS;
+    };
+    expect(Object.keys(written)).toEqual(['permissions']);
+    expect(written.permissions.deny).toContain('Bash(gh pr merge:*)');
+    expect(written.permissions.allow).not.toContain('Bash(gh api:*)');
 
     await write(LOGIN_MIN_VALIDITY_MS / 60_000 - 1);
     await expect(
       prepareClaudeConfigDir(join(dir, 'run-2'), { auth: 'local-login' }, env, now)
     ).rejects.toThrow(/must stay valid/);
-    expect(readdirSync(join(dir, 'run-2'))).toEqual([]);
+    expect(readdirSync(join(dir, 'run-2'))).toEqual(['settings.json']);
 
     await prepareClaudeConfigDir(join(dir, 'run-3'), { auth: 'secrets' }, env, now);
-    expect(readdirSync(join(dir, 'run-3'))).toEqual([]);
+    expect(readdirSync(join(dir, 'run-3'))).toEqual(['settings.json']);
   });
 });

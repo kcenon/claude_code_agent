@@ -70,10 +70,62 @@ export function liveChildEnv(base: NodeJS.ProcessEnv, claudeConfigDir: string): 
 export const LOGIN_MIN_VALIDITY_MS = 120 * 60_000;
 
 /**
- * Create the isolated Claude configuration directory of a live run. In
- * `local-login` mode it receives a copy of the machine's Claude Code login
- * credentials and nothing else, so the user's settings, hooks, and plugins
- * never reach the run; the copy is removed with the run's directory.
+ * Tool permissions of the pipeline's agent sessions in a live run. The SDK
+ * runs them without a terminal, so a command that needs approval is denied;
+ * AD-SDLC itself installs no permission settings. The run's isolated
+ * configuration therefore grants file edits and the commands the Import
+ * stages use, and denies the ones the scenarios must never run: merging or
+ * closing pull requests, raw API calls, repository administration, and force
+ * pushes.
+ */
+export const LIVE_PERMISSIONS = {
+  defaultMode: 'acceptEdits',
+  allow: [
+    'Bash(gh issue:*)',
+    'Bash(gh pr create:*)',
+    'Bash(gh pr view:*)',
+    'Bash(gh pr list:*)',
+    'Bash(gh pr diff:*)',
+    'Bash(gh pr checks:*)',
+    'Bash(gh pr comment:*)',
+    'Bash(gh pr review:*)',
+    'Bash(gh pr edit:*)',
+    'Bash(gh repo view:*)',
+    'Bash(gh auth status:*)',
+    'Bash(git:*)',
+    'Bash(npm:*)',
+    'Bash(npx:*)',
+    'Bash(node:*)',
+    'Bash(cd:*)',
+    'Bash(ls:*)',
+    'Bash(cat:*)',
+    'Bash(head:*)',
+    'Bash(tail:*)',
+    'Bash(find:*)',
+    'Bash(grep:*)',
+    'Bash(wc:*)',
+    'Bash(mkdir:*)',
+  ],
+  deny: [
+    'Bash(gh pr merge:*)',
+    'Bash(gh pr close:*)',
+    'Bash(gh api:*)',
+    'Bash(gh repo create:*)',
+    'Bash(gh repo delete:*)',
+    'Bash(gh repo edit:*)',
+    'Bash(gh secret:*)',
+    'Bash(gh workflow:*)',
+    'Bash(git push --force:*)',
+    'Bash(git push -f:*)',
+  ],
+} as const;
+
+/**
+ * Create the isolated Claude configuration directory of a live run: its
+ * `settings.json` holds {@link LIVE_PERMISSIONS} and nothing else, so the
+ * user's settings, hooks, and plugins never reach the run. In `local-login`
+ * mode it also receives a copy of the machine's Claude Code login
+ * credentials; the copy is removed with the run's directory.
  * @param dir - Isolated CLAUDE_CONFIG_DIR
  * @param settings - Lane settings
  * @param env - Environment that locates the user's Claude configuration
@@ -87,6 +139,10 @@ export async function prepareClaudeConfigDir(
   now: number = Date.now()
 ): Promise<void> {
   await mkdir(dir, { recursive: true });
+  await writeFile(
+    join(dir, 'settings.json'),
+    `${JSON.stringify({ permissions: LIVE_PERMISSIONS }, null, 2)}\n`
+  );
   if (settings.auth !== 'local-login') return;
   const source = claudeCredentialsPath(env);
   const credentials = JSON.parse(await readFile(source, 'utf8')) as {
