@@ -156,7 +156,9 @@ The [CLI reference](docs/cli.md) documents every option, the template choices, t
 
 ## Contributing
 
-See the [Contributing Guide](CONTRIBUTING.md) for development setup, branch naming, commit messages, and the pull request process. Pull requests target `develop`. If you change this README, run `python3 scripts/readme_lint.py README.md`; the Documentation Audit workflow runs the same check.
+See the [Contributing Guide](CONTRIBUTING.md) for development setup, branch naming, commit messages, and the pull request process. If you change this README, run `python3 scripts/readme_lint.py README.md`; the Documentation Audit workflow runs the same check.
+
+**Branches**: `develop` is the default and integration branch; `main` is the stable branch and changes only through a release pull request from `develop`. Work happens on a work branch, goes to `develop` in a pull request, and is squash-merged once the required checks pass. Repository rules on both branches require a pull request and the required checks, and block force pushes and deletion.
 
 ## Related Projects
 
