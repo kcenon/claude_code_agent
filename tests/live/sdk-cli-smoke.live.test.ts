@@ -1,12 +1,12 @@
 /**
- * Live acceptance lane: PLACEHOLDER smoke (#954).
+ * Live acceptance lane: plumbing smoke (#954).
  *
  * Drives the production path end to end against the real Claude Agent SDK:
  * the `ad-sdlc init` and `ad-sdlc run` CLI commands, the orchestrator, and
  * SdkExecutionAdapter. It runs a single stage (initialization) with one
  * attempt, the lane's turn budget (agent `maxTurns`), and the lane's stage
- * time budget. It is a minimal plumbing check for the lane, not an acceptance
- * scenario: the Import acceptance scenario that replaces it belongs to #955.
+ * time budget. It is the lane's cheapest plumbing check, not an acceptance
+ * scenario; the acceptance scenarios are in import-acceptance.live.test.ts (#955).
  *
  * Selected only by vitest.live.config.ts through `npm run test:live`. When
  * the required settings are absent the test fails instead of skipping, so
@@ -20,9 +20,11 @@ import { describe, expect, it } from 'vitest';
 import { LIVE_FILES, notExecutedMessage, resolveLiveSettings } from '../../scripts/live-lane.js';
 import {
   LIVE_SMOKE_STAGE,
+  liveAuthArguments,
   liveChildEnv,
   liveRunArguments,
   parseCliJson,
+  prepareClaudeConfigDir,
   prepareLiveProject,
   runSourceCli,
   stageEvidence,
@@ -31,7 +33,7 @@ import {
 const settings = resolveLiveSettings(process.env);
 const cliTimeoutMs = settings.budget.stageTimeoutMs + 60_000;
 
-describe('live lane placeholder smoke (#954; replaced by the #955 Import scenario)', () => {
+describe('live lane plumbing smoke (#954)', () => {
   it(
     'runs the initialization stage through ad-sdlc run and the real SDK within the lane budget',
     async () => {
@@ -39,13 +41,17 @@ describe('live lane placeholder smoke (#954; replaced by the #955 Import scenari
       const root = await mkdtemp(join(tmpdir(), 'ad-sdlc-live-'));
       try {
         const claudeConfigDir = join(root, 'claude-config');
-        await mkdir(claudeConfigDir);
+        await prepareClaudeConfigDir(claudeConfigDir, settings);
         const env = liveChildEnv(process.env, claudeConfigDir);
         const project = join(root, 'project');
         await prepareLiveProject(project, settings.budget, env);
 
         const startedAt = Date.now();
-        const run = runSourceCli(liveRunArguments(project, settings.budget), env, cliTimeoutMs);
+        const run = runSourceCli(
+          liveRunArguments(project, settings.budget, liveAuthArguments(settings)),
+          env,
+          cliTimeoutMs
+        );
         const durationMs = Date.now() - startedAt;
         const evidence = stageEvidence(parseCliJson(run.stdout), LIVE_SMOKE_STAGE);
         await mkdir(settings.outputDir, { recursive: true });

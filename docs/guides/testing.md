@@ -12,14 +12,14 @@ request into `develop` or `main` and on every push to those branches.
 
 ## Test Lanes
 
-| Lane                                            | Command                                   | Selection                                                                                                | Credentials         | CI check                                                                           |
-| ----------------------------------------------- | ----------------------------------------- | -------------------------------------------------------------------------------------------------------- | ------------------- | ---------------------------------------------------------------------------------- |
-| Offline suite (unit, integration, pipeline E2E) | `npm test`                                | `vitest.config.ts`: `tests/**/*.test.ts` except `tests/performance/**` and `tests/live/**`; 30 s timeout | none                | `Test (ubuntu-latest)` (with coverage thresholds), `Test (windows-2022)`           |
-| Offline integration                             | `npm run test:integration`                | `vitest.integration.config.ts`: `tests/integration/**/*.test.ts`                                         | none                | `Integration Tests`                                                                |
-| Offline pipeline E2E                            | `npm run test:e2e`                        | `vitest.e2e.config.ts`: `tests/e2e/**/*.test.ts`; 120 s timeout, no retry                                | none                | `Pipeline E2E (offline)`                                                           |
-| Package delivery                                | `npm run test:package`                    | `tests/package/asset-delivery.smoke.mjs` (packed tarball, production install)                            | none                | `Package Asset Delivery (offline)`                                                 |
-| Performance                                     | `npm run test:bench`, `npm run test:perf` | `vitest.bench.config.ts`, `vitest.perf.config.ts`: `tests/performance/**`                                | none                | `Performance Tests` workflow (pushes and pull requests to `main`, manual dispatch) |
-| Live acceptance                                 | `npm run test:live`                       | `vitest.live.config.ts`: `tests/live/**/*.live.test.ts`, run by `scripts/live-lane.ts`                   | `ANTHROPIC_API_KEY` | `Live Acceptance` (manual `workflow_dispatch` only)                                |
+| Lane                                            | Command                                   | Selection                                                                                                | Credentials                                                 | CI check                                                                           |
+| ----------------------------------------------- | ----------------------------------------- | -------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| Offline suite (unit, integration, pipeline E2E) | `npm test`                                | `vitest.config.ts`: `tests/**/*.test.ts` except `tests/performance/**` and `tests/live/**`; 30 s timeout | none                                                        | `Test (ubuntu-latest)` (with coverage thresholds), `Test (windows-2022)`           |
+| Offline integration                             | `npm run test:integration`                | `vitest.integration.config.ts`: `tests/integration/**/*.test.ts`                                         | none                                                        | `Integration Tests`                                                                |
+| Offline pipeline E2E                            | `npm run test:e2e`                        | `vitest.e2e.config.ts`: `tests/e2e/**/*.test.ts`; 120 s timeout, no retry                                | none                                                        | `Pipeline E2E (offline)`                                                           |
+| Package delivery                                | `npm run test:package`                    | `tests/package/asset-delivery.smoke.mjs` (packed tarball, production install)                            | none                                                        | `Package Asset Delivery (offline)`                                                 |
+| Performance                                     | `npm run test:bench`, `npm run test:perf` | `vitest.bench.config.ts`, `vitest.perf.config.ts`: `tests/performance/**`                                | none                                                        | `Performance Tests` workflow (pushes and pull requests to `main`, manual dispatch) |
+| Live acceptance                                 | `npm run test:live`                       | `vitest.live.config.ts`: `tests/live/**/*.live.test.ts`, run by `scripts/live-lane.ts`                   | `ANTHROPIC_API_KEY`, disposable GitHub repository and token | `Live Acceptance` (manual `workflow_dispatch` only)                                |
 
 The offline pipeline E2E tests use a mocked SDK boundary (`MockBridge`,
 `MockExecutionAdapter`) or template agents without an execution adapter. A
@@ -84,9 +84,11 @@ npm run test:e2e
 ### Live Acceptance Lane
 
 ```bash
-# Paid: runs the real Claude Agent SDK. Without ANTHROPIC_API_KEY it records
-# "not executed" and exits 2 without calling anything.
-ANTHROPIC_API_KEY=... npm run test:live
+# Paid: runs the real Claude Agent SDK and writes to the disposable GitHub
+# repository. Without the settings it records "not executed" and exits 2
+# without calling anything.
+ANTHROPIC_API_KEY=... AD_SDLC_LIVE_GITHUB_REPO=owner/name \
+  AD_SDLC_LIVE_GITHUB_TOKEN=... npm run test:live
 ```
 
 See [Live Acceptance Lane](#live-acceptance-lane) for settings and metadata.
@@ -114,9 +116,14 @@ tests/
 │   └── security.integration.test.ts
 ├── ci/                         # Offline guards for workflows and the live lane
 │   ├── workflow-trigger-matrix.test.ts
-│   └── live-lane-guard.test.ts
+│   ├── live-lane-guard.test.ts
+│   └── import-fixture.test.ts  # Import live fixture and verdicts, offline
 ├── live/                       # Live acceptance lane only (npm run test:live)
+│   ├── fixtures/               # Import target repository, issues, acceptance tests
 │   ├── harness.ts
+│   ├── importScenario.ts
+│   ├── githubTarget.ts
+│   ├── import-acceptance.live.test.ts
 │   └── sdk-cli-smoke.live.test.ts
 └── e2e/                        # Offline end-to-end tests
     ├── helpers/                # Shared test utilities
@@ -433,12 +440,34 @@ drives the production path: the `ad-sdlc init` and `ad-sdlc run` CLI commands
 Selecting the live suite directly (`vitest run --config vitest.live.config.ts`)
 without the settings fails the test instead of skipping it.
 
-| Setting                         | Required | Default            | Accepted values                                                                                                                |
-| ------------------------------- | -------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
-| `ANTHROPIC_API_KEY`             | yes      | —                  | Non-empty API key                                                                                                              |
-| `AD_SDLC_LIVE_MAX_TURNS`        | no       | `8`                | Integer 1 to 30: the turn budget, written as `maxTurns` into the stage agent's definition, which the adapter passes to the SDK |
-| `AD_SDLC_LIVE_STAGE_TIMEOUT_MS` | no       | `240000`           | Integer 10000 to 1200000: passed as `--stage-timeout-ms`, the total time budget of the stage                                   |
-| `AD_SDLC_LIVE_OUTPUT_DIR`       | no       | `test-output/live` | Directory for the metadata, summary, Vitest report, and smoke evidence                                                         |
+| Setting                         | Required  | Default            | Accepted values                                                                                                                |
+| ------------------------------- | --------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
+| `AD_SDLC_LIVE_AUTH`             | no        | `secrets`          | `secrets`: the API key and token below; `local-login`: the machine's Claude Code login and the account `gh` is logged in to    |
+| `ANTHROPIC_API_KEY`             | `secrets` | —                  | Non-empty API key                                                                                                              |
+| `AD_SDLC_LIVE_GITHUB_REPO`      | yes       | —                  | `owner/name` of the disposable target repository of the Import scenarios (see below)                                           |
+| `AD_SDLC_LIVE_GITHUB_TOKEN`     | `secrets` | —                  | GitHub token scoped to that repository only                                                                                    |
+| `AD_SDLC_LIVE_MAX_TURNS`        | no        | `8`                | Integer 1 to 30: the turn budget, written as `maxTurns` into the stage agent's definition, which the adapter passes to the SDK |
+| `AD_SDLC_LIVE_STAGE_TIMEOUT_MS` | no        | `240000`           | Integer 10000 to 1200000: passed as `--stage-timeout-ms`, the total time budget of the stage                                   |
+| `AD_SDLC_LIVE_OUTPUT_DIR`       | no        | `test-output/live` | Directory for the metadata, summary, Vitest report, and smoke evidence                                                         |
+
+Each run gets an isolated Claude configuration directory. Its `settings.json`
+holds only the tool permissions of the pipeline's agent sessions
+(`LIVE_PERMISSIONS` in `tests/live/harness.ts`): the SDK runs them without a
+terminal, so a command that needs approval would be denied, and AD-SDLC
+installs no permission settings itself. It accepts file edits, allows the
+`gh issue`, `gh pr` (create, view, list, diff, checks, comment, review, edit),
+`git`, `npm`, `node`, and read-only shell commands the Import stages use, and
+denies merging or closing pull requests, `gh api`, repository administration,
+and force pushes. The user's settings, hooks, and plugins do not reach the run.
+
+`local-login` is for a run on a developer machine. The isolated directory also
+receives a copy of the login's `.credentials.json`; the run refuses to start
+unless the login stays valid for two more hours, so the copy never refreshes
+it, and the copy is deleted afterwards. Because no API key or session marker
+is visible to the CLI, the runs pass `--allow-stub`, which only skips that
+detection: every stage still runs through the SDK adapter. GitHub calls use the
+account `gh` is logged in to. On Windows, npm runs the package scripts in Git
+for Windows' bash.
 
 The stage time budget is the hard limit: the orchestrator aborts the SDK query
 when it expires, and the workflow's job timeout bounds the whole run.
@@ -448,25 +477,74 @@ The metadata (`schemaVersion` 1) records `lane`, `executed`, `status`
 `invalidSettings`, `budget`, the SDK package with its declared range and
 installed version, the `ad-sdlc` version, the Node.js version and platform,
 `startedAt`, `finishedAt`, `durationMs`, test counts, `exitCode`, the smoke's
-stage evidence (SDK session ID, turn count, token usage, stage status), and
-the GitHub Actions run URL, SHA, and ref when available. Setting values are
-never written; only the names of missing settings are.
+stage evidence (SDK session ID, turn count, token usage, stage status), the
+outcome of each Import scenario (`importScenarios`), and the GitHub Actions run
+URL, SHA, and ref when available. Setting values are never written; only the
+names of missing settings are.
 
-The current live test, `tests/live/sdk-cli-smoke.live.test.ts`, is a
-placeholder smoke: it initializes a project, runs only the `initialization`
-stage with one attempt and the lane budget, and asserts that the stage
-completed through the execution adapter with an SDK session and token usage.
-The Import acceptance scenario (#955) replaces it.
+The live suite has two files:
+
+- `tests/live/sdk-cli-smoke.live.test.ts`, the plumbing smoke: it initializes a
+  project, runs only the `initialization` stage with one attempt and the lane
+  budget, and asserts that the stage completed through the execution adapter
+  with an SDK session and token usage.
+- `tests/live/import-acceptance.live.test.ts`, the Import acceptance scenarios
+  (#955). It installs the packed npm package (`npm pack`, production
+  install) in a separate directory, puts the fixture `tests/live/fixtures/import-target`
+  on the target repository's default branch, and for each scenario seeds
+  issues from `tests/live/fixtures/import-issues.json` under a run-specific
+  label, runs `ad-sdlc init . --quick` and
+  `ad-sdlc run "<requirements>" --mode import --vnv-profile delivery` in a
+  clone (one attempt per stage, the lane's turn budget on every Import agent),
+  and judges the result:
+  - **delivery**: the run completes and opens a pull request that links every
+    seeded issue, stays open and unmerged, and passes the independent
+    acceptance tests (`tests/live/fixtures/import-acceptance`, run on the pull
+    request's head commit; AD-SDLC never sees them);
+  - **required-fail**: with `AD_SDLC_FIXTURE_REQUIRED_FAIL=1` the target's
+    required test fails, and the run must not report delivery or open a pull
+    request;
+  - **resume**: a run stopped after `validation-agent` resumes from its saved
+    session without re-running completed stages, and a second resume of the
+    completed session makes no SDK attempt and changes no issue, pull request,
+    or commit;
+  - **report**: `import-acceptance-report.json` and `.md` list every scenario,
+    invocation, stage, and attempt (SDK session, model, token usage, outcome),
+    including the unsuccessful and restored ones.
+
+  Each scenario removes what it created, and only that: it closes its pull
+  requests without merging, deletes its new branches, closes its issues, and
+  deletes its label.
+
+The target repository must be disposable and prepared once:
+
+- it carries the topic `ad-sdlc-live-target` (the suite refuses to write to a
+  repository without it);
+- where the plan allows it (a public repository, or GitHub Pro for a private
+  one), a rule on its default branch requires an approving pull request review,
+  so a pull request the run opens cannot be merged with the run's own account;
+  without it the requirements still tell the reviewer to leave the pull request
+  open, and a merged pull request fails the scenario;
+- in `secrets` mode, the token is a fine-grained token for that repository
+  only, with read/write access to contents, issues, and pull requests (and read
+  access to metadata).
+
+Before each scenario the suite resets the default branch to the fixture when
+it differs.
+`tests/ci/import-fixture.test.ts` validates the fixture, the issue corpus, the
+CLI invocation, and the scenario verdicts offline on every pull request.
 
 The `Live Acceptance` workflow (`.github/workflows/live-acceptance.yml`) runs
 the lane on a manual `workflow_dispatch` only, with inputs `max_turns` and
-`stage_timeout_ms`, `contents: read` permissions, a 30 minute job timeout, and
+`stage_timeout_ms`, `contents: read` permissions, a 60 minute job timeout, and
 one run at a time. It never runs on pull requests (including forks), pushes,
 or schedules. It uploads the output directory as the
 `live-acceptance-metadata` artifact. GitHub dispatches a workflow only from a
-file on the default branch (`develop`). Without an `ANTHROPIC_API_KEY` (or
-`CLAUDE_API_KEY`) repository secret, a dispatched run reports `not-executed`
-and fails.
+file on the default branch (`develop`). It reads the target repository from the
+`AD_SDLC_LIVE_GITHUB_REPO` repository variable and its token from the
+`AD_SDLC_LIVE_GITHUB_TOKEN` secret. Without them, or without an
+`ANTHROPIC_API_KEY` (or `CLAUDE_API_KEY`) repository secret, a dispatched run
+reports `not-executed` and fails.
 
 ## CI Trigger Matrix and Required Checks
 

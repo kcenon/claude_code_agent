@@ -169,6 +169,22 @@ describe('ProjectInitializer', () => {
       expect(content).toContain('.ad-sdlc/logs/');
     });
 
+    it('initializes a directory whose .ad-sdlc holds only runtime logs', async () => {
+      // `ad-sdlc init .` runs the prerequisite checks in the target directory,
+      // and their security audit log creates .ad-sdlc/logs/ there first.
+      const auditLog = path.join(testProjectPath, '.ad-sdlc', 'logs', 'audit', 'audit-1.jsonl');
+      fs.mkdirSync(path.dirname(auditLog), { recursive: true });
+      fs.writeFileSync(auditLog, '{}\n');
+
+      const result = await new ProjectInitializer(defaultOptions).initialize();
+
+      expect(result.success, result.error).toBe(true);
+      expect(fs.existsSync(path.join(testProjectPath, '.ad-sdlc', 'config', 'workflow.yaml'))).toBe(
+        true
+      );
+      expect(fs.readFileSync(auditLog, 'utf8')).toBe('{}\n');
+    });
+
     it('should fail if project already exists with .ad-sdlc', async () => {
       // Create project first
       const initializer1 = new ProjectInitializer(defaultOptions);
