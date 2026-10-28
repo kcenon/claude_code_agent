@@ -423,8 +423,11 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Install AD-SDLC
-        run: npm install -g ad-sdlc
+      - name: Install AD-SDLC (from source; it is not on the npm registry yet)
+        run: |
+          git clone https://github.com/kcenon/claude_code_agent.git "$RUNNER_TEMP/ad-sdlc"
+          (cd "$RUNNER_TEMP/ad-sdlc" && npm ci && npm run build)
+          npm install -g "$RUNNER_TEMP/ad-sdlc"
 
       - name: Initialize project
         run: ad-sdlc init --quick
@@ -436,14 +439,14 @@ jobs:
         run: |
           ad-sdlc run "${{ github.event.inputs.requirements || 'Analyze and improve code quality' }}" \
             --mode greenfield \
-            --yes
+            --non-interactive
 ```
 
 ### CI를 위한 주요 플래그
 
 | 플래그                  | 목적                                                                                  |
 | ----------------------- | ------------------------------------------------------------------------------------- |
-| `--yes`                 | 첫 실행 시 개인정보 정책 프롬프트 자동 수락                                           |
+| `--non-interactive`     | 묻지 않음. 승인 결정이 필요하면 실행을 멈추고(종료 코드 3) `--resume`으로 이어 감     |
 | `--local`               | 모든 GitHub 호출 건너뜀 (빌드 전용 파이프라인에 유용)                                 |
 | `--dry-run`             | 에이전트 실행 없이 구성 검증                                                          |
 | `--stop-after <stage>`  | 특정 단계 후 중단 (예: `sds_generation`; 같은 병렬 그룹의 다른 단계도 실행될 수 있음) |

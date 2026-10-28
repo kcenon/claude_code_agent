@@ -61,28 +61,21 @@ $ gh auth status
 
 ```bash
 # Validate configuration files
-$ ad-sdlc config validate
-✓ workflow.yaml: valid
-✓ agents.yaml: valid
-✓ mode-detection.yaml: valid
+$ ad-sdlc validate
 
-# Show effective configuration
-$ ad-sdlc config show
-Global Settings:
-  project_root: .
-  output_dir: docs
-  default_model: sonnet
-  parallel_workers: 5
+# Show the effective runtime policy
+$ ad-sdlc run "<requirements>" --dry-run
+Mode: greenfield; local: false
+...
+Configuration valid. Pipeline is ready to execute.
 ```
 
-### 4. API Connection Test
+### 4. Credential Check
 
 ```bash
-# Test Anthropic API
-$ ad-sdlc doctor --check-api
-Testing Anthropic API connection...
-✓ API connection successful
-✓ Model: claude-sonnet-4-5-20251101 available
+# Check that an ANTHROPIC_API_KEY or Claude Code session is detected
+# (presence only; doctor does not call the API)
+$ ad-sdlc doctor
 
 # Test GitHub API
 $ gh api user --jq '.login'
@@ -96,29 +89,19 @@ your-username
 ### Dry Run Mode
 
 ```bash
-# Run without making changes
-ad-sdlc run --dry-run
-
-# Output:
-# [DRY RUN] Would execute:
-#   1. Collector Agent
-#   2. PRD Writer Agent
-#   3. SRS Writer Agent
-#   4. SDS Writer Agent
-#   5. Issue Generator Agent
-#   6. Controller Agent
-#   7. Worker Agents (parallel)
-#   8. PR Reviewer Agent
+# Resolve the configuration and print the stage graph without calling the SDK
+ad-sdlc run "<requirements>" --dry-run
 ```
+
+The output lists the mode, stage concurrency, verification profile, approval
+mode, and every stage with its dependencies and time budget.
 
 ### Minimal Test
 
 ```bash
-# Run only collection stage
-ad-sdlc run --stage collection
-
-# Input test requirements
-# Check output at .ad-sdlc/scratchpad/{project}/info/collected_info.yaml
+# Stop after requirements collection (runs initialization, mode detection,
+# and collection)
+ad-sdlc run "<requirements>" --stop-after collection
 ```
 
 ---
@@ -237,8 +220,9 @@ Error: Invalid YAML in workflow.yaml
 ```
 
 **Solution**: Validate YAML syntax:
+
 ```bash
-ad-sdlc config validate --verbose
+ad-sdlc validate
 ```
 
 ---
@@ -253,4 +237,4 @@ After successful verification:
 
 ---
 
-*Part of [Deployment Guide](./README.md)*
+_Part of [Deployment Guide](./README.md)_

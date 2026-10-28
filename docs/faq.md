@@ -25,14 +25,15 @@ AD-SDLC (Agent-Driven Software Development Lifecycle) is an automated pipeline t
 
 ### How long does a typical project take?
 
-| Project Type | Estimated Time |
-|-------------|----------------|
-| Simple feature | 15-20 minutes |
-| Medium complexity | 30-45 minutes |
-| Complex feature | 45-90 minutes |
-| Full application | 2-4 hours |
+| Project Type      | Estimated Time |
+| ----------------- | -------------- |
+| Simple feature    | 15-20 minutes  |
+| Medium complexity | 30-45 minutes  |
+| Complex feature   | 45-90 minutes  |
+| Full application  | 2-4 hours      |
 
 Times depend on:
+
 - Complexity of requirements
 - Number of issues generated
 - API response times
@@ -41,6 +42,7 @@ Times depend on:
 ### What languages/frameworks are supported?
 
 AD-SDLC is language-agnostic. It can generate code in any language Claude supports, including:
+
 - TypeScript/JavaScript
 - Python
 - Java
@@ -53,11 +55,13 @@ AD-SDLC is language-agnostic. It can generate code in any language Claude suppor
 ### Do I need a GitHub account?
 
 GitHub is optional but recommended. Without GitHub:
+
 - Documents are still generated locally
 - Issues are saved to `.ad-sdlc/scratchpad/issues/`
 - PRs are simulated as local branches
 
 With GitHub:
+
 - Issues are created on your repository
 - PRs are opened automatically
 - Full automation of the development workflow
@@ -65,15 +69,17 @@ With GitHub:
 ### How much does it cost?
 
 AD-SDLC uses Claude API tokens. Costs depend on:
+
 - Model used (Sonnet, Opus, Haiku)
 - Complexity of tasks
 - Number of iterations
 
 **Typical costs:**
-| Task | Estimated Cost |
-|------|---------------|
-| Simple feature | $0.50 - $2.00 |
-| Medium feature | $2.00 - $5.00 |
+
+| Task            | Estimated Cost |
+| --------------- | -------------- |
+| Simple feature  | $0.50 - $2.00  |
+| Medium feature  | $2.00 - $5.00  |
 | Complex feature | $5.00 - $15.00 |
 
 Use `ad-sdlc status` to view token usage during execution.
@@ -85,17 +91,20 @@ Use `ad-sdlc status` to view token usage during execution.
 ### How do I set my API key?
 
 **Option 1: Environment Variable (Recommended)**
+
 ```bash
 # Add to ~/.bashrc or ~/.zshrc
 export ANTHROPIC_API_KEY="sk-ant-api03-..."
 ```
 
 **Option 2: Claude CLI Login**
+
 ```bash
 claude login
 ```
 
 **Option 3: Project-specific**
+
 ```bash
 # Create .env file (add to .gitignore!)
 echo "ANTHROPIC_API_KEY=sk-ant-..." > .env
@@ -108,16 +117,17 @@ Yes. Configure in `.ad-sdlc/config/agents.yaml`:
 ```yaml
 agents:
   prd-writer:
-    model: opus    # Use opus for complex reasoning
+    model: opus # Use opus for complex reasoning
   worker:
-    model: sonnet  # sonnet is good for most tasks
+    model: sonnet # sonnet is good for most tasks
   validator:
-    model: haiku   # haiku for simple validation tasks
+    model: haiku # haiku for simple validation tasks
 ```
 
 ### How do I configure GitHub integration?
 
 1. **Authenticate GitHub CLI:**
+
    ```bash
    gh auth login
    ```
@@ -137,12 +147,14 @@ agents:
 Yes. For corporate environments:
 
 1. **Proxy configuration:**
+
    ```bash
    export http_proxy=http://proxy.company.com:8080
    export https_proxy=http://proxy.company.com:8080
    ```
 
 2. **Cloud provider integration:**
+
    ```bash
    # AWS Bedrock
    export CLAUDE_CODE_USE_BEDROCK=1
@@ -162,18 +174,24 @@ Yes. For corporate environments:
 
 Yes! The system supports intervention at multiple points:
 
-1. **Document Approval:**
-   Add to workflow.yaml:
+1. **Approval Gates:**
+   Request a decision at every review and delivery gate in
+   `.ad-sdlc/config/workflow.yaml`:
+
    ```yaml
-   stages:
-     prd:
-       require_approval: true
+   global:
+     approval_mode: manual # or: auto (default), critical
    ```
 
-2. **Pause Pipeline:**
-   Press `Ctrl+C` to pause. Resume with:
+   Or for one run: `ad-sdlc run "<requirements>" --approval-mode manual`.
+   See [Approval Policy](guides/approval-policy.md).
+
+2. **Stop and Resume:**
+   Press `Ctrl+C` to cancel the run, or stop early with `--stop-after <stage>`.
+   Find the session ID with `ad-sdlc status`, then resume:
+
    ```bash
-   ad-sdlc resume
+   ad-sdlc run "<requirements>" --resume <session-id>
    ```
 
 3. **Manual Edits:**
@@ -182,11 +200,13 @@ Yes! The system supports intervention at multiple points:
 ### What if something goes wrong?
 
 **Check status:**
+
 ```bash
 ad-sdlc status
 ```
 
 **View logs:**
+
 ```bash
 # All logs
 cat .ad-sdlc/logs/pipeline.log
@@ -195,15 +215,14 @@ cat .ad-sdlc/logs/pipeline.log
 cat .ad-sdlc/logs/agent-logs/worker.log
 ```
 
-**Resume from checkpoint:**
+**Resume a saved session** (completed stages are skipped):
+
 ```bash
-ad-sdlc resume
+ad-sdlc run "<requirements>" --resume <session-id>
 ```
 
-**Reset and start over:**
-```bash
-ad-sdlc reset
-```
+**Start over:** run `ad-sdlc run "<requirements>"` without `--resume`; it
+starts a new session.
 
 ### Can I customize the agents?
 
@@ -213,6 +232,7 @@ Yes. Agent definitions are in `.claude/agents/`:
    Edit the markdown content in agent files.
 
 2. **Change tools:**
+
    ```yaml
    ---
    name: worker
@@ -243,8 +263,8 @@ Yes. The Controller agent manages parallel execution:
 ```yaml
 # .ad-sdlc/config/workflow.yaml
 execution:
-  max_parallel_workers: 3  # Run up to 3 workers
-  dependency_check: true   # Respect issue dependencies
+  max_parallel_workers: 3 # Run up to 3 workers
+  dependency_check: true # Respect issue dependencies
 ```
 
 Document generation is sequential, but issue implementation can be parallel.
@@ -257,11 +277,11 @@ Document generation is sequential, but issue implementation can be parallel.
 
 AD-SDLC generates three core documents following software engineering best practices:
 
-| Document | Purpose | Contains |
-|----------|---------|----------|
-| **PRD** (Product Requirements Document) | Define WHAT to build | Features, user stories, acceptance criteria |
+| Document                                      | Purpose                   | Contains                                         |
+| --------------------------------------------- | ------------------------- | ------------------------------------------------ |
+| **PRD** (Product Requirements Document)       | Define WHAT to build      | Features, user stories, acceptance criteria      |
 | **SRS** (Software Requirements Specification) | Define HOW it should work | Functional requirements, data models, interfaces |
-| **SDS** (Software Design Specification) | Define HOW to build it | Architecture, components, APIs, database schema |
+| **SDS** (Software Design Specification)       | Define HOW to build it    | Architecture, components, APIs, database schema  |
 
 ### Can I customize document templates?
 
@@ -276,6 +296,7 @@ vim .ad-sdlc/templates/prd-template.md
 ```
 
 Template variables available:
+
 - `{{project_name}}` - Project name
 - `{{timestamp}}` - Generation timestamp
 - `{{requirements}}` - Extracted requirements
@@ -283,31 +304,25 @@ Template variables available:
 
 ### How do I export documents to other formats?
 
-```bash
-# Export to Markdown files
-ad-sdlc export --format markdown --output ./docs
-
-# Export to PDF (requires pandoc)
-ad-sdlc export --format pdf --output ./docs
-
-# Export to Confluence (requires configuration)
-ad-sdlc export --format confluence --space MYSPACE
-```
+AD-SDLC has no export command. Generated documents are Markdown files in the
+project (the PRD, for example, is `docs/prd/PRD-<project-id>.md`), so convert
+them with your own tooling, for example
+`pandoc docs/prd/PRD-<project-id>.md -o PRD.pdf`.
 
 ### Can I use existing documents instead of generating new ones?
 
-Yes. Skip generation stages and provide your own:
+Yes, through the pipeline mode rather than per-document options:
 
 ```bash
-# Use existing PRD
-ad-sdlc run --prd docs/existing-prd.md
+# Existing project: read the existing documents and code, then update them
+ad-sdlc run "Add rate limiting to the public API" --mode enhancement
 
-# Use existing PRD and SRS
-ad-sdlc run --prd docs/prd.md --srs docs/srs.md
-
-# Skip document generation entirely
-ad-sdlc run --skip-stages prd,srs,sds --issues docs/issues.yaml
+# Existing GitHub issues: skip document generation and implement the issues
+ad-sdlc run "Implement the open issues" --mode import
 ```
+
+`ad-sdlc run` has no option to skip individual stages or to start from a later
+stage; `--stop-after <stage>` only ends a run early.
 
 ### Where are the generated files saved?
 
@@ -333,28 +348,29 @@ All outputs are saved to the scratchpad directory:
 
 ### What agents are available?
 
-| Agent | Purpose | Stage |
-|-------|---------|-------|
-| Collector | Extract requirements from user input | Input Processing |
-| PRD Writer | Generate Product Requirements Document | Documentation |
-| SRS Writer | Generate Software Requirements Specification | Documentation |
-| SDS Writer | Generate Software Design Specification | Documentation |
-| Issue Generator | Create GitHub issues from SDS | Issue Management |
-| Controller | Orchestrate worker execution | Execution |
-| Worker | Implement issues (write code) | Implementation |
-| PR Reviewer | Review and merge PRs | Quality Assurance |
-| Regression Tester | Test for regressions | Testing |
+| Agent             | Purpose                                      | Stage             |
+| ----------------- | -------------------------------------------- | ----------------- |
+| Collector         | Extract requirements from user input         | Input Processing  |
+| PRD Writer        | Generate Product Requirements Document       | Documentation     |
+| SRS Writer        | Generate Software Requirements Specification | Documentation     |
+| SDS Writer        | Generate Software Design Specification       | Documentation     |
+| Issue Generator   | Create GitHub issues from SDS                | Issue Management  |
+| Controller        | Orchestrate worker execution                 | Execution         |
+| Worker            | Implement issues (write code)                | Implementation    |
+| PR Reviewer       | Review and merge PRs                         | Quality Assurance |
+| Regression Tester | Test for regressions                         | Testing           |
 
 ### How do I create a custom agent?
 
 1. **Define agent metadata** in `.ad-sdlc/config/agents.yaml`:
+
    ```yaml
    agents:
      my-agent:
-       id: "my-agent"
-       name: "My Agent"
-       definition_file: ".claude/agents/my-agent.md"
-       category: "custom"
+       id: 'my-agent'
+       name: 'My Agent'
+       definition_file: '.claude/agents/my-agent.md'
+       category: 'custom'
    ```
 
 2. **Create agent definition** in `.claude/agents/my-agent.md`
@@ -372,8 +388,8 @@ Yes, via MCP (Model Context Protocol):
 mcp:
   servers:
     my-tools:
-      command: "node"
-      args: ["tools/server.js"]
+      command: 'node'
+      args: ['tools/server.js']
 ```
 
 ### How do I change which model an agent uses?
@@ -382,27 +398,31 @@ mcp:
 # .ad-sdlc/config/workflow.yaml
 agents:
   prd-writer:
-    model: "opus"     # For complex reasoning
+    model: 'opus' # For complex reasoning
   worker:
-    model: "sonnet"   # Default for most tasks
+    model: 'sonnet' # Default for most tasks
   collector:
-    model: "haiku"    # For quick, simple tasks
+    model: 'haiku' # For quick, simple tasks
 ```
 
 ### Can I disable specific agents?
 
-Yes. Skip agents or entire stages:
+Not individually. The pipeline mode selects the stages, and `ad-sdlc run` has
+no option to skip a stage. These options narrow a run instead:
 
 ```bash
-# Skip specific stages
-ad-sdlc run --skip-stages srs,sds
+# Stop after the documents are generated (no issues, code, or pull requests)
+ad-sdlc run "<requirements>" --stop-after sds_generation
 
-# Disable worker verification
-ad-sdlc run --no-verify
+# Run without GitHub (local mode)
+ad-sdlc run "<requirements>" --local
 
-# Disable PR creation
-ad-sdlc run --no-pr
+# Keep failed verification checks as findings instead of stopping the run
+ad-sdlc run "<requirements>" --vnv-profile advisory
 ```
+
+The verification stage itself always runs; see the
+[verification policy guide](guides/verification-policy.md).
 
 ---
 
@@ -413,6 +433,7 @@ For detailed troubleshooting procedures, see the [Troubleshooting Guide](guides/
 ### Error: API Rate Limit Exceeded
 
 **Symptom:**
+
 ```
 Error: GitHub API rate limit exceeded. Retry after: 3600s
 ```
@@ -420,6 +441,7 @@ Error: GitHub API rate limit exceeded. Retry after: 3600s
 **Cause:** Too many GitHub API calls.
 
 **Solutions:**
+
 1. Wait for rate limit reset
 2. Authenticate with GitHub CLI for higher limits:
    ```bash
@@ -434,6 +456,7 @@ Error: GitHub API rate limit exceeded. Retry after: 3600s
 ### Error: Agent Timeout
 
 **Symptom:**
+
 ```
 Error: Agent 'worker' timed out after 600000ms
 ```
@@ -441,11 +464,12 @@ Error: Agent 'worker' timed out after 600000ms
 **Cause:** Task too complex or slow API response.
 
 **Solutions:**
+
 1. Increase timeout:
    ```yaml
    agents:
      worker:
-       timeout_ms: 900000  # 15 minutes
+       timeout_ms: 900000 # 15 minutes
    ```
 2. Break down into smaller tasks
 3. Check network connectivity
@@ -453,11 +477,13 @@ Error: Agent 'worker' timed out after 600000ms
 ### Error: Invalid Configuration
 
 **Symptom:**
+
 ```
 Error: Invalid configuration in workflow.yaml
 ```
 
 **Solution:**
+
 1. Validate configuration:
    ```bash
    ad-sdlc validate
@@ -468,11 +494,13 @@ Error: Invalid configuration in workflow.yaml
 ### Error: Scratchpad Corruption
 
 **Symptom:**
+
 ```
 Error: Invalid YAML in .ad-sdlc/scratchpad/documents/output.yaml
 ```
 
 **Solutions:**
+
 1. Backup current state:
    ```bash
    cp -r .ad-sdlc/scratchpad .ad-sdlc/scratchpad.bak
@@ -482,19 +510,21 @@ Error: Invalid YAML in .ad-sdlc/scratchpad/documents/output.yaml
    npx js-yaml .ad-sdlc/scratchpad/documents/output.yaml
    ```
 3. Fix syntax errors or restore from backup
-4. Resume:
+4. Resume the saved session (`ad-sdlc status` lists the session IDs):
    ```bash
-   ad-sdlc resume
+   ad-sdlc run "<requirements>" --resume <session-id>
    ```
 
 ### Error: Permission Denied
 
 **Symptom:**
+
 ```
 Error: EACCES: permission denied
 ```
 
 **Solutions:**
+
 1. Check file permissions
 2. Don't run as root
 3. For global npm:
@@ -507,11 +537,13 @@ Error: EACCES: permission denied
 ### Error: Git Authentication Failed
 
 **Symptom:**
+
 ```
 Error: Authentication failed for repository
 ```
 
 **Solutions:**
+
 1. Check GitHub CLI authentication:
    ```bash
    gh auth status
@@ -527,6 +559,7 @@ Error: Authentication failed for repository
 **Symptom:** Pipeline shows no progress for extended time.
 
 **Diagnostic Steps:**
+
 1. Check status:
    ```bash
    ad-sdlc status
@@ -541,9 +574,11 @@ Error: Authentication failed for repository
    ```
 
 **Solutions:**
-- Resume if checkpoint available: `ad-sdlc resume`
-- Reset specific stage: `ad-sdlc reset --stage <stage-name>`
-- Full reset: `ad-sdlc reset --all`
+
+- Bound a stalled stage: `ad-sdlc run "<requirements>" --stage-timeout-ms <ms>`
+- Resume the saved session: `ad-sdlc run "<requirements>" --resume <session-id>`
+  (completed stages are skipped)
+- Start over: run without `--resume`, which starts a new session
 
 ---
 
@@ -568,20 +603,29 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Install AD-SDLC
-        run: npm install -g ad-sdlc
-      - name: Run Implementation
+      - name: Install AD-SDLC (from source; it is not on the npm registry yet)
+        run: |
+          git clone https://github.com/kcenon/claude_code_agent.git "$RUNNER_TEMP/ad-sdlc"
+          (cd "$RUNNER_TEMP/ad-sdlc" && npm ci && npm run build)
+          npm install -g "$RUNNER_TEMP/ad-sdlc"
+      - name: Run the Import pipeline
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: |
-          ad-sdlc implement --issue ${{ github.event.issue.number }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ad-sdlc run "" --mode import --non-interactive
 ```
+
+The Import pipeline reads the repository's open issues; with the default
+`approval_mode: auto` it never waits for input. See
+[Headless Execution](headless-execution.md) for exit statuses and
+[Usage Scenarios](guides/usage-scenarios.md#scenario-d-import-from-issues).
 
 ### How do I extend with custom tools?
 
 Use MCP (Model Context Protocol) to add custom tools:
 
 1. **Create MCP server:**
+
    ```javascript
    // tools/my-tool.js
    module.exports = {
@@ -590,7 +634,7 @@ Use MCP (Model Context Protocol) to add custom tools:
      execute: async (params) => {
        // Implementation
        return result;
-     }
+     },
    };
    ```
 
@@ -605,43 +649,32 @@ Use MCP (Model Context Protocol) to add custom tools:
 
 ### How do I integrate with my existing workflow?
 
-AD-SDLC is flexible:
+Pick the mode and the stopping point:
 
-1. **Skip stages:**
+1. **Existing project with documents:**
+
    ```bash
-   ad-sdlc run --skip-stages prd,srs
+   ad-sdlc run "<change request>" --mode enhancement
    ```
 
-2. **Use existing documents:**
+2. **Existing issues:**
+
    ```bash
-   ad-sdlc run --prd docs/existing-prd.md
+   ad-sdlc run "" --mode import
    ```
 
-3. **Output only:**
+3. **Documents only:**
    ```bash
-   ad-sdlc run --output-only  # Generate docs without implementation
+   ad-sdlc run "<requirements>" --stop-after sds_generation  # no implementation
    ```
 
 ### Is there an API for programmatic access?
 
-Yes. Use the SDK:
-
-```typescript
-import { AdSdlc } from 'ad-sdlc';
-
-const pipeline = new AdSdlc({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-  github: { repo: 'owner/repo' }
-});
-
-// Run pipeline
-const result = await pipeline.run({
-  requirements: 'Implement user authentication'
-});
-
-console.log(result.documents.prd);
-console.log(result.issues);
-```
+The package exports the modules the CLI is built from (orchestrator, agents,
+configuration, scratchpad); see
+[Package entry points](guides/package-entry-points.md). There is no single
+facade class that runs the whole pipeline: `ad-sdlc run` is the supported way
+to run it, and `--format json` gives a machine-readable result.
 
 ---
 
@@ -655,6 +688,7 @@ Your data is processed through:
 2. **GitHub API** - For issue/PR management (if enabled)
 
 **Data NOT sent externally:**
+
 - Source code (unless explicitly included in prompts)
 - Environment variables
 - Credentials
@@ -662,6 +696,7 @@ Your data is processed through:
 ### Can I use AD-SDLC offline?
 
 No. AD-SDLC requires:
+
 - Internet connection for Claude API
 - GitHub API access (optional but recommended)
 
@@ -674,93 +709,56 @@ For enterprise SSO:
 ```yaml
 # .ad-sdlc/config/workflow.yaml
 authentication:
-  type: "sso"
-  provider: "okta"  # or azure-ad, google, etc.
-  client_id: "${SSO_CLIENT_ID}"
+  type: 'sso'
+  provider: 'okta' # or azure-ad, google, etc.
+  client_id: '${SSO_CLIENT_ID}'
 ```
 
 ### Is there an audit log?
 
-Yes. All operations are logged:
+Yes. The security audit logger writes JSON Lines files, one event per line, to
+`.ad-sdlc/logs/audit/audit-<timestamp>.jsonl` (set `AD_SDLC_AUDIT_LOG_DIR` to
+change the directory). There is no export command; the files are already
+machine-readable:
 
 ```bash
-# View audit log
-cat .ad-sdlc/logs/audit.log
-
-# Export audit log
-ad-sdlc export-audit --format json --output audit-export.json
+cat .ad-sdlc/logs/audit/audit-*.jsonl
 ```
-
-Audit log includes:
-- Timestamp
-- User/Agent
-- Action type
-- Input/Output hashes
-- API calls made
 
 ### How do I prevent secrets from being committed?
 
-AD-SDLC includes safeguards:
-
-1. **Automatic detection:**
-   - Scans for API keys, passwords, tokens
-   - Warns before committing `.env` files
-
-2. **Configuration:**
-   ```yaml
-   # .ad-sdlc/config/workflow.yaml
-   security:
-     secret_detection: true
-     block_secrets_in_pr: true
-     allowed_secret_patterns: []  # Exceptions
-   ```
-
-3. **Pre-commit hooks:**
-   ```bash
-   ad-sdlc setup-hooks
-   ```
+AD-SDLC's logger masks values that match known secret patterns (API keys,
+tokens) in its own log output, but it does not scan commits or pull requests
+for secrets and has no configuration or command for that. Keep `.env` files in `.gitignore` and use
+your repository's secret scanning or a pre-commit secret scanner.
 
 ### Can I run AD-SDLC in a Docker container?
 
-Yes:
-
-```bash
-# Using official image
-docker run -it \
-  -v $(pwd):/workspace \
-  -e ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY \
-  ad-sdlc/ad-sdlc:latest \
-  "Implement user authentication"
-```
+Yes, with the Docker Compose setup in this repository's `docker/` directory;
+there is no published image. See
+[Usage Scenarios](guides/usage-scenarios.md#scenario-e-docker-single-instance-tier-a).
 
 ### How do I integrate with my CI/CD pipeline?
 
-**GitHub Actions:**
-```yaml
-- uses: ad-sdlc/action@v1
-  with:
-    api-key: ${{ secrets.ANTHROPIC_API_KEY }}
-    command: "implement"
-    issue: ${{ github.event.issue.number }}
-```
+There is no published GitHub Action or container image. Install AD-SDLC in the
+job and run the pipeline non-interactively; see
+[Can I use AD-SDLC in CI/CD?](#can-i-use-ad-sdlc-in-cicd) for a GitHub Actions
+example. The same steps work in other CI systems, for example GitLab CI:
 
-**GitLab CI:**
 ```yaml
 implement:
-  image: ad-sdlc/ad-sdlc:latest
+  image: node:22
   script:
-    - ad-sdlc implement --issue $CI_ISSUE_ID
+    - git clone https://github.com/kcenon/claude_code_agent.git /opt/ad-sdlc
+    - (cd /opt/ad-sdlc && npm ci && npm run build)
+    - npm install -g /opt/ad-sdlc
+    - ad-sdlc run "" --mode import --non-interactive
 ```
 
 ### What compliance certifications does AD-SDLC support?
 
-AD-SDLC can be configured to support:
-- SOC 2 Type II
-- GDPR
-- HIPAA (with enterprise configuration)
-- ISO 27001
-
-See enterprise documentation for compliance setup.
+None. AD-SDLC is not certified against any compliance standard and has no
+compliance configuration; assess it within your own compliance program.
 
 ### How do I rotate API keys?
 
@@ -771,9 +769,12 @@ export ANTHROPIC_API_KEY="sk-ant-new-key..."
 # Or update .env
 echo "ANTHROPIC_API_KEY=sk-ant-new-key..." > .env
 
-# Verify new key works
-ad-sdlc verify-auth
+# Check that a key or Claude Code session is detected
+ad-sdlc doctor
 ```
+
+`ad-sdlc doctor` checks that a key is present; it does not call the API. The
+next live run uses the new key.
 
 ---
 
@@ -798,4 +799,4 @@ If your question isn't answered here:
 
 ---
 
-*Part of [AD-SDLC Documentation](../README.md)*
+_Part of [AD-SDLC Documentation](../README.md)_

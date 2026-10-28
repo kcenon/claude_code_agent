@@ -52,28 +52,28 @@ console.log(`PR #${result.pullRequest.number}: ${result.pullRequest.url}`);
 
 ### Configuration
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `projectRoot` | string | `process.cwd()` | Project root directory |
-| `resultsPath` | string | `.ad-sdlc/scratchpad/progress` | Path to implementation results |
-| `autoMerge` | boolean | `false` | Enable auto-merge on approval |
-| `mergeStrategy` | 'merge' \| 'squash' \| 'rebase' | `'squash'` | Git merge strategy |
-| `deleteBranchOnMerge` | boolean | `true` | Delete branch after merge |
-| `coverageThreshold` | number | `80` | Minimum code coverage % |
-| `maxComplexity` | number | `10` | Maximum complexity score |
-| `ciTimeout` | number | `600000` | CI wait timeout (ms) |
-| `ciPollInterval` | number | `10000` | CI poll interval (ms) |
+| Option                | Type                            | Default                        | Description                    |
+| --------------------- | ------------------------------- | ------------------------------ | ------------------------------ |
+| `projectRoot`         | string                          | `process.cwd()`                | Project root directory         |
+| `resultsPath`         | string                          | `.ad-sdlc/scratchpad/progress` | Path to implementation results |
+| `autoMerge`           | boolean                         | `false`                        | Enable auto-merge on approval  |
+| `mergeStrategy`       | 'merge' \| 'squash' \| 'rebase' | `'squash'`                     | Git merge strategy             |
+| `deleteBranchOnMerge` | boolean                         | `true`                         | Delete branch after merge      |
+| `coverageThreshold`   | number                          | `80`                           | Minimum code coverage %        |
+| `maxComplexity`       | number                          | `10`                           | Maximum complexity score       |
+| `ciTimeout`           | number                          | `600000`                       | CI wait timeout (ms)           |
+| `ciPollInterval`      | number                          | `10000`                        | CI poll interval (ms)          |
 
 ### Review Options
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `skipCIWait` | boolean | `false` | Skip waiting for CI completion |
-| `skipSecurityScan` | boolean | `false` | Skip security vulnerability scan |
-| `forceApprove` | boolean | `false` | Bypass quality gates |
-| `dryRun` | boolean | `false` | Don't modify PR or merge |
-| `enableIncrementalReview` | boolean | `true` | Use batch processing for large PRs |
-| `onReviewProgress` | function | undefined | Progress callback for incremental review |
+| Option                    | Type     | Default   | Description                              |
+| ------------------------- | -------- | --------- | ---------------------------------------- |
+| `skipCIWait`              | boolean  | `false`   | Skip waiting for CI completion           |
+| `skipSecurityScan`        | boolean  | `false`   | Skip security vulnerability scan         |
+| `forceApprove`            | boolean  | `false`   | Bypass quality gates                     |
+| `dryRun`                  | boolean  | `false`   | Don't modify PR or merge                 |
+| `enableIncrementalReview` | boolean  | `true`    | Use batch processing for large PRs       |
+| `onReviewProgress`        | function | undefined | Progress callback for incremental review |
 
 ### Example Configuration
 
@@ -117,22 +117,22 @@ console.log(`Comments: ${result.successCount} succeeded, ${result.failureCount} 
 
 ### Configuration
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `projectRoot` | string | `process.cwd()` | Project root directory |
-| `continueOnCommentFailure` | boolean | `true` | Continue posting remaining comments if one fails |
-| `useBatchReview` | boolean | `true` | Use batch review API for efficiency |
+| Option                     | Type    | Default         | Description                                      |
+| -------------------------- | ------- | --------------- | ------------------------------------------------ |
+| `projectRoot`              | string  | `process.cwd()` | Project root directory                           |
+| `continueOnCommentFailure` | boolean | `true`          | Continue posting remaining comments if one fails |
+| `useBatchReview`           | boolean | `true`          | Use batch review API for efficiency              |
 
 ### Converting Review Comments
 
 ```typescript
 // Convert internal review comment to GitHub API format
 const lineComment = GitHubReviewClient.convertToLineComment(
-  'src/file.ts',  // path
-  42,             // line
-  'major',        // severity (critical, major, minor, suggestion)
-  'This needs to be fixed',  // comment
-  'const x = 1;'  // suggested fix (optional)
+  'src/file.ts', // path
+  42, // line
+  'major', // severity (critical, major, minor, suggestion)
+  'This needs to be fixed', // comment
+  'const x = 1;' // suggested fix (optional)
 );
 ```
 
@@ -234,17 +234,17 @@ console.log(`Batches: ${result.batchCount}`);
 
 ### Configuration Options
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `projectRoot` | string | `process.cwd()` | Project root directory |
-| `enableSecurityScan` | boolean | `true` | Enable security vulnerability scanning |
-| `enableTestingChecks` | boolean | `true` | Enable test execution checks |
-| `enableStaticAnalysis` | boolean | `true` | Enable TypeScript type checking |
-| `enableDependencyCheck` | boolean | `true` | Enable npm audit for vulnerabilities |
-| `maxComplexity` | number | `10` | Maximum allowed cyclomatic complexity |
-| `enableIncrementalReview` | boolean | `true` | Enable batch processing for large PRs |
-| `incrementalReviewThreshold` | number | `20` | File count threshold for incremental mode |
-| `batchSize` | number | `50` | Files per batch in incremental mode |
+| Option                       | Type    | Default         | Description                               |
+| ---------------------------- | ------- | --------------- | ----------------------------------------- |
+| `projectRoot`                | string  | `process.cwd()` | Project root directory                    |
+| `enableSecurityScan`         | boolean | `true`          | Enable security vulnerability scanning    |
+| `enableTestingChecks`        | boolean | `true`          | Enable test execution checks              |
+| `enableStaticAnalysis`       | boolean | `true`          | Enable TypeScript type checking           |
+| `enableDependencyCheck`      | boolean | `true`          | Enable npm audit for vulnerabilities      |
+| `maxComplexity`              | number  | `10`            | Maximum allowed cyclomatic complexity     |
+| `enableIncrementalReview`    | boolean | `true`          | Enable batch processing for large PRs     |
+| `incrementalReviewThreshold` | number  | `20`            | File count threshold for incremental mode |
+| `batchSize`                  | number  | `50`            | Files per batch in incremental mode       |
 
 ### Security Checks
 
@@ -271,14 +271,14 @@ console.log(`Batches: ${result.batchCount}`);
 
 ## Review Decision Matrix
 
-| Condition | Status | Action |
-|-----------|--------|--------|
-| All gates pass, no issues | `approved` | Merge PR |
-| Gates pass, minor issues | `approved` | Merge with comments |
-| Gates pass, major issues | `changes_requested` | Request fixes |
-| Gates fail (fixable) | `changes_requested` | Request fixes |
-| Critical issues found | `rejected` | Close PR |
-| Security vulnerability | `rejected` | Close PR |
+| Condition                 | Status              | Action              |
+| ------------------------- | ------------------- | ------------------- |
+| All gates pass, no issues | `approved`          | Merge PR            |
+| Gates pass, minor issues  | `approved`          | Merge with comments |
+| Gates pass, major issues  | `changes_requested` | Request fixes       |
+| Gates fail (fixable)      | `changes_requested` | Request fixes       |
+| Critical issues found     | `rejected`          | Close PR            |
+| Security vulnerability    | `rejected`          | Close PR            |
 
 ## Error Handling
 
@@ -356,15 +356,12 @@ resetPRReviewerAgent();
 
 ## CLI Usage
 
+The PR Reviewer has no command of its own: it runs as the `review` stage of
+`ad-sdlc run`.
+
 ```bash
-# Review a specific work order
-ad-sdlc review WO-001
-
-# Review with auto-merge
-ad-sdlc review WO-001 --auto-merge
-
-# Dry run (no actual PR actions)
-ad-sdlc review WO-001 --dry-run
+# Run the pipeline through the review stage
+ad-sdlc run "<requirements>" --stop-after review
 ```
 
 ## Dependencies

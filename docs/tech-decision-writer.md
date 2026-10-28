@@ -73,15 +73,13 @@ Each generated Technology Decision document captures:
 
 ## CLI Integration
 
-```bash
-# Generate Technology Decision documents for a project (after SDS is approved)
-ad-sdlc generate-tech-decisions --project 001
-```
-
-The pipeline stage name is `tech_decision_generation`, and it can be targeted by `--start-from`:
+The Tech Decision Writer has no command of its own: it runs as the
+`tech_decisions` stage of `ad-sdlc run`, after SDS generation. The CLI cannot
+start a run from this stage; `--stop-after` ends a run after it:
 
 ```bash
-./ad-sdlc-full-pipeline.sh . greenfield --start-from tech_decision_generation
+# Run the pipeline through the technology decisions
+ad-sdlc run "<requirements>" --stop-after tech_decisions
 ```
 
 ## API Reference
