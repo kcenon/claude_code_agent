@@ -511,13 +511,17 @@ The target repository must be disposable and prepared once:
 
 - it carries the topic `ad-sdlc-live-target` (the suite refuses to write to a
   repository without it);
-- its default branch requires an approving pull request review before merging,
-  so a pull request the run opens cannot be merged with the run's own token;
-- the token is a fine-grained token for that repository only, with
-  read/write access to contents, issues, and pull requests (and read access
-  to metadata).
+- where the plan allows it (a public repository, or GitHub Pro for a private
+  one), a rule on its default branch requires an approving pull request review,
+  so a pull request the run opens cannot be merged with the run's own account;
+  without it the requirements still tell the reviewer to leave the pull request
+  open, and a merged pull request fails the scenario;
+- in `secrets` mode, the token is a fine-grained token for that repository
+  only, with read/write access to contents, issues, and pull requests (and read
+  access to metadata).
 
-The suite overwrites the default branch with the fixture when it differs.
+Before each scenario the suite resets the default branch to the fixture when
+it differs.
 `tests/ci/import-fixture.test.ts` validates the fixture, the issue corpus, the
 CLI invocation, and the scenario verdicts offline on every pull request.
 

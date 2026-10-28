@@ -279,8 +279,8 @@ export function importRequirements(label: string): string {
 
 /**
  * `ad-sdlc run` arguments of a first invocation: Import mode, one attempt per
- * stage, the stage time budget, automatic approval (pull request merges are
- * prevented by the repository's branch protection, not by the policy), the
+ * stage, the stage time budget, automatic approval (merges are prevented by
+ * the requirements and the repository's rules, and judged afterwards), the
  * delivery verification profile (a failed required check fails the run),
  * no prompts, JSON output.
  * @param projectDir - Clone of the target repository

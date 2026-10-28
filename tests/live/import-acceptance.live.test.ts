@@ -15,9 +15,10 @@
  *     unsuccessful and restored ones.
  *
  * Each scenario seeds its own issues under its own label and removes only
- * what it created. No pull request is merged: the repository's default
- * branch must require an approving review, which the run's own token cannot
- * give, and the requirements tell the reviewer to leave the pull request open.
+ * what it created, and starts from the fixture on the default branch. The
+ * requirements tell the reviewer to leave the pull request open; a rule that
+ * requires an approving review on the default branch, where the plan allows
+ * one, makes a merge impossible, and a merged pull request fails the scenario.
  *
  * Selected only by vitest.live.config.ts through `npm run test:live`. Without
  * the required settings every test fails instead of skipping.
@@ -81,6 +82,8 @@ interface LiveContext {
   readonly root: string;
   readonly cli: InstalledCli;
   readonly env: NodeJS.ProcessEnv;
+  /** Default branch of the target repository */
+  readonly branch: string;
   readonly packageVersion: string | null;
   readonly sdkVersion: string | null;
 }
@@ -115,13 +118,13 @@ async function setUp(): Promise<LiveContext> {
   // local-login mode: fail early when gh is not logged in.
   if (token === undefined) exec('gh', ['auth', 'status'], { env });
   const branch = assertDisposableRepository(repo, env);
-  ensureFixture(repo, branch, join(root, 'fixture'), env);
   const cli = installPackedPackage(process.cwd(), join(root, 'package'), env);
   const modules = join(root, 'package', 'consumer', 'node_modules');
   return {
     root,
     cli,
     env,
+    branch,
     packageVersion: await versionOf(join(modules, 'ad-sdlc', 'package.json')),
     sdkVersion: await versionOf(join(modules, '@anthropic-ai', 'claude-agent-sdk', 'package.json')),
   };
@@ -171,6 +174,9 @@ async function runScenario(live: LiveContext, scenario: ImportScenario): Promise
   const corpus = loadIssueCorpus();
   const label = runLabel(runId, scenario.id);
   const requirements = importRequirements(label);
+  // Every scenario starts from the fixture, even if an earlier one changed the
+  // default branch (a merge the repository could not prevent is a failure there).
+  ensureFixture(repo, live.branch, join(live.root, `fixture-${scenario.id}`), live.env);
   const prsBefore = listPullRequests(repo, live.env).map((pr) => pr.number);
   const branchesBefore = new Set(listBranches(repo, live.env));
   const issues: { key: string; number: number }[] = [];
