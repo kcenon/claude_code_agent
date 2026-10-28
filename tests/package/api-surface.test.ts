@@ -46,10 +46,61 @@ describe('package exports map', () => {
   });
 });
 
+/**
+ * Runtime exports of the root entry that the core entry leaves out: the
+ * ControlPlane and DataPlane facades, the controller re-exports of the
+ * control plane, and the Monitoring and Controller namespaces (#959).
+ */
+const OPTIONAL_ROOT_VALUES = [
+  'AgentRegistryError',
+  'CONTROLLER_PRIORITY_WEIGHTS',
+  'ControlPlane',
+  'ControlPlaneError',
+  'Controller',
+  'ControllerCircularDependencyError',
+  'ControllerError',
+  'DEFAULT_ANALYZER_CONFIG',
+  'DataAccessError',
+  'DataPlane',
+  'DataPlaneError',
+  'DataValidationError',
+  'EmptyGraphError',
+  'GraphNotFoundError',
+  'GraphParseError',
+  'GraphValidationError',
+  'IssueNotFoundError',
+  'Monitoring',
+  'PipelineOperationError',
+  'PriorityAnalysisError',
+  'PriorityAnalyzer',
+  'SerializationError',
+  'camelToSnake',
+  'getControlPlane',
+  'getDataPlane',
+  'resetControlPlane',
+  'resetDataPlane',
+  'snakeToCamel',
+  'toCamelCase',
+  'toSnakeCase',
+];
+
 describe('public API surface', () => {
   it('matches the recorded baseline (run npm run api:surface -- --write after review)', () => {
     expect(diffApiSurface(readApiSurface(), computeApiSurface())).toEqual([]);
   }, 180_000);
+
+  it('records core as the root without the optional subsystems', () => {
+    const { entries } = readApiSurface();
+    for (const kind of ['values', 'types'] as const) {
+      const root = new Set(entries['.'][kind]);
+      expect(
+        entries['./core'][kind].filter((name) => !root.has(name)),
+        kind
+      ).toEqual([]);
+    }
+    const core = new Set(entries['./core'].values);
+    expect(entries['.'].values.filter((name) => !core.has(name))).toEqual(OPTIONAL_ROOT_VALUES);
+  });
 
   it('reports removed and added names per entry and kind', () => {
     const baseline = readApiSurface();

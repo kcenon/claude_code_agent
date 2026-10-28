@@ -2,9 +2,10 @@
  * AD-SDLC - Agent-Driven Software Development Lifecycle
  *
  * This is the main entry point that provides backward compatible exports
- * from the layered architecture. The package also declares subpath entry
- * points for the optional capabilities (see docs/guides/package-entry-points.md):
+ * from the layered architecture; it loads every subsystem. The package also
+ * declares subpath entry points (see docs/guides/package-entry-points.md):
  *
+ * - `ad-sdlc/core` - This surface without the optional subsystems below
  * - `ad-sdlc/control-plane` - Orchestration and state management
  * - `ad-sdlc/data-plane` - Data storage and persistence
  * - `ad-sdlc/controller` - Dependency graph, prioritization, worker pool, and progress

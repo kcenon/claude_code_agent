@@ -1874,15 +1874,15 @@ describe('Cross-Pipeline Agent Type Consistency', () => {
   });
 });
 
-describe('Module Registration in agents/index.ts', () => {
+describe('Module Registration in agents/core.ts', () => {
   let agentsIndexSource: string;
 
   beforeAll(async () => {
-    const agentsIndexPath = path.resolve(__dirname, '../../src/agents/index.ts');
+    const agentsIndexPath = path.resolve(__dirname, '../../src/agents/core.ts');
     agentsIndexSource = await fs.readFile(agentsIndexPath, 'utf-8');
   });
 
-  it('should register AdsdlcOrchestrator namespace export in agents/index.ts', () => {
+  it('should register AdsdlcOrchestrator namespace export in agents/core.ts', () => {
     expect(agentsIndexSource).toContain(
       "export * as AdsdlcOrchestrator from '../ad-sdlc-orchestrator/index.js'"
     );

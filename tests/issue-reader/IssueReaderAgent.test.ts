@@ -797,8 +797,8 @@ describe('IssueReaderAgent', () => {
       expect(source).toContain('DEFAULT_ISSUE_READER_CONFIG');
     });
 
-    it('should be registered in agents/index.ts', async () => {
-      const agentsPath = path.resolve(__dirname, '../../src/agents/index.ts');
+    it('should be registered in agents/core.ts', async () => {
+      const agentsPath = path.resolve(__dirname, '../../src/agents/core.ts');
       const source = await fs.promises.readFile(agentsPath, 'utf-8');
 
       expect(source).toContain("export * as IssueReader from '../issue-reader/index.js'");
