@@ -199,6 +199,28 @@ describe('DocInventoryValidator', () => {
     expect(new DocInventoryValidator(root).validate().violations).toEqual([]);
   });
 
+  it('reports invalid ad-sdlc command lines only in configured live documents', () => {
+    write(
+      'doc-sync-points.yaml',
+      `${renderSyncConfig()}cli_references:\n  documents: ["README.md", "docs/**/*.md"]\n  exclude: ["docs/history/**"]\n`
+    );
+    write('README.md', '```bash\nad-sdlc run "x" --mode import\n```\n');
+    write('docs/guides/first-run.md', '# First run\n\n`ad-sdlc run "x" --stop-after deploy`\n');
+    write('docs/history/v0.0.1-notes.md', '`ad-sdlc resume`\n');
+    write('notes/draft.md', '`ad-sdlc resume`\n');
+
+    const result = new DocInventoryValidator(root).validate();
+
+    expect(result.pass).toBe(false);
+    expect(result.violations).toEqual([
+      expect.objectContaining({
+        code: 'CLI_REFERENCE',
+        path: 'docs/guides/first-run.md:3',
+        message: expect.stringContaining('--stop-after deploy is not one of'),
+      }),
+    ]);
+  });
+
   function writeValidFixture(): void {
     write('.claude/agents/collector.md', '---\nname: collector\n---\n');
     write('.claude/agents/support.md', '---\nname: support\n---\n');

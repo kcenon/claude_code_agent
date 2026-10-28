@@ -15,6 +15,7 @@ import {
   renderVerificationCoverageBlock,
 } from '../stage-verifier/applicability.js';
 import { renderApprovalPolicyBlock } from '../ad-sdlc-orchestrator/approvalMatrix.js';
+import { validateCliReferences } from './DocCliReferenceValidator.js';
 
 /** Current inventory derived from source files and pipeline definitions. */
 export interface DocInventoryMetrics {
@@ -36,6 +37,7 @@ export interface DocInventoryViolation {
   readonly code:
     | 'ADR_TREE'
     | 'APPROVAL_POLICY'
+    | 'CLI_REFERENCE'
     | 'CONFIG_COUNT'
     | 'DEPENDENCY_VERSION'
     | 'MIRROR_DRIFT'
@@ -65,6 +67,34 @@ interface SyncPointConfig {
   readonly inventory?: {
     readonly expected?: Partial<DocInventoryMetrics>;
   };
+  /** Live documents whose `ad-sdlc` command lines must match the CLI */
+  readonly cli_references?: {
+    readonly documents?: readonly string[];
+    readonly exclude?: readonly string[];
+  };
+}
+
+/** Directories never searched for documents. */
+const SKIPPED_DIRECTORIES = new Set(['.git', 'node_modules', 'dist', 'coverage']);
+
+/**
+ * Convert a repository glob (`*` within a path segment, `**` across
+ * segments) to an anchored regular expression.
+ * @param glob - Glob relative to the repository root, with `/` separators
+ * @returns Matching expression
+ */
+function globPattern(glob: string): RegExp {
+  let source = '';
+  for (let index = 0; index < glob.length; index++) {
+    const char = glob[index] ?? '';
+    if (char === '*' && glob[index + 1] === '*') {
+      const slash = glob[index + 2] === '/';
+      source += slash ? '(?:.*/)?' : '.*';
+      index += slash ? 2 : 1;
+    } else if (char === '*') source += '[^/]*';
+    else source += char.replace(/[.+?^${}()|[\]\\]/gu, '\\$&');
+  }
+  return new RegExp(`^${source}$`, 'u');
 }
 
 const RUNTIME_INVENTORY_START = '<!-- generated-runtime-inventory:start -->';
@@ -135,6 +165,7 @@ export class DocInventoryValidator {
     this.validateRuntimeInventory(metrics, violations);
     this.validateVerificationCoverage(violations);
     this.validateApprovalPolicy(violations);
+    this.validateCliReferences(config, violations);
 
     violations.sort(
       (left, right) => left.path.localeCompare(right.path) || left.code.localeCompare(right.code)
@@ -467,6 +498,48 @@ export class DocInventoryValidator {
           'Generated approval policy block does not match the approval policy data; run npm run docs:check-inventory -- --write',
       });
     }
+  }
+
+  /**
+   * Documented `ad-sdlc` command lines in the configured live documents must
+   * name real commands, options, and values (`DocCliReferenceValidator`).
+   * @param config - Sync config with the `cli_references` document globs
+   * @param violations - Collected violations
+   */
+  private validateCliReferences(
+    config: SyncPointConfig,
+    violations: DocInventoryViolation[]
+  ): void {
+    const include = (config.cli_references?.documents ?? []).map(globPattern);
+    const exclude = (config.cli_references?.exclude ?? []).map(globPattern);
+    for (const path of this.markdownFiles()) {
+      if (!include.some((pattern) => pattern.test(path))) continue;
+      if (exclude.some((pattern) => pattern.test(path))) continue;
+      for (const finding of validateCliReferences(this.readRequiredFile(path)))
+        violations.push({
+          code: 'CLI_REFERENCE',
+          path: `${path}:${String(finding.line)}`,
+          message: `${finding.command}: ${finding.message}`,
+        });
+    }
+  }
+
+  /**
+   * Markdown files of the repository, relative and with `/` separators.
+   * @returns Paths in directory order
+   */
+  private markdownFiles(): string[] {
+    const files: string[] = [];
+    const visit = (directory: string): void => {
+      for (const entry of readdirSync(directory, { withFileTypes: true })) {
+        if (entry.isDirectory()) {
+          if (!SKIPPED_DIRECTORIES.has(entry.name)) visit(join(directory, entry.name));
+        } else if (entry.name.endsWith('.md'))
+          files.push(this.relativePath(join(directory, entry.name)));
+      }
+    };
+    visit(this.projectRoot);
+    return files;
   }
 
   private countDocumentIds(path: string, prefix: string): number {
