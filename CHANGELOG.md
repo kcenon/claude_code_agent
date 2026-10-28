@@ -38,6 +38,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Every SDK stage with an artifact context failed against the real Claude Code CLI (`--json-schema is not a valid JSON Schema: no schema with key or ref "https://json-schema.org/draft/2020-12/schema"`), because the structured-output schema declared the 2020-12 meta-schema; it now declares draft-07 (#955, found by the live lane)
+- `ad-sdlc init .` without `--skip-validation` always failed with `Project already exists`: the prerequisite checks write the security audit log to `.ad-sdlc/logs/` of the working directory first. A `.ad-sdlc` directory that holds only `logs/` no longer counts as an existing project (#955)
 - `ad-sdlc init` without `--skip-validation` always failed its required Git prerequisite check, because the command whitelist rejected `git --version`; the check now runs `git version` (#960)
 - Performance-regression gate is now enforced instead of decorative: removed `continue-on-error` from the benchmark and regression-check steps in `performance.yml` so a regression fails the job, and pointed `perf:check` at `tsx scripts/check-regression.ts` (the previous `node dist/scripts/check-regression.js` target was never emitted — `tsconfig` `rootDir`/`include` cover `src/` only, which also mis-resolved the baseline path under `dist/`). `check-regression` now parses Vitest's benchmark JSON shape (`files[].groups[].benchmarks[]`) instead of the Jest-style `testResults` shape it never received. Reconciling the placeholder baseline operation names/metrics with the real benchmarks so an intentional regression actually fires is tracked as a follow-up (#891, #895)
 
