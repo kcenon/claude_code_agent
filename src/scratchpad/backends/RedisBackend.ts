@@ -209,21 +209,23 @@ export class RedisBackend implements IScratchpadBackend {
    * Initialize the Redis connection and optionally set up fallback backend
    */
   async initialize(): Promise<void> {
+    // Dynamic import of ioredis (optional peer dependency). A missing module is
+    // an installation problem, not a connection failure: it is reported with
+    // the install command and never triggers the connection fallback.
+    let IoRedisModule;
     try {
-      // Dynamic import of ioredis (optional peer dependency)
-      let IoRedisModule;
-      try {
-        IoRedisModule = await import('ioredis');
-      } catch {
-        throw new Error(
-          'ioredis is required for Redis scratchpad backend. Install: npm install ioredis'
-        );
-      }
-      const Redis =
-        'default' in IoRedisModule
-          ? (IoRedisModule.default as unknown as new (options: object) => RedisClient)
-          : (IoRedisModule as unknown as new (options: object) => RedisClient);
+      IoRedisModule = await import('ioredis');
+    } catch {
+      throw new Error(
+        'ioredis is required for Redis scratchpad backend. Install: npm install ioredis'
+      );
+    }
+    const Redis =
+      'default' in IoRedisModule
+        ? (IoRedisModule.default as unknown as new (options: object) => RedisClient)
+        : (IoRedisModule as unknown as new (options: object) => RedisClient);
 
+    try {
       // Create Redis client
       this.client = new Redis({
         host: this.host,

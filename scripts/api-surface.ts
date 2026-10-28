@@ -22,11 +22,12 @@ export const API_SURFACE_PATH = 'tests/package/api-surface.json';
 
 /**
  * Supported entry points: package subpath to source module. `.` is the
- * compatibility root; the others are the subpaths ADR-0006 accepted for
- * optional capabilities.
+ * compatibility root, `./core` the root without the optional subsystems, and
+ * the others are the subpaths ADR-0006 accepted for optional capabilities.
  */
 export const API_ENTRY_POINTS = {
   '.': 'src/index.ts',
+  './core': 'src/core.ts',
   './control-plane': 'src/control-plane/index.ts',
   './data-plane': 'src/data-plane/index.ts',
   './controller': 'src/controller/index.ts',

@@ -147,6 +147,108 @@ assert.equal(typeof deep.loadAssetBundle, 'function');
     `PACKAGE SMOKE: ${String(Object.keys(surface.entries).length)} supported entry points resolve code and declarations (NodeNext); deep import kept\n`
   );
 }
+/** Package modules of the optional subsystems (ADR-0006). */
+const OPTIONAL_MODULES = [
+  /^dist\/monitoring\//,
+  /^dist\/controller\//,
+  /^dist\/control-plane\/ControlPlane\.js$/,
+  /^dist\/data-plane\/DataPlane\.js$/,
+];
+/**
+ * Optional subsystem isolation (#959), observed through a module resolve
+ * hook in the installed package: `ad-sdlc/core` and the CLI load no optional
+ * module while the compatibility root does; selecting the SQLite backend
+ * without its optional dependency reports the install command; and
+ * `ad-sdlc/monitoring` loads OpenTelemetry once the peer is installed.
+ */
+function checkOptionalSubsystems() {
+  const log = join(temp, 'resolved modules.log');
+  writeFileSync(
+    join(consumer, 'load-hooks.mjs'),
+    `import { appendFileSync } from 'node:fs';
+export async function resolve(specifier, context, nextResolve) {
+  const result = await nextResolve(specifier, context);
+  appendFileSync(${JSON.stringify(log)}, result.url + '\\n');
+  return result;
+}
+`
+  );
+  writeFileSync(
+    join(consumer, 'record-loads.mjs'),
+    "import { register } from 'node:module';\nregister('./load-hooks.mjs', import.meta.url);\n"
+  );
+  const packageRoot = pathToFileURL(join(consumer, 'node_modules/ad-sdlc/')).href;
+  const loads = (args) => {
+    writeFileSync(log, '');
+    run(process.execPath, ['--import', './record-loads.mjs', ...args], consumer);
+    return readFileSync(log, 'utf8').trim().split('\n');
+  };
+  const optional = (urls) =>
+    urls
+      .filter((url) => url.startsWith(packageRoot))
+      .map((url) => url.slice(packageRoot.length))
+      .filter((path) => OPTIONAL_MODULES.some((pattern) => pattern.test(path)));
+  const importing = (specifier) => ['--input-type=module', '-e', `await import('${specifier}')`];
+
+  const core = loads(importing('ad-sdlc/core'));
+  assert.deepEqual(optional(core), [], 'ad-sdlc/core loads an optional subsystem');
+  const cli = loads([join(consumer, 'node_modules/ad-sdlc/dist/cli.js'), '--version']);
+  assert.deepEqual(optional(cli), [], 'the CLI loads an optional subsystem');
+  const root = loads(importing('ad-sdlc'));
+  assert(
+    optional(root).some((path) => path.startsWith('dist/monitoring/')),
+    'root loads monitoring'
+  );
+  assert(
+    optional(root).some((path) => path.startsWith('dist/controller/')),
+    'root loads controller'
+  );
+  process.stdout.write(
+    `PACKAGE SMOKE: ad-sdlc/core resolves ${String(core.length)} modules and the CLI ${String(cli.length)}, none optional; the root resolves ${String(root.length)} including ${String(optional(root).length)} optional\n`
+  );
+
+  const scratchpadDir = join(temp, 'sqlite scratchpad');
+  run(
+    process.execPath,
+    [
+      '--input-type=module',
+      '-e',
+      `import assert from 'node:assert/strict';
+import { join } from 'node:path';
+import { Scratchpad } from 'ad-sdlc/core';
+const dir = ${JSON.stringify(scratchpadDir)};
+const scratchpad = new Scratchpad({ basePath: dir, backend: 'sqlite', sqlite: { dbPath: join(dir, 'test.db') } });
+await assert.rejects(scratchpad.atomicWrite(join(dir, 'x.txt'), 'x'), /better-sqlite3 is required for SQLite scratchpad backend\\. Install: npm install better-sqlite3/);
+`,
+    ],
+    consumer
+  );
+  process.stdout.write(
+    'PACKAGE SMOKE: missing optional SQLite dependency reports the install command\n'
+  );
+
+  const peers = JSON.parse(readFileSync(join(repo, 'package.json'), 'utf8')).peerDependencies;
+  run(
+    'npm',
+    [
+      'install',
+      '--omit=dev',
+      '--omit=optional',
+      '--no-audit',
+      '--no-fund',
+      `@opentelemetry/api@${peers['@opentelemetry/api']}`,
+    ],
+    consumer
+  );
+  const monitoring = loads(importing('ad-sdlc/monitoring'));
+  assert(
+    monitoring.some((url) => url.includes('/node_modules/@opentelemetry/api/')),
+    'ad-sdlc/monitoring does not load the installed @opentelemetry/api peer'
+  );
+  process.stdout.write(
+    'PACKAGE SMOKE: ad-sdlc/monitoring loads @opentelemetry/api once installed\n'
+  );
+}
 try {
   process.stdout.write('PACKAGE SMOKE: build via prepack, create and inspect real tarball\n');
   const tarball = pack(repo, join(temp, 'pack'));
@@ -182,6 +284,7 @@ try {
     sourceAssets
   );
   checkEntryPoints();
+  checkOptionalSubsystems();
   for (const template of ['minimal', 'standard', 'enterprise']) {
     const project = join(temp, `${template} target with spaces`);
     run(bin, ['init', project, '--quick', '--skip-validation', '--template', template], caller);
