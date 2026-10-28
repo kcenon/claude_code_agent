@@ -37,7 +37,14 @@ export type ResolvedRuntimeConfig = Pick<
   'approvalMode' | 'maxParallelAgents' | 'maxRetries' | 'retryBackoff' | 'timeouts' | 'localMode'
 > & {
   readonly mode: PipelineMode;
-  readonly vnv: Pick<ResolvedOrchestratorConfig['vnv'], 'rigor' | 'haltOnVerificationFailure'> & {
+  readonly vnv: Pick<
+    ResolvedOrchestratorConfig['vnv'],
+    | 'rigor'
+    | 'haltOnVerificationFailure'
+    | 'generateRtm'
+    | 'crossDocumentConsistency'
+    | 'acceptanceCriteriaValidation'
+  > & {
     /** Effective profile: explicit `global.vnv.profile`, else the legacy rigor + halt mapping. */
     readonly profile: VerificationProfile;
   };

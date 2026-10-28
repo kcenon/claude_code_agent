@@ -6,6 +6,7 @@ import { dump } from 'js-yaml';
 import { Command } from 'commander';
 import { configureRunCommand, prepareRunCommand } from '../../src/cli/runCommand.js';
 import { loadResolvedRuntimeConfig, resolveRuntimeConfig } from '../../src/config/runtime.js';
+import { parseRuntimeSnapshot } from '../../src/config/runtimeSnapshot.js';
 import { RuntimeConfigError } from '../../src/config/runtimeTypes.js';
 import { WorkflowConfigSchema } from '../../src/config/schemas.js';
 import { validateAllConfigs } from '../../src/config/loader.js';
@@ -135,6 +136,48 @@ describe('production runtime resolution boundary', () => {
     expect(plan.config.vnv.haltOnVerificationFailure).toBe(false);
     expect(plan.diagnostics.map((d) => d.code)).toEqual(['deprecated', 'deprecated']);
   });
+  it('resolves the traceability and consistency toggles, including false', async () => {
+    await config({
+      global: {
+        vnv: {
+          generate_rtm: false,
+          cross_document_consistency: false,
+          acceptance_criteria_validation: true,
+        },
+      },
+    });
+    const { plan } = await prepareRunCommand('offline', options(), { env: {} });
+    expect(plan.config.vnv).toMatchObject({
+      generateRtm: false,
+      crossDocumentConsistency: false,
+      acceptanceCriteriaValidation: true,
+    });
+    expect(plan.sources['global.vnv.generate_rtm']).toMatchObject({
+      path: 'global.vnv.generate_rtm',
+    });
+    expect(plan.diagnostics).toEqual([]);
+  });
+  it('resumes snapshots saved before the toggles with their defaults and keeps saved values', () => {
+    const plan = resolveRuntimeConfig({
+      layers: [{ source: 'raw', value: { global: { vnv: { generate_rtm: false } } } }],
+    });
+    const {
+      generateRtm: _rtm,
+      crossDocumentConsistency: _consistency,
+      acceptanceCriteriaValidation: _acceptance,
+      ...legacyVnv
+    } = plan.config.vnv;
+    const legacy = { ...plan, config: { ...plan.config, vnv: legacyVnv } };
+
+    expect(
+      parseRuntimeSnapshot(JSON.parse(JSON.stringify(legacy)), 'legacy.yaml').config.vnv
+    ).toMatchObject({
+      generateRtm: true,
+      crossDocumentConsistency: true,
+      acceptanceCriteriaValidation: true,
+    });
+    expect(parseRuntimeSnapshot(plan, 'saved.yaml').config.vnv.generateRtm).toBe(false);
+  });
   it.each(['0', '-1', 'NaN', 'Infinity', '1.5', '', '3oops'])(
     'rejects malformed active concurrency environment %j even if CLI overrides it',
     async (value) => {
@@ -170,6 +213,8 @@ describe('production runtime resolution boundary', () => {
     { quality_gates: { coverage: 80, complexity: 10, requireTests: true, requireReview: true } },
     { quality_gates: { security: { no_hardcoded_secrets: true } } },
     { global: { vnv: { generate_vnv_plan: false } } },
+    { global: { vnv: { generate_vnv_report: true } } },
+    { global: { vnv: { generate_rtm: 'yes' } } },
     { global: { approval_mode: 'custom' } },
     { execution: { max_parallel_stages: -1 } },
     { execution: { max_parallel_stages: 1.5 } },
