@@ -90,14 +90,17 @@ Required checks are the `error`-severity checks that run at the effective rigor.
 | `prd-document`           | VR-PRD-001     | PRD artifact exists                                        | error    | minimal       |
 | `prd-document`           | VR-PRD-002     | PRD has required sections                                  | error    | standard      |
 | `prd-document`           | VR-PRD-003     | PRD has FR-XXX identifiers                                 | warning  | standard      |
+| `prd-document`           | VR-XDOC-001    | Documents agree at their sync points                       | error    | standard      |
 | `srs-document`           | VR-SRS-001     | SRS artifact exists                                        | error    | minimal       |
 | `srs-document`           | VR-SRS-002     | SRS has required sections                                  | error    | standard      |
 | `srs-document`           | VR-SRS-003     | SRS has SF-XXX identifiers                                 | warning  | standard      |
 | `srs-document`           | VR-SRS-004     | SRS SF references valid FR IDs                             | warning  | strict        |
+| `srs-document`           | VR-XDOC-001    | Documents agree at their sync points                       | error    | standard      |
 | `sds-document`           | VR-SDS-001     | SDS artifact exists                                        | error    | minimal       |
 | `sds-document`           | VR-SDS-002     | SDS has required sections                                  | error    | standard      |
 | `sds-document`           | VR-SDS-003     | SDS has CMP-XXX identifiers                                | warning  | standard      |
 | `sds-document`           | VR-SDS-004     | SDS CMP references valid SF IDs                            | warning  | strict        |
+| `sds-document`           | VR-XDOC-001    | Documents agree at their sync points                       | error    | standard      |
 | `generated-issues`       | VR-ISS-001     | Issue list artifact exists                                 | error    | minimal       |
 | `generated-issues`       | VR-ISS-002     | Issue list is valid JSON or YAML                           | error    | minimal       |
 | `generated-issues`       | VR-ISS-003     | Issue list contains entries                                | warning  | standard      |
@@ -121,6 +124,8 @@ Required checks are the `error`-severity checks that run at the effective rigor.
 | `validation-report`      | VR-VAL-001     | Validation report exists and is valid                      | error    | minimal       |
 | `validation-report`      | VR-VAL-002     | Validation result is not fail                              | error    | standard      |
 | `validation-report`      | VR-VAL-003     | Validation quality gates passed                            | warning  | standard      |
+| `validation-report`      | VR-VAL-004     | Acceptance criteria are implemented and tested             | error    | standard      |
+| `validation-report`      | VR-VAL-005     | Every issue traces to a requirement                        | warning  | standard      |
 | `review-result`          | VR-REV-001     | Review result artifact exists                              | error    | minimal       |
 | `review-result`          | VR-REV-002     | Review result is valid                                     | error    | minimal       |
 | `review-result`          | VR-REV-003     | Review decision present                                    | warning  | standard      |

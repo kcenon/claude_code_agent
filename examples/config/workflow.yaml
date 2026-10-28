@@ -27,6 +27,9 @@ global:
   vnv:
     rigor: standard # minimal | standard | strict
     profile: advisory # advisory | delivery; delivery fails the run on a failed required check
+    generate_rtm: true # write .ad-sdlc/scratchpad/traceability/<session>.json and .md
+    cross_document_consistency: true # VR-XDOC-001 against doc-sync-points.yaml
+    acceptance_criteria_validation: true # VR-VAL-004/005 at final validation
 # Descriptive extension data is accepted but never interpreted as runtime policy.
 extensions:
   team: example
