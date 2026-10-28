@@ -133,7 +133,9 @@ export class PrerequisiteValidator {
   private async checkGit(): Promise<boolean> {
     const sanitizer = getCommandSanitizer();
     try {
-      const result = await sanitizer.execGit(['--version'], {});
+      // `git version`, not `git --version`: the command whitelist checks the
+      // first argument as a subcommand and rejects options there.
+      const result = await sanitizer.execGit(['version'], {});
       return result.success;
     } catch {
       return false;
