@@ -681,6 +681,7 @@ export const DEFAULT_PROGRESS_MONITOR_CONFIG: Required<
   };
 } = {
   pollingInterval: 30000, // 30 seconds
+  // eslint-disable-next-line @typescript-eslint/no-deprecated -- default kept for legacy readers
   stuckWorkerThreshold: 300000, // 5 minutes (reduced from 30 minutes)
   maxRecentActivities: 50,
   reportPath: '.ad-sdlc/scratchpad/progress',
