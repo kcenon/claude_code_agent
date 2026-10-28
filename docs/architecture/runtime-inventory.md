@@ -32,6 +32,8 @@ larger than the number of unique agent types. The 33 cutover targets describe
 the historical v0.1 migration scope; they are not a current runtime count. The
 verification check set or not-applicable reason of every stage slot is listed in
 [verification coverage](verification-coverage.md), which the same command checks.
+What each mode delivers, and the policy defaults, are in the generated
+[capability matrix](capability-matrix.md).
 
 The seven support/delegated definitions are the two orchestrators, CI fixer,
 the two local-mode aliases, RTM builder, and stage verifier. They remain prompt

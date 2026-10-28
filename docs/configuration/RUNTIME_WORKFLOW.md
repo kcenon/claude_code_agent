@@ -4,7 +4,10 @@
 `ResolvedRuntimeConfig` and an `EffectiveExecutionPlan` before constructing an
 adapter. Normal execution, `run --dry-run`, runtime validation, monitoring,
 results, and persisted sessions use this boundary. The CLI does not execute a
-user-defined workflow engine.
+user-defined workflow engine. A run ends, at most, with a reviewable pull
+request; the [capability matrix](../architecture/capability-matrix.md) lists
+what each mode delivers and the policy defaults, generated from the same
+definitions as this contract.
 
 ```sh
 ad-sdlc run "Build the project" --project-dir ./project --dry-run --format json

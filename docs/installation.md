@@ -267,9 +267,12 @@ Run a simple test to verify the system works:
 ad-sdlc init test-project --quick
 cd test-project
 
-# Run a simple collection
-claude "Collect requirements for a simple hello world application"
+# Resolve the pipeline without calling the model (no API key needed)
+ad-sdlc run "Build a simple hello world application" --dry-run
 ```
+
+A live run drops `--dry-run` and needs `ANTHROPIC_API_KEY` or a Claude Code
+session; the [Quickstart](quickstart.md) walks through it.
 
 ---
 

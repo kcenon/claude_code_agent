@@ -5,6 +5,15 @@
 
 This guide provides detailed examples of common use cases for the AD-SDLC system.
 
+Each example passes the requirements text to `ad-sdlc run`. The pipeline mode
+decides what happens with it: the default `greenfield` starts a new project,
+`--mode enhancement` changes an existing project by reading its documents and
+code, and `--mode import` implements the repository's open GitHub issues. Every
+run ends, at most, with a pull request ready for review; see the
+[capability matrix](architecture/capability-matrix.md). Inside Claude Code, the
+`/run-greenfield` project command runs the same pipeline; a plain `claude`
+prompt does not.
+
 ## Table of Contents
 
 1. [New Feature Implementation](#new-feature-implementation)
@@ -26,20 +35,20 @@ Implement a complete feature from a high-level description.
 
 ```bash
 # User authentication
-claude "Implement user authentication with email and password"
+ad-sdlc run "Implement user authentication with email and password"
 
 # File upload
-claude "Add file upload functionality with size validation and progress tracking"
+ad-sdlc run "Add file upload functionality with size validation and progress tracking"
 
 # Search functionality
-claude "Implement full-text search across products with filters and pagination"
+ad-sdlc run "Implement full-text search across products with filters and pagination"
 ```
 
 ### Complex Feature
 
 ```bash
 # Multi-step workflow
-claude "Implement a user dashboard with:
+ad-sdlc run "Implement a user dashboard with:
 - Profile management (view, edit, avatar upload)
 - Activity logs showing recent actions
 - Settings page with notification preferences
@@ -50,7 +59,7 @@ claude "Implement a user dashboard with:
 
 ```bash
 # Specify technology stack
-claude "Implement real-time notifications using:
+ad-sdlc run "Implement real-time notifications using:
 - WebSocket connection for push notifications
 - Redis for message queue
 - React hooks for client-side state
@@ -71,26 +80,27 @@ For a feature request, AD-SDLC will:
 
 ## Bug Fix Workflow
 
-Fix issues with reference to existing GitHub issues or bug descriptions.
+Fix issues with reference to existing GitHub issues or bug descriptions. Run
+these in the existing project with `--mode enhancement`.
 
 ### From GitHub Issue
 
 ```bash
-# Reference an existing issue
-claude "Fix #42: Login fails when email contains + character"
+# Implement the repository's open issues (the Import pipeline reads them all)
+ad-sdlc run "" --mode import
 
-# Multiple related issues
-claude "Fix issues #45, #47, #48 related to form validation"
+# Or describe the issue to fix as an enhancement
+ad-sdlc run "Fix #42: Login fails when email contains + character" --mode enhancement
 ```
 
 ### From Bug Description
 
 ```bash
 # Describe the bug directly
-claude "Fix: Users are logged out after 5 minutes of inactivity instead of 30 minutes"
+ad-sdlc run "Fix: Users are logged out after 5 minutes of inactivity instead of 30 minutes"
 
 # With reproduction steps
-claude "Fix: Shopping cart loses items on page refresh.
+ad-sdlc run "Fix: Shopping cart loses items on page refresh.
 Reproduction:
 1. Add items to cart
 2. Refresh the page
@@ -102,7 +112,7 @@ Expected: Cart should persist across refresh"
 
 ```bash
 # Ask for investigation
-claude "Investigate and fix: API responses are slow (>3s) for authenticated requests.
+ad-sdlc run "Investigate and fix: API responses are slow (>3s) for authenticated requests.
 Check for:
 - N+1 queries
 - Missing indexes
@@ -129,31 +139,31 @@ Improve code structure without changing behavior.
 
 ```bash
 # Extract module
-claude "Refactor: Extract authentication logic into a separate auth module"
+ad-sdlc run "Refactor: Extract authentication logic into a separate auth module"
 
 # Apply design pattern
-claude "Refactor auth module to use dependency injection for database and cache services"
+ad-sdlc run "Refactor auth module to use dependency injection for database and cache services"
 ```
 
 ### Code Quality Improvement
 
 ```bash
 # Reduce complexity
-claude "Refactor UserService class - current cyclomatic complexity is too high.
+ad-sdlc run "Refactor UserService class - current cyclomatic complexity is too high.
 Break down into smaller, focused services."
 
 # Apply SOLID principles
-claude "Refactor OrderProcessor to follow Single Responsibility Principle"
+ad-sdlc run "Refactor OrderProcessor to follow Single Responsibility Principle"
 ```
 
 ### Architecture Migration
 
 ```bash
 # Change pattern
-claude "Refactor from callback-based API to async/await throughout the codebase"
+ad-sdlc run "Refactor from callback-based API to async/await throughout the codebase"
 
 # Database migration
-claude "Refactor database layer from raw SQL to use TypeORM repository pattern"
+ad-sdlc run "Refactor database layer from raw SQL to use TypeORM repository pattern"
 ```
 
 ### Expected Output
@@ -175,7 +185,7 @@ Build RESTful or GraphQL APIs.
 
 ```bash
 # CRUD endpoints
-claude "Implement REST API for product management:
+ad-sdlc run "Implement REST API for product management:
 - GET /products (list with pagination)
 - GET /products/:id
 - POST /products
@@ -188,7 +198,7 @@ Include validation, error handling, and OpenAPI documentation"
 
 ```bash
 # GraphQL schema and resolvers
-claude "Implement GraphQL API for user management:
+ad-sdlc run "Implement GraphQL API for user management:
 - Query: users, user(id)
 - Mutation: createUser, updateUser, deleteUser
 - Use DataLoader for N+1 prevention
@@ -199,7 +209,7 @@ claude "Implement GraphQL API for user management:
 
 ```bash
 # Protected endpoints
-claude "Implement order API with:
+ad-sdlc run "Implement order API with:
 - JWT authentication
 - Role-based access control (admin, user)
 - Rate limiting (100 req/min)
@@ -229,7 +239,7 @@ Build a complete application from scratch.
 ### Web Application
 
 ```bash
-claude "Build a task management web application:
+ad-sdlc run "Build a task management web application:
 
 Features:
 - User registration and login
@@ -249,7 +259,7 @@ Tech stack:
 ### CLI Tool
 
 ```bash
-claude "Build a CLI tool for managing dotfiles:
+ad-sdlc run "Build a CLI tool for managing dotfiles:
 
 Commands:
 - init: Initialize dotfiles repository
@@ -267,7 +277,7 @@ Features:
 ### Microservice
 
 ```bash
-claude "Build a notification microservice:
+ad-sdlc run "Build a notification microservice:
 
 Channels:
 - Email (SMTP, SendGrid)
@@ -296,27 +306,27 @@ Use existing requirements documents as input.
 
 ```bash
 # Read requirements from file
-claude "Read requirements from docs/requirements.md and implement"
+ad-sdlc run "Read requirements from docs/requirements.md and implement"
 
 # With specific section
-claude "Implement the 'Payment Processing' section from docs/product-spec.md"
+ad-sdlc run "Implement the 'Payment Processing' section from docs/product-spec.md"
 ```
 
 ### From YAML/JSON Specification
 
 ```bash
 # OpenAPI specification
-claude "Implement API endpoints from openapi.yaml"
+ad-sdlc run "Implement API endpoints from openapi.yaml"
 
 # Feature specification
-claude "Implement features defined in features.json"
+ad-sdlc run "Implement features defined in features.json"
 ```
 
 ### From Multiple Sources
 
 ```bash
 # Combine sources
-claude "Implement user management based on:
+ad-sdlc run "Implement user management based on:
 - Requirements: docs/user-management.md
 - API spec: api/users.yaml
 - UI mockups: designs/users.fig (describe the mockups)"
@@ -330,29 +340,35 @@ Create `docs/requirements.md`:
 # User Management Requirements
 
 ## Overview
+
 Implement user registration, authentication, and profile management.
 
 ## User Stories
 
 ### US-001: User Registration
+
 As a new user, I want to register with my email so that I can access the system.
 
 **Acceptance Criteria:**
+
 - Email validation
 - Password strength check (8+ chars, uppercase, number)
 - Email verification flow
 - Duplicate email prevention
 
 ### US-002: User Login
+
 As a registered user, I want to log in so that I can access my account.
 
 **Acceptance Criteria:**
+
 - Email/password authentication
 - Remember me option
 - Failed attempt lockout (5 attempts)
 - Session management
 
 ## Technical Requirements
+
 - Use bcrypt for password hashing
 - JWT tokens with 24h expiry
 - Rate limiting: 10 requests/minute for auth endpoints
@@ -361,20 +377,22 @@ As a registered user, I want to log in so that I can access my account.
 Then run:
 
 ```bash
-claude "Implement requirements from docs/requirements.md"
+ad-sdlc run "Implement requirements from docs/requirements.md"
 ```
 
 ---
 
 ## Incremental Development
 
-Build features incrementally across multiple sessions.
+Build features incrementally across multiple runs. The first run creates the
+project; run the later phases with `--mode enhancement`, which reads the
+documents and code the earlier runs produced.
 
 ### Phase 1: Foundation
 
 ```bash
 # Start with core structure
-claude "Phase 1: Set up project structure for an e-commerce platform.
+ad-sdlc run "Phase 1: Set up project structure for an e-commerce platform.
 Create:
 - Project scaffolding with Express/React
 - Database schema for users, products, orders
@@ -386,7 +404,7 @@ Create:
 
 ```bash
 # Add main features
-claude "Phase 2: Implement core e-commerce features.
+ad-sdlc run "Phase 2: Implement core e-commerce features.
 Add:
 - Product catalog with categories
 - Shopping cart
@@ -398,7 +416,7 @@ Add:
 
 ```bash
 # Enhance with additional features
-claude "Phase 3: Add e-commerce enhancements.
+ad-sdlc run "Phase 3: Add e-commerce enhancements.
 Add:
 - Product reviews and ratings
 - Wishlist functionality
@@ -408,12 +426,15 @@ Add:
 
 ### Resuming Development
 
+An interrupted run continues with its original requirements and session ID
+(`ad-sdlc status` lists the sessions); the completed stages are skipped:
+
 ```bash
-# Continue from previous session
-claude "Continue development from where we left off.
-Check .ad-sdlc/scratchpad/progress/ for current state.
-Next: Implement payment integration"
+ad-sdlc run "Phase 3: Add e-commerce enhancements. ..." --resume <session-id>
 ```
+
+New work after a completed run is a new run, for example
+`ad-sdlc run "Implement payment integration" --mode enhancement`.
 
 ---
 
@@ -422,33 +443,36 @@ Next: Implement payment integration"
 ### Writing Effective Prompts
 
 **Be Specific:**
+
 ```bash
 # Good: Specific requirements
-claude "Implement password reset with:
+ad-sdlc run "Implement password reset with:
 - Email-based reset flow
 - Token expires in 1 hour
 - Rate limit: 3 requests per hour
 - Log all reset attempts"
 
 # Less effective: Vague
-claude "Add password reset"
+ad-sdlc run "Add password reset"
 ```
 
 **Include Context:**
+
 ```bash
 # Good: Provide context
-claude "We use Express with TypeORM and PostgreSQL.
+ad-sdlc run "We use Express with TypeORM and PostgreSQL.
 Implement a caching layer using Redis for product queries.
 Follow the existing pattern in src/services/"
 
 # Less effective: No context
-claude "Add caching"
+ad-sdlc run "Add caching"
 ```
 
 **Specify Constraints:**
+
 ```bash
 # Good: Clear constraints
-claude "Implement file upload:
+ad-sdlc run "Implement file upload:
 - Max size: 10MB
 - Allowed types: jpg, png, pdf
 - Store in S3 with signed URLs
@@ -459,7 +483,7 @@ claude "Implement file upload:
 
 ```bash
 # Break into phases
-claude "This is a large project. Let's break it into phases:
+ad-sdlc run "This is a large project. Let's break it into phases:
 1. Core infrastructure
 2. User management
 3. Main features
@@ -467,7 +491,7 @@ claude "This is a large project. Let's break it into phases:
 Start with Phase 1."
 
 # Set scope limits
-claude "Implement MVP version of checkout.
+ad-sdlc run "Implement MVP version of checkout.
 Scope: Cart -> Address -> Payment (Stripe) -> Confirmation
 Skip: Multiple shipping options, gift cards, promo codes"
 ```
@@ -499,4 +523,4 @@ npm audit
 
 ---
 
-*Part of [AD-SDLC Documentation](../README.md)*
+_Part of [AD-SDLC Documentation](../README.md)_

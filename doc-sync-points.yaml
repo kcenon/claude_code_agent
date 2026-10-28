@@ -55,7 +55,6 @@ cli_references:
     - 'docs/api/**'
     - 'docs/adr/**'
     - 'docs/architecture/v0.1-*.md'
-    - 'docs/architecture/dual-layer-design.md'
     - 'docs/PRD-001-agent-driven-sdlc*.md'
     - 'docs/SRS-001-agent-driven-sdlc*.md'
     - 'docs/SDS-001-agent-driven-sdlc*.md'
