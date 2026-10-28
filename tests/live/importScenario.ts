@@ -408,6 +408,10 @@ export interface StageEvidenceRow {
   readonly restored: boolean;
   readonly attempts: number;
   readonly verification: string | null;
+  /** Stage error message, when the stage failed */
+  readonly error: string | null;
+  /** Failed verification checks as `checkId: message` */
+  readonly failedChecks: readonly string[];
 }
 
 /** Evidence of one `ad-sdlc run` invocation. */
@@ -457,6 +461,21 @@ export function invocationEvidence(
   const byKind = (kind: string): JsonRecord[] =>
     records.map(asRecord).filter((entry): entry is JsonRecord => entry?.['kind'] === kind);
   const pipeline = byKind('pipeline')[0];
+  const stageResults = new Map(
+    (Array.isArray(result['stages']) ? result['stages'] : [])
+      .map(asRecord)
+      .filter((entry): entry is JsonRecord => entry !== undefined)
+      .map((entry) => [asString(entry['name']) ?? 'unknown', entry] as const)
+  );
+  const failedChecks = (stage: string): string[] => {
+    const checks = asRecord(stageResults.get(stage)?.['verification'])?.['checks'];
+    return (Array.isArray(checks) ? checks : [])
+      .map(asRecord)
+      .filter((check) => check?.['outcome'] === 'fail')
+      .map(
+        (check) => `${asString(check?.['checkId']) ?? '?'}: ${asString(check?.['message']) ?? ''}`
+      );
+  };
   return {
     invocation,
     exitCode: child.status,
@@ -466,13 +485,18 @@ export function invocationEvidence(
     status: asString(result['overallStatus']) ?? asString(pipeline?.['status']),
     error: asString(output['error']),
     resumed: asRecord(pipeline?.['resume'])?.['resumed'] === true,
-    stages: byKind('stage').map((stage) => ({
-      stage: asString(stage['stage']) ?? 'unknown',
-      status: asString(stage['status']) ?? 'unknown',
-      restored: stage['restored'] === true,
-      attempts: asNumber(asRecord(stage['attempts'])?.['total']) ?? 0,
-      verification: asString(asRecord(stage['verification'])?.['state']),
-    })),
+    stages: byKind('stage').map((stage) => {
+      const name = asString(stage['stage']) ?? 'unknown';
+      return {
+        stage: name,
+        status: asString(stage['status']) ?? 'unknown',
+        restored: stage['restored'] === true,
+        attempts: asNumber(asRecord(stage['attempts'])?.['total']) ?? 0,
+        verification: asString(asRecord(stage['verification'])?.['state']),
+        error: asString(stageResults.get(name)?.['error']),
+        failedChecks: failedChecks(name),
+      };
+    }),
     attempts: byKind('attempt').map((attempt) => {
       const usage = asRecord(attempt['usage']);
       return {
@@ -733,11 +757,11 @@ export function renderImportReport(
         '',
         `Session ${cell(invocation.sessionId)}; status ${cell(invocation.status)}; exit ${cell(invocation.exitCode)}${invocation.signal === null ? '' : ` (${invocation.signal})`}; ${String(invocation.durationMs)} ms; resumed ${String(invocation.resumed)}.${invocation.error === null ? '' : ` Error: ${cell(invocation.error)}`}`,
         '',
-        '| Stage | Status | Restored | Attempts | Verification |',
-        '| --- | --- | --- | --- | --- |',
+        '| Stage | Status | Restored | Attempts | Verification | Failed checks and error |',
+        '| --- | --- | --- | --- | --- | --- |',
         ...invocation.stages.map(
           (stage) =>
-            `| ${stage.stage} | ${stage.status} | ${String(stage.restored)} | ${String(stage.attempts)} | ${cell(stage.verification)} |`
+            `| ${stage.stage} | ${stage.status} | ${String(stage.restored)} | ${String(stage.attempts)} | ${cell(stage.verification)} | ${cell([...stage.failedChecks, ...(stage.error === null ? [] : [stage.error])].join('; ') || null)} |`
         ),
         '',
         '| Attempt stage | Outcome | Execution | SDK session | Model | Input tokens | Output tokens | Duration (ms) | Error type |',
