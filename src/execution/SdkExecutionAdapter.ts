@@ -295,7 +295,9 @@ export class SdkExecutionAdapter implements ExecutionAdapter {
                 status: outcome,
                 artifacts: [],
                 sessionId: execution.sessionId,
+                // eslint-disable-next-line @typescript-eslint/no-deprecated -- legacy field still populated (#956)
                 toolCallCount: execution.usage.legacyToolCallCount(),
+                // eslint-disable-next-line @typescript-eslint/no-deprecated -- legacy field still populated (#956)
                 tokenUsage: execution.usage.legacyTokenUsage(),
               },
               execution.structuredOutput
@@ -315,7 +317,9 @@ export class SdkExecutionAdapter implements ExecutionAdapter {
                 status: execution.outcome === 'aborted' ? 'aborted' : 'failed',
                 artifacts: [],
                 sessionId: execution.sessionId,
+                // eslint-disable-next-line @typescript-eslint/no-deprecated -- legacy field still populated (#956)
                 toolCallCount: execution.usage.legacyToolCallCount(),
+                // eslint-disable-next-line @typescript-eslint/no-deprecated -- legacy field still populated (#956)
                 tokenUsage: execution.usage.legacyTokenUsage(),
               },
               (execution.reason as Error).message

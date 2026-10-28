@@ -98,6 +98,7 @@ export const CURRENT_TEMPLATE_VERSION: TemplateVersion = {
   patch: 0,
 };
 
+/* eslint-disable @typescript-eslint/no-deprecated -- TemplateConfig still requires the historical presets */
 export const TEMPLATE_CONFIGS: Record<TemplateType, TemplateConfig> = {
   minimal: {
     version: CURRENT_TEMPLATE_VERSION,
@@ -121,6 +122,7 @@ export const TEMPLATE_CONFIGS: Record<TemplateType, TemplateConfig> = {
     extraFeatures: ['token_tracking', 'progress_dashboard', 'audit_logging', 'security_scanning'],
   },
 };
+/* eslint-enable @typescript-eslint/no-deprecated */
 
 /**
  * Prerequisite check definition

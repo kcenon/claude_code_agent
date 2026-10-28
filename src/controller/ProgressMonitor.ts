@@ -129,6 +129,7 @@ export class ProgressMonitor {
 
     this.config = {
       pollingInterval: config.pollingInterval ?? DEFAULT_PROGRESS_MONITOR_CONFIG.pollingInterval,
+      // eslint-disable-next-line @typescript-eslint/no-deprecated -- mirrored for legacy readers
       stuckWorkerThreshold: effectiveStuckThreshold,
       maxRecentActivities:
         config.maxRecentActivities ?? DEFAULT_PROGRESS_MONITOR_CONFIG.maxRecentActivities,
