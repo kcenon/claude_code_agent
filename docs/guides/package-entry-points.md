@@ -3,7 +3,8 @@
 > **Status**: Current
 
 `ad-sdlc` declares its supported import paths in the `package.json` `exports`
-map. The root entry keeps the full library surface; the subpaths expose the
+map. The root entry keeps the full library surface; `ad-sdlc/core` is the
+same surface without the optional subsystems; the other subpaths expose the
 optional capabilities that
 [ADR-0006](../adr/ADR-0006-keep-or-kill-orphaned-public-subsystems.md)
 accepted for extraction, so a consumer can import one capability without the
@@ -14,6 +15,7 @@ root barrel.
 | Import path             | Module                     | Contents                                                       | ADR-0006 disposition             |
 | ----------------------- | -------------------------- | -------------------------------------------------------------- | -------------------------------- |
 | `ad-sdlc`               | `dist/index.js`            | Full surface: control plane, data plane, agents, utilities     | compatibility root               |
+| `ad-sdlc/core`          | `dist/core.js`             | The root surface without the optional subsystems below         | core                             |
 | `ad-sdlc/control-plane` | `dist/control-plane/index` | `ControlPlane` facade, orchestration, and state management     | `extract-optional` (facade)      |
 | `ad-sdlc/data-plane`    | `dist/data-plane/index`    | `DataPlane` facade, scratchpad storage, schemas, serialization | `extract-optional` (facade)      |
 | `ad-sdlc/controller`    | `dist/controller/index`    | Dependency graph, prioritization, worker pool, progress        | `keep-wire` / `extract-optional` |
@@ -31,6 +33,29 @@ that ignore `exports`.
 
 `ad-sdlc/monitoring` declares types from the optional `@opentelemetry/*` peer
 dependencies, but loads without them; install the peers to enable tracing.
+
+## Core, optional, and compatibility-only
+
+| Subsystem                                                                       | Kind                                  | Import from                                                                                                    |
+| ------------------------------------------------------------------------------- | ------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Pipeline runtime: orchestrator, agents, configuration, state, scratchpad        | core                                  | `ad-sdlc/core` (the CLI uses the same modules)                                                                 |
+| Scratchpad SQLite and Redis backends                                            | core, with optional peer dependencies | `Scratchpad` with `backend: 'sqlite'` or `'redis'`; needs `better-sqlite3` or `ioredis`                        |
+| Monitoring: metrics, budgets, OpenTelemetry tracing                             | optional                              | `ad-sdlc/monitoring`; the root `Monitoring` namespace                                                          |
+| Controller: dependency graph, prioritization, worker pool, progress             | optional                              | `ad-sdlc/controller`; the root `Controller` namespace and the controller re-exports of `ad-sdlc/control-plane` |
+| `ControlPlane` and `DataPlane` facades (and the facade's serialization helpers) | optional                              | `ad-sdlc/control-plane`, `ad-sdlc/data-plane`                                                                  |
+| `ad-sdlc` root                                                                  | compatibility-only                    | Existing imports; it loads every subsystem above                                                               |
+
+`ad-sdlc/core` and the CLI load no module of an optional subsystem; the root
+loads all of them so existing imports keep working. Worker code depends on
+controller types only at compile time, so it does not load the controller at
+runtime. The SQLite and Redis backend modules import their peer dependency
+only when the backend is selected; without it, the first scratchpad operation
+reports `better-sqlite3 is required ... Install: npm install better-sqlite3`
+(or the `ioredis` equivalent, which the Redis connection fallback does not
+mask).
+
+New code should import from `ad-sdlc/core` and add an optional entry point
+only for the capability it uses.
 
 ## Deep imports
 
@@ -60,7 +85,11 @@ checked in two places:
   in an external project without optional dependencies, imports every entry
   point (and a deep path through the alias), compares the runtime exports with
   the baseline, and compiles an import of every recorded name with TypeScript
-  `NodeNext`.
+  `NodeNext`. A module resolve hook then records what the installed package
+  loads: `ad-sdlc/core` and the CLI load no optional module while the root
+  does, the SQLite backend without `better-sqlite3` reports the install
+  command, and `ad-sdlc/monitoring` loads `@opentelemetry/api` once it is
+  installed.
 
 A change to a supported surface must update the baseline in the same pull
 request:

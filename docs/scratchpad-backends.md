@@ -59,9 +59,9 @@ import { Scratchpad, EXTENSION_TO_FORMAT, FORMAT_TO_EXTENSION } from 'ad-sdlc';
 const scratchpad = new Scratchpad();
 
 // Auto-detect format from file extension
-await scratchpad.write('/path/to/config.yaml', { key: 'value' });  // YAML format
-await scratchpad.write('/path/to/data.json', { key: 'value' });    // JSON format
-await scratchpad.write('/path/to/readme.md', '# Title');           // Markdown (raw)
+await scratchpad.write('/path/to/config.yaml', { key: 'value' }); // YAML format
+await scratchpad.write('/path/to/data.json', { key: 'value' }); // JSON format
+await scratchpad.write('/path/to/readme.md', '# Title'); // Markdown (raw)
 
 // Explicit format override
 await scratchpad.write('/path/to/data.txt', { key: 'value' }, { format: 'json' });
@@ -79,13 +79,13 @@ const format = scratchpad.detectFormat('/path/to/file.yaml'); // 'yaml'
 
 ### Supported Formats
 
-| Format | Extensions | Description |
-|--------|------------|-------------|
-| `yaml` | `.yaml`, `.yml` | YAML serialization (human-readable) |
-| `json` | `.json` | JSON serialization (machine-readable) |
-| `markdown` | `.md`, `.markdown` | Raw text (no transformation) |
-| `raw` | `.txt`, others | Raw text (no transformation) |
-| `auto` | - | Auto-detect from file extension (default) |
+| Format     | Extensions         | Description                               |
+| ---------- | ------------------ | ----------------------------------------- |
+| `yaml`     | `.yaml`, `.yml`    | YAML serialization (human-readable)       |
+| `json`     | `.json`            | JSON serialization (machine-readable)     |
+| `markdown` | `.md`, `.markdown` | Raw text (no transformation)              |
+| `raw`      | `.txt`, others     | Raw text (no transformation)              |
+| `auto`     | -                  | Auto-detect from file extension (default) |
 
 ### Extension Mappings
 
@@ -93,18 +93,18 @@ const format = scratchpad.detectFormat('/path/to/file.yaml'); // 'yaml'
 import { EXTENSION_TO_FORMAT, FORMAT_TO_EXTENSION } from 'ad-sdlc';
 
 // Extension to format mapping
-EXTENSION_TO_FORMAT['.yaml'];     // 'yaml'
-EXTENSION_TO_FORMAT['.yml'];      // 'yaml'
-EXTENSION_TO_FORMAT['.json'];     // 'json'
-EXTENSION_TO_FORMAT['.md'];       // 'markdown'
+EXTENSION_TO_FORMAT['.yaml']; // 'yaml'
+EXTENSION_TO_FORMAT['.yml']; // 'yaml'
+EXTENSION_TO_FORMAT['.json']; // 'json'
+EXTENSION_TO_FORMAT['.md']; // 'markdown'
 EXTENSION_TO_FORMAT['.markdown']; // 'markdown'
-EXTENSION_TO_FORMAT['.txt'];      // 'raw'
+EXTENSION_TO_FORMAT['.txt']; // 'raw'
 
 // Format to default extension mapping
-FORMAT_TO_EXTENSION['yaml'];      // '.yaml'
-FORMAT_TO_EXTENSION['json'];      // '.json'
-FORMAT_TO_EXTENSION['markdown'];  // '.md'
-FORMAT_TO_EXTENSION['raw'];       // ''
+FORMAT_TO_EXTENSION['yaml']; // '.yaml'
+FORMAT_TO_EXTENSION['json']; // '.json'
+FORMAT_TO_EXTENSION['markdown']; // '.md'
+FORMAT_TO_EXTENSION['raw']; // ''
 ```
 
 ### Synchronous API
@@ -150,20 +150,20 @@ The default backend that stores data as YAML or JSON files.
 
 ```typescript
 interface FileBackendConfig {
-  basePath?: string;      // Default: '.ad-sdlc/scratchpad'
-  fileMode?: number;      // Default: 0o600
-  dirMode?: number;       // Default: 0o700
+  basePath?: string; // Default: '.ad-sdlc/scratchpad'
+  fileMode?: number; // Default: 0o600
+  dirMode?: number; // Default: 0o700
   format?: 'yaml' | 'json' | 'raw'; // Default: 'yaml'
 }
 ```
 
 ### Format Options
 
-| Format | Extension | Serialization | Use Case |
-|--------|-----------|---------------|----------|
-| `yaml` | `.yaml` | YAML serialization | Default, human-readable |
-| `json` | `.json` | JSON serialization | Machine processing |
-| `raw` | (none) | No serialization | Arbitrary file extensions, key includes filename |
+| Format | Extension | Serialization      | Use Case                                         |
+| ------ | --------- | ------------------ | ------------------------------------------------ |
+| `yaml` | `.yaml`   | YAML serialization | Default, human-readable                          |
+| `json` | `.json`   | JSON serialization | Machine processing                               |
+| `raw`  | (none)    | No serialization   | Arbitrary file extensions, key includes filename |
 
 The `raw` format is used internally by the `Scratchpad` class to support arbitrary file extensions while maintaining backward compatibility.
 
@@ -200,9 +200,9 @@ Uses SQLite for efficient key-value storage with transaction support.
 
 ```typescript
 interface SQLiteBackendConfig {
-  dbPath?: string;        // Default: '.ad-sdlc/scratchpad.db'
-  walMode?: boolean;      // Default: true (better concurrency)
-  busyTimeout?: number;   // Default: 5000ms
+  dbPath?: string; // Default: '.ad-sdlc/scratchpad.db'
+  walMode?: boolean; // Default: true (better concurrency)
+  busyTimeout?: number; // Default: 5000ms
 }
 ```
 
@@ -244,26 +244,26 @@ Uses Redis for distributed deployments with optional TTL, distributed locking, a
 
 ```typescript
 interface RedisBackendConfig {
-  host?: string;          // Default: 'localhost'
-  port?: number;          // Default: 6379
-  password?: string;      // Optional
-  db?: number;            // Default: 0
-  prefix?: string;        // Default: 'ad-sdlc:scratchpad:'
-  ttl?: number;           // Optional (seconds)
+  host?: string; // Default: 'localhost'
+  port?: number; // Default: 6379
+  password?: string; // Optional
+  db?: number; // Default: 0
+  prefix?: string; // Default: 'ad-sdlc:scratchpad:'
+  ttl?: number; // Optional (seconds)
   connectTimeout?: number; // Default: 5000ms
-  maxRetries?: number;    // Default: 3
-  lock?: RedisLockConfig;     // Distributed lock settings
+  maxRetries?: number; // Default: 3
+  lock?: RedisLockConfig; // Distributed lock settings
   fallback?: RedisFallbackConfig; // Fallback to FileBackend
 }
 
 interface RedisLockConfig {
-  lockTtl?: number;           // Default: 30 seconds
-  lockTimeout?: number;       // Default: 10000ms
+  lockTtl?: number; // Default: 30 seconds
+  lockTimeout?: number; // Default: 10000ms
   lockRetryInterval?: number; // Default: 100ms
 }
 
 interface RedisFallbackConfig {
-  enabled?: boolean;          // Default: false
+  enabled?: boolean; // Default: false
   fileConfig?: FileBackendConfig; // FileBackend config for fallback
 }
 ```
@@ -294,8 +294,8 @@ Redis backend provides distributed locking for coordinating access across multip
 const backend = new RedisBackend({
   host: 'redis.example.com',
   lock: {
-    lockTtl: 30,           // Lock expires after 30 seconds
-    lockTimeout: 10000,    // Wait up to 10 seconds to acquire
+    lockTtl: 30, // Lock expires after 30 seconds
+    lockTimeout: 10000, // Wait up to 10 seconds to acquire
     lockRetryInterval: 100, // Retry every 100ms
   },
 });
@@ -323,6 +323,7 @@ await backend.releaseLock(lock);
 ```
 
 Lock features:
+
 - **Atomic acquisition**: Uses Redis SET NX EX for safe concurrent access
 - **Safe release**: Lua script ensures only the lock holder can release
 - **Timeout support**: Configurable acquisition timeout with automatic retry
@@ -358,6 +359,12 @@ const health = await backend.healthCheck();
 ```
 
 **Note**: Distributed locking is not available when using fallback mode.
+
+The fallback covers connection failures only. When the optional `ioredis`
+package is not installed, `initialize()` rejects with
+`ioredis is required for Redis scratchpad backend. Install: npm install ioredis`
+even if a fallback is configured; selecting the SQLite backend without
+`better-sqlite3` likewise reports `npm install better-sqlite3`.
 
 ### Advantages
 
@@ -404,7 +411,7 @@ BackendFactory.isSupported('sqlite'); // true
 You can configure the backend in `.ad-sdlc/config/workflow.yaml`:
 
 ```yaml
-version: "1.0.0"
+version: '1.0.0'
 # ... other workflow configuration ...
 
 scratchpad:
@@ -428,7 +435,7 @@ scratchpad:
     port: ${REDIS_PORT:-6379}
     password: ${REDIS_PASSWORD}
     db: 0
-    prefix: "ad-sdlc:scratchpad:"
+    prefix: 'ad-sdlc:scratchpad:'
     ttl: 86400
     connect_timeout: 5000
     max_retries: 3
@@ -448,15 +455,15 @@ Environment variables can override configuration values. This is useful for diff
 
 ### Supported Environment Variables
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `SCRATCHPAD_BACKEND` | Backend type | `sqlite`, `redis`, `file` |
-| `SCRATCHPAD_REDIS_HOST` | Redis server host | `redis.example.com` |
-| `SCRATCHPAD_REDIS_PORT` | Redis server port | `6379` |
-| `SCRATCHPAD_REDIS_PASSWORD` | Redis password | `secret` |
-| `SCRATCHPAD_REDIS_DB` | Redis database number | `0` |
-| `SCRATCHPAD_SQLITE_PATH` | SQLite database path | `/data/scratchpad.db` |
-| `SCRATCHPAD_FILE_PATH` | File backend base path | `/data/scratchpad` |
+| Variable                    | Description            | Example                   |
+| --------------------------- | ---------------------- | ------------------------- |
+| `SCRATCHPAD_BACKEND`        | Backend type           | `sqlite`, `redis`, `file` |
+| `SCRATCHPAD_REDIS_HOST`     | Redis server host      | `redis.example.com`       |
+| `SCRATCHPAD_REDIS_PORT`     | Redis server port      | `6379`                    |
+| `SCRATCHPAD_REDIS_PASSWORD` | Redis password         | `secret`                  |
+| `SCRATCHPAD_REDIS_DB`       | Redis database number  | `0`                       |
+| `SCRATCHPAD_SQLITE_PATH`    | SQLite database path   | `/data/scratchpad.db`     |
+| `SCRATCHPAD_FILE_PATH`      | File backend base path | `/data/scratchpad`        |
 
 ### Configuration Priority
 
@@ -476,7 +483,7 @@ scratchpad:
   redis:
     host: ${REDIS_HOST:-localhost}
     port: ${REDIS_PORT:-6379}
-    password: ${REDIS_PASSWORD}  # Required, no default
+    password: ${REDIS_PASSWORD} # Required, no default
 ```
 
 ### Usage Example
@@ -516,14 +523,14 @@ const envVars = getScratchpadEnvVars();
 
 ## Choosing a Backend
 
-| Use Case | Recommended Backend |
-|----------|-------------------|
-| Local development | File (default) |
-| Large projects (>1000 issues) | SQLite |
-| CI/CD pipelines | SQLite |
-| Multi-instance deployment | Redis |
-| Stateless containers | Redis |
-| Offline operation | File or SQLite |
+| Use Case                      | Recommended Backend |
+| ----------------------------- | ------------------- |
+| Local development             | File (default)      |
+| Large projects (>1000 issues) | SQLite              |
+| CI/CD pipelines               | SQLite              |
+| Multi-instance deployment     | Redis               |
+| Stateless containers          | Redis               |
+| Offline operation             | File or SQLite      |
 
 ## Health Checks
 
@@ -531,19 +538,15 @@ All backends support health checks:
 
 ```typescript
 const health = await backend.healthCheck();
-console.log(health.healthy);   // true/false
-console.log(health.message);   // Status message
+console.log(health.healthy); // true/false
+console.log(health.message); // Status message
 console.log(health.latencyMs); // Response time
 ```
 
 ## Error Handling
 
 ```typescript
-import {
-  BackendCreationError,
-  RedisConnectionError,
-  RedisLockTimeoutError,
-} from 'ad-sdlc';
+import { BackendCreationError, RedisConnectionError, RedisLockTimeoutError } from 'ad-sdlc';
 
 // Backend creation error
 try {
@@ -587,10 +590,7 @@ try {
 To migrate data between backends:
 
 ```typescript
-async function migrateData(
-  source: IScratchpadBackend,
-  target: IScratchpadBackend
-): Promise<void> {
+async function migrateData(source: IScratchpadBackend, target: IScratchpadBackend): Promise<void> {
   const sections = ['info', 'documents', 'issues', 'progress'];
 
   for (const section of sections) {
@@ -638,6 +638,7 @@ REDIS_HOST=localhost REDIS_PORT=6379 npm test tests/scratchpad/backends/RedisBac
 ### Integration Tests
 
 Integration tests verify:
+
 - IScratchpadBackend interface compliance across all backends
 - Data migration between backends
 - Concurrent operations
