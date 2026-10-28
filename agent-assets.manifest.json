@@ -326,7 +326,7 @@
       "id": "agent:worker",
       "kind": "agent",
       "path": ".claude/agents/worker.md",
-      "digest": "a60343af06d0de53078cd045558dcf10b8d7f1adc08056c33fb6394828b67e5c",
+      "digest": "f55f0c5c77071febb9fa16cf62be8ed649cb73dc8053b1fe3402fe4f3a8b3ae9",
       "role": "direct",
       "requires": []
     },
