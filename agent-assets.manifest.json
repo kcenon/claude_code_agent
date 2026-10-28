@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "bundleVersion": "1.0.0",
+  "bundleVersion": "1.1.0",
   "assets": [
     {
       "id": "agent:ad-sdlc-orchestrator",
@@ -326,7 +326,7 @@
       "id": "agent:worker",
       "kind": "agent",
       "path": ".claude/agents/worker.md",
-      "digest": "ed50d75a6a212bc3b2848e5a7e0e8c0bce1ea5d5def111f53dcb4a4f7404e88d",
+      "digest": "a60343af06d0de53078cd045558dcf10b8d7f1adc08056c33fb6394828b67e5c",
       "role": "direct",
       "requires": []
     },

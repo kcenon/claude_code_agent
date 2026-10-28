@@ -48,7 +48,7 @@ describe('asset update CLI', () => {
     for (const extra of [[], ['--dry-run']]) {
       const result = run(['assets', 'update', '--project-dir', project, ...extra]);
       expect(result.status).toBe(1);
-      expect(result.stdout).toContain('conflict: .claude/commands/status.md (1.0.0 -> 1.0.0)');
+      expect(result.stdout).toContain('conflict: .claude/commands/status.md (1.1.0 -> 1.1.0)');
       expect(result.stdout).toContain('Compare');
       expect(snapshot(project)).toEqual(before);
     }

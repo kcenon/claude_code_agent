@@ -199,7 +199,7 @@ describe('canonical asset inventory and initialization', () => {
     async (file) => {
       write(project, file, 'custom content');
       const before = snapshot(project);
-      await expect(initialize()).rejects.toThrow(/existing customization.*1.0.0/);
+      await expect(initialize()).rejects.toThrow(/existing customization.*1.1.0/);
       expect(snapshot(project)).toEqual(before);
     }
   );
@@ -357,7 +357,7 @@ describe('asset failures are mandatory preflight even when prerequisites are ski
   it.each(cases)('%s', async (_name, corrupt, message) => {
     corrupt();
     await expect(initialize()).rejects.toThrow(message);
-    await expect(initialize()).rejects.toThrow(/bundle 1.0.0 \(package 0.1.0\)/);
+    await expect(initialize()).rejects.toThrow(/bundle 1.1.0 \(package 0.1.0\)/);
     expect(fs.existsSync(project)).toBe(false);
   });
 });
