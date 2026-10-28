@@ -4,6 +4,30 @@
   "description": "Agent-Driven Software Development Lifecycle system built with Claude Agent SDK",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./control-plane": {
+      "types": "./dist/control-plane/index.d.ts",
+      "default": "./dist/control-plane/index.js"
+    },
+    "./data-plane": {
+      "types": "./dist/data-plane/index.d.ts",
+      "default": "./dist/data-plane/index.js"
+    },
+    "./controller": {
+      "types": "./dist/controller/index.d.ts",
+      "default": "./dist/controller/index.js"
+    },
+    "./monitoring": {
+      "types": "./dist/monitoring/index.d.ts",
+      "default": "./dist/monitoring/index.js"
+    },
+    "./package.json": "./package.json",
+    "./*": "./*"
+  },
   "type": "module",
   "bin": {
     "ad-sdlc": "./dist/cli.js"
@@ -51,6 +75,7 @@
     "docs:watch": "typedoc --watch",
     "assets:check": "tsx scripts/agent-assets.ts",
     "assets:generate": "tsx scripts/agent-assets.ts --write",
+    "api:surface": "tsx scripts/api-surface.ts",
     "prepack": "npm run clean && npm run build",
     "test:package": "node tests/package/asset-delivery.smoke.mjs",
     "test:sdk-contract": "tsc -p tsconfig.sdk-contract.json"
