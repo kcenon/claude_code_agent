@@ -78,6 +78,75 @@ function install(tarball, dir) {
 function moduleUrl(pkg, relative) {
   return pathToFileURL(join(pkg, relative)).href;
 }
+/**
+ * Supported entry points (#958), resolved through the installed package's
+ * exports map by an external ESM and NodeNext TypeScript consumer: every
+ * value export recorded in tests/package/api-surface.json exists at runtime,
+ * every recorded value and type name compiles, and a formerly reachable deep
+ * import still works through the compatibility alias.
+ */
+function checkEntryPoints() {
+  const surfacePath = join(repo, 'tests/package/api-surface.json');
+  const surface = JSON.parse(readFileSync(surfacePath, 'utf8'));
+  const specifier = (entry) => (entry === '.' ? 'ad-sdlc' : `ad-sdlc/${entry.slice(2)}`);
+  const deepImport = 'ad-sdlc/dist/project-initializer/AgentAssets.js';
+  writeFileSync(
+    join(consumer, 'check-exports.mjs'),
+    `import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+const surface = JSON.parse(readFileSync(process.argv[2], 'utf8'));
+for (const [entry, names] of Object.entries(surface.entries)) {
+  const mod = await import(entry === '.' ? 'ad-sdlc' : 'ad-sdlc/' + entry.slice(2));
+  assert.deepEqual(Object.keys(mod).sort(), [...names.values].sort(), entry);
+}
+const deep = await import(${JSON.stringify(deepImport)});
+assert.equal(typeof deep.loadAssetBundle, 'function');
+`
+  );
+  run(process.execPath, ['check-exports.mjs', surfacePath], consumer);
+  const files = Object.entries(surface.entries).map(([entry, names], index) => {
+    const file = `check-types-${String(index)}.mts`;
+    writeFileSync(
+      join(consumer, file),
+      [
+        `import { ${names.values.join(', ')} } from '${specifier(entry)}';`,
+        names.types.length > 0
+          ? `import type { ${names.types.join(', ')} } from '${specifier(entry)}';`
+          : '',
+        `export const used = [${names.values.join(', ')}];`,
+        '',
+      ].join('\n')
+    );
+    return file;
+  });
+  writeFileSync(
+    join(consumer, 'check-deep.mts'),
+    `import { loadAssetBundle } from '${deepImport}';\nexport const used = loadAssetBundle;\n`
+  );
+  writeFileSync(
+    join(consumer, 'tsconfig.json'),
+    JSON.stringify({
+      compilerOptions: {
+        target: 'ES2022',
+        module: 'NodeNext',
+        moduleResolution: 'NodeNext',
+        strict: true,
+        noEmit: true,
+        skipLibCheck: true,
+        types: [],
+      },
+      files: [...files, 'check-deep.mts'],
+    })
+  );
+  run(
+    process.execPath,
+    [join(repo, 'node_modules/typescript/bin/tsc'), '-p', 'tsconfig.json'],
+    consumer
+  );
+  process.stdout.write(
+    `PACKAGE SMOKE: ${String(Object.keys(surface.entries).length)} supported entry points resolve code and declarations (NodeNext); deep import kept\n`
+  );
+}
 try {
   process.stdout.write('PACKAGE SMOKE: build via prepack, create and inspect real tarball\n');
   const tarball = pack(repo, join(temp, 'pack'));
@@ -112,6 +181,7 @@ try {
     manifest.assets.map((a) => a.path),
     sourceAssets
   );
+  checkEntryPoints();
   for (const template of ['minimal', 'standard', 'enterprise']) {
     const project = join(temp, `${template} target with spaces`);
     run(bin, ['init', project, '--quick', '--skip-validation', '--template', template], caller);
