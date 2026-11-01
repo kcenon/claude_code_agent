@@ -152,7 +152,6 @@ function importOutputs(logoutTests: readonly string[] = ['tests/logout.test.ts']
       ),
     },
     'validation-agent': {
-      [`${S}/vnv/demo/rtm.yaml`]: 'rtm:\n  entries: []\n',
       [`${S}/vnv/demo/validation-report.yaml`]: 'validation_report:\n  overall_status: pass\n',
     },
     'pr-reviewer': {

@@ -68,7 +68,6 @@ const OUTPUTS: Record<string, Record<string, string>> = {
       'implementation_result:\n  work_order_id: WO-001\n  status: completed\n  changes:\n    - file_path: src/login.ts\n      change_type: create\n  verification:\n    tests_passed: true\n    build_passed: true\n    lint_passed: true\n',
   },
   'validation-agent': {
-    [`${S}/vnv/demo/rtm.yaml`]: 'rtm:\n  entries: []\n',
     [`${S}/vnv/demo/validation-report.yaml`]: 'validation_report:\n  overall_status: pass\n',
   },
   'pr-reviewer': {
@@ -255,8 +254,8 @@ describe('delivery metrics through a paused and resumed run', () => {
     )!;
     expect(resumeRate).toMatchObject({ value: 1, numerator: 1, sample: 1, missing: 0 });
     const tools = report.metrics.find((m) => m.id === 'attempts.all.tool_uses')!;
-    // issue-reader 1 Write, controller 1, worker 2, validation-agent 2, pr-reviewer 1; plus one Bash each.
-    expect(tools).toMatchObject({ value: 7 + 5, sample: 5, missing: 0 });
+    // issue-reader 1 Write, controller 1, worker 2, validation-agent 1, pr-reviewer 1; plus one Bash each.
+    expect(tools).toMatchObject({ value: 6 + 5, sample: 5, missing: 0 });
 
     // Privacy: the export and the in-memory records hold none of the planted values.
     expectNoPlantedValues(await readFile(file, 'utf8'));

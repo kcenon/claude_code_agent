@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "bundleVersion": "1.1.0",
+  "bundleVersion": "1.2.0",
   "assets": [
     {
       "id": "agent:ad-sdlc-orchestrator",
@@ -102,7 +102,7 @@
       "id": "agent:doc-code-comparator",
       "kind": "agent",
       "path": ".claude/agents/doc-code-comparator.md",
-      "digest": "14fc7a59afaaa0a9b8429720f70ee0a3240d4aea911103778067e9a6b0c52132",
+      "digest": "6b221fa55a8981c85e1cae7c0a3e063d8927113ae52aa3cd05c0a1c484e3746f",
       "role": "direct",
       "requires": []
     },
@@ -190,7 +190,7 @@
       "id": "agent:prd-updater",
       "kind": "agent",
       "path": ".claude/agents/prd-updater.md",
-      "digest": "e97fcf3d884b8eae3ffa91c087b70c8ec8661e40175ea74c6978514dbb8eb8b0",
+      "digest": "a35ecb666e50cd4b4e38f7f6ee7386138a863b8dc2a7fb41b0b59c2327d8ba5a",
       "role": "direct",
       "requires": []
     },
@@ -246,7 +246,7 @@
       "id": "agent:sds-updater",
       "kind": "agent",
       "path": ".claude/agents/sds-updater.md",
-      "digest": "7aa6ffba2747ec2c8e933a62b83042e6111544a7301c4efeb2c3977f3fc8ab99",
+      "digest": "9457059704875e276bf0af25afb067aec84e508b8c520eddca1ed2f9709911f0",
       "role": "direct",
       "requires": []
     },
@@ -262,7 +262,7 @@
       "id": "agent:srs-updater",
       "kind": "agent",
       "path": ".claude/agents/srs-updater.md",
-      "digest": "196fa6f94c39856022a11e16cd7c67a807eadc70c9d9f27d0556ab64ac55de3f",
+      "digest": "50bff04f83ea3b30df24f9919595a614a3640c126b3eb9b9e35f3ff9e4a4c42a",
       "role": "direct",
       "requires": []
     },
@@ -318,7 +318,7 @@
       "id": "agent:validation-agent",
       "kind": "agent",
       "path": ".claude/agents/validation-agent.md",
-      "digest": "da372e20a553456c1977f010c40d231bd911e891e3331adbd4dbc54b7cc4e8b3",
+      "digest": "306ae5a65998d3228a62988faf538421a24d5eb6494d667ccfc81a42356269d1",
       "role": "direct",
       "requires": []
     },

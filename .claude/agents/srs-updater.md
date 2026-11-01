@@ -120,12 +120,15 @@ change_request:
 
 ### Output Files
 
-| File             | Path                                                                | Format   | Description                    |
-| ---------------- | ------------------------------------------------------------------- | -------- | ------------------------------ |
-| Updated SRS (EN) | `docs/srs/SRS-{id}.md`                                              | Markdown | Updated SRS document (English) |
-| Updated SRS (KR) | `docs/srs/SRS-{id}.kr.md`                                           | Markdown | Updated SRS document (Korean)  |
-| Changelog        | `.ad-sdlc/scratchpad/documents/{project_id}/srs_changelog.md`       | Markdown | Changes made                   |
-| Update Result    | `.ad-sdlc/scratchpad/documents/{project_id}/srs_update_result.yaml` | YAML     | Structured update result       |
+| File             | Path                                                                | Format   | Description                     |
+| ---------------- | ------------------------------------------------------------------- | -------- | ------------------------------- |
+| Updated SRS (EN) | `docs/srs/SRS-{id}.md`                                              | Markdown | Updated SRS document (English)  |
+| Updated SRS (KR) | `docs/srs/SRS-{id}.kr.md`                                           | Markdown | Updated SRS document (Korean)   |
+| Scratchpad Copy  | `.ad-sdlc/scratchpad/documents/{project_id}/srs.md`                 | Markdown | Copy of the updated English SRS |
+| Changelog        | `.ad-sdlc/scratchpad/documents/{project_id}/srs_changelog.md`       | Markdown | Changes made                    |
+| Update Result    | `.ad-sdlc/scratchpad/documents/{project_id}/srs_update_result.yaml` | YAML     | Structured update result        |
+
+The scratchpad copy is the output this stage is required to produce. Later stages read it, so write it after every update, even when `docs/srs/` holds the published document.
 
 ### Update Result Schema
 
@@ -215,6 +218,7 @@ update_result:
 |                                                              |
 |  6. OUTPUT                                                   |
 |     +-- Write updated SRS                                    |
+|     +-- Copy it to documents/{project_id}/srs.md             |
 |     +-- Generate changelog entry                             |
 |     +-- Write update_result.yaml                             |
 |                                                              |
@@ -234,7 +238,7 @@ update_result:
 9. **Update Metadata**: Increment version, update timestamps (both versions)
 10. **Add Annotations**: Mark changes with [NEW]/[신규], [MODIFIED]/[수정됨]
 11. **Verify Consistency**: Run post-update validation on both versions
-12. **Write Output**: Save updated documents (EN and KR) and changelog
+12. **Write Output**: Save updated documents (EN and KR), the scratchpad copy of the English document, and changelog
 
 ## Update Modes
 

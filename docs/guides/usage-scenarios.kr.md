@@ -197,7 +197,7 @@ ad-sdlc run "Add JWT authentication middleware to all protected routes" \
   --mode enhancement
 
 # 2단계: 승인 전 영향 보고서 검토
-cat .ad-sdlc/scratchpad/impact_report.yaml
+cat .ad-sdlc/scratchpad/impact/*/impact_report.yaml
 
 # 3단계: 프롬프트에 따라 각 승인 게이트에서 승인 또는 거부
 ```

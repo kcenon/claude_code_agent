@@ -122,7 +122,9 @@ When the final validation stage (`validation-agent`) completes, the verifier
 builds the run's requirements traceability matrix with the RTM builder. It
 reads the artifacts of every completed stage of the run, located through their
 manifests: the PRD, SRS, and SDS, the issue list, work orders, implementation
-results, and reviews.
+results, and reviews. No RTM exists while the stage runs, so the validation
+agent neither reads nor writes one: its only required output is its
+`validation-report.yaml`.
 
 | Mode                    | Roots                       | Chain                                                                                          |
 | ----------------------- | --------------------------- | ---------------------------------------------------------------------------------------------- |

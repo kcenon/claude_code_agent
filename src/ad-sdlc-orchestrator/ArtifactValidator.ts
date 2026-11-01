@@ -124,7 +124,7 @@ export const GREENFIELD_ARTIFACTS: readonly StageArtifactMap[] = [
     stage: 'issue_generation',
     requiredArtifacts: [
       {
-        pathPattern: '.ad-sdlc/scratchpad/issues/issue_list.json',
+        pathPattern: '.ad-sdlc/scratchpad/issues/*/issue_list.json',
         description: 'Issue list',
         required: true,
       },
@@ -133,11 +133,6 @@ export const GREENFIELD_ARTIFACTS: readonly StageArtifactMap[] = [
   {
     stage: 'validation-agent',
     requiredArtifacts: [
-      {
-        pathPattern: '.ad-sdlc/scratchpad/vnv/*/rtm.yaml',
-        description: 'Requirements Traceability Matrix',
-        required: true,
-      },
       {
         pathPattern: '.ad-sdlc/scratchpad/vnv/*/validation-report.yaml',
         description: 'Validation report',
@@ -180,8 +175,8 @@ export const ENHANCEMENT_ARTIFACTS: readonly StageArtifactMap[] = [
     stage: 'document_reading',
     requiredArtifacts: [
       {
-        pathPattern: '.ad-sdlc/scratchpad/analysis/*/document_state.yaml',
-        description: 'Document state analysis',
+        pathPattern: '.ad-sdlc/scratchpad/state/*/current_state.yaml',
+        description: 'Current document state',
         required: true,
       },
     ],
@@ -210,8 +205,8 @@ export const ENHANCEMENT_ARTIFACTS: readonly StageArtifactMap[] = [
     stage: 'doc_code_comparison',
     requiredArtifacts: [
       {
-        pathPattern: '.ad-sdlc/scratchpad/analysis/*/comparison_report.yaml',
-        description: 'Doc-code comparison report',
+        pathPattern: '.ad-sdlc/scratchpad/analysis/*/comparison_result.yaml',
+        description: 'Doc-code comparison result',
         required: true,
       },
     ],
@@ -220,7 +215,7 @@ export const ENHANCEMENT_ARTIFACTS: readonly StageArtifactMap[] = [
     stage: 'impact_analysis',
     requiredArtifacts: [
       {
-        pathPattern: '.ad-sdlc/scratchpad/analysis/*/impact_report.yaml',
+        pathPattern: '.ad-sdlc/scratchpad/impact/*/impact_report.yaml',
         description: 'Impact analysis report',
         required: true,
       },
@@ -260,7 +255,7 @@ export const ENHANCEMENT_ARTIFACTS: readonly StageArtifactMap[] = [
     stage: 'issue_generation',
     requiredArtifacts: [
       {
-        pathPattern: '.ad-sdlc/scratchpad/issues/issue_list.json',
+        pathPattern: '.ad-sdlc/scratchpad/issues/*/issue_list.json',
         description: 'Issue list',
         required: true,
       },
@@ -269,11 +264,6 @@ export const ENHANCEMENT_ARTIFACTS: readonly StageArtifactMap[] = [
   {
     stage: 'validation-agent',
     requiredArtifacts: [
-      {
-        pathPattern: '.ad-sdlc/scratchpad/vnv/*/rtm.yaml',
-        description: 'Requirements Traceability Matrix',
-        required: true,
-      },
       {
         pathPattern: '.ad-sdlc/scratchpad/vnv/*/validation-report.yaml',
         description: 'Validation report',
@@ -300,11 +290,6 @@ export const IMPORT_ARTIFACTS: readonly StageArtifactMap[] = [
   {
     stage: 'validation-agent',
     requiredArtifacts: [
-      {
-        pathPattern: '.ad-sdlc/scratchpad/vnv/*/rtm.yaml',
-        description: 'Requirements Traceability Matrix',
-        required: true,
-      },
       {
         pathPattern: '.ad-sdlc/scratchpad/vnv/*/validation-report.yaml',
         description: 'Validation report',

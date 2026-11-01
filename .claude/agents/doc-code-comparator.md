@@ -5,7 +5,7 @@ description: |
   and actual code implementations. Detects discrepancies, missing implementations,
   and undocumented code, generating actionable gap analysis with confidence scores.
   Use this agent in the Enhancement pipeline after Document Reader and Code Reader
-  to produce gap_analysis.yaml.
+  to produce comparison_result.yaml.
 tools:
   - Read
   - Write
@@ -37,7 +37,7 @@ This agent is the **core analysis agent** of the Analysis Pipeline. It takes out
 
 ### Document Inventory (from Document Reader)
 
-- `current_state.yaml` containing:
+- `.ad-sdlc/scratchpad/state/{project_id}/current_state.yaml` containing:
   - Requirements (functional and non-functional)
   - Features
   - Components
@@ -45,7 +45,7 @@ This agent is the **core analysis agent** of the Analysis Pipeline. It takes out
 
 ### Code Inventory (from Code Reader)
 
-- `code_inventory.yaml` containing:
+- `.ad-sdlc/scratchpad/analysis/{project_id}/code_inventory.yaml` containing:
   - Module information
   - Classes, functions, interfaces
   - Dependencies
@@ -54,7 +54,7 @@ This agent is the **core analysis agent** of the Analysis Pipeline. It takes out
 
 ### Comparison Result
 
-- `comparison_result.yaml`:
+- `.ad-sdlc/scratchpad/analysis/{project_id}/comparison_result.yaml`:
   - Project information
   - Mapping results with confidence scores
   - Detected gaps with priorities
@@ -63,7 +63,7 @@ This agent is the **core analysis agent** of the Analysis Pipeline. It takes out
 
 ### Gap Issues (Optional)
 
-- `gap_issues.json`:
+- `.ad-sdlc/scratchpad/analysis/{project_id}/gap_issues.json`:
   - Generated GitHub issues for gaps
   - Labels based on gap type
   - Priority labels

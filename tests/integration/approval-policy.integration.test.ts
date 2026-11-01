@@ -46,7 +46,6 @@ const OUTPUTS: Record<string, Record<string, string>> = {
       'implementation_result:\n  work_order_id: WO-001\n  status: completed\n  changes:\n    - file_path: src/login.ts\n      change_type: create\n  verification:\n    tests_passed: true\n    build_passed: true\n    lint_passed: true\n',
   },
   'validation-agent': {
-    [`${S}/vnv/demo/rtm.yaml`]: 'rtm:\n  entries: []\n',
     [`${S}/vnv/demo/validation-report.yaml`]: 'validation_report:\n  overall_status: pass\n',
   },
   'pr-reviewer': {

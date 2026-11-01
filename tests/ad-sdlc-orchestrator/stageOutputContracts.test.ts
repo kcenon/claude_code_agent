@@ -172,6 +172,8 @@ describe('stage output contracts', () => {
     const definition = definitionOf('validation-agent');
     expect(definition).not.toContain('rtm.yaml');
     expect(definition).not.toContain('RTM not found');
+    expect(definition).toContain('A missing RTM is not a failure');
+    expect(definition).toContain('In Import a missing PRD, SRS, or SDS is expected');
     expect(definition).toContain('NEVER alter');
   });
 
