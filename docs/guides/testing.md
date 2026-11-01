@@ -437,7 +437,10 @@ drives the production path: the `ad-sdlc init` and `ad-sdlc run` CLI commands
 2. Otherwise runs `vitest.live.config.ts`. The run passes only when Vitest
    exits 0 and every selected live test passed; a failed, skipped, or empty
    run exits 1.
-3. Writes `live-lane.json` (execution metadata) and `live-lane-summary.md` to
+3. Removes credentials from every file in the output directory: the values of
+   its key and token settings, and anything shaped like an Anthropic API key or
+   a GitHub token.
+4. Writes `live-lane.json` (execution metadata) and `live-lane-summary.md` to
    the output directory, and appends the summary to `$GITHUB_STEP_SUMMARY`
    when that variable is set.
 
@@ -485,9 +488,10 @@ installed version, the `ad-sdlc` version, the Node.js version and platform,
 `startedAt`, `finishedAt`, `durationMs`, test counts, `exitCode`, the smoke's
 stage evidence (SDK session ID, turn count, token usage, stage status), the
 outcome of each Import and Enhancement scenario (`importScenarios`,
-`enhancementScenarios`), and the GitHub Actions run URL, SHA, and ref when
-available. Setting values are never written; only the
-names of missing settings are.
+`enhancementScenarios`), `scrubbedFiles` (the output files that held a
+credential; a non-empty list means the run handled one, so revoke it), and the
+GitHub Actions run URL, SHA, and ref when available. Setting values are never
+written; only the names of missing settings are.
 
 The live suite has three files. `AD_SDLC_LIVE_SUITE` selects which ones run, so
 a run that does not ask for the Enhancement scenarios never pays for them:
@@ -607,7 +611,12 @@ the lane on a manual `workflow_dispatch` only, with inputs `max_turns`,
 a 300 minute job timeout (the stage budget is what bounds a run), and one run at
 a time. It never runs on pull requests (including forks), pushes,
 or schedules. It uploads the output directory as the
-`live-acceptance-metadata` artifact. GitHub dispatches a workflow only from a
+`live-acceptance-metadata` artifact, and only when `live-lane.json` exists,
+because the lane writes that file after removing credentials. Anyone can read
+the logs and download the artifacts of a public repository, and GitHub masks
+secrets only in logs. Both name the target repository, and the reports hold the
+text of its issues and documents, so a target must hold only fixture content.
+GitHub dispatches a workflow only from a
 file on the default branch (`develop`). It reads the target repository from the
 `AD_SDLC_LIVE_GITHUB_REPO` repository variable, the optional Enhancement target
 from the `AD_SDLC_LIVE_ENHANCEMENT_GITHUB_REPO` repository variable, and the token

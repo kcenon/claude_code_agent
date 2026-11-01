@@ -84,8 +84,11 @@ jobs:
           echo "::error::The live lane exited before writing test-output/live/live-lane.json"
           exit 1
 
+      # The lane removes credentials from the output before it writes live-lane.json, so
+      # without that file the output is not known to be clean. The artifacts of a public
+      # repository are public, and GitHub masks secrets only in logs.
       - name: Upload execution metadata
-        if: always()
+        if: always() && hashFiles('test-output/live/live-lane.json') != ''
         uses: actions/upload-artifact@v7
         with:
           name: live-acceptance-metadata

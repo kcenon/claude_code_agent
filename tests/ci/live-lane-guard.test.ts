@@ -15,6 +15,7 @@ import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { load } from 'js-yaml';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   LIVE_BUDGET_SETTINGS,
@@ -198,6 +199,7 @@ describe('live lane runner', () => {
       evidence: null,
       importScenarios: [],
       enhancementScenarios: [],
+      scrubbedFiles: [],
       suite: 'import',
       node: process.version,
       sdk: { package: '@anthropic-ai/claude-agent-sdk' },
@@ -237,7 +239,10 @@ describe('live lane runner', () => {
 
   // The executed path is exercised with a stand-in Vitest entry point in a
   // scratch root, so no real live test and no SDK call can run.
-  async function fakeRoot(outcome: 'pass' | 'empty' | 'fail'): Promise<string> {
+  async function fakeRoot(
+    outcome: 'pass' | 'empty' | 'fail',
+    outputFiles: Readonly<Record<string, string>> = {}
+  ): Promise<string> {
     const root = join(dir, `root-${outcome}`);
     await mkdir(join(root, 'node_modules', 'vitest'), { recursive: true });
     await writeFile(join(root, 'package.json'), JSON.stringify({ version: '0.0.0-test' }));
@@ -267,12 +272,13 @@ describe('live lane runner', () => {
     await writeFile(
       join(root, 'node_modules', 'vitest', 'vitest.mjs'),
       [
-        "import { writeFileSync } from 'node:fs';",
-        "import { join } from 'node:path';",
+        "import { mkdirSync, writeFileSync } from 'node:fs';",
+        "import { dirname, join } from 'node:path';",
         "const out = process.argv.find((arg) => arg.startsWith('--outputFile.json=')).split('=').slice(1).join('=');",
         `writeFileSync(out, ${JSON.stringify(JSON.stringify(report))});`,
         `if (${String(outcome === 'pass')}) writeFileSync(join(process.env.AD_SDLC_LIVE_OUTPUT_DIR, 'smoke-evidence.json'), '{"sessionId":"s-1"}');`,
         `if (${String(outcome === 'pass')}) writeFileSync(join(process.env.AD_SDLC_LIVE_OUTPUT_DIR, 'import-acceptance-report.json'), '{"scenarios":[{"id":"delivery","outcome":"passed"}]}');`,
+        `for (const [name, text] of Object.entries(${JSON.stringify(outputFiles)})) { const path = join(process.env.AD_SDLC_LIVE_OUTPUT_DIR, name); mkdirSync(dirname(path), { recursive: true }); writeFileSync(path, text); }`,
         `process.exit(${outcome === 'fail' ? 1 : 0});`,
       ].join('\n')
     );
@@ -304,8 +310,65 @@ describe('live lane runner', () => {
       expect(written.status).toBe(status);
       expect(JSON.stringify(written)).not.toContain('placeholder-not-a-key');
       expect(JSON.stringify(written)).not.toContain('placeholder-not-a-token');
+      expect(written.scrubbedFiles).toEqual([]);
     }
   );
+
+  describe('credentials in the output', () => {
+    // Built at run time, so this file holds no credential-shaped text.
+    const apiKey = ['sk', 'ant', 'a'.repeat(24)].join('-');
+    const classicToken = ['ghp', 'b'.repeat(36)].join('_');
+    const fineGrainedToken = ['github', 'pat', 'c'.repeat(40)].join('_');
+    const lane = (root: string): ReturnType<typeof runLiveLane> =>
+      runLiveLane({ env: offlineEnv(REQUIRED_PLACEHOLDERS), root, log: () => undefined });
+    const output = (root: string, name: string): Promise<string> =>
+      readFile(join(root, 'test-output', 'live', name), 'utf8');
+
+    it('removes the lane secrets and credential shapes from every output file', async () => {
+      const root = await fakeRoot('pass', {
+        [LIVE_FILES.importSummary]: `Stage failed: placeholder-not-a-token and ${apiKey}.`,
+        [join('nested', 'stage.log')]: `${classicToken} ${fineGrainedToken} placeholder-not-a-key`,
+        'clean.txt': 'nothing to remove\n',
+      });
+
+      const { metadata } = lane(root);
+
+      expect(metadata.scrubbedFiles).toEqual([
+        LIVE_FILES.importSummary,
+        join('nested', 'stage.log'),
+      ]);
+      expect(await output(root, LIVE_FILES.importSummary)).toBe(
+        'Stage failed: [redacted] and [redacted].'
+      );
+      expect(await output(root, join('nested', 'stage.log'))).toBe(
+        '[redacted] [redacted] [redacted]'
+      );
+      expect(await output(root, 'clean.txt')).toBe('nothing to remove\n');
+    });
+
+    it('reads what the metadata quotes only after removing them', async () => {
+      const root = await fakeRoot('pass', {
+        [LIVE_FILES.evidence]: JSON.stringify({ sessionId: classicToken }),
+      });
+
+      const { metadata } = lane(root);
+
+      expect(metadata.evidence).toEqual({ sessionId: '[redacted]' });
+      expect(await output(root, LIVE_FILES.metadata)).not.toContain(classicToken);
+      expect(await output(root, LIVE_FILES.summary)).toContain(LIVE_FILES.evidence);
+    });
+
+    it('makes the workflow upload the output only after the lane removed them', async () => {
+      const workflow = load(
+        await readFile(join(repoRoot, '.github', 'workflows', 'live-acceptance.yml'), 'utf8')
+      ) as { jobs: { live: { steps: { name?: string; if?: string }[] } } };
+      const upload = workflow.jobs.live.steps.find(
+        (step) => step.name === 'Upload execution metadata'
+      );
+
+      expect(upload?.if).toContain(`hashFiles('test-output/live/${LIVE_FILES.metadata}') != ''`);
+    });
+  });
 });
 
 describe('live smoke harness (offline)', () => {

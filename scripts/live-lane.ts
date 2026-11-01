@@ -14,7 +14,8 @@
  * where no live test passed), 2 not executed. A missing credential therefore
  * never yields a successful exit.
  *
- * Secrets are never written: the metadata names missing settings only.
+ * Secrets are never written: the metadata names missing settings only, and the
+ * lane removes credentials from every output file before it writes the metadata.
  */
 
 import { spawnSync } from 'node:child_process';
@@ -22,12 +23,13 @@ import {
   appendFileSync,
   existsSync,
   mkdirSync,
+  readdirSync,
   readFileSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
 import { homedir } from 'node:os';
-import { isAbsolute, join, resolve } from 'node:path';
+import { isAbsolute, join, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 /** Lane identifier written to the metadata. */
@@ -221,6 +223,8 @@ export interface LiveLaneMetadata {
   readonly importScenarios: readonly { readonly id: string; readonly outcome: string }[];
   /** Outcome per Enhancement scenario (#957) from `enhancement-acceptance-report.json`, when present. */
   readonly enhancementScenarios: readonly { readonly id: string; readonly outcome: string }[];
+  /** Output files that held a credential, now replaced. A non-empty list means revoke it. */
+  readonly scrubbedFiles: readonly string[];
   readonly ci: {
     readonly runUrl: string | null;
     readonly sha: string | null;
@@ -431,6 +435,7 @@ export function renderLiveSummary(metadata: LiveLaneMetadata): string {
         .map((scenario) => `${scenario.id} ${scenario.outcome}`)
         .join(', ') || '—',
     ],
+    ['Credentials removed from', metadata.scrubbedFiles.join(', ') || '—'],
     ['SDK', `${metadata.sdk.package} ${metadata.sdk.installed ?? 'not installed'}`],
     ['Node.js', metadata.node],
     ['Started / finished', `${metadata.startedAt} / ${metadata.finishedAt}`],
@@ -484,6 +489,55 @@ export function scenarioOutcomes(
     id: stringField(scenario, 'id') ?? 'unknown',
     outcome: stringField(scenario, 'outcome') ?? 'unknown',
   }));
+}
+
+/** Replaces a credential in an output file. */
+const REDACTED = '[redacted]';
+
+/** Settings whose values must never reach an output file. */
+const SECRET_SETTINGS = [
+  'ANTHROPIC_API_KEY',
+  'CLAUDE_API_KEY',
+  'AD_SDLC_LIVE_GITHUB_TOKEN',
+  'GH_TOKEN',
+  'GITHUB_TOKEN',
+] as const;
+
+/**
+ * Credential shapes, for a value the lane does not hold, such as one a stage found
+ * and quoted: Anthropic API keys and GitHub tokens.
+ */
+const CREDENTIAL_PATTERNS: readonly RegExp[] = [
+  /sk-ant-[\w-]{8,}/gu,
+  /\bgh[pousr]_\w{20,}/gu,
+  /\bgithub_pat_\w{20,}/gu,
+];
+
+/**
+ * Remove credentials from every file in the output directory. Reports quote stage
+ * errors and text a model wrote, and the workflow uploads this directory as an
+ * artifact: the artifacts of a public repository are public, and GitHub masks secrets
+ * only in logs.
+ * @param dir - Output directory
+ * @param env - Environment holding the secret values
+ * @returns Sorted paths, relative to `dir`, of the files that held a credential
+ */
+export function scrubOutputDirectory(dir: string, env: NodeJS.ProcessEnv): string[] {
+  const secrets = SECRET_SETTINGS.map((name) => env[name]).filter(nonEmpty);
+  const scrubbed: string[] = [];
+  for (const entry of readdirSync(dir, { recursive: true, withFileTypes: true })) {
+    if (!entry.isFile()) continue;
+    const path = join(entry.parentPath, entry.name);
+    const text = readFileSync(path, 'utf8');
+    const clean = CREDENTIAL_PATTERNS.reduce(
+      (current, pattern) => current.replace(pattern, REDACTED),
+      secrets.reduce((current, secret) => current.split(secret).join(REDACTED), text)
+    );
+    if (clean === text) continue;
+    writeFileSync(path, clean);
+    scrubbed.push(relative(dir, path));
+  }
+  return scrubbed.sort();
 }
 
 /** Options for {@link runLiveLane}. */
@@ -553,6 +607,12 @@ export function runLiveLane(options: RunLiveLaneOptions): {
     exitCode = status === 'passed' ? LIVE_EXIT.passed : LIVE_EXIT.failed;
   }
 
+  // Before anything below reads these files and before the metadata exists: the
+  // workflow uploads the directory only when the metadata does.
+  const scrubbedFiles = settings.ready ? scrubOutputDirectory(settings.outputDir, env) : [];
+  if (scrubbedFiles.length > 0)
+    log(`LIVE LANE: credentials removed from ${scrubbedFiles.join(', ')}; revoke them`);
+
   const finished = now();
   const packageJson = readJson(join(root, 'package.json'));
   const sdkPackageJson = readJson(
@@ -588,6 +648,7 @@ export function runLiveLane(options: RunLiveLaneOptions): {
     evidence: readJson(file('evidence')) ?? null,
     importScenarios: scenarioOutcomes(readJson(file('importReport'))),
     enhancementScenarios: scenarioOutcomes(readJson(file('enhancementReport'))),
+    scrubbedFiles,
     ci: {
       runUrl:
         nonEmpty(server) && nonEmpty(repository) && nonEmpty(runId)
