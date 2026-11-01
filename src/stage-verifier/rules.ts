@@ -81,6 +81,45 @@ export function shouldRunRule(ruleRigor: VnvRigor, currentRigor: VnvRigor): bool
 }
 
 // =============================================================================
+// Required sections
+// =============================================================================
+
+/**
+ * A required document section. Any of its names satisfies it: the first is the
+ * name the writer template uses, and the others stay accepted for existing
+ * documents.
+ */
+type RequiredSection = readonly [string, ...string[]];
+
+/**
+ * The name of a required section in check messages and details.
+ * @param names - Accepted names
+ * @returns The names joined by "or"
+ */
+function sectionLabel(names: RequiredSection): string {
+  return names.join(' or ');
+}
+
+/**
+ * Required sections that no heading of a document satisfies.
+ * @param headings - Document headings
+ * @param required - Required sections
+ * @returns Labels of the missing sections
+ */
+function missingSections(
+  headings: readonly string[],
+  required: readonly RequiredSection[]
+): string[] {
+  const lower = headings.map((heading) => heading.toLowerCase());
+  return required
+    .filter(
+      (names) =>
+        !names.some((name) => lower.some((heading) => heading.includes(name.toLowerCase())))
+    )
+    .map(sectionLabel);
+}
+
+// =============================================================================
 // Collection Stage Rules
 // =============================================================================
 
@@ -267,10 +306,10 @@ const collectionRules: readonly VerificationRule[] = [
 // PRD Stage Rules (prd_generation + prd_update)
 // =============================================================================
 
-const PRD_REQUIRED_SECTIONS = [
-  'Introduction',
-  'Functional Requirements',
-  'Non-Functional Requirements',
+const PRD_REQUIRED_SECTIONS: readonly RequiredSection[] = [
+  ['Executive Summary', 'Introduction'],
+  ['Functional Requirements'],
+  ['Non-Functional Requirements'],
 ];
 
 const prdRules: readonly VerificationRule[] = [
@@ -305,10 +344,7 @@ const prdRules: readonly VerificationRule[] = [
       }
 
       const headings = extractMarkdownHeadings(content);
-      const headingsLower = headings.map((h) => h.toLowerCase());
-      const missing = PRD_REQUIRED_SECTIONS.filter(
-        (section) => !headingsLower.some((h) => h.includes(section.toLowerCase()))
-      );
+      const missing = missingSections(headings, PRD_REQUIRED_SECTIONS);
 
       if (missing.length > 0) {
         return failCheck(
@@ -322,7 +358,7 @@ const prdRules: readonly VerificationRule[] = [
       }
 
       return passCheck(this, `PRD contains all required sections: ${artifact}`, {
-        requiredSections: PRD_REQUIRED_SECTIONS,
+        requiredSections: PRD_REQUIRED_SECTIONS.map(sectionLabel),
       });
     },
   },
@@ -359,7 +395,10 @@ const prdRules: readonly VerificationRule[] = [
 // SRS Stage Rules (srs_generation + srs_update)
 // =============================================================================
 
-const SRS_REQUIRED_SECTIONS = ['Introduction', 'Software Features'];
+const SRS_REQUIRED_SECTIONS: readonly RequiredSection[] = [
+  ['Introduction'],
+  ['System Features', 'Software Features'],
+];
 
 const srsRules: readonly VerificationRule[] = [
   {
@@ -393,10 +432,7 @@ const srsRules: readonly VerificationRule[] = [
       }
 
       const headings = extractMarkdownHeadings(content);
-      const headingsLower = headings.map((h) => h.toLowerCase());
-      const missing = SRS_REQUIRED_SECTIONS.filter(
-        (section) => !headingsLower.some((h) => h.includes(section.toLowerCase()))
-      );
+      const missing = missingSections(headings, SRS_REQUIRED_SECTIONS);
 
       if (missing.length > 0) {
         return failCheck(
@@ -410,7 +446,7 @@ const srsRules: readonly VerificationRule[] = [
       }
 
       return passCheck(this, `SRS contains all required sections: ${artifact}`, {
-        requiredSections: SRS_REQUIRED_SECTIONS,
+        requiredSections: SRS_REQUIRED_SECTIONS.map(sectionLabel),
       });
     },
   },
@@ -501,7 +537,11 @@ const srsRules: readonly VerificationRule[] = [
 // SDS Stage Rules (sds_generation + sds_update)
 // =============================================================================
 
-const SDS_REQUIRED_SECTIONS = ['Introduction', 'System Architecture', 'Component Design'];
+const SDS_REQUIRED_SECTIONS: readonly RequiredSection[] = [
+  ['Introduction'],
+  ['System Architecture'],
+  ['Component Design'],
+];
 
 const sdsRules: readonly VerificationRule[] = [
   {
@@ -535,10 +575,7 @@ const sdsRules: readonly VerificationRule[] = [
       }
 
       const headings = extractMarkdownHeadings(content);
-      const headingsLower = headings.map((h) => h.toLowerCase());
-      const missing = SDS_REQUIRED_SECTIONS.filter(
-        (section) => !headingsLower.some((h) => h.includes(section.toLowerCase()))
-      );
+      const missing = missingSections(headings, SDS_REQUIRED_SECTIONS);
 
       if (missing.length > 0) {
         return failCheck(
@@ -552,7 +589,7 @@ const sdsRules: readonly VerificationRule[] = [
       }
 
       return passCheck(this, `SDS contains all required sections: ${artifact}`, {
-        requiredSections: SDS_REQUIRED_SECTIONS,
+        requiredSections: SDS_REQUIRED_SECTIONS.map(sectionLabel),
       });
     },
   },

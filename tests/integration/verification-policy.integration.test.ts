@@ -351,6 +351,77 @@ describe('verification policy on the production orchestrator path', () => {
     });
   });
 
+  describe('Greenfield documents that follow the writer templates', () => {
+    const outputs = (): StageOutputs => ({
+      'project-initializer': { [`${S}/README.md`]: 'scratchpad\n' },
+      'mode-detector': { [`${S}/mode/demo/mode.yaml`]: 'mode: greenfield\n' },
+      collector: {
+        [`${S}/info/demo/collected_info.yaml`]: [
+          'requirements:',
+          '  functional:',
+          '    - id: FR-001',
+          '      title: Login',
+          '      description: Users sign in with credentials',
+          '      acceptance_criteria:',
+          '        - Valid credentials sign in',
+          '',
+        ].join('\n'),
+      },
+      // The sections of prd-writer.md, which has no Introduction.
+      'prd-writer': {
+        [`${S}/documents/demo/prd.md`]: [
+          '# PRD: Demo',
+          '',
+          '## 1. Executive Summary',
+          '',
+          'The demo product lets registered users sign in with their credentials and keeps',
+          'their session open until they sign out, so that they do not have to repeat it.',
+          '',
+          '## 5. Functional Requirements',
+          '',
+          '### FR-001: Login',
+          '',
+          '- **Priority**: P0',
+          '',
+          '## 6. Non-Functional Requirements',
+          '',
+          '### NFR-001: Response time',
+          '',
+        ].join('\n'),
+      },
+      // The sections of srs-writer.md, which names its features System Features.
+      'srs-writer': {
+        [`${S}/documents/demo/srs.md`]: [
+          '# SRS: Demo',
+          '',
+          '## 1. Introduction',
+          '',
+          '## 3. System Features',
+          '',
+          '### SF-001: Login',
+          '',
+          '**Source**: FR-001 (from PRD)',
+          '',
+        ].join('\n'),
+      },
+    });
+
+    it('delivery: both document stages pass their required section checks', async () => {
+      const { result, failed } = await runPipeline(
+        'greenfield',
+        outputs(),
+        'delivery',
+        'srs_generation'
+      );
+
+      expect(failed).toBe(false);
+      for (const name of ['prd_generation', 'srs_generation'] as const) {
+        expect(stage(result, name).status).toBe('completed');
+        expect(failingChecks(result, name)).toEqual([]);
+      }
+    });
+  });
+
   describe('Greenfield PRD missing required sections', () => {
     const outputs = (): StageOutputs => ({
       'project-initializer': { [`${S}/README.md`]: 'scratchpad\n' },

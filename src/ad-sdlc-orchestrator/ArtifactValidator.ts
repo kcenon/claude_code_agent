@@ -506,8 +506,7 @@ export class ArtifactValidator {
     try {
       const content = await fs.readFile(srsFiles[0] as string, 'utf8');
 
-      // Check for features section. VR-SRS-002 requires "Software Features", and
-      // the srs-writer template says "System Features".
+      // Check for features section, under either name VR-SRS-002 accepts.
       if (!/##\s*\d*\.?\s*(?:System|Software) Features/i.test(content)) {
         warnings.push('SRS is missing a System Features or Software Features section');
       }
