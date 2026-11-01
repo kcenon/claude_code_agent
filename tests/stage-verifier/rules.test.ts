@@ -3,7 +3,11 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { resolve } from 'node:path';
+import type { StageName } from '../../src/ad-sdlc-orchestrator/types.js';
 import { VERIFICATION_RULES, shouldRunRule } from '../../src/stage-verifier/rules.js';
+import type { VerificationRule } from '../../src/stage-verifier/types.js';
+import { locateDocuments } from '../../src/vnv/traceability.js';
 
 // Mock node:fs/promises so rules that read files can be tested
 vi.mock('node:fs/promises', () => ({
@@ -1646,5 +1650,183 @@ describe('PRD rules — error paths', () => {
     const result = await rule.check(['docs/PRD.md'], '/project');
     expect(result.passed).toBe(false);
     expect(result.message).toContain('Cannot read');
+  });
+});
+
+// =============================================================================
+// Which file a document or issue check reads
+// =============================================================================
+
+/**
+ * A stage's artifact order comes from manifest entry IDs, which hash the session
+ * ID (`artifactId`), so a run can get any order. These tests fix the order.
+ */
+describe('Document and issue checks whatever the artifact order', () => {
+  const S = '.ad-sdlc/scratchpad';
+  const PROJECT = '/project';
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  function serve(files: Readonly<Record<string, string>>): void {
+    const contents = new Map(
+      Object.entries(files).map(([location, text]) => [resolve(PROJECT, location), text])
+    );
+    mockReadFile.mockImplementation((location) => {
+      const text = contents.get(String(location));
+      return text === undefined
+        ? Promise.reject(new Error(`ENOENT: ${String(location)}`))
+        : Promise.resolve(text);
+    });
+  }
+
+  function ruleOf(stage: StageName, checkId: string): VerificationRule {
+    return VERIFICATION_RULES.get(stage)!.find((rule) => rule.checkId === checkId)!;
+  }
+
+  const DOCUMENTS = [
+    {
+      id: 'PRD',
+      type: 'prd',
+      generation: 'prd_generation',
+      update: 'prd_update',
+      checks: ['VR-PRD-001', 'VR-PRD-002', 'VR-PRD-003'],
+      english:
+        '## Introduction\n## Functional Requirements\n### FR-001: Login\n## Non-Functional Requirements\n',
+      korean: '## 소개\n## 기능 요구사항\n### FR-001: 로그인\n## 비기능 요구사항\n',
+    },
+    {
+      id: 'SRS',
+      type: 'srs',
+      generation: 'srs_generation',
+      update: 'srs_update',
+      checks: ['VR-SRS-001', 'VR-SRS-002', 'VR-SRS-003', 'VR-SRS-004'],
+      english: '## Introduction\n## Software Features\n### SF-001: Login\n',
+      korean: '## 소개\n## 소프트웨어 기능\n### SF-001: 로그인\n',
+    },
+    {
+      id: 'SDS',
+      type: 'sds',
+      generation: 'sds_generation',
+      update: 'sds_update',
+      checks: ['VR-SDS-001', 'VR-SDS-002', 'VR-SDS-003', 'VR-SDS-004'],
+      english: '## Introduction\n## System Architecture\n## Component Design\n### CMP-001: Auth\n',
+      korean: '## 소개\n## 시스템 아키텍처\n## 컴포넌트 설계\n### CMP-001: 인증\n',
+    },
+  ] as const;
+
+  it.each(DOCUMENTS)(
+    '$id: checks the English file when a Korean copy is listed first',
+    async ({ id, type, generation, english, korean }) => {
+      const englishFile = `docs/${type}/${id}-demo.md`;
+      const koreanFile = `docs/${type}/${id}-demo.kr.md`;
+      serve({ [englishFile]: english, [koreanFile]: korean });
+
+      const result = await ruleOf(generation, `VR-${id}-002`).check(
+        [koreanFile, englishFile],
+        PROJECT
+      );
+
+      expect(result.passed).toBe(true);
+      expect(result.message).toContain(englishFile);
+    }
+  );
+
+  it.each(DOCUMENTS)(
+    '$id: names the file it read when the English file misses a section',
+    async ({ id, type, generation }) => {
+      const englishFile = `docs/${type}/${id}-demo.md`;
+      serve({ [englishFile]: '## Introduction\n' });
+
+      const result = await ruleOf(generation, `VR-${id}-002`).check([englishFile], PROJECT);
+
+      expect(result.passed).toBe(false);
+      expect(result.message).toContain(englishFile);
+    }
+  );
+
+  it.each(DOCUMENTS)(
+    '$id: reads the contract copy after a changelog and an update result',
+    async ({ id, type, update, english }) => {
+      const changelog = `${S}/documents/x/${type}_changelog.md`;
+      const updateResult = `${S}/documents/x/${type}_update_result.yaml`;
+      const contractCopy = `${S}/documents/x/${type}.md`;
+      serve({
+        [changelog]: '## Changelog\n',
+        [updateResult]: 'update_result: {}\n',
+        [contractCopy]: english,
+      });
+      const artifacts = [changelog, updateResult, contractCopy];
+
+      const exists = await ruleOf(update, `VR-${id}-001`).check(artifacts, PROJECT);
+      const sections = await ruleOf(update, `VR-${id}-002`).check(artifacts, PROJECT);
+
+      expect(exists.message).toContain(contractCopy);
+      expect(sections.passed).toBe(true);
+      expect(sections.message).toContain(contractCopy);
+    }
+  );
+
+  it.each(DOCUMENTS)(
+    '$id: prefers the contract copy to a published copy, as locateDocuments does',
+    async ({ id, type, generation, english }) => {
+      const publishedFile = `docs/${type}/${id}-demo.md`;
+      const contractCopy = `${S}/documents/x/${type}.md`;
+      serve({ [publishedFile]: '## Stale\n', [contractCopy]: english });
+      const artifacts = [publishedFile, contractCopy];
+
+      const result = await ruleOf(generation, `VR-${id}-002`).check(artifacts, PROJECT);
+
+      expect(result.passed).toBe(true);
+      expect(result.message).toContain(contractCopy);
+      expect(locateDocuments(artifacts)[type]).toBe(contractCopy);
+    }
+  );
+
+  it.each(DOCUMENTS)(
+    '$id: reports no artifact when only Korean copies exist, as locateDocuments does',
+    async ({ id, type, generation, checks, korean }) => {
+      const artifacts = [`docs/${type}/${id}-demo.kr.md`, `${S}/documents/x/${type}.kr.md`];
+      serve(Object.fromEntries(artifacts.map((location) => [location, korean])));
+
+      for (const checkId of checks) {
+        const result = await ruleOf(generation, checkId).check(artifacts, PROJECT);
+        expect(result.passed, checkId).toBe(false);
+        expect(result.message, checkId).toContain(`No ${id} artifact`);
+      }
+      expect(locateDocuments(artifacts)).toEqual({});
+    }
+  );
+
+  describe('issue list', () => {
+    const graph = `${S}/issues/x/dependency_graph.json`;
+    const list = `${S}/issues/x/issue_list.json`;
+    const artifacts = [graph, list];
+
+    beforeEach(() => {
+      serve({
+        [graph]: JSON.stringify({ nodes: [{ id: 'ISS-001' }, { id: 'ISS-002' }], edges: [] }),
+        [list]: JSON.stringify({ issues: [{ id: 'ISS-001' }, { id: 'ISS-002' }] }),
+      });
+    });
+
+    it('VR-ISS-001: names the issue list when the dependency graph is listed first', async () => {
+      const result = await ruleOf('issue_generation', 'VR-ISS-001').check(artifacts, PROJECT);
+      expect(result.message).toContain(list);
+    });
+
+    it('VR-ISS-002: parses the issue list when the dependency graph is listed first', async () => {
+      const result = await ruleOf('issue_generation', 'VR-ISS-002').check(artifacts, PROJECT);
+      expect(result.passed).toBe(true);
+      expect(mockReadFile).toHaveBeenCalledWith(resolve(PROJECT, list), 'utf-8');
+      expect(mockReadFile).not.toHaveBeenCalledWith(resolve(PROJECT, graph), 'utf-8');
+    });
+
+    it('VR-ISS-003: counts the issues when the dependency graph is listed first', async () => {
+      const result = await ruleOf('issue_generation', 'VR-ISS-003').check(artifacts, PROJECT);
+      expect(result.passed).toBe(true);
+      expect(result.details?.issueCount).toBe(2);
+    });
   });
 });

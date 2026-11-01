@@ -12,7 +12,19 @@ import { readFile } from 'node:fs/promises';
 import { isAbsolute, resolve } from 'node:path';
 import * as yaml from 'js-yaml';
 
+import type { DocumentType } from '../vnv/types.js';
 import type { VerificationCheck, VerificationRule } from './types.js';
+
+/**
+ * Locations of each document type: the scratchpad copy
+ * (`documents/<project>/prd.md`), the required output of every document stage,
+ * first, then a published copy (`docs/prd/PRD-<project>.md`, `docs/PRD.md`).
+ */
+const DOCUMENT_PATTERNS: Readonly<Record<DocumentType, readonly RegExp[]>> = {
+  prd: [/(?:^|\/)documents\/[^/]+\/prd\.md$/u, /(?:^|\/)PRD(?:[-_][^/]*)?\.md$/u],
+  srs: [/(?:^|\/)documents\/[^/]+\/srs\.md$/u, /(?:^|\/)SRS(?:[-_][^/]*)?\.md$/u],
+  sds: [/(?:^|\/)documents\/[^/]+\/sds\.md$/u, /(?:^|\/)SDS(?:[-_][^/]*)?\.md$/u],
+};
 
 /** Rule identity fields copied into every check result. */
 export type RuleIdentity = Pick<VerificationRule, 'checkId' | 'name' | 'category' | 'severity'>;
@@ -78,6 +90,52 @@ export function findArtifacts(artifacts: readonly string[], patterns: readonly R
     const location = normalizeArtifact(artifact);
     return patterns.some((pattern) => pattern.test(location));
   });
+}
+
+/**
+ * Drop localized `.kr.md` copies. Their headings are translated, and a stage's
+ * artifact order is a hash of the session ID, so a first match among both
+ * languages would depend on the session.
+ * @param artifacts - Stage artifact locations
+ * @returns Locations that are not localized copies, in input order
+ */
+function withoutLocalizedCopies(artifacts: readonly string[]): string[] {
+  return artifacts.filter((artifact) => !normalizeArtifact(artifact).endsWith('.kr.md'));
+}
+
+/**
+ * Locate a document among artifact locations by its known locations.
+ * @param artifacts - Artifact locations
+ * @param type - Document type
+ * @returns The document's location, or undefined when none matches
+ */
+export function locateDocument(
+  artifacts: readonly string[],
+  type: DocumentType
+): string | undefined {
+  const candidates = withoutLocalizedCopies(artifacts);
+  for (const pattern of DOCUMENT_PATTERNS[type]) {
+    const found = findArtifacts(candidates, [pattern])[0];
+    if (found !== undefined) return found;
+  }
+  return undefined;
+}
+
+/**
+ * Find the file a document check reads: {@link locateDocument}, then the first
+ * other location that names the type, so a document at an unknown location is
+ * still checked.
+ * @param artifacts - Stage artifact locations
+ * @param type - Document type
+ * @returns The document's location, or undefined when only localized copies exist
+ */
+export function findDocument(artifacts: readonly string[], type: DocumentType): string | undefined {
+  const candidates = withoutLocalizedCopies(artifacts);
+  return (
+    locateDocument(candidates, type) ??
+    findArtifact(candidates, type.toUpperCase()) ??
+    findArtifact(candidates, type)
+  );
 }
 
 /**

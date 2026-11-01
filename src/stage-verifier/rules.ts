@@ -34,6 +34,7 @@ import {
   extractMarkdownHeadings,
   failCheck,
   findArtifact,
+  findDocument,
   passCheck,
   safeParseJson,
   safeParseYaml,
@@ -41,6 +42,7 @@ import {
   skipCheck,
 } from './ruleSupport.js';
 import {
+  findIssueList,
   implementationRules,
   issueAcceptanceCriteriaRule,
   issueReadingRules,
@@ -279,7 +281,7 @@ const prdRules: readonly VerificationRule[] = [
     minRigor: 'minimal',
     severity: 'error',
     check(artifacts): Promise<VerificationCheck> {
-      const artifact = findArtifact(artifacts, 'PRD') ?? findArtifact(artifacts, 'prd');
+      const artifact = findDocument(artifacts, 'prd');
       if (artifact === undefined) {
         return Promise.resolve(failCheck(this, 'No PRD artifact found in stage output'));
       }
@@ -293,7 +295,7 @@ const prdRules: readonly VerificationRule[] = [
     minRigor: 'standard',
     severity: 'error',
     async check(artifacts, projectDir): Promise<VerificationCheck> {
-      const artifact = findArtifact(artifacts, 'PRD') ?? findArtifact(artifacts, 'prd');
+      const artifact = findDocument(artifacts, 'prd');
       if (artifact === undefined) {
         return failCheck(this, 'No PRD artifact to check sections');
       }
@@ -309,13 +311,17 @@ const prdRules: readonly VerificationRule[] = [
       );
 
       if (missing.length > 0) {
-        return failCheck(this, `PRD missing required sections: ${missing.join(', ')}`, {
-          missingSections: missing,
-          foundHeadings: headings,
-        });
+        return failCheck(
+          this,
+          `PRD missing required sections in ${artifact}: ${missing.join(', ')}`,
+          {
+            missingSections: missing,
+            foundHeadings: headings,
+          }
+        );
       }
 
-      return passCheck(this, 'PRD contains all required sections', {
+      return passCheck(this, `PRD contains all required sections: ${artifact}`, {
         requiredSections: PRD_REQUIRED_SECTIONS,
       });
     },
@@ -327,7 +333,7 @@ const prdRules: readonly VerificationRule[] = [
     minRigor: 'standard',
     severity: 'warning',
     async check(artifacts, projectDir): Promise<VerificationCheck> {
-      const artifact = findArtifact(artifacts, 'PRD') ?? findArtifact(artifacts, 'prd');
+      const artifact = findDocument(artifacts, 'prd');
       if (artifact === undefined) {
         return failCheck(this, 'No PRD artifact to check FR identifiers');
       }
@@ -363,7 +369,7 @@ const srsRules: readonly VerificationRule[] = [
     minRigor: 'minimal',
     severity: 'error',
     check(artifacts): Promise<VerificationCheck> {
-      const artifact = findArtifact(artifacts, 'SRS') ?? findArtifact(artifacts, 'srs');
+      const artifact = findDocument(artifacts, 'srs');
       if (artifact === undefined) {
         return Promise.resolve(failCheck(this, 'No SRS artifact found in stage output'));
       }
@@ -377,7 +383,7 @@ const srsRules: readonly VerificationRule[] = [
     minRigor: 'standard',
     severity: 'error',
     async check(artifacts, projectDir): Promise<VerificationCheck> {
-      const artifact = findArtifact(artifacts, 'SRS') ?? findArtifact(artifacts, 'srs');
+      const artifact = findDocument(artifacts, 'srs');
       if (artifact === undefined) {
         return failCheck(this, 'No SRS artifact to check sections');
       }
@@ -393,13 +399,17 @@ const srsRules: readonly VerificationRule[] = [
       );
 
       if (missing.length > 0) {
-        return failCheck(this, `SRS missing required sections: ${missing.join(', ')}`, {
-          missingSections: missing,
-          foundHeadings: headings,
-        });
+        return failCheck(
+          this,
+          `SRS missing required sections in ${artifact}: ${missing.join(', ')}`,
+          {
+            missingSections: missing,
+            foundHeadings: headings,
+          }
+        );
       }
 
-      return passCheck(this, 'SRS contains all required sections', {
+      return passCheck(this, `SRS contains all required sections: ${artifact}`, {
         requiredSections: SRS_REQUIRED_SECTIONS,
       });
     },
@@ -411,7 +421,7 @@ const srsRules: readonly VerificationRule[] = [
     minRigor: 'standard',
     severity: 'warning',
     async check(artifacts, projectDir): Promise<VerificationCheck> {
-      const artifact = findArtifact(artifacts, 'SRS') ?? findArtifact(artifacts, 'srs');
+      const artifact = findDocument(artifacts, 'srs');
       if (artifact === undefined) {
         return failCheck(this, 'No SRS artifact to check SF identifiers');
       }
@@ -438,7 +448,7 @@ const srsRules: readonly VerificationRule[] = [
     minRigor: 'strict',
     severity: 'warning',
     async check(artifacts, projectDir): Promise<VerificationCheck> {
-      const srsArtifact = findArtifact(artifacts, 'SRS') ?? findArtifact(artifacts, 'srs');
+      const srsArtifact = findDocument(artifacts, 'srs');
       if (srsArtifact === undefined) {
         return failCheck(this, 'No SRS artifact to validate FR references');
       }
@@ -501,7 +511,7 @@ const sdsRules: readonly VerificationRule[] = [
     minRigor: 'minimal',
     severity: 'error',
     check(artifacts): Promise<VerificationCheck> {
-      const artifact = findArtifact(artifacts, 'SDS') ?? findArtifact(artifacts, 'sds');
+      const artifact = findDocument(artifacts, 'sds');
       if (artifact === undefined) {
         return Promise.resolve(failCheck(this, 'No SDS artifact found in stage output'));
       }
@@ -515,7 +525,7 @@ const sdsRules: readonly VerificationRule[] = [
     minRigor: 'standard',
     severity: 'error',
     async check(artifacts, projectDir): Promise<VerificationCheck> {
-      const artifact = findArtifact(artifacts, 'SDS') ?? findArtifact(artifacts, 'sds');
+      const artifact = findDocument(artifacts, 'sds');
       if (artifact === undefined) {
         return failCheck(this, 'No SDS artifact to check sections');
       }
@@ -531,13 +541,17 @@ const sdsRules: readonly VerificationRule[] = [
       );
 
       if (missing.length > 0) {
-        return failCheck(this, `SDS missing required sections: ${missing.join(', ')}`, {
-          missingSections: missing,
-          foundHeadings: headings,
-        });
+        return failCheck(
+          this,
+          `SDS missing required sections in ${artifact}: ${missing.join(', ')}`,
+          {
+            missingSections: missing,
+            foundHeadings: headings,
+          }
+        );
       }
 
-      return passCheck(this, 'SDS contains all required sections', {
+      return passCheck(this, `SDS contains all required sections: ${artifact}`, {
         requiredSections: SDS_REQUIRED_SECTIONS,
       });
     },
@@ -549,7 +563,7 @@ const sdsRules: readonly VerificationRule[] = [
     minRigor: 'standard',
     severity: 'warning',
     async check(artifacts, projectDir): Promise<VerificationCheck> {
-      const artifact = findArtifact(artifacts, 'SDS') ?? findArtifact(artifacts, 'sds');
+      const artifact = findDocument(artifacts, 'sds');
       if (artifact === undefined) {
         return failCheck(this, 'No SDS artifact to check CMP identifiers');
       }
@@ -576,7 +590,7 @@ const sdsRules: readonly VerificationRule[] = [
     minRigor: 'strict',
     severity: 'warning',
     async check(artifacts, projectDir): Promise<VerificationCheck> {
-      const sdsArtifact = findArtifact(artifacts, 'SDS') ?? findArtifact(artifacts, 'sds');
+      const sdsArtifact = findDocument(artifacts, 'sds');
       if (sdsArtifact === undefined) {
         return failCheck(this, 'No SDS artifact to validate SF references');
       }
@@ -637,7 +651,7 @@ const issueGenerationRules: readonly VerificationRule[] = [
     minRigor: 'minimal',
     severity: 'error',
     check(artifacts): Promise<VerificationCheck> {
-      const artifact = findArtifact(artifacts, 'issue') ?? findArtifact(artifacts, 'Issue');
+      const artifact = findIssueList(artifacts);
       if (artifact === undefined) {
         return Promise.resolve(failCheck(this, 'No issue list artifact found in stage output'));
       }
@@ -651,7 +665,7 @@ const issueGenerationRules: readonly VerificationRule[] = [
     minRigor: 'minimal',
     severity: 'error',
     async check(artifacts, projectDir): Promise<VerificationCheck> {
-      const artifact = findArtifact(artifacts, 'issue') ?? findArtifact(artifacts, 'Issue');
+      const artifact = findIssueList(artifacts);
       if (artifact === undefined) {
         return failCheck(this, 'No issue list artifact to validate format');
       }
@@ -697,7 +711,7 @@ const issueGenerationRules: readonly VerificationRule[] = [
     minRigor: 'standard',
     severity: 'warning',
     async check(artifacts, projectDir): Promise<VerificationCheck> {
-      const artifact = findArtifact(artifacts, 'issue') ?? findArtifact(artifacts, 'Issue');
+      const artifact = findIssueList(artifacts);
       if (artifact === undefined) {
         return failCheck(this, 'No issue list artifact to check entries');
       }

@@ -201,7 +201,7 @@ export function hasAcceptanceCriteria(issue: Record<string, unknown>): boolean {
  * @param artifacts - Stage artifacts
  * @returns Issue list location
  */
-function findIssueList(artifacts: readonly string[]): string | undefined {
+export function findIssueList(artifacts: readonly string[]): string | undefined {
   return (
     findArtifacts(artifacts, ISSUE_LIST)[0] ??
     findArtifact(artifacts, 'issue') ??
