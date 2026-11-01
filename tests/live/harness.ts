@@ -73,15 +73,18 @@ export const LOGIN_MIN_VALIDITY_MS = 120 * 60_000;
  * Tool permissions of the pipeline's agent sessions in a live run. The SDK
  * runs them without a terminal, so a command that needs approval is denied;
  * AD-SDLC itself installs no permission settings. The run's isolated
- * configuration therefore grants file edits and the commands the Import
- * stages use, and denies the ones the scenarios must never run: merging or
- * closing pull requests, raw API calls, repository administration, and force
- * pushes.
+ * configuration therefore grants file edits and the commands the Import and
+ * Enhancement stages use, and denies the ones the scenarios must never run:
+ * merging or closing pull requests, raw API calls, repository administration,
+ * and force pushes.
  */
 export const LIVE_PERMISSIONS = {
   defaultMode: 'acceptEdits',
   allow: [
     'Bash(gh issue:*)',
+    // issue-generator: `gh issue create --label` fails until the label exists.
+    'Bash(gh label list:*)',
+    'Bash(gh label create:*)',
     'Bash(gh pr create:*)',
     'Bash(gh pr view:*)',
     'Bash(gh pr list:*)',

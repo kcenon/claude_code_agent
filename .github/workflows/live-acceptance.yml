@@ -7,8 +7,9 @@ name: Live Acceptance
 # ANTHROPIC_API_KEY secret, the AD_SDLC_LIVE_GITHUB_REPO variable, or the
 # AD_SDLC_LIVE_GITHUB_TOKEN secret the lane writes an explicit not-executed
 # status and fails, so missing settings can never look like a passing live run.
-# The Import scenarios (#955) write only to that disposable repository, which
-# must carry the ad-sdlc-live-target topic; the token must be scoped to it.
+# The Import (#955) and Enhancement (#957) scenarios write only to that disposable
+# repository, or to AD_SDLC_LIVE_ENHANCEMENT_GITHUB_REPO for the Enhancement ones.
+# It must carry the ad-sdlc-live-target topic; the token must be scoped to it.
 # Lanes, settings, and metadata: docs/guides/testing.md.
 
 on:
@@ -24,6 +25,15 @@ on:
         required: true
         default: 240000
         type: number
+      suite:
+        description: 'Live scenarios to run with the smoke'
+        required: true
+        default: import
+        type: choice
+        options:
+          - import
+          - enhancement
+          - all
 
 permissions:
   contents: read
@@ -36,8 +46,10 @@ jobs:
   live:
     name: Live Acceptance
     runs-on: ubuntu-latest
-    # Three Import scenarios (five stages each, one with two resumes) plus the smoke.
-    timeout-minutes: 60
+    # The stage budget bounds the run, not this job: the suite "all" has the three
+    # Import scenarios (five stages each, one with two resumes), the Enhancement
+    # delivery run (15 stages) and regression run (up to 12), and the smoke.
+    timeout-minutes: 300
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -58,6 +70,8 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY || secrets.CLAUDE_API_KEY }}
           AD_SDLC_LIVE_GITHUB_REPO: ${{ vars.AD_SDLC_LIVE_GITHUB_REPO }}
+          AD_SDLC_LIVE_ENHANCEMENT_GITHUB_REPO: ${{ vars.AD_SDLC_LIVE_ENHANCEMENT_GITHUB_REPO }}
+          AD_SDLC_LIVE_SUITE: ${{ inputs.suite }}
           AD_SDLC_LIVE_GITHUB_TOKEN: ${{ secrets.AD_SDLC_LIVE_GITHUB_TOKEN }}
           AD_SDLC_LIVE_MAX_TURNS: ${{ inputs.max_turns }}
           AD_SDLC_LIVE_STAGE_TIMEOUT_MS: ${{ inputs.stage_timeout_ms }}
