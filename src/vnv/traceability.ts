@@ -33,7 +33,7 @@ import {
   REVIEW_RESULTS,
   WORK_ORDERS,
 } from '../stage-verifier/deliveryRules.js';
-import { findArtifacts, normalizeArtifact } from '../stage-verifier/ruleSupport.js';
+import { findArtifacts, locateDocument } from '../stage-verifier/ruleSupport.js';
 import type { DocumentType, VerificationOptions } from './types.js';
 
 /** Stage whose verification builds the traceability record (all modes). */
@@ -71,17 +71,8 @@ export interface TraceabilityInput {
   readonly artifacts: readonly string[];
 }
 
-/**
- * Locations of each document type: the scratchpad copy
- * (`documents/<project>/prd.md`) first, then a published copy
- * (`docs/prd/PRD-<project>.md`, `docs/PRD.md`). Localized `.kr.md` copies
- * are ignored.
- */
-const DOCUMENT_PATTERNS: Readonly<Record<DocumentType, readonly RegExp[]>> = {
-  prd: [/(?:^|\/)documents\/[^/]+\/prd\.md$/u, /(?:^|\/)PRD(?:[-_][^/]*)?\.md$/u],
-  srs: [/(?:^|\/)documents\/[^/]+\/srs\.md$/u, /(?:^|\/)SRS(?:[-_][^/]*)?\.md$/u],
-  sds: [/(?:^|\/)documents\/[^/]+\/sds\.md$/u, /(?:^|\/)SDS(?:[-_][^/]*)?\.md$/u],
-};
+/** Document types a run can produce, in pipeline order. */
+const DOCUMENT_TYPES: readonly DocumentType[] = ['prd', 'srs', 'sds'];
 
 /**
  * Locate the PRD, SRS, and SDS among artifact locations.
@@ -91,18 +82,11 @@ const DOCUMENT_PATTERNS: Readonly<Record<DocumentType, readonly RegExp[]>> = {
 export function locateDocuments(
   artifacts: readonly string[]
 ): Partial<Record<DocumentType, string>> {
-  const candidates = artifacts.filter(
-    (artifact) => !normalizeArtifact(artifact).endsWith('.kr.md')
-  );
   const documents: Partial<Record<DocumentType, string>> = {};
-  for (const type of Object.keys(DOCUMENT_PATTERNS) as DocumentType[])
-    for (const pattern of DOCUMENT_PATTERNS[type]) {
-      const found = findArtifacts(candidates, [pattern])[0];
-      if (found !== undefined) {
-        documents[type] = found;
-        break;
-      }
-    }
+  for (const type of DOCUMENT_TYPES) {
+    const found = locateDocument(artifacts, type);
+    if (found !== undefined) documents[type] = found;
+  }
   return documents;
 }
 
