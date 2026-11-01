@@ -75,20 +75,33 @@ afterEach(async () => {
   await rm(dir, { recursive: true, force: true });
 });
 
+/** Placeholder values of every required live setting (#955 adds the GitHub target). */
+const REQUIRED_PLACEHOLDERS = {
+  ANTHROPIC_API_KEY: 'placeholder-not-a-key',
+  AD_SDLC_LIVE_GITHUB_REPO: 'owner/disposable-target',
+  AD_SDLC_LIVE_GITHUB_TOKEN: 'placeholder-not-a-token',
+};
+const NOT_SET_REASON =
+  'ANTHROPIC_API_KEY is not set; AD_SDLC_LIVE_GITHUB_REPO is not set; AD_SDLC_LIVE_GITHUB_TOKEN is not set';
+
 describe('live lane settings', () => {
-  it('is not ready and names ANTHROPIC_API_KEY when the key is absent or blank', () => {
+  it('is not ready and names every missing setting when they are absent or blank', () => {
     for (const env of [{}, { ANTHROPIC_API_KEY: '' }, { ANTHROPIC_API_KEY: '   ' }]) {
       const settings = resolveLiveSettings(env, dir);
       expect(settings.ready).toBe(false);
-      expect(settings.missing).toEqual(['ANTHROPIC_API_KEY']);
-      expect(settings.reason).toBe('ANTHROPIC_API_KEY is not set');
+      expect(settings.missing).toEqual([
+        'ANTHROPIC_API_KEY',
+        'AD_SDLC_LIVE_GITHUB_REPO',
+        'AD_SDLC_LIVE_GITHUB_TOKEN',
+      ]);
+      expect(settings.reason).toBe(NOT_SET_REASON);
     }
   });
 
   it('rejects budgets outside the accepted range instead of clamping them', () => {
     const settings = resolveLiveSettings(
       {
-        ANTHROPIC_API_KEY: 'placeholder',
+        ...REQUIRED_PLACEHOLDERS,
         AD_SDLC_LIVE_MAX_TURNS: '0',
         AD_SDLC_LIVE_STAGE_TIMEOUT_MS: 'soon',
       },
@@ -100,8 +113,8 @@ describe('live lane settings', () => {
     expect(settings.reason).toMatch(/invalid AD_SDLC_LIVE_STAGE_TIMEOUT_MS="soon"/);
   });
 
-  it('uses the documented defaults and output directory when only the key is set', () => {
-    const settings = resolveLiveSettings({ ANTHROPIC_API_KEY: 'placeholder' }, dir);
+  it('uses the documented defaults and output directory when only the required settings are set', () => {
+    const settings = resolveLiveSettings(REQUIRED_PLACEHOLDERS, dir);
     expect(settings).toMatchObject({
       ready: true,
       reason: null,
@@ -165,7 +178,7 @@ describe('live lane runner', () => {
       timeout: 60_000,
     });
     expect(result.status, result.stdout + result.stderr).toBe(LIVE_EXIT.notExecuted);
-    expect(result.stdout).toContain('LIVE LANE: NOT EXECUTED (ANTHROPIC_API_KEY is not set)');
+    expect(result.stdout).toContain(`LIVE LANE: NOT EXECUTED (${NOT_SET_REASON})`);
     const metadata = JSON.parse(
       await readFile(join(outputDir, LIVE_FILES.metadata), 'utf8')
     ) as LiveLaneMetadata;
@@ -174,11 +187,16 @@ describe('live lane runner', () => {
       lane: 'live-acceptance',
       executed: false,
       status: 'not-executed',
-      reason: 'ANTHROPIC_API_KEY is not set',
-      missingSettings: ['ANTHROPIC_API_KEY'],
+      reason: NOT_SET_REASON,
+      missingSettings: [
+        'ANTHROPIC_API_KEY',
+        'AD_SDLC_LIVE_GITHUB_REPO',
+        'AD_SDLC_LIVE_GITHUB_TOKEN',
+      ],
       tests: { total: 0, passed: 0, failed: 0, skipped: 0 },
       exitCode: LIVE_EXIT.notExecuted,
       evidence: null,
+      importScenarios: [],
       node: process.version,
       sdk: { package: '@anthropic-ai/claude-agent-sdk' },
     });
@@ -210,7 +228,7 @@ describe('live lane runner', () => {
     );
     expect(result.status, result.stdout + result.stderr).toBe(1);
     expect(result.stdout + result.stderr).toContain(
-      'Live acceptance lane not executed: ANTHROPIC_API_KEY is not set'
+      `Live acceptance lane not executed: ${NOT_SET_REASON}`
     );
     expect(existsSync(join(dir, LIVE_FILES.evidence))).toBe(false);
   }, 90_000);
@@ -252,6 +270,7 @@ describe('live lane runner', () => {
         "const out = process.argv.find((arg) => arg.startsWith('--outputFile.json=')).split('=').slice(1).join('=');",
         `writeFileSync(out, ${JSON.stringify(JSON.stringify(report))});`,
         `if (${String(outcome === 'pass')}) writeFileSync(join(process.env.AD_SDLC_LIVE_OUTPUT_DIR, 'smoke-evidence.json'), '{"sessionId":"s-1"}');`,
+        `if (${String(outcome === 'pass')}) writeFileSync(join(process.env.AD_SDLC_LIVE_OUTPUT_DIR, 'import-acceptance-report.json'), '{"scenarios":[{"id":"delivery","outcome":"passed"}]}');`,
         `process.exit(${outcome === 'fail' ? 1 : 0});`,
       ].join('\n')
     );
@@ -267,18 +286,22 @@ describe('live lane runner', () => {
     async (outcome, status, exitCode) => {
       const root = await fakeRoot(outcome);
       const result = runLiveLane({
-        env: offlineEnv({ ANTHROPIC_API_KEY: 'placeholder-not-a-key' }),
+        env: offlineEnv(REQUIRED_PLACEHOLDERS),
         root,
         log: () => undefined,
       });
       expect(result.exitCode).toBe(exitCode);
       expect(result.metadata).toMatchObject({ executed: true, status, exitCode });
       expect(result.metadata.evidence).toEqual(outcome === 'pass' ? { sessionId: 's-1' } : null);
+      expect(result.metadata.importScenarios).toEqual(
+        outcome === 'pass' ? [{ id: 'delivery', outcome: 'passed' }] : []
+      );
       const written = JSON.parse(
         await readFile(join(root, 'test-output', 'live', LIVE_FILES.metadata), 'utf8')
       ) as LiveLaneMetadata;
       expect(written.status).toBe(status);
       expect(JSON.stringify(written)).not.toContain('placeholder-not-a-key');
+      expect(JSON.stringify(written)).not.toContain('placeholder-not-a-token');
     }
   );
 });

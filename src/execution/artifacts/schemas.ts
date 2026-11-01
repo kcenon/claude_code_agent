@@ -39,7 +39,10 @@ export const ArtifactOutputSchema = z
   .strict();
 export const ARTIFACT_OUTPUT_FORMAT = {
   type: 'json_schema' as const,
-  schema: z.toJSONSchema(ArtifactOutputSchema),
+  // Draft-07: the Claude Code CLI validates --json-schema with a validator
+  // that does not know the 2020-12 meta-schema Zod declares by default, and
+  // rejects it ("no schema with key or ref .../draft/2020-12/schema").
+  schema: z.toJSONSchema(ArtifactOutputSchema, { target: 'draft-7' }),
 };
 
 const RequiredOutputSchema = z

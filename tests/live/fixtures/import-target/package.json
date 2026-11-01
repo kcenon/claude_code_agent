@@ -1,0 +1,10 @@
+{
+  "name": "ad-sdlc-import-fixture",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Target repository of the AD-SDLC Import live acceptance scenarios",
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/"
+  }
+}

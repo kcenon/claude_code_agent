@@ -4,8 +4,11 @@ name: Live Acceptance
 # path (AdsdlcOrchestratorAgent + SdkExecutionAdapter) against the real
 # Claude Agent SDK. It runs only on an explicit manual dispatch: never on
 # pull_request (including forks), push, or schedule. Without the
-# ANTHROPIC_API_KEY secret the lane writes an explicit not-executed status and
-# fails, so missing credentials can never look like a passing live run.
+# ANTHROPIC_API_KEY secret, the AD_SDLC_LIVE_GITHUB_REPO variable, or the
+# AD_SDLC_LIVE_GITHUB_TOKEN secret the lane writes an explicit not-executed
+# status and fails, so missing settings can never look like a passing live run.
+# The Import scenarios (#955) write only to that disposable repository, which
+# must carry the ad-sdlc-live-target topic; the token must be scoped to it.
 # Lanes, settings, and metadata: docs/guides/testing.md.
 
 on:
@@ -33,7 +36,8 @@ jobs:
   live:
     name: Live Acceptance
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # Three Import scenarios (five stages each, one with two resumes) plus the smoke.
+    timeout-minutes: 60
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -53,6 +57,8 @@ jobs:
         run: npm run test:live
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY || secrets.CLAUDE_API_KEY }}
+          AD_SDLC_LIVE_GITHUB_REPO: ${{ vars.AD_SDLC_LIVE_GITHUB_REPO }}
+          AD_SDLC_LIVE_GITHUB_TOKEN: ${{ secrets.AD_SDLC_LIVE_GITHUB_TOKEN }}
           AD_SDLC_LIVE_MAX_TURNS: ${{ inputs.max_turns }}
           AD_SDLC_LIVE_STAGE_TIMEOUT_MS: ${{ inputs.stage_timeout_ms }}
           AD_SDLC_LIVE_OUTPUT_DIR: test-output/live
