@@ -213,9 +213,66 @@ describe('Enhancement traceability scope', () => {
     expect(record.uncovered).toEqual(['FR-002']);
   });
 
-  it('still reports a new requirement when the update result is absent', async () => {
-    const record = await build(files(STATE, undefined, 'FR-001'));
-    expect(record.uncovered).toEqual(['FR-003']);
+  // FR-002 stands for a prior requirement the run modified, and no issue reaches it.
+  // When the update result does not prove what changed, it must not be able to hide.
+  it.each([
+    ['absent', undefined],
+    ['unparseable', 'update_result: [unclosed\n  changes: {'],
+    ['not a record', '- { id: FR-003 }\n'],
+    ['empty', ''],
+    ['without changes', 'update_result:\n  document: PRD-001\n'],
+    ['with changes that are not a record', 'update_result:\n  changes: FR-003\n'],
+    ['with an added entry that has no id', update('{ title: Overdue }', '')],
+    ['with a modified entry that has no id', update('{ id: FR-003 }', '{ field: priority }')],
+    ['with an id that is not a string', update('{ id: 3 }', '')],
+    ['with an entry that is not an object', update('FR-003', '')],
+    ['with a list that is not a list', 'update_result:\n  changes:\n    added: FR-003\n'],
+  ])('keeps every requirement in scope when the update result is %s', async (_name, result) => {
+    const record = await build(files(STATE, result));
+    expect(record.uncovered).toEqual(['FR-001', 'FR-002']);
+  });
+
+  it('keeps every requirement in scope when the update result cannot be read', async () => {
+    await write(files(STATE, undefined));
+    const record = await buildTraceabilityRecord({
+      projectDir: project,
+      projectId: 'demo',
+      mode: 'enhancement',
+      artifacts: [
+        ...Object.keys(files(STATE, undefined)),
+        `${S}/documents/demo/prd_update_result.yaml`,
+      ],
+    });
+    expect(record.uncovered).toEqual(['FR-001', 'FR-002']);
+  });
+
+  it('accepts a well-formed update result with empty lists, and still reports a new requirement', async () => {
+    expect((await build(files(STATE, update('', '')))).uncovered).toEqual([]);
+    const flat = 'changes:\n  added: []\n  modified: []\n';
+    expect((await build(files(STATE, flat))).uncovered).toEqual([]);
+    expect((await build(files(STATE, update('', ''), 'FR-001'))).uncovered).toEqual(['FR-003']);
+  });
+
+  it('accepts changes that list only what happened', async () => {
+    const onlyAdded = 'update_result:\n  changes:\n    added:\n      - { id: FR-003 }\n';
+    expect((await build(files(STATE, onlyAdded))).uncovered).toEqual([]);
+    const noLists = 'update_result:\n  changes: {}\n';
+    expect((await build(files(STATE, noLists))).uncovered).toEqual([]);
+  });
+
+  it('keeps a deprecated requirement out of scope, whatever its entry says', async () => {
+    const deprecated = [
+      'update_result:',
+      '  changes:',
+      '    added:',
+      '      - { id: FR-003 }',
+      '    modified: []',
+      '    deprecated:',
+      '      - { id: FR-002, reason: Replaced }',
+      '      - { reason: An entry without an id does not say anything was changed }',
+      '',
+    ].join('\n');
+    expect((await build(files(STATE, deprecated))).uncovered).toEqual([]);
   });
 
   it('keeps every requirement in scope without the state file', async () => {

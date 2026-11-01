@@ -155,8 +155,15 @@ Enhancement changes an existing project, so it does not ask for an issue for
 every requirement. A requirement the project already had
 (`current_state.yaml`) that the PRD update did not add or modify
 (`prd_update_result.yaml`) is not this run's work and is not reported. A
-requirement the run added or modified is, and without `current_state.yaml`
-every requirement is.
+requirement the run added or modified is. The check fails closed: unless both
+files are readable and the update result lists its `changes` with a string `id`
+on every added and modified entry, every requirement without an issue is
+reported, because a modified requirement is known only from that file.
+
+Both files are the agents' own reports, so a requirement an updater changed and
+did not list is not detected. Criterion evidence has the same limit: the check
+reads what an implementation result reports and that the linked test files
+exist. It does not rerun the tests.
 
 VR-VAL-005 (warning) lists issues that trace to no PRD requirement; it is
 skipped in Import mode, where the issues are the roots.

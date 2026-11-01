@@ -41,7 +41,6 @@ import {
   isRecord,
   locateDocument,
   parseStructured,
-  readPath,
   safeReadFile,
   unwrapRoot,
 } from '../stage-verifier/ruleSupport.js';
@@ -123,10 +122,35 @@ const CURRENT_STATE = [/(?:^|\/)state\/[^/]+\/current_state\.ya?ml$/u];
 const PRD_UPDATE_RESULT = [/(?:^|\/)documents\/[^/]+\/prd_update_result\.ya?ml$/u];
 
 /**
+ * Requirements a PRD update result says it added or modified.
+ * @param parsed - Parsed `prd_update_result.yaml`
+ * @returns Identifiers; null when the result does not establish what changed: it
+ * has no `changes` record, a list that is not a list, or an entry without a string
+ * `id`
+ */
+function changedRequirements(parsed: unknown): readonly string[] | null {
+  const changes = unwrapRoot(parsed, 'update_result')?.['changes'];
+  if (!isRecord(changes)) return null;
+  const ids: string[] = [];
+  for (const entries of [changes['added'] ?? [], changes['modified'] ?? []]) {
+    if (!Array.isArray(entries)) return null;
+    for (const entry of entries as unknown[]) {
+      const id = isRecord(entry) ? entry['id'] : undefined;
+      if (typeof id !== 'string' || id.trim() === '') return null;
+      ids.push(id);
+    }
+  }
+  return ids;
+}
+
+/**
  * Requirements an Enhancement run left alone: the ones the project already had
- * (`current_state.yaml`, a required output of the first stage) that the PRD update
- * did not add or modify (`prd_update_result.yaml`). Without the state file every
- * requirement counts as this run's work, so missing evidence never hides one.
+ * (`current_state.yaml`) that the PRD update did not add or modify
+ * (`prd_update_result.yaml`). The update result is not a required output, and a
+ * modified requirement is only known from it, so anything short of two readable
+ * files and a well-formed result returns the empty set: every requirement stays in
+ * scope and the gate fails closed. Both files are the agents' own reports, so a
+ * requirement an updater changed and did not list is not detected.
  * @param projectDir - Project root
  * @param artifacts - Artifact locations of the run's completed stages
  * @returns Requirement identifiers that need no issue from this run
@@ -136,20 +160,13 @@ async function unchangedRequirements(
   artifacts: readonly string[]
 ): Promise<ReadonlySet<string>> {
   const state = findArtifacts(artifacts, CURRENT_STATE)[0];
-  const stateContent = state === undefined ? null : await safeReadFile(state, projectDir);
-  if (stateContent === null) return new Set();
   const update = findArtifacts(artifacts, PRD_UPDATE_RESULT)[0];
-  const updateContent = update === undefined ? null : await safeReadFile(update, projectDir);
-  const record = unwrapRoot(
-    updateContent === null ? null : parseStructured(updateContent),
-    'update_result'
-  );
-  const changed = (['changes.added', 'changes.modified'] as const).flatMap((path) => {
-    const entries = record === null ? undefined : readPath(record, [path]);
-    return Array.isArray(entries)
-      ? entries.map((entry: unknown) => (isRecord(entry) ? entry['id'] : undefined))
-      : [];
-  });
+  if (state === undefined || update === undefined) return new Set();
+  const stateContent = await safeReadFile(state, projectDir);
+  const updateContent = await safeReadFile(update, projectDir);
+  if (stateContent === null || updateContent === null) return new Set();
+  const changed = changedRequirements(parseStructured(updateContent));
+  if (changed === null) return new Set();
   return new Set(extractIds(stateContent, /\bFR-\d{3}\b/).filter((id) => !changed.includes(id)));
 }
 
