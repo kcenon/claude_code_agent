@@ -172,19 +172,17 @@ function filesOf(root: string, current: string = root): ProjectFiles {
 }
 
 /**
- * Run the target repository's `npm test` script as written, with this Node.js. A
- * list of test files here would not show a script that cannot run: since Node.js
- * 21 `node --test test/` tries to load the directory as a module and always fails.
+ * Run the target repository's own tests through its real `npm test` script, the
+ * command the worker runs, as tests/ci/import-fixture.test.ts does. A list of test
+ * files here would not show a script that cannot run.
  */
 function targetTests(target: string, extra: NodeJS.ProcessEnv = {}): number | null {
-  const manifest = JSON.parse(readFileSync(join(target, 'package.json'), 'utf8')) as {
-    scripts: { test: string };
-  };
-  return spawnSync(manifest.scripts.test.replace(/^node /, `"${process.execPath}" `), {
+  const windows = process.platform === 'win32';
+  return spawnSync(windows ? 'npm.cmd' : 'npm', ['test'], {
     cwd: target,
     env: { ...offlineEnv(), ...extra },
     encoding: 'utf8',
-    shell: true,
+    shell: windows,
     timeout: 60_000,
   }).status;
 }
