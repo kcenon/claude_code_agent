@@ -117,13 +117,17 @@ tests/
 ├── ci/                         # Offline guards for workflows and the live lane
 │   ├── workflow-trigger-matrix.test.ts
 │   ├── live-lane-guard.test.ts
-│   └── import-fixture.test.ts  # Import live fixture and verdicts, offline
+│   ├── import-fixture.test.ts  # Import live fixture and verdicts, offline
+│   └── enhancement-fixture.test.ts  # Enhancement live fixture and judge, offline
 ├── live/                       # Live acceptance lane only (npm run test:live)
-│   ├── fixtures/               # Import target repository, issues, acceptance tests
+│   ├── fixtures/               # Target repositories, issues, expectations, acceptance tests
 │   ├── harness.ts
+│   ├── scenarioSupport.ts      # What the Import and Enhancement scenarios share
 │   ├── importScenario.ts
+│   ├── enhancementScenario.ts  # Enhancement judge and report
 │   ├── githubTarget.ts
 │   ├── import-acceptance.live.test.ts
+│   ├── enhancement-acceptance.live.test.ts
 │   └── sdk-cli-smoke.live.test.ts
 └── e2e/                        # Offline end-to-end tests
     ├── helpers/                # Shared test utilities
@@ -440,25 +444,27 @@ drives the production path: the `ad-sdlc init` and `ad-sdlc run` CLI commands
 Selecting the live suite directly (`vitest run --config vitest.live.config.ts`)
 without the settings fails the test instead of skipping it.
 
-| Setting                         | Required  | Default            | Accepted values                                                                                                                |
-| ------------------------------- | --------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
-| `AD_SDLC_LIVE_AUTH`             | no        | `secrets`          | `secrets`: the API key and token below; `local-login`: the machine's Claude Code login and the account `gh` is logged in to    |
-| `ANTHROPIC_API_KEY`             | `secrets` | —                  | Non-empty API key                                                                                                              |
-| `AD_SDLC_LIVE_GITHUB_REPO`      | yes       | —                  | `owner/name` of the disposable target repository of the Import scenarios (see below)                                           |
-| `AD_SDLC_LIVE_GITHUB_TOKEN`     | `secrets` | —                  | GitHub token scoped to that repository only                                                                                    |
-| `AD_SDLC_LIVE_MAX_TURNS`        | no        | `8`                | Integer 1 to 30: the turn budget, written as `maxTurns` into the stage agent's definition, which the adapter passes to the SDK |
-| `AD_SDLC_LIVE_STAGE_TIMEOUT_MS` | no        | `240000`           | Integer 10000 to 1200000: passed as `--stage-timeout-ms`, the total time budget of the stage                                   |
-| `AD_SDLC_LIVE_OUTPUT_DIR`       | no        | `test-output/live` | Directory for the metadata, summary, Vitest report, and smoke evidence                                                         |
+| Setting                                | Required  | Default                    | Accepted values                                                                                                                |
+| -------------------------------------- | --------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `AD_SDLC_LIVE_AUTH`                    | no        | `secrets`                  | `secrets`: the API key and token below; `local-login`: the machine's Claude Code login and the account `gh` is logged in to    |
+| `AD_SDLC_LIVE_SUITE`                   | no        | `import`                   | `import`: the smoke and the Import scenarios; `enhancement`: the smoke and the Enhancement scenarios; `all`: every live test   |
+| `ANTHROPIC_API_KEY`                    | `secrets` | —                          | Non-empty API key                                                                                                              |
+| `AD_SDLC_LIVE_GITHUB_REPO`             | yes       | —                          | `owner/name` of the disposable target repository of the live scenarios (see below)                                             |
+| `AD_SDLC_LIVE_ENHANCEMENT_GITHUB_REPO` | no        | `AD_SDLC_LIVE_GITHUB_REPO` | `owner/name` of a separate disposable target repository of the Enhancement scenarios (see below)                               |
+| `AD_SDLC_LIVE_GITHUB_TOKEN`            | `secrets` | —                          | GitHub token scoped to the target repositories only                                                                            |
+| `AD_SDLC_LIVE_MAX_TURNS`               | no        | `8`                        | Integer 1 to 30: the turn budget, written as `maxTurns` into the stage agent's definition, which the adapter passes to the SDK |
+| `AD_SDLC_LIVE_STAGE_TIMEOUT_MS`        | no        | `240000`                   | Integer 10000 to 1200000: passed as `--stage-timeout-ms`, the total time budget of the stage                                   |
+| `AD_SDLC_LIVE_OUTPUT_DIR`              | no        | `test-output/live`         | Directory for the metadata, summary, Vitest report, run reports, and smoke evidence                                            |
 
 Each run gets an isolated Claude configuration directory. Its `settings.json`
 holds only the tool permissions of the pipeline's agent sessions
 (`LIVE_PERMISSIONS` in `tests/live/harness.ts`): the SDK runs them without a
 terminal, so a command that needs approval would be denied, and AD-SDLC
 installs no permission settings itself. It accepts file edits, allows the
-`gh issue`, `gh pr` (create, view, list, diff, checks, comment, review, edit),
-`git`, `npm`, `node`, and read-only shell commands the Import stages use, and
-denies merging or closing pull requests, `gh api`, repository administration,
-and force pushes. The user's settings, hooks, and plugins do not reach the run.
+`gh issue`, `gh label` (list, create), `gh pr` (create, view, list, diff, checks,
+comment, review, edit), `git`, `npm`, `node`, and read-only shell commands the
+Import and Enhancement stages use, and denies merging or closing pull requests,
+`gh api`, repository administration, and force pushes. The user's settings, hooks, and plugins do not reach the run.
 
 `local-login` is for a run on a developer machine. The isolated directory also
 receives a copy of the login's `.credentials.json`; the run refuses to start
@@ -474,15 +480,17 @@ when it expires, and the workflow's job timeout bounds the whole run.
 
 The metadata (`schemaVersion` 1) records `lane`, `executed`, `status`
 (`passed`, `failed`, or `not-executed`), `reason`, `missingSettings`,
-`invalidSettings`, `budget`, the SDK package with its declared range and
+`invalidSettings`, `suite`, `budget`, the SDK package with its declared range and
 installed version, the `ad-sdlc` version, the Node.js version and platform,
 `startedAt`, `finishedAt`, `durationMs`, test counts, `exitCode`, the smoke's
 stage evidence (SDK session ID, turn count, token usage, stage status), the
-outcome of each Import scenario (`importScenarios`), and the GitHub Actions run
-URL, SHA, and ref when available. Setting values are never written; only the
+outcome of each Import and Enhancement scenario (`importScenarios`,
+`enhancementScenarios`), and the GitHub Actions run URL, SHA, and ref when
+available. Setting values are never written; only the
 names of missing settings are.
 
-The live suite has two files:
+The live suite has three files. `AD_SDLC_LIVE_SUITE` selects which ones run, so
+a run that does not ask for the Enhancement scenarios never pays for them:
 
 - `tests/live/sdk-cli-smoke.live.test.ts`, the plumbing smoke: it initializes a
   project, runs only the `initialization` stage with one attempt and the lane
@@ -516,6 +524,48 @@ The live suite has two files:
   requests without merging, deletes its new branches, closes its issues, and
   deletes its label.
 
+- `tests/live/enhancement-acceptance.live.test.ts`, the Enhancement scenarios
+  (#957). It installs the packed npm package the same way, puts the fixture
+  `tests/live/fixtures/enhancement-target` on the default branch, runs
+  `ad-sdlc init . --quick` and
+  `ad-sdlc run "<requirements>" --mode enhancement --vnv-profile delivery` in a
+  clone (one attempt per stage, the lane's turn budget on all 15 Enhancement
+  agents), and judges the result with `tests/live/enhancementScenario.ts`, whose
+  expectations are in `tests/live/fixtures/enhancement-expectation.json`:
+  - **delivery**: the run completes with `traceability` `covered`, and opens one
+    open, unmerged pull request. The artifact of `doc_code_comparison`, located
+    through the run result, names the planted drift with its identifier and
+    source file. On the pull request's head compared with its base, every prior
+    identifier is still defined, links of unimpacted identifiers are unchanged,
+    new identifiers are within the allowance and link to impacted parents, and
+    only allowed paths changed; an empty document delta fails with its own
+    message. The independent `retained` and `feature` tests
+    (`tests/live/fixtures/enhancement-acceptance`; AD-SDLC never sees them) pass on
+    the head, and the drift is reported, not silently fixed;
+  - **regression**: a run stopped with `--stop-after implementation` resumes with
+    `AD_SDLC_FIXTURE_REGRESSION=1`, which fails the retained test of the module the
+    feature changes. The resume must exit non-zero, fail `regression_testing` with
+    `VR-REG-002`, and open no pull request. The switch is set for the resume only,
+    because the worker's own test run would otherwise fail first and
+    `regression_testing` would never run. That test writes
+    `.ad-sdlc/fixture-regression-seen` when the variable reaches it, so a variable
+    the SDK child did not inherit is reported instead of passing;
+  - **report**: `enhancement-acceptance-report.json` and `.md` list every scenario,
+    invocation, stage, and attempt, usage and duration per run from
+    `metrics.records` (unknown stays `null`, never 0), the failed and skipped stages
+    with their failed checks, and the unresolved drift. Cleanup closes the pull
+    request, so `enhancement-document-diff.diff` keeps the before/after document
+    diff. Required human corrections cannot be inferred from CI: the report records
+    them as `null`, and `enhancement-delivery-review.json` is a `delivery_review`
+    template for a person to fill in and pass to
+    `ad-sdlc telemetry report --supplied`.
+
+  Enhancement issues are generated, not seeded, so a scenario owns its issues,
+  pull requests, branches, and labels by a before/after snapshot, and removes only
+  those. One run is bounded by 15 + 12 stage attempts plus the smoke; the
+  regression scenario stops before review, and there is no Enhancement
+  resume-idempotency scenario because the Import one covers that.
+
 The target repository must be disposable and prepared once:
 
 - it carries the topic `ad-sdlc-live-target` (the suite refuses to write to a
@@ -530,19 +580,38 @@ The target repository must be disposable and prepared once:
   access to metadata).
 
 Before each scenario the suite resets the default branch to the fixture when
-it differs.
-`tests/ci/import-fixture.test.ts` validates the fixture, the issue corpus, the
-CLI invocation, and the scenario verdicts offline on every pull request.
+it differs. A direct push does that, so a rule that requires an approving review
+rejects it whenever the tree differs, and switching between the Import and
+Enhancement fixtures always differs. With such a rule, set
+`AD_SDLC_LIVE_ENHANCEMENT_GITHUB_REPO` to a second repository prepared the same
+way (the token must reach both). A rejected reset fails before any SDK call of
+that file, with a message naming this cause. A repository without the rule, such
+as a private one on a free plan, relies on the deny list and the requirements
+text to keep the pull request open.
+
+`tests/ci/import-fixture.test.ts` validates the Import fixture, the issue corpus,
+the CLI invocation, and the scenario verdicts offline on every pull request.
+`tests/ci/enhancement-fixture.test.ts` does the same for the Enhancement fixture:
+the target's own tests and the regression switch, its documents against the
+verifier's check sets and the traceability audit, the one planted drift against
+`DocCodeComparatorAgent`, the expectation file, the acceptance tests, the judge
+against the reference solution and its wrong variants, the CLI invocation, the
+report, and the suite selection. `tests/integration/enhancement-delivery.integration.test.ts`
+runs all 15 stages on the production path with only the SDK scripted, each agent
+writing exactly what its definition documents. That proves the pipeline accepts
+what the definitions say, not that a model writes it.
 
 The `Live Acceptance` workflow (`.github/workflows/live-acceptance.yml`) runs
-the lane on a manual `workflow_dispatch` only, with inputs `max_turns` and
-`stage_timeout_ms`, `contents: read` permissions, a 60 minute job timeout, and
-one run at a time. It never runs on pull requests (including forks), pushes,
+the lane on a manual `workflow_dispatch` only, with inputs `max_turns`,
+`stage_timeout_ms`, and `suite` (default `import`), `contents: read` permissions,
+a 300 minute job timeout (the stage budget is what bounds a run), and one run at
+a time. It never runs on pull requests (including forks), pushes,
 or schedules. It uploads the output directory as the
 `live-acceptance-metadata` artifact. GitHub dispatches a workflow only from a
 file on the default branch (`develop`). It reads the target repository from the
-`AD_SDLC_LIVE_GITHUB_REPO` repository variable and its token from the
-`AD_SDLC_LIVE_GITHUB_TOKEN` secret. Without them, or without an
+`AD_SDLC_LIVE_GITHUB_REPO` repository variable, the optional Enhancement target
+from the `AD_SDLC_LIVE_ENHANCEMENT_GITHUB_REPO` repository variable, and the token
+from the `AD_SDLC_LIVE_GITHUB_TOKEN` secret. Without them, or without an
 `ANTHROPIC_API_KEY` (or `CLAUDE_API_KEY`) repository secret, a dispatched run
 reports `not-executed` and fails.
 
