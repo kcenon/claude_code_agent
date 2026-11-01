@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "bundleVersion": "1.2.0",
+  "bundleVersion": "1.3.0",
   "assets": [
     {
       "id": "agent:ad-sdlc-orchestrator",
@@ -142,7 +142,7 @@
       "id": "agent:issue-generator",
       "kind": "agent",
       "path": ".claude/agents/issue-generator.md",
-      "digest": "de7cbc459488a857f4847de9c4fd7e1424b15f835e82fb182a0cafb18a770c4f",
+      "digest": "105d6f00b2674d8b9999e0b1f1cf48a5968c4fb4401eefc4459f8bddc749f6bb",
       "role": "direct",
       "requires": []
     },
