@@ -64,12 +64,12 @@ You are an SDS Updater Agent responsible for performing incremental updates to e
 
 ### Expected Input Files
 
-| File | Path | Format | Description |
-|------|------|--------|-------------|
-| Existing SDS | `docs/sds/*.md` | Markdown | Current SDS to update |
-| Current State | `.ad-sdlc/scratchpad/state/{project_id}/current_state.yaml` | YAML | Parsed document state |
-| SRS Update Result | `.ad-sdlc/scratchpad/documents/{project_id}/srs_update_result.yaml` | YAML | SRS changes to reflect |
-| Change Request | Input parameter | Object | Requested changes |
+| File              | Path                                                                | Format   | Description            |
+| ----------------- | ------------------------------------------------------------------- | -------- | ---------------------- |
+| Existing SDS      | `docs/sds/*.md`                                                     | Markdown | Current SDS to update  |
+| Current State     | `.ad-sdlc/scratchpad/state/{project_id}/current_state.yaml`         | YAML     | Parsed document state  |
+| SRS Update Result | `.ad-sdlc/scratchpad/documents/{project_id}/srs_update_result.yaml` | YAML     | SRS changes to reflect |
+| Change Request    | Input parameter                                                     | Object   | Requested changes      |
 
 ### Change Request Schema
 
@@ -141,33 +141,33 @@ change_request:
 
 ### Output Files
 
-| File | Path | Format | Description |
-|------|------|--------|-------------|
-| Updated SDS (EN) | `docs/sds/SDS-{id}.md` | Markdown | Updated SDS document (English) |
-| Updated SDS (KR) | `docs/sds/SDS-{id}.kr.md` | Markdown | Updated SDS document (Korean) |
-| Changelog | `.ad-sdlc/scratchpad/documents/{project_id}/sds_changelog.md` | Markdown | Changes made |
-| Update Result | `.ad-sdlc/scratchpad/documents/{project_id}/sds_update_result.yaml` | YAML | Structured update result |
+| File             | Path                                                                | Format   | Description                    |
+| ---------------- | ------------------------------------------------------------------- | -------- | ------------------------------ |
+| Updated SDS (EN) | `docs/sds/SDS-{id}.md`                                              | Markdown | Updated SDS document (English) |
+| Updated SDS (KR) | `docs/sds/SDS-{id}.kr.md`                                           | Markdown | Updated SDS document (Korean)  |
+| Changelog        | `.ad-sdlc/scratchpad/documents/{project_id}/sds_changelog.md`       | Markdown | Changes made                   |
+| Update Result    | `.ad-sdlc/scratchpad/documents/{project_id}/sds_update_result.yaml` | YAML     | Structured update result       |
 
 ### Update Result Schema
 
 ```yaml
 update_result:
-  document: "SDS-XXX"
-  version_before: "1.0.0"
-  version_after: "1.1.0"
+  document: 'SDS-XXX'
+  version_before: '1.0.0'
+  version_after: '1.1.0'
   updated_at: datetime
 
   changes:
     components_added:
-      - id: "CMP-XXX"
+      - id: 'CMP-XXX'
         name: string
-        linked_srs: ["SF-YYY"]
+        linked_srs: ['SF-YYY']
     apis_added:
       - endpoint: string
-        component: "CMP-XXX"
-        use_case: "UC-YYY"
+        component: 'CMP-XXX'
+        use_case: 'UC-YYY'
     components_modified:
-      - id: "CMP-XXX"
+      - id: 'CMP-XXX'
         field: string
         old_value: string
         new_value: string
@@ -185,8 +185,8 @@ update_result:
         description: string
 
   traceability_updates:
-    - srs_id: "SF-XXX"
-      sds_ids: ["CMP-YYY", "CMP-ZZZ"]
+    - srs_id: 'SF-XXX'
+      sds_ids: ['CMP-YYY', 'CMP-ZZZ']
 
   consistency_check:
     passed: boolean
@@ -270,25 +270,30 @@ update_result:
 
 ### Add Component
 
-```markdown
+````markdown
 ### CMP-XXX: [New Component Name] [NEW]
+
 **Source Features**: SF-YYY, SF-ZZZ
 **Type**: service
 **Responsibility**: [Single responsibility description]
 **Added**: YYYY-MM-DD
 
 #### Interface Definition
+
 ```typescript
 interface INewComponent {
   method1(param: Type): ReturnType;
   method2(param: Type): Promise<ReturnType>;
 }
 ```
+````
 
 #### Dependencies
+
 - Internal: [Other components]
 - External: [Libraries, services]
-```
+
+````
 
 ### Add API Endpoint
 
@@ -303,16 +308,18 @@ interface INewComponent {
 {
   "field1": "string"
 }
-```
+````
 
 **Response** (201 Created):
+
 ```json
 {
   "id": "uuid",
   "field1": "string"
 }
 ```
-```
+
+````
 
 ### Modify Component
 
@@ -327,8 +334,9 @@ interface IComponent {
   method1(param: Type): ReturnType;
   newMethod(param: Type): Promise<ReturnType>;  // [NEW]
 }
-```
-```
+````
+
+````
 
 ### Update Data Model
 
@@ -346,10 +354,12 @@ fields:
     constraints:
       - not_null
       - max_length: 255
-```
+````
+
 **Added**: YYYY-MM-DD
 **Linked Component**: CMP-XXX
-```
+
+````
 
 ## Error Handling
 
@@ -439,12 +449,15 @@ English:
 - **Responsibility**: Handles email and push notifications
 - **Type**: service
 - **Added**: 2024-01-15
-```
+````
 
 Korean:
+
 ```markdown
 ### CMP-015: 알림 서비스 (Notification Service) [신규]
+
 **출처 기능**: SF-015
+
 - **책임**: 이메일 및 푸시 알림 처리
 - **유형**: service
 - **추가일**: 2024-01-15
@@ -466,8 +479,8 @@ Korean:
 
 ```yaml
 id_generation:
-  prefix: "CMP"
-  format: "CMP-{NNN}"
+  prefix: 'CMP'
+  format: 'CMP-{NNN}'
   sequence:
     start: 1
     step: 1
@@ -497,13 +510,13 @@ id_generation:
 
 ## Related Agents
 
-| Agent | Relationship | Data Exchange |
-|-------|--------------|---------------|
-| SRS Updater | Upstream | Receives srs_update_result.yaml |
-| Document Reader | Upstream | Receives current_state.yaml |
-| Issue Generator | Downstream | May generate issues for new components |
-| Regression Tester | Downstream | Triggers regression tests for changes |
-| Worker | Downstream | Implements components from SDS |
+| Agent             | Relationship | Data Exchange                          |
+| ----------------- | ------------ | -------------------------------------- |
+| SRS Updater       | Upstream     | Receives srs_update_result.yaml        |
+| Document Reader   | Upstream     | Receives current_state.yaml            |
+| Issue Generator   | Downstream   | May generate issues for new components |
+| Regression Tester | Downstream   | Triggers regression tests for changes  |
+| Worker            | Downstream   | Implements components from SDS         |
 
 ## Notes
 
