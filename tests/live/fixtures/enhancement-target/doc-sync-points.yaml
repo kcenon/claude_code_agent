@@ -1,0 +1,43 @@
+# Values that must appear in every listed document. A value found in some of
+# its documents but not in others fails the VR-XDOC-001 check.
+sync_points:
+  - name: task-title-limit
+    documents: [prd, srs, sds]
+    pattern: 'Task title limit: 120 characters'
+    severity: high
+  - name: requirement-fr-001
+    documents: [prd, srs]
+    pattern: 'FR-001'
+    severity: high
+  - name: requirement-fr-002
+    documents: [prd, srs]
+    pattern: 'FR-002'
+    severity: high
+  - name: requirement-fr-003
+    documents: [prd, srs]
+    pattern: 'FR-003'
+    severity: high
+  - name: feature-sf-001
+    documents: [srs, sds]
+    pattern: 'SF-001'
+    severity: high
+  - name: feature-sf-002
+    documents: [srs, sds]
+    pattern: 'SF-002'
+    severity: high
+  - name: feature-sf-003
+    documents: [srs, sds]
+    pattern: 'SF-003'
+    severity: high
+  - name: component-cmp-001
+    documents: [srs, sds]
+    pattern: 'CMP-001'
+    severity: high
+  - name: component-cmp-002
+    documents: [srs, sds]
+    pattern: 'CMP-002'
+    severity: high
+  - name: component-cmp-003
+    documents: [srs, sds]
+    pattern: 'CMP-003'
+    severity: high

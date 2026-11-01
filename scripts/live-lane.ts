@@ -50,13 +50,54 @@ export const LIVE_AUTH_MODES = ['secrets', 'local-login'] as const;
 /** One of {@link LIVE_AUTH_MODES}. */
 export type LiveAuthMode = (typeof LIVE_AUTH_MODES)[number];
 
+/** Environment variable selecting the live scenarios that run with the smoke. */
+export const LIVE_SUITE_ENV = 'AD_SDLC_LIVE_SUITE';
+
+/**
+ * Suites. `import` is the default, so a run that does not ask for the Enhancement
+ * scenarios never pays for them.
+ */
+export const LIVE_SUITES = ['import', 'enhancement', 'all'] as const;
+
+/** One of {@link LIVE_SUITES}. */
+export type LiveSuite = (typeof LIVE_SUITES)[number];
+
+const LIVE_TEST_FILES = {
+  smoke: 'tests/live/sdk-cli-smoke.live.test.ts',
+  import: 'tests/live/import-acceptance.live.test.ts',
+  enhancement: 'tests/live/enhancement-acceptance.live.test.ts',
+} as const;
+
+/**
+ * Live test files of a suite. Selecting files instead of skipping tests matters:
+ * {@link decideLaneStatus} fails a run with skipped tests.
+ * @param suite - Suite
+ * @returns Test files, passed to Vitest as filters
+ */
+export function liveSuiteFiles(suite: LiveSuite): string[] {
+  const scenarios: Readonly<Record<LiveSuite, readonly string[]>> = {
+    import: [LIVE_TEST_FILES.import],
+    enhancement: [LIVE_TEST_FILES.enhancement],
+    all: [LIVE_TEST_FILES.import, LIVE_TEST_FILES.enhancement],
+  };
+  return [LIVE_TEST_FILES.smoke, ...scenarios[suite]];
+}
+
+/**
+ * Environment variable naming the target repository of the Enhancement scenarios.
+ * It falls back to `AD_SDLC_LIVE_GITHUB_REPO`. A repository whose default branch
+ * rejects direct pushes needs its own one, because switching between the Import
+ * and Enhancement fixtures always changes the tree.
+ */
+export const LIVE_ENHANCEMENT_REPO_ENV = 'AD_SDLC_LIVE_ENHANCEMENT_GITHUB_REPO';
+
 /** Settings that must be present for the lane to execute in `secrets` mode. */
 export const REQUIRED_LIVE_SETTINGS = [
   { name: 'ANTHROPIC_API_KEY', purpose: 'Anthropic API key used by the Claude Agent SDK' },
   {
     name: 'AD_SDLC_LIVE_GITHUB_REPO',
     purpose:
-      'Disposable GitHub repository (`owner/name`, with the `ad-sdlc-live-target` topic) of the Import scenarios',
+      'Disposable GitHub repository (`owner/name`, with the `ad-sdlc-live-target` topic) of the live scenarios',
   },
   {
     name: 'AD_SDLC_LIVE_GITHUB_TOKEN',
@@ -110,6 +151,12 @@ export const LIVE_FILES = {
   evidence: 'smoke-evidence.json',
   importReport: 'import-acceptance-report.json',
   importSummary: 'import-acceptance-report.md',
+  enhancementReport: 'enhancement-acceptance-report.json',
+  enhancementSummary: 'enhancement-acceptance-report.md',
+  /** The before/after document diff; cleanup closes the pull requests it came from */
+  enhancementDiff: 'enhancement-document-diff.diff',
+  /** The `delivery_review` template a person fills in for `telemetry report --supplied` */
+  enhancementReview: 'enhancement-delivery-review.json',
 } as const;
 
 /** Turn and time limits applied to every live stage. */
@@ -127,6 +174,9 @@ export interface LiveSettings {
   readonly budget: LiveBudget;
   readonly outputDir: string;
   readonly auth: LiveAuthMode;
+  readonly suite: LiveSuite;
+  /** Target repository of the Enhancement scenarios; null when no repository is set */
+  readonly enhancementRepo: string | null;
 }
 
 /** Test counts taken from the Vitest JSON report. */
@@ -150,6 +200,7 @@ export interface LiveLaneMetadata {
   readonly missingSettings: readonly string[];
   readonly invalidSettings: readonly string[];
   readonly auth: LiveAuthMode;
+  readonly suite: LiveSuite;
   readonly budget: LiveBudget;
   readonly sdk: {
     readonly package: string;
@@ -168,6 +219,8 @@ export interface LiveLaneMetadata {
   readonly evidence: unknown;
   /** Outcome per Import scenario (#955) from `import-acceptance-report.json`, when present. */
   readonly importScenarios: readonly { readonly id: string; readonly outcome: string }[];
+  /** Outcome per Enhancement scenario (#957) from `enhancement-acceptance-report.json`, when present. */
+  readonly enhancementScenarios: readonly { readonly id: string; readonly outcome: string }[];
   readonly ci: {
     readonly runUrl: string | null;
     readonly sha: string | null;
@@ -237,6 +290,21 @@ export function resolveLiveSettings(
   const repo = env['AD_SDLC_LIVE_GITHUB_REPO'];
   if (nonEmpty(repo) && !GITHUB_REPO_PATTERN.test(repo.trim()))
     invalid.push(`AD_SDLC_LIVE_GITHUB_REPO=${JSON.stringify(repo)} (expected owner/name)`);
+  const enhancementRepo = env[LIVE_ENHANCEMENT_REPO_ENV];
+  if (nonEmpty(enhancementRepo) && !GITHUB_REPO_PATTERN.test(enhancementRepo.trim()))
+    invalid.push(
+      `${LIVE_ENHANCEMENT_REPO_ENV}=${JSON.stringify(enhancementRepo)} (expected owner/name)`
+    );
+  const suiteValue = env[LIVE_SUITE_ENV];
+  let suite: LiveSuite = 'import';
+  if (nonEmpty(suiteValue)) {
+    const selected = LIVE_SUITES.find((candidate) => candidate === suiteValue.trim());
+    if (selected === undefined)
+      invalid.push(
+        `${LIVE_SUITE_ENV}=${JSON.stringify(suiteValue)} (expected ${LIVE_SUITES.join(', ')})`
+      );
+    else suite = selected;
+  }
   const configuredDir = env[LIVE_OUTPUT_DIR_ENV];
   const outputDir = nonEmpty(configuredDir)
     ? isAbsolute(configuredDir)
@@ -255,6 +323,12 @@ export function resolveLiveSettings(
     budget,
     outputDir,
     auth,
+    suite,
+    enhancementRepo: nonEmpty(enhancementRepo)
+      ? enhancementRepo.trim()
+      : nonEmpty(repo)
+        ? repo.trim()
+        : null,
   };
 }
 
@@ -337,6 +411,7 @@ export function renderLiveSummary(metadata: LiveLaneMetadata): string {
     ['Reason', metadata.reason ?? '—'],
     ['Missing settings', metadata.missingSettings.join(', ') || '—'],
     ['Authentication', metadata.auth],
+    ['Suite', metadata.suite],
     [
       'Budget',
       `maxTurns ${String(metadata.budget.maxTurns)}, stage ${String(metadata.budget.stageTimeoutMs)} ms`,
@@ -350,6 +425,12 @@ export function renderLiveSummary(metadata: LiveLaneMetadata): string {
       metadata.importScenarios.map((scenario) => `${scenario.id} ${scenario.outcome}`).join(', ') ||
         '—',
     ],
+    [
+      'Enhancement scenarios',
+      metadata.enhancementScenarios
+        .map((scenario) => `${scenario.id} ${scenario.outcome}`)
+        .join(', ') || '—',
+    ],
     ['SDK', `${metadata.sdk.package} ${metadata.sdk.installed ?? 'not installed'}`],
     ['Node.js', metadata.node],
     ['Started / finished', `${metadata.startedAt} / ${metadata.finishedAt}`],
@@ -362,7 +443,7 @@ export function renderLiveSummary(metadata: LiveLaneMetadata): string {
     ...rows.map(([field, value]) => `| ${field} | ${escapeTableCell(value)} |`),
     '',
     metadata.executed
-      ? 'Metadata: `live-lane.json`, and the Import run report `import-acceptance-report.md`, in the `live-acceptance-metadata` artifact.'
+      ? 'Metadata: `live-lane.json`, the Import run report `import-acceptance-report.md`, and the Enhancement run report `enhancement-acceptance-report.md`, in the `live-acceptance-metadata` artifact.'
       : 'No live test ran and no SDK call was made. This is not a passing live acceptance run.',
     '',
   ].join('\n');
@@ -386,11 +467,12 @@ function stringField(value: unknown, ...keys: string[]): string | null {
 }
 
 /**
- * Scenario outcomes of an Import run report (`import-acceptance-report.json`).
+ * Scenario outcomes of a run report (`import-acceptance-report.json`,
+ * `enhancement-acceptance-report.json`).
  * @param report - Parsed report, or undefined when the live suite wrote none
  * @returns `{ id, outcome }` per scenario; empty without a report
  */
-export function importScenarioOutcomes(
+export function scenarioOutcomes(
   report: unknown
 ): { readonly id: string; readonly outcome: string }[] {
   const scenarios =
@@ -448,6 +530,7 @@ export function runLiveLane(options: RunLiveLaneOptions): {
         'run',
         '--config',
         'vitest.live.config.ts',
+        ...liveSuiteFiles(settings.suite),
         '--reporter=default',
         '--reporter=json',
         `--outputFile.json=${file('vitestReport')}`,
@@ -487,6 +570,7 @@ export function runLiveLane(options: RunLiveLaneOptions): {
     missingSettings: settings.missing,
     invalidSettings: settings.invalid,
     auth: settings.auth,
+    suite: settings.suite,
     budget: settings.budget,
     sdk: {
       package: SDK_PACKAGE,
@@ -502,7 +586,8 @@ export function runLiveLane(options: RunLiveLaneOptions): {
     tests: counts,
     exitCode,
     evidence: readJson(file('evidence')) ?? null,
-    importScenarios: importScenarioOutcomes(readJson(file('importReport'))),
+    importScenarios: scenarioOutcomes(readJson(file('importReport'))),
+    enhancementScenarios: scenarioOutcomes(readJson(file('enhancementReport'))),
     ci: {
       runUrl:
         nonEmpty(server) && nonEmpty(repository) && nonEmpty(runId)

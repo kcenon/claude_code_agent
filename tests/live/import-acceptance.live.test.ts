@@ -52,16 +52,11 @@ import {
 import {
   IMPORT_SCENARIOS,
   evaluateScenario,
-  exec,
   importRequirements,
-  type InstalledCli,
   importResumeArguments,
   importRunArguments,
-  installPackedPackage,
-  invocationEvidence,
-  linkedIssues,
   loadIssueCorpus,
-  ownedPullRequests,
+  materializeTarget,
   prepareImportProject,
   renderImportReport,
   renderIssueBody,
@@ -70,11 +65,19 @@ import {
   runLabel,
   type ImportReportMeta,
   type ImportScenario,
-  type InvocationEvidence,
   type PullRequestEvidence,
   type ScenarioResult,
   type ScenarioSnapshot,
 } from './importScenario.js';
+import {
+  exec,
+  installPackedPackage,
+  invocationEvidence,
+  linkedIssues,
+  ownedPullRequests,
+  type InstalledCli,
+  type InvocationEvidence,
+} from './scenarioSupport.js';
 
 const settings = resolveLiveSettings(process.env);
 const repo = (process.env['AD_SDLC_LIVE_GITHUB_REPO'] ?? '').trim();
@@ -181,7 +184,10 @@ async function runScenario(live: LiveContext, scenario: ImportScenario): Promise
   const requirements = importRequirements(label);
   // Every scenario starts from the fixture, even if an earlier one changed the
   // default branch (a merge the repository could not prevent is a failure there).
-  ensureFixture(repo, live.branch, join(live.root, `fixture-${scenario.id}`), live.env);
+  ensureFixture(repo, live.branch, join(live.root, `fixture-${scenario.id}`), live.env, {
+    materialize: materializeTarget,
+    commitMessage: 'test: reset the AD-SDLC Import fixture',
+  });
   const prsBefore = listPullRequests(repo, live.env).map((pr) => pr.number);
   const branchesBefore = new Set(listBranches(repo, live.env));
   const issues: { key: string; number: number }[] = [];
@@ -265,7 +271,7 @@ async function runScenario(live: LiveContext, scenario: ImportScenario): Promise
     cleanup = cleanupRun(
       repo,
       {
-        label,
+        labels: [label],
         issues: issues.map((issue) => issue.number),
         pullRequests: ownedPullRequests(prsBefore, listPullRequests(repo, live.env)),
         branches: listBranches(repo, live.env).filter((branch) => !branchesBefore.has(branch)),

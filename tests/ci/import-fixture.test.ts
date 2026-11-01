@@ -43,21 +43,23 @@ import {
   importRequirements,
   importResumeArguments,
   importRunArguments,
-  invocationEvidence,
-  linkedIssues,
   loadIssueCorpus,
   materializeTarget,
-  ownedPullRequests,
   renderImportReport,
   renderIssueBody,
   reportProblems,
   runAcceptance,
   runLabel,
   type ImportScenario,
-  type InvocationEvidence,
   type ScenarioObservation,
   type ScenarioResult,
 } from '../live/importScenario.js';
+import {
+  invocationEvidence,
+  linkedIssues,
+  ownedPullRequests,
+  type InvocationEvidence,
+} from '../live/scenarioSupport.js';
 
 const budget = { maxTurns: 4, stageTimeoutMs: 60_000 };
 const corpus = loadIssueCorpus();

@@ -1,17 +1,14 @@
 /**
- * Disposable GitHub repository operations of the Import live scenarios (#955).
- * Live lane only. Every call goes through the `gh` CLI with the lane's
- * repository-scoped token; nothing here reads or writes any other repository.
+ * Disposable GitHub repository operations of the live scenarios (#955, #957).
+ * Live lane only, except {@link resetCheckoutToFixture}, which is checked offline
+ * against a local repository. Every GitHub call goes through the `gh` CLI with
+ * the lane's repository-scoped token; nothing here reads or writes any other
+ * repository.
  */
 
 import { readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import {
-  DISPOSABLE_REPO_TOPIC,
-  exec,
-  materializeTarget,
-  type GithubPullRequest,
-} from './importScenario.js';
+import { DISPOSABLE_REPO_TOPIC, exec, type GithubPullRequest } from './scenarioSupport.js';
 
 /**
  * Environment for `gh` and `git`: an isolated global git configuration with a
@@ -94,31 +91,75 @@ export function cloneRepository(repo: string, dir: string, env: NodeJS.ProcessEn
   exec('git', ['clone', `https://github.com/${repo}.git`, dir], { env });
 }
 
+/** A target repository fixture and the commit that puts it on the default branch. */
+export interface TargetFixture {
+  /** Write the fixture into a directory */
+  readonly materialize: (dir: string) => void;
+  readonly commitMessage: string;
+}
+
 /**
- * Make the default branch hold exactly the fixture. Commits and pushes only
- * when the tree differs, so repeated runs leave the branch unchanged.
+ * Push output that means the remote refused the reset, as opposed to a failed
+ * connection or a missing permission.
+ */
+const REJECTED_PUSH = /\[remote rejected\]|\[rejected\]|GH006|GH013/;
+
+/**
+ * Make a clone's default branch hold exactly the fixture, on the remote too.
+ * Commits and pushes only when the tree differs, so repeated runs leave the
+ * branch unchanged. A rule on the default branch rejects this push, so a
+ * rejection fails before any SDK call with a message that names the cause.
+ * @param dir - Clone of the target repository
+ * @param branch - Default branch
+ * @param fixture - Fixture to write
+ * @param env - GitHub environment
+ * @returns Whether a commit was pushed
+ * @throws Error naming the rule and the setting when the remote rejects the push
+ */
+export function resetCheckoutToFixture(
+  dir: string,
+  branch: string,
+  fixture: TargetFixture,
+  env: NodeJS.ProcessEnv
+): boolean {
+  exec('git', ['checkout', '-B', branch], { cwd: dir, env });
+  for (const entry of readdirSync(dir))
+    if (entry !== '.git') rmSync(join(dir, entry), { recursive: true, force: true });
+  fixture.materialize(dir);
+  exec('git', ['add', '-A'], { cwd: dir, env });
+  if (exec('git', ['status', '--porcelain'], { cwd: dir, env }).trim() === '') return false;
+  exec('git', ['commit', '-m', fixture.commitMessage], { cwd: dir, env });
+  try {
+    exec('git', ['push', 'origin', `HEAD:${branch}`], { cwd: dir, env });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (!REJECTED_PUSH.test(message)) throw error;
+    throw new Error(
+      `The push that resets the default branch to the fixture was rejected, so no scenario ran and no SDK call was made. A rule that requires an approving review rejects a direct push whenever the tree differs, and switching between the Import and Enhancement fixtures always differs. Give the Enhancement scenarios their own repository with AD_SDLC_LIVE_ENHANCEMENT_GITHUB_REPO, or lift the rule.\n${message}`,
+      { cause: error }
+    );
+  }
+  return true;
+}
+
+/**
+ * Make the default branch of the repository hold exactly the fixture.
  * @param repo - `owner/name`
  * @param branch - Default branch
  * @param dir - Working directory for the clone (must not exist)
  * @param env - GitHub environment
+ * @param fixture - Fixture to write
  * @returns Whether a commit was pushed
  */
 export function ensureFixture(
   repo: string,
   branch: string,
   dir: string,
-  env: NodeJS.ProcessEnv
+  env: NodeJS.ProcessEnv,
+  fixture: TargetFixture
 ): boolean {
   cloneRepository(repo, dir, env);
-  exec('git', ['checkout', '-B', branch], { cwd: dir, env });
-  for (const entry of readdirSync(dir))
-    if (entry !== '.git') rmSync(join(dir, entry), { recursive: true, force: true });
-  materializeTarget(dir);
-  exec('git', ['add', '-A'], { cwd: dir, env });
-  if (exec('git', ['status', '--porcelain'], { cwd: dir, env }).trim() === '') return false;
-  exec('git', ['commit', '-m', 'test: reset the AD-SDLC Import fixture'], { cwd: dir, env });
-  exec('git', ['push', 'origin', `HEAD:${branch}`], { cwd: dir, env });
-  return true;
+  return resetCheckoutToFixture(dir, branch, fixture, env);
 }
 
 /**
@@ -214,6 +255,39 @@ export function listLabeledIssues(repo: string, label: string, env: NodeJS.Proce
 }
 
 /**
+ * Issue numbers of the repository, any state. `gh issue list` returns 30
+ * results by default, so a run's generated issues could be missed without the limit.
+ * @param repo - `owner/name`
+ * @param env - GitHub environment
+ * @returns Issue numbers
+ */
+export function listIssues(repo: string, env: NodeJS.ProcessEnv): number[] {
+  return (
+    JSON.parse(
+      exec(
+        'gh',
+        ['issue', 'list', '--repo', repo, '--state', 'all', '--limit', '1000', '--json', 'number'],
+        { env }
+      )
+    ) as { number: number }[]
+  ).map((issue) => issue.number);
+}
+
+/**
+ * Label names of the repository.
+ * @param repo - `owner/name`
+ * @param env - GitHub environment
+ * @returns Label names
+ */
+export function listLabels(repo: string, env: NodeJS.ProcessEnv): string[] {
+  return (
+    JSON.parse(
+      exec('gh', ['label', 'list', '--repo', repo, '--limit', '1000', '--json', 'name'], { env })
+    ) as { name: string }[]
+  ).map((label) => label.name);
+}
+
+/**
  * Branch names of the repository.
  * @param repo - `owner/name`
  * @param env - GitHub environment
@@ -228,7 +302,8 @@ export function listBranches(repo: string, env: NodeJS.ProcessEnv): string[] {
 
 /** Resources one scenario run created. */
 export interface OwnedResources {
-  readonly label: string;
+  /** Labels the run created (Import: its run label; Enhancement: what the issue generator added) */
+  readonly labels: readonly string[];
   readonly issues: readonly number[];
   readonly pullRequests: readonly GithubPullRequest[];
   /** Branches that did not exist before the run */
@@ -238,7 +313,7 @@ export interface OwnedResources {
 /**
  * Remove what a scenario run created, and nothing else: close its open pull
  * requests without merging, delete its branches, close its issues, and
- * delete its label. Every step runs even when an earlier one fails.
+ * delete its labels. Every step runs even when an earlier one fails.
  * @param repo - `owner/name`
  * @param owned - Resources the run created
  * @param env - GitHub environment
@@ -271,8 +346,9 @@ export function cleanupRun(repo: string, owned: OwnedResources, env: NodeJS.Proc
     attempt(`closed issue #${String(issue)}`, () =>
       exec('gh', ['issue', 'close', String(issue), '--repo', repo], { env })
     );
-  attempt(`deleted label ${owned.label}`, () =>
-    exec('gh', ['label', 'delete', owned.label, '--repo', repo, '--yes'], { env })
-  );
+  for (const label of owned.labels)
+    attempt(`deleted label ${label}`, () =>
+      exec('gh', ['label', 'delete', label, '--repo', repo, '--yes'], { env })
+    );
   return actions;
 }

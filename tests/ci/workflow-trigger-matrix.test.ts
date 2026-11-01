@@ -92,14 +92,18 @@ describe('workflow trigger matrix', () => {
     expect(live.permissions).toEqual({ contents: 'read' });
     const job = live.jobs['live'];
     expect(job?.['timeout-minutes']).toBeGreaterThan(0);
-    expect(job?.['timeout-minutes']).toBeLessThanOrEqual(60);
+    // A delivery and a regression run of 27 stage attempts at the default budget, plus Import.
+    expect(job?.['timeout-minutes']).toBeLessThanOrEqual(300);
     const run = job?.steps?.find((step) => step.run === 'npm run test:live');
     expect(run?.env).toMatchObject({
       AD_SDLC_LIVE_GITHUB_REPO: '${{ vars.AD_SDLC_LIVE_GITHUB_REPO }}',
       AD_SDLC_LIVE_GITHUB_TOKEN: '${{ secrets.AD_SDLC_LIVE_GITHUB_TOKEN }}',
       AD_SDLC_LIVE_MAX_TURNS: '${{ inputs.max_turns }}',
       AD_SDLC_LIVE_STAGE_TIMEOUT_MS: '${{ inputs.stage_timeout_ms }}',
+      AD_SDLC_LIVE_SUITE: '${{ inputs.suite }}',
+      AD_SDLC_LIVE_ENHANCEMENT_GITHUB_REPO: '${{ vars.AD_SDLC_LIVE_ENHANCEMENT_GITHUB_REPO }}',
     });
+    expect(live.dispatchDefaults['suite']).toBe('import');
     const { maxTurns, stageTimeoutMs } = LIVE_BUDGET_SETTINGS;
     expect(live.dispatchDefaults['max_turns']).toBeGreaterThanOrEqual(maxTurns.min);
     expect(live.dispatchDefaults['max_turns']).toBeLessThanOrEqual(maxTurns.max);

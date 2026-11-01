@@ -197,6 +197,8 @@ describe('live lane runner', () => {
       exitCode: LIVE_EXIT.notExecuted,
       evidence: null,
       importScenarios: [],
+      enhancementScenarios: [],
+      suite: 'import',
       node: process.version,
       sdk: { package: '@anthropic-ai/claude-agent-sdk' },
     });

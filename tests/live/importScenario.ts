@@ -14,22 +14,26 @@
  * and SDK parts run only in the live lane.
  */
 
-import { spawnSync, type SpawnSyncReturns } from 'node:child_process';
-import {
-  cpSync,
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  readdirSync,
-  renameSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { LiveBudget } from '../../scripts/live-lane.js';
 import { IMPORT_STAGES } from '../../src/ad-sdlc-orchestrator/types.js';
-import { parseCliJson, withMaxTurns } from './harness.js';
+import {
+  applyTurnBudgetTo,
+  cell,
+  exec,
+  materializeFixture,
+  pipelineResumeArguments,
+  pipelineRunArguments,
+  renderInvocation,
+  runAcceptanceTests,
+  sdkEvidenceProblems,
+  stageStatus,
+  type AcceptanceResult,
+  type InstalledCli,
+  type InvocationEvidence,
+} from './scenarioSupport.js';
 
 const FIXTURES = fileURLToPath(new URL('./fixtures/', import.meta.url));
 
@@ -46,9 +50,6 @@ export const IMPORT_AGENTS: readonly string[] = IMPORT_STAGES.map((stage) => sta
 
 /** Variable that makes the target's required test fail (scenario b). */
 export const REQUIRED_FAIL_ENV = 'AD_SDLC_FIXTURE_REQUIRED_FAIL';
-
-/** Topic a GitHub repository must carry before the lane writes to it. */
-export const DISPOSABLE_REPO_TOPIC = 'ad-sdlc-live-target';
 
 /** Report files written to the lane output directory. */
 export const IMPORT_REPORT_FILES = {
@@ -122,14 +123,11 @@ export function renderIssueBody(issue: SeededIssue, corpus: IssueCorpus): string
 }
 
 /**
- * Write the target repository into a directory (`gitignore` becomes
- * `.gitignore`, which the fixture cannot hold without affecting this repository).
+ * Write the target repository into a directory.
  * @param dir - Destination; created when missing
  */
 export function materializeTarget(dir: string): void {
-  mkdirSync(dir, { recursive: true });
-  cpSync(IMPORT_FIXTURE.target, dir, { recursive: true });
-  renameSync(join(dir, 'gitignore'), join(dir, '.gitignore'));
+  materializeFixture(IMPORT_FIXTURE.target, dir);
 }
 
 /**
@@ -162,58 +160,22 @@ export function prepareImportProject(
  * @param budget - Lane budget
  */
 export function applyTurnBudget(projectDir: string, budget: LiveBudget): void {
-  for (const agent of IMPORT_AGENTS) {
-    const path = join(projectDir, '.claude', 'agents', `${agent}.md`);
-    writeFileSync(path, withMaxTurns(readFileSync(path, 'utf8'), budget.maxTurns));
-  }
-}
-
-/** Result of the independent acceptance tests on one checkout. */
-export interface AcceptanceResult {
-  readonly passed: boolean;
-  readonly tests: number;
-  readonly pass: number;
-  readonly fail: number;
-  readonly output: string;
+  applyTurnBudgetTo(projectDir, IMPORT_AGENTS, budget);
 }
 
 /**
- * Run the acceptance tests of the given issues on a checkout. The tests are
- * copied into `acceptance/` and removed afterwards; the required-test switch
- * is cleared so only the issue behavior is judged.
+ * Run the acceptance tests of the given issues on a checkout. The required-test
+ * switch is cleared so only the issue behavior is judged.
  * @param checkout - Repository checkout to judge
  * @param keys - Issue keys
  * @returns Test counts and output
  */
 export function runAcceptance(checkout: string, keys: readonly string[]): AcceptanceResult {
-  const dir = join(checkout, 'acceptance');
-  rmSync(dir, { recursive: true, force: true });
-  mkdirSync(dir);
-  const files = keys.map((key) => {
-    cpSync(join(IMPORT_FIXTURE.acceptance, `${key}.test.mjs`), join(dir, `${key}.test.mjs`));
-    return join('acceptance', `${key}.test.mjs`);
+  return runAcceptanceTests(checkout, {
+    sourceDir: IMPORT_FIXTURE.acceptance,
+    keys,
+    clearedEnv: [REQUIRED_FAIL_ENV],
   });
-  const env: NodeJS.ProcessEnv = { ...process.env };
-  delete env[REQUIRED_FAIL_ENV];
-  delete env['NODE_TEST_CONTEXT'];
-  // TAP output, whose `# pass N` summary lines are parsed below.
-  const result = spawnSync(process.execPath, ['--test', '--test-reporter=tap', ...files], {
-    cwd: checkout,
-    env,
-    encoding: 'utf8',
-    timeout: 120_000,
-  });
-  rmSync(dir, { recursive: true, force: true });
-  const output = `${result.stdout}${result.stderr}`;
-  const count = (name: string): number =>
-    Number(new RegExp(`^# ${name} (\\d+)`, 'm').exec(output)?.[1] ?? 0);
-  return {
-    passed: result.status === 0 && count('fail') === 0 && count('pass') > 0,
-    tests: count('tests'),
-    pass: count('pass'),
-    fail: count('fail'),
-    output,
-  };
 }
 
 /** Live scenarios. Each run seeds its own issues under its own label. */
@@ -278,11 +240,7 @@ export function importRequirements(label: string): string {
 }
 
 /**
- * `ad-sdlc run` arguments of a first invocation: Import mode, one attempt per
- * stage, the stage time budget, automatic approval (merges are prevented by
- * the requirements and the repository's rules, and judged afterwards), the
- * delivery verification profile (a failed required check fails the run),
- * no prompts, JSON output.
+ * `ad-sdlc run` arguments of a first Import invocation.
  * @param projectDir - Clone of the target repository
  * @param budget - Lane budget
  * @param requirements - Requirements text
@@ -295,31 +253,11 @@ export function importRunArguments(
   requirements: string,
   extra: readonly string[] = []
 ): string[] {
-  return [
-    'run',
-    requirements,
-    '--project-dir',
-    projectDir,
-    '--mode',
-    'import',
-    '--max-attempts',
-    '1',
-    '--stage-timeout-ms',
-    String(budget.stageTimeoutMs),
-    '--approval-mode',
-    'auto',
-    '--vnv-profile',
-    'delivery',
-    '--non-interactive',
-    '--format',
-    'json',
-    ...extra,
-  ];
+  return pipelineRunArguments('import', projectDir, budget, requirements, extra);
 }
 
 /**
- * `ad-sdlc run` arguments of a resumed invocation. Resume reuses the saved
- * graph and policy, so only the session, project, and output flags are given.
+ * `ad-sdlc run` arguments of a resumed Import invocation.
  * @param projectDir - Clone of the target repository
  * @param requirements - The original requirements text
  * @param sessionId - Saved session
@@ -332,187 +270,7 @@ export function importResumeArguments(
   sessionId: string,
   extra: readonly string[] = []
 ): string[] {
-  return [
-    'run',
-    requirements,
-    '--project-dir',
-    projectDir,
-    '--resume',
-    sessionId,
-    '--non-interactive',
-    '--format',
-    'json',
-    ...extra,
-  ];
-}
-
-/** A pull request as `gh pr list --json` reports it. */
-export interface GithubPullRequest {
-  readonly number: number;
-  readonly headRefName: string;
-  readonly headRefOid?: string;
-  readonly state: string;
-  readonly mergedAt: string | null;
-  readonly title: string;
-  readonly body: string;
-  readonly closingIssuesReferences?: readonly { readonly number: number }[];
-}
-
-/**
- * Pull requests created during a run: the ones absent from the snapshot
- * taken before it. The lane's concurrency group keeps runs from overlapping.
- * @param before - Pull request numbers before the run
- * @param after - Pull requests after the run
- * @returns Pull requests the run created
- */
-export function ownedPullRequests(
-  before: readonly number[],
-  after: readonly GithubPullRequest[]
-): GithubPullRequest[] {
-  const known = new Set(before);
-  return after.filter((pr) => !known.has(pr.number));
-}
-
-/**
- * Issues a pull request links: closing references, or `#N` in its title or body.
- * @param pr - Pull request
- * @param issues - Candidate issue numbers
- * @returns Linked issue numbers in candidate order
- */
-export function linkedIssues(pr: GithubPullRequest, issues: readonly number[]): number[] {
-  const closing = new Set((pr.closingIssuesReferences ?? []).map((ref) => ref.number));
-  const text = `${pr.title}\n${pr.body}`;
-  return issues.filter(
-    (issue) => closing.has(issue) || new RegExp(`(^|[^\\w&])#${String(issue)}(?!\\d)`).test(text)
-  );
-}
-
-/** Evidence of one attempt (SDK execution) of a stage. */
-export interface AttemptEvidence {
-  readonly stage: string;
-  readonly outcome: string;
-  readonly execution: string;
-  readonly sdkSessionId: string | null;
-  readonly modelId: string | null;
-  readonly sdkVersion: string | null;
-  readonly inputTokens: number | null;
-  readonly outputTokens: number | null;
-  readonly durationMs: number;
-  readonly errorType: string | null;
-}
-
-/** Evidence of one stage of an invocation. */
-export interface StageEvidenceRow {
-  readonly stage: string;
-  readonly status: string;
-  readonly restored: boolean;
-  readonly attempts: number;
-  readonly verification: string | null;
-  /** Stage error message, when the stage failed */
-  readonly error: string | null;
-  /** Failed verification checks as `checkId: message` */
-  readonly failedChecks: readonly string[];
-}
-
-/** Evidence of one `ad-sdlc run` invocation. */
-export interface InvocationEvidence {
-  readonly invocation: string;
-  readonly exitCode: number | null;
-  readonly signal: string | null;
-  readonly durationMs: number;
-  readonly sessionId: string | null;
-  readonly status: string | null;
-  readonly error: string | null;
-  readonly resumed: boolean;
-  readonly stages: readonly StageEvidenceRow[];
-  readonly attempts: readonly AttemptEvidence[];
-}
-
-type JsonRecord = Record<string, unknown>;
-const asRecord = (value: unknown): JsonRecord | undefined =>
-  typeof value === 'object' && value !== null && !Array.isArray(value)
-    ? (value as JsonRecord)
-    : undefined;
-const asString = (value: unknown): string | null => (typeof value === 'string' ? value : null);
-const asNumber = (value: unknown): number | null => (typeof value === 'number' ? value : null);
-
-/**
- * Extract the evidence of one invocation from the CLI's JSON output (a run
- * result, or `{ ready: false, error, result }` for a failed run). Credentials
- * never appear in the output; prompts and tool inputs are not recorded.
- * @param invocation - Label (`run`, `resume-1`, ...)
- * @param child - CLI child process result
- * @param durationMs - Wall time
- * @returns Evidence
- */
-export function invocationEvidence(
-  invocation: string,
-  child: Pick<SpawnSyncReturns<string>, 'status' | 'signal' | 'stdout'>,
-  durationMs: number
-): InvocationEvidence {
-  let output: JsonRecord = {};
-  try {
-    output = parseCliJson(child.stdout);
-  } catch {
-    output = { ready: false, error: 'No JSON result in the CLI output' };
-  }
-  const result = asRecord(output['result']) ?? (output['ready'] === false ? {} : output);
-  const records = (asRecord(result['metrics'])?.['records'] as unknown[] | undefined) ?? [];
-  const byKind = (kind: string): JsonRecord[] =>
-    records.map(asRecord).filter((entry): entry is JsonRecord => entry?.['kind'] === kind);
-  const pipeline = byKind('pipeline')[0];
-  const stageResults = new Map(
-    (Array.isArray(result['stages']) ? result['stages'] : [])
-      .map(asRecord)
-      .filter((entry): entry is JsonRecord => entry !== undefined)
-      .map((entry) => [asString(entry['name']) ?? 'unknown', entry] as const)
-  );
-  const failedChecks = (stage: string): string[] => {
-    const checks = asRecord(stageResults.get(stage)?.['verification'])?.['checks'];
-    return (Array.isArray(checks) ? checks : [])
-      .map(asRecord)
-      .filter((check) => check?.['outcome'] === 'fail')
-      .map(
-        (check) => `${asString(check?.['checkId']) ?? '?'}: ${asString(check?.['message']) ?? ''}`
-      );
-  };
-  return {
-    invocation,
-    exitCode: child.status,
-    signal: child.signal,
-    durationMs,
-    sessionId: asString(result['pipelineId']),
-    status: asString(result['overallStatus']) ?? asString(pipeline?.['status']),
-    error: asString(output['error']),
-    resumed: asRecord(pipeline?.['resume'])?.['resumed'] === true,
-    stages: byKind('stage').map((stage) => {
-      const name = asString(stage['stage']) ?? 'unknown';
-      return {
-        stage: name,
-        status: asString(stage['status']) ?? 'unknown',
-        restored: stage['restored'] === true,
-        attempts: asNumber(asRecord(stage['attempts'])?.['total']) ?? 0,
-        verification: asString(asRecord(stage['verification'])?.['state']),
-        error: asString(stageResults.get(name)?.['error']),
-        failedChecks: failedChecks(name),
-      };
-    }),
-    attempts: byKind('attempt').map((attempt) => {
-      const usage = asRecord(attempt['usage']);
-      return {
-        stage: asString(attempt['stage']) ?? 'unknown',
-        outcome: asString(attempt['outcome']) ?? 'unknown',
-        execution: asString(attempt['execution']) ?? 'unknown',
-        sdkSessionId: asString(attempt['sdkSessionId']),
-        modelId: asString(attempt['modelId']),
-        sdkVersion: asString(attempt['sdkVersion']),
-        inputTokens: asNumber(usage?.['inputTokens']),
-        outputTokens: asNumber(usage?.['outputTokens']),
-        durationMs: asNumber(attempt['durationMs']) ?? 0,
-        errorType: asString(attempt['errorType']),
-      };
-    }),
-  };
+  return pipelineResumeArguments(projectDir, requirements, sessionId, extra);
 }
 
 /** Pull request evidence of a scenario. */
@@ -559,26 +317,6 @@ export interface ScenarioObservation {
 }
 
 /**
- * Problems with the SDK evidence of an invocation: every SDK attempt must
- * report its session, model, and token usage.
- * @param invocation - Invocation evidence
- * @returns Problems; empty when the evidence is complete
- */
-function sdkEvidenceProblems(invocation: InvocationEvidence): string[] {
-  return invocation.attempts
-    .filter((attempt) => attempt.execution === 'sdk')
-    .flatMap((attempt) => {
-      const where = `${invocation.invocation} ${attempt.stage}`;
-      const problems: string[] = [];
-      if (attempt.sdkSessionId === null) problems.push(`${where}: no SDK session ID`);
-      if (attempt.modelId === null) problems.push(`${where}: no model ID`);
-      if ((attempt.inputTokens ?? 0) + (attempt.outputTokens ?? 0) === 0)
-        problems.push(`${where}: no token usage`);
-      return problems;
-    });
-}
-
-/**
  * Problems with the delivered pull requests: each is open and unmerged,
  * every seeded issue is linked, and the acceptance tests pass on every one.
  * @param observation - Scenario observation
@@ -599,9 +337,6 @@ function deliveryProblems(observation: ScenarioObservation): string[] {
       problems.push(`issue #${String(issue)} is not linked by a pull request`);
   return problems;
 }
-
-const stageStatus = (invocation: InvocationEvidence | undefined, stage: string): string | null =>
-  invocation?.stages.find((entry) => entry.stage === stage)?.status ?? null;
 
 /**
  * Judge a scenario run. The live test fails when this returns problems; the
@@ -725,12 +460,6 @@ export interface ImportReportMeta {
   readonly finishedAt: string;
 }
 
-const cell = (value: unknown): string =>
-  (value === null || value === undefined ? '—' : String(value))
-    .replace(/\\/g, '\\\\')
-    .replace(/\|/g, '\\|')
-    .replace(/\r?\n/g, ' ');
-
 /**
  * Render the Markdown run report: every scenario, every invocation, and every
  * stage and attempt, including failed, skipped, and restored ones.
@@ -760,28 +489,7 @@ export function renderImportReport(
       '',
       `Outcome **${result.outcome}**. Label \`${result.label}\`; issues ${result.issues.map((issue) => `#${String(issue.number)} (${issue.key})`).join(', ') || 'none'}.`
     );
-    for (const invocation of result.invocations) {
-      lines.push(
-        '',
-        `### ${invocation.invocation}`,
-        '',
-        `Session ${cell(invocation.sessionId)}; status ${cell(invocation.status)}; exit ${cell(invocation.exitCode)}${invocation.signal === null ? '' : ` (${invocation.signal})`}; ${String(invocation.durationMs)} ms; resumed ${String(invocation.resumed)}.${invocation.error === null ? '' : ` Error: ${cell(invocation.error)}`}`,
-        '',
-        '| Stage | Status | Restored | Attempts | Verification | Failed checks and error |',
-        '| --- | --- | --- | --- | --- | --- |',
-        ...invocation.stages.map(
-          (stage) =>
-            `| ${stage.stage} | ${stage.status} | ${String(stage.restored)} | ${String(stage.attempts)} | ${cell(stage.verification)} | ${cell([...stage.failedChecks, ...(stage.error === null ? [] : [stage.error])].join('; ') || null)} |`
-        ),
-        '',
-        '| Attempt stage | Outcome | Execution | SDK session | Model | Input tokens | Output tokens | Duration (ms) | Error type |',
-        '| --- | --- | --- | --- | --- | --- | --- | --- | --- |',
-        ...invocation.attempts.map(
-          (attempt) =>
-            `| ${attempt.stage} | ${attempt.outcome} | ${attempt.execution} | ${cell(attempt.sdkSessionId)} | ${cell(attempt.modelId)} | ${cell(attempt.inputTokens)} | ${cell(attempt.outputTokens)} | ${String(attempt.durationMs)} | ${cell(attempt.errorType)} |`
-        )
-      );
-    }
+    for (const invocation of result.invocations) lines.push(...renderInvocation(invocation));
     lines.push(
       '',
       '| Pull request | State | Merged | Linked issues | Acceptance |',
@@ -795,93 +503,4 @@ export function renderImportReport(
     );
   }
   return `${lines.join('\n')}\n`;
-}
-
-/**
- * Run a command and require exit 0.
- * @param command - Executable
- * @param args - Arguments
- * @param options - Working directory, environment, and timeout
- * @returns Standard output
- */
-export function exec(
-  command: string,
-  args: readonly string[],
-  options: {
-    readonly cwd?: string;
-    readonly env: NodeJS.ProcessEnv;
-    readonly timeoutMs?: number;
-    /** Run through the platform shell (Windows `.cmd` launchers need it) */
-    readonly shell?: boolean;
-  }
-): string {
-  const result = spawnSync(command, args, {
-    cwd: options.cwd,
-    env: options.env,
-    encoding: 'utf8',
-    timeout: options.timeoutMs ?? 300_000,
-    maxBuffer: 20 * 1024 * 1024,
-    shell: options.shell ?? false,
-  });
-  if (result.error !== undefined) throw result.error;
-  if (result.status !== 0)
-    throw new Error(
-      `${command} ${args.join(' ')} exited with ${String(result.status)}\n${result.stdout}\n${result.stderr}`
-    );
-  return result.stdout;
-}
-
-/** How to start the installed `ad-sdlc` CLI: `command ...args <cli arguments>`. */
-export interface InstalledCli {
-  readonly command: string;
-  readonly args: readonly string[];
-}
-
-/** Git for Windows' bash, which runs the package scripts (`rm -rf`) on Windows. */
-const WINDOWS_SCRIPT_SHELL = 'C:\\Program Files\\Git\\bin\\bash.exe';
-
-/**
- * Pack this repository and install the tarball, production dependencies only,
- * in a separate consumer directory. On Windows npm runs through its `.cmd`
- * launcher, and the package scripts run in Git for Windows' bash.
- * @param repoRoot - AD-SDLC checkout
- * @param dir - Consumer directory
- * @param env - Environment
- * @returns The installed package's CLI entry, run with this Node.js
- */
-export function installPackedPackage(
-  repoRoot: string,
-  dir: string,
-  env: NodeJS.ProcessEnv
-): InstalledCli {
-  const pack = join(dir, 'pack');
-  const consumer = join(dir, 'consumer');
-  mkdirSync(pack, { recursive: true });
-  mkdirSync(consumer, { recursive: true });
-  const windows = process.platform === 'win32';
-  if (windows && !existsSync(WINDOWS_SCRIPT_SHELL))
-    throw new Error(`npm pack on Windows needs Git for Windows' bash at ${WINDOWS_SCRIPT_SHELL}`);
-  const npmEnv: NodeJS.ProcessEnv = windows
-    ? { ...env, npm_config_script_shell: WINDOWS_SCRIPT_SHELL }
-    : env;
-  const npm = (args: readonly string[], cwd: string): string =>
-    exec(windows ? 'npm.cmd' : 'npm', args, {
-      cwd,
-      env: npmEnv,
-      timeoutMs: 600_000,
-      shell: windows,
-    });
-  npm(['pack', '--pack-destination', pack], repoRoot);
-  const tarball = readdirSync(pack).find((file) => file.endsWith('.tgz'));
-  if (tarball === undefined) throw new Error('npm pack wrote no tarball');
-  npm(['init', '-y'], consumer);
-  npm(['install', '--omit=dev', '--no-audit', '--no-fund', join(pack, tarball)], consumer);
-  const pkg = join(consumer, 'node_modules', 'ad-sdlc');
-  const manifest = JSON.parse(readFileSync(join(pkg, 'package.json'), 'utf8')) as {
-    bin?: Record<string, string>;
-  };
-  const entry = manifest.bin?.['ad-sdlc'];
-  if (entry === undefined || !existsSync(join(pkg, entry)))
-    throw new Error(`Installed package has no ad-sdlc executable: ${pkg}`);
-  return { command: process.execPath, args: [join(pkg, entry)] };
 }

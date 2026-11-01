@@ -1,0 +1,10 @@
+{
+  "name": "ad-sdlc-enhancement-fixture",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Target repository of the AD-SDLC Enhancement live acceptance scenarios",
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  }
+}
