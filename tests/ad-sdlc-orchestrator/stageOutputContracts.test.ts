@@ -187,6 +187,28 @@ describe('stage output contracts', () => {
     expect(definition).toContain('verifiable by a test');
   });
 
+  it.each([
+    ['prd_update', 'prd-updater', 'prd_update_result.yaml'],
+    ['srs_update', 'srs-updater', 'srs_update_result.yaml'],
+    ['sds_update', 'sds-updater', 'sds_update_result.yaml'],
+  ] as const)(
+    '%s requires the update result %s documents, and names it one way',
+    (stage, agent, result) => {
+      const pattern = `${SCRATCHPAD}/documents/*/${result}`;
+      expect(
+        cases.some(
+          ([mode, name, , output]) => mode === 'enhancement' && name === stage && output === pattern
+        )
+      ).toBe(true);
+      const definition = definitionOf(agent);
+      expect(definition).toContain(`Write ${result}`);
+      expect(definition).toContain('The scratchpad copy and the update result are the outputs');
+      expect(definition).toMatch(/\*\*Write Output\*\*: .*the update result/u);
+      // A worked name other than the required one would fail the stage.
+      expect(definition).not.toMatch(/(?<![a-z]_)update_result\.yaml/u);
+    }
+  );
+
   it('limits Enhancement issues to the components the SDS update lists', () => {
     const definition = definitionOf('issue-generator');
     const updater = definitionOf('sds-updater');

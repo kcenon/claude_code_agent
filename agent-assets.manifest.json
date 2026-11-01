@@ -190,7 +190,7 @@
       "id": "agent:prd-updater",
       "kind": "agent",
       "path": ".claude/agents/prd-updater.md",
-      "digest": "a35ecb666e50cd4b4e38f7f6ee7386138a863b8dc2a7fb41b0b59c2327d8ba5a",
+      "digest": "83640b828d73455f1322a80bc2caaba5aa10b5f1987b653d07912fc39f426ed5",
       "role": "direct",
       "requires": []
     },
@@ -246,7 +246,7 @@
       "id": "agent:sds-updater",
       "kind": "agent",
       "path": ".claude/agents/sds-updater.md",
-      "digest": "9457059704875e276bf0af25afb067aec84e508b8c520eddca1ed2f9709911f0",
+      "digest": "e860d682ba0a59fcfb352a2a663902f0cea30cb7576241856d091fd24b443659",
       "role": "direct",
       "requires": []
     },
@@ -262,7 +262,7 @@
       "id": "agent:srs-updater",
       "kind": "agent",
       "path": ".claude/agents/srs-updater.md",
-      "digest": "50bff04f83ea3b30df24f9919595a614a3640c126b3eb9b9e35f3ff9e4a4c42a",
+      "digest": "fe2f6778d85be5aab01705953cd1226fd6c0f1398e03109c571ed4e9878a4d6e",
       "role": "direct",
       "requires": []
     },

@@ -146,11 +146,11 @@ function changedRequirements(parsed: unknown): readonly string[] | null {
 /**
  * Requirements an Enhancement run left alone: the ones the project already had
  * (`current_state.yaml`) that the PRD update did not add or modify
- * (`prd_update_result.yaml`). The update result is not a required output, and a
- * modified requirement is only known from it, so anything short of two readable
- * files and a well-formed result returns the empty set: every requirement stays in
- * scope and the gate fails closed. Both files are the agents' own reports, so a
- * requirement an updater changed and did not list is not detected.
+ * (`prd_update_result.yaml`). Both are required outputs of their stages, but a
+ * modified requirement is known only from what the update result says, so anything
+ * short of two readable files and a well-formed result returns the empty set: every
+ * requirement stays in scope and the gate fails closed. Both files are the agents'
+ * own reports, so a requirement an updater changed and did not list is not detected.
  * @param projectDir - Project root
  * @param artifacts - Artifact locations of the run's completed stages
  * @returns Requirement identifiers that need no issue from this run

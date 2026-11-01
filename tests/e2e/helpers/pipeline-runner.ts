@@ -625,16 +625,27 @@ export async function placeMockArtifacts(
           'utf-8'
         );
         break;
-      // prd_update, srs_update, sds_update use same artifacts as prd/srs/sds_generation
+      // prd_update, srs_update, sds_update write the artifacts of prd/srs/sds_generation
+      // and an update result that later stages read
       case 'prd_update':
-        await placeMockArtifacts(projectDir, ['prd_generation'], projectId);
-        break;
       case 'srs_update':
-        await placeMockArtifacts(projectDir, ['srs_generation'], projectId);
+      case 'sds_update': {
+        const documentType = stage.slice(0, 3);
+        await placeMockArtifacts(projectDir, [`${documentType}_generation`], projectId);
+        await fs.writeFile(
+          path.join(
+            projectDir,
+            '.ad-sdlc',
+            'scratchpad',
+            'documents',
+            projectId,
+            `${documentType}_update_result.yaml`
+          ),
+          'update_result:\n  changes:\n    added: []\n    modified: []\n',
+          'utf-8'
+        );
         break;
-      case 'sds_update':
-        await placeMockArtifacts(projectDir, ['sds_generation'], projectId);
-        break;
+      }
       case 'doc_indexing':
         await fs.mkdir(path.join(projectDir, 'docs', '.index'), { recursive: true });
         await fs.writeFile(

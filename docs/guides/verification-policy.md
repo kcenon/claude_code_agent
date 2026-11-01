@@ -155,9 +155,10 @@ Enhancement changes an existing project, so it does not ask for an issue for
 every requirement. A requirement the project already had
 (`current_state.yaml`) that the PRD update did not add or modify
 (`prd_update_result.yaml`) is not this run's work and is not reported. A
-requirement the run added or modified is. The check fails closed: unless both
-files are readable and the update result lists its `changes` with a string `id`
-on every added and modified entry, every requirement without an issue is
+requirement the run added or modified is. Both are required outputs of their
+stages, so a run without them stops there, and the check still fails closed: unless
+both files are readable and the update result lists its `changes` with a string
+`id` on every added and modified entry, every requirement without an issue is
 reported, because a modified requirement is known only from that file.
 
 Both files are the agents' own reports, so a requirement an updater changed and

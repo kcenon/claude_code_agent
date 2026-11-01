@@ -229,6 +229,11 @@ export const ENHANCEMENT_ARTIFACTS: readonly StageArtifactMap[] = [
         description: 'Updated PRD document',
         required: true,
       },
+      {
+        pathPattern: '.ad-sdlc/scratchpad/documents/*/prd_update_result.yaml',
+        description: 'PRD update result, which later stages read',
+        required: true,
+      },
     ],
   },
   {
@@ -239,6 +244,11 @@ export const ENHANCEMENT_ARTIFACTS: readonly StageArtifactMap[] = [
         description: 'Updated SRS document',
         required: true,
       },
+      {
+        pathPattern: '.ad-sdlc/scratchpad/documents/*/srs_update_result.yaml',
+        description: 'SRS update result, which later stages read',
+        required: true,
+      },
     ],
   },
   {
@@ -247,6 +257,11 @@ export const ENHANCEMENT_ARTIFACTS: readonly StageArtifactMap[] = [
       {
         pathPattern: '.ad-sdlc/scratchpad/documents/*/sds.md',
         description: 'Updated SDS document',
+        required: true,
+      },
+      {
+        pathPattern: '.ad-sdlc/scratchpad/documents/*/sds_update_result.yaml',
+        description: 'SDS update result, which later stages read',
         required: true,
       },
     ],

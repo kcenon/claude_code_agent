@@ -17,6 +17,7 @@ import {
   type ManifestReference,
 } from '../../src/execution/artifacts/schemas.js';
 import { normalizeArtifactPath } from '../../src/execution/artifacts/paths.js';
+import { recoverStageManifest } from '../../src/ad-sdlc-orchestrator/stageManifests.js';
 import type { StageExecutionRequest, StageExecutionResult } from '../../src/execution/types.js';
 import { installAgent, sdkResult, withQueryLifecycle } from './fixtures/sdk.js';
 import { deferred } from './fixtures/controlledSdk.js';
@@ -265,6 +266,32 @@ describe('durable SDK artifact manifests', () => {
       await sdk.dispose();
     }
   );
+
+  it('reuses a committed attempt only under the output contract it was committed with', async () => {
+    const requiredOutputs = [{ pattern: 'required.txt', kind: 'file' as const }];
+    const producer = adapter(async function* ({ options }) {
+      await file('required.txt');
+      await capture(options, 'required.txt');
+      yield sdkResult();
+    });
+    const first = await producer.execute(
+      request({ artifactContext: context({ requiredOutputs }) })
+    );
+    await producer.dispose();
+    expect(first.status).toBe('success');
+
+    const resumed = (outputs: ArtifactContext['requiredOutputs'], attemptId: string) =>
+      recoverStageManifest(
+        request({ artifactContext: context({ requiredOutputs: outputs, attemptId }) })
+      );
+    await expect(resumed(requiredOutputs, 'attempt-2')).resolves.toMatchObject({
+      status: 'success',
+      manifest: first.manifest,
+    });
+    await expect(
+      resumed([...requiredOutputs, { pattern: 'added.yaml', kind: 'file' }], 'attempt-3')
+    ).rejects.toThrow('Recovered output contract changed: implementation; start a fresh run');
+  });
 
   it('refuses to promote a failed upstream attempt through a standalone reuse declaration', async () => {
     const producer = adapter(async function* ({ options }) {
