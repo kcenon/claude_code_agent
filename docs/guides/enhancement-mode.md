@@ -132,7 +132,7 @@ Each updater:
 - Maintains version history
 - Generates changelog
 - Preserves existing content
-- Writes the document under `docs/` and a copy to `.ad-sdlc/scratchpad/documents/<project>/{prd,srs,sds}.md`, which later stages read
+- Writes the document under `docs/`, a copy to `.ad-sdlc/scratchpad/documents/<project>/{prd,srs,sds}.md`, and an update result to `{prd,srs,sds}_update_result.yaml` next to it, which later stages read. The copy and the update result are required outputs of the stage
 
 **Approval Gates**: Each document update requires approval
 

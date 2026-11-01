@@ -149,7 +149,7 @@ change_request:
 | Changelog        | `.ad-sdlc/scratchpad/documents/{project_id}/sds_changelog.md`       | Markdown | Changes made                    |
 | Update Result    | `.ad-sdlc/scratchpad/documents/{project_id}/sds_update_result.yaml` | YAML     | Structured update result        |
 
-The scratchpad copy is the output this stage is required to produce. Later stages read it, so write it after every update, even when `docs/sds/` holds the published document.
+The scratchpad copy and the update result are the outputs this stage is required to produce: the stage fails without either. Later stages read them, so write both after every update, even when `docs/sds/` holds the published document.
 
 ### Update Result Schema
 
@@ -249,7 +249,7 @@ update_result:
 |     +-- Write updated SDS                                    |
 |     +-- Copy it to documents/{project_id}/sds.md             |
 |     +-- Generate changelog entry                             |
-|     +-- Write update_result.yaml                             |
+|     +-- Write sds_update_result.yaml                         |
 |                                                              |
 +--------------------------------------------------------------+
 ```
@@ -268,7 +268,7 @@ update_result:
 10. **Update Metadata**: Increment version, update timestamps (both versions)
 11. **Add Annotations**: Mark changes with [NEW]/[신규], [MODIFIED]/[수정됨]
 12. **Verify Consistency**: Run post-update validation on both versions
-13. **Write Output**: Save updated documents (EN and KR), the scratchpad copy of the English document, and changelog
+13. **Write Output**: Save updated documents (EN and KR), the scratchpad copy of the English document, the changelog, and the update result
 
 ## Update Modes
 

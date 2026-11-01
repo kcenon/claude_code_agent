@@ -247,6 +247,33 @@ describe('PRD rules', () => {
     expect(result.message).toContain('all required sections');
   });
 
+  it('VR-PRD-002: accepts the Executive Summary of the writer template instead of an Introduction', async () => {
+    const rule = VERIFICATION_RULES.get('prd_generation')!.find((r) => r.checkId === 'VR-PRD-002')!;
+    mockReadFile.mockResolvedValue(
+      '# PRD: X\n## 1. Executive Summary\n## 5. Functional Requirements\n## 6. Non-Functional Requirements\n'
+    );
+    const result = await rule.check(['docs/PRD.md'], '/project');
+    expect(result.passed).toBe(true);
+    expect(result.details?.requiredSections).toEqual([
+      'Executive Summary or Introduction',
+      'Functional Requirements',
+      'Non-Functional Requirements',
+    ]);
+  });
+
+  it('VR-PRD-002: names both alternatives when neither is present', async () => {
+    const rule = VERIFICATION_RULES.get('prd_generation')!.find((r) => r.checkId === 'VR-PRD-002')!;
+    mockReadFile.mockResolvedValue(
+      '# PRD: X\n## Functional Requirements\n## Non-Functional Requirements\n'
+    );
+    const result = await rule.check(['docs/PRD.md'], '/project');
+    expect(result.passed).toBe(false);
+    expect(result.message).toContain(
+      'PRD missing required sections in docs/PRD.md: Executive Summary or Introduction'
+    );
+    expect(result.details?.missingSections).toEqual(['Executive Summary or Introduction']);
+  });
+
   it('VR-PRD-002: should fail when PRD is missing required sections', async () => {
     const prdContent = [
       '# Product Requirements Document',
@@ -674,6 +701,17 @@ describe('SRS rules', () => {
     expect(result.message).toContain('all required sections');
   });
 
+  it('VR-SRS-002: accepts the System Features of the writer template', async () => {
+    const rule = VERIFICATION_RULES.get('srs_generation')!.find((r) => r.checkId === 'VR-SRS-002')!;
+    mockReadFile.mockResolvedValue('# SRS: X\n## 1. Introduction\n## 3. System Features\n');
+    const result = await rule.check(['docs/SRS.md'], '/project');
+    expect(result.passed).toBe(true);
+    expect(result.details?.requiredSections).toEqual([
+      'Introduction',
+      'System Features or Software Features',
+    ]);
+  });
+
   it('VR-SRS-002: should fail when SRS is missing required sections', async () => {
     const srsContent = '# SRS\n## Introduction\nOnly intro here.';
     mockReadFile.mockResolvedValue(srsContent);
@@ -684,7 +722,8 @@ describe('SRS rules', () => {
     const result = await rule.check(['docs/SRS.md'], '/project');
     expect(result.passed).toBe(false);
     expect(result.message).toContain('missing required sections');
-    expect(result.details?.missingSections).toContain('Software Features');
+    expect(result.details?.missingSections).toEqual(['System Features or Software Features']);
+    expect(result.message).toContain('System Features or Software Features');
   });
 
   it('VR-SRS-002: should fail when no SRS artifact exists', async () => {

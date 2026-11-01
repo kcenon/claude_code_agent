@@ -8,8 +8,9 @@
  * scripted SDK writes the contract paths directly, so these tests compare the
  * two texts. They do not show that a live agent finishes its stage.
  */
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { ArtifactValidator } from '../../src/ad-sdlc-orchestrator/ArtifactValidator.js';
@@ -25,6 +26,7 @@ import type {
   PipelineStageDefinition,
 } from '../../src/ad-sdlc-orchestrator/types.js';
 import { ASSET_PACKAGE_ROOT } from '../../src/project-initializer/AgentAssets.js';
+import { VERIFICATION_CHECK_SETS } from '../../src/stage-verifier/rules.js';
 
 const SCRATCHPAD = '.ad-sdlc/scratchpad';
 const PROJECT_DIR = '/project';
@@ -43,6 +45,8 @@ const INPUTS_FROM_OUTSIDE_THE_GRAPH: Readonly<Record<string, readonly PipelineMo
   [`${SCRATCHPAD}/documents/*/srs.md`]: ['import'],
   // Only Enhancement runs regression testing.
   [`${SCRATCHPAD}/regression/*/regression_report.yaml`]: ['greenfield', 'import'],
+  // Only Enhancement updates the SDS; Greenfield generates it and has no update result.
+  [`${SCRATCHPAD}/documents/*/sds_update_result.yaml`]: ['greenfield'],
   // No definition writes it. The PRD names it too, so it is not removed here.
   [`${SCRATCHPAD}/progress/*/worker_status.yaml`]: ['greenfield', 'enhancement', 'import'],
 };
@@ -177,8 +181,119 @@ describe('stage output contracts', () => {
     expect(definition).toContain('NEVER alter');
   });
 
+  it('asks the issue generator only for acceptance criteria a test can verify', () => {
+    const definition = definitionOf('issue-generator');
+    expect(definition).not.toContain('Documentation updated');
+    expect(definition).toContain('verifiable by a test');
+  });
+
+  it.each([
+    ['prd_update', 'prd-updater', 'prd_update_result.yaml'],
+    ['srs_update', 'srs-updater', 'srs_update_result.yaml'],
+    ['sds_update', 'sds-updater', 'sds_update_result.yaml'],
+  ] as const)(
+    '%s requires the update result %s documents, and names it one way',
+    (stage, agent, result) => {
+      const pattern = `${SCRATCHPAD}/documents/*/${result}`;
+      expect(
+        cases.some(
+          ([mode, name, , output]) => mode === 'enhancement' && name === stage && output === pattern
+        )
+      ).toBe(true);
+      const definition = definitionOf(agent);
+      expect(definition).toContain(`Write ${result}`);
+      expect(definition).toContain('The scratchpad copy and the update result are the outputs');
+      expect(definition).toMatch(/\*\*Write Output\*\*: .*the update result/u);
+      // A worked name other than the required one would fail the stage.
+      expect(definition).not.toMatch(/(?<![a-z]_)update_result\.yaml/u);
+    }
+  );
+
+  it('limits Enhancement issues to the components the SDS update lists', () => {
+    const definition = definitionOf('issue-generator');
+    const updater = definitionOf('sds-updater');
+    const result = `${SCRATCHPAD}/documents/*/sds_update_result.yaml`;
+    expect([...documentedPaths(definition).inputs]).toContain(result);
+    expect([...documentedPaths(updater).outputs]).toContain(result);
+    for (const list of ['components_added', 'components_modified']) {
+      expect(definition).toContain(`changes.${list}`);
+      expect(updater).toContain(`${list}:`);
+    }
+    expect(definition).toContain('leave every other component alone');
+    // Greenfield keeps the rule, and it no longer applies unconditionally.
+    expect(definition).toContain('**Without that file** (Greenfield)');
+    expect(definition).not.toContain('Identify all components');
+    expect(definition).not.toMatch(/^- Every SDS component must generate at least one issue$/mu);
+  });
+
   it('gives the doc-code comparison one output name', () => {
     expect(definitionOf('doc-code-comparator')).not.toContain('gap_analysis');
+  });
+});
+
+/**
+ * The `## ` headings of the template a writer definition documents: the numbered
+ * ones after its "Template Structure" heading, up to the definition's next own
+ * heading. Code fences are not tracked, because the SDS template closes its outer
+ * fence early around an inner one.
+ * @param definition - Agent definition text
+ * @returns Template headings
+ */
+function templateHeadings(definition: string): string[] {
+  const lines = definition.split(/\r?\n/u);
+  const start = lines.findIndex((line) => /^## .*Template Structure$/u.test(line));
+  const headings: string[] = [];
+  for (const line of lines.slice(start + 1)) {
+    if (/^## \d+\. /u.test(line)) headings.push(line);
+    else if (line.startsWith('## ')) break;
+  }
+  return start === -1 ? [] : headings;
+}
+
+describe('writer templates against the required section checks', () => {
+  const cases = [
+    ['prd-writer', 'prd-document', 'VR-PRD-002', 'docs/prd/PRD-demo.md', '## 1. Executive Summary'],
+    ['srs-writer', 'srs-document', 'VR-SRS-002', 'docs/srs/SRS-demo.md', '## 3. System Features'],
+    ['sds-writer', 'sds-document', 'VR-SDS-002', 'docs/sds/SDS-demo.md', '## 3. Component Design'],
+  ] as const;
+
+  it.each(cases)(
+    '%s: a document with the headings of its template passes the section check',
+    async (agent, checkSet, checkId, path, heading) => {
+      const headings = templateHeadings(definitionOf(agent));
+      expect(headings).toContain(heading);
+      const rule = VERIFICATION_CHECK_SETS[checkSet].find(
+        (candidate) => candidate.checkId === checkId
+      );
+      const project = mkdtempSync(join(tmpdir(), 'writer-template-'));
+      try {
+        mkdirSync(dirname(join(project, path)), { recursive: true });
+        writeFileSync(join(project, path), `# ${agent}\n\n${headings.join('\n\nContent.\n\n')}\n`);
+        const check = await rule?.check([path], project);
+        expect(check?.message).not.toContain('missing required sections');
+        expect(check).toMatchObject({ checkId, passed: true });
+      } finally {
+        rmSync(project, { recursive: true, force: true });
+      }
+    }
+  );
+
+  it('reads only the template, not the headings of the definition around it', () => {
+    expect(
+      templateHeadings(
+        [
+          '## Role',
+          '## PRD Template Structure',
+          '````markdown',
+          '## 1. Executive Summary',
+          '````',
+          '## 2. Outside the fence',
+          '## CRITICAL: Tool Usage',
+          '## 3. After the template',
+        ].join('\n')
+      )
+    ).toEqual(['## 1. Executive Summary', '## 2. Outside the fence']);
+    expect(templateHeadings('## Role\n## 1. Not a template\n')).toEqual([]);
   });
 });
 

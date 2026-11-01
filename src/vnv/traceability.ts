@@ -10,7 +10,9 @@
  *
  * Roots by mode: Greenfield and Enhancement trace PRD requirements (FR-XXX)
  * through issues to the criteria those issues state; Import, which has no PRD,
- * SRS, or SDS, traces the acceptance criteria of the imported issues.
+ * SRS, or SDS, traces the acceptance criteria of the imported issues. Enhancement
+ * changes an existing project, so a requirement the project already had and the
+ * run left unchanged is not this run's work and needs no issue.
  *
  * See docs/guides/verification-policy.md.
  *
@@ -33,7 +35,15 @@ import {
   REVIEW_RESULTS,
   WORK_ORDERS,
 } from '../stage-verifier/deliveryRules.js';
-import { findArtifacts, locateDocument } from '../stage-verifier/ruleSupport.js';
+import {
+  extractIds,
+  findArtifacts,
+  isRecord,
+  locateDocument,
+  parseStructured,
+  safeReadFile,
+  unwrapRoot,
+} from '../stage-verifier/ruleSupport.js';
 import type { DocumentType, VerificationOptions } from './types.js';
 
 /** Stage whose verification builds the traceability record (all modes). */
@@ -106,12 +116,70 @@ export function traceabilitySources(artifacts: readonly string[]): RtmSourceLoca
   };
 }
 
+/** `state/<project>/current_state.yaml` (document-reader): the project before the run. */
+const CURRENT_STATE = [/(?:^|\/)state\/[^/]+\/current_state\.ya?ml$/u];
+/** `documents/<project>/prd_update_result.yaml` (prd-updater): what the run changed in the PRD. */
+const PRD_UPDATE_RESULT = [/(?:^|\/)documents\/[^/]+\/prd_update_result\.ya?ml$/u];
+
+/**
+ * Requirements a PRD update result says it added or modified.
+ * @param parsed - Parsed `prd_update_result.yaml`
+ * @returns Identifiers; null when the result does not establish what changed: it
+ * has no `changes` record, a list that is not a list, or an entry without a string
+ * `id`
+ */
+function changedRequirements(parsed: unknown): readonly string[] | null {
+  const changes = unwrapRoot(parsed, 'update_result')?.['changes'];
+  if (!isRecord(changes)) return null;
+  const ids: string[] = [];
+  for (const entries of [changes['added'] ?? [], changes['modified'] ?? []]) {
+    if (!Array.isArray(entries)) return null;
+    for (const entry of entries as unknown[]) {
+      const id = isRecord(entry) ? entry['id'] : undefined;
+      if (typeof id !== 'string' || id.trim() === '') return null;
+      ids.push(id);
+    }
+  }
+  return ids;
+}
+
+/**
+ * Requirements an Enhancement run left alone: the ones the project already had
+ * (`current_state.yaml`) that the PRD update did not add or modify
+ * (`prd_update_result.yaml`). Both are required outputs of their stages, but a
+ * modified requirement is known only from what the update result says, so anything
+ * short of two readable files and a well-formed result returns the empty set: every
+ * requirement stays in scope and the gate fails closed. Both files are the agents'
+ * own reports, so a requirement an updater changed and did not list is not detected.
+ * @param projectDir - Project root
+ * @param artifacts - Artifact locations of the run's completed stages
+ * @returns Requirement identifiers that need no issue from this run
+ */
+async function unchangedRequirements(
+  projectDir: string,
+  artifacts: readonly string[]
+): Promise<ReadonlySet<string>> {
+  const state = findArtifacts(artifacts, CURRENT_STATE)[0];
+  const update = findArtifacts(artifacts, PRD_UPDATE_RESULT)[0];
+  if (state === undefined || update === undefined) return new Set();
+  const stateContent = await safeReadFile(state, projectDir);
+  const updateContent = await safeReadFile(update, projectDir);
+  if (stateContent === null || updateContent === null) return new Set();
+  const changed = changedRequirements(parseStructured(updateContent));
+  if (changed === null) return new Set();
+  return new Set(extractIds(stateContent, /\bFR-\d{3}\b/).filter((id) => !changed.includes(id)));
+}
+
 /**
  * Requirements, issues, and criteria of a matrix that are not implemented and tested.
  * @param rtm - Requirements traceability matrix
+ * @param unchanged - Requirements outside the run's work, which need no issue
  * @returns Uncovered identifiers in matrix order, without duplicates
  */
-export function uncoveredTraceIds(rtm: RequirementsTraceabilityMatrix): string[] {
+export function uncoveredTraceIds(
+  rtm: RequirementsTraceabilityMatrix,
+  unchanged: ReadonlySet<string> = new Set()
+): string[] {
   const ids: string[] = [];
   const add = (id: string): void => {
     if (!ids.includes(id)) ids.push(id);
@@ -120,7 +188,12 @@ export function uncoveredTraceIds(rtm: RequirementsTraceabilityMatrix): string[]
     const issueCriteria = entry.acceptanceCriteria.filter(
       (criterion) => criterion.issueId !== undefined
     );
-    if (rtm.pipelineMode !== 'import' && entry.issues.length === 0) add(entry.requirementId);
+    if (
+      rtm.pipelineMode !== 'import' &&
+      entry.issues.length === 0 &&
+      !unchanged.has(entry.requirementId)
+    )
+      add(entry.requirementId);
     for (const issueId of entry.issues)
       if (!issueCriteria.some((criterion) => criterion.issueId === issueId)) add(issueId);
     for (const criterion of issueCriteria)
@@ -144,10 +217,14 @@ export async function buildTraceabilityRecord(
     pipelineMode: input.mode,
     sources,
   });
+  const unchanged =
+    input.mode === 'enhancement'
+      ? await unchangedRequirements(input.projectDir, input.artifacts)
+      : new Set<string>();
   return {
     schemaVersion: 1,
     roots: input.mode === 'import' ? 'issue_acceptance_criteria' : 'prd_requirements',
-    uncovered: uncoveredTraceIds(rtm),
+    uncovered: uncoveredTraceIds(rtm, unchanged),
     untraced: rtm.gaps
       .filter((gap) => gap.type === 'orphan_issue')
       .flatMap((gap) => gap.affectedIds),

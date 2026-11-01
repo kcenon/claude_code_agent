@@ -111,7 +111,7 @@ change_request:
 | Changelog        | `.ad-sdlc/scratchpad/documents/{project_id}/prd_changelog.md`       | Markdown | Changes made                    |
 | Update Result    | `.ad-sdlc/scratchpad/documents/{project_id}/prd_update_result.yaml` | YAML     | Structured update result        |
 
-The scratchpad copy is the output this stage is required to produce. Later stages read it, so write it after every update, even when `docs/prd/` holds the published document.
+The scratchpad copy and the update result are the outputs this stage is required to produce: the stage fails without either. Later stages read them, so write both after every update, even when `docs/prd/` holds the published document.
 
 ### Update Result Schema
 
@@ -193,7 +193,7 @@ update_result:
 |     +-- Write updated PRD                                    |
 |     +-- Copy it to documents/{project_id}/prd.md             |
 |     +-- Generate changelog entry                             |
-|     +-- Write update_result.yaml                             |
+|     +-- Write prd_update_result.yaml                         |
 |                                                              |
 +--------------------------------------------------------------+
 ```
@@ -210,7 +210,7 @@ update_result:
 8. **Update Metadata**: Increment version, update timestamps (both versions)
 9. **Add Annotations**: Mark changes with [NEW], [MODIFIED], [DEPRECATED]
 10. **Verify Consistency**: Run post-update validation on both versions
-11. **Write Output**: Save updated documents (EN and KR), the scratchpad copy of the English document, and changelog
+11. **Write Output**: Save updated documents (EN and KR), the scratchpad copy of the English document, the changelog, and the update result
 
 ## Update Modes
 

@@ -148,6 +148,144 @@ describe('traceability record', () => {
   });
 });
 
+describe('Enhancement traceability scope', () => {
+  const issueFor = (requirement: string): Record<string, unknown> => ({
+    id: 'ISS-001',
+    title: 'Overdue report',
+    traceability: { prd_requirement: requirement },
+    body: '## Acceptance Criteria\n- [ ] Lists overdue tasks',
+  });
+  const prd = '# PRD\n## FR-001: Track\n## FR-002: Report\n## FR-003: Overdue\n';
+  const files = (
+    state: string | undefined,
+    update: string | undefined,
+    requirement = 'FR-003'
+  ): Record<string, string> => ({
+    [`${S}/documents/demo/prd.md`]: prd,
+    [`${S}/issues/demo/issue_list.json`]: JSON.stringify({ issues: [issueFor(requirement)] }),
+    [`${S}/progress/demo/work_orders/WO-001.yaml`]:
+      'work_order:\n  id: WO-001\n  issue:\n    id: ISS-001\n',
+    [`${S}/progress/demo/results/WO-001-result.yaml`]: [
+      'implementation_result:',
+      '  work_order_id: WO-001',
+      '  issue_id: ISS-001',
+      '  status: completed',
+      '  changes:',
+      '    - { file_path: src/overdue.ts, change_type: create }',
+      '  verification: { tests_passed: true, build_passed: true }',
+      '  acceptance_criteria:',
+      '    - { id: AC-001, status: met, tests: [tests/overdue.test.ts] }',
+      '',
+    ].join('\n'),
+    'tests/overdue.test.ts': 'it("lists", () => undefined);\n',
+    ...(state === undefined ? {} : { [`${S}/state/demo/current_state.yaml`]: state }),
+    ...(update === undefined ? {} : { [`${S}/documents/demo/prd_update_result.yaml`]: update }),
+  });
+  const STATE =
+    'current_state:\n  requirements:\n    functional:\n      - { id: FR-001 }\n      - { id: FR-002 }\n    non_functional:\n      - { id: NFR-003 }\n';
+  const update = (added: string, modified: string): string =>
+    `update_result:\n  changes:\n    added: [${added}]\n    modified: [${modified}]\n`;
+  const build = async (
+    content: Record<string, string>,
+    mode: 'enhancement' | 'greenfield' = 'enhancement'
+  ): Promise<TraceabilityRecord> => {
+    await write(content);
+    return buildTraceabilityRecord({
+      projectDir: project,
+      projectId: 'demo',
+      mode,
+      artifacts: Object.keys(content),
+    });
+  };
+
+  it('does not ask for an issue for a requirement the run left unchanged', async () => {
+    const record = await build(files(STATE, update('{ id: FR-003 }', '')));
+    expect(record.uncovered).toEqual([]);
+  });
+
+  it('reports a new requirement that no issue reaches, and does not read NFR-003 as FR-003', async () => {
+    const record = await build(files(STATE, update('{ id: FR-003 }', ''), 'FR-001'));
+    expect(record.uncovered).toEqual(['FR-003']);
+  });
+
+  it('reports a modified prior requirement that no issue reaches', async () => {
+    const record = await build(files(STATE, update('{ id: FR-003 }', '{ id: FR-002 }')));
+    expect(record.uncovered).toEqual(['FR-002']);
+  });
+
+  // FR-002 stands for a prior requirement the run modified, and no issue reaches it.
+  // When the update result does not prove what changed, it must not be able to hide.
+  it.each([
+    ['absent', undefined],
+    ['unparseable', 'update_result: [unclosed\n  changes: {'],
+    ['not a record', '- { id: FR-003 }\n'],
+    ['empty', ''],
+    ['without changes', 'update_result:\n  document: PRD-001\n'],
+    ['with changes that are not a record', 'update_result:\n  changes: FR-003\n'],
+    ['with an added entry that has no id', update('{ title: Overdue }', '')],
+    ['with a modified entry that has no id', update('{ id: FR-003 }', '{ field: priority }')],
+    ['with an id that is not a string', update('{ id: 3 }', '')],
+    ['with an entry that is not an object', update('FR-003', '')],
+    ['with a list that is not a list', 'update_result:\n  changes:\n    added: FR-003\n'],
+  ])('keeps every requirement in scope when the update result is %s', async (_name, result) => {
+    const record = await build(files(STATE, result));
+    expect(record.uncovered).toEqual(['FR-001', 'FR-002']);
+  });
+
+  it('keeps every requirement in scope when the update result cannot be read', async () => {
+    await write(files(STATE, undefined));
+    const record = await buildTraceabilityRecord({
+      projectDir: project,
+      projectId: 'demo',
+      mode: 'enhancement',
+      artifacts: [
+        ...Object.keys(files(STATE, undefined)),
+        `${S}/documents/demo/prd_update_result.yaml`,
+      ],
+    });
+    expect(record.uncovered).toEqual(['FR-001', 'FR-002']);
+  });
+
+  it('accepts a well-formed update result with empty lists, and still reports a new requirement', async () => {
+    expect((await build(files(STATE, update('', '')))).uncovered).toEqual([]);
+    const flat = 'changes:\n  added: []\n  modified: []\n';
+    expect((await build(files(STATE, flat))).uncovered).toEqual([]);
+    expect((await build(files(STATE, update('', ''), 'FR-001'))).uncovered).toEqual(['FR-003']);
+  });
+
+  it('accepts changes that list only what happened', async () => {
+    const onlyAdded = 'update_result:\n  changes:\n    added:\n      - { id: FR-003 }\n';
+    expect((await build(files(STATE, onlyAdded))).uncovered).toEqual([]);
+    const noLists = 'update_result:\n  changes: {}\n';
+    expect((await build(files(STATE, noLists))).uncovered).toEqual([]);
+  });
+
+  it('keeps a deprecated requirement out of scope, whatever its entry says', async () => {
+    const deprecated = [
+      'update_result:',
+      '  changes:',
+      '    added:',
+      '      - { id: FR-003 }',
+      '    modified: []',
+      '    deprecated:',
+      '      - { id: FR-002, reason: Replaced }',
+      '      - { reason: An entry without an id does not say anything was changed }',
+      '',
+    ].join('\n');
+    expect((await build(files(STATE, deprecated))).uncovered).toEqual([]);
+  });
+
+  it('keeps every requirement in scope without the state file', async () => {
+    const record = await build(files(undefined, update('{ id: FR-003 }', '')));
+    expect(record.uncovered).toEqual(['FR-001', 'FR-002']);
+  });
+
+  it('does not apply the scope to Greenfield, whose requirements are all this run', async () => {
+    const record = await build(files(STATE, update('{ id: FR-003 }', '')), 'greenfield');
+    expect(record.uncovered).toEqual(['FR-001', 'FR-002']);
+  });
+});
+
 describe('traceability summary', () => {
   const validation = (overrides: Partial<StageResult>): StageResult => ({
     name: 'validation-agent',

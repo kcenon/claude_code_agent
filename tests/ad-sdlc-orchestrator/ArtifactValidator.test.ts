@@ -389,6 +389,18 @@ describe('ArtifactValidator', () => {
         expect(result.warnings).toHaveLength(0);
       });
 
+      it('accepts the Software Features section that VR-SRS-002 requires', async () => {
+        const docsDir = path.join(tempDir, '.ad-sdlc', 'scratchpad', 'documents', 'v1');
+        await fs.mkdir(docsDir, { recursive: true });
+        await fs.writeFile(
+          path.join(docsDir, 'srs.md'),
+          '# SRS: My Application\n\n## Software Features\n\n### SF-001: Feature A\n'
+        );
+
+        const result = await validator.validateStageOutput('srs_update', 'enhancement');
+        expect(result).toMatchObject({ quality: 'good', warnings: [] });
+      });
+
       it('should detect missing System Features section', async () => {
         const docsDir = path.join(tempDir, '.ad-sdlc', 'scratchpad', 'documents', 'v1');
         await fs.mkdir(docsDir, { recursive: true });
@@ -491,6 +503,32 @@ describe('Artifact Map Definitions', () => {
     expect(stageNames).toContain('sds_update');
     expect(stageNames).toContain('issue_generation');
   });
+
+  it.each([
+    ['prd_update', 'prd.md', 'prd_update_result.yaml'],
+    ['srs_update', 'srs.md', 'srs_update_result.yaml'],
+    ['sds_update', 'sds.md', 'sds_update_result.yaml'],
+  ] as const)(
+    '%s requires its document copy and its update result',
+    async (stage, copy, result) => {
+      const projectDir = await fs.mkdtemp(path.join(os.tmpdir(), 'update-result-'));
+      try {
+        const validator = new ArtifactValidator(projectDir);
+        const documents = path.join(projectDir, '.ad-sdlc', 'scratchpad', 'documents', 'v1');
+        await fs.mkdir(documents, { recursive: true });
+        await fs.writeFile(path.join(documents, copy), '# Document\n');
+        const withoutResult = await validator.validateStageArtifacts(stage, 'enhancement');
+        expect(withoutResult.valid).toBe(false);
+        expect(withoutResult.missing.map((artifact) => artifact.pathPattern)).toEqual([
+          `.ad-sdlc/scratchpad/documents/*/${result}`,
+        ]);
+        await fs.writeFile(path.join(documents, result), 'update_result: {}\n');
+        expect((await validator.validateStageArtifacts(stage, 'enhancement')).valid).toBe(true);
+      } finally {
+        await fs.rm(projectDir, { recursive: true, force: true });
+      }
+    }
+  );
 
   it('every artifact spec should have non-empty fields', () => {
     const allMaps = [...GREENFIELD_ARTIFACTS, ...ENHANCEMENT_ARTIFACTS];
