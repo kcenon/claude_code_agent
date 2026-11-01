@@ -11,10 +11,12 @@
  * prove that a model writes it: only the live lane measures that.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { cpSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
+import { Command } from 'commander';
+import { dump } from 'js-yaml';
 import type { SDKMessage } from '@anthropic-ai/claude-agent-sdk';
 
 import { AdsdlcOrchestratorAgent } from '../../src/ad-sdlc-orchestrator/AdsdlcOrchestratorAgent.js';
@@ -25,6 +27,7 @@ import {
   type PipelineResult,
   type StageName,
 } from '../../src/ad-sdlc-orchestrator/types.js';
+import { configureRunCommand, executeRunCommand } from '../../src/cli/runCommand.js';
 import { SdkExecutionAdapter } from '../../src/execution/SdkExecutionAdapter.js';
 import type { ExecutionAdapter } from '../../src/execution/types.js';
 import { ASSET_PACKAGE_ROOT } from '../../src/project-initializer/AgentAssets.js';
@@ -37,6 +40,8 @@ import {
   ENHANCEMENT_FIXTURE,
   ENHANCEMENT_SCENARIOS,
   driftEvidence,
+  enhancementRequirements,
+  enhancementRunArguments,
   judgeEnhancementScenario,
   loadEnhancementExpectation,
   materializeEnhancementTarget,
@@ -45,7 +50,11 @@ import {
   type EnhancementObservation,
   type EnhancementScenario,
 } from '../live/enhancementScenario.js';
-import { invocationEvidence } from '../live/scenarioSupport.js';
+import {
+  invocationEvidence,
+  parseRunOutput,
+  pipelineResumeArguments,
+} from '../live/scenarioSupport.js';
 
 const S = '.ad-sdlc/scratchpad';
 const P = 'task-ledger';
@@ -562,48 +571,6 @@ describe('Enhancement stages on the production orchestrator path', () => {
     expect(check(result, 'prd_update', 'VR-PRD-002')?.outcome).toBe('pass');
   });
 
-  it('gives the live judge the run result it reads', async () => {
-    const expectation = loadEnhancementExpectation();
-    const { result } = await runPipeline(correctOutputs());
-    // `ad-sdlc run --format json` prints a finished run as this object.
-    const stdout = `${JSON.stringify(result, null, 2)}\n`;
-
-    const artifacts = stageArtifactPaths(stdout, COMPARISON_STAGE);
-    expect(artifacts).toContain(`${S}/analysis/${P}/comparison_result.yaml`);
-    const drift = driftEvidence(
-      expectation,
-      artifacts.map((path) => ({ path, content: readFileSync(join(project, path), 'utf8') }))
-    );
-    expect(drift).toMatchObject({ detected: true, kind: 'documented_not_implemented' });
-    expect(drift.unresolved.length).toBeGreaterThan(0);
-
-    const run = runSummary('run', stdout);
-    expect(run).toMatchObject({
-      completed: true,
-      status: 'completed',
-      verification: 'verified',
-      traceability: 'covered',
-      attempts: 15,
-      usage: { inputTokens: 1500, outputTokens: 600 },
-    });
-    expect(run.durationMs).toBeGreaterThanOrEqual(0);
-
-    const observation: EnhancementObservation = {
-      invocations: [invocationEvidence('run', { status: 0, signal: null, stdout }, 1000)],
-      runs: [run],
-      pullRequests: [],
-      pullRequestsAtStop: 0,
-      drift,
-      regressionSwitchSeen: false,
-    };
-    const rows = judgeEnhancementScenario(scenario('delivery'), observation, expectation);
-    const problemsOf = (criterion: string): readonly string[] | undefined =>
-      rows.find((row) => row.criterion === criterion)?.problems;
-    expect(problemsOf('Run completed and traced')).toEqual([]);
-    expect(problemsOf('Seeded mismatch detected with a reference')).toEqual([]);
-    expect(problemsOf('One open, unmerged pull request')).toEqual(['no pull request was opened']);
-  });
-
   it('keeps the requirements the run did not change out of the uncovered list, and the new one in', async () => {
     const outputs = correctOutputs();
     const issueList = `${S}/issues/${P}/issue_list.json`;
@@ -663,32 +630,6 @@ describe('Enhancement stages on the production orchestrator path', () => {
     expect(check(resumed.result, 'regression_testing', 'VR-REG-002')?.outcome).toBe('fail');
     expect(stage(resumed.result, 'review').status).not.toBe('completed');
     expect(pipelineExitCode(resumed.result)).toBe(1);
-
-    // The live judge reads this run from the CLI's wrapper of a failed run.
-    const stopped = `${JSON.stringify(first.result, null, 2)}\n`;
-    const failure = `${JSON.stringify(
-      { ready: false, error: 'Pipeline failed', result: resumed.result },
-      null,
-      2
-    )}\n`;
-    const observation: EnhancementObservation = {
-      invocations: [
-        invocationEvidence('run', { status: 0, signal: null, stdout: stopped }, 1000),
-        invocationEvidence('resume-1', { status: 1, signal: null, stdout: failure }, 1000),
-      ],
-      runs: [runSummary('run', stopped), runSummary('resume-1', failure)],
-      pullRequests: [],
-      pullRequestsAtStop: 0,
-      drift: null,
-      regressionSwitchSeen: true,
-    };
-    expect(
-      judgeEnhancementScenario(scenario('regression'), observation, loadEnhancementExpectation())
-    ).toEqual([
-      { criterion: 'Run stopped after implementation', problems: [] },
-      { criterion: 'Regression blocks delivery', problems: [] },
-      { criterion: 'Regression switch reached the tests', problems: [] },
-    ]);
   });
 
   it.each([
@@ -739,5 +680,134 @@ describe('Enhancement stages on the production orchestrator path', () => {
       message: expect.stringContaining(`Sync point '${syncPoint}'`),
     });
     expect(stage(result, 'review').status).toBe('skipped');
+  });
+});
+
+describe('Enhancement through the production CLI, as the live lane invokes it', () => {
+  const expectation = loadEnhancementExpectation();
+  const requirements = enhancementRequirements(expectation);
+  const budget = { maxTurns: 8, stageTimeoutMs: 60_000 };
+
+  /**
+   * One `ad-sdlc run` of the live lane's arguments, with only the SDK replaced.
+   * @param outputs - Files per agent type
+   * @param args - The CLI arguments the live lane passes after `run`
+   * @returns Exit status, standard output, and the agents called
+   */
+  async function runCli(
+    outputs: StageOutputs,
+    args: readonly string[]
+  ): Promise<{ status: number; stdout: string; calls: readonly string[] }> {
+    mkdirSync(join(project, '.ad-sdlc', 'config'), { recursive: true });
+    writeFileSync(
+      join(project, '.ad-sdlc', 'config', 'workflow.yaml'),
+      dump({ version: '1.0.0', pipeline: { default_mode: 'enhancement' } })
+    );
+    const calls: string[] = [];
+    const lines: string[] = [];
+    const options = configureRunCommand(new Command())
+      .exitOverride()
+      .parse([...args.slice(1), '--allow-stub'], { from: 'user' })
+      .opts();
+    const status = await executeRunCommand(requirements, options, {
+      env: {},
+      createAdapter: () => scriptedSdk(outputs, calls),
+      hasExecutionEnvironment: () => false,
+      deliveryMetricsConsent: () => ({ status: 'denied', export: false }),
+      output: {
+        info: (message) => lines.push(message),
+        warn: () => undefined,
+        error: (message) => lines.push(message),
+      },
+    });
+    return { status, stdout: `${lines.join('\n')}\n`, calls };
+  }
+
+  const evidence = (name: string, run: { status: number; stdout: string }) =>
+    invocationEvidence(name, { status: run.status, signal: null, stdout: run.stdout }, 1000);
+
+  it('gives the live judge the output it reads for a delivered run', async () => {
+    const run = await runCli(
+      correctOutputs(),
+      enhancementRunArguments(project, budget, requirements)
+    );
+    expect(run.status).toBe(0);
+    expect(new Set(run.calls)).toEqual(new Set(ENHANCEMENT_AGENTS));
+
+    const artifacts = stageArtifactPaths(run.stdout, COMPARISON_STAGE);
+    expect(artifacts).toContain(`${S}/analysis/${P}/comparison_result.yaml`);
+    const drift = driftEvidence(
+      expectation,
+      artifacts.map((path) => ({ path, content: readFileSync(join(project, path), 'utf8') }))
+    );
+    expect(drift).toMatchObject({ detected: true, kind: 'documented_not_implemented' });
+    expect(drift.unresolved.length).toBeGreaterThan(0);
+
+    const summary = runSummary('run', run.stdout);
+    expect(summary).toMatchObject({
+      completed: true,
+      status: 'completed',
+      verification: 'verified',
+      traceability: 'covered',
+      attempts: 15,
+      usage: { inputTokens: 1500, outputTokens: 600 },
+    });
+    expect(summary.durationMs).toBeGreaterThanOrEqual(0);
+
+    const observation: EnhancementObservation = {
+      invocations: [evidence('run', run)],
+      runs: [summary],
+      pullRequests: [],
+      pullRequestsAtStop: 0,
+      drift,
+      regressionSwitchSeen: false,
+    };
+    const rows = judgeEnhancementScenario(scenario('delivery'), observation, expectation);
+    const problemsOf = (criterion: string): readonly string[] | undefined =>
+      rows.find((row) => row.criterion === criterion)?.problems;
+    expect(problemsOf('Run completed and traced')).toEqual([]);
+    expect(problemsOf('Seeded mismatch detected with a reference')).toEqual([]);
+    expect(problemsOf('One open, unmerged pull request')).toEqual(['no pull request was opened']);
+  });
+
+  it('resumes past the stop from the saved plan, and the judge sees the regression block delivery', async () => {
+    const outputs = correctOutputs();
+    const stopped = await runCli(
+      outputs,
+      enhancementRunArguments(project, budget, requirements, [
+        '--stop-after',
+        scenario('regression').stopAfter ?? '',
+      ])
+    );
+    expect(stopped.status).toBe(0);
+    expect(stopped.calls).not.toContain('regression-tester');
+    const sessionId = parseRunOutput(stopped.stdout).result['pipelineId'];
+    expect(typeof sessionId).toBe('string');
+
+    outputs['regression-tester'] = {
+      [`${S}/regression/${P}/regression_report.yaml`]: regressionReport(1),
+    };
+    // The saved plan keeps --stop-after, and the lane does not pass it again: the
+    // stop stage is restored, not run, so the resume must still go on from there.
+    const resumed = await runCli(
+      outputs,
+      pipelineResumeArguments(project, requirements, String(sessionId))
+    );
+    expect(resumed.status).toBe(1);
+    expect(resumed.calls).toEqual(['regression-tester']);
+
+    const observation: EnhancementObservation = {
+      invocations: [evidence('run', stopped), evidence('resume-1', resumed)],
+      runs: [runSummary('run', stopped.stdout), runSummary('resume-1', resumed.stdout)],
+      pullRequests: [],
+      pullRequestsAtStop: 0,
+      drift: null,
+      regressionSwitchSeen: true,
+    };
+    expect(judgeEnhancementScenario(scenario('regression'), observation, expectation)).toEqual([
+      { criterion: 'Run stopped after implementation', problems: [] },
+      { criterion: 'Regression blocks delivery', problems: [] },
+      { criterion: 'Regression switch reached the tests', problems: [] },
+    ]);
   });
 });
