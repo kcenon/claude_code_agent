@@ -4,18 +4,18 @@
 | ------- | ----- |
 | Version | 1.1.0 |
 
-## Introduction
+## 1. Introduction
 
 This document describes the design of Task Ledger. Every component names the
 software feature it implements and its source file.
 
-## System Architecture
+## 2. System Architecture
 
 The library is a set of ES modules under `src/`. A task list is a plain array of
 `{ id, title, due, done }` objects, and every function returns new data instead
 of changing its input.
 
-## Component Design
+## 3. Component Design
 
 ### CMP-001: Tasks
 

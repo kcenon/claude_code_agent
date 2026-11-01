@@ -46,6 +46,7 @@ import type { DocumentKind, LoadedDocument } from '../../src/doc-audit/types.js'
 import { DocCodeComparatorAgent } from '../../src/doc-code-comparator/DocCodeComparatorAgent.js';
 import type { GapItem } from '../../src/doc-code-comparator/types.js';
 import { resolveProjectAgent } from '../../src/execution/resolveProjectAgent.js';
+import { ASSET_PACKAGE_ROOT } from '../../src/project-initializer/AgentAssets.js';
 import { checkCrossDocumentConsistency } from '../../src/stage-verifier/consistency.js';
 import { VERIFICATION_CHECK_SETS, shouldRunRule } from '../../src/stage-verifier/rules.js';
 import type { VerificationRuleContext } from '../../src/stage-verifier/types.js';
@@ -280,6 +281,67 @@ describe('Enhancement documents', () => {
       expect(check, rule.checkId).toMatchObject({ passed: true });
       expect(check.skipReason, rule.checkId).toBeUndefined();
     }
+  });
+
+  describe('section headings', () => {
+    // Compact documents keep only some sections of a writer's template, under the headings
+    // a generated document has, so these runs cover a project AD-SDLC could have generated.
+    const SECTIONS = [
+      {
+        path: PRD,
+        writer: 'prd-writer',
+        english: [
+          '## 1. Executive Summary',
+          '## 5. Functional Requirements',
+          '## 6. Non-Functional Requirements',
+        ],
+        korean: ['## 1. 요약', '## 5. 기능 요구사항', '## 6. 비기능 요구사항'],
+      },
+      {
+        path: SRS,
+        writer: 'srs-writer',
+        english: ['## 1. Introduction', '## 3. System Features'],
+        korean: ['## 1. 소개', '## 3. 시스템 기능'],
+      },
+      {
+        path: SDS,
+        writer: 'sds-writer',
+        english: ['## 1. Introduction', '## 2. System Architecture', '## 3. Component Design'],
+        korean: ['## 1. 소개', '## 2. 시스템 아키텍처', '## 3. 컴포넌트 설계'],
+      },
+    ];
+    const headings = (file: string): string[] =>
+      readFileSync(file, 'utf8')
+        .split(/\r?\n/u)
+        .filter((line) => line.startsWith('## '));
+
+    it.each(SECTIONS)(
+      '$path uses the headings of the $writer template in every variant',
+      ({ path, writer, english }) => {
+        const template = readFileSync(
+          join(ASSET_PACKAGE_ROOT, '.claude', 'agents', `${writer}.md`),
+          'utf8'
+        ).split(/\r?\n/u);
+        for (const heading of english) expect(template).toContain(heading);
+        const variants = [
+          ENHANCEMENT_FIXTURE.target,
+          ENHANCEMENT_FIXTURE.reference,
+          ...Object.values(WRONG),
+        ]
+          .map((root) => join(root, path))
+          .filter((file) => existsSync(file));
+        expect(variants.length).toBeGreaterThanOrEqual(2);
+        for (const file of variants) expect(headings(file), file).toEqual(english);
+      }
+    );
+
+    it.each(SECTIONS)(
+      'the Korean copy of $path translates the same sections',
+      ({ path, korean }) => {
+        const copy = path.replace(/\.md$/u, '.kr.md');
+        expect(headings(join(ENHANCEMENT_FIXTURE.reference, copy))).toEqual(korean);
+      }
+    );
   });
 
   it('have every sync point compared, and in agreement', async () => {

@@ -4,13 +4,13 @@
 | ------- | ----- |
 | Version | 1.0.0 |
 
-## Introduction
+## 1. Executive Summary
 
 Task Ledger is a small JavaScript library that keeps a list of tasks and reports
 on it. Applications pass the list in and get a new list back, so the library
 holds no state of its own and needs no storage.
 
-## Functional Requirements
+## 5. Functional Requirements
 
 ### FR-001: Track tasks
 
@@ -31,6 +31,6 @@ holds no state of its own and needs no storage.
   archive, so that the active list holds only open tasks.
 - **Priority**: P2
 
-## Non-Functional Requirements
+## 6. Non-Functional Requirements
 
 The library has no runtime dependency and runs on Node.js 22 or later.

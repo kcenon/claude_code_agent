@@ -16,7 +16,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { Command } from 'commander';
-import { dump } from 'js-yaml';
+import { dump, load } from 'js-yaml';
 import type { SDKMessage } from '@anthropic-ai/claude-agent-sdk';
 
 import { AdsdlcOrchestratorAgent } from '../../src/ad-sdlc-orchestrator/AdsdlcOrchestratorAgent.js';
@@ -206,14 +206,14 @@ function correctOutputs(): StageOutputs {
       [`${S}/documents/${P}/srs_update_result.yaml`]:
         "update_result:\n  document: SRS-001\n  version_before: '1.0.0'\n  version_after: '1.1.0'\n  changes:\n    features_added:\n      - { id: SF-004, title: Overdue report, linked_prd: FR-004 }\n",
     },
-    // sds-updater.md
+    // sds-updater.md. issue-generator.md issues only the components this result lists.
     'sds-updater': {
       [`${SDS}.md`]: reference(`${SDS}.md`),
       [`${SDS}.kr.md`]: reference(`${SDS}.kr.md`),
       [`${S}/documents/${P}/sds.md`]: reference(`${SDS}.md`),
       [`${S}/documents/${P}/sds_changelog.md`]: '## [1.1.0]\n\n### Changed\n\n- CMP-002\n',
       [`${S}/documents/${P}/sds_update_result.yaml`]:
-        "update_result:\n  document: SDS-001\n  version_before: '1.0.0'\n  version_after: '1.1.0'\n  changes:\n    components_modified:\n      - { id: CMP-002, field: exports, new_value: overdueTasks }\n",
+        "update_result:\n  document: SDS-001\n  version_before: '1.0.0'\n  version_after: '1.1.0'\n  changes:\n    components_modified:\n      - { id: CMP-002, field: exports, old_value: 'progress, formatProgress', new_value: 'progress, formatProgress, overdueTasks' }\n",
     },
     // issue-generator.md: issue_list.json with the issue template, and dependency_graph.json
     'issue-generator': {
@@ -569,6 +569,27 @@ describe('Enhancement stages on the production orchestrator path', () => {
     // A localized copy is an artifact, and the check still read the primary document.
     expect(stage(result, 'prd_update').artifacts).toContain(`${PRD}.kr.md`);
     expect(check(result, 'prd_update', 'VR-PRD-002')?.outcome).toBe('pass');
+  });
+
+  it('scripts issues only for the components the SDS update lists, and those are the impacted ones', () => {
+    const outputs = correctOutputs();
+    const update = load(outputs['sds-updater']![`${S}/documents/${P}/sds_update_result.yaml`]!) as {
+      update_result: {
+        changes: { components_added?: { id: string }[]; components_modified?: { id: string }[] };
+      };
+    };
+    const changes = update.update_result.changes;
+    const listed = [...(changes.components_added ?? []), ...(changes.components_modified ?? [])];
+    const { issues } = JSON.parse(
+      outputs['issue-generator']![`${S}/issues/${P}/issue_list.json`]!
+    ) as { issues: { traceability: { sds_component: string } }[] };
+
+    expect(issues.map((issue) => issue.traceability.sds_component)).toEqual(
+      listed.map((component) => component.id)
+    );
+    expect(listed.map((component) => component.id)).toEqual(
+      loadEnhancementExpectation().impacted.components
+    );
   });
 
   it('keeps the requirements the run did not change out of the uncovered list, and the new one in', async () => {

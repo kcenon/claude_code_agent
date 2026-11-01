@@ -4,12 +4,12 @@
 | ------- | ----- |
 | Version | 1.0.0 |
 
-## Introduction
+## 1. Introduction
 
 This document specifies the software features of Task Ledger. Every feature
 names the product requirement it implements and the component that realizes it.
 
-## Software Features
+## 3. System Features
 
 ### SF-001: Task tracking
 
