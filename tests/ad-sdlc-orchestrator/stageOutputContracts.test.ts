@@ -45,6 +45,8 @@ const INPUTS_FROM_OUTSIDE_THE_GRAPH: Readonly<Record<string, readonly PipelineMo
   [`${SCRATCHPAD}/documents/*/srs.md`]: ['import'],
   // Only Enhancement runs regression testing.
   [`${SCRATCHPAD}/regression/*/regression_report.yaml`]: ['greenfield', 'import'],
+  // Only Enhancement updates the SDS; Greenfield generates it and has no update result.
+  [`${SCRATCHPAD}/documents/*/sds_update_result.yaml`]: ['greenfield'],
   // No definition writes it. The PRD names it too, so it is not removed here.
   [`${SCRATCHPAD}/progress/*/worker_status.yaml`]: ['greenfield', 'enhancement', 'import'],
 };
@@ -183,6 +185,23 @@ describe('stage output contracts', () => {
     const definition = definitionOf('issue-generator');
     expect(definition).not.toContain('Documentation updated');
     expect(definition).toContain('verifiable by a test');
+  });
+
+  it('limits Enhancement issues to the components the SDS update lists', () => {
+    const definition = definitionOf('issue-generator');
+    const updater = definitionOf('sds-updater');
+    const result = `${SCRATCHPAD}/documents/*/sds_update_result.yaml`;
+    expect([...documentedPaths(definition).inputs]).toContain(result);
+    expect([...documentedPaths(updater).outputs]).toContain(result);
+    for (const list of ['components_added', 'components_modified']) {
+      expect(definition).toContain(`changes.${list}`);
+      expect(updater).toContain(`${list}:`);
+    }
+    expect(definition).toContain('leave every other component alone');
+    // Greenfield keeps the rule, and it no longer applies unconditionally.
+    expect(definition).toContain('**Without that file** (Greenfield)');
+    expect(definition).not.toContain('Identify all components');
+    expect(definition).not.toMatch(/^- Every SDS component must generate at least one issue$/mu);
   });
 
   it('gives the doc-code comparison one output name', () => {

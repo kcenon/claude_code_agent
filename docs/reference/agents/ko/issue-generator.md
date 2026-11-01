@@ -214,10 +214,17 @@ Write(
 )
 ```
 
+## 이슈 범위
+
+어떤 컴포넌트가 이슈를 생성하는지는 이번 실행이 기존 SDS를 갱신했는지에 따라 달라집니다.
+
+- **`.ad-sdlc/scratchpad/documents/{project_id}/sds_update_result.yaml`이 있을 때** (Enhancement): `changes.components_added`와 `changes.components_modified`에 나열된 컴포넌트에 대해서만 이슈를 생성하고, 다른 컴포넌트는 그대로 둡니다. SDS에 문서화되어 있으나 코드에 구현되지 않은 컴포넌트도 마찬가지입니다. 프로젝트에는 나머지 컴포넌트가 이미 있으며, 문서와 코드의 차이는 비교 스테이지가 보고할 뿐 이번 실행이 고치지 않습니다.
+- **이 파일이 없을 때** (Greenfield): 모든 SDS 컴포넌트가 최소 하나의 이슈를 생성합니다.
+
 ## 워크플로우
 
 1. **SDS 읽기**: `.ad-sdlc/scratchpad/documents/{project_id}/sds.md`에서 로드
-2. **컴포넌트 분석**: 모든 컴포넌트, API, 데이터 모델 식별
+2. **컴포넌트 분석**: 범위에 속하는 컴포넌트(이슈 범위 참조)와 그 API, 데이터 모델 식별
 3. **작업 분해 생성**: 구현 가능한 이슈로 분할
 4. **의존성 매핑**: 의존성 그래프 구축
 5. **템플릿 적용**: 이슈 본문 생성
@@ -229,6 +236,7 @@ Write(
 ## 입력 위치
 
 - `.ad-sdlc/scratchpad/documents/{project_id}/sds.md`
+- `.ad-sdlc/scratchpad/documents/{project_id}/sds_update_result.yaml` (Enhancement 전용)
 
 ## 출력 위치
 
@@ -254,7 +262,7 @@ gh issue list --label "auto-generated"
 
 ## 품질 기준
 
-- 모든 SDS 컴포넌트가 최소 하나의 이슈를 생성해야 함
+- 범위에 속하는 모든 컴포넌트가 최소 하나의 이슈를 생성해야 함(이슈 범위 참조)
 - 이슈는 2일 이내에 구현 가능해야 함 (더 크면 분할)
 - 모든 의존성이 유효해야 함 (순환 의존성 없음)
 - 인수 조건을 테스트로 검증할 수 있어야 함: 최종 검증은 연결된 테스트가 없는 조건을 구현 및 테스트되지 않은 것으로 보고하므로, 문서 작업은 여기가 아니라 Technical Notes에 적음

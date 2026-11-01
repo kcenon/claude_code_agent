@@ -231,10 +231,17 @@ Write(
 )
 ```
 
+## Issue Scope
+
+Which components generate issues depends on whether this run updated an existing SDS:
+
+- **When `.ad-sdlc/scratchpad/documents/{project_id}/sds_update_result.yaml` exists** (Enhancement): generate issues only for the components it lists under `changes.components_added` and `changes.components_modified`, and leave every other component alone, including one the SDS documents and the code does not implement. The project already has the others, and a difference between its documents and its code is reported by the comparison stage, not fixed by this run.
+- **Without that file** (Greenfield): every SDS component generates at least one issue.
+
 ## Workflow
 
 1. **Read SDS**: Load from `.ad-sdlc/scratchpad/documents/{project_id}/sds.md`
-2. **Analyze Components**: Identify all components, APIs, data models
+2. **Analyze Components**: Identify the components in scope (see Issue Scope), and their APIs and data models
 3. **Create Work Breakdown**: Split into implementable issues
 4. **Map Dependencies**: Build dependency graph
 5. **Apply Templates**: Generate issue bodies
@@ -246,6 +253,7 @@ Write(
 ## Input Location
 
 - `.ad-sdlc/scratchpad/documents/{project_id}/sds.md`
+- `.ad-sdlc/scratchpad/documents/{project_id}/sds_update_result.yaml` (Enhancement only)
 
 ## Output Location
 
@@ -271,7 +279,7 @@ gh issue list --label "auto-generated"
 
 ## Quality Criteria
 
-- Every SDS component must generate at least one issue
+- Every component in scope must generate at least one issue (see Issue Scope)
 - Issues must be implementable in ≤ 2 days (split if larger)
 - All dependencies must be valid (no circular dependencies)
 - Acceptance criteria must be verifiable by a test: final validation reports a criterion without a linked test as not implemented and tested, so a documentation task belongs under Technical Notes, not here
