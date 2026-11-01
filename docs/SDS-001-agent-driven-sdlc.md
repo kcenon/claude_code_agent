@@ -2,16 +2,16 @@
 
 ## Agent-Driven Software Development Lifecycle System
 
-| Field | Value |
-|-------|-------|
-| **Document ID** | SDS-001 |
-| **Source SRS** | SRS-001 |
-| **Source PRD** | PRD-001 |
-| **Version** | 1.2.0 |
-| **Status** | Review |
-| **Implementation** | Partial |
-| **Created** | 2025-12-27 |
-| **Author** | System Architect |
+| Field              | Value            |
+| ------------------ | ---------------- |
+| **Document ID**    | SDS-001          |
+| **Source SRS**     | SRS-001          |
+| **Source PRD**     | PRD-001          |
+| **Version**        | 1.2.0            |
+| **Status**         | Review           |
+| **Implementation** | Partial          |
+| **Created**        | 2025-12-27       |
+| **Author**         | System Architect |
 
 ---
 
@@ -37,6 +37,7 @@
 This Software Design Specification (SDS) defines the detailed design of the Agent-Driven SDLC (AD-SDLC) system. It specifies the architecture, components, interfaces, and data design required to implement the system features defined in SRS-001, enabling the development team to directly utilize it for implementation.
 
 **Target Audience:**
+
 - Software Developers
 - System Architects
 - DevOps Engineers
@@ -46,42 +47,42 @@ This Software Design Specification (SDS) defines the detailed design of the Agen
 
 This SDS covers the following design scope:
 
-| Category | Scope |
-|----------|-------|
-| **Architecture** | Multi-agent orchestration architecture, Scratchpad pattern |
-| **Components** | 36 `CMP-*` design records (a design-document axis, distinct from the 36 prompt definitions and 39 runtime stage slots in the [runtime inventory](architecture/runtime-inventory.md)) |
-| **Data** | File-based state schema, data entity definitions |
-| **Interfaces** | Inter-agent communication, GitHub API integration, CLI interface |
-| **Security** | Authentication, authorization management, sensitive information protection |
-| **Deployment** | Local execution environment, configuration management |
+| Category         | Scope                                                                                                                                                                                |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Architecture** | Multi-agent orchestration architecture, Scratchpad pattern                                                                                                                           |
+| **Components**   | 36 `CMP-*` design records (a design-document axis, distinct from the 36 prompt definitions and 39 runtime stage slots in the [runtime inventory](architecture/runtime-inventory.md)) |
+| **Data**         | File-based state schema, data entity definitions                                                                                                                                     |
+| **Interfaces**   | Inter-agent communication, GitHub API integration, CLI interface                                                                                                                     |
+| **Security**     | Authentication, authorization management, sensitive information protection                                                                                                           |
+| **Deployment**   | Local execution environment, configuration management                                                                                                                                |
 
 ### 1.3 Design Goals
 
-| Goal ID | Goal | Description |
-|---------|------|-------------|
-| DG-001 | **Modularity** | Each agent can be developed/tested/deployed independently |
-| DG-002 | **Extensibility** | Easy to add new agents and customize workflows |
-| DG-003 | **Resilience** | Automatic recovery and retry mechanisms upon failure |
-| DG-004 | **Traceability** | Complete traceability between requirements-design-implementation |
-| DG-005 | **Transparency** | All agent activities are logged and auditable |
+| Goal ID | Goal              | Description                                                      |
+| ------- | ----------------- | ---------------------------------------------------------------- |
+| DG-001  | **Modularity**    | Each agent can be developed/tested/deployed independently        |
+| DG-002  | **Extensibility** | Easy to add new agents and customize workflows                   |
+| DG-003  | **Resilience**    | Automatic recovery and retry mechanisms upon failure             |
+| DG-004  | **Traceability**  | Complete traceability between requirements-design-implementation |
+| DG-005  | **Transparency**  | All agent activities are logged and auditable                    |
 
 ### 1.4 Design Constraints
 
-| Constraint ID | Constraint | Design Decision |
-|---------------|------------|-----------------|
-| DC-001 | Claude Agent SDK unidirectional communication | Introduce Scratchpad pattern (file-based state sharing) |
-| DC-002 | Context Window 200K tokens | Context Compaction strategy, document chunking |
-| DC-003 | GitHub API Rate Limit | Batch processing, caching, exponential backoff |
-| DC-004 | Maximum 5 concurrent Workers | Worker Pool management, queue-based scheduling |
+| Constraint ID | Constraint                                    | Design Decision                                         |
+| ------------- | --------------------------------------------- | ------------------------------------------------------- |
+| DC-001        | Claude Agent SDK unidirectional communication | Introduce Scratchpad pattern (file-based state sharing) |
+| DC-002        | Context Window 200K tokens                    | Context Compaction strategy, document chunking          |
+| DC-003        | GitHub API Rate Limit                         | Batch processing, caching, exponential backoff          |
+| DC-004        | Maximum 5 concurrent Workers                  | Worker Pool management, queue-based scheduling          |
 
 ### 1.5 References
 
-| Reference | Description |
-|-----------|-------------|
-| PRD-001 | Product Requirements Document |
-| SRS-001 | Software Requirements Specification |
-| Claude Agent SDK | https://platform.claude.com/docs/en/agent-sdk |
-| Claude Code Subagents | https://code.claude.com/docs/en/sub-agents |
+| Reference                       | Description                                                                                                                                                     |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| PRD-001                         | Product Requirements Document                                                                                                                                   |
+| SRS-001                         | Software Requirements Specification                                                                                                                             |
+| Claude Agent SDK                | https://platform.claude.com/docs/en/agent-sdk                                                                                                                   |
+| Claude Code Subagents           | https://code.claude.com/docs/en/sub-agents                                                                                                                      |
 | Execution and Definition Layers | [docs/architecture/dual-layer-design.md](architecture/dual-layer-design.md) -- Pipeline control, `ExecutionAdapter`, and declarative agent knowledge boundaries |
 
 ---
@@ -223,11 +224,13 @@ A file-based state sharing pattern to overcome the unidirectional communication 
 Agents follow two execution patterns:
 
 **Sequential Pipeline (Document Generation):**
+
 ```
 Collector → PRD Writer → SRS Writer → SDS Writer → Issue Generator → Controller
 ```
 
 **Parallel Execution (Code Implementation):**
+
 ```
 Controller ──┬── Worker #1 ──┐
              ├── Worker #2 ──┼──▶ PR Review
@@ -269,19 +272,19 @@ Events:
 
 ### 2.3 Technology Stack
 
-| Layer | Technology | Version | Rationale |
-|-------|------------|---------|-----------|
-| **Runtime** | Claude Agent SDK | Latest | Official Agent SDK |
-| **Language Runtime** | Node.js | 22.22.1+ | Minimum supported by the dependency set |
-| **CLI** | Claude Code CLI | Latest | Developer-friendly interface |
-| **Model** | Claude Sonnet 4.5 | claude-sonnet-4-5-20250929 | Cost/performance balance |
-| **Model (Critical)** | Claude Opus 4.6 | claude-opus-4-6 | For complex reasoning tasks |
-| **Model (Light)** | Claude Haiku 4.5 | claude-haiku-4-5-20251001 | Quick, low-cost tasks |
-| **VCS** | Git | 2.30+ | Version control |
-| **Issue Tracking** | GitHub CLI | 2.0+ | GitHub integration |
-| **Config Format** | YAML | 1.2 | Configuration files |
-| **Data Format** | JSON, YAML, Markdown | - | State and document storage |
-| **Logging** | JSON Structured Logs | - | Structured logging |
+| Layer                | Technology           | Version                    | Rationale                               |
+| -------------------- | -------------------- | -------------------------- | --------------------------------------- |
+| **Runtime**          | Claude Agent SDK     | Latest                     | Official Agent SDK                      |
+| **Language Runtime** | Node.js              | 22.22.1+                   | Minimum supported by the dependency set |
+| **CLI**              | Claude Code CLI      | Latest                     | Developer-friendly interface            |
+| **Model**            | Claude Sonnet 4.5    | claude-sonnet-4-5-20250929 | Cost/performance balance                |
+| **Model (Critical)** | Claude Opus 4.6      | claude-opus-4-6            | For complex reasoning tasks             |
+| **Model (Light)**    | Claude Haiku 4.5     | claude-haiku-4-5-20251001  | Quick, low-cost tasks                   |
+| **VCS**              | Git                  | 2.30+                      | Version control                         |
+| **Issue Tracking**   | GitHub CLI           | 2.0+                       | GitHub integration                      |
+| **Config Format**    | YAML                 | 1.2                        | Configuration files                     |
+| **Data Format**      | JSON, YAML, Markdown | -                          | State and document storage              |
+| **Logging**          | JSON Structured Logs | -                          | Structured logging                      |
 
 ### 2.4 Directory Structure
 
@@ -354,44 +357,44 @@ project-root/
 
 ### 3.1 Component Overview
 
-| CMP ID | Component Name | Korean Name | Source Features | Responsibility |
-|--------|----------------|-------------|-----------------|----------------|
-| CMP-001 | Collector Agent | Information Collection Agent | SF-001 | Multi-source information collection and structuring |
-| CMP-002 | PRD Writer Agent | PRD Writing Agent | SF-002 | Automatic PRD document generation |
-| CMP-003 | SRS Writer Agent | SRS Writing Agent | SF-003 | Automatic SRS document generation |
-| CMP-004 | SDS Writer Agent | SDS Writing Agent | SF-004 | Automatic SDS document generation |
-| CMP-005 | Issue Generator | Issue Generation Agent | SF-005 | Automatic GitHub Issue generation |
-| CMP-006 | Controller Agent | Control Agent | SF-006, SF-007 | Work prioritization and assignment management |
-| CMP-007 | Worker Agent | Work Agent | SF-008, SF-009 | Code implementation and self-verification |
-| CMP-008 | PR Review Agent | PR Review Agent | SF-010, SF-011 | PR creation and code review |
-| CMP-009 | State Manager | State Manager | SF-014 | Scratchpad state management |
-| CMP-010 | Logger | Logging Service | SF-015 | Activity logging and auditing |
-| CMP-011 | Error Handler | Error Handler | SF-016 | Retry and recovery management |
-| CMP-012 | Document Reader Agent | Document Reader | SF-017 | Parse existing PRD/SRS/SDS documents |
-| CMP-013 | Codebase Analyzer Agent | Codebase Analyzer | SF-018 | Analyze architecture patterns and dependencies |
-| CMP-014 | Impact Analyzer Agent | Impact Analyzer | SF-019 | Assess change impact and risk |
-| CMP-015 | PRD Updater Agent | PRD Updater | SF-020 | Incremental PRD updates |
-| CMP-016 | SRS Updater Agent | SRS Updater | SF-021 | Incremental SRS updates |
-| CMP-017 | SDS Updater Agent | SDS Updater | SF-022 | Incremental SDS updates |
-| CMP-018 | Regression Tester Agent | Regression Tester | SF-023 | Run regression tests and assess coverage |
-| CMP-019 | Doc-Code Comparator Agent | Doc-Code Comparator | SF-024 | Compare spec vs code, generate gap report |
-| CMP-020 | Code Reader Agent | Code Reader | SF-025 | AST-based source code analysis |
-| CMP-021 | CI Fixer Agent | CI Fixer | SF-026 | Diagnose and fix CI/CD failures |
-| CMP-022 | Mode Detector Agent | Mode Detector | SF-027 | Detect Greenfield/Enhancement pipeline mode |
-| CMP-023 | Project Initializer Agent | Project Initializer | SF-028 | Initialize .ad-sdlc workspace |
-| CMP-024 | Repo Detector Agent | Repo Detector | SF-029 | Detect existing GitHub repository |
-| CMP-025 | AD-SDLC Orchestrator Agent | Pipeline Orchestrator | SF-030 | Full pipeline coordination |
-| CMP-026 | Analysis Orchestrator Agent | Analysis Orchestrator | SF-030 | Enhancement analysis sub-pipeline |
-| CMP-027 | GitHub Repo Setup Agent | GitHub Repo Setup | SF-029 | Create and initialize GitHub repository |
-| CMP-028 | Issue Reader Agent | Issue Reader | SF-031 | Import existing GitHub Issues |
-| CMP-029 | Agent Definition Validator | Agent Definition Validator | SF-028 | Validate agent definition files against schema and registry |
-| CMP-030 | Architecture Generator | Architecture Generator | SF-004 | Generate architecture designs from SRS documents |
-| CMP-031 | Component Generator | Component Generator | SF-004 | Generate component designs, interface specs, and API documentation |
-| CMP-032 | Monitoring Service | Monitoring Service | SF-015 | Observability, token budget management, alerting, and performance tuning |
-| CMP-033 | Telemetry Service | Telemetry Service | SF-015 | Opt-in anonymous usage analytics with consent management |
-| CMP-034 | Security Module | Security Module | Cross-cutting (NFR) | Input validation, command sanitization, audit logging, rate limiting |
-| CMP-035 | Configuration Manager | Configuration Manager | SF-028 | Unified workflow/agent configuration loading, validation, and watching |
-| CMP-036 | Completion Generator | Completion Generator | CLI Tooling | Shell autocompletion script generation for bash, zsh, and fish |
+| CMP ID  | Component Name              | Korean Name                  | Source Features     | Responsibility                                                           |
+| ------- | --------------------------- | ---------------------------- | ------------------- | ------------------------------------------------------------------------ |
+| CMP-001 | Collector Agent             | Information Collection Agent | SF-001              | Multi-source information collection and structuring                      |
+| CMP-002 | PRD Writer Agent            | PRD Writing Agent            | SF-002              | Automatic PRD document generation                                        |
+| CMP-003 | SRS Writer Agent            | SRS Writing Agent            | SF-003              | Automatic SRS document generation                                        |
+| CMP-004 | SDS Writer Agent            | SDS Writing Agent            | SF-004              | Automatic SDS document generation                                        |
+| CMP-005 | Issue Generator             | Issue Generation Agent       | SF-005              | Automatic GitHub Issue generation                                        |
+| CMP-006 | Controller Agent            | Control Agent                | SF-006, SF-007      | Work prioritization and assignment management                            |
+| CMP-007 | Worker Agent                | Work Agent                   | SF-008, SF-009      | Code implementation and self-verification                                |
+| CMP-008 | PR Review Agent             | PR Review Agent              | SF-010, SF-011      | PR creation and code review                                              |
+| CMP-009 | State Manager               | State Manager                | SF-014              | Scratchpad state management                                              |
+| CMP-010 | Logger                      | Logging Service              | SF-015              | Activity logging and auditing                                            |
+| CMP-011 | Error Handler               | Error Handler                | SF-016              | Retry and recovery management                                            |
+| CMP-012 | Document Reader Agent       | Document Reader              | SF-017              | Parse existing PRD/SRS/SDS documents                                     |
+| CMP-013 | Codebase Analyzer Agent     | Codebase Analyzer            | SF-018              | Analyze architecture patterns and dependencies                           |
+| CMP-014 | Impact Analyzer Agent       | Impact Analyzer              | SF-019              | Assess change impact and risk                                            |
+| CMP-015 | PRD Updater Agent           | PRD Updater                  | SF-020              | Incremental PRD updates                                                  |
+| CMP-016 | SRS Updater Agent           | SRS Updater                  | SF-021              | Incremental SRS updates                                                  |
+| CMP-017 | SDS Updater Agent           | SDS Updater                  | SF-022              | Incremental SDS updates                                                  |
+| CMP-018 | Regression Tester Agent     | Regression Tester            | SF-023              | Run regression tests and assess coverage                                 |
+| CMP-019 | Doc-Code Comparator Agent   | Doc-Code Comparator          | SF-024              | Compare spec vs code, generate gap report                                |
+| CMP-020 | Code Reader Agent           | Code Reader                  | SF-025              | AST-based source code analysis                                           |
+| CMP-021 | CI Fixer Agent              | CI Fixer                     | SF-026              | Diagnose and fix CI/CD failures                                          |
+| CMP-022 | Mode Detector Agent         | Mode Detector                | SF-027              | Detect Greenfield/Enhancement pipeline mode                              |
+| CMP-023 | Project Initializer Agent   | Project Initializer          | SF-028              | Initialize .ad-sdlc workspace                                            |
+| CMP-024 | Repo Detector Agent         | Repo Detector                | SF-029              | Detect existing GitHub repository                                        |
+| CMP-025 | AD-SDLC Orchestrator Agent  | Pipeline Orchestrator        | SF-030              | Full pipeline coordination                                               |
+| CMP-026 | Analysis Orchestrator Agent | Analysis Orchestrator        | SF-030              | Enhancement analysis sub-pipeline                                        |
+| CMP-027 | GitHub Repo Setup Agent     | GitHub Repo Setup            | SF-029              | Create and initialize GitHub repository                                  |
+| CMP-028 | Issue Reader Agent          | Issue Reader                 | SF-031              | Import existing GitHub Issues                                            |
+| CMP-029 | Agent Definition Validator  | Agent Definition Validator   | SF-028              | Validate agent definition files against schema and registry              |
+| CMP-030 | Architecture Generator      | Architecture Generator       | SF-004              | Generate architecture designs from SRS documents                         |
+| CMP-031 | Component Generator         | Component Generator          | SF-004              | Generate component designs, interface specs, and API documentation       |
+| CMP-032 | Monitoring Service          | Monitoring Service           | SF-015              | Observability, token budget management, alerting, and performance tuning |
+| CMP-033 | Telemetry Service           | Telemetry Service            | SF-015              | Opt-in anonymous usage analytics with consent management                 |
+| CMP-034 | Security Module             | Security Module              | Cross-cutting (NFR) | Input validation, command sanitization, audit logging, rate limiting     |
+| CMP-035 | Configuration Manager       | Configuration Manager        | SF-028              | Unified workflow/agent configuration loading, validation, and watching   |
+| CMP-036 | Completion Generator        | Completion Generator         | CLI Tooling         | Shell autocompletion script generation for bash, zsh, and fish           |
 
 ### 3.2 CMP-001: Collector Agent
 
@@ -448,8 +451,8 @@ interface CollectionResult {
   constraints: string[];
   assumptions: string[];
   dependencies: Dependency[];
-  questions: ClarifyingQuestion[];  // Items needing additional clarification
-  confidence: number;  // 0.0 - 1.0
+  questions: ClarifyingQuestion[]; // Items needing additional clarification
+  confidence: number; // 0.0 - 1.0
 }
 
 interface ClarifyingQuestion {
@@ -466,7 +469,7 @@ interface ClarifyingQuestion {
 ```yaml
 # .ad-sdlc/scratchpad/info/{project_id}/collected_info.yaml
 schema:
-  version: "1.0"
+  version: '1.0'
   project_id: string
   created_at: datetime
   updated_at: datetime
@@ -479,38 +482,38 @@ schema:
   stakeholders:
     - name: string
       role: string
-      contact: string  # Optional
+      contact: string # Optional
 
   requirements:
     functional:
-      - id: "FR-XXX"
+      - id: 'FR-XXX'
         title: string
         description: string
         priority: P0 | P1 | P2 | P3
-        source: string  # Input source (user_input, file:path, url:uri)
+        source: string # Input source (user_input, file:path, url:uri)
         acceptance_criteria:
           - criterion: string
 
     non_functional:
-      - id: "NFR-XXX"
+      - id: 'NFR-XXX'
         category: performance | security | reliability | usability | maintainability
         requirement: string
-        metric: string  # Optional
-        target: string  # Optional
+        metric: string # Optional
+        target: string # Optional
 
   constraints:
-    - id: "CON-XXX"
+    - id: 'CON-XXX'
       description: string
       rationale: string
 
   assumptions:
-    - id: "ASM-XXX"
+    - id: 'ASM-XXX'
       description: string
       risk_if_wrong: string
 
   dependencies:
     - name: string
-      version: string  # Optional
+      version: string # Optional
       type: library | service | system
       purpose: string
 
@@ -528,13 +531,13 @@ schema:
 
 #### 3.2.3 Tools Required
 
-| Tool | Purpose | Usage |
-|------|---------|-------|
-| `Read` | Read file contents | Process .md, .pdf, .docx, .txt files |
-| `WebFetch` | Fetch URL content | Process HTTP/HTTPS URLs |
-| `WebSearch` | Search for related information | Collect additional context |
-| `Grep` | Pattern-based information extraction | Analyze existing codebase |
-| `Write` | Save information document | Save in YAML format |
+| Tool        | Purpose                              | Usage                                |
+| ----------- | ------------------------------------ | ------------------------------------ |
+| `Read`      | Read file contents                   | Process .md, .pdf, .docx, .txt files |
+| `WebFetch`  | Fetch URL content                    | Process HTTP/HTTPS URLs              |
+| `WebSearch` | Search for related information       | Collect additional context           |
+| `Grep`      | Pattern-based information extraction | Analyze existing codebase            |
+| `Write`     | Save information document            | Save in YAML format                  |
 
 #### 3.2.4 Processing Logic
 
@@ -606,13 +609,13 @@ class CollectorAgent:
 
 #### 3.2.5 Error Handling
 
-| Error Code | Condition | Handling |
-|------------|-----------|----------|
-| COL-001 | Input too short (< 50 characters) | Return minimum requirements guidance message |
-| COL-002 | File read failure | Log error, request alternative input |
-| COL-003 | URL inaccessible | Log error, request manual input |
-| COL-004 | Unsupported file format | Provide supported format list |
-| COL-005 | Context limit reached | Guide input chunking |
+| Error Code | Condition                         | Handling                                     |
+| ---------- | --------------------------------- | -------------------------------------------- |
+| COL-001    | Input too short (< 50 characters) | Return minimum requirements guidance message |
+| COL-002    | File read failure                 | Log error, request alternative input         |
+| COL-003    | URL inaccessible                  | Log error, request manual input              |
+| COL-004    | Unsupported file format           | Provide supported format list                |
+| COL-005    | Context limit reached             | Guide input chunking                         |
 
 ---
 
@@ -664,7 +667,7 @@ interface PRDGenerationResult {
 }
 
 interface QualityMetrics {
-  completeness: number;  // 0.0 - 1.0
+  completeness: number; // 0.0 - 1.0
   consistency: number;
   clarity: number;
   overall: number;
@@ -676,34 +679,43 @@ interface QualityMetrics {
 ```markdown
 # PRD: {Product Name}
 
-| Field | Value |
-|-------|-------|
+| Field       | Value            |
+| ----------- | ---------------- |
 | Document ID | PRD-{project_id} |
-| Version | {version} |
-| Status | Draft | Review | Approved |
-| Created | {date} |
+| Version     | {version}        |
+| Status      | Draft            | Review | Approved |
+| Created     | {date}           |
 
 ## 1. Executive Summary
+
 [Auto-generated: 1-2 paragraphs of project overview]
 
 ## 2. Problem Statement
+
 ### 2.1 Current Challenges
+
 [Current issues based on collected information]
 
 ### 2.2 Target Users
+
 [Identified user groups]
 
 ## 3. Goals & Success Metrics
-| Goal ID | Goal | Metric | Target |
-|---------|------|--------|--------|
-| G-001 | {goal} | {metric} | {target} |
+
+| Goal ID | Goal   | Metric   | Target   |
+| ------- | ------ | -------- | -------- |
+| G-001   | {goal} | {metric} | {target} |
 
 ## 4. User Personas
+
 ### 4.1 Primary Persona
+
 [Auto-generated persona]
 
 ## 5. Functional Requirements
+
 ### FR-001: {Requirement Title}
+
 - **Description**: {description}
 - **Priority**: P0 | P1 | P2 | P3
 - **Acceptance Criteria**:
@@ -713,25 +725,33 @@ interface QualityMetrics {
 - **Source**: {source reference}
 
 ## 6. Non-Functional Requirements
+
 | NFR ID | Category | Requirement | Metric |
-|--------|----------|-------------|--------|
+| ------ | -------- | ----------- | ------ |
 
 ## 7. Constraints & Assumptions
+
 ### 7.1 Constraints
+
 ### 7.2 Assumptions
 
 ## 8. Timeline & Milestones
+
 [Auto-generated or TBD]
 
 ## 9. Risks & Mitigations
+
 | Risk ID | Risk | Probability | Impact | Mitigation |
-|---------|------|-------------|--------|------------|
+| ------- | ---- | ----------- | ------ | ---------- |
 
 ## 10. Appendix
+
 ### 10.1 Gap Analysis
+
 [Auto-identified missing information]
 
 ### 10.2 Traceability
+
 [Mapping to collected_info.yaml items]
 ```
 
@@ -747,19 +767,19 @@ prd_quality_gates:
     - non_functional_requirements
 
   validation_rules:
-    - rule: "min_functional_requirements"
+    - rule: 'min_functional_requirements'
       value: 3
-      message: "At least 3 functional requirements are required"
+      message: 'At least 3 functional requirements are required'
 
-    - rule: "all_fr_have_priority"
-      message: "All functional requirements must have a priority assigned"
+    - rule: 'all_fr_have_priority'
+      message: 'All functional requirements must have a priority assigned'
 
-    - rule: "all_fr_have_acceptance_criteria"
+    - rule: 'all_fr_have_acceptance_criteria'
       min_criteria: 1
-      message: "Each requirement must have at least 1 acceptance criterion"
+      message: 'Each requirement must have at least 1 acceptance criterion'
 
-    - rule: "unique_requirement_ids"
-      message: "Requirement IDs must be unique"
+    - rule: 'unique_requirement_ids'
+      message: 'Requirement IDs must be unique'
 ```
 
 ---
@@ -804,10 +824,10 @@ interface ISRSWriterAgent {
 }
 
 interface SystemFeature {
-  id: string;        // SF-XXX
+  id: string; // SF-XXX
   name: string;
   description: string;
-  sourceRequirement: string;  // FR-XXX
+  sourceRequirement: string; // FR-XXX
   priority: Priority;
   useCases: UseCase[];
   acceptanceCriteria: string[];
@@ -815,7 +835,7 @@ interface SystemFeature {
 }
 
 interface UseCase {
-  id: string;        // UC-XXX
+  id: string; // UC-XXX
   title: string;
   actor: string;
   preconditions: string[];
@@ -831,51 +851,51 @@ interface UseCase {
 ```yaml
 srs_structure:
   sections:
-    - section: "1. Introduction"
+    - section: '1. Introduction'
       subsections:
-        - "1.1 Purpose"
-        - "1.2 Scope"
-        - "1.3 Definitions & Acronyms"
-        - "1.4 References"
+        - '1.1 Purpose'
+        - '1.2 Scope'
+        - '1.3 Definitions & Acronyms'
+        - '1.4 References'
 
-    - section: "2. Overall Description"
+    - section: '2. Overall Description'
       subsections:
-        - "2.1 Product Perspective"
-        - "2.2 Product Functions Summary"
-        - "2.3 User Classes and Characteristics"
-        - "2.4 Operating Environment"
-        - "2.5 Design and Implementation Constraints"
-        - "2.6 Assumptions and Dependencies"
+        - '2.1 Product Perspective'
+        - '2.2 Product Functions Summary'
+        - '2.3 User Classes and Characteristics'
+        - '2.4 Operating Environment'
+        - '2.5 Design and Implementation Constraints'
+        - '2.6 Assumptions and Dependencies'
 
-    - section: "3. System Features"
+    - section: '3. System Features'
       # Subsections per SF-XXX
       per_feature:
-        - "Description"
-        - "Use Cases"
-        - "Acceptance Criteria"
-        - "Dependencies"
+        - 'Description'
+        - 'Use Cases'
+        - 'Acceptance Criteria'
+        - 'Dependencies'
 
-    - section: "4. External Interface Requirements"
+    - section: '4. External Interface Requirements'
       subsections:
-        - "4.1 User Interfaces"
-        - "4.2 API Interfaces"
-        - "4.3 File Interfaces"
-        - "4.4 External System Interfaces"
+        - '4.1 User Interfaces'
+        - '4.2 API Interfaces'
+        - '4.3 File Interfaces'
+        - '4.4 External System Interfaces'
 
-    - section: "5. Non-Functional Requirements"
+    - section: '5. Non-Functional Requirements'
       subsections:
-        - "5.1 Performance"
-        - "5.2 Reliability"
-        - "5.3 Security"
-        - "5.4 Maintainability"
+        - '5.1 Performance'
+        - '5.2 Reliability'
+        - '5.3 Security'
+        - '5.4 Maintainability'
 
-    - section: "6. Data Requirements"
+    - section: '6. Data Requirements'
       subsections:
-        - "6.1 Data Entities"
-        - "6.2 Data Relationships"
-        - "6.3 Data Constraints"
+        - '6.1 Data Entities'
+        - '6.2 Data Relationships'
+        - '6.3 Data Constraints'
 
-    - section: "7. Traceability Matrix"
+    - section: '7. Traceability Matrix'
       # PRD → SRS mapping
 ```
 
@@ -928,9 +948,9 @@ interface ISDSWriterAgent {
 }
 
 interface ComponentSpec {
-  id: string;           // CMP-XXX
+  id: string; // CMP-XXX
   name: string;
-  sourceFeatures: string[];  // SF-XXX
+  sourceFeatures: string[]; // SF-XXX
   responsibility: string;
   type: 'service' | 'controller' | 'repository' | 'utility' | 'agent';
 
@@ -952,8 +972,8 @@ interface ComponentSpec {
 interface APISpec {
   endpoint: string;
   method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
-  sourceUseCase: string;  // UC-XXX
-  component: string;      // CMP-XXX
+  sourceUseCase: string; // UC-XXX
+  component: string; // CMP-XXX
   request: {
     headers: Record<string, string>;
     params: ParameterSpec[];
@@ -972,48 +992,48 @@ interface APISpec {
 ```yaml
 component_types:
   agent:
-    description: "Autonomous execution component based on Claude Agent"
+    description: 'Autonomous execution component based on Claude Agent'
     characteristics:
-      - "Claude API calls"
-      - "Uses specific tool sets"
-      - "Independent execution context"
+      - 'Claude API calls'
+      - 'Uses specific tool sets'
+      - 'Independent execution context'
     examples:
-      - "Collector Agent"
-      - "PRD Writer Agent"
+      - 'Collector Agent'
+      - 'PRD Writer Agent'
 
   service:
-    description: "Service encapsulating business logic"
+    description: 'Service encapsulating business logic'
     characteristics:
-      - "Stateless"
-      - "Single responsibility principle"
+      - 'Stateless'
+      - 'Single responsibility principle'
     examples:
-      - "Validation Service"
-      - "Notification Service"
+      - 'Validation Service'
+      - 'Notification Service'
 
   controller:
-    description: "Request routing and coordination"
+    description: 'Request routing and coordination'
     characteristics:
-      - "Input validation"
-      - "Service call coordination"
+      - 'Input validation'
+      - 'Service call coordination'
     examples:
-      - "Controller Agent (orchestration)"
+      - 'Controller Agent (orchestration)'
 
   repository:
-    description: "Data access layer"
+    description: 'Data access layer'
     characteristics:
-      - "CRUD operations"
-      - "File system abstraction"
+      - 'CRUD operations'
+      - 'File system abstraction'
     examples:
-      - "Scratchpad Repository"
+      - 'Scratchpad Repository'
 
   utility:
-    description: "Common utility functions"
+    description: 'Common utility functions'
     characteristics:
-      - "Pure functions"
-      - "Reusable"
+      - 'Pure functions'
+      - 'Reusable'
     examples:
-      - "ID Generator"
-      - "Date Formatter"
+      - 'ID Generator'
+      - 'Date Formatter'
 ```
 
 ---
@@ -1063,18 +1083,18 @@ interface IssueSpec {
   labels: string[];
   assignees: string[];
   milestone: string;
-  sourceComponent: string;  // CMP-XXX
-  sourceFeature: string;    // SF-XXX
+  sourceComponent: string; // CMP-XXX
+  sourceFeature: string; // SF-XXX
   sourceRequirement: string; // FR-XXX
   estimatedEffort: 'XS' | 'S' | 'M' | 'L' | 'XL';
-  dependencies: number[];    // Blocked by issue numbers
+  dependencies: number[]; // Blocked by issue numbers
   acceptanceCriteria: string[];
 }
 
 interface DependencyGraph {
   nodes: GraphNode[];
   edges: GraphEdge[];
-  criticalPath: string[];  // Issue IDs on critical path
+  criticalPath: string[]; // Issue IDs on critical path
 }
 ```
 
@@ -1082,48 +1102,58 @@ interface DependencyGraph {
 
 ```markdown
 ## Description
+
 {Auto-generated work description}
 
 ## Source References
+
 - **SDS Component**: CMP-XXX
 - **SRS Feature**: SF-XXX
 - **PRD Requirement**: FR-XXX
 
 ## Context
+
 {Related architecture and design context}
 
 ## Acceptance Criteria
+
 - [ ] {criterion 1}
 - [ ] {criterion 2}
 - [ ] {criterion 3}
 
 ## Technical Notes
+
 {Technical guidance for implementation}
 
 ### Suggested Approach
+
 1. {step 1}
 2. {step 2}
 3. {step 3}
 
 ### Related Files
+
 - `path/to/related/file.ts`
 
 ## Dependencies
+
 - **Blocked by**: #{issue_number}
 - **Blocks**: #{issue_number}
 
 ## Estimated Effort
+
 **{XS | S | M | L | XL}**
 
 | Effort | Description | Typical Duration |
-|--------|-------------|------------------|
-| XS | < 1 hour | Trivial change |
-| S | 1-4 hours | Small feature |
-| M | 4-8 hours | Medium feature |
-| L | 1-3 days | Large feature |
-| XL | 3+ days | Complex feature |
+| ------ | ----------- | ---------------- |
+| XS     | < 1 hour    | Trivial change   |
+| S      | 1-4 hours   | Small feature    |
+| M      | 4-8 hours   | Medium feature   |
+| L      | 1-3 days    | Large feature    |
+| XL     | 3+ days     | Complex feature  |
 
 ---
+
 _Auto-generated by AD-SDLC Issue Generator Agent_
 _Labels: `ad-sdlc:auto-generated`, `priority:{P0-P3}`, `type:{feature|fix|docs}`_
 ```
@@ -1132,37 +1162,37 @@ _Labels: `ad-sdlc:auto-generated`, `priority:{P0-P3}`, `type:{feature|fix|docs}`
 
 ```yaml
 breakdown_rules:
-  max_issue_size: "L"  # XL requires splitting
+  max_issue_size: 'L' # XL requires splitting
   decomposition_criteria:
-    - name: "single_responsibility"
-      description: "One issue has only one responsibility"
+    - name: 'single_responsibility'
+      description: 'One issue has only one responsibility'
 
-    - name: "testable_unit"
-      description: "Independently testable unit"
+    - name: 'testable_unit'
+      description: 'Independently testable unit'
 
-    - name: "estimatable"
-      description: "Clearly estimable effort"
+    - name: 'estimatable'
+      description: 'Clearly estimable effort'
 
   breakdown_patterns:
     service:
-      - "Interface definition"
-      - "Core implementation"
-      - "Unit tests"
-      - "Integration"
+      - 'Interface definition'
+      - 'Core implementation'
+      - 'Unit tests'
+      - 'Integration'
 
     api_endpoint:
-      - "Route definition"
-      - "Request validation"
-      - "Business logic"
-      - "Response formatting"
-      - "Error handling"
-      - "Tests"
+      - 'Route definition'
+      - 'Request validation'
+      - 'Business logic'
+      - 'Response formatting'
+      - 'Error handling'
+      - 'Tests'
 
     data_model:
-      - "Schema definition"
-      - "Validation rules"
-      - "Migration scripts"
-      - "Tests"
+      - 'Schema definition'
+      - 'Validation rules'
+      - 'Migration scripts'
+      - 'Tests'
 ```
 
 ---
@@ -1215,13 +1245,13 @@ interface IControllerAgent {
 }
 
 interface WorkOrder {
-  id: string;           // WO-XXX
+  id: string; // WO-XXX
   issueId: string;
   issueNumber: number;
   issueTitle: string;
   createdAt: Date;
   deadline?: Date;
-  priority: number;     // 1 = highest
+  priority: number; // 1 = highest
 
   assignment: {
     workerId: string;
@@ -1241,10 +1271,10 @@ interface WorkOrder {
 }
 
 interface ExecutionQueue {
-  ready: QueueItem[];      // Dependencies resolved, executable
-  blocked: QueueItem[];    // Waiting for dependencies
+  ready: QueueItem[]; // Dependencies resolved, executable
+  blocked: QueueItem[]; // Waiting for dependencies
   inProgress: QueueItem[]; // Currently executing
-  completed: QueueItem[];  // Completed
+  completed: QueueItem[]; // Completed
 }
 ```
 
@@ -1294,7 +1324,7 @@ class PriorityCalculator:
 ```yaml
 # .ad-sdlc/scratchpad/progress/{project_id}/controller_state.yaml
 schema:
-  version: "1.0"
+  version: '1.0'
   project_id: string
   phase: planning | executing | reviewing | completed
   updated_at: datetime
@@ -1334,7 +1364,7 @@ schema:
     started_at: datetime
     estimated_completion: datetime
     current_percentage: float
-    velocity: float  # issues per hour
+    velocity: float # issues per hour
 
   bottlenecks:
     - issue_id: string
@@ -1523,21 +1553,21 @@ retry_policy:
 
   retryable_errors:
     - test_failure:
-        action: "Analyze test output, fix code, re-run"
+        action: 'Analyze test output, fix code, re-run'
     - lint_error:
-        action: "Apply auto-fix (--fix), manual fix if needed"
+        action: 'Apply auto-fix (--fix), manual fix if needed'
     - build_error:
-        action: "Check dependencies, fix type errors"
+        action: 'Check dependencies, fix type errors'
     - type_error:
-        action: "Fix type definitions, add type guards"
+        action: 'Fix type definitions, add type guards'
 
   non_retryable_errors:
     - missing_dependency:
-        action: "Report blocked, request dependency resolution"
+        action: 'Report blocked, request dependency resolution'
     - permission_denied:
-        action: "Report error, escalate"
+        action: 'Report error, escalate'
     - context_limit:
-        action: "Split task, report partial completion"
+        action: 'Split task, report partial completion'
 ```
 
 ---
@@ -1630,42 +1660,42 @@ interface QualityGateResult {
 ```yaml
 review_criteria:
   security:
-    - check: "no_hardcoded_secrets"
+    - check: 'no_hardcoded_secrets'
       severity: critical
       pattern: "(password|secret|api_key|token)\\s*[:=]\\s*['\"][^'\"]+['\"]"
 
-    - check: "no_sql_injection"
+    - check: 'no_sql_injection'
       severity: critical
       pattern: "query.*\\+.*user_input"
 
-    - check: "input_validation"
+    - check: 'input_validation'
       severity: major
-      description: "User input should be validated before use"
+      description: 'User input should be validated before use'
 
   performance:
-    - check: "no_n_plus_one"
+    - check: 'no_n_plus_one'
       severity: major
-      description: "Avoid N+1 query patterns"
+      description: 'Avoid N+1 query patterns'
 
-    - check: "proper_async"
+    - check: 'proper_async'
       severity: minor
-      description: "Use async/await properly"
+      description: 'Use async/await properly'
 
   style:
-    - check: "naming_conventions"
+    - check: 'naming_conventions'
       severity: minor
-      description: "Follow project naming conventions"
+      description: 'Follow project naming conventions'
 
-    - check: "max_function_length"
+    - check: 'max_function_length'
       severity: minor
-      threshold: 50  # lines
+      threshold: 50 # lines
 
   testing:
-    - check: "coverage_threshold"
+    - check: 'coverage_threshold'
       severity: major
-      threshold: 80  # percent
+      threshold: 80 # percent
 
-    - check: "edge_cases_covered"
+    - check: 'edge_cases_covered'
       severity: minor
 
 quality_gates:
@@ -1673,11 +1703,11 @@ quality_gates:
     - tests_pass: true
     - build_pass: true
     - no_critical_issues: true
-    - coverage: ">= 80%"
+    - coverage: '>= 80%'
 
   recommended:
     - no_major_issues: true
-    - complexity_score: "<= 10"
+    - complexity_score: '<= 10'
     - documentation_complete: true
 ```
 
@@ -1685,42 +1715,52 @@ quality_gates:
 
 ```markdown
 ## Summary
+
 {Auto-generated change summary}
 
 ## Related Issue
+
 Closes #{issue_number}
 
 ## Changes
+
 {List of changes}
 
 ### Files Changed
+
 - `path/to/file1.ts` - {change description}
 - `path/to/file2.ts` - {change description}
 
 ## Test Results
+
 ✅ All tests passed
+
 - Coverage: {coverage}%
 - New tests: {test_count}
 
 ## Quality Checks
-| Check | Status |
-|-------|--------|
-| Tests | ✅ Passed |
-| Lint | ✅ Passed |
-| Build | ✅ Passed |
+
+| Check    | Status                 |
+| -------- | ---------------------- |
+| Tests    | ✅ Passed              |
+| Lint     | ✅ Passed              |
+| Build    | ✅ Passed              |
 | Coverage | ✅ {coverage}% (≥ 80%) |
 
 ## Source Traceability
+
 - **PRD**: FR-{xxx}
 - **SRS**: SF-{xxx}, UC-{xxx}
 - **SDS**: CMP-{xxx}
 
 ## Acceptance Criteria Verification
+
 - [x] Criterion 1
 - [x] Criterion 2
 - [x] Criterion 3
 
 ---
+
 _Auto-generated by AD-SDLC PR Review Agent_
 ```
 
@@ -1812,8 +1852,8 @@ interface LogContext {
 
 // Log Format (JSON)
 interface LogEntry {
-  timestamp: string;    // ISO 8601
-  level: string;        // DEBUG, INFO, WARN, ERROR
+  timestamp: string; // ISO 8601
+  level: string; // DEBUG, INFO, WARN, ERROR
   agent: string;
   stage: string;
   message: string;
@@ -1903,16 +1943,16 @@ interface ParsedDocument {
 }
 
 interface DocumentItem {
-  id: string;           // e.g., "FR-001", "SF-001", "CMP-001"
+  id: string; // e.g., "FR-001", "SF-001", "CMP-001"
   title: string;
   description: string;
   references: string[]; // IDs of linked items in other documents
 }
 
 interface TraceabilityMap {
-  requirements: DocumentItem[];   // PRD items
-  features: DocumentItem[];       // SRS items
-  components: DocumentItem[];     // SDS items
+  requirements: DocumentItem[]; // PRD items
+  features: DocumentItem[]; // SRS items
+  components: DocumentItem[]; // SDS items
   mappings: TraceabilityLink[];
 }
 
@@ -1949,22 +1989,22 @@ interface ICodebaseAnalyzerAgent {
 }
 
 interface ArchitectureOverview {
-  projectType: string;          // e.g., "monorepo", "single-package"
-  language: string;             // e.g., "TypeScript", "Python"
-  buildSystem: string;          // e.g., "npm", "gradle", "cmake"
+  projectType: string; // e.g., "monorepo", "single-package"
+  language: string; // e.g., "TypeScript", "Python"
+  buildSystem: string; // e.g., "npm", "gradle", "cmake"
   patterns: ArchitecturePattern[];
   conventions: CodingConvention[];
   structure: DirectoryStructure;
 }
 
 interface ArchitecturePattern {
-  name: string;                 // e.g., "MVC", "Clean Architecture", "Monolith"
-  confidence: number;           // 0.0 - 1.0
-  evidence: string[];           // File paths or patterns supporting detection
+  name: string; // e.g., "MVC", "Clean Architecture", "Monolith"
+  confidence: number; // 0.0 - 1.0
+  evidence: string[]; // File paths or patterns supporting detection
 }
 
 interface CodingConvention {
-  category: string;             // e.g., "naming", "formatting", "testing"
+  category: string; // e.g., "naming", "formatting", "testing"
   rule: string;
   examples: string[];
 }
@@ -2011,9 +2051,9 @@ interface IImpactAnalyzerAgent {
 interface ImpactReport {
   changeRequest: string;
   changeScope: 'minor' | 'moderate' | 'major' | 'breaking';
-  affectedRequirements: string[];   // FR-xxx IDs
-  affectedFeatures: string[];       // SF-xxx IDs
-  affectedComponents: string[];     // CMP-xxx IDs
+  affectedRequirements: string[]; // FR-xxx IDs
+  affectedFeatures: string[]; // SF-xxx IDs
+  affectedComponents: string[]; // CMP-xxx IDs
   affectedFiles: string[];
   riskAssessment: RiskAssessment;
   recommendations: Recommendation[];
@@ -2025,7 +2065,7 @@ interface RiskAssessment {
 }
 
 interface RiskFactor {
-  category: string;           // e.g., "breaking_change", "data_migration", "api_compatibility"
+  category: string; // e.g., "breaking_change", "data_migration", "api_compatibility"
   severity: 'low' | 'medium' | 'high';
   description: string;
   mitigation: string;
@@ -2130,7 +2170,7 @@ interface ISRSUpdaterAgent {
 interface NewFeature {
   title: string;
   description: string;
-  sourceRequirements: string[];   // FR-xxx IDs from PRD
+  sourceRequirements: string[]; // FR-xxx IDs from PRD
   useCases: NewUseCase[];
 }
 
@@ -2177,9 +2217,9 @@ interface ISDSUpdaterAgent {
 
 interface NewComponent {
   name: string;
-  sourceFeatures: string[];       // SF-xxx IDs from SRS
+  sourceFeatures: string[]; // SF-xxx IDs from SRS
   responsibility: string;
-  interfaceDefinition: string;    // TypeScript interface as string
+  interfaceDefinition: string; // TypeScript interface as string
 }
 
 interface APIDefinition {
@@ -2212,10 +2252,7 @@ interface IRegressionTesterAgent {
    * @param affectedFiles File paths from impact analysis
    * @returns Mapping of affected test files and test cases
    */
-  mapAffectedTests(
-    affectedComponents: string[],
-    affectedFiles: string[]
-  ): Promise<AffectedTestMap>;
+  mapAffectedTests(affectedComponents: string[], affectedFiles: string[]): Promise<AffectedTestMap>;
 
   /**
    * Execute the regression test suite for affected areas
@@ -2235,7 +2272,7 @@ interface IRegressionTesterAgent {
 interface AffectedTestMap {
   testFiles: string[];
   testCases: TestCaseRef[];
-  estimatedDuration: number;      // seconds
+  estimatedDuration: number; // seconds
 }
 
 interface TestCaseRef {
@@ -2249,9 +2286,9 @@ interface RegressionReport {
   passed: number;
   failed: number;
   skipped: number;
-  duration: number;               // seconds
+  duration: number; // seconds
   failures: TestFailure[];
-  coverageDelta: number;          // percentage change
+  coverageDelta: number; // percentage change
 }
 
 interface TestFailure {
@@ -2290,10 +2327,7 @@ interface IDocCodeComparatorAgent {
    * @param codeInventory Code inventory from Code Reader
    * @returns Gap report with discrepancies and recommendations
    */
-  compareSpecs(
-    currentState: TraceabilityMap,
-    codeInventory: CodeInventory
-  ): Promise<GapReport>;
+  compareSpecs(currentState: TraceabilityMap, codeInventory: CodeInventory): Promise<GapReport>;
 
   /**
    * Generate a detailed gap report with prioritized action items
@@ -2320,8 +2354,8 @@ interface GapSummary {
 
 interface Gap {
   type: 'missing_implementation' | 'spec_drift' | 'undocumented_feature' | 'stale_spec';
-  specId?: string;              // Document item ID if applicable
-  filePath?: string;            // Source file if applicable
+  specId?: string; // Document item ID if applicable
+  filePath?: string; // Source file if applicable
   description: string;
   severity: 'low' | 'medium' | 'high';
 }
@@ -2448,10 +2482,7 @@ interface ICIFixerAgent {
    * @param failureType Type of CI failure
    * @returns Diagnosis with root cause and suggested fixes
    */
-  diagnoseCIFailure(
-    ciLog: string,
-    failureType: CIFailureType
-  ): Promise<CIDiagnosis>;
+  diagnoseCIFailure(ciLog: string, failureType: CIFailureType): Promise<CIDiagnosis>;
 
   /**
    * Apply an automated fix for a diagnosed CI failure
@@ -2468,14 +2499,14 @@ interface CIDiagnosis {
   rootCause: string;
   affectedFiles: string[];
   suggestedFixes: SuggestedFix[];
-  confidence: number;             // 0.0 - 1.0
+  confidence: number; // 0.0 - 1.0
 }
 
 interface SuggestedFix {
   description: string;
   filePath: string;
   changeType: 'edit' | 'add' | 'delete';
-  preview: string;                // Diff or code snippet
+  preview: string; // Diff or code snippet
 }
 
 interface CIFixResult {
@@ -2509,12 +2540,12 @@ interface IModeDetectorAgent {
 
 interface ModeDetectionResult {
   mode: 'greenfield' | 'enhancement';
-  confidence: number;             // 0.0 - 1.0
+  confidence: number; // 0.0 - 1.0
   evidence: ModeEvidence[];
 }
 
 interface ModeEvidence {
-  factor: string;                 // e.g., "existing_source_code", "ad_sdlc_directory", "git_history"
+  factor: string; // e.g., "existing_source_code", "ad_sdlc_directory", "git_history"
   detected: boolean;
   weight: number;
   details: string;
@@ -2628,8 +2659,8 @@ interface PipelineResult {
   mode: 'greenfield' | 'enhancement';
   stages: StageResult[];
   overallStatus: 'completed' | 'failed' | 'partial';
-  duration: number;               // seconds
-  artifacts: string[];            // Generated file paths
+  duration: number; // seconds
+  artifacts: string[]; // Generated file paths
 }
 
 interface StageResult {
@@ -2726,9 +2757,9 @@ The `ArtifactValidator` class maps each stage to its expected output artifacts:
 
 ```typescript
 interface ArtifactSpec {
-  readonly pathPattern: string;   // Glob pattern (supports * wildcard)
-  readonly description: string;   // Human-readable label
-  readonly required: boolean;     // Whether downstream stages need this
+  readonly pathPattern: string; // Glob pattern (supports * wildcard)
+  readonly description: string; // Human-readable label
+  readonly required: boolean; // Whether downstream stages need this
 }
 
 interface StageArtifactMap {
@@ -2774,6 +2805,7 @@ preCompleted: {init, collection, prd_gen}
 ```
 
 Artifact maps are defined per pipeline mode:
+
 - **Greenfield**: initialization, collection, prd/srs/sds_generation, issue_generation
 - **Enhancement**: document_reading, codebase_analysis, code_reading, comparisons, updates, issue_generation
 - **Import**: No artifact prerequisites (returns empty map)
@@ -2803,7 +2835,7 @@ interface AnalysisPipelineResult {
   codeInventory: CodeInventory;
   gapReport: GapReport;
   impactReport: ImpactReport;
-  generatedIssues: number[];      // GitHub issue numbers
+  generatedIssues: number[]; // GitHub issue numbers
   recommendedActions: Recommendation[];
 }
 ```
@@ -2868,10 +2900,7 @@ interface IIssueReaderAgent {
    * @param options Import filter options
    * @returns Imported issue list and dependency graph
    */
-  importIssues(
-    repoUrl: string,
-    options: IssueImportOptions
-  ): Promise<IssueImportResult>;
+  importIssues(repoUrl: string, options: IssueImportOptions): Promise<IssueImportResult>;
 }
 
 interface IssueImportOptions {
@@ -2931,21 +2960,22 @@ that enforce security, observability, and resource governance.
 **Purpose**: Provides defense-in-depth security utilities for file operations,
 command execution, input validation, and audit logging.
 
-| Component | Responsibility | Singleton Access |
-|-----------|---------------|------------------|
-| `CommandSanitizer` | Sanitizes shell commands, prevents injection attacks | `getCommandSanitizer()` |
-| `CommandWhitelist` | Maintains allowed command list with argument patterns | `DEFAULT_COMMAND_WHITELIST` |
-| `InputValidator` | Validates user inputs (URLs, file paths, text) | `new InputValidator()` |
-| `PathSanitizer` | Prevents path traversal attacks (e.g., `../../etc/passwd`) | `new PathSanitizer()` |
-| `PathResolver` | Project-aware path resolution with security validation | `new PathResolver()` |
-| `SymlinkResolver` | Secure symbolic link handling with configurable policies | `new SymlinkResolver()` |
-| `SecureFileOps` | Centralized secure file read/write/mkdir operations | `getSecureFileOps()` |
-| `SecureFileHandler` | File watching with integrity verification | `getSecureFileHandler()` |
-| `AuditLogger` | Immutable audit trail for security-sensitive operations | `getAuditLogger()` |
-| `RateLimiter` | Token-bucket rate limiting for API calls | `new RateLimiter()` |
-| `SecretManager` | Secure secret storage with pluggable backends | `getSecretManager()` |
+| Component           | Responsibility                                             | Singleton Access            |
+| ------------------- | ---------------------------------------------------------- | --------------------------- |
+| `CommandSanitizer`  | Sanitizes shell commands, prevents injection attacks       | `getCommandSanitizer()`     |
+| `CommandWhitelist`  | Maintains allowed command list with argument patterns      | `DEFAULT_COMMAND_WHITELIST` |
+| `InputValidator`    | Validates user inputs (URLs, file paths, text)             | `new InputValidator()`      |
+| `PathSanitizer`     | Prevents path traversal attacks (e.g., `../../etc/passwd`) | `new PathSanitizer()`       |
+| `PathResolver`      | Project-aware path resolution with security validation     | `new PathResolver()`        |
+| `SymlinkResolver`   | Secure symbolic link handling with configurable policies   | `new SymlinkResolver()`     |
+| `SecureFileOps`     | Centralized secure file read/write/mkdir operations        | `getSecureFileOps()`        |
+| `SecureFileHandler` | File watching with integrity verification                  | `getSecureFileHandler()`    |
+| `AuditLogger`       | Immutable audit trail for security-sensitive operations    | `getAuditLogger()`          |
+| `RateLimiter`       | Token-bucket rate limiting for API calls                   | `new RateLimiter()`         |
+| `SecretManager`     | Secure secret storage with pluggable backends              | `getSecretManager()`        |
 
 **Key Design Decisions**:
+
 - All file operations route through `SecureFileOps` to enforce path validation
 - Commands are validated against `CommandWhitelist` before execution
 - `AuditLogger` records all security-sensitive events with tamper-evident logging
@@ -2956,24 +2986,25 @@ command execution, input validation, and audit logging.
 **Purpose**: Provides observability, token budget management, performance tuning,
 and alerting capabilities across the entire pipeline.
 
-| Component | Responsibility | Singleton Access |
-|-----------|---------------|------------------|
-| `MetricsCollector` | Collects counter, gauge, histogram metrics per agent/stage | `getMetricsCollector()` |
-| `AlertManager` | Evaluates alert conditions, triggers handlers, supports escalation | `getAlertManager()` |
-| `TokenBudgetManager` | Enforces per-agent and per-pipeline token budgets | `getTokenBudgetManager()` |
-| `AgentBudgetRegistry` | Registers agent budget configs, supports inter-agent budget transfer | `getAgentBudgetRegistry()` |
-| `BudgetAggregator` | Aggregates usage across agents/categories, generates optimization suggestions | `getBudgetAggregator()` |
-| `ContextPruner` | Prunes conversation context to fit within token limits | `createContextPruner()` |
-| `ModelSelector` | Selects optimal model (Opus/Sonnet/Haiku) based on task complexity | `getModelSelector()` |
-| `QueryCache` | LRU cache for repeated LLM queries with TTL expiry | `getQueryCache()` |
-| `TokenUsageReport` | Generates usage reports with trend analysis and recommendations | `createTokenUsageReport()` |
-| `ParallelExecutionTuner` | Dynamically adjusts worker pool size based on system resources | `getParallelExecutionTuner()` |
-| `LatencyOptimizer` | Tracks and optimizes agent response latencies with warmup | `getLatencyOptimizer()` |
-| `ResponseTimeBenchmarks` | Defines and validates performance benchmarks per pipeline stage | `getResponseTimeBenchmarks()` |
-| `DashboardDataProvider` | Provides aggregated data for monitoring dashboards | `getDashboardDataProvider()` |
-| `OpenTelemetryProvider` | OpenTelemetry SDK integration for distributed tracing | `getOpenTelemetryProvider()` |
+| Component                | Responsibility                                                                | Singleton Access              |
+| ------------------------ | ----------------------------------------------------------------------------- | ----------------------------- |
+| `MetricsCollector`       | Collects counter, gauge, histogram metrics per agent/stage                    | `getMetricsCollector()`       |
+| `AlertManager`           | Evaluates alert conditions, triggers handlers, supports escalation            | `getAlertManager()`           |
+| `TokenBudgetManager`     | Enforces per-agent and per-pipeline token budgets                             | `getTokenBudgetManager()`     |
+| `AgentBudgetRegistry`    | Registers agent budget configs, supports inter-agent budget transfer          | `getAgentBudgetRegistry()`    |
+| `BudgetAggregator`       | Aggregates usage across agents/categories, generates optimization suggestions | `getBudgetAggregator()`       |
+| `ContextPruner`          | Prunes conversation context to fit within token limits                        | `createContextPruner()`       |
+| `ModelSelector`          | Selects optimal model (Opus/Sonnet/Haiku) based on task complexity            | `getModelSelector()`          |
+| `QueryCache`             | LRU cache for repeated LLM queries with TTL expiry                            | `getQueryCache()`             |
+| `TokenUsageReport`       | Generates usage reports with trend analysis and recommendations               | `createTokenUsageReport()`    |
+| `ParallelExecutionTuner` | Dynamically adjusts worker pool size based on system resources                | `getParallelExecutionTuner()` |
+| `LatencyOptimizer`       | Tracks and optimizes agent response latencies with warmup                     | `getLatencyOptimizer()`       |
+| `ResponseTimeBenchmarks` | Defines and validates performance benchmarks per pipeline stage               | `getResponseTimeBenchmarks()` |
+| `DashboardDataProvider`  | Provides aggregated data for monitoring dashboards                            | `getDashboardDataProvider()`  |
+| `OpenTelemetryProvider`  | OpenTelemetry SDK integration for distributed tracing                         | `getOpenTelemetryProvider()`  |
 
 **Key Design Decisions**:
+
 - `ModelSelector` uses task complexity analysis to choose between Opus (complex), Sonnet (standard), and Haiku (simple) models
 - `ParallelExecutionTuner` respects `max_parallel: 5` constraint from workflow.yaml while optimizing throughput
 - `TokenBudgetManager` supports hierarchical budgets (global → pipeline → category → agent)
@@ -2997,11 +3028,12 @@ withTracedAgent<T>(name: string, fn: () => T): T
 
 **Purpose**: Provides opt-in anonymous usage analytics with strict privacy controls.
 
-| Component | Responsibility | Singleton Access |
-|-----------|---------------|------------------|
+| Component   | Responsibility                                                   | Singleton Access |
+| ----------- | ---------------------------------------------------------------- | ---------------- |
 | `Telemetry` | Core telemetry engine with consent management and event batching | `getTelemetry()` |
 
 **Privacy-First Design**:
+
 - **Explicit Opt-In**: No data collected without user consent
 - **Consent Record**: Stores consent status, timestamp, and policy version
 - **Event Types**: `command_executed`, `pipeline_completed`, `agent_invoked`, `feature_used`
@@ -3012,8 +3044,8 @@ withTracedAgent<T>(name: string, fn: () => T): T
 ```typescript
 interface TelemetryEvent {
   type: TelemetryEventType;
-  timestamp: string;          // ISO 8601
-  sessionId: string;          // Anonymous session ID
+  timestamp: string; // ISO 8601
+  sessionId: string; // Anonymous session ID
   properties: Record<string, unknown>;
 }
 ```
@@ -3060,28 +3092,21 @@ interface IAgentDefinitionValidator {
    * @param options Validation options
    * @returns Validation result with errors and warnings
    */
-  validateAgentFile(
-    filePath: string,
-    options?: ValidateAgentOptions
-  ): AgentValidationResult;
+  validateAgentFile(filePath: string, options?: ValidateAgentOptions): AgentValidationResult;
 
   /**
    * Validate all agent definition files in a directory
    * @param options Validation options including directory path
    * @returns Batch validation report
    */
-  validateAllAgents(
-    options?: ValidateAgentOptions
-  ): AgentValidationReport;
+  validateAllAgents(options?: ValidateAgentOptions): AgentValidationReport;
 
   /**
    * Format a validation report as human-readable string
    * @param report Validation report to format
    * @returns Formatted report string
    */
-  formatValidationReport(
-    report: AgentValidationReport
-  ): string;
+  formatValidationReport(report: AgentValidationReport): string;
 }
 
 interface ValidateAgentOptions {
@@ -3141,10 +3166,7 @@ interface IArchitectureGenerator extends IAgent {
    * @param options Generation options
    * @returns Complete architecture design
    */
-  generateFromFile(
-    srsPath: string,
-    options?: ArchitectureGeneratorOptions
-  ): ArchitectureDesign;
+  generateFromFile(srsPath: string, options?: ArchitectureGeneratorOptions): ArchitectureDesign;
 
   /**
    * Generate architecture and save to disk
@@ -3221,10 +3243,7 @@ interface IComponentGenerator extends IAgent {
    * @param options Generation options
    * @returns Complete component design
    */
-  generate(
-    srs: ParsedSRS,
-    options?: ComponentGeneratorOptions
-  ): ComponentDesign;
+  generate(srs: ParsedSRS, options?: ComponentGeneratorOptions): ComponentDesign;
 
   /**
    * Generate component design and save to disk
@@ -3244,9 +3263,7 @@ interface IComponentGenerator extends IAgent {
    * @param design Component design
    * @returns TypeScript interface declarations
    */
-  generateTypeScriptInterfaces(
-    design: ComponentDesign
-  ): string;
+  generateTypeScriptInterfaces(design: ComponentDesign): string;
 }
 
 interface ComponentDesign {
@@ -3313,10 +3330,7 @@ interface IMetricsCollector {
    * @param agentId Agent identifier
    * @param metrics Invocation metrics (tokens, duration, status)
    */
-  recordAgentInvocation(
-    agentId: string,
-    metrics: AgentInvocationMetrics
-  ): void;
+  recordAgentInvocation(agentId: string, metrics: AgentInvocationMetrics): void;
 
   /**
    * Record a pipeline stage metric
@@ -3341,10 +3355,7 @@ interface ITokenBudgetManager {
    * @param usage Token usage data (input, output, model)
    * @returns Budget status with remaining tokens and warnings
    */
-  trackUsage(
-    agentId: string,
-    usage: TokenUsage
-  ): BudgetStatus;
+  trackUsage(agentId: string, usage: TokenUsage): BudgetStatus;
 
   /**
    * Get remaining budget for an agent or session
@@ -3361,10 +3372,7 @@ interface IModelSelector {
    * @param constraints Budget and latency constraints
    * @returns Model recommendation with rationale
    */
-  selectModel(
-    task: TaskCharacteristics,
-    constraints: ModelConstraints
-  ): ModelRecommendation;
+  selectModel(task: TaskCharacteristics, constraints: ModelConstraints): ModelRecommendation;
 }
 
 interface IAlertManager {
@@ -3795,7 +3803,7 @@ storage: .ad-sdlc/scratchpad/projects/{project_id}/project.yaml
 fields:
   - name: id
     type: string
-    format: "PRJ-XXXXXX"
+    format: 'PRJ-XXXXXX'
     primary_key: true
     auto_generate: true
 
@@ -3812,7 +3820,17 @@ fields:
 
   - name: status
     type: enum
-    values: [collecting, prd_drafting, srs_drafting, sds_drafting, issue_creating, executing, completed, failed]
+    values:
+      [
+        collecting,
+        prd_drafting,
+        srs_drafting,
+        sds_drafting,
+        issue_creating,
+        executing,
+        completed,
+        failed,
+      ]
 
   - name: created_at
     type: datetime
@@ -3825,7 +3843,7 @@ fields:
   - name: documents
     type: object
     schema:
-      prd: string  # File path
+      prd: string # File path
       srs: string
       sds: string
 
@@ -3850,7 +3868,7 @@ storage: .ad-sdlc/scratchpad/progress/{project_id}/work_orders/WO-{id}.yaml
 fields:
   - name: id
     type: string
-    format: "WO-XXXXXX"
+    format: 'WO-XXXXXX'
     primary_key: true
 
   - name: project_id
@@ -3878,7 +3896,7 @@ fields:
     schema:
       worker_id: string
       assigned_at: datetime
-      deadline: datetime  # Optional
+      deadline: datetime # Optional
 
   - name: context
     type: object
@@ -3907,15 +3925,15 @@ indexes:
 
 ### 4.3 Data Access Patterns
 
-| Operation | Frequency | Path Pattern | Format |
-|-----------|-----------|--------------|--------|
-| Read collected info | Per PRD generation | `scratchpad/info/{id}/collected_info.yaml` | YAML |
-| Write document | Per agent stage | `scratchpad/documents/{id}/*.md` | Markdown |
-| Read previous document | Per agent stage | `scratchpad/documents/{id}/*.md` | Markdown |
-| Write issue list | Once per project | `scratchpad/issues/{id}/issue_list.json` | JSON |
-| Read/Write controller state | Every 30s | `scratchpad/progress/{id}/controller_state.yaml` | YAML |
-| Write work order | Per assignment | `scratchpad/progress/{id}/work_orders/WO-*.yaml` | YAML |
-| Write implementation result | Per completion | `scratchpad/progress/{id}/results/WO-*-result.yaml` | YAML |
+| Operation                   | Frequency          | Path Pattern                                        | Format   |
+| --------------------------- | ------------------ | --------------------------------------------------- | -------- |
+| Read collected info         | Per PRD generation | `scratchpad/info/{id}/collected_info.yaml`          | YAML     |
+| Write document              | Per agent stage    | `scratchpad/documents/{id}/*.md`                    | Markdown |
+| Read previous document      | Per agent stage    | `scratchpad/documents/{id}/*.md`                    | Markdown |
+| Write issue list            | Once per project   | `scratchpad/issues/{id}/issue_list.json`            | JSON     |
+| Read/Write controller state | Every 30s          | `scratchpad/progress/{id}/controller_state.yaml`    | YAML     |
+| Write work order            | Per assignment     | `scratchpad/progress/{id}/work_orders/WO-*.yaml`    | YAML     |
+| Write implementation result | Per completion     | `scratchpad/progress/{id}/results/WO-*-result.yaml` | YAML     |
 
 ### 4.4 Data Validation Rules
 
@@ -3923,29 +3941,29 @@ indexes:
 validation_rules:
   requirement_id:
     pattern: "^(FR|NFR)-\\d{3}$"
-    message: "ID must follow FR-XXX or NFR-XXX format"
+    message: 'ID must follow FR-XXX or NFR-XXX format'
 
   feature_id:
     pattern: "^SF-\\d{3}$"
-    message: "ID must follow SF-XXX format"
+    message: 'ID must follow SF-XXX format'
 
   component_id:
     pattern: "^CMP-\\d{3}$"
-    message: "ID must follow CMP-XXX format"
+    message: 'ID must follow CMP-XXX format'
 
   priority:
     enum: [P0, P1, P2, P3]
-    message: "Priority must be P0, P1, P2, or P3"
+    message: 'Priority must be P0, P1, P2, or P3'
 
   effort:
     enum: [XS, S, M, L, XL]
-    message: "Effort must be XS, S, M, L, or XL"
+    message: 'Effort must be XS, S, M, L, or XL'
 
   coverage:
     type: number
     min: 0
     max: 100
-    message: "Coverage must be between 0 and 100"
+    message: 'Coverage must be between 0 and 100'
 ```
 
 ---
@@ -3961,27 +3979,27 @@ communication_patterns:
   document_pipeline:
     producer: collector
     consumer: prd-writer
-    channel: ".ad-sdlc/scratchpad/info/{project_id}/collected_info.yaml"
+    channel: '.ad-sdlc/scratchpad/info/{project_id}/collected_info.yaml'
     format: YAML
     schema: CollectedInfo
 
   prd_to_srs:
     producer: prd-writer
     consumer: srs-writer
-    channel: ".ad-sdlc/scratchpad/documents/{project_id}/prd.md"
+    channel: '.ad-sdlc/scratchpad/documents/{project_id}/prd.md'
     format: Markdown
 
   work_assignment:
     producer: controller
     consumer: worker
-    channel: ".ad-sdlc/scratchpad/progress/{project_id}/work_orders/WO-{id}.yaml"
+    channel: '.ad-sdlc/scratchpad/progress/{project_id}/work_orders/WO-{id}.yaml'
     format: YAML
     schema: WorkOrder
 
   result_reporting:
     producer: worker
     consumer: controller, pr-reviewer
-    channel: ".ad-sdlc/scratchpad/progress/{project_id}/results/WO-{id}-result.yaml"
+    channel: '.ad-sdlc/scratchpad/progress/{project_id}/results/WO-{id}-result.yaml'
     format: YAML
     schema: ImplementationResult
 ```
@@ -4035,7 +4053,7 @@ type ModelType = 'sonnet' | 'opus' | 'haiku';
 interface AgentResult {
   success: boolean;
   output: string;
-  artifacts: string[];  // Generated file paths
+  artifacts: string[]; // Generated file paths
   error?: string;
 }
 ```
@@ -4104,8 +4122,8 @@ interface GitHubPRAPI {
 interface CreatePRParams {
   title: string;
   body: string;
-  base: string;     // Default: main
-  head: string;     // Feature branch
+  base: string; // Default: main
+  head: string; // Feature branch
   draft?: boolean;
   labels?: string[];
 }
@@ -4118,33 +4136,33 @@ type MergeStrategy = 'merge' | 'squash' | 'rebase';
 ```yaml
 cli_commands:
   init:
-    description: "Initialize AD-SDLC project"
-    usage: "claude ad-sdlc init [project-name]"
+    description: 'Initialize AD-SDLC project'
+    usage: 'claude ad-sdlc init [project-name]'
     creates:
-      - ".ad-sdlc/scratchpad/"
-      - ".ad-sdlc/config/"
-      - ".claude/agents/"
+      - '.ad-sdlc/scratchpad/'
+      - '.ad-sdlc/config/'
+      - '.claude/agents/'
 
   start:
-    description: "Start pipeline with new requirements"
-    usage: "claude ad-sdlc start [--file <path>] [--url <url>]"
+    description: 'Start pipeline with new requirements'
+    usage: 'claude ad-sdlc start [--file <path>] [--url <url>]'
     options:
-      - "--file: Input file path"
-      - "--url: Input URL"
-      - "--skip-approval: Skip approval gates"
+      - '--file: Input file path'
+      - '--url: Input URL'
+      - '--skip-approval: Skip approval gates'
 
   status:
-    description: "Check current progress"
-    usage: "claude ad-sdlc status [project-id]"
-    output: "Progress report"
+    description: 'Check current progress'
+    usage: 'claude ad-sdlc status [project-id]'
+    output: 'Progress report'
 
   resume:
-    description: "Resume interrupted project"
-    usage: "claude ad-sdlc resume <project-id>"
+    description: 'Resume interrupted project'
+    usage: 'claude ad-sdlc resume <project-id>'
 
   logs:
-    description: "View agent logs"
-    usage: "claude ad-sdlc logs [--agent <agent-id>] [--level <level>]"
+    description: 'View agent logs'
+    usage: 'claude ad-sdlc logs [--agent <agent-id>] [--level <level>]'
 ```
 
 ---
@@ -4158,42 +4176,42 @@ cli_commands:
 ```yaml
 github_auth:
   methods:
-    - type: "oauth"
-      description: "GitHub OAuth token"
-      storage: "Environment variable (GITHUB_TOKEN)"
-      scope: ["repo", "read:org"]
+    - type: 'oauth'
+      description: 'GitHub OAuth token'
+      storage: 'Environment variable (GITHUB_TOKEN)'
+      scope: ['repo', 'read:org']
 
-    - type: "gh_cli"
-      description: "GitHub CLI authentication"
-      command: "gh auth login"
-      storage: "~/.config/gh/hosts.yml"
+    - type: 'gh_cli'
+      description: 'GitHub CLI authentication'
+      command: 'gh auth login'
+      storage: '~/.config/gh/hosts.yml'
 
   token_handling:
-    - rule: "never_log_token"
-      description: "Never log tokens"
+    - rule: 'never_log_token'
+      description: 'Never log tokens'
 
-    - rule: "environment_only"
-      description: "Store tokens only in environment variables"
+    - rule: 'environment_only'
+      description: 'Store tokens only in environment variables'
 
-    - rule: "mask_in_output"
-      pattern: "ghp_[a-zA-Z0-9]{36}"
-      replacement: "ghp_****"
+    - rule: 'mask_in_output'
+      pattern: 'ghp_[a-zA-Z0-9]{36}'
+      replacement: 'ghp_****'
 ```
 
 #### 6.1.2 Claude API Authentication
 
 ```yaml
 claude_auth:
-  method: "api_key"
-  storage: "Environment variable (ANTHROPIC_API_KEY)"
+  method: 'api_key'
+  storage: 'Environment variable (ANTHROPIC_API_KEY)'
 
   validation:
-    - check: "key_format"
-      pattern: "^sk-ant-[a-zA-Z0-9-]+$"
+    - check: 'key_format'
+      pattern: '^sk-ant-[a-zA-Z0-9-]+$'
 
   masking:
-    pattern: "sk-ant-[a-zA-Z0-9-]+"
-    replacement: "sk-ant-****"
+    pattern: 'sk-ant-[a-zA-Z0-9-]+'
+    replacement: 'sk-ant-****'
 ```
 
 ### 6.2 Authorization
@@ -4202,38 +4220,38 @@ claude_auth:
 authorization:
   github_operations:
     issue_create:
-      required_permissions: ["repo"]
-      check: "can_push_to_repo"
+      required_permissions: ['repo']
+      check: 'can_push_to_repo'
 
     pr_create:
-      required_permissions: ["repo"]
-      check: "can_create_pr"
+      required_permissions: ['repo']
+      check: 'can_create_pr'
 
     pr_merge:
-      required_permissions: ["repo"]
-      check: "can_merge_pr"
+      required_permissions: ['repo']
+      check: 'can_merge_pr'
 
   file_operations:
     read:
-      scope: "project_directory"
+      scope: 'project_directory'
       allow_patterns:
-        - "src/**"
-        - "tests/**"
-        - ".ad-sdlc/**"
-        - "docs/**"
+        - 'src/**'
+        - 'tests/**'
+        - '.ad-sdlc/**'
+        - 'docs/**'
 
     write:
-      scope: "project_directory"
+      scope: 'project_directory'
       allow_patterns:
-        - "src/**"
-        - "tests/**"
-        - ".ad-sdlc/scratchpad/**"
-        - "docs/**"
+        - 'src/**'
+        - 'tests/**'
+        - '.ad-sdlc/scratchpad/**'
+        - 'docs/**'
       deny_patterns:
-        - "**/.env*"
-        - "**/secrets*"
-        - "**/*.key"
-        - "**/*.pem"
+        - '**/.env*'
+        - '**/secrets*'
+        - '**/*.key'
+        - '**/*.pem'
 ```
 
 ### 6.3 Data Protection
@@ -4241,37 +4259,37 @@ authorization:
 ```yaml
 data_protection:
   sensitive_patterns:
-    - name: "api_key"
+    - name: 'api_key'
       pattern: "(api[_-]?key|apikey)\\s*[:=]\\s*['\"][^'\"]+['\"]"
-      action: "mask"
+      action: 'mask'
 
-    - name: "password"
+    - name: 'password'
       pattern: "(password|passwd|pwd)\\s*[:=]\\s*['\"][^'\"]+['\"]"
-      action: "mask"
+      action: 'mask'
 
-    - name: "token"
+    - name: 'token'
       pattern: "(token|bearer|auth)\\s*[:=]\\s*['\"][^'\"]+['\"]"
-      action: "mask"
+      action: 'mask'
 
-    - name: "connection_string"
+    - name: 'connection_string'
       pattern: "(mongodb|postgres|mysql|redis)://[^\\s]+"
-      action: "mask"
+      action: 'mask'
 
   code_generation_rules:
-    - rule: "no_hardcoded_secrets"
-      description: "No hardcoded secrets in generated code"
-      enforcement: "PR review check"
+    - rule: 'no_hardcoded_secrets'
+      description: 'No hardcoded secrets in generated code'
+      enforcement: 'PR review check'
 
-    - rule: "use_environment_variables"
-      description: "Use environment variables for sensitive values"
-      template: "process.env.{SECRET_NAME}"
+    - rule: 'use_environment_variables'
+      description: 'Use environment variables for sensitive values'
+      template: 'process.env.{SECRET_NAME}'
 
   logging_rules:
-    - rule: "mask_sensitive_data"
-      description: "Mask sensitive data in logs"
+    - rule: 'mask_sensitive_data'
+      description: 'Mask sensitive data in logs'
 
-    - rule: "no_full_request_body"
-      description: "Do not log full request bodies"
+    - rule: 'no_full_request_body'
+      description: 'Do not log full request bodies'
 ```
 
 ### 6.4 Input Validation
@@ -4279,30 +4297,30 @@ data_protection:
 ```yaml
 input_validation:
   user_input:
-    - type: "natural_language"
-      max_length: 50000  # characters
+    - type: 'natural_language'
+      max_length: 50000 # characters
       sanitize: true
 
-    - type: "file_path"
+    - type: 'file_path'
       validate:
-        - "path_traversal_check"
-        - "allowed_extensions"
-      allowed_extensions: [".md", ".pdf", ".docx", ".txt", ".yaml", ".json"]
+        - 'path_traversal_check'
+        - 'allowed_extensions'
+      allowed_extensions: ['.md', '.pdf', '.docx', '.txt', '.yaml', '.json']
 
-    - type: "url"
+    - type: 'url'
       validate:
-        - "url_format"
-        - "allowed_protocols"
-      allowed_protocols: ["http", "https"]
+        - 'url_format'
+        - 'allowed_protocols'
+      allowed_protocols: ['http', 'https']
 
   code_injection_prevention:
     bash_commands:
-      - sanitize: "shell_escape"
+      - sanitize: 'shell_escape'
       - deny_patterns:
-          - "rm -rf"
-          - "; rm"
-          - "| rm"
-          - "`rm"
+          - 'rm -rf'
+          - '; rm'
+          - '| rm'
+          - '`rm'
 ```
 
 ---
@@ -4369,27 +4387,27 @@ input_validation:
 ```yaml
 environments:
   development:
-    description: "Local development environment"
+    description: 'Local development environment'
     configuration:
-      log_level: "DEBUG"
+      log_level: 'DEBUG'
       approval_gates: true
       max_workers: 2
       retry_attempts: 3
       mock_github: false
 
   testing:
-    description: "Testing environment"
+    description: 'Testing environment'
     configuration:
-      log_level: "INFO"
-      approval_gates: false  # Auto-approve
+      log_level: 'INFO'
+      approval_gates: false # Auto-approve
       max_workers: 1
       retry_attempts: 1
       mock_github: true
 
   production:
-    description: "Production environment"
+    description: 'Production environment'
     configuration:
-      log_level: "INFO"
+      log_level: 'INFO'
       approval_gates: true
       max_workers: 5
       retry_attempts: 3
@@ -4402,19 +4420,19 @@ environments:
 # .ad-sdlc/config/workflow.yaml
 configuration_hierarchy:
   1_defaults:
-    source: "Built-in defaults"
+    source: 'Built-in defaults'
     priority: lowest
 
   2_global:
-    source: "~/.config/claude-code/ad-sdlc.yaml"
+    source: '~/.config/claude-code/ad-sdlc.yaml'
     priority: medium
 
   3_project:
-    source: ".ad-sdlc/config/workflow.yaml"
+    source: '.ad-sdlc/config/workflow.yaml'
     priority: high
 
   4_environment:
-    source: "Environment variables (AD_SDLC_*)"
+    source: 'Environment variables (AD_SDLC_*)'
     priority: highest
 
 environment_variables:
@@ -4451,35 +4469,35 @@ environment_variables:
 ```yaml
 error_categories:
   transient:
-    description: "Temporary errors, recoverable with retry"
+    description: 'Temporary errors, recoverable with retry'
     examples:
-      - "Network timeout"
-      - "Rate limit exceeded"
-      - "Service temporarily unavailable"
-    handling: "Retry with exponential backoff"
+      - 'Network timeout'
+      - 'Rate limit exceeded'
+      - 'Service temporarily unavailable'
+    handling: 'Retry with exponential backoff'
 
   permanent:
-    description: "Permanent errors, not retryable"
+    description: 'Permanent errors, not retryable'
     examples:
-      - "Invalid input"
-      - "Authentication failed"
-      - "Resource not found"
-    handling: "Report error, require user action"
+      - 'Invalid input'
+      - 'Authentication failed'
+      - 'Resource not found'
+    handling: 'Report error, require user action'
 
   partial:
-    description: "Partial completion, only some succeeded"
+    description: 'Partial completion, only some succeeded'
     examples:
-      - "Some issues created, others failed"
-      - "Code generated, tests failed"
-    handling: "Save progress, allow resume"
+      - 'Some issues created, others failed'
+      - 'Code generated, tests failed'
+    handling: 'Save progress, allow resume'
 
   critical:
-    description: "System error, immediate stop required"
+    description: 'System error, immediate stop required'
     examples:
-      - "Disk full"
-      - "Out of memory"
-      - "Corrupted state"
-    handling: "Stop pipeline, alert user, preserve state"
+      - 'Disk full'
+      - 'Out of memory'
+      - 'Corrupted state'
+    handling: 'Stop pipeline, alert user, preserve state'
 ```
 
 ### 8.2 Retry Strategy
@@ -4499,7 +4517,7 @@ retry_strategy:
       base_delay_ms: 1000
       rate_limit_handling:
         wait_for_reset: true
-        max_wait_ms: 300000  # 5 minutes
+        max_wait_ms: 300000 # 5 minutes
 
     claude_api:
       max_attempts: 3
@@ -4522,31 +4540,31 @@ retry_strategy:
 recovery_procedures:
   pipeline_failure:
     steps:
-      - "1. Identify failure stage from logs"
-      - "2. Check scratchpad for last successful state"
-      - "3. Resolve the issue (fix input, retry, etc.)"
-      - "4. Resume from last checkpoint: claude ad-sdlc resume <project-id>"
+      - '1. Identify failure stage from logs'
+      - '2. Check scratchpad for last successful state'
+      - '3. Resolve the issue (fix input, retry, etc.)'
+      - '4. Resume from last checkpoint: claude ad-sdlc resume <project-id>'
 
   state_corruption:
     steps:
-      - "1. Backup current scratchpad"
-      - "2. Identify corrupted files from logs"
-      - "3. Restore from previous version if available"
-      - "4. Re-run affected stage"
+      - '1. Backup current scratchpad'
+      - '2. Identify corrupted files from logs'
+      - '3. Restore from previous version if available'
+      - '4. Re-run affected stage'
 
   worker_stuck:
     steps:
-      - "1. Check controller_state.yaml for stuck workers"
-      - "2. Review work order and implementation result"
-      - "3. Manually mark as failed or blocked"
-      - "4. Controller will reassign automatically"
+      - '1. Check controller_state.yaml for stuck workers'
+      - '2. Review work order and implementation result'
+      - '3. Manually mark as failed or blocked'
+      - '4. Controller will reassign automatically'
 
   github_sync_failure:
     steps:
-      - "1. Verify GitHub authentication: gh auth status"
-      - "2. Check network connectivity"
-      - "3. Verify repository access permissions"
-      - "4. Retry GitHub operations"
+      - '1. Verify GitHub authentication: gh auth status'
+      - '2. Check network connectivity'
+      - '3. Verify repository access permissions'
+      - '4. Retry GitHub operations'
 ```
 
 ### 8.4 Checkpointing
@@ -4554,21 +4572,21 @@ recovery_procedures:
 ```yaml
 checkpoints:
   enabled: true
-  storage: ".ad-sdlc/scratchpad/checkpoints/"
+  storage: '.ad-sdlc/scratchpad/checkpoints/'
 
   checkpoint_events:
-    - event: "stage_complete"
-      saves: ["scratchpad state", "logs"]
+    - event: 'stage_complete'
+      saves: ['scratchpad state', 'logs']
 
-    - event: "issue_batch_created"
-      saves: ["issue_list.json", "dependency_graph.json"]
+    - event: 'issue_batch_created'
+      saves: ['issue_list.json', 'dependency_graph.json']
 
-    - event: "worker_complete"
-      saves: ["work_order result", "code changes"]
+    - event: 'worker_complete'
+      saves: ['work_order result', 'code changes']
 
   recovery:
-    strategy: "resume_from_last_checkpoint"
-    command: "claude ad-sdlc resume <project-id> [--from-checkpoint <id>]"
+    strategy: 'resume_from_last_checkpoint'
+    command: 'claude ad-sdlc resume <project-id> [--from-checkpoint <id>]'
 ```
 
 ---
@@ -4577,79 +4595,79 @@ checkpoints:
 
 ### 9.1 SRS → SDS Component Mapping
 
-| SRS Feature | SDS Component(s) | Description |
-|-------------|------------------|-------------|
-| SF-001 (Multi-Source Collection) | CMP-001 (Collector Agent) | Multi-source information collection |
-| SF-002 (PRD Generation) | CMP-002 (PRD Writer Agent) | Automatic PRD generation |
-| SF-003 (SRS Generation) | CMP-003 (SRS Writer Agent) | Automatic SRS generation |
-| SF-004 (SDS Generation) | CMP-004 (SDS Writer Agent), CMP-030 (Architecture Generator), CMP-031 (Component Generator) | Automatic SDS generation and design artifact generation |
-| SF-005 (Issue Generation) | CMP-005 (Issue Generator) | GitHub Issue generation |
-| SF-006 (Work Prioritization) | CMP-006 (Controller Agent) | Work priority determination |
-| SF-007 (Work Assignment) | CMP-006 (Controller Agent) | Work assignment and monitoring |
-| SF-008 (Code Implementation) | CMP-007 (Worker Agent) | Automatic code implementation |
-| SF-009 (Self-Verification) | CMP-007 (Worker Agent) | Self-verification |
-| SF-010 (PR Creation & Review) | CMP-008 (PR Review Agent) | PR creation and review |
-| SF-011 (Quality Gate & Merge) | CMP-008 (PR Review Agent) | Quality gate and merge |
-| SF-012 (Traceability Matrix) | CMP-025 (AD-SDLC Orchestrator) | Traceability maintenance |
-| SF-013 (Approval Gate) | CMP-025 (AD-SDLC Orchestrator) | Approval gate system |
-| SF-014 (Scratchpad State) | CMP-009 (State Manager) | State management |
-| SF-015 (Activity Logging) | CMP-010 (Logger), CMP-032 (Monitoring Service), CMP-033 (Telemetry Service) | Activity logging, observability, and anonymous analytics |
-| SF-016 (Error Handling) | CMP-011 (Error Handler) | Error handling and retry |
-| SF-017 (Document Reading) | CMP-012 (Document Reader Agent) | Parse existing spec documents and build traceability map |
-| SF-018 (Codebase Analysis) | CMP-013 (Codebase Analyzer Agent) | Analyze architecture patterns and dependency graph |
-| SF-019 (Impact Analysis) | CMP-014 (Impact Analyzer Agent) | Analyze change impact and assess risk |
-| SF-020 (PRD Update) | CMP-015 (PRD Updater Agent) | Add, modify, and deprecate PRD requirements |
-| SF-021 (SRS Update) | CMP-016 (SRS Updater Agent) | Add features, use cases, and update traceability |
-| SF-022 (SDS Update) | CMP-017 (SDS Updater Agent) | Add components, APIs, and update architecture |
-| SF-023 (Regression Testing) | CMP-018 (Regression Tester Agent) | Map affected tests and run regression suite |
-| SF-024 (Doc-Code Comparison) | CMP-019 (Doc-Code Comparator Agent) | Compare specs against codebase and generate gap report |
-| SF-025 (Code Reading) | CMP-020 (Code Reader Agent) | AST analysis and dependency extraction |
-| SF-026 (CI Fixing) | CMP-021 (CI Fixer Agent) | Diagnose CI failures and apply automated fixes |
-| SF-027 (Mode Detection) | CMP-022 (Mode Detector Agent) | Detect greenfield vs enhancement mode |
-| SF-028 (Project Initialization) | CMP-023 (Project Initializer Agent), CMP-029 (Agent Definition Validator), CMP-035 (Configuration Manager) | Initialize .ad-sdlc workspace, validate agent definitions, and manage configuration |
-| SF-029 (GitHub Repo Management) | CMP-024 (Repo Detector Agent), CMP-027 (GitHub Repo Setup Agent) | Detect existing repos and create new ones |
-| SF-030 (Pipeline Orchestration) | CMP-025 (AD-SDLC Orchestrator), CMP-026 (Analysis Orchestrator) | Top-level and analysis pipeline coordination |
-| SF-031 (Issue Import) | CMP-028 (Issue Reader Agent) | Import existing GitHub Issues into AD-SDLC format |
-| Cross-cutting (NFR) | CMP-034 (Security Module) | Input validation, command sanitization, audit logging, rate limiting |
-| CLI Tooling | CMP-036 (Completion Generator) | Shell autocompletion script generation |
+| SRS Feature                      | SDS Component(s)                                                                                           | Description                                                                         |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| SF-001 (Multi-Source Collection) | CMP-001 (Collector Agent)                                                                                  | Multi-source information collection                                                 |
+| SF-002 (PRD Generation)          | CMP-002 (PRD Writer Agent)                                                                                 | Automatic PRD generation                                                            |
+| SF-003 (SRS Generation)          | CMP-003 (SRS Writer Agent)                                                                                 | Automatic SRS generation                                                            |
+| SF-004 (SDS Generation)          | CMP-004 (SDS Writer Agent), CMP-030 (Architecture Generator), CMP-031 (Component Generator)                | Automatic SDS generation and design artifact generation                             |
+| SF-005 (Issue Generation)        | CMP-005 (Issue Generator)                                                                                  | GitHub Issue generation                                                             |
+| SF-006 (Work Prioritization)     | CMP-006 (Controller Agent)                                                                                 | Work priority determination                                                         |
+| SF-007 (Work Assignment)         | CMP-006 (Controller Agent)                                                                                 | Work assignment and monitoring                                                      |
+| SF-008 (Code Implementation)     | CMP-007 (Worker Agent)                                                                                     | Automatic code implementation                                                       |
+| SF-009 (Self-Verification)       | CMP-007 (Worker Agent)                                                                                     | Self-verification                                                                   |
+| SF-010 (PR Creation & Review)    | CMP-008 (PR Review Agent)                                                                                  | PR creation and review                                                              |
+| SF-011 (Quality Gate & Merge)    | CMP-008 (PR Review Agent)                                                                                  | Quality gate and merge                                                              |
+| SF-012 (Traceability Matrix)     | CMP-025 (AD-SDLC Orchestrator)                                                                             | Traceability maintenance                                                            |
+| SF-013 (Approval Gate)           | CMP-025 (AD-SDLC Orchestrator)                                                                             | Approval gate system                                                                |
+| SF-014 (Scratchpad State)        | CMP-009 (State Manager)                                                                                    | State management                                                                    |
+| SF-015 (Activity Logging)        | CMP-010 (Logger), CMP-032 (Monitoring Service), CMP-033 (Telemetry Service)                                | Activity logging, observability, and anonymous analytics                            |
+| SF-016 (Error Handling)          | CMP-011 (Error Handler)                                                                                    | Error handling and retry                                                            |
+| SF-017 (Document Reading)        | CMP-012 (Document Reader Agent)                                                                            | Parse existing spec documents and build traceability map                            |
+| SF-018 (Codebase Analysis)       | CMP-013 (Codebase Analyzer Agent)                                                                          | Analyze architecture patterns and dependency graph                                  |
+| SF-019 (Impact Analysis)         | CMP-014 (Impact Analyzer Agent)                                                                            | Analyze change impact and assess risk                                               |
+| SF-020 (PRD Update)              | CMP-015 (PRD Updater Agent)                                                                                | Add, modify, and deprecate PRD requirements                                         |
+| SF-021 (SRS Update)              | CMP-016 (SRS Updater Agent)                                                                                | Add features, use cases, and update traceability                                    |
+| SF-022 (SDS Update)              | CMP-017 (SDS Updater Agent)                                                                                | Add components, APIs, and update architecture                                       |
+| SF-023 (Regression Testing)      | CMP-018 (Regression Tester Agent)                                                                          | Map affected tests and run regression suite                                         |
+| SF-024 (Doc-Code Comparison)     | CMP-019 (Doc-Code Comparator Agent)                                                                        | Compare specs against codebase and generate gap report                              |
+| SF-025 (Code Reading)            | CMP-020 (Code Reader Agent)                                                                                | AST analysis and dependency extraction                                              |
+| SF-026 (CI Fixing)               | CMP-021 (CI Fixer Agent)                                                                                   | Diagnose CI failures and apply automated fixes                                      |
+| SF-027 (Mode Detection)          | CMP-022 (Mode Detector Agent)                                                                              | Detect greenfield vs enhancement mode                                               |
+| SF-028 (Project Initialization)  | CMP-023 (Project Initializer Agent), CMP-029 (Agent Definition Validator), CMP-035 (Configuration Manager) | Initialize .ad-sdlc workspace, validate agent definitions, and manage configuration |
+| SF-029 (GitHub Repo Management)  | CMP-024 (Repo Detector Agent), CMP-027 (GitHub Repo Setup Agent)                                           | Detect existing repos and create new ones                                           |
+| SF-030 (Pipeline Orchestration)  | CMP-025 (AD-SDLC Orchestrator), CMP-026 (Analysis Orchestrator)                                            | Top-level and analysis pipeline coordination                                        |
+| SF-031 (Issue Import)            | CMP-028 (Issue Reader Agent)                                                                               | Import existing GitHub Issues into AD-SDLC format                                   |
+| Cross-cutting (NFR)              | CMP-034 (Security Module)                                                                                  | Input validation, command sanitization, audit logging, rate limiting                |
+| CLI Tooling                      | CMP-036 (Completion Generator)                                                                             | Shell autocompletion script generation                                              |
 
 ### 9.2 Component → API Mapping
 
-| Component | APIs / Interfaces | External Dependencies |
-|-----------|-------------------|----------------------|
-| CMP-001 | collectFromText, collectFromFiles, collectFromUrls | Read, WebFetch, Write |
-| CMP-002 | generatePRD, analyzeGaps, checkConsistency | Read, Write, Edit |
-| CMP-003 | generateSRS, decomposeRequirement, generateUseCases | Read, Write, Edit |
-| CMP-004 | generateSDS, designArchitecture, designAPIs | Read, Write, Edit |
-| CMP-005 | generateIssues, breakdownComponent, createGitHubIssue | Read, Write, Bash (gh) |
-| CMP-006 | prioritize, assignWork, monitorProgress | Read, Write, Edit |
-| CMP-007 | executeWork, implementCode, writeTests, selfVerify | Read, Write, Edit, Bash |
-| CMP-008 | createPR, reviewPR, checkQualityGates, decideMerge | Read, Bash (gh) |
-| CMP-012 | parseDocument, buildTraceabilityMap | Read |
-| CMP-013 | analyzeArchitecture, generateDependencyGraph | Read, Bash |
-| CMP-014 | analyzeImpact, assessRisk | Read |
-| CMP-015 | addRequirement, modifyRequirement, deprecateRequirement | Read, Write, Edit |
-| CMP-016 | addFeature, addUseCase, updateTraceability | Read, Write, Edit |
-| CMP-017 | addComponent, addAPI, updateArchitecture | Read, Write, Edit |
-| CMP-018 | mapAffectedTests, runRegressionSuite, analyzeCompatibility | Read, Bash |
-| CMP-019 | compareSpecs, generateGapReport | Read |
-| CMP-020 | analyzeAST, extractDependencies | Read, Bash (ts-morph) |
-| CMP-021 | diagnoseCIFailure, applyFix | Read, Write, Edit, Bash |
-| CMP-022 | detectMode | Read, Bash (git) |
-| CMP-023 | initialize | Write, Bash (git) |
-| CMP-024 | detectRepository | Bash (git, gh) |
-| CMP-025 | executePipeline, coordinateAgents | All Agent Interfaces |
-| CMP-026 | executeAnalysisPipeline | CMP-012, CMP-020, CMP-019, CMP-005 |
-| CMP-027 | createRepository | Bash (gh, git) |
-| CMP-028 | importIssues | Bash (gh) |
-| CMP-029 | validateAgentFile, validateAllAgents, formatValidationReport | Read (agent files, agents.yaml) |
-| CMP-030 | generateFromFile, generateAndSave | Read (SRS), Write (SDS sections) |
-| CMP-031 | generateFromSRS, generateAndSave | Read (SRS), Write (component specs) |
-| CMP-032 | recordAgentInvocation, recordPipelineStage, trackUsage, selectModel, fireAlert | Read/Write (metrics, budgets, alerts) |
-| CMP-033 | getConsentStatus, setConsent, recordEvent, flush, shutdown | Read/Write (consent file) |
-| CMP-034 | validatePath, validateUrl, sanitize, execute, log, check | Read/Write (audit logs) |
-| CMP-035 | getGlobalConfig, getPipelineStages, getAgentConfig, getQualityGates | Read (YAML config files) |
-| CMP-036 | generate, getSupportedShells, getCommands | None (stdout output) |
+| Component | APIs / Interfaces                                                              | External Dependencies                 |
+| --------- | ------------------------------------------------------------------------------ | ------------------------------------- |
+| CMP-001   | collectFromText, collectFromFiles, collectFromUrls                             | Read, WebFetch, Write                 |
+| CMP-002   | generatePRD, analyzeGaps, checkConsistency                                     | Read, Write, Edit                     |
+| CMP-003   | generateSRS, decomposeRequirement, generateUseCases                            | Read, Write, Edit                     |
+| CMP-004   | generateSDS, designArchitecture, designAPIs                                    | Read, Write, Edit                     |
+| CMP-005   | generateIssues, breakdownComponent, createGitHubIssue                          | Read, Write, Bash (gh)                |
+| CMP-006   | prioritize, assignWork, monitorProgress                                        | Read, Write, Edit                     |
+| CMP-007   | executeWork, implementCode, writeTests, selfVerify                             | Read, Write, Edit, Bash               |
+| CMP-008   | createPR, reviewPR, checkQualityGates, decideMerge                             | Read, Bash (gh)                       |
+| CMP-012   | parseDocument, buildTraceabilityMap                                            | Read                                  |
+| CMP-013   | analyzeArchitecture, generateDependencyGraph                                   | Read, Bash                            |
+| CMP-014   | analyzeImpact, assessRisk                                                      | Read                                  |
+| CMP-015   | addRequirement, modifyRequirement, deprecateRequirement                        | Read, Write, Edit                     |
+| CMP-016   | addFeature, addUseCase, updateTraceability                                     | Read, Write, Edit                     |
+| CMP-017   | addComponent, addAPI, updateArchitecture                                       | Read, Write, Edit                     |
+| CMP-018   | mapAffectedTests, runRegressionSuite, analyzeCompatibility                     | Read, Bash                            |
+| CMP-019   | compareSpecs, generateGapReport                                                | Read                                  |
+| CMP-020   | analyzeAST, extractDependencies                                                | Read, Bash (ts-morph)                 |
+| CMP-021   | diagnoseCIFailure, applyFix                                                    | Read, Write, Edit, Bash               |
+| CMP-022   | detectMode                                                                     | Read, Bash (git)                      |
+| CMP-023   | initialize                                                                     | Write, Bash (git)                     |
+| CMP-024   | detectRepository                                                               | Bash (git, gh)                        |
+| CMP-025   | executePipeline, coordinateAgents                                              | All Agent Interfaces                  |
+| CMP-026   | executeAnalysisPipeline                                                        | CMP-012, CMP-020, CMP-019, CMP-005    |
+| CMP-027   | createRepository                                                               | Bash (gh, git)                        |
+| CMP-028   | importIssues                                                                   | Bash (gh)                             |
+| CMP-029   | validateAgentFile, validateAllAgents, formatValidationReport                   | Read (agent files, agents.yaml)       |
+| CMP-030   | generateFromFile, generateAndSave                                              | Read (SRS), Write (SDS sections)      |
+| CMP-031   | generateFromSRS, generateAndSave                                               | Read (SRS), Write (component specs)   |
+| CMP-032   | recordAgentInvocation, recordPipelineStage, trackUsage, selectModel, fireAlert | Read/Write (metrics, budgets, alerts) |
+| CMP-033   | getConsentStatus, setConsent, recordEvent, flush, shutdown                     | Read/Write (consent file)             |
+| CMP-034   | validatePath, validateUrl, sanitize, execute, log, check                       | Read/Write (audit logs)               |
+| CMP-035   | getGlobalConfig, getPipelineStages, getAgentConfig, getQualityGates            | Read (YAML config files)              |
+| CMP-036   | generate, getSupportedShells, getCommands                                      | None (stdout output)                  |
 
 ### 9.3 Full Traceability Chain
 
@@ -4658,57 +4676,57 @@ traceability_chain:
   # Example: User Authentication Feature
   example_feature:
     prd:
-      requirement: "FR-001: User Authentication"
+      requirement: 'FR-001: User Authentication'
       priority: P0
 
     srs:
       features:
-        - id: "SF-001"
-          name: "Login"
-          use_cases: ["UC-001", "UC-002"]
-        - id: "SF-002"
-          name: "Session Management"
-          use_cases: ["UC-003"]
+        - id: 'SF-001'
+          name: 'Login'
+          use_cases: ['UC-001', 'UC-002']
+        - id: 'SF-002'
+          name: 'Session Management'
+          use_cases: ['UC-003']
 
     sds:
       components:
-        - id: "CMP-AUTH-001"
-          name: "AuthService"
-          source_features: ["SF-001"]
-          apis: ["POST /api/v1/auth/login"]
+        - id: 'CMP-AUTH-001'
+          name: 'AuthService'
+          source_features: ['SF-001']
+          apis: ['POST /api/v1/auth/login']
 
-        - id: "CMP-AUTH-002"
-          name: "SessionManager"
-          source_features: ["SF-002"]
-          apis: ["GET /api/v1/auth/session"]
+        - id: 'CMP-AUTH-002'
+          name: 'SessionManager'
+          source_features: ['SF-002']
+          apis: ['GET /api/v1/auth/session']
 
     issues:
       - number: 1
-        title: "Implement AuthService.login()"
-        component: "CMP-AUTH-001"
+        title: 'Implement AuthService.login()'
+        component: 'CMP-AUTH-001'
 
       - number: 2
-        title: "Implement SessionManager"
-        component: "CMP-AUTH-002"
+        title: 'Implement SessionManager'
+        component: 'CMP-AUTH-002'
         blocked_by: [1]
 
     implementation:
-      - work_order: "WO-001"
+      - work_order: 'WO-001'
         issue: 1
-        branch: "feature/ISS-1-auth-service"
+        branch: 'feature/ISS-1-auth-service'
 
-      - work_order: "WO-002"
+      - work_order: 'WO-002'
         issue: 2
-        branch: "feature/ISS-2-session-manager"
+        branch: 'feature/ISS-2-session-manager'
 
     prs:
       - number: 10
         issue: 1
-        merge_commit: "abc123"
+        merge_commit: 'abc123'
 
       - number: 11
         issue: 2
-        merge_commit: "def456"
+        merge_commit: 'def456'
 ```
 
 ---
@@ -4726,6 +4744,7 @@ traceability_chain:
 **Decision**: Introduce a file system-based Scratchpad pattern to share state between agents.
 
 **Consequences**:
+
 - (+) Loose coupling between agents
 - (+) State persistence and resumability
 - (+) Easy debugging (direct file inspection)
@@ -4741,6 +4760,7 @@ traceability_chain:
 **Decision**: Document Pipeline executes sequentially, Execution Pipeline executes in parallel.
 
 **Consequences**:
+
 - (+) Ensures consistency between documents
 - (+) Easy to maintain traceability
 - (-) Increased document generation time
@@ -4754,38 +4774,39 @@ traceability_chain:
 **Decision**: Maintain a maximum of 5 Workers in the pool, with Controller assigning work via queue.
 
 **Consequences**:
+
 - (+) Predictable resource usage
 - (+) System stability ensured
 - (-) Potential bottleneck for large projects
 
 ### 10.2 Open Questions
 
-| Question ID | Question | Status | Resolution |
-|-------------|----------|--------|------------|
-| OQ-001 | Need for multi-repository support? | Open | Review in Phase 2 |
-| OQ-002 | External test service (SonarQube, etc.) integration? | Open | Consider plugin architecture |
-| OQ-003 | Non-English codebase support scope? | Open | Code in English, comments multilingual |
-| OQ-004 | Document chunking strategy when Context Window exceeded? | Resolved | Apply Hierarchical Summarization |
+| Question ID | Question                                                 | Status   | Resolution                             |
+| ----------- | -------------------------------------------------------- | -------- | -------------------------------------- |
+| OQ-001      | Need for multi-repository support?                       | Open     | Review in Phase 2                      |
+| OQ-002      | External test service (SonarQube, etc.) integration?     | Open     | Consider plugin architecture           |
+| OQ-003      | Non-English codebase support scope?                      | Open     | Code in English, comments multilingual |
+| OQ-004      | Document chunking strategy when Context Window exceeded? | Resolved | Apply Hierarchical Summarization       |
 
 ### 10.3 Glossary
 
-| Term | Definition |
-|------|------------|
-| **ADR** | Architecture Decision Record - Record of architecture decisions |
-| **Circuit Breaker** | Stability pattern that temporarily stops on consecutive failures |
-| **Critical Path** | Longest dependency path determining project completion |
-| **Scratchpad** | File-based storage for state sharing between agents |
-| **Topological Sort** | Algorithm determining execution order of dependency graph |
-| **Work Order** | Work instruction passed from Controller to Worker |
+| Term                 | Definition                                                       |
+| -------------------- | ---------------------------------------------------------------- |
+| **ADR**              | Architecture Decision Record - Record of architecture decisions  |
+| **Circuit Breaker**  | Stability pattern that temporarily stops on consecutive failures |
+| **Critical Path**    | Longest dependency path determining project completion           |
+| **Scratchpad**       | File-based storage for state sharing between agents              |
+| **Topological Sort** | Algorithm determining execution order of dependency graph        |
+| **Work Order**       | Work instruction passed from Controller to Worker                |
 
 ### 10.4 Document History
 
-| Version | Date | Author | Changes |
-|---------|------|--------|---------|
-| 1.0.0 | 2025-12-27 | System Architect | Initial draft based on SRS-001 |
-| 1.1.0 | 2026-02-07 | System Architect | Added Enhancement Pipeline components (CMP-012~CMP-028), Enhancement/Analysis/Import pipeline designs for SF-017~SF-031 |
-| 1.2.0 | 2026-02-13 | System Architect | Added support module components (CMP-029~CMP-036): Agent Validator, Architecture/Component Generators, Monitoring, Telemetry, Security, Config Manager, Completion Generator. Updated traceability matrix and API mappings. Fixed CMP-029 UC reference (UC-038→UC-039) and CMP-032 UC reference (UC-025→UC-022/UC-023). |
+| Version | Date       | Author           | Changes                                                                                                                                                                                                                                                                                                                 |
+| ------- | ---------- | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1.0.0   | 2025-12-27 | System Architect | Initial draft based on SRS-001                                                                                                                                                                                                                                                                                          |
+| 1.1.0   | 2026-02-07 | System Architect | Added Enhancement Pipeline components (CMP-012~CMP-028), Enhancement/Analysis/Import pipeline designs for SF-017~SF-031                                                                                                                                                                                                 |
+| 1.2.0   | 2026-02-13 | System Architect | Added support module components (CMP-029~CMP-036): Agent Validator, Architecture/Component Generators, Monitoring, Telemetry, Security, Config Manager, Completion Generator. Updated traceability matrix and API mappings. Fixed CMP-029 UC reference (UC-038→UC-039) and CMP-032 UC reference (UC-025→UC-022/UC-023). |
 
 ---
 
-*This SDS was generated for the Agent-Driven SDLC project based on SRS-001 and PRD-001.*
+_This SDS was generated for the Agent-Driven SDLC project based on SRS-001 and PRD-001._

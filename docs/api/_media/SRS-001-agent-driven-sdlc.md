@@ -2,15 +2,15 @@
 
 ## Agent-Driven Software Development Lifecycle System
 
-| Field | Value |
-|-------|-------|
-| **Document ID** | SRS-001 |
-| **Source PRD** | PRD-001 |
-| **Version** | 1.1.0 |
-| **Status** | Review |
-| **Implementation** | Partial |
-| **Created** | 2025-12-27 |
-| **Author** | System Architect |
+| Field              | Value            |
+| ------------------ | ---------------- |
+| **Document ID**    | SRS-001          |
+| **Source PRD**     | PRD-001          |
+| **Version**        | 1.1.0            |
+| **Status**         | Review           |
+| **Implementation** | Partial          |
+| **Created**        | 2025-12-27       |
+| **Author**         | System Architect |
 
 ---
 
@@ -34,6 +34,7 @@
 This Software Requirements Specification (SRS) defines the detailed functional requirements of the Agent-Driven SDLC (AD-SDLC) system. It decomposes the product requirements defined in PRD-001 into implementable system features and use cases, enabling the development team to directly utilize them for design and implementation.
 
 **Target Audience:**
+
 - Tech Lead and Software Architect
 - Software Developers
 - QA Engineers
@@ -44,6 +45,7 @@ This Software Requirements Specification (SRS) defines the detailed functional r
 The AD-SDLC system includes the following scope:
 
 **Included Scope:**
+
 - A product-role catalog of 25 specialized Claude agents across three pipeline modes (distinct from the current source inventory of 36 prompt definitions, 29 unique pipeline agent types, and 39 mode-specific stage slots; see the [runtime inventory](architecture/runtime-inventory.md)):
   - **Core (Greenfield)**: Collector, PRD Writer, SRS Writer, SDS Writer, Issue Generator, Controller, Worker, PR Reviewer
   - **Enhancement**: Document Reader, Codebase Analyzer, Impact Analyzer, PRD/SRS/SDS Updaters, Regression Tester, Code Reader, Doc-Code Comparator, CI Fixer
@@ -55,6 +57,7 @@ The AD-SDLC system includes the following scope:
 - Traceability matrix maintenance
 
 **Excluded Scope:**
+
 - Deployment automation (CI/CD pipelines)
 - Monitoring dashboard UI
 - Multi-repository support
@@ -62,26 +65,26 @@ The AD-SDLC system includes the following scope:
 
 ### 1.3 Definitions & Acronyms
 
-| Term | Definition |
-|------|------------|
-| **AD-SDLC** | Agent-Driven Software Development Lifecycle |
-| **PRD** | Product Requirements Document |
-| **SRS** | Software Requirements Specification |
-| **SDS** | Software Design Specification |
-| **Scratchpad** | File-based storage pattern for inter-agent state sharing |
-| **Traceability** | Bidirectional tracking capability from requirements to implementation |
-| **Work Order** | Task instruction document passed from Controller Agent to Worker Agent |
-| **Quality Gate** | Quality verification checkpoint for proceeding to the next stage |
-| **Human-in-the-Loop** | Pattern requiring user approval at critical decision points |
+| Term                  | Definition                                                             |
+| --------------------- | ---------------------------------------------------------------------- |
+| **AD-SDLC**           | Agent-Driven Software Development Lifecycle                            |
+| **PRD**               | Product Requirements Document                                          |
+| **SRS**               | Software Requirements Specification                                    |
+| **SDS**               | Software Design Specification                                          |
+| **Scratchpad**        | File-based storage pattern for inter-agent state sharing               |
+| **Traceability**      | Bidirectional tracking capability from requirements to implementation  |
+| **Work Order**        | Task instruction document passed from Controller Agent to Worker Agent |
+| **Quality Gate**      | Quality verification checkpoint for proceeding to the next stage       |
+| **Human-in-the-Loop** | Pattern requiring user approval at critical decision points            |
 
 ### 1.4 References
 
-| Reference | Description |
-|-----------|-------------|
-| PRD-001 | Agent-Driven SDLC Product Requirements Document |
-| Claude Agent SDK | https://platform.claude.com/docs/en/agent-sdk |
-| GitHub CLI | https://cli.github.com/manual/ |
-| IEEE 830-1998 | IEEE Recommended Practice for SRS |
+| Reference        | Description                                     |
+| ---------------- | ----------------------------------------------- |
+| PRD-001          | Agent-Driven SDLC Product Requirements Document |
+| Claude Agent SDK | https://platform.claude.com/docs/en/agent-sdk   |
+| GitHub CLI       | https://cli.github.com/manual/                  |
+| IEEE 830-1998    | IEEE Recommended Practice for SRS               |
 
 ---
 
@@ -114,51 +117,53 @@ AD-SDLC is a multi-agent system based on the Claude Agent SDK that automates the
 
 ### 2.2 Product Functions Summary
 
-| Function Category | Description | Agents Involved |
-|-------------------|-------------|-----------------|
-| **Document Pipeline** | Requirements → Auto-document generation | Collector, PRD/SRS/SDS Writer |
-| **Issue Management** | Document → GitHub Issue conversion and management | Issue Generator, Controller |
-| **Code Execution** | Issue → Code implementation and PR | Worker, PR Reviewer |
-| **State Management** | Inter-agent state sharing and tracking | All Agents |
+| Function Category     | Description                                       | Agents Involved               |
+| --------------------- | ------------------------------------------------- | ----------------------------- |
+| **Document Pipeline** | Requirements → Auto-document generation           | Collector, PRD/SRS/SDS Writer |
+| **Issue Management**  | Document → GitHub Issue conversion and management | Issue Generator, Controller   |
+| **Code Execution**    | Issue → Code implementation and PR                | Worker, PR Reviewer           |
+| **State Management**  | Inter-agent state sharing and tracking            | All Agents                    |
 
 ### 2.3 User Classes and Characteristics
 
-| User Class | Characteristics | Primary Interactions |
-|------------|-----------------|---------------------|
-| **Product Manager (PM)** | Non-technical background, prefers natural language input, needs progress tracking | Requirements input, PRD approval, progress monitoring |
-| **Tech Lead (TL)** | Technical background, responsible for design review, quality control | SRS/SDS approval, architecture decisions, final PR approval |
-| **Developer (Dev)** | Responsible for code implementation, needs detailed context | Issue details review, auto-generated code review, PR feedback |
+| User Class               | Characteristics                                                                   | Primary Interactions                                          |
+| ------------------------ | --------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| **Product Manager (PM)** | Non-technical background, prefers natural language input, needs progress tracking | Requirements input, PRD approval, progress monitoring         |
+| **Tech Lead (TL)**       | Technical background, responsible for design review, quality control              | SRS/SDS approval, architecture decisions, final PR approval   |
+| **Developer (Dev)**      | Responsible for code implementation, needs detailed context                       | Issue details review, auto-generated code review, PR feedback |
 
 ### 2.4 Operating Environment
 
-| Component | Requirement |
-|-----------|-------------|
-| **Runtime** | Claude Agent SDK (Claude Code CLI) |
-| **Platform** | macOS, Linux, Windows (WSL2) |
-| **Node.js** | v22.22.1+ |
-| **Python** | v3.9+ (optional, for tooling) |
-| **Git** | v2.30+ |
-| **GitHub CLI** | v2.0+ |
-| **File System** | Local or network-attached storage |
+| Component       | Requirement                        |
+| --------------- | ---------------------------------- |
+| **Runtime**     | Claude Agent SDK (Claude Code CLI) |
+| **Platform**    | macOS, Linux, Windows (WSL2)       |
+| **Node.js**     | v22.22.1+                          |
+| **Python**      | v3.9+ (optional, for tooling)      |
+| **Git**         | v2.30+                             |
+| **GitHub CLI**  | v2.0+                              |
+| **File System** | Local or network-attached storage  |
 
 ### 2.5 Design and Implementation Constraints
 
-| Constraint ID | Constraint | Rationale |
-|---------------|------------|-----------|
-| **C-001** | Claude Agent SDK unidirectional communication | Only parent→child communication possible, resolved via Scratchpad pattern |
-| **C-002** | Context Window limitation | 200K tokens, requires document/code splitting |
-| **C-003** | GitHub API Rate Limit | 5,000 requests per hour, requires caching and batch processing |
-| **C-004** | Concurrent Worker limit | Maximum 5 parallel executions (resource management) |
-| **C-005** | English-based code generation | Code, commit messages, and PRs must be written in English |
+| Constraint ID | Constraint                                    | Rationale                                                                 |
+| ------------- | --------------------------------------------- | ------------------------------------------------------------------------- |
+| **C-001**     | Claude Agent SDK unidirectional communication | Only parent→child communication possible, resolved via Scratchpad pattern |
+| **C-002**     | Context Window limitation                     | 200K tokens, requires document/code splitting                             |
+| **C-003**     | GitHub API Rate Limit                         | 5,000 requests per hour, requires caching and batch processing            |
+| **C-004**     | Concurrent Worker limit                       | Maximum 5 parallel executions (resource management)                       |
+| **C-005**     | English-based code generation                 | Code, commit messages, and PRs must be written in English                 |
 
 ### 2.6 Assumptions and Dependencies
 
 **Assumptions:**
+
 - User has access to GitHub account and repository
 - Project is managed in a single Git repository
 - If existing codebase exists, consistent coding style is present
 
 **Dependencies:**
+
 - Claude API availability (99.9% SLA)
 - GitHub API availability
 - Local file system access
@@ -1702,47 +1707,47 @@ AD-SDLC is a multi-agent system based on the Claude Agent SDK that automates the
 
 AD-SDLC is a CLI-based system, primarily interacting through Claude Code CLI.
 
-| Interface ID | Name | Description |
-|--------------|------|-------------|
-| UI-001 | CLI Input | Natural language text input interface |
-| UI-002 | File Path Input | File path specification interface |
-| UI-003 | URL Input | URL input interface |
-| UI-004 | Approval Prompt | Approve/Reject selection prompt |
-| UI-005 | Progress Display | Progress status text output |
+| Interface ID | Name             | Description                           |
+| ------------ | ---------------- | ------------------------------------- |
+| UI-001       | CLI Input        | Natural language text input interface |
+| UI-002       | File Path Input  | File path specification interface     |
+| UI-003       | URL Input        | URL input interface                   |
+| UI-004       | Approval Prompt  | Approve/Reject selection prompt       |
+| UI-005       | Progress Display | Progress status text output           |
 
 ### 4.2 API Interfaces
 
-| Endpoint | Method | Description | Agent |
-|----------|--------|-------------|-------|
-| GitHub Issues API | POST | Create issue | Issue Generator |
-| GitHub Issues API | PATCH | Update issue status | Controller, PR Review |
-| GitHub PRs API | POST | Create PR | PR Review |
-| GitHub PRs API | POST | Submit review | PR Review |
-| GitHub PRs API | PUT | Merge PR | PR Review |
-| Claude API | POST | Agent inference | All Agents |
+| Endpoint          | Method | Description         | Agent                 |
+| ----------------- | ------ | ------------------- | --------------------- |
+| GitHub Issues API | POST   | Create issue        | Issue Generator       |
+| GitHub Issues API | PATCH  | Update issue status | Controller, PR Review |
+| GitHub PRs API    | POST   | Create PR           | PR Review             |
+| GitHub PRs API    | POST   | Submit review       | PR Review             |
+| GitHub PRs API    | PUT    | Merge PR            | PR Review             |
+| Claude API        | POST   | Agent inference     | All Agents            |
 
 ### 4.3 File Interfaces
 
-| Interface ID | Path Pattern | Format | Description |
-|--------------|--------------|--------|-------------|
-| FI-001 | `.ad-sdlc/scratchpad/info/{id}/collected_info.yaml` | YAML | Collected information |
-| FI-002 | `.ad-sdlc/scratchpad/documents/{id}/prd.md` | Markdown | PRD document |
-| FI-003 | `.ad-sdlc/scratchpad/documents/{id}/srs.md` | Markdown | SRS document |
-| FI-004 | `.ad-sdlc/scratchpad/documents/{id}/sds.md` | Markdown | SDS document |
-| FI-005 | `.ad-sdlc/scratchpad/issues/{id}/issue_list.json` | JSON | Issue list |
-| FI-006 | `.ad-sdlc/scratchpad/issues/{id}/dependency_graph.json` | JSON | Dependency graph |
-| FI-007 | `.ad-sdlc/scratchpad/progress/{id}/controller_state.yaml` | YAML | Controller state |
-| FI-008 | `.ad-sdlc/scratchpad/progress/{id}/work_orders/*.yaml` | YAML | Work orders |
-| FI-009 | `.ad-sdlc/scratchpad/progress/{id}/results/*.yaml` | YAML | Implementation results |
-| FI-010 | `.ad-sdlc/scratchpad/progress/{id}/reviews/*.yaml` | YAML | Review results |
+| Interface ID | Path Pattern                                              | Format   | Description            |
+| ------------ | --------------------------------------------------------- | -------- | ---------------------- |
+| FI-001       | `.ad-sdlc/scratchpad/info/{id}/collected_info.yaml`       | YAML     | Collected information  |
+| FI-002       | `.ad-sdlc/scratchpad/documents/{id}/prd.md`               | Markdown | PRD document           |
+| FI-003       | `.ad-sdlc/scratchpad/documents/{id}/srs.md`               | Markdown | SRS document           |
+| FI-004       | `.ad-sdlc/scratchpad/documents/{id}/sds.md`               | Markdown | SDS document           |
+| FI-005       | `.ad-sdlc/scratchpad/issues/{id}/issue_list.json`         | JSON     | Issue list             |
+| FI-006       | `.ad-sdlc/scratchpad/issues/{id}/dependency_graph.json`   | JSON     | Dependency graph       |
+| FI-007       | `.ad-sdlc/scratchpad/progress/{id}/controller_state.yaml` | YAML     | Controller state       |
+| FI-008       | `.ad-sdlc/scratchpad/progress/{id}/work_orders/*.yaml`    | YAML     | Work orders            |
+| FI-009       | `.ad-sdlc/scratchpad/progress/{id}/results/*.yaml`        | YAML     | Implementation results |
+| FI-010       | `.ad-sdlc/scratchpad/progress/{id}/reviews/*.yaml`        | YAML     | Review results         |
 
 ### 4.4 External System Interfaces
 
-| System | Protocol | Purpose |
-|--------|----------|---------|
-| GitHub | HTTPS + OAuth | Issue and PR management |
-| Claude API | HTTPS | Agent inference |
-| Web URLs | HTTP/HTTPS | External document collection |
+| System     | Protocol      | Purpose                      |
+| ---------- | ------------- | ---------------------------- |
+| GitHub     | HTTPS + OAuth | Issue and PR management      |
+| Claude API | HTTPS         | Agent inference              |
+| Web URLs   | HTTP/HTTPS    | External document collection |
 
 ---
 
@@ -1750,50 +1755,50 @@ AD-SDLC is a CLI-based system, primarily interacting through Claude Code CLI.
 
 ### 5.1 Performance Requirements
 
-| ID | Requirement | Metric | Target | Priority |
-|----|-------------|--------|--------|----------|
-| NFR-001 | Document generation response time | Time | < 5 min / document | P0 |
-| NFR-002 | Issue creation throughput | Issues/min | > 20 | P0 |
-| NFR-003 | Concurrent Worker execution | Count | Maximum 5 | P0 |
-| NFR-004 | Status check interval | Seconds | 30s | P1 |
-| NFR-005 | PR review completion time | Time | < 5 min | P1 |
+| ID      | Requirement                       | Metric     | Target             | Priority |
+| ------- | --------------------------------- | ---------- | ------------------ | -------- |
+| NFR-001 | Document generation response time | Time       | < 5 min / document | P0       |
+| NFR-002 | Issue creation throughput         | Issues/min | > 20               | P0       |
+| NFR-003 | Concurrent Worker execution       | Count      | Maximum 5          | P0       |
+| NFR-004 | Status check interval             | Seconds    | 30s                | P1       |
+| NFR-005 | PR review completion time         | Time       | < 5 min            | P1       |
 
 ### 5.2 Reliability Requirements
 
-| ID | Requirement | Metric | Target | Priority |
-|----|-------------|--------|--------|----------|
-| NFR-006 | System availability | Percentage | 99.5% | P1 |
-| NFR-007 | Document generation success rate | Percentage | > 95% | P0 |
-| NFR-008 | Code implementation success rate | Percentage | > 85% | P0 |
-| NFR-009 | Data loss prevention | Percentage | 100% | P0 |
-| NFR-010 | Recovery rate after retry | Percentage | > 90% | P1 |
+| ID      | Requirement                      | Metric     | Target | Priority |
+| ------- | -------------------------------- | ---------- | ------ | -------- |
+| NFR-006 | System availability              | Percentage | 99.5%  | P1       |
+| NFR-007 | Document generation success rate | Percentage | > 95%  | P0       |
+| NFR-008 | Code implementation success rate | Percentage | > 85%  | P0       |
+| NFR-009 | Data loss prevention             | Percentage | 100%   | P0       |
+| NFR-010 | Recovery rate after retry        | Percentage | > 90%  | P1       |
 
 ### 5.3 Security Requirements
 
-| ID | Requirement | Description | Priority |
-|----|-------------|-------------|----------|
-| NFR-011 | Secure API key storage | Use environment variables or Secret Manager | P0 |
-| NFR-012 | Sensitive information masking | Auto-mask tokens and passwords in logs | P0 |
-| NFR-013 | GitHub authentication | OAuth or PAT-based authentication | P0 |
-| NFR-014 | Code security check | Prohibit hardcoded secrets in generated code | P0 |
-| NFR-015 | Input validation | Validate user input and external data | P1 |
+| ID      | Requirement                   | Description                                  | Priority |
+| ------- | ----------------------------- | -------------------------------------------- | -------- |
+| NFR-011 | Secure API key storage        | Use environment variables or Secret Manager  | P0       |
+| NFR-012 | Sensitive information masking | Auto-mask tokens and passwords in logs       | P0       |
+| NFR-013 | GitHub authentication         | OAuth or PAT-based authentication            | P0       |
+| NFR-014 | Code security check           | Prohibit hardcoded secrets in generated code | P0       |
+| NFR-015 | Input validation              | Validate user input and external data        | P1       |
 
 ### 5.4 Maintainability Requirements
 
-| ID | Requirement | Description | Priority |
-|----|-------------|-------------|----------|
-| NFR-016 | Configuration externalization | Use YAML-based configuration files | P0 |
-| NFR-017 | Template customization | Support user-defined document templates | P1 |
-| NFR-018 | Log level adjustment | DEBUG/INFO/WARN/ERROR runtime adjustment | P1 |
-| NFR-019 | Agent definition separation | Independent definition file per agent | P0 |
-| NFR-020 | Workflow configuration | Pipeline stage and approval gate configuration | P1 |
+| ID      | Requirement                   | Description                                    | Priority |
+| ------- | ----------------------------- | ---------------------------------------------- | -------- |
+| NFR-016 | Configuration externalization | Use YAML-based configuration files             | P0       |
+| NFR-017 | Template customization        | Support user-defined document templates        | P1       |
+| NFR-018 | Log level adjustment          | DEBUG/INFO/WARN/ERROR runtime adjustment       | P1       |
+| NFR-019 | Agent definition separation   | Independent definition file per agent          | P0       |
+| NFR-020 | Workflow configuration        | Pipeline stage and approval gate configuration | P1       |
 
 ### 5.5 Scalability Requirements
 
-| ID | Requirement | Description | Priority |
-|----|-------------|-------------|----------|
-| NFR-021 | Parallel Worker scaling | Maximum Worker count configurable via settings | P1 |
-| NFR-022 | Large document processing | Process large inputs via context splitting | P1 |
+| ID      | Requirement               | Description                                    | Priority |
+| ------- | ------------------------- | ---------------------------------------------- | -------- |
+| NFR-021 | Parallel Worker scaling   | Maximum Worker count configurable via settings | P1       |
+| NFR-022 | Large document processing | Process large inputs via context splitting     | P1       |
 
 ---
 
@@ -1821,12 +1826,12 @@ schema:
       contact: string
   requirements:
     functional:
-      - id: string  # FR-XXX
+      - id: string # FR-XXX
         title: string
         description: string
         priority: enum[P0, P1, P2, P3]
     non_functional:
-      - id: string  # NFR-XXX
+      - id: string # NFR-XXX
         category: string
         requirement: string
   constraints:
@@ -1838,23 +1843,23 @@ schema:
       version: string
   questions:
     - question: string
-      answer: string  # User response
+      answer: string # User response
 ```
 
 #### 6.1.2 Work Order (work_order.yaml)
 
 ```yaml
 schema:
-  order_id: string  # WO-XXX
-  issue_id: string  # GitHub Issue Number
+  order_id: string # WO-XXX
+  issue_id: string # GitHub Issue Number
   issue_url: string
   created_at: datetime
-  deadline: datetime  # Optional
+  deadline: datetime # Optional
   priority: integer
   context:
-    sds_component: string  # CMP-XXX
-    srs_feature: string    # SF-XXX
-    prd_requirement: string  # FR-XXX
+    sds_component: string # CMP-XXX
+    srs_feature: string # SF-XXX
+    prd_requirement: string # FR-XXX
     related_files:
       - path: string
         reason: string
@@ -1887,7 +1892,7 @@ schema:
     build_passed: boolean
     coverage: float
   retry_count: integer
-  error_log: string  # If failed
+  error_log: string # If failed
   completed_at: datetime
 ```
 
@@ -1916,8 +1921,8 @@ schema:
     no_critical_issues: boolean
     coverage_threshold_met: boolean
   final_decision: enum[merge, revise, reject]
-  merge_commit: string  # SHA, if merged
-  merged_at: datetime  # If merged
+  merge_commit: string # SHA, if merged
+  merged_at: datetime # If merged
 ```
 
 #### 6.1.5 Impact Report (impact_report.yaml)
@@ -1928,13 +1933,13 @@ schema:
   change_request: string
   change_scope: enum[minor, moderate, major, breaking]
   affected_requirements:
-    - id: string       # FR-XXX
+    - id: string # FR-XXX
       impact: string
   affected_features:
-    - id: string       # SF-XXX
+    - id: string # SF-XXX
       impact: string
   affected_components:
-    - id: string       # CMP-XXX
+    - id: string # CMP-XXX
       impact: string
   affected_files:
     - path: string
@@ -2017,7 +2022,7 @@ schema:
   passed: integer
   failed: integer
   skipped: integer
-  duration: float  # seconds
+  duration: float # seconds
   failures:
     - test_file: string
       test_name: string
@@ -2075,14 +2080,14 @@ schema:
 
 ### 6.3 Data Constraints
 
-| Constraint | Description | Enforcement |
-|------------|-------------|-------------|
-| DC-001 | FR ID uniqueness | `FR-XXX` format, unique within project |
-| DC-002 | SF ID uniqueness | `SF-XXX` format, unique within SRS |
-| DC-003 | CMP ID uniqueness | `CMP-XXX` format, unique within SDS |
-| DC-004 | Priority values | One of P0, P1, P2, P3 |
-| DC-005 | Issue status | One of open, in_progress, closed |
-| DC-006 | Work Order and Issue 1:1 | One Work Order per Issue |
+| Constraint | Description              | Enforcement                            |
+| ---------- | ------------------------ | -------------------------------------- |
+| DC-001     | FR ID uniqueness         | `FR-XXX` format, unique within project |
+| DC-002     | SF ID uniqueness         | `SF-XXX` format, unique within SRS     |
+| DC-003     | CMP ID uniqueness        | `CMP-XXX` format, unique within SDS    |
+| DC-004     | Priority values          | One of P0, P1, P2, P3                  |
+| DC-005     | Issue status             | One of open, in_progress, closed       |
+| DC-006     | Work Order and Issue 1:1 | One Work Order per Issue               |
 
 ---
 
@@ -2090,51 +2095,51 @@ schema:
 
 ### 7.1 PRD → SRS Traceability
 
-| PRD Requirement | SRS Features | Use Cases |
-|-----------------|--------------|-----------|
-| FR-001 (Information Collection) | SF-001 | UC-001, UC-002, UC-003 |
-| FR-002 (PRD Generation) | SF-002 | UC-004, UC-005 |
-| FR-003 (SRS Generation) | SF-003 | UC-006 |
-| FR-004 (SDS Generation) | SF-004 | UC-007 |
-| FR-005 (Issue Generation) | SF-005 | UC-008 |
-| FR-006 (Dependency Analysis) | SF-006, SF-007 | UC-009, UC-010, UC-011 |
-| FR-007 (Code Implementation) | SF-008, SF-009 | UC-012, UC-013 |
-| FR-008 (PR Creation/Review) | SF-010, SF-011 | UC-014, UC-015, UC-016 |
-| FR-009 (Traceability) | SF-012 | UC-017, UC-018 |
-| FR-010 (Approval Gates) | SF-013 | UC-019 |
-| FR-011 (Monitoring) | SF-007 | UC-011 |
-| FR-012 (Retry) | SF-009, SF-016 | UC-013, UC-024 |
-| FR-013 (Logging) | SF-015 | UC-022, UC-023 |
-| FR-014 (GitHub Integration) | SF-005, SF-010, SF-011 | UC-008, UC-014, UC-015, UC-016 |
-| FR-015 (Scratchpad) | SF-014 | UC-020, UC-021 |
-| FR-016 (External Sources) | SF-001 | UC-002, UC-003 |
-| FR-017 (Document Parsing) | SF-017 | UC-025, UC-026 |
-| FR-018 (Codebase Analysis) | SF-018 | UC-027, UC-028 |
-| FR-019 (Change Impact Analysis) | SF-019 | UC-029, UC-030 |
-| FR-020 (PRD Incremental Update) | SF-020 | UC-031 |
-| FR-021 (SRS Incremental Update) | SF-021 | UC-032 |
-| FR-022 (SDS Incremental Update) | SF-022 | UC-033 |
-| FR-023 (Regression Testing) | SF-023 | UC-034 |
-| FR-024 (Document-Code Gap Analysis) | SF-024 | UC-035 |
-| FR-025 (Source Code AST Analysis) | SF-025 | UC-036 |
-| FR-026 (CI/CD Failure Auto-fix) | SF-026 | UC-037 |
-| FR-027 (Pipeline Mode Detection) | SF-027 | UC-038 |
-| FR-028 (Project Initialization) | SF-028 | UC-039 |
-| FR-029 (GitHub Repo Creation) | SF-029 | UC-040, UC-041 |
-| FR-030 (GitHub Repo Detection) | SF-029 | UC-041 |
-| FR-031 (Full Pipeline Orchestration) | SF-030 | UC-042, UC-043 |
-| FR-032 (Enhancement Sub-pipeline) | SF-030 | UC-043 |
-| FR-033 (Issue Import) | SF-031 | UC-044 |
+| PRD Requirement                      | SRS Features           | Use Cases                      |
+| ------------------------------------ | ---------------------- | ------------------------------ |
+| FR-001 (Information Collection)      | SF-001                 | UC-001, UC-002, UC-003         |
+| FR-002 (PRD Generation)              | SF-002                 | UC-004, UC-005                 |
+| FR-003 (SRS Generation)              | SF-003                 | UC-006                         |
+| FR-004 (SDS Generation)              | SF-004                 | UC-007                         |
+| FR-005 (Issue Generation)            | SF-005                 | UC-008                         |
+| FR-006 (Dependency Analysis)         | SF-006, SF-007         | UC-009, UC-010, UC-011         |
+| FR-007 (Code Implementation)         | SF-008, SF-009         | UC-012, UC-013                 |
+| FR-008 (PR Creation/Review)          | SF-010, SF-011         | UC-014, UC-015, UC-016         |
+| FR-009 (Traceability)                | SF-012                 | UC-017, UC-018                 |
+| FR-010 (Approval Gates)              | SF-013                 | UC-019                         |
+| FR-011 (Monitoring)                  | SF-007                 | UC-011                         |
+| FR-012 (Retry)                       | SF-009, SF-016         | UC-013, UC-024                 |
+| FR-013 (Logging)                     | SF-015                 | UC-022, UC-023                 |
+| FR-014 (GitHub Integration)          | SF-005, SF-010, SF-011 | UC-008, UC-014, UC-015, UC-016 |
+| FR-015 (Scratchpad)                  | SF-014                 | UC-020, UC-021                 |
+| FR-016 (External Sources)            | SF-001                 | UC-002, UC-003                 |
+| FR-017 (Document Parsing)            | SF-017                 | UC-025, UC-026                 |
+| FR-018 (Codebase Analysis)           | SF-018                 | UC-027, UC-028                 |
+| FR-019 (Change Impact Analysis)      | SF-019                 | UC-029, UC-030                 |
+| FR-020 (PRD Incremental Update)      | SF-020                 | UC-031                         |
+| FR-021 (SRS Incremental Update)      | SF-021                 | UC-032                         |
+| FR-022 (SDS Incremental Update)      | SF-022                 | UC-033                         |
+| FR-023 (Regression Testing)          | SF-023                 | UC-034                         |
+| FR-024 (Document-Code Gap Analysis)  | SF-024                 | UC-035                         |
+| FR-025 (Source Code AST Analysis)    | SF-025                 | UC-036                         |
+| FR-026 (CI/CD Failure Auto-fix)      | SF-026                 | UC-037                         |
+| FR-027 (Pipeline Mode Detection)     | SF-027                 | UC-038                         |
+| FR-028 (Project Initialization)      | SF-028                 | UC-039                         |
+| FR-029 (GitHub Repo Creation)        | SF-029                 | UC-040, UC-041                 |
+| FR-030 (GitHub Repo Detection)       | SF-029                 | UC-041                         |
+| FR-031 (Full Pipeline Orchestration) | SF-030                 | UC-042, UC-043                 |
+| FR-032 (Enhancement Sub-pipeline)    | SF-030                 | UC-043                         |
+| FR-033 (Issue Import)                | SF-031                 | UC-044                         |
 
 ### 7.2 Coverage Summary
 
-| Metric | Value |
-|--------|-------|
-| Total PRD Requirements (FR) | 33 |
-| Total SRS Features (SF) | 31 |
-| Total Use Cases (UC) | 44 |
-| PRD Coverage | 100% |
-| Features with Use Cases | 100% |
+| Metric                      | Value |
+| --------------------------- | ----- |
+| Total PRD Requirements (FR) | 33    |
+| Total SRS Features (SF)     | 31    |
+| Total Use Cases (UC)        | 44    |
+| PRD Coverage                | 100%  |
+| Features with Use Cases     | 100%  |
 
 ---
 
@@ -2142,33 +2147,33 @@ schema:
 
 ### 8.1 Glossary
 
-| Term | Definition |
-|------|------------|
-| **Agent** | Autonomous execution unit using Claude API |
-| **Circuit Breaker** | Pattern to temporarily halt on consecutive failures |
-| **Context Window** | Number of tokens the model can process at once |
-| **Feature Branch** | Git branch for developing a specific feature |
-| **Gap Analysis** | Identification of missing information or requirements |
-| **Quality Gate** | Quality verification checkpoint for proceeding to next stage |
-| **Squash Merge** | Merging multiple commits into one |
-| **Topological Sort** | Ordering of dependency graph |
-| **Work Breakdown** | Decomposing work into implementation units |
+| Term                 | Definition                                                   |
+| -------------------- | ------------------------------------------------------------ |
+| **Agent**            | Autonomous execution unit using Claude API                   |
+| **Circuit Breaker**  | Pattern to temporarily halt on consecutive failures          |
+| **Context Window**   | Number of tokens the model can process at once               |
+| **Feature Branch**   | Git branch for developing a specific feature                 |
+| **Gap Analysis**     | Identification of missing information or requirements        |
+| **Quality Gate**     | Quality verification checkpoint for proceeding to next stage |
+| **Squash Merge**     | Merging multiple commits into one                            |
+| **Topological Sort** | Ordering of dependency graph                                 |
+| **Work Breakdown**   | Decomposing work into implementation units                   |
 
 ### 8.2 Open Issues
 
-| Issue ID | Description | Status | Owner |
-|----------|-------------|--------|-------|
-| OI-001 | Multi-repository support scope decision | Open | Architect |
-| OI-002 | External test service integration options | Open | Tech Lead |
-| OI-003 | Non-English codebase support | Open | PM |
+| Issue ID | Description                               | Status | Owner     |
+| -------- | ----------------------------------------- | ------ | --------- |
+| OI-001   | Multi-repository support scope decision   | Open   | Architect |
+| OI-002   | External test service integration options | Open   | Tech Lead |
+| OI-003   | Non-English codebase support              | Open   | PM        |
 
 ### 8.3 Document History
 
-| Version | Date | Author | Changes |
-|---------|------|--------|---------|
-| 1.0.0 | 2025-12-27 | System Architect | Initial draft based on PRD-001 |
-| 1.1.0 | 2026-02-07 | System Architect | Added Enhancement Pipeline features (SF-017~SF-031, UC-025~UC-044) for FR-017~FR-033 |
+| Version | Date       | Author           | Changes                                                                              |
+| ------- | ---------- | ---------------- | ------------------------------------------------------------------------------------ |
+| 1.0.0   | 2025-12-27 | System Architect | Initial draft based on PRD-001                                                       |
+| 1.1.0   | 2026-02-07 | System Architect | Added Enhancement Pipeline features (SF-017~SF-031, UC-025~UC-044) for FR-017~FR-033 |
 
 ---
 
-*This SRS was generated for the Agent-Driven SDLC project based on PRD-001.*
+_This SRS was generated for the Agent-Driven SDLC project based on PRD-001._

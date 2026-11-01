@@ -2,16 +2,16 @@
 
 ## Agent-Driven Software Development Lifecycle System
 
-| Field | Value |
-|-------|-------|
-| **Document ID** | SDS-001 |
-| **Source SRS** | SRS-001 |
-| **Source PRD** | PRD-001 |
-| **Version** | 1.2.0 |
-| **Status** | Review |
-| **Implementation** | Partial |
-| **Created** | 2025-12-27 |
-| **Author** | System Architect |
+| Field              | Value            |
+| ------------------ | ---------------- |
+| **Document ID**    | SDS-001          |
+| **Source SRS**     | SRS-001          |
+| **Source PRD**     | PRD-001          |
+| **Version**        | 1.2.0            |
+| **Status**         | Review           |
+| **Implementation** | Partial          |
+| **Created**        | 2025-12-27       |
+| **Author**         | System Architect |
 
 ---
 
@@ -37,6 +37,7 @@
 본 소프트웨어 설계 명세서(SDS)는 Agent-Driven SDLC (AD-SDLC) 시스템의 상세 설계를 정의합니다. SRS-001에서 정의된 시스템 기능을 구현하기 위한 아키텍처, 컴포넌트, 인터페이스, 데이터 설계를 명시하여 개발팀이 직접 구현에 활용할 수 있도록 합니다.
 
 **대상 독자:**
+
 - Software Developers
 - System Architects
 - DevOps Engineers
@@ -46,42 +47,42 @@
 
 본 SDS는 다음 범위의 설계를 포함합니다:
 
-| Category | Scope |
-|----------|-------|
-| **Architecture** | 멀티 에이전트 오케스트레이션 아키텍처, Scratchpad 패턴 |
-| **Components** | 36개의 `CMP-*` 설계 레코드([runtime inventory](architecture/runtime-inventory.md)의 프롬프트 정의 36개 및 런타임 stage slot 39개와는 별도의 설계 문서 축) |
-| **Data** | 파일 기반 상태 스키마, 데이터 엔티티 정의 |
-| **Interfaces** | 에이전트 간 통신, GitHub API 연동, CLI 인터페이스 |
-| **Security** | 인증, 권한 관리, 민감 정보 보호 |
-| **Deployment** | 로컬 실행 환경, 설정 관리 |
+| Category         | Scope                                                                                                                                                     |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Architecture** | 멀티 에이전트 오케스트레이션 아키텍처, Scratchpad 패턴                                                                                                    |
+| **Components**   | 36개의 `CMP-*` 설계 레코드([runtime inventory](architecture/runtime-inventory.md)의 프롬프트 정의 36개 및 런타임 stage slot 39개와는 별도의 설계 문서 축) |
+| **Data**         | 파일 기반 상태 스키마, 데이터 엔티티 정의                                                                                                                 |
+| **Interfaces**   | 에이전트 간 통신, GitHub API 연동, CLI 인터페이스                                                                                                         |
+| **Security**     | 인증, 권한 관리, 민감 정보 보호                                                                                                                           |
+| **Deployment**   | 로컬 실행 환경, 설정 관리                                                                                                                                 |
 
 ### 1.3 Design Goals
 
-| Goal ID | Goal | Description |
-|---------|------|-------------|
-| DG-001 | **Modularity** | 각 에이전트가 독립적으로 개발/테스트/배포 가능 |
-| DG-002 | **Extensibility** | 새로운 에이전트 추가 및 워크플로우 커스터마이징 용이 |
-| DG-003 | **Resilience** | 실패 시 자동 복구, 재시도 메커니즘 |
-| DG-004 | **Traceability** | 요구사항-설계-구현 간 완전한 추적성 |
-| DG-005 | **Transparency** | 모든 에이전트 활동 로깅 및 감사 가능 |
+| Goal ID | Goal              | Description                                          |
+| ------- | ----------------- | ---------------------------------------------------- |
+| DG-001  | **Modularity**    | 각 에이전트가 독립적으로 개발/테스트/배포 가능       |
+| DG-002  | **Extensibility** | 새로운 에이전트 추가 및 워크플로우 커스터마이징 용이 |
+| DG-003  | **Resilience**    | 실패 시 자동 복구, 재시도 메커니즘                   |
+| DG-004  | **Traceability**  | 요구사항-설계-구현 간 완전한 추적성                  |
+| DG-005  | **Transparency**  | 모든 에이전트 활동 로깅 및 감사 가능                 |
 
 ### 1.4 Design Constraints
 
-| Constraint ID | Constraint | Design Decision |
-|---------------|------------|-----------------|
-| DC-001 | Claude Agent SDK 단방향 통신 | Scratchpad 패턴 (파일 기반 상태 공유) 도입 |
-| DC-002 | Context Window 200K 토큰 | Context Compaction 전략, 문서 분할 처리 |
-| DC-003 | GitHub API Rate Limit | 배치 처리, 캐싱, 지수 백오프 |
-| DC-004 | 동시 Worker 최대 5개 | Worker Pool 관리, 큐 기반 스케줄링 |
+| Constraint ID | Constraint                   | Design Decision                            |
+| ------------- | ---------------------------- | ------------------------------------------ |
+| DC-001        | Claude Agent SDK 단방향 통신 | Scratchpad 패턴 (파일 기반 상태 공유) 도입 |
+| DC-002        | Context Window 200K 토큰     | Context Compaction 전략, 문서 분할 처리    |
+| DC-003        | GitHub API Rate Limit        | 배치 처리, 캐싱, 지수 백오프               |
+| DC-004        | 동시 Worker 최대 5개         | Worker Pool 관리, 큐 기반 스케줄링         |
 
 ### 1.5 References
 
-| Reference | Description |
-|-----------|-------------|
-| PRD-001 | Product Requirements Document |
-| SRS-001 | Software Requirements Specification |
-| Claude Agent SDK | https://platform.claude.com/docs/en/agent-sdk |
-| Claude Code Subagents | https://code.claude.com/docs/en/sub-agents |
+| Reference             | Description                                   |
+| --------------------- | --------------------------------------------- |
+| PRD-001               | Product Requirements Document                 |
+| SRS-001               | Software Requirements Specification           |
+| Claude Agent SDK      | https://platform.claude.com/docs/en/agent-sdk |
+| Claude Code Subagents | https://code.claude.com/docs/en/sub-agents    |
 
 ---
 
@@ -222,11 +223,13 @@ Claude Agent SDK의 단방향 통신(부모→자식) 제약을 극복하기 위
 에이전트들은 두 가지 실행 패턴을 따릅니다:
 
 **Sequential Pipeline (문서 생성):**
+
 ```
 Collector → PRD Writer → SRS Writer → SDS Writer → Issue Generator → Controller
 ```
 
 **Parallel Execution (코드 구현):**
+
 ```
 Controller ──┬── Worker #1 ──┐
              ├── Worker #2 ──┼──▶ PR Review
@@ -268,18 +271,18 @@ Events:
 
 ### 2.3 Technology Stack
 
-| Layer | Technology | Version | Rationale |
-|-------|------------|---------|-----------|
-| **Runtime** | Claude Agent SDK | Latest | 공식 에이전트 SDK |
-| **Language Runtime** | Node.js | 22.22.1+ | 지원되는 의존성 세트의 최소 요구 사항 |
-| **CLI** | Claude Code CLI | Latest | 개발자 친화적 인터페이스 |
-| **Model** | Claude Sonnet 4 | claude-sonnet-4-* | 비용/성능 균형 |
-| **Model (Critical)** | Claude Opus 4.5 | claude-opus-4-5-* | 복잡한 추론 필요 시 |
-| **VCS** | Git | 2.30+ | 버전 관리 |
-| **Issue Tracking** | GitHub CLI | 2.0+ | GitHub 연동 |
-| **Config Format** | YAML | 1.2 | 설정 파일 |
-| **Data Format** | JSON, YAML, Markdown | - | 상태 및 문서 저장 |
-| **Logging** | JSON Structured Logs | - | 구조화된 로깅 |
+| Layer                | Technology           | Version           | Rationale                             |
+| -------------------- | -------------------- | ----------------- | ------------------------------------- |
+| **Runtime**          | Claude Agent SDK     | Latest            | 공식 에이전트 SDK                     |
+| **Language Runtime** | Node.js              | 22.22.1+          | 지원되는 의존성 세트의 최소 요구 사항 |
+| **CLI**              | Claude Code CLI      | Latest            | 개발자 친화적 인터페이스              |
+| **Model**            | Claude Sonnet 4      | claude-sonnet-4-* | 비용/성능 균형                        |
+| **Model (Critical)** | Claude Opus 4.5      | claude-opus-4-5-* | 복잡한 추론 필요 시                   |
+| **VCS**              | Git                  | 2.30+             | 버전 관리                             |
+| **Issue Tracking**   | GitHub CLI           | 2.0+              | GitHub 연동                           |
+| **Config Format**    | YAML                 | 1.2               | 설정 파일                             |
+| **Data Format**      | JSON, YAML, Markdown | -                 | 상태 및 문서 저장                     |
+| **Logging**          | JSON Structured Logs | -                 | 구조화된 로깅                         |
 
 ### 2.4 Directory Structure
 
@@ -352,44 +355,44 @@ project-root/
 
 ### 3.1 Component Overview
 
-| CMP ID | Component Name | Korean Name | Source Features | Responsibility |
-|--------|----------------|-------------|-----------------|----------------|
-| CMP-001 | Collector Agent | 정보 수집 에이전트 | SF-001 | 다중 소스 정보 수집 및 구조화 |
-| CMP-002 | PRD Writer Agent | PRD 작성 에이전트 | SF-002 | PRD 문서 자동 생성 |
-| CMP-003 | SRS Writer Agent | SRS 작성 에이전트 | SF-003 | SRS 문서 자동 생성 |
-| CMP-004 | SDS Writer Agent | SDS 작성 에이전트 | SF-004 | SDS 문서 자동 생성 |
-| CMP-005 | Issue Generator | 이슈 생성 에이전트 | SF-005 | GitHub Issue 자동 생성 |
-| CMP-006 | Controller Agent | 관제 에이전트 | SF-006, SF-007 | 작업 우선순위 및 할당 관리 |
-| CMP-007 | Worker Agent | 작업 에이전트 | SF-008, SF-009 | 코드 구현 및 자체 검증 |
-| CMP-008 | PR Review Agent | PR 리뷰 에이전트 | SF-010, SF-011 | PR 생성 및 코드 리뷰 |
-| CMP-009 | State Manager | 상태 관리자 | SF-014 | Scratchpad 상태 관리 |
-| CMP-010 | Logger | 로깅 서비스 | SF-015 | 활동 로깅 및 감사 |
-| CMP-011 | Error Handler | 오류 처리기 | SF-016 | 재시도 및 복구 관리 |
-| CMP-012 | Document Reader Agent | 문서 분석 에이전트 | SF-017 | 기존 명세 문서 파싱 및 추적성 맵 구축 |
-| CMP-013 | Codebase Analyzer Agent | 코드베이스 분석 에이전트 | SF-018 | 기존 코드 구조 및 아키텍처 분석 |
-| CMP-014 | Impact Analyzer Agent | 영향 분석 에이전트 | SF-019 | 변경 영향 범위 및 리스크 평가 |
-| CMP-015 | PRD Updater Agent | PRD 갱신 에이전트 | SF-020 | PRD 점진적 갱신 |
-| CMP-016 | SRS Updater Agent | SRS 갱신 에이전트 | SF-021 | SRS 점진적 갱신 |
-| CMP-017 | SDS Updater Agent | SDS 갱신 에이전트 | SF-022 | SDS 점진적 갱신 |
-| CMP-018 | Regression Tester Agent | 회귀 테스트 에이전트 | SF-023 | 영향받는 테스트 매핑 및 회귀 테스트 |
-| CMP-019 | Doc-Code Comparator Agent | 문서-코드 비교 에이전트 | SF-024 | 명세와 코드 갭 분석 |
-| CMP-020 | Code Reader Agent | 코드 리더 에이전트 | SF-025 | AST 기반 소스코드 분석 |
-| CMP-021 | CI Fixer Agent | CI 수정 에이전트 | SF-026 | CI/CD 실패 진단 및 자동 수정 |
-| CMP-022 | Mode Detector Agent | 모드 감지 에이전트 | SF-027 | Greenfield/Enhancement 파이프라인 모드 감지 |
-| CMP-023 | Project Initializer Agent | 프로젝트 초기화 에이전트 | SF-028 | .ad-sdlc 작업 공간 초기화 |
-| CMP-024 | Repo Detector Agent | 저장소 감지 에이전트 | SF-029 | 기존 GitHub 저장소 감지 |
-| CMP-025 | AD-SDLC Orchestrator Agent | 파이프라인 오케스트레이터 | SF-030 | 전체 파이프라인 조율 |
-| CMP-026 | Analysis Orchestrator Agent | 분석 오케스트레이터 | SF-030 | Enhancement 분석 서브 파이프라인 |
-| CMP-027 | GitHub Repo Setup Agent | GitHub 저장소 설정 에이전트 | SF-029 | GitHub 저장소 생성 및 초기화 |
-| CMP-028 | Issue Reader Agent | 이슈 리더 에이전트 | SF-031 | 기존 GitHub 이슈 가져오기 |
-| CMP-029 | Agent Definition Validator | 에이전트 정의 검증기 | SF-028 | 에이전트 정의 파일 스키마 및 레지스트리 검증 |
-| CMP-030 | Architecture Generator | 아키텍처 생성기 | SF-004 | SRS 문서로부터 아키텍처 설계 생성 |
-| CMP-031 | Component Generator | 컴포넌트 생성기 | SF-004 | 컴포넌트 설계, 인터페이스 사양, API 문서 생성 |
-| CMP-032 | Monitoring Service | 모니터링 서비스 | SF-015 | 관측성, 토큰 예산 관리, 알림, 성능 튜닝 |
-| CMP-033 | Telemetry Service | 텔레메트리 서비스 | SF-015 | 옵트인 익명 사용 분석 및 동의 관리 |
-| CMP-034 | Security Module | 보안 모듈 | Cross-cutting (NFR) | 입력 검증, 명령어 새니타이즈, 감사 로깅, 속도 제한 |
-| CMP-035 | Configuration Manager | 설정 관리자 | SF-028 | 워크플로우/에이전트 설정 로딩, 검증, 감시 |
-| CMP-036 | Completion Generator | 자동완성 생성기 | CLI Tooling | bash, zsh, fish 쉘 자동완성 스크립트 생성 |
+| CMP ID  | Component Name              | Korean Name                 | Source Features     | Responsibility                                     |
+| ------- | --------------------------- | --------------------------- | ------------------- | -------------------------------------------------- |
+| CMP-001 | Collector Agent             | 정보 수집 에이전트          | SF-001              | 다중 소스 정보 수집 및 구조화                      |
+| CMP-002 | PRD Writer Agent            | PRD 작성 에이전트           | SF-002              | PRD 문서 자동 생성                                 |
+| CMP-003 | SRS Writer Agent            | SRS 작성 에이전트           | SF-003              | SRS 문서 자동 생성                                 |
+| CMP-004 | SDS Writer Agent            | SDS 작성 에이전트           | SF-004              | SDS 문서 자동 생성                                 |
+| CMP-005 | Issue Generator             | 이슈 생성 에이전트          | SF-005              | GitHub Issue 자동 생성                             |
+| CMP-006 | Controller Agent            | 관제 에이전트               | SF-006, SF-007      | 작업 우선순위 및 할당 관리                         |
+| CMP-007 | Worker Agent                | 작업 에이전트               | SF-008, SF-009      | 코드 구현 및 자체 검증                             |
+| CMP-008 | PR Review Agent             | PR 리뷰 에이전트            | SF-010, SF-011      | PR 생성 및 코드 리뷰                               |
+| CMP-009 | State Manager               | 상태 관리자                 | SF-014              | Scratchpad 상태 관리                               |
+| CMP-010 | Logger                      | 로깅 서비스                 | SF-015              | 활동 로깅 및 감사                                  |
+| CMP-011 | Error Handler               | 오류 처리기                 | SF-016              | 재시도 및 복구 관리                                |
+| CMP-012 | Document Reader Agent       | 문서 분석 에이전트          | SF-017              | 기존 명세 문서 파싱 및 추적성 맵 구축              |
+| CMP-013 | Codebase Analyzer Agent     | 코드베이스 분석 에이전트    | SF-018              | 기존 코드 구조 및 아키텍처 분석                    |
+| CMP-014 | Impact Analyzer Agent       | 영향 분석 에이전트          | SF-019              | 변경 영향 범위 및 리스크 평가                      |
+| CMP-015 | PRD Updater Agent           | PRD 갱신 에이전트           | SF-020              | PRD 점진적 갱신                                    |
+| CMP-016 | SRS Updater Agent           | SRS 갱신 에이전트           | SF-021              | SRS 점진적 갱신                                    |
+| CMP-017 | SDS Updater Agent           | SDS 갱신 에이전트           | SF-022              | SDS 점진적 갱신                                    |
+| CMP-018 | Regression Tester Agent     | 회귀 테스트 에이전트        | SF-023              | 영향받는 테스트 매핑 및 회귀 테스트                |
+| CMP-019 | Doc-Code Comparator Agent   | 문서-코드 비교 에이전트     | SF-024              | 명세와 코드 갭 분석                                |
+| CMP-020 | Code Reader Agent           | 코드 리더 에이전트          | SF-025              | AST 기반 소스코드 분석                             |
+| CMP-021 | CI Fixer Agent              | CI 수정 에이전트            | SF-026              | CI/CD 실패 진단 및 자동 수정                       |
+| CMP-022 | Mode Detector Agent         | 모드 감지 에이전트          | SF-027              | Greenfield/Enhancement 파이프라인 모드 감지        |
+| CMP-023 | Project Initializer Agent   | 프로젝트 초기화 에이전트    | SF-028              | .ad-sdlc 작업 공간 초기화                          |
+| CMP-024 | Repo Detector Agent         | 저장소 감지 에이전트        | SF-029              | 기존 GitHub 저장소 감지                            |
+| CMP-025 | AD-SDLC Orchestrator Agent  | 파이프라인 오케스트레이터   | SF-030              | 전체 파이프라인 조율                               |
+| CMP-026 | Analysis Orchestrator Agent | 분석 오케스트레이터         | SF-030              | Enhancement 분석 서브 파이프라인                   |
+| CMP-027 | GitHub Repo Setup Agent     | GitHub 저장소 설정 에이전트 | SF-029              | GitHub 저장소 생성 및 초기화                       |
+| CMP-028 | Issue Reader Agent          | 이슈 리더 에이전트          | SF-031              | 기존 GitHub 이슈 가져오기                          |
+| CMP-029 | Agent Definition Validator  | 에이전트 정의 검증기        | SF-028              | 에이전트 정의 파일 스키마 및 레지스트리 검증       |
+| CMP-030 | Architecture Generator      | 아키텍처 생성기             | SF-004              | SRS 문서로부터 아키텍처 설계 생성                  |
+| CMP-031 | Component Generator         | 컴포넌트 생성기             | SF-004              | 컴포넌트 설계, 인터페이스 사양, API 문서 생성      |
+| CMP-032 | Monitoring Service          | 모니터링 서비스             | SF-015              | 관측성, 토큰 예산 관리, 알림, 성능 튜닝            |
+| CMP-033 | Telemetry Service           | 텔레메트리 서비스           | SF-015              | 옵트인 익명 사용 분석 및 동의 관리                 |
+| CMP-034 | Security Module             | 보안 모듈                   | Cross-cutting (NFR) | 입력 검증, 명령어 새니타이즈, 감사 로깅, 속도 제한 |
+| CMP-035 | Configuration Manager       | 설정 관리자                 | SF-028              | 워크플로우/에이전트 설정 로딩, 검증, 감시          |
+| CMP-036 | Completion Generator        | 자동완성 생성기             | CLI Tooling         | bash, zsh, fish 쉘 자동완성 스크립트 생성          |
 
 ### 3.2 CMP-001: Collector Agent
 
@@ -446,8 +449,8 @@ interface CollectionResult {
   constraints: string[];
   assumptions: string[];
   dependencies: Dependency[];
-  questions: ClarifyingQuestion[];  // 추가 명확화 필요 항목
-  confidence: number;  // 0.0 - 1.0
+  questions: ClarifyingQuestion[]; // 추가 명확화 필요 항목
+  confidence: number; // 0.0 - 1.0
 }
 
 interface ClarifyingQuestion {
@@ -464,7 +467,7 @@ interface ClarifyingQuestion {
 ```yaml
 # .ad-sdlc/scratchpad/info/{project_id}/collected_info.yaml
 schema:
-  version: "1.0"
+  version: '1.0'
   project_id: string
   created_at: datetime
   updated_at: datetime
@@ -477,38 +480,38 @@ schema:
   stakeholders:
     - name: string
       role: string
-      contact: string  # Optional
+      contact: string # Optional
 
   requirements:
     functional:
-      - id: "FR-XXX"
+      - id: 'FR-XXX'
         title: string
         description: string
         priority: P0 | P1 | P2 | P3
-        source: string  # 입력 소스 (user_input, file:path, url:uri)
+        source: string # 입력 소스 (user_input, file:path, url:uri)
         acceptance_criteria:
           - criterion: string
 
     non_functional:
-      - id: "NFR-XXX"
+      - id: 'NFR-XXX'
         category: performance | security | reliability | usability | maintainability
         requirement: string
-        metric: string  # Optional
-        target: string  # Optional
+        metric: string # Optional
+        target: string # Optional
 
   constraints:
-    - id: "CON-XXX"
+    - id: 'CON-XXX'
       description: string
       rationale: string
 
   assumptions:
-    - id: "ASM-XXX"
+    - id: 'ASM-XXX'
       description: string
       risk_if_wrong: string
 
   dependencies:
     - name: string
-      version: string  # Optional
+      version: string # Optional
       type: library | service | system
       purpose: string
 
@@ -526,13 +529,13 @@ schema:
 
 #### 3.2.3 Tools Required
 
-| Tool | Purpose | Usage |
-|------|---------|-------|
-| `Read` | 파일 내용 읽기 | .md, .pdf, .docx, .txt 파일 처리 |
-| `WebFetch` | URL 콘텐츠 가져오기 | HTTP/HTTPS URL 처리 |
-| `WebSearch` | 관련 정보 검색 | 추가 컨텍스트 수집 |
-| `Grep` | 패턴 기반 정보 추출 | 기존 코드베이스 분석 |
-| `Write` | 정보 문서 저장 | YAML 형식으로 저장 |
+| Tool        | Purpose             | Usage                            |
+| ----------- | ------------------- | -------------------------------- |
+| `Read`      | 파일 내용 읽기      | .md, .pdf, .docx, .txt 파일 처리 |
+| `WebFetch`  | URL 콘텐츠 가져오기 | HTTP/HTTPS URL 처리              |
+| `WebSearch` | 관련 정보 검색      | 추가 컨텍스트 수집               |
+| `Grep`      | 패턴 기반 정보 추출 | 기존 코드베이스 분석             |
+| `Write`     | 정보 문서 저장      | YAML 형식으로 저장               |
 
 #### 3.2.4 Processing Logic
 
@@ -604,13 +607,13 @@ class CollectorAgent:
 
 #### 3.2.5 Error Handling
 
-| Error Code | Condition | Handling |
-|------------|-----------|----------|
-| COL-001 | 입력이 너무 짧음 (< 50자) | 최소 요구사항 안내 메시지 반환 |
-| COL-002 | 파일 읽기 실패 | 오류 로그, 대체 입력 요청 |
-| COL-003 | URL 접근 불가 | 오류 로그, 수동 입력 요청 |
-| COL-004 | 지원하지 않는 파일 형식 | 지원 형식 목록 안내 |
-| COL-005 | Context 한계 도달 | 입력 분할 처리 안내 |
+| Error Code | Condition                 | Handling                       |
+| ---------- | ------------------------- | ------------------------------ |
+| COL-001    | 입력이 너무 짧음 (< 50자) | 최소 요구사항 안내 메시지 반환 |
+| COL-002    | 파일 읽기 실패            | 오류 로그, 대체 입력 요청      |
+| COL-003    | URL 접근 불가             | 오류 로그, 수동 입력 요청      |
+| COL-004    | 지원하지 않는 파일 형식   | 지원 형식 목록 안내            |
+| COL-005    | Context 한계 도달         | 입력 분할 처리 안내            |
 
 ---
 
@@ -662,7 +665,7 @@ interface PRDGenerationResult {
 }
 
 interface QualityMetrics {
-  completeness: number;  // 0.0 - 1.0
+  completeness: number; // 0.0 - 1.0
   consistency: number;
   clarity: number;
   overall: number;
@@ -674,34 +677,43 @@ interface QualityMetrics {
 ```markdown
 # PRD: {Product Name}
 
-| Field | Value |
-|-------|-------|
+| Field       | Value            |
+| ----------- | ---------------- |
 | Document ID | PRD-{project_id} |
-| Version | {version} |
-| Status | Draft | Review | Approved |
-| Created | {date} |
+| Version     | {version}        |
+| Status      | Draft            | Review | Approved |
+| Created     | {date}           |
 
 ## 1. Executive Summary
+
 [자동 생성: 프로젝트 개요 1-2 문단]
 
 ## 2. Problem Statement
+
 ### 2.1 Current Challenges
+
 [수집된 정보 기반 현재 문제점]
 
 ### 2.2 Target Users
+
 [식별된 사용자 그룹]
 
 ## 3. Goals & Success Metrics
-| Goal ID | Goal | Metric | Target |
-|---------|------|--------|--------|
-| G-001 | {goal} | {metric} | {target} |
+
+| Goal ID | Goal   | Metric   | Target   |
+| ------- | ------ | -------- | -------- |
+| G-001   | {goal} | {metric} | {target} |
 
 ## 4. User Personas
+
 ### 4.1 Primary Persona
+
 [자동 생성된 페르소나]
 
 ## 5. Functional Requirements
+
 ### FR-001: {Requirement Title}
+
 - **Description**: {description}
 - **Priority**: P0 | P1 | P2 | P3
 - **Acceptance Criteria**:
@@ -711,25 +723,33 @@ interface QualityMetrics {
 - **Source**: {source reference}
 
 ## 6. Non-Functional Requirements
+
 | NFR ID | Category | Requirement | Metric |
-|--------|----------|-------------|--------|
+| ------ | -------- | ----------- | ------ |
 
 ## 7. Constraints & Assumptions
+
 ### 7.1 Constraints
+
 ### 7.2 Assumptions
 
 ## 8. Timeline & Milestones
+
 [자동 생성 또는 TBD]
 
 ## 9. Risks & Mitigations
+
 | Risk ID | Risk | Probability | Impact | Mitigation |
-|---------|------|-------------|--------|------------|
+| ------- | ---- | ----------- | ------ | ---------- |
 
 ## 10. Appendix
+
 ### 10.1 Gap Analysis
+
 [자동 식별된 누락 정보]
 
 ### 10.2 Traceability
+
 [collected_info.yaml 항목과의 매핑]
 ```
 
@@ -745,19 +765,19 @@ prd_quality_gates:
     - non_functional_requirements
 
   validation_rules:
-    - rule: "min_functional_requirements"
+    - rule: 'min_functional_requirements'
       value: 3
-      message: "최소 3개의 기능 요구사항이 필요합니다"
+      message: '최소 3개의 기능 요구사항이 필요합니다'
 
-    - rule: "all_fr_have_priority"
-      message: "모든 기능 요구사항에 우선순위가 지정되어야 합니다"
+    - rule: 'all_fr_have_priority'
+      message: '모든 기능 요구사항에 우선순위가 지정되어야 합니다'
 
-    - rule: "all_fr_have_acceptance_criteria"
+    - rule: 'all_fr_have_acceptance_criteria'
       min_criteria: 1
-      message: "각 요구사항에 최소 1개의 인수 기준이 필요합니다"
+      message: '각 요구사항에 최소 1개의 인수 기준이 필요합니다'
 
-    - rule: "unique_requirement_ids"
-      message: "요구사항 ID는 고유해야 합니다"
+    - rule: 'unique_requirement_ids'
+      message: '요구사항 ID는 고유해야 합니다'
 ```
 
 ---
@@ -802,10 +822,10 @@ interface ISRSWriterAgent {
 }
 
 interface SystemFeature {
-  id: string;        // SF-XXX
+  id: string; // SF-XXX
   name: string;
   description: string;
-  sourceRequirement: string;  // FR-XXX
+  sourceRequirement: string; // FR-XXX
   priority: Priority;
   useCases: UseCase[];
   acceptanceCriteria: string[];
@@ -813,7 +833,7 @@ interface SystemFeature {
 }
 
 interface UseCase {
-  id: string;        // UC-XXX
+  id: string; // UC-XXX
   title: string;
   actor: string;
   preconditions: string[];
@@ -829,51 +849,51 @@ interface UseCase {
 ```yaml
 srs_structure:
   sections:
-    - section: "1. Introduction"
+    - section: '1. Introduction'
       subsections:
-        - "1.1 Purpose"
-        - "1.2 Scope"
-        - "1.3 Definitions & Acronyms"
-        - "1.4 References"
+        - '1.1 Purpose'
+        - '1.2 Scope'
+        - '1.3 Definitions & Acronyms'
+        - '1.4 References'
 
-    - section: "2. Overall Description"
+    - section: '2. Overall Description'
       subsections:
-        - "2.1 Product Perspective"
-        - "2.2 Product Functions Summary"
-        - "2.3 User Classes and Characteristics"
-        - "2.4 Operating Environment"
-        - "2.5 Design and Implementation Constraints"
-        - "2.6 Assumptions and Dependencies"
+        - '2.1 Product Perspective'
+        - '2.2 Product Functions Summary'
+        - '2.3 User Classes and Characteristics'
+        - '2.4 Operating Environment'
+        - '2.5 Design and Implementation Constraints'
+        - '2.6 Assumptions and Dependencies'
 
-    - section: "3. System Features"
+    - section: '3. System Features'
       # 각 SF-XXX 별 서브섹션
       per_feature:
-        - "Description"
-        - "Use Cases"
-        - "Acceptance Criteria"
-        - "Dependencies"
+        - 'Description'
+        - 'Use Cases'
+        - 'Acceptance Criteria'
+        - 'Dependencies'
 
-    - section: "4. External Interface Requirements"
+    - section: '4. External Interface Requirements'
       subsections:
-        - "4.1 User Interfaces"
-        - "4.2 API Interfaces"
-        - "4.3 File Interfaces"
-        - "4.4 External System Interfaces"
+        - '4.1 User Interfaces'
+        - '4.2 API Interfaces'
+        - '4.3 File Interfaces'
+        - '4.4 External System Interfaces'
 
-    - section: "5. Non-Functional Requirements"
+    - section: '5. Non-Functional Requirements'
       subsections:
-        - "5.1 Performance"
-        - "5.2 Reliability"
-        - "5.3 Security"
-        - "5.4 Maintainability"
+        - '5.1 Performance'
+        - '5.2 Reliability'
+        - '5.3 Security'
+        - '5.4 Maintainability'
 
-    - section: "6. Data Requirements"
+    - section: '6. Data Requirements'
       subsections:
-        - "6.1 Data Entities"
-        - "6.2 Data Relationships"
-        - "6.3 Data Constraints"
+        - '6.1 Data Entities'
+        - '6.2 Data Relationships'
+        - '6.3 Data Constraints'
 
-    - section: "7. Traceability Matrix"
+    - section: '7. Traceability Matrix'
       # PRD → SRS 매핑
 ```
 
@@ -926,9 +946,9 @@ interface ISDSWriterAgent {
 }
 
 interface ComponentSpec {
-  id: string;           // CMP-XXX
+  id: string; // CMP-XXX
   name: string;
-  sourceFeatures: string[];  // SF-XXX
+  sourceFeatures: string[]; // SF-XXX
   responsibility: string;
   type: 'service' | 'controller' | 'repository' | 'utility' | 'agent';
 
@@ -950,8 +970,8 @@ interface ComponentSpec {
 interface APISpec {
   endpoint: string;
   method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
-  sourceUseCase: string;  // UC-XXX
-  component: string;      // CMP-XXX
+  sourceUseCase: string; // UC-XXX
+  component: string; // CMP-XXX
   request: {
     headers: Record<string, string>;
     params: ParameterSpec[];
@@ -970,48 +990,48 @@ interface APISpec {
 ```yaml
 component_types:
   agent:
-    description: "Claude Agent 기반 자율 실행 컴포넌트"
+    description: 'Claude Agent 기반 자율 실행 컴포넌트'
     characteristics:
-      - "Claude API 호출"
-      - "특정 도구 세트 사용"
-      - "독립적 실행 컨텍스트"
+      - 'Claude API 호출'
+      - '특정 도구 세트 사용'
+      - '독립적 실행 컨텍스트'
     examples:
-      - "Collector Agent"
-      - "PRD Writer Agent"
+      - 'Collector Agent'
+      - 'PRD Writer Agent'
 
   service:
-    description: "비즈니스 로직을 캡슐화한 서비스"
+    description: '비즈니스 로직을 캡슐화한 서비스'
     characteristics:
-      - "상태 비저장 (Stateless)"
-      - "단일 책임 원칙"
+      - '상태 비저장 (Stateless)'
+      - '단일 책임 원칙'
     examples:
-      - "Validation Service"
-      - "Notification Service"
+      - 'Validation Service'
+      - 'Notification Service'
 
   controller:
-    description: "요청 라우팅 및 조율"
+    description: '요청 라우팅 및 조율'
     characteristics:
-      - "입력 검증"
-      - "서비스 호출 조율"
+      - '입력 검증'
+      - '서비스 호출 조율'
     examples:
-      - "Controller Agent (orchestration)"
+      - 'Controller Agent (orchestration)'
 
   repository:
-    description: "데이터 접근 레이어"
+    description: '데이터 접근 레이어'
     characteristics:
-      - "CRUD 연산"
-      - "파일 시스템 추상화"
+      - 'CRUD 연산'
+      - '파일 시스템 추상화'
     examples:
-      - "Scratchpad Repository"
+      - 'Scratchpad Repository'
 
   utility:
-    description: "공통 유틸리티 함수"
+    description: '공통 유틸리티 함수'
     characteristics:
-      - "순수 함수"
-      - "재사용 가능"
+      - '순수 함수'
+      - '재사용 가능'
     examples:
-      - "ID Generator"
-      - "Date Formatter"
+      - 'ID Generator'
+      - 'Date Formatter'
 ```
 
 ---
@@ -1061,18 +1081,18 @@ interface IssueSpec {
   labels: string[];
   assignees: string[];
   milestone: string;
-  sourceComponent: string;  // CMP-XXX
-  sourceFeature: string;    // SF-XXX
+  sourceComponent: string; // CMP-XXX
+  sourceFeature: string; // SF-XXX
   sourceRequirement: string; // FR-XXX
   estimatedEffort: 'XS' | 'S' | 'M' | 'L' | 'XL';
-  dependencies: number[];    // Blocked by issue numbers
+  dependencies: number[]; // Blocked by issue numbers
   acceptanceCriteria: string[];
 }
 
 interface DependencyGraph {
   nodes: GraphNode[];
   edges: GraphEdge[];
-  criticalPath: string[];  // Issue IDs on critical path
+  criticalPath: string[]; // Issue IDs on critical path
 }
 ```
 
@@ -1080,48 +1100,58 @@ interface DependencyGraph {
 
 ```markdown
 ## Description
+
 {자동 생성된 작업 설명}
 
 ## Source References
+
 - **SDS Component**: CMP-XXX
 - **SRS Feature**: SF-XXX
 - **PRD Requirement**: FR-XXX
 
 ## Context
+
 {관련 아키텍처 및 설계 컨텍스트}
 
 ## Acceptance Criteria
+
 - [ ] {criterion 1}
 - [ ] {criterion 2}
 - [ ] {criterion 3}
 
 ## Technical Notes
+
 {구현 관련 기술적 가이드}
 
 ### Suggested Approach
+
 1. {step 1}
 2. {step 2}
 3. {step 3}
 
 ### Related Files
+
 - `path/to/related/file.ts`
 
 ## Dependencies
+
 - **Blocked by**: #{issue_number}
 - **Blocks**: #{issue_number}
 
 ## Estimated Effort
+
 **{XS | S | M | L | XL}**
 
 | Effort | Description | Typical Duration |
-|--------|-------------|------------------|
-| XS | < 1 hour | Trivial change |
-| S | 1-4 hours | Small feature |
-| M | 4-8 hours | Medium feature |
-| L | 1-3 days | Large feature |
-| XL | 3+ days | Complex feature |
+| ------ | ----------- | ---------------- |
+| XS     | < 1 hour    | Trivial change   |
+| S      | 1-4 hours   | Small feature    |
+| M      | 4-8 hours   | Medium feature   |
+| L      | 1-3 days    | Large feature    |
+| XL     | 3+ days     | Complex feature  |
 
 ---
+
 _Auto-generated by AD-SDLC Issue Generator Agent_
 _Labels: `ad-sdlc:auto-generated`, `priority:{P0-P3}`, `type:{feature|fix|docs}`_
 ```
@@ -1130,37 +1160,37 @@ _Labels: `ad-sdlc:auto-generated`, `priority:{P0-P3}`, `type:{feature|fix|docs}`
 
 ```yaml
 breakdown_rules:
-  max_issue_size: "L"  # XL은 분할 필요
+  max_issue_size: 'L' # XL은 분할 필요
   decomposition_criteria:
-    - name: "single_responsibility"
-      description: "하나의 이슈는 하나의 책임만"
+    - name: 'single_responsibility'
+      description: '하나의 이슈는 하나의 책임만'
 
-    - name: "testable_unit"
-      description: "독립적으로 테스트 가능한 단위"
+    - name: 'testable_unit'
+      description: '독립적으로 테스트 가능한 단위'
 
-    - name: "estimatable"
-      description: "명확하게 공수 추정 가능"
+    - name: 'estimatable'
+      description: '명확하게 공수 추정 가능'
 
   breakdown_patterns:
     service:
-      - "Interface definition"
-      - "Core implementation"
-      - "Unit tests"
-      - "Integration"
+      - 'Interface definition'
+      - 'Core implementation'
+      - 'Unit tests'
+      - 'Integration'
 
     api_endpoint:
-      - "Route definition"
-      - "Request validation"
-      - "Business logic"
-      - "Response formatting"
-      - "Error handling"
-      - "Tests"
+      - 'Route definition'
+      - 'Request validation'
+      - 'Business logic'
+      - 'Response formatting'
+      - 'Error handling'
+      - 'Tests'
 
     data_model:
-      - "Schema definition"
-      - "Validation rules"
-      - "Migration scripts"
-      - "Tests"
+      - 'Schema definition'
+      - 'Validation rules'
+      - 'Migration scripts'
+      - 'Tests'
 ```
 
 ---
@@ -1213,13 +1243,13 @@ interface IControllerAgent {
 }
 
 interface WorkOrder {
-  id: string;           // WO-XXX
+  id: string; // WO-XXX
   issueId: string;
   issueNumber: number;
   issueTitle: string;
   createdAt: Date;
   deadline?: Date;
-  priority: number;     // 1 = highest
+  priority: number; // 1 = highest
 
   assignment: {
     workerId: string;
@@ -1239,10 +1269,10 @@ interface WorkOrder {
 }
 
 interface ExecutionQueue {
-  ready: QueueItem[];      // 의존성 해결됨, 실행 가능
-  blocked: QueueItem[];    // 의존성 대기 중
+  ready: QueueItem[]; // 의존성 해결됨, 실행 가능
+  blocked: QueueItem[]; // 의존성 대기 중
   inProgress: QueueItem[]; // 현재 실행 중
-  completed: QueueItem[];  // 완료됨
+  completed: QueueItem[]; // 완료됨
 }
 ```
 
@@ -1292,7 +1322,7 @@ class PriorityCalculator:
 ```yaml
 # .ad-sdlc/scratchpad/progress/{project_id}/controller_state.yaml
 schema:
-  version: "1.0"
+  version: '1.0'
   project_id: string
   phase: planning | executing | reviewing | completed
   updated_at: datetime
@@ -1332,7 +1362,7 @@ schema:
     started_at: datetime
     estimated_completion: datetime
     current_percentage: float
-    velocity: float  # issues per hour
+    velocity: float # issues per hour
 
   bottlenecks:
     - issue_id: string
@@ -1521,21 +1551,21 @@ retry_policy:
 
   retryable_errors:
     - test_failure:
-        action: "Analyze test output, fix code, re-run"
+        action: 'Analyze test output, fix code, re-run'
     - lint_error:
-        action: "Apply auto-fix (--fix), manual fix if needed"
+        action: 'Apply auto-fix (--fix), manual fix if needed'
     - build_error:
-        action: "Check dependencies, fix type errors"
+        action: 'Check dependencies, fix type errors'
     - type_error:
-        action: "Fix type definitions, add type guards"
+        action: 'Fix type definitions, add type guards'
 
   non_retryable_errors:
     - missing_dependency:
-        action: "Report blocked, request dependency resolution"
+        action: 'Report blocked, request dependency resolution'
     - permission_denied:
-        action: "Report error, escalate"
+        action: 'Report error, escalate'
     - context_limit:
-        action: "Split task, report partial completion"
+        action: 'Split task, report partial completion'
 ```
 
 ---
@@ -1628,42 +1658,42 @@ interface QualityGateResult {
 ```yaml
 review_criteria:
   security:
-    - check: "no_hardcoded_secrets"
+    - check: 'no_hardcoded_secrets'
       severity: critical
       pattern: "(password|secret|api_key|token)\\s*[:=]\\s*['\"][^'\"]+['\"]"
 
-    - check: "no_sql_injection"
+    - check: 'no_sql_injection'
       severity: critical
       pattern: "query.*\\+.*user_input"
 
-    - check: "input_validation"
+    - check: 'input_validation'
       severity: major
-      description: "User input should be validated before use"
+      description: 'User input should be validated before use'
 
   performance:
-    - check: "no_n_plus_one"
+    - check: 'no_n_plus_one'
       severity: major
-      description: "Avoid N+1 query patterns"
+      description: 'Avoid N+1 query patterns'
 
-    - check: "proper_async"
+    - check: 'proper_async'
       severity: minor
-      description: "Use async/await properly"
+      description: 'Use async/await properly'
 
   style:
-    - check: "naming_conventions"
+    - check: 'naming_conventions'
       severity: minor
-      description: "Follow project naming conventions"
+      description: 'Follow project naming conventions'
 
-    - check: "max_function_length"
+    - check: 'max_function_length'
       severity: minor
-      threshold: 50  # lines
+      threshold: 50 # lines
 
   testing:
-    - check: "coverage_threshold"
+    - check: 'coverage_threshold'
       severity: major
-      threshold: 80  # percent
+      threshold: 80 # percent
 
-    - check: "edge_cases_covered"
+    - check: 'edge_cases_covered'
       severity: minor
 
 quality_gates:
@@ -1671,11 +1701,11 @@ quality_gates:
     - tests_pass: true
     - build_pass: true
     - no_critical_issues: true
-    - coverage: ">= 80%"
+    - coverage: '>= 80%'
 
   recommended:
     - no_major_issues: true
-    - complexity_score: "<= 10"
+    - complexity_score: '<= 10'
     - documentation_complete: true
 ```
 
@@ -1683,42 +1713,52 @@ quality_gates:
 
 ```markdown
 ## Summary
+
 {자동 생성된 변경 요약}
 
 ## Related Issue
+
 Closes #{issue_number}
 
 ## Changes
+
 {변경 사항 목록}
 
 ### Files Changed
+
 - `path/to/file1.ts` - {변경 설명}
 - `path/to/file2.ts` - {변경 설명}
 
 ## Test Results
+
 ✅ All tests passed
+
 - Coverage: {coverage}%
 - New tests: {test_count}
 
 ## Quality Checks
-| Check | Status |
-|-------|--------|
-| Tests | ✅ Passed |
-| Lint | ✅ Passed |
-| Build | ✅ Passed |
+
+| Check    | Status                 |
+| -------- | ---------------------- |
+| Tests    | ✅ Passed              |
+| Lint     | ✅ Passed              |
+| Build    | ✅ Passed              |
 | Coverage | ✅ {coverage}% (≥ 80%) |
 
 ## Source Traceability
+
 - **PRD**: FR-{xxx}
 - **SRS**: SF-{xxx}, UC-{xxx}
 - **SDS**: CMP-{xxx}
 
 ## Acceptance Criteria Verification
+
 - [x] Criterion 1
 - [x] Criterion 2
 - [x] Criterion 3
 
 ---
+
 _Auto-generated by AD-SDLC PR Review Agent_
 ```
 
@@ -1810,8 +1850,8 @@ interface LogContext {
 
 // Log Format (JSON)
 interface LogEntry {
-  timestamp: string;    // ISO 8601
-  level: string;        // DEBUG, INFO, WARN, ERROR
+  timestamp: string; // ISO 8601
+  level: string; // DEBUG, INFO, WARN, ERROR
   agent: string;
   stage: string;
   message: string;
@@ -1899,16 +1939,16 @@ interface ParsedDocument {
 }
 
 interface DocumentItem {
-  id: string;           // e.g., "FR-001", "SF-001", "CMP-001"
+  id: string; // e.g., "FR-001", "SF-001", "CMP-001"
   title: string;
   description: string;
   references: string[]; // IDs of linked items in other documents
 }
 
 interface TraceabilityMap {
-  requirements: DocumentItem[];   // PRD items
-  features: DocumentItem[];       // SRS items
-  components: DocumentItem[];     // SDS items
+  requirements: DocumentItem[]; // PRD items
+  features: DocumentItem[]; // SRS items
+  components: DocumentItem[]; // SDS items
   mappings: TraceabilityLink[];
 }
 
@@ -1945,22 +1985,22 @@ interface ICodebaseAnalyzerAgent {
 }
 
 interface ArchitectureOverview {
-  projectType: string;          // e.g., "monorepo", "single-package"
-  language: string;             // e.g., "TypeScript", "Python"
-  buildSystem: string;          // e.g., "npm", "gradle", "cmake"
+  projectType: string; // e.g., "monorepo", "single-package"
+  language: string; // e.g., "TypeScript", "Python"
+  buildSystem: string; // e.g., "npm", "gradle", "cmake"
   patterns: ArchitecturePattern[];
   conventions: CodingConvention[];
   structure: DirectoryStructure;
 }
 
 interface ArchitecturePattern {
-  name: string;                 // e.g., "MVC", "Clean Architecture", "Monolith"
-  confidence: number;           // 0.0 - 1.0
-  evidence: string[];           // File paths or patterns supporting detection
+  name: string; // e.g., "MVC", "Clean Architecture", "Monolith"
+  confidence: number; // 0.0 - 1.0
+  evidence: string[]; // File paths or patterns supporting detection
 }
 
 interface CodingConvention {
-  category: string;             // e.g., "naming", "formatting", "testing"
+  category: string; // e.g., "naming", "formatting", "testing"
   rule: string;
   examples: string[];
 }
@@ -2007,9 +2047,9 @@ interface IImpactAnalyzerAgent {
 interface ImpactReport {
   changeRequest: string;
   changeScope: 'minor' | 'moderate' | 'major' | 'breaking';
-  affectedRequirements: string[];   // FR-xxx IDs
-  affectedFeatures: string[];       // SF-xxx IDs
-  affectedComponents: string[];     // CMP-xxx IDs
+  affectedRequirements: string[]; // FR-xxx IDs
+  affectedFeatures: string[]; // SF-xxx IDs
+  affectedComponents: string[]; // CMP-xxx IDs
   affectedFiles: string[];
   riskAssessment: RiskAssessment;
   recommendations: Recommendation[];
@@ -2021,7 +2061,7 @@ interface RiskAssessment {
 }
 
 interface RiskFactor {
-  category: string;           // e.g., "breaking_change", "data_migration", "api_compatibility"
+  category: string; // e.g., "breaking_change", "data_migration", "api_compatibility"
   severity: 'low' | 'medium' | 'high';
   description: string;
   mitigation: string;
@@ -2126,7 +2166,7 @@ interface ISRSUpdaterAgent {
 interface NewFeature {
   title: string;
   description: string;
-  sourceRequirements: string[];   // FR-xxx IDs from PRD
+  sourceRequirements: string[]; // FR-xxx IDs from PRD
   useCases: NewUseCase[];
 }
 
@@ -2173,9 +2213,9 @@ interface ISDSUpdaterAgent {
 
 interface NewComponent {
   name: string;
-  sourceFeatures: string[];       // SF-xxx IDs from SRS
+  sourceFeatures: string[]; // SF-xxx IDs from SRS
   responsibility: string;
-  interfaceDefinition: string;    // TypeScript interface as string
+  interfaceDefinition: string; // TypeScript interface as string
 }
 
 interface APIDefinition {
@@ -2208,10 +2248,7 @@ interface IRegressionTesterAgent {
    * @param affectedFiles File paths from impact analysis
    * @returns Mapping of affected test files and test cases
    */
-  mapAffectedTests(
-    affectedComponents: string[],
-    affectedFiles: string[]
-  ): Promise<AffectedTestMap>;
+  mapAffectedTests(affectedComponents: string[], affectedFiles: string[]): Promise<AffectedTestMap>;
 
   /**
    * Execute the regression test suite for affected areas
@@ -2231,7 +2268,7 @@ interface IRegressionTesterAgent {
 interface AffectedTestMap {
   testFiles: string[];
   testCases: TestCaseRef[];
-  estimatedDuration: number;      // seconds
+  estimatedDuration: number; // seconds
 }
 
 interface TestCaseRef {
@@ -2245,9 +2282,9 @@ interface RegressionReport {
   passed: number;
   failed: number;
   skipped: number;
-  duration: number;               // seconds
+  duration: number; // seconds
   failures: TestFailure[];
-  coverageDelta: number;          // percentage change
+  coverageDelta: number; // percentage change
 }
 
 interface TestFailure {
@@ -2286,10 +2323,7 @@ interface IDocCodeComparatorAgent {
    * @param codeInventory Code inventory from Code Reader
    * @returns Gap report with discrepancies and recommendations
    */
-  compareSpecs(
-    currentState: TraceabilityMap,
-    codeInventory: CodeInventory
-  ): Promise<GapReport>;
+  compareSpecs(currentState: TraceabilityMap, codeInventory: CodeInventory): Promise<GapReport>;
 
   /**
    * Generate a detailed gap report with prioritized action items
@@ -2316,8 +2350,8 @@ interface GapSummary {
 
 interface Gap {
   type: 'missing_implementation' | 'spec_drift' | 'undocumented_feature' | 'stale_spec';
-  specId?: string;              // Document item ID if applicable
-  filePath?: string;            // Source file if applicable
+  specId?: string; // Document item ID if applicable
+  filePath?: string; // Source file if applicable
   description: string;
   severity: 'low' | 'medium' | 'high';
 }
@@ -2444,10 +2478,7 @@ interface ICIFixerAgent {
    * @param failureType Type of CI failure
    * @returns Diagnosis with root cause and suggested fixes
    */
-  diagnoseCIFailure(
-    ciLog: string,
-    failureType: CIFailureType
-  ): Promise<CIDiagnosis>;
+  diagnoseCIFailure(ciLog: string, failureType: CIFailureType): Promise<CIDiagnosis>;
 
   /**
    * Apply an automated fix for a diagnosed CI failure
@@ -2464,14 +2495,14 @@ interface CIDiagnosis {
   rootCause: string;
   affectedFiles: string[];
   suggestedFixes: SuggestedFix[];
-  confidence: number;             // 0.0 - 1.0
+  confidence: number; // 0.0 - 1.0
 }
 
 interface SuggestedFix {
   description: string;
   filePath: string;
   changeType: 'edit' | 'add' | 'delete';
-  preview: string;                // Diff or code snippet
+  preview: string; // Diff or code snippet
 }
 
 interface CIFixResult {
@@ -2505,12 +2536,12 @@ interface IModeDetectorAgent {
 
 interface ModeDetectionResult {
   mode: 'greenfield' | 'enhancement';
-  confidence: number;             // 0.0 - 1.0
+  confidence: number; // 0.0 - 1.0
   evidence: ModeEvidence[];
 }
 
 interface ModeEvidence {
-  factor: string;                 // e.g., "existing_source_code", "ad_sdlc_directory", "git_history"
+  factor: string; // e.g., "existing_source_code", "ad_sdlc_directory", "git_history"
   detected: boolean;
   weight: number;
   details: string;
@@ -2624,8 +2655,8 @@ interface PipelineResult {
   mode: 'greenfield' | 'enhancement';
   stages: StageResult[];
   overallStatus: 'completed' | 'failed' | 'partial';
-  duration: number;               // seconds
-  artifacts: string[];            // Generated file paths
+  duration: number; // seconds
+  artifacts: string[]; // Generated file paths
 }
 
 interface StageResult {
@@ -2697,9 +2728,9 @@ interface OrchestratorSession {
 
 ```typescript
 interface ArtifactSpec {
-  readonly pathPattern: string;   // Glob 패턴 (* 와일드카드 지원)
-  readonly description: string;   // 사람이 읽을 수 있는 레이블
-  readonly required: boolean;     // 다운스트림 단계에 필수 여부
+  readonly pathPattern: string; // Glob 패턴 (* 와일드카드 지원)
+  readonly description: string; // 사람이 읽을 수 있는 레이블
+  readonly required: boolean; // 다운스트림 단계에 필수 여부
 }
 
 interface ValidationResult {
@@ -2718,6 +2749,7 @@ interface ValidationResult {
 4. 제거된 단계는 일반 파이프라인 흐름에서 재실행
 
 아티팩트 맵은 파이프라인 모드별로 정의됩니다:
+
 - **Greenfield**: initialization, collection, prd/srs/sds_generation, issue_generation
 - **Enhancement**: document_reading, codebase_analysis, code_reading, 비교, 업데이트, issue_generation
 - **Import**: 아티팩트 전제 조건 없음 (빈 맵 반환)
@@ -2747,7 +2779,7 @@ interface AnalysisPipelineResult {
   codeInventory: CodeInventory;
   gapReport: GapReport;
   impactReport: ImpactReport;
-  generatedIssues: number[];      // GitHub issue numbers
+  generatedIssues: number[]; // GitHub issue numbers
   recommendedActions: Recommendation[];
 }
 ```
@@ -2814,10 +2846,7 @@ interface IIssueReaderAgent {
    * @param options 가져오기 필터 옵션
    * @returns 가져온 이슈 목록 및 의존성 그래프
    */
-  importIssues(
-    repoUrl: string,
-    options: IssueImportOptions
-  ): Promise<IssueImportResult>;
+  importIssues(repoUrl: string, options: IssueImportOptions): Promise<IssueImportResult>;
 }
 
 interface IssueImportOptions {
@@ -2876,21 +2905,22 @@ interface ImportedIssue {
 
 **Purpose**: 파일 작업, 명령 실행, 입력 검증, 감사 로깅을 위한 심층 방어 보안 유틸리티를 제공합니다.
 
-| Component | Responsibility | Singleton Access |
-|-----------|---------------|------------------|
-| `CommandSanitizer` | 셸 명령 검증, 인젝션 공격 방지 | `getCommandSanitizer()` |
-| `CommandWhitelist` | 허용 명령 목록과 인자 패턴 유지 | `DEFAULT_COMMAND_WHITELIST` |
-| `InputValidator` | 사용자 입력 검증 (URL, 파일 경로, 텍스트) | `new InputValidator()` |
-| `PathSanitizer` | 경로 순회 공격 방지 (예: `../../etc/passwd`) | `new PathSanitizer()` |
-| `PathResolver` | 보안 검증이 포함된 프로젝트 인식 경로 해석 | `new PathResolver()` |
-| `SymlinkResolver` | 정책 기반 안전한 심볼릭 링크 처리 | `new SymlinkResolver()` |
-| `SecureFileOps` | 중앙 집중식 보안 파일 읽기/쓰기/mkdir 작업 | `getSecureFileOps()` |
-| `SecureFileHandler` | 무결성 검증이 포함된 파일 감시 | `getSecureFileHandler()` |
-| `AuditLogger` | 보안 관련 작업의 불변 감사 추적 | `getAuditLogger()` |
-| `RateLimiter` | API 호출을 위한 토큰 버킷 속도 제한 | `new RateLimiter()` |
-| `SecretManager` | 플러그인 백엔드 기반 보안 비밀 관리 | `getSecretManager()` |
+| Component           | Responsibility                               | Singleton Access            |
+| ------------------- | -------------------------------------------- | --------------------------- |
+| `CommandSanitizer`  | 셸 명령 검증, 인젝션 공격 방지               | `getCommandSanitizer()`     |
+| `CommandWhitelist`  | 허용 명령 목록과 인자 패턴 유지              | `DEFAULT_COMMAND_WHITELIST` |
+| `InputValidator`    | 사용자 입력 검증 (URL, 파일 경로, 텍스트)    | `new InputValidator()`      |
+| `PathSanitizer`     | 경로 순회 공격 방지 (예: `../../etc/passwd`) | `new PathSanitizer()`       |
+| `PathResolver`      | 보안 검증이 포함된 프로젝트 인식 경로 해석   | `new PathResolver()`        |
+| `SymlinkResolver`   | 정책 기반 안전한 심볼릭 링크 처리            | `new SymlinkResolver()`     |
+| `SecureFileOps`     | 중앙 집중식 보안 파일 읽기/쓰기/mkdir 작업   | `getSecureFileOps()`        |
+| `SecureFileHandler` | 무결성 검증이 포함된 파일 감시               | `getSecureFileHandler()`    |
+| `AuditLogger`       | 보안 관련 작업의 불변 감사 추적              | `getAuditLogger()`          |
+| `RateLimiter`       | API 호출을 위한 토큰 버킷 속도 제한          | `new RateLimiter()`         |
+| `SecretManager`     | 플러그인 백엔드 기반 보안 비밀 관리          | `getSecretManager()`        |
 
 **핵심 설계 결정**:
+
 - 모든 파일 작업은 경로 검증을 위해 `SecureFileOps`를 통해 라우팅
 - 명령은 실행 전 `CommandWhitelist`로 검증
 - `AuditLogger`는 변조 방지 로깅으로 모든 보안 관련 이벤트를 기록
@@ -2901,24 +2931,25 @@ interface ImportedIssue {
 **Purpose**: 전체 파이프라인에 걸쳐 관측성, 토큰 예산 관리, 성능 튜닝,
 알림 기능을 제공합니다.
 
-| Component | Responsibility | Singleton Access |
-|-----------|---------------|------------------|
-| `MetricsCollector` | 에이전트/스테이지별 카운터, 게이지, 히스토그램 메트릭 수집 | `getMetricsCollector()` |
-| `AlertManager` | 알림 조건 평가, 핸들러 트리거, 에스컬레이션 지원 | `getAlertManager()` |
-| `TokenBudgetManager` | 에이전트별 및 파이프라인별 토큰 예산 시행 | `getTokenBudgetManager()` |
-| `AgentBudgetRegistry` | 에이전트 예산 설정 등록, 에이전트 간 예산 이전 지원 | `getAgentBudgetRegistry()` |
-| `BudgetAggregator` | 에이전트/카테고리별 사용량 집계, 최적화 제안 생성 | `getBudgetAggregator()` |
-| `ContextPruner` | 토큰 제한에 맞게 대화 컨텍스트 정리 | `createContextPruner()` |
-| `ModelSelector` | 태스크 복잡도 기반 최적 모델 (Opus/Sonnet/Haiku) 선택 | `getModelSelector()` |
-| `QueryCache` | TTL 만료 기반 반복 LLM 쿼리용 LRU 캐시 | `getQueryCache()` |
-| `TokenUsageReport` | 추세 분석 및 추천이 포함된 사용량 보고서 생성 | `createTokenUsageReport()` |
-| `ParallelExecutionTuner` | 시스템 자원 기반 워커 풀 크기 동적 조정 | `getParallelExecutionTuner()` |
-| `LatencyOptimizer` | 에이전트 응답 지연 추적 및 워밍업 최적화 | `getLatencyOptimizer()` |
-| `ResponseTimeBenchmarks` | 파이프라인 스테이지별 성능 벤치마크 정의 및 검증 | `getResponseTimeBenchmarks()` |
-| `DashboardDataProvider` | 모니터링 대시보드용 집계 데이터 제공 | `getDashboardDataProvider()` |
-| `OpenTelemetryProvider` | 분산 추적을 위한 OpenTelemetry SDK 통합 | `getOpenTelemetryProvider()` |
+| Component                | Responsibility                                             | Singleton Access              |
+| ------------------------ | ---------------------------------------------------------- | ----------------------------- |
+| `MetricsCollector`       | 에이전트/스테이지별 카운터, 게이지, 히스토그램 메트릭 수집 | `getMetricsCollector()`       |
+| `AlertManager`           | 알림 조건 평가, 핸들러 트리거, 에스컬레이션 지원           | `getAlertManager()`           |
+| `TokenBudgetManager`     | 에이전트별 및 파이프라인별 토큰 예산 시행                  | `getTokenBudgetManager()`     |
+| `AgentBudgetRegistry`    | 에이전트 예산 설정 등록, 에이전트 간 예산 이전 지원        | `getAgentBudgetRegistry()`    |
+| `BudgetAggregator`       | 에이전트/카테고리별 사용량 집계, 최적화 제안 생성          | `getBudgetAggregator()`       |
+| `ContextPruner`          | 토큰 제한에 맞게 대화 컨텍스트 정리                        | `createContextPruner()`       |
+| `ModelSelector`          | 태스크 복잡도 기반 최적 모델 (Opus/Sonnet/Haiku) 선택      | `getModelSelector()`          |
+| `QueryCache`             | TTL 만료 기반 반복 LLM 쿼리용 LRU 캐시                     | `getQueryCache()`             |
+| `TokenUsageReport`       | 추세 분석 및 추천이 포함된 사용량 보고서 생성              | `createTokenUsageReport()`    |
+| `ParallelExecutionTuner` | 시스템 자원 기반 워커 풀 크기 동적 조정                    | `getParallelExecutionTuner()` |
+| `LatencyOptimizer`       | 에이전트 응답 지연 추적 및 워밍업 최적화                   | `getLatencyOptimizer()`       |
+| `ResponseTimeBenchmarks` | 파이프라인 스테이지별 성능 벤치마크 정의 및 검증           | `getResponseTimeBenchmarks()` |
+| `DashboardDataProvider`  | 모니터링 대시보드용 집계 데이터 제공                       | `getDashboardDataProvider()`  |
+| `OpenTelemetryProvider`  | 분산 추적을 위한 OpenTelemetry SDK 통합                    | `getOpenTelemetryProvider()`  |
 
 **핵심 설계 결정**:
+
 - `ModelSelector`는 태스크 복잡도 분석을 통해 Opus(복잡), Sonnet(표준), Haiku(단순) 모델 선택
 - `ParallelExecutionTuner`는 workflow.yaml의 `max_parallel: 5` 제약을 준수하면서 처리량 최적화
 - `TokenBudgetManager`는 계층형 예산 지원 (전역 → 파이프라인 → 카테고리 → 에이전트)
@@ -2942,11 +2973,12 @@ withTracedAgent<T>(name: string, fn: () => T): T
 
 **Purpose**: 엄격한 프라이버시 제어와 함께 선택적(opt-in) 익명 사용 분석을 제공합니다.
 
-| Component | Responsibility | Singleton Access |
-|-----------|---------------|------------------|
+| Component   | Responsibility                                       | Singleton Access |
+| ----------- | ---------------------------------------------------- | ---------------- |
 | `Telemetry` | 동의 관리 및 이벤트 배칭 기능의 핵심 텔레메트리 엔진 | `getTelemetry()` |
 
 **프라이버시 우선 설계**:
+
 - **명시적 옵트인**: 사용자 동의 없이 데이터 수집 불가
 - **동의 기록**: 동의 상태, 타임스탬프, 정책 버전 저장
 - **이벤트 유형**: `command_executed`, `pipeline_completed`, `agent_invoked`, `feature_used`
@@ -2957,8 +2989,8 @@ withTracedAgent<T>(name: string, fn: () => T): T
 ```typescript
 interface TelemetryEvent {
   type: TelemetryEventType;
-  timestamp: string;          // ISO 8601
-  sessionId: string;          // 익명 세션 ID
+  timestamp: string; // ISO 8601
+  sessionId: string; // 익명 세션 ID
   properties: Record<string, unknown>;
 }
 ```
@@ -3003,28 +3035,21 @@ interface IAgentDefinitionValidator {
    * @param options 검증 옵션
    * @returns 오류 및 경고가 포함된 검증 결과
    */
-  validateAgentFile(
-    filePath: string,
-    options?: ValidateAgentOptions
-  ): AgentValidationResult;
+  validateAgentFile(filePath: string, options?: ValidateAgentOptions): AgentValidationResult;
 
   /**
    * 디렉토리 내 모든 에이전트 정의 파일 검증
    * @param options 디렉토리 경로를 포함한 검증 옵션
    * @returns 일괄 검증 보고서
    */
-  validateAllAgents(
-    options?: ValidateAgentOptions
-  ): AgentValidationReport;
+  validateAllAgents(options?: ValidateAgentOptions): AgentValidationReport;
 
   /**
    * 검증 보고서를 사람이 읽을 수 있는 문자열로 포맷
    * @param report 포맷할 검증 보고서
    * @returns 포맷된 보고서 문자열
    */
-  formatValidationReport(
-    report: AgentValidationReport
-  ): string;
+  formatValidationReport(report: AgentValidationReport): string;
 }
 
 interface ValidateAgentOptions {
@@ -3084,10 +3109,7 @@ interface IArchitectureGenerator extends IAgent {
    * @param options 생성 옵션
    * @returns 완전한 아키텍처 설계
    */
-  generateFromFile(
-    srsPath: string,
-    options?: ArchitectureGeneratorOptions
-  ): ArchitectureDesign;
+  generateFromFile(srsPath: string, options?: ArchitectureGeneratorOptions): ArchitectureDesign;
 
   /**
    * 아키텍처를 생성하고 디스크에 저장
@@ -3164,10 +3186,7 @@ interface IComponentGenerator extends IAgent {
    * @param options 생성 옵션
    * @returns 완전한 컴포넌트 설계
    */
-  generate(
-    srs: ParsedSRS,
-    options?: ComponentGeneratorOptions
-  ): ComponentDesign;
+  generate(srs: ParsedSRS, options?: ComponentGeneratorOptions): ComponentDesign;
 
   /**
    * 컴포넌트 설계를 생성하고 디스크에 저장
@@ -3187,9 +3206,7 @@ interface IComponentGenerator extends IAgent {
    * @param design 컴포넌트 설계
    * @returns TypeScript 인터페이스 선언
    */
-  generateTypeScriptInterfaces(
-    design: ComponentDesign
-  ): string;
+  generateTypeScriptInterfaces(design: ComponentDesign): string;
 }
 
 interface ComponentDesign {
@@ -3256,10 +3273,7 @@ interface IMetricsCollector {
    * @param agentId 에이전트 식별자
    * @param metrics 호출 메트릭 (토큰, 지속시간, 상태)
    */
-  recordAgentInvocation(
-    agentId: string,
-    metrics: AgentInvocationMetrics
-  ): void;
+  recordAgentInvocation(agentId: string, metrics: AgentInvocationMetrics): void;
 
   /**
    * 파이프라인 단계 메트릭 기록
@@ -3284,10 +3298,7 @@ interface ITokenBudgetManager {
    * @param usage 토큰 사용 데이터 (입력, 출력, 모델)
    * @returns 남은 토큰 및 경고가 포함된 예산 상태
    */
-  trackUsage(
-    agentId: string,
-    usage: TokenUsage
-  ): BudgetStatus;
+  trackUsage(agentId: string, usage: TokenUsage): BudgetStatus;
 
   /**
    * 에이전트 또는 세션의 남은 예산 조회
@@ -3304,10 +3315,7 @@ interface IModelSelector {
    * @param constraints 예산 및 지연시간 제약
    * @returns 근거가 포함된 모델 권장
    */
-  selectModel(
-    task: TaskCharacteristics,
-    constraints: ModelConstraints
-  ): ModelRecommendation;
+  selectModel(task: TaskCharacteristics, constraints: ModelConstraints): ModelRecommendation;
 }
 
 interface IAlertManager {
@@ -3738,7 +3746,7 @@ storage: .ad-sdlc/scratchpad/projects/{project_id}/project.yaml
 fields:
   - name: id
     type: string
-    format: "PRJ-XXXXXX"
+    format: 'PRJ-XXXXXX'
     primary_key: true
     auto_generate: true
 
@@ -3755,7 +3763,17 @@ fields:
 
   - name: status
     type: enum
-    values: [collecting, prd_drafting, srs_drafting, sds_drafting, issue_creating, executing, completed, failed]
+    values:
+      [
+        collecting,
+        prd_drafting,
+        srs_drafting,
+        sds_drafting,
+        issue_creating,
+        executing,
+        completed,
+        failed,
+      ]
 
   - name: created_at
     type: datetime
@@ -3768,7 +3786,7 @@ fields:
   - name: documents
     type: object
     schema:
-      prd: string  # File path
+      prd: string # File path
       srs: string
       sds: string
 
@@ -3793,7 +3811,7 @@ storage: .ad-sdlc/scratchpad/progress/{project_id}/work_orders/WO-{id}.yaml
 fields:
   - name: id
     type: string
-    format: "WO-XXXXXX"
+    format: 'WO-XXXXXX'
     primary_key: true
 
   - name: project_id
@@ -3821,7 +3839,7 @@ fields:
     schema:
       worker_id: string
       assigned_at: datetime
-      deadline: datetime  # Optional
+      deadline: datetime # Optional
 
   - name: context
     type: object
@@ -3850,15 +3868,15 @@ indexes:
 
 ### 4.3 Data Access Patterns
 
-| Operation | Frequency | Path Pattern | Format |
-|-----------|-----------|--------------|--------|
-| Read collected info | Per PRD generation | `scratchpad/info/{id}/collected_info.yaml` | YAML |
-| Write document | Per agent stage | `scratchpad/documents/{id}/*.md` | Markdown |
-| Read previous document | Per agent stage | `scratchpad/documents/{id}/*.md` | Markdown |
-| Write issue list | Once per project | `scratchpad/issues/{id}/issue_list.json` | JSON |
-| Read/Write controller state | Every 30s | `scratchpad/progress/{id}/controller_state.yaml` | YAML |
-| Write work order | Per assignment | `scratchpad/progress/{id}/work_orders/WO-*.yaml` | YAML |
-| Write implementation result | Per completion | `scratchpad/progress/{id}/results/WO-*-result.yaml` | YAML |
+| Operation                   | Frequency          | Path Pattern                                        | Format   |
+| --------------------------- | ------------------ | --------------------------------------------------- | -------- |
+| Read collected info         | Per PRD generation | `scratchpad/info/{id}/collected_info.yaml`          | YAML     |
+| Write document              | Per agent stage    | `scratchpad/documents/{id}/*.md`                    | Markdown |
+| Read previous document      | Per agent stage    | `scratchpad/documents/{id}/*.md`                    | Markdown |
+| Write issue list            | Once per project   | `scratchpad/issues/{id}/issue_list.json`            | JSON     |
+| Read/Write controller state | Every 30s          | `scratchpad/progress/{id}/controller_state.yaml`    | YAML     |
+| Write work order            | Per assignment     | `scratchpad/progress/{id}/work_orders/WO-*.yaml`    | YAML     |
+| Write implementation result | Per completion     | `scratchpad/progress/{id}/results/WO-*-result.yaml` | YAML     |
 
 ### 4.4 Data Validation Rules
 
@@ -3866,29 +3884,29 @@ indexes:
 validation_rules:
   requirement_id:
     pattern: "^(FR|NFR)-\\d{3}$"
-    message: "ID must follow FR-XXX or NFR-XXX format"
+    message: 'ID must follow FR-XXX or NFR-XXX format'
 
   feature_id:
     pattern: "^SF-\\d{3}$"
-    message: "ID must follow SF-XXX format"
+    message: 'ID must follow SF-XXX format'
 
   component_id:
     pattern: "^CMP-\\d{3}$"
-    message: "ID must follow CMP-XXX format"
+    message: 'ID must follow CMP-XXX format'
 
   priority:
     enum: [P0, P1, P2, P3]
-    message: "Priority must be P0, P1, P2, or P3"
+    message: 'Priority must be P0, P1, P2, or P3'
 
   effort:
     enum: [XS, S, M, L, XL]
-    message: "Effort must be XS, S, M, L, or XL"
+    message: 'Effort must be XS, S, M, L, or XL'
 
   coverage:
     type: number
     min: 0
     max: 100
-    message: "Coverage must be between 0 and 100"
+    message: 'Coverage must be between 0 and 100'
 ```
 
 ---
@@ -3904,27 +3922,27 @@ communication_patterns:
   document_pipeline:
     producer: collector
     consumer: prd-writer
-    channel: ".ad-sdlc/scratchpad/info/{project_id}/collected_info.yaml"
+    channel: '.ad-sdlc/scratchpad/info/{project_id}/collected_info.yaml'
     format: YAML
     schema: CollectedInfo
 
   prd_to_srs:
     producer: prd-writer
     consumer: srs-writer
-    channel: ".ad-sdlc/scratchpad/documents/{project_id}/prd.md"
+    channel: '.ad-sdlc/scratchpad/documents/{project_id}/prd.md'
     format: Markdown
 
   work_assignment:
     producer: controller
     consumer: worker
-    channel: ".ad-sdlc/scratchpad/progress/{project_id}/work_orders/WO-{id}.yaml"
+    channel: '.ad-sdlc/scratchpad/progress/{project_id}/work_orders/WO-{id}.yaml'
     format: YAML
     schema: WorkOrder
 
   result_reporting:
     producer: worker
     consumer: controller, pr-reviewer
-    channel: ".ad-sdlc/scratchpad/progress/{project_id}/results/WO-{id}-result.yaml"
+    channel: '.ad-sdlc/scratchpad/progress/{project_id}/results/WO-{id}-result.yaml'
     format: YAML
     schema: ImplementationResult
 ```
@@ -3976,7 +3994,7 @@ type ModelType = 'sonnet' | 'opus' | 'haiku';
 interface AgentResult {
   success: boolean;
   output: string;
-  artifacts: string[];  // 생성된 파일 경로
+  artifacts: string[]; // 생성된 파일 경로
   error?: string;
 }
 ```
@@ -4045,8 +4063,8 @@ interface GitHubPRAPI {
 interface CreatePRParams {
   title: string;
   body: string;
-  base: string;     // 기본: main
-  head: string;     // 피처 브랜치
+  base: string; // 기본: main
+  head: string; // 피처 브랜치
   draft?: boolean;
   labels?: string[];
 }
@@ -4059,33 +4077,33 @@ type MergeStrategy = 'merge' | 'squash' | 'rebase';
 ```yaml
 cli_commands:
   init:
-    description: "AD-SDLC 프로젝트 초기화"
-    usage: "claude ad-sdlc init [project-name]"
+    description: 'AD-SDLC 프로젝트 초기화'
+    usage: 'claude ad-sdlc init [project-name]'
     creates:
-      - ".ad-sdlc/scratchpad/"
-      - ".ad-sdlc/config/"
-      - ".claude/agents/"
+      - '.ad-sdlc/scratchpad/'
+      - '.ad-sdlc/config/'
+      - '.claude/agents/'
 
   start:
-    description: "새 요구사항으로 파이프라인 시작"
-    usage: "claude ad-sdlc start [--file <path>] [--url <url>]"
+    description: '새 요구사항으로 파이프라인 시작'
+    usage: 'claude ad-sdlc start [--file <path>] [--url <url>]'
     options:
-      - "--file: 입력 파일 경로"
-      - "--url: 입력 URL"
-      - "--skip-approval: 승인 게이트 스킵"
+      - '--file: 입력 파일 경로'
+      - '--url: 입력 URL'
+      - '--skip-approval: 승인 게이트 스킵'
 
   status:
-    description: "현재 진행 상황 확인"
-    usage: "claude ad-sdlc status [project-id]"
-    output: "Progress report"
+    description: '현재 진행 상황 확인'
+    usage: 'claude ad-sdlc status [project-id]'
+    output: 'Progress report'
 
   resume:
-    description: "중단된 프로젝트 재개"
-    usage: "claude ad-sdlc resume <project-id>"
+    description: '중단된 프로젝트 재개'
+    usage: 'claude ad-sdlc resume <project-id>'
 
   logs:
-    description: "에이전트 로그 조회"
-    usage: "claude ad-sdlc logs [--agent <agent-id>] [--level <level>]"
+    description: '에이전트 로그 조회'
+    usage: 'claude ad-sdlc logs [--agent <agent-id>] [--level <level>]'
 ```
 
 ---
@@ -4099,42 +4117,42 @@ cli_commands:
 ```yaml
 github_auth:
   methods:
-    - type: "oauth"
-      description: "GitHub OAuth 토큰"
-      storage: "환경 변수 (GITHUB_TOKEN)"
-      scope: ["repo", "read:org"]
+    - type: 'oauth'
+      description: 'GitHub OAuth 토큰'
+      storage: '환경 변수 (GITHUB_TOKEN)'
+      scope: ['repo', 'read:org']
 
-    - type: "gh_cli"
-      description: "GitHub CLI 인증"
-      command: "gh auth login"
-      storage: "~/.config/gh/hosts.yml"
+    - type: 'gh_cli'
+      description: 'GitHub CLI 인증'
+      command: 'gh auth login'
+      storage: '~/.config/gh/hosts.yml'
 
   token_handling:
-    - rule: "never_log_token"
-      description: "토큰은 로그에 기록하지 않음"
+    - rule: 'never_log_token'
+      description: '토큰은 로그에 기록하지 않음'
 
-    - rule: "environment_only"
-      description: "토큰은 환경 변수에만 저장"
+    - rule: 'environment_only'
+      description: '토큰은 환경 변수에만 저장'
 
-    - rule: "mask_in_output"
-      pattern: "ghp_[a-zA-Z0-9]{36}"
-      replacement: "ghp_****"
+    - rule: 'mask_in_output'
+      pattern: 'ghp_[a-zA-Z0-9]{36}'
+      replacement: 'ghp_****'
 ```
 
 #### 6.1.2 Claude API Authentication
 
 ```yaml
 claude_auth:
-  method: "api_key"
-  storage: "환경 변수 (ANTHROPIC_API_KEY)"
+  method: 'api_key'
+  storage: '환경 변수 (ANTHROPIC_API_KEY)'
 
   validation:
-    - check: "key_format"
-      pattern: "^sk-ant-[a-zA-Z0-9-]+$"
+    - check: 'key_format'
+      pattern: '^sk-ant-[a-zA-Z0-9-]+$'
 
   masking:
-    pattern: "sk-ant-[a-zA-Z0-9-]+"
-    replacement: "sk-ant-****"
+    pattern: 'sk-ant-[a-zA-Z0-9-]+'
+    replacement: 'sk-ant-****'
 ```
 
 ### 6.2 Authorization
@@ -4143,38 +4161,38 @@ claude_auth:
 authorization:
   github_operations:
     issue_create:
-      required_permissions: ["repo"]
-      check: "can_push_to_repo"
+      required_permissions: ['repo']
+      check: 'can_push_to_repo'
 
     pr_create:
-      required_permissions: ["repo"]
-      check: "can_create_pr"
+      required_permissions: ['repo']
+      check: 'can_create_pr'
 
     pr_merge:
-      required_permissions: ["repo"]
-      check: "can_merge_pr"
+      required_permissions: ['repo']
+      check: 'can_merge_pr'
 
   file_operations:
     read:
-      scope: "project_directory"
+      scope: 'project_directory'
       allow_patterns:
-        - "src/**"
-        - "tests/**"
-        - ".ad-sdlc/**"
-        - "docs/**"
+        - 'src/**'
+        - 'tests/**'
+        - '.ad-sdlc/**'
+        - 'docs/**'
 
     write:
-      scope: "project_directory"
+      scope: 'project_directory'
       allow_patterns:
-        - "src/**"
-        - "tests/**"
-        - ".ad-sdlc/scratchpad/**"
-        - "docs/**"
+        - 'src/**'
+        - 'tests/**'
+        - '.ad-sdlc/scratchpad/**'
+        - 'docs/**'
       deny_patterns:
-        - "**/.env*"
-        - "**/secrets*"
-        - "**/*.key"
-        - "**/*.pem"
+        - '**/.env*'
+        - '**/secrets*'
+        - '**/*.key'
+        - '**/*.pem'
 ```
 
 ### 6.3 Data Protection
@@ -4182,37 +4200,37 @@ authorization:
 ```yaml
 data_protection:
   sensitive_patterns:
-    - name: "api_key"
+    - name: 'api_key'
       pattern: "(api[_-]?key|apikey)\\s*[:=]\\s*['\"][^'\"]+['\"]"
-      action: "mask"
+      action: 'mask'
 
-    - name: "password"
+    - name: 'password'
       pattern: "(password|passwd|pwd)\\s*[:=]\\s*['\"][^'\"]+['\"]"
-      action: "mask"
+      action: 'mask'
 
-    - name: "token"
+    - name: 'token'
       pattern: "(token|bearer|auth)\\s*[:=]\\s*['\"][^'\"]+['\"]"
-      action: "mask"
+      action: 'mask'
 
-    - name: "connection_string"
+    - name: 'connection_string'
       pattern: "(mongodb|postgres|mysql|redis)://[^\\s]+"
-      action: "mask"
+      action: 'mask'
 
   code_generation_rules:
-    - rule: "no_hardcoded_secrets"
-      description: "생성된 코드에 하드코딩된 시크릿 금지"
-      enforcement: "PR review check"
+    - rule: 'no_hardcoded_secrets'
+      description: '생성된 코드에 하드코딩된 시크릿 금지'
+      enforcement: 'PR review check'
 
-    - rule: "use_environment_variables"
-      description: "민감한 값은 환경 변수 사용"
-      template: "process.env.{SECRET_NAME}"
+    - rule: 'use_environment_variables'
+      description: '민감한 값은 환경 변수 사용'
+      template: 'process.env.{SECRET_NAME}'
 
   logging_rules:
-    - rule: "mask_sensitive_data"
-      description: "로그에서 민감 데이터 마스킹"
+    - rule: 'mask_sensitive_data'
+      description: '로그에서 민감 데이터 마스킹'
 
-    - rule: "no_full_request_body"
-      description: "전체 요청 본문 로깅 금지"
+    - rule: 'no_full_request_body'
+      description: '전체 요청 본문 로깅 금지'
 ```
 
 ### 6.4 Input Validation
@@ -4220,30 +4238,30 @@ data_protection:
 ```yaml
 input_validation:
   user_input:
-    - type: "natural_language"
-      max_length: 50000  # characters
+    - type: 'natural_language'
+      max_length: 50000 # characters
       sanitize: true
 
-    - type: "file_path"
+    - type: 'file_path'
       validate:
-        - "path_traversal_check"
-        - "allowed_extensions"
-      allowed_extensions: [".md", ".pdf", ".docx", ".txt", ".yaml", ".json"]
+        - 'path_traversal_check'
+        - 'allowed_extensions'
+      allowed_extensions: ['.md', '.pdf', '.docx', '.txt', '.yaml', '.json']
 
-    - type: "url"
+    - type: 'url'
       validate:
-        - "url_format"
-        - "allowed_protocols"
-      allowed_protocols: ["http", "https"]
+        - 'url_format'
+        - 'allowed_protocols'
+      allowed_protocols: ['http', 'https']
 
   code_injection_prevention:
     bash_commands:
-      - sanitize: "shell_escape"
+      - sanitize: 'shell_escape'
       - deny_patterns:
-          - "rm -rf"
-          - "; rm"
-          - "| rm"
-          - "`rm"
+          - 'rm -rf'
+          - '; rm'
+          - '| rm'
+          - '`rm'
 ```
 
 ---
@@ -4310,27 +4328,27 @@ input_validation:
 ```yaml
 environments:
   development:
-    description: "로컬 개발 환경"
+    description: '로컬 개발 환경'
     configuration:
-      log_level: "DEBUG"
+      log_level: 'DEBUG'
       approval_gates: true
       max_workers: 2
       retry_attempts: 3
       mock_github: false
 
   testing:
-    description: "테스트 환경"
+    description: '테스트 환경'
     configuration:
-      log_level: "INFO"
-      approval_gates: false  # 자동 승인
+      log_level: 'INFO'
+      approval_gates: false # 자동 승인
       max_workers: 1
       retry_attempts: 1
       mock_github: true
 
   production:
-    description: "실제 사용 환경"
+    description: '실제 사용 환경'
     configuration:
-      log_level: "INFO"
+      log_level: 'INFO'
       approval_gates: true
       max_workers: 5
       retry_attempts: 3
@@ -4343,19 +4361,19 @@ environments:
 # .ad-sdlc/config/workflow.yaml
 configuration_hierarchy:
   1_defaults:
-    source: "Built-in defaults"
+    source: 'Built-in defaults'
     priority: lowest
 
   2_global:
-    source: "~/.config/claude-code/ad-sdlc.yaml"
+    source: '~/.config/claude-code/ad-sdlc.yaml'
     priority: medium
 
   3_project:
-    source: ".ad-sdlc/config/workflow.yaml"
+    source: '.ad-sdlc/config/workflow.yaml'
     priority: high
 
   4_environment:
-    source: "Environment variables (AD_SDLC_*)"
+    source: 'Environment variables (AD_SDLC_*)'
     priority: highest
 
 environment_variables:
@@ -4392,35 +4410,35 @@ environment_variables:
 ```yaml
 error_categories:
   transient:
-    description: "일시적 오류, 재시도로 복구 가능"
+    description: '일시적 오류, 재시도로 복구 가능'
     examples:
-      - "Network timeout"
-      - "Rate limit exceeded"
-      - "Service temporarily unavailable"
-    handling: "Retry with exponential backoff"
+      - 'Network timeout'
+      - 'Rate limit exceeded'
+      - 'Service temporarily unavailable'
+    handling: 'Retry with exponential backoff'
 
   permanent:
-    description: "영구 오류, 재시도 불가"
+    description: '영구 오류, 재시도 불가'
     examples:
-      - "Invalid input"
-      - "Authentication failed"
-      - "Resource not found"
-    handling: "Report error, require user action"
+      - 'Invalid input'
+      - 'Authentication failed'
+      - 'Resource not found'
+    handling: 'Report error, require user action'
 
   partial:
-    description: "부분 완료, 일부만 성공"
+    description: '부분 완료, 일부만 성공'
     examples:
-      - "Some issues created, others failed"
-      - "Code generated, tests failed"
-    handling: "Save progress, allow resume"
+      - 'Some issues created, others failed'
+      - 'Code generated, tests failed'
+    handling: 'Save progress, allow resume'
 
   critical:
-    description: "시스템 오류, 즉시 중단 필요"
+    description: '시스템 오류, 즉시 중단 필요'
     examples:
-      - "Disk full"
-      - "Out of memory"
-      - "Corrupted state"
-    handling: "Stop pipeline, alert user, preserve state"
+      - 'Disk full'
+      - 'Out of memory'
+      - 'Corrupted state'
+    handling: 'Stop pipeline, alert user, preserve state'
 ```
 
 ### 8.2 Retry Strategy
@@ -4440,7 +4458,7 @@ retry_strategy:
       base_delay_ms: 1000
       rate_limit_handling:
         wait_for_reset: true
-        max_wait_ms: 300000  # 5 minutes
+        max_wait_ms: 300000 # 5 minutes
 
     claude_api:
       max_attempts: 3
@@ -4463,31 +4481,31 @@ retry_strategy:
 recovery_procedures:
   pipeline_failure:
     steps:
-      - "1. Identify failure stage from logs"
-      - "2. Check scratchpad for last successful state"
-      - "3. Resolve the issue (fix input, retry, etc.)"
-      - "4. Resume from last checkpoint: claude ad-sdlc resume <project-id>"
+      - '1. Identify failure stage from logs'
+      - '2. Check scratchpad for last successful state'
+      - '3. Resolve the issue (fix input, retry, etc.)'
+      - '4. Resume from last checkpoint: claude ad-sdlc resume <project-id>'
 
   state_corruption:
     steps:
-      - "1. Backup current scratchpad"
-      - "2. Identify corrupted files from logs"
-      - "3. Restore from previous version if available"
-      - "4. Re-run affected stage"
+      - '1. Backup current scratchpad'
+      - '2. Identify corrupted files from logs'
+      - '3. Restore from previous version if available'
+      - '4. Re-run affected stage'
 
   worker_stuck:
     steps:
-      - "1. Check controller_state.yaml for stuck workers"
-      - "2. Review work order and implementation result"
-      - "3. Manually mark as failed or blocked"
-      - "4. Controller will reassign automatically"
+      - '1. Check controller_state.yaml for stuck workers'
+      - '2. Review work order and implementation result'
+      - '3. Manually mark as failed or blocked'
+      - '4. Controller will reassign automatically'
 
   github_sync_failure:
     steps:
-      - "1. Verify GitHub authentication: gh auth status"
-      - "2. Check network connectivity"
-      - "3. Verify repository access permissions"
-      - "4. Retry GitHub operations"
+      - '1. Verify GitHub authentication: gh auth status'
+      - '2. Check network connectivity'
+      - '3. Verify repository access permissions'
+      - '4. Retry GitHub operations'
 ```
 
 ### 8.4 Checkpointing
@@ -4495,21 +4513,21 @@ recovery_procedures:
 ```yaml
 checkpoints:
   enabled: true
-  storage: ".ad-sdlc/scratchpad/checkpoints/"
+  storage: '.ad-sdlc/scratchpad/checkpoints/'
 
   checkpoint_events:
-    - event: "stage_complete"
-      saves: ["scratchpad state", "logs"]
+    - event: 'stage_complete'
+      saves: ['scratchpad state', 'logs']
 
-    - event: "issue_batch_created"
-      saves: ["issue_list.json", "dependency_graph.json"]
+    - event: 'issue_batch_created'
+      saves: ['issue_list.json', 'dependency_graph.json']
 
-    - event: "worker_complete"
-      saves: ["work_order result", "code changes"]
+    - event: 'worker_complete'
+      saves: ['work_order result', 'code changes']
 
   recovery:
-    strategy: "resume_from_last_checkpoint"
-    command: "claude ad-sdlc resume <project-id> [--from-checkpoint <id>]"
+    strategy: 'resume_from_last_checkpoint'
+    command: 'claude ad-sdlc resume <project-id> [--from-checkpoint <id>]'
 ```
 
 ---
@@ -4518,79 +4536,79 @@ checkpoints:
 
 ### 9.1 SRS → SDS Component Mapping
 
-| SRS Feature | SDS Component(s) | Description |
-|-------------|------------------|-------------|
-| SF-001 (Multi-Source Collection) | CMP-001 (Collector Agent) | 다중 소스 정보 수집 |
-| SF-002 (PRD Generation) | CMP-002 (PRD Writer Agent) | PRD 자동 생성 |
-| SF-003 (SRS Generation) | CMP-003 (SRS Writer Agent) | SRS 자동 생성 |
-| SF-004 (SDS Generation) | CMP-004 (SDS Writer Agent), CMP-030 (Architecture Generator), CMP-031 (Component Generator) | SDS 자동 생성 및 설계 산출물 생성 |
-| SF-005 (Issue Generation) | CMP-005 (Issue Generator) | GitHub Issue 생성 |
-| SF-006 (Work Prioritization) | CMP-006 (Controller Agent) | 작업 우선순위 결정 |
-| SF-007 (Work Assignment) | CMP-006 (Controller Agent) | 작업 할당 및 모니터링 |
-| SF-008 (Code Implementation) | CMP-007 (Worker Agent) | 코드 자동 구현 |
-| SF-009 (Self-Verification) | CMP-007 (Worker Agent) | 자체 검증 |
-| SF-010 (PR Creation & Review) | CMP-008 (PR Review Agent) | PR 생성 및 리뷰 |
-| SF-011 (Quality Gate & Merge) | CMP-008 (PR Review Agent) | 품질 게이트 및 머지 |
-| SF-012 (Traceability Matrix) | CMP-025 (AD-SDLC Orchestrator) | 추적성 유지 |
-| SF-013 (Approval Gate) | CMP-025 (AD-SDLC Orchestrator) | 승인 게이트 시스템 |
-| SF-014 (Scratchpad State) | CMP-009 (State Manager) | 상태 관리 |
-| SF-015 (Activity Logging) | CMP-010 (Logger), CMP-032 (Monitoring Service), CMP-033 (Telemetry Service) | 활동 로깅, 관측성, 익명 분석 |
-| SF-016 (Error Handling) | CMP-011 (Error Handler) | 오류 처리 및 재시도 |
-| SF-017 (Document Reading) | CMP-012 (Document Reader Agent) | 기존 명세 문서 파싱 및 추적성 맵 구축 |
-| SF-018 (Codebase Analysis) | CMP-013 (Codebase Analyzer Agent) | 아키텍처 패턴 및 의존성 그래프 분석 |
-| SF-019 (Impact Analysis) | CMP-014 (Impact Analyzer Agent) | 변경 영향 분석 및 리스크 평가 |
-| SF-020 (PRD Update) | CMP-015 (PRD Updater Agent) | PRD 요구사항 추가, 수정, 폐기 |
-| SF-021 (SRS Update) | CMP-016 (SRS Updater Agent) | 기능, 유즈케이스 추가 및 추적성 업데이트 |
-| SF-022 (SDS Update) | CMP-017 (SDS Updater Agent) | 컴포넌트, API 추가 및 아키텍처 업데이트 |
-| SF-023 (Regression Testing) | CMP-018 (Regression Tester Agent) | 영향받는 테스트 매핑 및 회귀 테스트 실행 |
-| SF-024 (Doc-Code Comparison) | CMP-019 (Doc-Code Comparator Agent) | 명세와 코드베이스 비교 및 갭 리포트 생성 |
-| SF-025 (Code Reading) | CMP-020 (Code Reader Agent) | AST 분석 및 의존성 추출 |
-| SF-026 (CI Fixing) | CMP-021 (CI Fixer Agent) | CI 실패 진단 및 자동 수정 적용 |
-| SF-027 (Mode Detection) | CMP-022 (Mode Detector Agent) | 그린필드 vs Enhancement 모드 감지 |
-| SF-028 (Project Initialization) | CMP-023 (Project Initializer Agent), CMP-029 (Agent Definition Validator), CMP-035 (Configuration Manager) | .ad-sdlc 작업 공간 초기화, 에이전트 정의 검증, 설정 관리 |
-| SF-029 (GitHub Repo Management) | CMP-024 (Repo Detector Agent), CMP-027 (GitHub Repo Setup Agent) | 기존 저장소 감지 및 새 저장소 생성 |
-| SF-030 (Pipeline Orchestration) | CMP-025 (AD-SDLC Orchestrator), CMP-026 (Analysis Orchestrator) | 최상위 및 분석 파이프라인 조율 |
-| SF-031 (Issue Import) | CMP-028 (Issue Reader Agent) | 기존 GitHub 이슈를 AD-SDLC 형식으로 가져오기 |
-| Cross-cutting (NFR) | CMP-034 (Security Module) | 입력 검증, 명령어 새니타이즈, 감사 로깅, 속도 제한 |
-| CLI Tooling | CMP-036 (Completion Generator) | 쉘 자동완성 스크립트 생성 |
+| SRS Feature                      | SDS Component(s)                                                                                           | Description                                              |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| SF-001 (Multi-Source Collection) | CMP-001 (Collector Agent)                                                                                  | 다중 소스 정보 수집                                      |
+| SF-002 (PRD Generation)          | CMP-002 (PRD Writer Agent)                                                                                 | PRD 자동 생성                                            |
+| SF-003 (SRS Generation)          | CMP-003 (SRS Writer Agent)                                                                                 | SRS 자동 생성                                            |
+| SF-004 (SDS Generation)          | CMP-004 (SDS Writer Agent), CMP-030 (Architecture Generator), CMP-031 (Component Generator)                | SDS 자동 생성 및 설계 산출물 생성                        |
+| SF-005 (Issue Generation)        | CMP-005 (Issue Generator)                                                                                  | GitHub Issue 생성                                        |
+| SF-006 (Work Prioritization)     | CMP-006 (Controller Agent)                                                                                 | 작업 우선순위 결정                                       |
+| SF-007 (Work Assignment)         | CMP-006 (Controller Agent)                                                                                 | 작업 할당 및 모니터링                                    |
+| SF-008 (Code Implementation)     | CMP-007 (Worker Agent)                                                                                     | 코드 자동 구현                                           |
+| SF-009 (Self-Verification)       | CMP-007 (Worker Agent)                                                                                     | 자체 검증                                                |
+| SF-010 (PR Creation & Review)    | CMP-008 (PR Review Agent)                                                                                  | PR 생성 및 리뷰                                          |
+| SF-011 (Quality Gate & Merge)    | CMP-008 (PR Review Agent)                                                                                  | 품질 게이트 및 머지                                      |
+| SF-012 (Traceability Matrix)     | CMP-025 (AD-SDLC Orchestrator)                                                                             | 추적성 유지                                              |
+| SF-013 (Approval Gate)           | CMP-025 (AD-SDLC Orchestrator)                                                                             | 승인 게이트 시스템                                       |
+| SF-014 (Scratchpad State)        | CMP-009 (State Manager)                                                                                    | 상태 관리                                                |
+| SF-015 (Activity Logging)        | CMP-010 (Logger), CMP-032 (Monitoring Service), CMP-033 (Telemetry Service)                                | 활동 로깅, 관측성, 익명 분석                             |
+| SF-016 (Error Handling)          | CMP-011 (Error Handler)                                                                                    | 오류 처리 및 재시도                                      |
+| SF-017 (Document Reading)        | CMP-012 (Document Reader Agent)                                                                            | 기존 명세 문서 파싱 및 추적성 맵 구축                    |
+| SF-018 (Codebase Analysis)       | CMP-013 (Codebase Analyzer Agent)                                                                          | 아키텍처 패턴 및 의존성 그래프 분석                      |
+| SF-019 (Impact Analysis)         | CMP-014 (Impact Analyzer Agent)                                                                            | 변경 영향 분석 및 리스크 평가                            |
+| SF-020 (PRD Update)              | CMP-015 (PRD Updater Agent)                                                                                | PRD 요구사항 추가, 수정, 폐기                            |
+| SF-021 (SRS Update)              | CMP-016 (SRS Updater Agent)                                                                                | 기능, 유즈케이스 추가 및 추적성 업데이트                 |
+| SF-022 (SDS Update)              | CMP-017 (SDS Updater Agent)                                                                                | 컴포넌트, API 추가 및 아키텍처 업데이트                  |
+| SF-023 (Regression Testing)      | CMP-018 (Regression Tester Agent)                                                                          | 영향받는 테스트 매핑 및 회귀 테스트 실행                 |
+| SF-024 (Doc-Code Comparison)     | CMP-019 (Doc-Code Comparator Agent)                                                                        | 명세와 코드베이스 비교 및 갭 리포트 생성                 |
+| SF-025 (Code Reading)            | CMP-020 (Code Reader Agent)                                                                                | AST 분석 및 의존성 추출                                  |
+| SF-026 (CI Fixing)               | CMP-021 (CI Fixer Agent)                                                                                   | CI 실패 진단 및 자동 수정 적용                           |
+| SF-027 (Mode Detection)          | CMP-022 (Mode Detector Agent)                                                                              | 그린필드 vs Enhancement 모드 감지                        |
+| SF-028 (Project Initialization)  | CMP-023 (Project Initializer Agent), CMP-029 (Agent Definition Validator), CMP-035 (Configuration Manager) | .ad-sdlc 작업 공간 초기화, 에이전트 정의 검증, 설정 관리 |
+| SF-029 (GitHub Repo Management)  | CMP-024 (Repo Detector Agent), CMP-027 (GitHub Repo Setup Agent)                                           | 기존 저장소 감지 및 새 저장소 생성                       |
+| SF-030 (Pipeline Orchestration)  | CMP-025 (AD-SDLC Orchestrator), CMP-026 (Analysis Orchestrator)                                            | 최상위 및 분석 파이프라인 조율                           |
+| SF-031 (Issue Import)            | CMP-028 (Issue Reader Agent)                                                                               | 기존 GitHub 이슈를 AD-SDLC 형식으로 가져오기             |
+| Cross-cutting (NFR)              | CMP-034 (Security Module)                                                                                  | 입력 검증, 명령어 새니타이즈, 감사 로깅, 속도 제한       |
+| CLI Tooling                      | CMP-036 (Completion Generator)                                                                             | 쉘 자동완성 스크립트 생성                                |
 
 ### 9.2 Component → API Mapping
 
-| Component | APIs / Interfaces | External Dependencies |
-|-----------|-------------------|----------------------|
-| CMP-001 | collectFromText, collectFromFiles, collectFromUrls | Read, WebFetch, Write |
-| CMP-002 | generatePRD, analyzeGaps, checkConsistency | Read, Write, Edit |
-| CMP-003 | generateSRS, decomposeRequirement, generateUseCases | Read, Write, Edit |
-| CMP-004 | generateSDS, designArchitecture, designAPIs | Read, Write, Edit |
-| CMP-005 | generateIssues, breakdownComponent, createGitHubIssue | Read, Write, Bash (gh) |
-| CMP-006 | prioritize, assignWork, monitorProgress | Read, Write, Edit |
-| CMP-007 | executeWork, implementCode, writeTests, selfVerify | Read, Write, Edit, Bash |
-| CMP-008 | createPR, reviewPR, checkQualityGates, decideMerge | Read, Bash (gh) |
-| CMP-012 | parseDocument, buildTraceabilityMap | Read |
-| CMP-013 | analyzeArchitecture, generateDependencyGraph | Read, Bash |
-| CMP-014 | analyzeImpact, assessRisk | Read |
-| CMP-015 | addRequirement, modifyRequirement, deprecateRequirement | Read, Write, Edit |
-| CMP-016 | addFeature, addUseCase, updateTraceability | Read, Write, Edit |
-| CMP-017 | addComponent, addAPI, updateArchitecture | Read, Write, Edit |
-| CMP-018 | mapAffectedTests, runRegressionSuite, analyzeCompatibility | Read, Bash |
-| CMP-019 | compareSpecs, generateGapReport | Read |
-| CMP-020 | analyzeAST, extractDependencies | Read, Bash (ts-morph) |
-| CMP-021 | diagnoseCIFailure, applyFix | Read, Write, Edit, Bash |
-| CMP-022 | detectMode | Read, Bash (git) |
-| CMP-023 | initialize | Write, Bash (git) |
-| CMP-024 | detectRepository | Bash (git, gh) |
-| CMP-025 | executePipeline, coordinateAgents | All Agent Interfaces |
-| CMP-026 | executeAnalysisPipeline | CMP-012, CMP-020, CMP-019, CMP-005 |
-| CMP-027 | createRepository | Bash (gh, git) |
-| CMP-028 | importIssues | Bash (gh) |
-| CMP-029 | validateAgentFile, validateAllAgents, formatValidationReport | Read (에이전트 파일, agents.yaml) |
-| CMP-030 | generateFromFile, generateAndSave | Read (SRS), Write (SDS 섹션) |
-| CMP-031 | generateFromSRS, generateAndSave | Read (SRS), Write (컴포넌트 사양) |
-| CMP-032 | recordAgentInvocation, recordPipelineStage, trackUsage, selectModel, fireAlert | Read/Write (메트릭, 예산, 알림) |
-| CMP-033 | getConsentStatus, setConsent, recordEvent, flush, shutdown | Read/Write (동의 파일) |
-| CMP-034 | validatePath, validateUrl, sanitize, execute, log, check | Read/Write (감사 로그) |
-| CMP-035 | getGlobalConfig, getPipelineStages, getAgentConfig, getQualityGates | Read (YAML 설정 파일) |
-| CMP-036 | generate, getSupportedShells, getCommands | None (stdout 출력) |
+| Component | APIs / Interfaces                                                              | External Dependencies              |
+| --------- | ------------------------------------------------------------------------------ | ---------------------------------- |
+| CMP-001   | collectFromText, collectFromFiles, collectFromUrls                             | Read, WebFetch, Write              |
+| CMP-002   | generatePRD, analyzeGaps, checkConsistency                                     | Read, Write, Edit                  |
+| CMP-003   | generateSRS, decomposeRequirement, generateUseCases                            | Read, Write, Edit                  |
+| CMP-004   | generateSDS, designArchitecture, designAPIs                                    | Read, Write, Edit                  |
+| CMP-005   | generateIssues, breakdownComponent, createGitHubIssue                          | Read, Write, Bash (gh)             |
+| CMP-006   | prioritize, assignWork, monitorProgress                                        | Read, Write, Edit                  |
+| CMP-007   | executeWork, implementCode, writeTests, selfVerify                             | Read, Write, Edit, Bash            |
+| CMP-008   | createPR, reviewPR, checkQualityGates, decideMerge                             | Read, Bash (gh)                    |
+| CMP-012   | parseDocument, buildTraceabilityMap                                            | Read                               |
+| CMP-013   | analyzeArchitecture, generateDependencyGraph                                   | Read, Bash                         |
+| CMP-014   | analyzeImpact, assessRisk                                                      | Read                               |
+| CMP-015   | addRequirement, modifyRequirement, deprecateRequirement                        | Read, Write, Edit                  |
+| CMP-016   | addFeature, addUseCase, updateTraceability                                     | Read, Write, Edit                  |
+| CMP-017   | addComponent, addAPI, updateArchitecture                                       | Read, Write, Edit                  |
+| CMP-018   | mapAffectedTests, runRegressionSuite, analyzeCompatibility                     | Read, Bash                         |
+| CMP-019   | compareSpecs, generateGapReport                                                | Read                               |
+| CMP-020   | analyzeAST, extractDependencies                                                | Read, Bash (ts-morph)              |
+| CMP-021   | diagnoseCIFailure, applyFix                                                    | Read, Write, Edit, Bash            |
+| CMP-022   | detectMode                                                                     | Read, Bash (git)                   |
+| CMP-023   | initialize                                                                     | Write, Bash (git)                  |
+| CMP-024   | detectRepository                                                               | Bash (git, gh)                     |
+| CMP-025   | executePipeline, coordinateAgents                                              | All Agent Interfaces               |
+| CMP-026   | executeAnalysisPipeline                                                        | CMP-012, CMP-020, CMP-019, CMP-005 |
+| CMP-027   | createRepository                                                               | Bash (gh, git)                     |
+| CMP-028   | importIssues                                                                   | Bash (gh)                          |
+| CMP-029   | validateAgentFile, validateAllAgents, formatValidationReport                   | Read (에이전트 파일, agents.yaml)  |
+| CMP-030   | generateFromFile, generateAndSave                                              | Read (SRS), Write (SDS 섹션)       |
+| CMP-031   | generateFromSRS, generateAndSave                                               | Read (SRS), Write (컴포넌트 사양)  |
+| CMP-032   | recordAgentInvocation, recordPipelineStage, trackUsage, selectModel, fireAlert | Read/Write (메트릭, 예산, 알림)    |
+| CMP-033   | getConsentStatus, setConsent, recordEvent, flush, shutdown                     | Read/Write (동의 파일)             |
+| CMP-034   | validatePath, validateUrl, sanitize, execute, log, check                       | Read/Write (감사 로그)             |
+| CMP-035   | getGlobalConfig, getPipelineStages, getAgentConfig, getQualityGates            | Read (YAML 설정 파일)              |
+| CMP-036   | generate, getSupportedShells, getCommands                                      | None (stdout 출력)                 |
 
 ### 9.3 Full Traceability Chain
 
@@ -4599,57 +4617,57 @@ traceability_chain:
   # Example: User Authentication Feature
   example_feature:
     prd:
-      requirement: "FR-001: User Authentication"
+      requirement: 'FR-001: User Authentication'
       priority: P0
 
     srs:
       features:
-        - id: "SF-001"
-          name: "Login"
-          use_cases: ["UC-001", "UC-002"]
-        - id: "SF-002"
-          name: "Session Management"
-          use_cases: ["UC-003"]
+        - id: 'SF-001'
+          name: 'Login'
+          use_cases: ['UC-001', 'UC-002']
+        - id: 'SF-002'
+          name: 'Session Management'
+          use_cases: ['UC-003']
 
     sds:
       components:
-        - id: "CMP-AUTH-001"
-          name: "AuthService"
-          source_features: ["SF-001"]
-          apis: ["POST /api/v1/auth/login"]
+        - id: 'CMP-AUTH-001'
+          name: 'AuthService'
+          source_features: ['SF-001']
+          apis: ['POST /api/v1/auth/login']
 
-        - id: "CMP-AUTH-002"
-          name: "SessionManager"
-          source_features: ["SF-002"]
-          apis: ["GET /api/v1/auth/session"]
+        - id: 'CMP-AUTH-002'
+          name: 'SessionManager'
+          source_features: ['SF-002']
+          apis: ['GET /api/v1/auth/session']
 
     issues:
       - number: 1
-        title: "Implement AuthService.login()"
-        component: "CMP-AUTH-001"
+        title: 'Implement AuthService.login()'
+        component: 'CMP-AUTH-001'
 
       - number: 2
-        title: "Implement SessionManager"
-        component: "CMP-AUTH-002"
+        title: 'Implement SessionManager'
+        component: 'CMP-AUTH-002'
         blocked_by: [1]
 
     implementation:
-      - work_order: "WO-001"
+      - work_order: 'WO-001'
         issue: 1
-        branch: "feature/ISS-1-auth-service"
+        branch: 'feature/ISS-1-auth-service'
 
-      - work_order: "WO-002"
+      - work_order: 'WO-002'
         issue: 2
-        branch: "feature/ISS-2-session-manager"
+        branch: 'feature/ISS-2-session-manager'
 
     prs:
       - number: 10
         issue: 1
-        merge_commit: "abc123"
+        merge_commit: 'abc123'
 
       - number: 11
         issue: 2
-        merge_commit: "def456"
+        merge_commit: 'def456'
 ```
 
 ---
@@ -4667,6 +4685,7 @@ traceability_chain:
 **Decision**: 파일 시스템 기반 Scratchpad 패턴을 도입하여 에이전트 간 상태를 공유합니다.
 
 **Consequences**:
+
 - (+) 에이전트 간 느슨한 결합
 - (+) 상태 영속성 및 재개 가능
 - (+) 디버깅 용이 (파일 직접 확인 가능)
@@ -4682,6 +4701,7 @@ traceability_chain:
 **Decision**: Document Pipeline은 Sequential 실행, Execution Pipeline은 Parallel 실행으로 분리합니다.
 
 **Consequences**:
+
 - (+) 문서 간 일관성 보장
 - (+) 추적성 유지 용이
 - (-) 문서 생성 시간 증가
@@ -4695,38 +4715,39 @@ traceability_chain:
 **Decision**: 최대 5개의 Worker Pool을 유지하고, Controller가 큐 기반으로 작업을 할당합니다.
 
 **Consequences**:
+
 - (+) 리소스 사용 예측 가능
 - (+) 시스템 안정성 확보
 - (-) 대규모 프로젝트에서 병목 가능
 
 ### 10.2 Open Questions
 
-| Question ID | Question | Status | Resolution |
-|-------------|----------|--------|------------|
-| OQ-001 | 다중 리포지토리 지원 필요성? | Open | Phase 2에서 검토 |
-| OQ-002 | 외부 테스트 서비스 (SonarQube 등) 연동? | Open | 플러그인 아키텍처 고려 |
-| OQ-003 | 비영어권 코드베이스 지원 범위? | Open | 코드는 영어, 주석은 다국어 허용 |
-| OQ-004 | Context Window 초과 시 문서 분할 전략? | Resolved | Hierarchical Summarization 적용 |
+| Question ID | Question                                | Status   | Resolution                      |
+| ----------- | --------------------------------------- | -------- | ------------------------------- |
+| OQ-001      | 다중 리포지토리 지원 필요성?            | Open     | Phase 2에서 검토                |
+| OQ-002      | 외부 테스트 서비스 (SonarQube 등) 연동? | Open     | 플러그인 아키텍처 고려          |
+| OQ-003      | 비영어권 코드베이스 지원 범위?          | Open     | 코드는 영어, 주석은 다국어 허용 |
+| OQ-004      | Context Window 초과 시 문서 분할 전략?  | Resolved | Hierarchical Summarization 적용 |
 
 ### 10.3 Glossary
 
-| Term | Definition |
-|------|------------|
-| **ADR** | Architecture Decision Record - 아키텍처 결정 기록 |
-| **Circuit Breaker** | 연속 실패 시 일시 중단하는 안정성 패턴 |
-| **Critical Path** | 프로젝트 완료를 결정하는 가장 긴 의존성 경로 |
-| **Scratchpad** | 에이전트 간 상태 공유를 위한 파일 기반 저장소 |
-| **Topological Sort** | 의존성 그래프의 실행 순서 결정 알고리즘 |
-| **Work Order** | Controller가 Worker에게 전달하는 작업 지시서 |
+| Term                 | Definition                                        |
+| -------------------- | ------------------------------------------------- |
+| **ADR**              | Architecture Decision Record - 아키텍처 결정 기록 |
+| **Circuit Breaker**  | 연속 실패 시 일시 중단하는 안정성 패턴            |
+| **Critical Path**    | 프로젝트 완료를 결정하는 가장 긴 의존성 경로      |
+| **Scratchpad**       | 에이전트 간 상태 공유를 위한 파일 기반 저장소     |
+| **Topological Sort** | 의존성 그래프의 실행 순서 결정 알고리즘           |
+| **Work Order**       | Controller가 Worker에게 전달하는 작업 지시서      |
 
 ### 10.4 Document History
 
-| Version | Date | Author | Changes |
-|---------|------|--------|---------|
-| 1.0.0 | 2025-12-27 | System Architect | Initial draft based on SRS-001 |
-| 1.1.0 | 2026-02-07 | System Architect | Enhancement Pipeline (CMP-012~CMP-028), 인프라 모듈 (Security/Monitoring/Telemetry), 추적 매트릭스 갱신, Component→API 매핑 갱신 |
-| 1.2.0 | 2026-02-13 | System Architect | 지원 모듈 컴포넌트 추가 (CMP-029~CMP-036): Agent Validator, Architecture/Component Generator, Monitoring, Telemetry, Security, Config Manager, Completion Generator. 추적 매트릭스 및 API 매핑 갱신. CMP-029 UC 참조 수정 (UC-038→UC-039), CMP-032 UC 참조 수정 (UC-025→UC-022/UC-023). |
+| Version | Date       | Author           | Changes                                                                                                                                                                                                                                                                                 |
+| ------- | ---------- | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1.0.0   | 2025-12-27 | System Architect | Initial draft based on SRS-001                                                                                                                                                                                                                                                          |
+| 1.1.0   | 2026-02-07 | System Architect | Enhancement Pipeline (CMP-012~CMP-028), 인프라 모듈 (Security/Monitoring/Telemetry), 추적 매트릭스 갱신, Component→API 매핑 갱신                                                                                                                                                        |
+| 1.2.0   | 2026-02-13 | System Architect | 지원 모듈 컴포넌트 추가 (CMP-029~CMP-036): Agent Validator, Architecture/Component Generator, Monitoring, Telemetry, Security, Config Manager, Completion Generator. 추적 매트릭스 및 API 매핑 갱신. CMP-029 UC 참조 수정 (UC-038→UC-039), CMP-032 UC 참조 수정 (UC-025→UC-022/UC-023). |
 
 ---
 
-*This SDS was generated for the Agent-Driven SDLC project based on SRS-001 and PRD-001.*
+_This SDS was generated for the Agent-Driven SDLC project based on SRS-001 and PRD-001._

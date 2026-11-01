@@ -2,15 +2,15 @@
 
 ## Agent-Driven Software Development Lifecycle System
 
-| Field | Value |
-|-------|-------|
-| **Document ID** | SRS-001 |
-| **Source PRD** | PRD-001 |
-| **Version** | 1.1.0 |
-| **Status** | Review |
-| **Implementation** | Partial |
-| **Created** | 2025-12-27 |
-| **Author** | System Architect |
+| Field              | Value            |
+| ------------------ | ---------------- |
+| **Document ID**    | SRS-001          |
+| **Source PRD**     | PRD-001          |
+| **Version**        | 1.1.0            |
+| **Status**         | Review           |
+| **Implementation** | Partial          |
+| **Created**        | 2025-12-27       |
+| **Author**         | System Architect |
 
 ---
 
@@ -34,6 +34,7 @@
 본 소프트웨어 요구사항 명세서(SRS)는 Agent-Driven SDLC (AD-SDLC) 시스템의 상세 기능 요구사항을 정의합니다. PRD-001에서 정의된 제품 요구사항을 구현 가능한 수준의 시스템 기능과 유스케이스로 분해하여, 개발팀이 설계 및 구현에 직접 활용할 수 있도록 합니다.
 
 **대상 독자:**
+
 - Tech Lead 및 Software Architect
 - Software Developers
 - QA Engineers
@@ -44,6 +45,7 @@
 AD-SDLC 시스템은 다음 범위를 포함합니다:
 
 **포함 범위:**
+
 - 3가지 파이프라인 모드에 걸친 25개의 특화된 Claude 에이전트 제품 역할 카탈로그(현재 소스 인벤토리인 프롬프트 정의 36개, 고유 파이프라인 에이전트 유형 29개, 모드별 stage slot 39개와는 별도이며 [runtime inventory](architecture/runtime-inventory.md) 참조):
   - **Core (Greenfield)**: Collector, PRD Writer, SRS Writer, SDS Writer, Issue Generator, Controller, Worker, PR Reviewer
   - **Enhancement**: Document Reader, Codebase Analyzer, Impact Analyzer, PRD/SRS/SDS Updaters, Regression Tester, Code Reader, Doc-Code Comparator, CI Fixer
@@ -55,6 +57,7 @@ AD-SDLC 시스템은 다음 범위를 포함합니다:
 - 추적성 매트릭스 유지
 
 **제외 범위:**
+
 - 배포 자동화 (CI/CD 파이프라인)
 - 모니터링 대시보드 UI
 - 다중 리포지토리 지원
@@ -62,26 +65,26 @@ AD-SDLC 시스템은 다음 범위를 포함합니다:
 
 ### 1.3 Definitions & Acronyms
 
-| Term | Definition |
-|------|------------|
-| **AD-SDLC** | Agent-Driven Software Development Lifecycle |
-| **PRD** | Product Requirements Document - 제품 요구사항 문서 |
-| **SRS** | Software Requirements Specification - 소프트웨어 요구사항 명세서 |
-| **SDS** | Software Design Specification - 소프트웨어 설계 명세서 |
-| **Scratchpad** | 에이전트 간 상태 공유를 위한 파일 기반 저장소 패턴 |
-| **Traceability** | 요구사항부터 구현까지의 양방향 추적 가능성 |
-| **Work Order** | Controller Agent가 Worker Agent에게 전달하는 작업 지시서 |
-| **Quality Gate** | 다음 단계 진행을 위한 품질 검증 관문 |
-| **Human-in-the-Loop** | 중요 결정점에서 사용자 승인을 필수로 하는 패턴 |
+| Term                  | Definition                                                       |
+| --------------------- | ---------------------------------------------------------------- |
+| **AD-SDLC**           | Agent-Driven Software Development Lifecycle                      |
+| **PRD**               | Product Requirements Document - 제품 요구사항 문서               |
+| **SRS**               | Software Requirements Specification - 소프트웨어 요구사항 명세서 |
+| **SDS**               | Software Design Specification - 소프트웨어 설계 명세서           |
+| **Scratchpad**        | 에이전트 간 상태 공유를 위한 파일 기반 저장소 패턴               |
+| **Traceability**      | 요구사항부터 구현까지의 양방향 추적 가능성                       |
+| **Work Order**        | Controller Agent가 Worker Agent에게 전달하는 작업 지시서         |
+| **Quality Gate**      | 다음 단계 진행을 위한 품질 검증 관문                             |
+| **Human-in-the-Loop** | 중요 결정점에서 사용자 승인을 필수로 하는 패턴                   |
 
 ### 1.4 References
 
-| Reference | Description |
-|-----------|-------------|
-| PRD-001 | Agent-Driven SDLC Product Requirements Document |
-| Claude Agent SDK | https://platform.claude.com/docs/en/agent-sdk |
-| GitHub CLI | https://cli.github.com/manual/ |
-| IEEE 830-1998 | IEEE Recommended Practice for SRS |
+| Reference        | Description                                     |
+| ---------------- | ----------------------------------------------- |
+| PRD-001          | Agent-Driven SDLC Product Requirements Document |
+| Claude Agent SDK | https://platform.claude.com/docs/en/agent-sdk   |
+| GitHub CLI       | https://cli.github.com/manual/                  |
+| IEEE 830-1998    | IEEE Recommended Practice for SRS               |
 
 ---
 
@@ -114,51 +117,53 @@ AD-SDLC는 Claude Agent SDK 기반의 멀티 에이전트 시스템으로, 기�
 
 ### 2.2 Product Functions Summary
 
-| Function Category | Description | Agents Involved |
-|-------------------|-------------|-----------------|
-| **Document Pipeline** | 요구사항 → 문서 자동 생성 | Collector, PRD/SRS/SDS Writer |
-| **Issue Management** | 문서 → GitHub Issue 변환 및 관리 | Issue Generator, Controller |
-| **Code Execution** | Issue → 코드 구현 및 PR | Worker, PR Reviewer |
-| **State Management** | 에이전트 간 상태 공유 및 추적 | All Agents |
+| Function Category     | Description                      | Agents Involved               |
+| --------------------- | -------------------------------- | ----------------------------- |
+| **Document Pipeline** | 요구사항 → 문서 자동 생성        | Collector, PRD/SRS/SDS Writer |
+| **Issue Management**  | 문서 → GitHub Issue 변환 및 관리 | Issue Generator, Controller   |
+| **Code Execution**    | Issue → 코드 구현 및 PR          | Worker, PR Reviewer           |
+| **State Management**  | 에이전트 간 상태 공유 및 추적    | All Agents                    |
 
 ### 2.3 User Classes and Characteristics
 
-| User Class | Characteristics | Primary Interactions |
-|------------|-----------------|---------------------|
-| **Product Manager (PM)** | 비기술적 배경, 자연어 입력 선호, 진행 상황 추적 필요 | 요구사항 입력, PRD 승인, 진행 모니터링 |
-| **Tech Lead (TL)** | 기술적 배경, 설계 검토 책임, 품질 관리 | SRS/SDS 승인, 아키텍처 결정, PR 최종 승인 |
-| **Developer (Dev)** | 코드 구현 담당, 상세 컨텍스트 필요 | Issue 상세 확인, 자동 생성 코드 검토, PR 피드백 |
+| User Class               | Characteristics                                      | Primary Interactions                            |
+| ------------------------ | ---------------------------------------------------- | ----------------------------------------------- |
+| **Product Manager (PM)** | 비기술적 배경, 자연어 입력 선호, 진행 상황 추적 필요 | 요구사항 입력, PRD 승인, 진행 모니터링          |
+| **Tech Lead (TL)**       | 기술적 배경, 설계 검토 책임, 품질 관리               | SRS/SDS 승인, 아키텍처 결정, PR 최종 승인       |
+| **Developer (Dev)**      | 코드 구현 담당, 상세 컨텍스트 필요                   | Issue 상세 확인, 자동 생성 코드 검토, PR 피드백 |
 
 ### 2.4 Operating Environment
 
-| Component | Requirement |
-|-----------|-------------|
-| **Runtime** | Claude Agent SDK (Claude Code CLI) |
-| **Platform** | macOS, Linux, Windows (WSL2) |
-| **Node.js** | v22.22.1+ |
-| **Python** | v3.9+ (optional, for tooling) |
-| **Git** | v2.30+ |
-| **GitHub CLI** | v2.0+ |
-| **File System** | Local or network-attached storage |
+| Component       | Requirement                        |
+| --------------- | ---------------------------------- |
+| **Runtime**     | Claude Agent SDK (Claude Code CLI) |
+| **Platform**    | macOS, Linux, Windows (WSL2)       |
+| **Node.js**     | v22.22.1+                          |
+| **Python**      | v3.9+ (optional, for tooling)      |
+| **Git**         | v2.30+                             |
+| **GitHub CLI**  | v2.0+                              |
+| **File System** | Local or network-attached storage  |
 
 ### 2.5 Design and Implementation Constraints
 
-| Constraint ID | Constraint | Rationale |
-|---------------|------------|-----------|
-| **C-001** | Claude Agent SDK 단방향 통신 | 부모→자식 통신만 가능, Scratchpad 패턴으로 해결 |
-| **C-002** | Context Window 제한 | 200K 토큰, 문서/코드 분할 처리 필요 |
-| **C-003** | GitHub API Rate Limit | 시간당 5,000 요청, 캐싱 및 배치 처리 |
-| **C-004** | 동시 Worker 제한 | 최대 5개 병렬 실행 (리소스 관리) |
-| **C-005** | 영어 기반 코드 생성 | 코드, 커밋 메시지, PR은 영어로 작성 |
+| Constraint ID | Constraint                   | Rationale                                       |
+| ------------- | ---------------------------- | ----------------------------------------------- |
+| **C-001**     | Claude Agent SDK 단방향 통신 | 부모→자식 통신만 가능, Scratchpad 패턴으로 해결 |
+| **C-002**     | Context Window 제한          | 200K 토큰, 문서/코드 분할 처리 필요             |
+| **C-003**     | GitHub API Rate Limit        | 시간당 5,000 요청, 캐싱 및 배치 처리            |
+| **C-004**     | 동시 Worker 제한             | 최대 5개 병렬 실행 (리소스 관리)                |
+| **C-005**     | 영어 기반 코드 생성          | 코드, 커밋 메시지, PR은 영어로 작성             |
 
 ### 2.6 Assumptions and Dependencies
 
 **가정 (Assumptions):**
+
 - 사용자가 GitHub 계정 및 리포지토리에 접근 권한을 가짐
 - 프로젝트는 단일 Git 리포지토리로 관리됨
 - 기존 코드베이스가 있는 경우, 일관된 코딩 스타일 존재
 
 **의존성 (Dependencies):**
+
 - Claude API 가용성 (99.9% SLA)
 - GitHub API 가용성
 - 로컬 파일 시스템 접근
@@ -1702,47 +1707,47 @@ AD-SDLC는 Claude Agent SDK 기반의 멀티 에이전트 시스템으로, 기�
 
 AD-SDLC는 CLI 기반 시스템으로, 주로 Claude Code CLI를 통해 상호작용합니다.
 
-| Interface ID | Name | Description |
-|--------------|------|-------------|
-| UI-001 | CLI Input | 자연어 텍스트 입력 인터페이스 |
-| UI-002 | File Path Input | 파일 경로 지정 인터페이스 |
-| UI-003 | URL Input | URL 입력 인터페이스 |
-| UI-004 | Approval Prompt | 승인/거부 선택 프롬프트 |
-| UI-005 | Progress Display | 진행 상황 텍스트 출력 |
+| Interface ID | Name             | Description                   |
+| ------------ | ---------------- | ----------------------------- |
+| UI-001       | CLI Input        | 자연어 텍스트 입력 인터페이스 |
+| UI-002       | File Path Input  | 파일 경로 지정 인터페이스     |
+| UI-003       | URL Input        | URL 입력 인터페이스           |
+| UI-004       | Approval Prompt  | 승인/거부 선택 프롬프트       |
+| UI-005       | Progress Display | 진행 상황 텍스트 출력         |
 
 ### 4.2 API Interfaces
 
-| Endpoint | Method | Description | Agent |
-|----------|--------|-------------|-------|
-| GitHub Issues API | POST | 이슈 생성 | Issue Generator |
-| GitHub Issues API | PATCH | 이슈 상태 업데이트 | Controller, PR Review |
-| GitHub PRs API | POST | PR 생성 | PR Review |
-| GitHub PRs API | POST | 리뷰 제출 | PR Review |
-| GitHub PRs API | PUT | PR 머지 | PR Review |
-| Claude API | POST | 에이전트 추론 | All Agents |
+| Endpoint          | Method | Description        | Agent                 |
+| ----------------- | ------ | ------------------ | --------------------- |
+| GitHub Issues API | POST   | 이슈 생성          | Issue Generator       |
+| GitHub Issues API | PATCH  | 이슈 상태 업데이트 | Controller, PR Review |
+| GitHub PRs API    | POST   | PR 생성            | PR Review             |
+| GitHub PRs API    | POST   | 리뷰 제출          | PR Review             |
+| GitHub PRs API    | PUT    | PR 머지            | PR Review             |
+| Claude API        | POST   | 에이전트 추론      | All Agents            |
 
 ### 4.3 File Interfaces
 
-| Interface ID | Path Pattern | Format | Description |
-|--------------|--------------|--------|-------------|
-| FI-001 | `.ad-sdlc/scratchpad/info/{id}/collected_info.yaml` | YAML | 수집된 정보 |
-| FI-002 | `.ad-sdlc/scratchpad/documents/{id}/prd.md` | Markdown | PRD 문서 |
-| FI-003 | `.ad-sdlc/scratchpad/documents/{id}/srs.md` | Markdown | SRS 문서 |
-| FI-004 | `.ad-sdlc/scratchpad/documents/{id}/sds.md` | Markdown | SDS 문서 |
-| FI-005 | `.ad-sdlc/scratchpad/issues/{id}/issue_list.json` | JSON | 이슈 목록 |
-| FI-006 | `.ad-sdlc/scratchpad/issues/{id}/dependency_graph.json` | JSON | 의존성 그래프 |
-| FI-007 | `.ad-sdlc/scratchpad/progress/{id}/controller_state.yaml` | YAML | 컨트롤러 상태 |
-| FI-008 | `.ad-sdlc/scratchpad/progress/{id}/work_orders/*.yaml` | YAML | 작업 지시서 |
-| FI-009 | `.ad-sdlc/scratchpad/progress/{id}/results/*.yaml` | YAML | 구현 결과 |
-| FI-010 | `.ad-sdlc/scratchpad/progress/{id}/reviews/*.yaml` | YAML | 리뷰 결과 |
+| Interface ID | Path Pattern                                              | Format   | Description   |
+| ------------ | --------------------------------------------------------- | -------- | ------------- |
+| FI-001       | `.ad-sdlc/scratchpad/info/{id}/collected_info.yaml`       | YAML     | 수집된 정보   |
+| FI-002       | `.ad-sdlc/scratchpad/documents/{id}/prd.md`               | Markdown | PRD 문서      |
+| FI-003       | `.ad-sdlc/scratchpad/documents/{id}/srs.md`               | Markdown | SRS 문서      |
+| FI-004       | `.ad-sdlc/scratchpad/documents/{id}/sds.md`               | Markdown | SDS 문서      |
+| FI-005       | `.ad-sdlc/scratchpad/issues/{id}/issue_list.json`         | JSON     | 이슈 목록     |
+| FI-006       | `.ad-sdlc/scratchpad/issues/{id}/dependency_graph.json`   | JSON     | 의존성 그래프 |
+| FI-007       | `.ad-sdlc/scratchpad/progress/{id}/controller_state.yaml` | YAML     | 컨트롤러 상태 |
+| FI-008       | `.ad-sdlc/scratchpad/progress/{id}/work_orders/*.yaml`    | YAML     | 작업 지시서   |
+| FI-009       | `.ad-sdlc/scratchpad/progress/{id}/results/*.yaml`        | YAML     | 구현 결과     |
+| FI-010       | `.ad-sdlc/scratchpad/progress/{id}/reviews/*.yaml`        | YAML     | 리뷰 결과     |
 
 ### 4.4 External System Interfaces
 
-| System | Protocol | Purpose |
-|--------|----------|---------|
-| GitHub | HTTPS + OAuth | 이슈, PR 관리 |
-| Claude API | HTTPS | 에이전트 추론 |
-| Web URLs | HTTP/HTTPS | 외부 문서 수집 |
+| System     | Protocol      | Purpose        |
+| ---------- | ------------- | -------------- |
+| GitHub     | HTTPS + OAuth | 이슈, PR 관리  |
+| Claude API | HTTPS         | 에이전트 추론  |
+| Web URLs   | HTTP/HTTPS    | 외부 문서 수집 |
 
 ---
 
@@ -1750,50 +1755,50 @@ AD-SDLC는 CLI 기반 시스템으로, 주로 Claude Code CLI를 통해 상호�
 
 ### 5.1 Performance Requirements
 
-| ID | Requirement | Metric | Target | Priority |
-|----|-------------|--------|--------|----------|
-| NFR-001 | 문서 생성 응답 시간 | 시간 | < 5분 / 문서 | P0 |
-| NFR-002 | Issue 생성 처리량 | 이슈/분 | > 20 | P0 |
-| NFR-003 | Worker 동시 실행 수 | 개수 | 최대 5 | P0 |
-| NFR-004 | 상태 확인 주기 | 초 | 30초 | P1 |
-| NFR-005 | PR 리뷰 완료 시간 | 시간 | < 5분 | P1 |
+| ID      | Requirement         | Metric  | Target       | Priority |
+| ------- | ------------------- | ------- | ------------ | -------- |
+| NFR-001 | 문서 생성 응답 시간 | 시간    | < 5분 / 문서 | P0       |
+| NFR-002 | Issue 생성 처리량   | 이슈/분 | > 20         | P0       |
+| NFR-003 | Worker 동시 실행 수 | 개수    | 최대 5       | P0       |
+| NFR-004 | 상태 확인 주기      | 초      | 30초         | P1       |
+| NFR-005 | PR 리뷰 완료 시간   | 시간    | < 5분        | P1       |
 
 ### 5.2 Reliability Requirements
 
-| ID | Requirement | Metric | Target | Priority |
-|----|-------------|--------|--------|----------|
-| NFR-006 | 시스템 가용성 | 백분율 | 99.5% | P1 |
-| NFR-007 | 문서 생성 성공률 | 백분율 | > 95% | P0 |
-| NFR-008 | 코드 구현 성공률 | 백분율 | > 85% | P0 |
-| NFR-009 | 데이터 무손실 | 백분율 | 100% | P0 |
-| NFR-010 | 재시도 후 복구율 | 백분율 | > 90% | P1 |
+| ID      | Requirement      | Metric | Target | Priority |
+| ------- | ---------------- | ------ | ------ | -------- |
+| NFR-006 | 시스템 가용성    | 백분율 | 99.5%  | P1       |
+| NFR-007 | 문서 생성 성공률 | 백분율 | > 95%  | P0       |
+| NFR-008 | 코드 구현 성공률 | 백분율 | > 85%  | P0       |
+| NFR-009 | 데이터 무손실    | 백분율 | 100%   | P0       |
+| NFR-010 | 재시도 후 복구율 | 백분율 | > 90%  | P1       |
 
 ### 5.3 Security Requirements
 
-| ID | Requirement | Description | Priority |
-|----|-------------|-------------|----------|
-| NFR-011 | API 키 보안 저장 | 환경 변수 또는 Secret Manager 사용 | P0 |
-| NFR-012 | 민감 정보 마스킹 | 로그에서 토큰, 비밀번호 자동 마스킹 | P0 |
-| NFR-013 | GitHub 인증 | OAuth 또는 PAT 기반 인증 | P0 |
-| NFR-014 | 코드 보안 검사 | 생성 코드에 하드코딩 시크릿 금지 | P0 |
-| NFR-015 | 입력 검증 | 사용자 입력 및 외부 데이터 검증 | P1 |
+| ID      | Requirement      | Description                         | Priority |
+| ------- | ---------------- | ----------------------------------- | -------- |
+| NFR-011 | API 키 보안 저장 | 환경 변수 또는 Secret Manager 사용  | P0       |
+| NFR-012 | 민감 정보 마스킹 | 로그에서 토큰, 비밀번호 자동 마스킹 | P0       |
+| NFR-013 | GitHub 인증      | OAuth 또는 PAT 기반 인증            | P0       |
+| NFR-014 | 코드 보안 검사   | 생성 코드에 하드코딩 시크릿 금지    | P0       |
+| NFR-015 | 입력 검증        | 사용자 입력 및 외부 데이터 검증     | P1       |
 
 ### 5.4 Maintainability Requirements
 
-| ID | Requirement | Description | Priority |
-|----|-------------|-------------|----------|
-| NFR-016 | 설정 외부화 | YAML 기반 설정 파일 사용 | P0 |
-| NFR-017 | 템플릿 커스터마이징 | 사용자 정의 문서 템플릿 지원 | P1 |
-| NFR-018 | 로그 레벨 조정 | DEBUG/INFO/WARN/ERROR 런타임 조정 | P1 |
-| NFR-019 | 에이전트 정의 분리 | 각 에이전트별 독립 정의 파일 | P0 |
-| NFR-020 | 워크플로우 설정 | 파이프라인 단계 및 승인 게이트 설정 | P1 |
+| ID      | Requirement         | Description                         | Priority |
+| ------- | ------------------- | ----------------------------------- | -------- |
+| NFR-016 | 설정 외부화         | YAML 기반 설정 파일 사용            | P0       |
+| NFR-017 | 템플릿 커스터마이징 | 사용자 정의 문서 템플릿 지원        | P1       |
+| NFR-018 | 로그 레벨 조정      | DEBUG/INFO/WARN/ERROR 런타임 조정   | P1       |
+| NFR-019 | 에이전트 정의 분리  | 각 에이전트별 독립 정의 파일        | P0       |
+| NFR-020 | 워크플로우 설정     | 파이프라인 단계 및 승인 게이트 설정 | P1       |
 
 ### 5.5 Scalability Requirements
 
-| ID | Requirement | Description | Priority |
-|----|-------------|-------------|----------|
-| NFR-021 | 병렬 Worker 확장 | 설정으로 최대 Worker 수 조정 가능 | P1 |
-| NFR-022 | 대규모 문서 처리 | Context 분할로 대용량 입력 처리 | P1 |
+| ID      | Requirement      | Description                       | Priority |
+| ------- | ---------------- | --------------------------------- | -------- |
+| NFR-021 | 병렬 Worker 확장 | 설정으로 최대 Worker 수 조정 가능 | P1       |
+| NFR-022 | 대규모 문서 처리 | Context 분할로 대용량 입력 처리   | P1       |
 
 ---
 
@@ -1820,12 +1825,12 @@ schema:
       contact: string
   requirements:
     functional:
-      - id: string  # FR-XXX
+      - id: string # FR-XXX
         title: string
         description: string
         priority: enum[P0, P1, P2, P3]
     non_functional:
-      - id: string  # NFR-XXX
+      - id: string # NFR-XXX
         category: string
         requirement: string
   constraints:
@@ -1837,23 +1842,23 @@ schema:
       version: string
   questions:
     - question: string
-      answer: string  # User response
+      answer: string # User response
 ```
 
 #### 6.1.2 Work Order (work_order.yaml)
 
 ```yaml
 schema:
-  order_id: string  # WO-XXX
-  issue_id: string  # GitHub Issue Number
+  order_id: string # WO-XXX
+  issue_id: string # GitHub Issue Number
   issue_url: string
   created_at: datetime
-  deadline: datetime  # Optional
+  deadline: datetime # Optional
   priority: integer
   context:
-    sds_component: string  # CMP-XXX
-    srs_feature: string    # SF-XXX
-    prd_requirement: string  # FR-XXX
+    sds_component: string # CMP-XXX
+    srs_feature: string # SF-XXX
+    prd_requirement: string # FR-XXX
     related_files:
       - path: string
         reason: string
@@ -1886,7 +1891,7 @@ schema:
     build_passed: boolean
     coverage: float
   retry_count: integer
-  error_log: string  # If failed
+  error_log: string # If failed
   completed_at: datetime
 ```
 
@@ -1915,8 +1920,8 @@ schema:
     no_critical_issues: boolean
     coverage_threshold_met: boolean
   final_decision: enum[merge, revise, reject]
-  merge_commit: string  # SHA, if merged
-  merged_at: datetime  # If merged
+  merge_commit: string # SHA, if merged
+  merged_at: datetime # If merged
 ```
 
 #### 6.1.5 Impact Report (impact_report.yaml)
@@ -1927,13 +1932,13 @@ schema:
   change_request: string
   change_scope: enum[minor, moderate, major, breaking]
   affected_requirements:
-    - id: string       # FR-XXX
+    - id: string # FR-XXX
       impact: string
   affected_features:
-    - id: string       # SF-XXX
+    - id: string # SF-XXX
       impact: string
   affected_components:
-    - id: string       # CMP-XXX
+    - id: string # CMP-XXX
       impact: string
   affected_files:
     - path: string
@@ -2016,7 +2021,7 @@ schema:
   passed: integer
   failed: integer
   skipped: integer
-  duration: float  # seconds
+  duration: float # seconds
   failures:
     - test_file: string
       test_name: string
@@ -2074,14 +2079,14 @@ schema:
 
 ### 6.3 Data Constraints
 
-| Constraint | Description | Enforcement |
-|------------|-------------|-------------|
-| DC-001 | FR ID 유일성 | `FR-XXX` 형식, 프로젝트 내 고유 |
-| DC-002 | SF ID 유일성 | `SF-XXX` 형식, SRS 내 고유 |
-| DC-003 | CMP ID 유일성 | `CMP-XXX` 형식, SDS 내 고유 |
-| DC-004 | 우선순위 값 | P0, P1, P2, P3 중 하나 |
-| DC-005 | 이슈 상태 | open, in_progress, closed 중 하나 |
-| DC-006 | Work Order와 Issue 1:1 | 하나의 이슈에 하나의 Work Order |
+| Constraint | Description            | Enforcement                       |
+| ---------- | ---------------------- | --------------------------------- |
+| DC-001     | FR ID 유일성           | `FR-XXX` 형식, 프로젝트 내 고유   |
+| DC-002     | SF ID 유일성           | `SF-XXX` 형식, SRS 내 고유        |
+| DC-003     | CMP ID 유일성          | `CMP-XXX` 형식, SDS 내 고유       |
+| DC-004     | 우선순위 값            | P0, P1, P2, P3 중 하나            |
+| DC-005     | 이슈 상태              | open, in_progress, closed 중 하나 |
+| DC-006     | Work Order와 Issue 1:1 | 하나의 이슈에 하나의 Work Order   |
 
 ---
 
@@ -2089,51 +2094,51 @@ schema:
 
 ### 7.1 PRD → SRS Traceability
 
-| PRD Requirement | SRS Features | Use Cases |
-|-----------------|--------------|-----------|
-| FR-001 (정보 수집) | SF-001 | UC-001, UC-002, UC-003 |
-| FR-002 (PRD 생성) | SF-002 | UC-004, UC-005 |
-| FR-003 (SRS 생성) | SF-003 | UC-006 |
-| FR-004 (SDS 생성) | SF-004 | UC-007 |
-| FR-005 (Issue 생성) | SF-005 | UC-008 |
-| FR-006 (의존성 분석) | SF-006, SF-007 | UC-009, UC-010, UC-011 |
-| FR-007 (코드 구현) | SF-008, SF-009 | UC-012, UC-013 |
-| FR-008 (PR 생성/리뷰) | SF-010, SF-011 | UC-014, UC-015, UC-016 |
-| FR-009 (추적성) | SF-012 | UC-017, UC-018 |
-| FR-010 (승인 게이트) | SF-013 | UC-019 |
-| FR-011 (모니터링) | SF-007 | UC-011 |
-| FR-012 (재시도) | SF-009, SF-016 | UC-013, UC-024 |
-| FR-013 (로깅) | SF-015 | UC-022, UC-023 |
-| FR-014 (GitHub 연동) | SF-005, SF-010, SF-011 | UC-008, UC-014, UC-015, UC-016 |
-| FR-015 (Scratchpad) | SF-014 | UC-020, UC-021 |
-| FR-016 (외부 소스) | SF-001 | UC-002, UC-003 |
-| FR-017 (문서 파싱) | SF-017 | UC-025, UC-026 |
-| FR-018 (코드베이스 분석) | SF-018 | UC-027, UC-028 |
-| FR-019 (변경 영향 분석) | SF-019 | UC-029, UC-030 |
-| FR-020 (PRD 증분 업데이트) | SF-020 | UC-031 |
-| FR-021 (SRS 증분 업데이트) | SF-021 | UC-032 |
-| FR-022 (SDS 증분 업데이트) | SF-022 | UC-033 |
-| FR-023 (회귀 테스트) | SF-023 | UC-034 |
-| FR-024 (문서-코드 갭 분석) | SF-024 | UC-035 |
-| FR-025 (소스 코드 AST 분석) | SF-025 | UC-036 |
-| FR-026 (CI/CD 실패 자동 수정) | SF-026 | UC-037 |
-| FR-027 (파이프라인 모드 감지) | SF-027 | UC-038 |
-| FR-028 (프로젝트 초기화) | SF-028 | UC-039 |
-| FR-029 (GitHub 저장소 생성) | SF-029 | UC-040, UC-041 |
-| FR-030 (GitHub 저장소 감지) | SF-029 | UC-041 |
-| FR-031 (전체 파이프라인 오케스트레이션) | SF-030 | UC-042, UC-043 |
-| FR-032 (Enhancement 서브 파이프라인) | SF-030 | UC-043 |
-| FR-033 (이슈 임포트) | SF-031 | UC-044 |
+| PRD Requirement                         | SRS Features           | Use Cases                      |
+| --------------------------------------- | ---------------------- | ------------------------------ |
+| FR-001 (정보 수집)                      | SF-001                 | UC-001, UC-002, UC-003         |
+| FR-002 (PRD 생성)                       | SF-002                 | UC-004, UC-005                 |
+| FR-003 (SRS 생성)                       | SF-003                 | UC-006                         |
+| FR-004 (SDS 생성)                       | SF-004                 | UC-007                         |
+| FR-005 (Issue 생성)                     | SF-005                 | UC-008                         |
+| FR-006 (의존성 분석)                    | SF-006, SF-007         | UC-009, UC-010, UC-011         |
+| FR-007 (코드 구현)                      | SF-008, SF-009         | UC-012, UC-013                 |
+| FR-008 (PR 생성/리뷰)                   | SF-010, SF-011         | UC-014, UC-015, UC-016         |
+| FR-009 (추적성)                         | SF-012                 | UC-017, UC-018                 |
+| FR-010 (승인 게이트)                    | SF-013                 | UC-019                         |
+| FR-011 (모니터링)                       | SF-007                 | UC-011                         |
+| FR-012 (재시도)                         | SF-009, SF-016         | UC-013, UC-024                 |
+| FR-013 (로깅)                           | SF-015                 | UC-022, UC-023                 |
+| FR-014 (GitHub 연동)                    | SF-005, SF-010, SF-011 | UC-008, UC-014, UC-015, UC-016 |
+| FR-015 (Scratchpad)                     | SF-014                 | UC-020, UC-021                 |
+| FR-016 (외부 소스)                      | SF-001                 | UC-002, UC-003                 |
+| FR-017 (문서 파싱)                      | SF-017                 | UC-025, UC-026                 |
+| FR-018 (코드베이스 분석)                | SF-018                 | UC-027, UC-028                 |
+| FR-019 (변경 영향 분석)                 | SF-019                 | UC-029, UC-030                 |
+| FR-020 (PRD 증분 업데이트)              | SF-020                 | UC-031                         |
+| FR-021 (SRS 증분 업데이트)              | SF-021                 | UC-032                         |
+| FR-022 (SDS 증분 업데이트)              | SF-022                 | UC-033                         |
+| FR-023 (회귀 테스트)                    | SF-023                 | UC-034                         |
+| FR-024 (문서-코드 갭 분석)              | SF-024                 | UC-035                         |
+| FR-025 (소스 코드 AST 분석)             | SF-025                 | UC-036                         |
+| FR-026 (CI/CD 실패 자동 수정)           | SF-026                 | UC-037                         |
+| FR-027 (파이프라인 모드 감지)           | SF-027                 | UC-038                         |
+| FR-028 (프로젝트 초기화)                | SF-028                 | UC-039                         |
+| FR-029 (GitHub 저장소 생성)             | SF-029                 | UC-040, UC-041                 |
+| FR-030 (GitHub 저장소 감지)             | SF-029                 | UC-041                         |
+| FR-031 (전체 파이프라인 오케스트레이션) | SF-030                 | UC-042, UC-043                 |
+| FR-032 (Enhancement 서브 파이프라인)    | SF-030                 | UC-043                         |
+| FR-033 (이슈 임포트)                    | SF-031                 | UC-044                         |
 
 ### 7.2 Coverage Summary
 
-| Metric | Value |
-|--------|-------|
-| Total PRD Requirements (FR) | 33 |
-| Total SRS Features (SF) | 31 |
-| Total Use Cases (UC) | 44 |
-| PRD Coverage | 100% |
-| Features with Use Cases | 100% |
+| Metric                      | Value |
+| --------------------------- | ----- |
+| Total PRD Requirements (FR) | 33    |
+| Total SRS Features (SF)     | 31    |
+| Total Use Cases (UC)        | 44    |
+| PRD Coverage                | 100%  |
+| Features with Use Cases     | 100%  |
 
 ---
 
@@ -2141,33 +2146,33 @@ schema:
 
 ### 8.1 Glossary
 
-| Term | Definition |
-|------|------------|
-| **Agent** | Claude API를 사용하는 자율 실행 단위 |
-| **Circuit Breaker** | 연속 실패 시 일시 중단 패턴 |
-| **Context Window** | 모델이 한 번에 처리할 수 있는 토큰 수 |
-| **Feature Branch** | 특정 기능 개발을 위한 Git 브랜치 |
-| **Gap Analysis** | 누락된 정보나 요구사항 식별 |
-| **Quality Gate** | 다음 단계 진행을 위한 품질 검증 관문 |
-| **Squash Merge** | 여러 커밋을 하나로 합쳐 머지 |
-| **Topological Sort** | 의존성 그래프의 위상 정렬 |
-| **Work Breakdown** | 작업을 구현 단위로 분해 |
+| Term                 | Definition                            |
+| -------------------- | ------------------------------------- |
+| **Agent**            | Claude API를 사용하는 자율 실행 단위  |
+| **Circuit Breaker**  | 연속 실패 시 일시 중단 패턴           |
+| **Context Window**   | 모델이 한 번에 처리할 수 있는 토큰 수 |
+| **Feature Branch**   | 특정 기능 개발을 위한 Git 브랜치      |
+| **Gap Analysis**     | 누락된 정보나 요구사항 식별           |
+| **Quality Gate**     | 다음 단계 진행을 위한 품질 검증 관문  |
+| **Squash Merge**     | 여러 커밋을 하나로 합쳐 머지          |
+| **Topological Sort** | 의존성 그래프의 위상 정렬             |
+| **Work Breakdown**   | 작업을 구현 단위로 분해               |
 
 ### 8.2 Open Issues
 
-| Issue ID | Description | Status | Owner |
-|----------|-------------|--------|-------|
-| OI-001 | 다중 리포지토리 지원 범위 결정 | Open | Architect |
-| OI-002 | 외부 테스트 서비스 연동 옵션 | Open | Tech Lead |
-| OI-003 | 비영어권 코드베이스 지원 | Open | PM |
+| Issue ID | Description                    | Status | Owner     |
+| -------- | ------------------------------ | ------ | --------- |
+| OI-001   | 다중 리포지토리 지원 범위 결정 | Open   | Architect |
+| OI-002   | 외부 테스트 서비스 연동 옵션   | Open   | Tech Lead |
+| OI-003   | 비영어권 코드베이스 지원       | Open   | PM        |
 
 ### 8.3 Document History
 
-| Version | Date | Author | Changes |
-|---------|------|--------|---------|
-| 1.0.0 | 2025-12-27 | System Architect | Initial draft based on PRD-001 |
-| 1.1.0 | 2026-02-07 | System Architect | Enhancement Pipeline 기능 추가 (SF-017~SF-031, UC-025~UC-044) FR-017~FR-033 대응 |
+| Version | Date       | Author           | Changes                                                                          |
+| ------- | ---------- | ---------------- | -------------------------------------------------------------------------------- |
+| 1.0.0   | 2025-12-27 | System Architect | Initial draft based on PRD-001                                                   |
+| 1.1.0   | 2026-02-07 | System Architect | Enhancement Pipeline 기능 추가 (SF-017~SF-031, UC-025~UC-044) FR-017~FR-033 대응 |
 
 ---
 
-*This SRS was generated for the Agent-Driven SDLC project based on PRD-001.*
+_This SRS was generated for the Agent-Driven SDLC project based on PRD-001._
