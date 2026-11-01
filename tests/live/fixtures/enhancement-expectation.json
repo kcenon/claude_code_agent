@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "feature": {
+    "title": "Report overdue tasks",
+    "request": "Add an exported function `overdueTasks(tasks, today)` to `src/report.mjs`. It returns the open tasks whose due date (`YYYY-MM-DD`) is before `today`, oldest due date first and then lowest identifier. A task due on `today`, a task without a due date, and a task that is done are not overdue. It leaves its input list unchanged.",
+    "acceptanceCriteria": [
+      "AC-001: `overdueTasks` returns the open tasks due before the given day",
+      "AC-002: A task due on the given day is not overdue",
+      "AC-003: A task without a due date is never overdue",
+      "AC-004: The oldest due date comes first, then the lowest identifier",
+      "AC-005: The input list is left alone"
+    ]
+  },
+  "impacted": {
+    "requirements": ["FR-002"],
+    "features": ["SF-002"],
+    "components": ["CMP-002"]
+  },
+  "preserved": {
+    "requirements": ["FR-001", "FR-002", "FR-003"],
+    "features": ["SF-001", "SF-002", "SF-003"],
+    "components": ["CMP-001", "CMP-002", "CMP-003"]
+  },
+  "newIdAllowance": {
+    "requirements": 2,
+    "features": 2,
+    "components": 1
+  },
+  "paths": {
+    "allowed": [
+      "src/**",
+      "test/**",
+      "docs/prd/**",
+      "docs/srs/**",
+      "docs/sds/**",
+      "docs/.index/**",
+      "README.md",
+      ".gitignore"
+    ],
+    "forbidden": [
+      "src/tasks.mjs",
+      "src/archive.mjs",
+      "test/tasks.test.mjs",
+      "test/report.test.mjs",
+      "package.json",
+      "doc-sync-points.yaml"
+    ]
+  },
+  "drift": {
+    "ids": ["FR-003", "SF-003", "CMP-003"],
+    "sourceFile": "src/archive.mjs",
+    "acceptedKinds": ["documented_not_implemented", "documentation_code_mismatch"],
+    "outcome": "reported-not-fixed"
+  }
+}

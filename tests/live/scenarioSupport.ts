@@ -213,6 +213,18 @@ export function ownedPullRequests(
 }
 
 /**
+ * Issues created during a run: the ones absent from the snapshot taken before it.
+ * Enhancement issues are generated, so no seeded list or run label identifies them.
+ * @param before - Issue numbers before the run
+ * @param after - Issue numbers after the run
+ * @returns Issue numbers the run created
+ */
+export function ownedIssues(before: readonly number[], after: readonly number[]): number[] {
+  const known = new Set(before);
+  return after.filter((issue) => !known.has(issue));
+}
+
+/**
  * Issues a pull request links: closing references, or `#N` in its title or body.
  * @param pr - Pull request
  * @param issues - Candidate issue numbers
