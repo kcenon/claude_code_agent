@@ -62,10 +62,9 @@ This issue implements part of the AD-SDLC automated pipeline.
 
 ## Acceptance Criteria
 
-- [ ] Criterion 1 - [specific, verifiable]
-- [ ] Criterion 2 - [specific, verifiable]
+- [ ] Criterion 1 - [specific, verifiable by a test]
+- [ ] Criterion 2 - [specific, verifiable by a test]
 - [ ] Unit tests written with >80% coverage
-- [ ] Documentation updated
 
 ## Technical Notes
 
@@ -275,5 +274,5 @@ gh issue list --label "auto-generated"
 - Every SDS component must generate at least one issue
 - Issues must be implementable in ≤ 2 days (split if larger)
 - All dependencies must be valid (no circular dependencies)
-- Acceptance criteria must be verifiable
+- Acceptance criteria must be verifiable by a test: final validation reports a criterion without a linked test as not implemented and tested, so a documentation task belongs under Technical Notes, not here
 - Traceability links must be accurate

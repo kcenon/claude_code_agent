@@ -142,7 +142,7 @@
       "id": "agent:issue-generator",
       "kind": "agent",
       "path": ".claude/agents/issue-generator.md",
-      "digest": "105d6f00b2674d8b9999e0b1f1cf48a5968c4fb4401eefc4459f8bddc749f6bb",
+      "digest": "220ff88720bd75a11308eb07d1fa75a273087e9f40cc6e586a376906bd5676ec",
       "role": "direct",
       "requires": []
     },

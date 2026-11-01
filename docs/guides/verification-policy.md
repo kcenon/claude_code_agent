@@ -145,11 +145,19 @@ VR-VAL-004 fails and names each uncovered identifier:
 
 | Identifier       | Meaning                                                                                                                                                                                        |
 | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `FR-002`         | No issue implements the requirement (Greenfield, Enhancement).                                                                                                                                 |
+| `FR-002`         | No issue implements the requirement (Greenfield, Enhancement; see below).                                                                                                                      |
 | `ISS-002`        | The issue states no acceptance criteria.                                                                                                                                                       |
 | `ISS-001/AC-002` | The criterion is not implemented and tested; the check details and the RTM give the reason, for example `No test is linked to the criterion` or `Linked test file not found: tests/x.test.ts`. |
 
 It also fails when the run produced no requirement or issue to trace.
+
+Enhancement changes an existing project, so it does not ask for an issue for
+every requirement. A requirement the project already had
+(`current_state.yaml`) that the PRD update did not add or modify
+(`prd_update_result.yaml`) is not this run's work and is not reported. A
+requirement the run added or modified is, and without `current_state.yaml`
+every requirement is.
+
 VR-VAL-005 (warning) lists issues that trace to no PRD requirement; it is
 skipped in Import mode, where the issues are the roots.
 

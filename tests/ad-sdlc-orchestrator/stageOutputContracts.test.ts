@@ -177,6 +177,12 @@ describe('stage output contracts', () => {
     expect(definition).toContain('NEVER alter');
   });
 
+  it('asks the issue generator only for acceptance criteria a test can verify', () => {
+    const definition = definitionOf('issue-generator');
+    expect(definition).not.toContain('Documentation updated');
+    expect(definition).toContain('verifiable by a test');
+  });
+
   it('gives the doc-code comparison one output name', () => {
     expect(definitionOf('doc-code-comparator')).not.toContain('gap_analysis');
   });

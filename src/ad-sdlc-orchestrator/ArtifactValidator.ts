@@ -368,7 +368,7 @@ export class ArtifactValidator {
    * Performs stage-specific quality checks beyond file existence:
    * - collection: collected_info.yaml has at least 1 FR with title and description
    * - prd_generation / prd_update: no unsubstituted template variables, min content length
-   * - srs_generation / srs_update: has features section, product name is not a placeholder
+   * - srs_generation / srs_update: has a features section, product name is not a placeholder
    *
    * @param stage - The stage that just completed
    * @param mode - Pipeline mode for artifact path lookup
@@ -506,9 +506,10 @@ export class ArtifactValidator {
     try {
       const content = await fs.readFile(srsFiles[0] as string, 'utf8');
 
-      // Check for features section
-      if (!/##\s*\d*\.?\s*System Features/i.test(content)) {
-        warnings.push('SRS is missing System Features section');
+      // Check for features section. VR-SRS-002 requires "Software Features", and
+      // the srs-writer template says "System Features".
+      if (!/##\s*\d*\.?\s*(?:System|Software) Features/i.test(content)) {
+        warnings.push('SRS is missing a System Features or Software Features section');
       }
 
       // Check product name is not a placeholder

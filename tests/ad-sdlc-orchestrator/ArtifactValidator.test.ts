@@ -389,6 +389,18 @@ describe('ArtifactValidator', () => {
         expect(result.warnings).toHaveLength(0);
       });
 
+      it('accepts the Software Features section that VR-SRS-002 requires', async () => {
+        const docsDir = path.join(tempDir, '.ad-sdlc', 'scratchpad', 'documents', 'v1');
+        await fs.mkdir(docsDir, { recursive: true });
+        await fs.writeFile(
+          path.join(docsDir, 'srs.md'),
+          '# SRS: My Application\n\n## Software Features\n\n### SF-001: Feature A\n'
+        );
+
+        const result = await validator.validateStageOutput('srs_update', 'enhancement');
+        expect(result).toMatchObject({ quality: 'good', warnings: [] });
+      });
+
       it('should detect missing System Features section', async () => {
         const docsDir = path.join(tempDir, '.ad-sdlc', 'scratchpad', 'documents', 'v1');
         await fs.mkdir(docsDir, { recursive: true });

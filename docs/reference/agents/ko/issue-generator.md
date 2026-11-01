@@ -47,10 +47,9 @@ SDS 컴포넌트를 적절한 의존성, 라벨, 추정치가 포함된 실행 �
 
 ## Acceptance Criteria
 
-- [ ] Criterion 1 - [구체적이고 검증 가능]
-- [ ] Criterion 2 - [구체적이고 검증 가능]
+- [ ] Criterion 1 - [구체적이고 테스트로 검증 가능]
+- [ ] Criterion 2 - [구체적이고 테스트로 검증 가능]
 - [ ] Unit tests written with >80% coverage
-- [ ] Documentation updated
 
 ## Technical Notes
 
@@ -258,5 +257,5 @@ gh issue list --label "auto-generated"
 - 모든 SDS 컴포넌트가 최소 하나의 이슈를 생성해야 함
 - 이슈는 2일 이내에 구현 가능해야 함 (더 크면 분할)
 - 모든 의존성이 유효해야 함 (순환 의존성 없음)
-- 인수 조건이 검증 가능해야 함
+- 인수 조건을 테스트로 검증할 수 있어야 함: 최종 검증은 연결된 테스트가 없는 조건을 구현 및 테스트되지 않은 것으로 보고하므로, 문서 작업은 여기가 아니라 Technical Notes에 적음
 - 추적성 링크가 정확해야 함
