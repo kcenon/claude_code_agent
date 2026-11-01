@@ -999,20 +999,20 @@ AD-SDLC는 Claude Agent SDK 기반의 멀티 에이전트 시스템으로, 기�
   1. 시스템이 문서 디렉토리에서 기존 PRD, SRS, SDS 파일을 스캔함
   2. 시스템이 각 문서에서 섹션, ID, 구조화된 콘텐츠를 파싱하여 추출함
   3. 시스템이 추출된 데이터를 예상 스키마(FR-XXX, SF-XXX, CMP-XXX)에 대해 검증함
-  4. 시스템이 파싱된 상태를 Scratchpad 내 `document_state.yaml`에 저장함
+  4. 시스템이 파싱된 상태를 Scratchpad 내 `current_state.yaml`에 저장함
 - **Alternative Flows**:
   - 2a. 비표준 문서 형식: 경고와 함께 최선의 추출 시도
 - **Exception Flows**:
   - E1. 문서 파싱 실패: 오류 상세 정보를 로깅하고 파싱 불가 섹션을 보고
 - **Postconditions**:
-  1. `document_state.yaml`에 모든 파싱된 문서의 구조화된 표현이 포함됨
+  1. `current_state.yaml`에 모든 파싱된 문서의 구조화된 표현이 포함됨
   2. 모든 요구사항 ID, 기능 ID, 컴포넌트 ID가 카탈로그화됨
 
 ##### UC-026: 파싱된 문서로부터 추적성 매핑 구축
 
 - **Actor**: System (Enhancement Pipeline)
 - **Preconditions**:
-  1. 파싱된 문서 콘텐츠가 포함된 `document_state.yaml`이 존재함
+  1. 파싱된 문서 콘텐츠가 포함된 `current_state.yaml`이 존재함
 - **Main Flow**:
   1. 시스템이 SRS 추적성 섹션에서 FR → SF 매핑을 추출함
   2. 시스템이 SDS 추적성 섹션에서 SF → CMP 매핑을 추출함
@@ -1029,7 +1029,7 @@ AD-SDLC는 Claude Agent SDK 기반의 멀티 에이전트 시스템으로, 기�
 - [ ] AC-068: PRD 문서에서 모든 FR-XXX 식별자 및 메타데이터를 파싱
 - [ ] AC-069: SRS 문서에서 모든 SF-XXX 및 UC-XXX 식별자를 파싱
 - [ ] AC-070: SDS 문서에서 모든 CMP-XXX 및 API-XXX 식별자를 파싱
-- [ ] AC-071: 스키마에 부합하는 유효한 `document_state.yaml` 생성
+- [ ] AC-071: 스키마에 부합하는 유효한 `current_state.yaml` 생성
 - [ ] AC-072: 완전한 FR→SF→CMP 추적성 매핑 구축
 
 #### 3.17.3 Dependencies
@@ -1350,12 +1350,12 @@ AD-SDLC는 Claude Agent SDK 기반의 멀티 에이전트 시스템으로, 기�
   2. 시스템이 명세되었지만 미구현된 기능을 식별함
   3. 시스템이 구현되었지만 문서화되지 않은 기능을 식별함
   4. 시스템이 명세 드리프트(구현이 명세에서 벗어남)를 감지함
-  5. 시스템이 분류된 발견 사항이 포함된 `gap_analysis_report.yaml`을 생성함
+  5. 시스템이 분류된 발견 사항이 포함된 `comparison_result.yaml`을 생성함
 - **Alternative Flows**:
   - 2a. 모든 기능 구현됨: 전체 구현 커버리지 보고
   - 3a. 문서화되지 않은 코드 없음: 문서 완전성 보고
 - **Postconditions**:
-  1. `gap_analysis_report.yaml`이 Scratchpad에 저장됨
+  1. `comparison_result.yaml`이 Scratchpad에 저장됨
   2. 갭이 심각도와 유형별로 분류됨
 
 #### 3.24.2 Acceptance Criteria
@@ -1988,7 +1988,7 @@ schema:
   analyzed_at: datetime
 ```
 
-#### 6.1.7 Gap Report (gap_report.yaml)
+#### 6.1.7 Comparison Result (comparison_result.yaml)
 
 ```yaml
 schema:

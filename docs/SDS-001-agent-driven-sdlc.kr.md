@@ -1959,7 +1959,7 @@ interface TraceabilityLink {
 }
 ```
 
-**Output**: `.ad-sdlc/scratchpad/analysis/{project_id}/current_state.yaml`
+**Output**: `.ad-sdlc/scratchpad/state/{project_id}/current_state.yaml`
 
 #### 3.11.2 CMP-013: Codebase Analyzer Agent
 
@@ -2076,7 +2076,7 @@ interface Recommendation {
 }
 ```
 
-**Output**: `.ad-sdlc/scratchpad/analysis/{project_id}/impact_report.yaml`
+**Output**: `.ad-sdlc/scratchpad/impact/{project_id}/impact_report.yaml`
 
 #### 3.11.4 CMP-015: PRD Updater Agent
 
@@ -2307,7 +2307,7 @@ interface BreakingChange {
 }
 ```
 
-**Output**: `.ad-sdlc/scratchpad/analysis/{project_id}/regression_report.yaml`
+**Output**: `.ad-sdlc/scratchpad/regression/{project_id}/regression_report.yaml`
 
 #### 3.11.8 CMP-019: Doc-Code Comparator Agent
 
@@ -2370,7 +2370,7 @@ interface ComparisonResult {
 }
 ```
 
-**Output**: `.ad-sdlc/scratchpad/analysis/{project_id}/gap_report.yaml`
+**Output**: `.ad-sdlc/scratchpad/analysis/{project_id}/comparison_result.yaml`
 
 #### 3.11.9 CMP-020: Code Reader Agent
 

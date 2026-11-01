@@ -999,20 +999,20 @@ AD-SDLC is a multi-agent system based on the Claude Agent SDK that automates the
   1. System scans the document directory for existing PRD, SRS, and SDS files
   2. System parses each document extracting sections, IDs, and structured content
   3. System validates extracted data against expected schemas (FR-XXX, SF-XXX, CMP-XXX)
-  4. System stores parsed state in `document_state.yaml` within the Scratchpad
+  4. System stores parsed state in `current_state.yaml` within the Scratchpad
 - **Alternative Flows**:
   - 2a. Non-standard document format: Attempt best-effort extraction with warnings
 - **Exception Flows**:
   - E1. Document parsing failure: Log error details and report unparseable sections
 - **Postconditions**:
-  1. `document_state.yaml` contains structured representation of all parsed documents
+  1. `current_state.yaml` contains structured representation of all parsed documents
   2. All requirement IDs, feature IDs, and component IDs are catalogued
 
 ##### UC-026: Build Traceability Mapping from Parsed Documents
 
 - **Actor**: System (Enhancement Pipeline)
 - **Preconditions**:
-  1. `document_state.yaml` exists with parsed document content
+  1. `current_state.yaml` exists with parsed document content
 - **Main Flow**:
   1. System extracts FR → SF mappings from SRS traceability sections
   2. System extracts SF → CMP mappings from SDS traceability sections
@@ -1029,7 +1029,7 @@ AD-SDLC is a multi-agent system based on the Claude Agent SDK that automates the
 - [ ] AC-068: Parse PRD documents extracting all FR-XXX identifiers and metadata
 - [ ] AC-069: Parse SRS documents extracting all SF-XXX and UC-XXX identifiers
 - [ ] AC-070: Parse SDS documents extracting all CMP-XXX and API-XXX identifiers
-- [ ] AC-071: Generate valid `document_state.yaml` conforming to schema
+- [ ] AC-071: Generate valid `current_state.yaml` conforming to schema
 - [ ] AC-072: Build complete FR→SF→CMP traceability mapping
 
 #### 3.17.3 Dependencies
@@ -1350,12 +1350,12 @@ AD-SDLC is a multi-agent system based on the Claude Agent SDK that automates the
   2. System identifies specified but unimplemented features
   3. System identifies implemented but undocumented functionality
   4. System detects specification drift (implementation deviates from spec)
-  5. System generates `gap_analysis_report.yaml` with categorized findings
+  5. System generates `comparison_result.yaml` with categorized findings
 - **Alternative Flows**:
   - 2a. All features implemented: Report full implementation coverage
   - 3a. No undocumented code: Report documentation is complete
 - **Postconditions**:
-  1. `gap_analysis_report.yaml` is saved to Scratchpad
+  1. `comparison_result.yaml` is saved to Scratchpad
   2. Gaps are categorized by severity and type
 
 #### 3.24.2 Acceptance Criteria
@@ -1989,7 +1989,7 @@ schema:
   analyzed_at: datetime
 ```
 
-#### 6.1.7 Gap Report (gap_report.yaml)
+#### 6.1.7 Comparison Result (comparison_result.yaml)
 
 ```yaml
 schema:
