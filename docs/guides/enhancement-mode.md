@@ -132,6 +132,7 @@ Each updater:
 - Maintains version history
 - Generates changelog
 - Preserves existing content
+- Writes the document under `docs/` and a copy to `.ad-sdlc/scratchpad/documents/<project>/{prd,srs,sds}.md`, which later stages read
 
 **Approval Gates**: Each document update requires approval
 

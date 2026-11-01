@@ -149,7 +149,6 @@ function importOutputs(): StageOutputs {
       [`${S}/progress/demo/results/WO-002-result.yaml`]: implementationResult('002', 'logout'),
     },
     'validation-agent': {
-      [`${S}/vnv/demo/rtm.yaml`]: 'rtm:\n  entries: []\n',
       [`${S}/vnv/demo/validation-report.yaml`]:
         'validation_report:\n  overall_status: pass\n  quality_gates:\n    - name: overall_coverage\n      status: pass\n',
     },

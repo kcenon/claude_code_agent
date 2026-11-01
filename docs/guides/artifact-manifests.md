@@ -113,6 +113,14 @@ filesystem glob. SDK output cannot lower a requirement by setting `required:
 false` or omitting the artifact. Required-output checks are distinct from the
 existing content-quality and V&V policies.
 
+Each required pattern (`GREENFIELD_ARTIFACTS`, `ENHANCEMENT_ARTIFACTS`, and
+`IMPORT_ARTIFACTS` in `src/ad-sdlc-orchestrator/ArtifactValidator.ts`) must be an
+output its stage's agent definition documents, and what a stage reads must be an
+output of an earlier stage. `tests/ad-sdlc-orchestrator/stageOutputContracts.test.ts`
+compares the two texts for every stage of every mode; it cannot show that a live
+agent follows them. A customized definition that writes elsewhere fails with
+`Required file output missing`.
+
 External references are denied by default. A trusted programmatic caller can set
 `artifactContext.externalReferences` to exact permitted locations. `external-file`
 requires a native absolute path and is checked locally. `external-uri` accepts
@@ -170,7 +178,9 @@ snapshot. On restart, checkpoint and session-only paths preserve manifest
 references. If an interruption happened after manifest publication but before
 stage/checkpoint persistence, the same-session stage can recover the completed
 manifest with matching upstream lineage and required-output contract. This does
-not rerun its SDK invocation. Repeated recovery keeps the same reference.
+not rerun its SDK invocation. Repeated recovery keeps the same reference. A stage
+whose contract changed since its manifest was saved stops with `Recovered output
+contract changed: <stage>; start a fresh run`.
 
 Required artifacts must still exist with their recorded type and SHA-256 content
 before reuse. Restore a missing/changed required output or start a fresh run;

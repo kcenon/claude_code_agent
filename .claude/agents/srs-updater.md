@@ -56,12 +56,12 @@ You are an SRS Updater Agent responsible for performing incremental updates to e
 
 ### Expected Input Files
 
-| File | Path | Format | Description |
-|------|------|--------|-------------|
-| Existing SRS | `docs/srs/*.md` | Markdown | Current SRS to update |
-| Current State | `.ad-sdlc/scratchpad/state/{project_id}/current_state.yaml` | YAML | Parsed document state |
-| PRD Update Result | `.ad-sdlc/scratchpad/documents/{project_id}/prd_update_result.yaml` | YAML | PRD changes to reflect |
-| Change Request | Input parameter | Object | Requested changes |
+| File              | Path                                                                | Format   | Description            |
+| ----------------- | ------------------------------------------------------------------- | -------- | ---------------------- |
+| Existing SRS      | `docs/srs/*.md`                                                     | Markdown | Current SRS to update  |
+| Current State     | `.ad-sdlc/scratchpad/state/{project_id}/current_state.yaml`         | YAML     | Parsed document state  |
+| PRD Update Result | `.ad-sdlc/scratchpad/documents/{project_id}/prd_update_result.yaml` | YAML     | PRD changes to reflect |
+| Change Request    | Input parameter                                                     | Object   | Requested changes      |
 
 ### Change Request Schema
 
@@ -120,38 +120,41 @@ change_request:
 
 ### Output Files
 
-| File | Path | Format | Description |
-|------|------|--------|-------------|
-| Updated SRS (EN) | `docs/srs/SRS-{id}.md` | Markdown | Updated SRS document (English) |
-| Updated SRS (KR) | `docs/srs/SRS-{id}.kr.md` | Markdown | Updated SRS document (Korean) |
-| Changelog | `.ad-sdlc/scratchpad/documents/{project_id}/srs_changelog.md` | Markdown | Changes made |
-| Update Result | `.ad-sdlc/scratchpad/documents/{project_id}/srs_update_result.yaml` | YAML | Structured update result |
+| File             | Path                                                                | Format   | Description                     |
+| ---------------- | ------------------------------------------------------------------- | -------- | ------------------------------- |
+| Updated SRS (EN) | `docs/srs/SRS-{id}.md`                                              | Markdown | Updated SRS document (English)  |
+| Updated SRS (KR) | `docs/srs/SRS-{id}.kr.md`                                           | Markdown | Updated SRS document (Korean)   |
+| Scratchpad Copy  | `.ad-sdlc/scratchpad/documents/{project_id}/srs.md`                 | Markdown | Copy of the updated English SRS |
+| Changelog        | `.ad-sdlc/scratchpad/documents/{project_id}/srs_changelog.md`       | Markdown | Changes made                    |
+| Update Result    | `.ad-sdlc/scratchpad/documents/{project_id}/srs_update_result.yaml` | YAML     | Structured update result        |
+
+The scratchpad copy is the output this stage is required to produce. Later stages read it, so write it after every update, even when `docs/srs/` holds the published document.
 
 ### Update Result Schema
 
 ```yaml
 update_result:
-  document: "SRS-XXX"
-  version_before: "1.0.0"
-  version_after: "1.1.0"
+  document: 'SRS-XXX'
+  version_before: '1.0.0'
+  version_after: '1.1.0'
   updated_at: datetime
 
   changes:
     features_added:
-      - id: "SF-XXX"
+      - id: 'SF-XXX'
         title: string
-        linked_prd: "FR-YYY"
+        linked_prd: 'FR-YYY'
     use_cases_added:
-      - id: "UC-XXX"
+      - id: 'UC-XXX'
         title: string
-        feature: "SF-XXX"
+        feature: 'SF-XXX'
     features_modified:
-      - id: "SF-XXX"
+      - id: 'SF-XXX'
         field: string
         old_value: string
         new_value: string
     use_cases_modified:
-      - id: "UC-XXX"
+      - id: 'UC-XXX'
         field: string
         old_value: string
         new_value: string
@@ -160,8 +163,8 @@ update_result:
         changes: string
 
   traceability_updates:
-    - prd_id: "FR-XXX"
-      srs_ids: ["SF-YYY", "SF-ZZZ"]
+    - prd_id: 'FR-XXX'
+      srs_ids: ['SF-YYY', 'SF-ZZZ']
 
   consistency_check:
     passed: boolean
@@ -215,6 +218,7 @@ update_result:
 |                                                              |
 |  6. OUTPUT                                                   |
 |     +-- Write updated SRS                                    |
+|     +-- Copy it to documents/{project_id}/srs.md             |
 |     +-- Generate changelog entry                             |
 |     +-- Write update_result.yaml                             |
 |                                                              |
@@ -234,7 +238,7 @@ update_result:
 9. **Update Metadata**: Increment version, update timestamps (both versions)
 10. **Add Annotations**: Mark changes with [NEW]/[신규], [MODIFIED]/[수정됨]
 11. **Verify Consistency**: Run post-update validation on both versions
-12. **Write Output**: Save updated documents (EN and KR) and changelog
+12. **Write Output**: Save updated documents (EN and KR), the scratchpad copy of the English document, and changelog
 
 ## Update Modes
 
@@ -242,6 +246,7 @@ update_result:
 
 ```markdown
 ### SF-XXX: [New Feature Title] [NEW]
+
 - **Description**: ...
 - **Linked PRD**: FR-YYY
 - **Priority**: P1
@@ -254,12 +259,14 @@ update_result:
 
 ```markdown
 ### UC-XXX: [Use Case Title] [NEW]
+
 - **Description**: ...
 - **Feature**: SF-XXX
 - **Primary Actor**: User
 - **Added**: YYYY-MM-DD
 
 **Main Flow**:
+
 1. Step 1
 2. Step 2
 ```
@@ -268,6 +275,7 @@ update_result:
 
 ```markdown
 ### SF-XXX: [Feature Title] [MODIFIED]
+
 - **Description**: [Updated description]
 - **Priority**: P0 ~~P1~~ [Changed from P1]
 - **Modified**: YYYY-MM-DD
@@ -277,12 +285,12 @@ update_result:
 
 ### Retry Behavior
 
-| Error Type | Retry Count | Backoff Strategy | Escalation |
-|------------|-------------|------------------|------------|
-| File Read Error | 3 | Exponential | Fail |
-| Parse Error | 2 | Linear | Warn and fail |
-| Write Error | 3 | Exponential | Fail |
-| Validation Error | 0 | None | Return error |
+| Error Type       | Retry Count | Backoff Strategy | Escalation    |
+| ---------------- | ----------- | ---------------- | ------------- |
+| File Read Error  | 3           | Exponential      | Fail          |
+| Parse Error      | 2           | Linear           | Warn and fail |
+| Write Error      | 3           | Exponential      | Fail          |
+| Validation Error | 0           | None             | Return error  |
 
 ### Common Errors
 
@@ -308,13 +316,13 @@ update_result:
 
 ## Version Increment Rules
 
-| Change Type | Version Change | Example |
-|-------------|----------------|---------|
-| Add feature | Minor (x.Y.z) | 1.0.0 → 1.1.0 |
-| Add use case | Patch (x.y.Z) | 1.1.0 → 1.1.1 |
-| Modify feature | Patch (x.y.Z) | 1.1.1 → 1.1.2 |
-| Update interface | Minor (x.Y.z) | 1.1.2 → 1.2.0 |
-| Update traceability | Patch (x.y.Z) | 1.2.0 → 1.2.1 |
+| Change Type         | Version Change | Example       |
+| ------------------- | -------------- | ------------- |
+| Add feature         | Minor (x.Y.z)  | 1.0.0 → 1.1.0 |
+| Add use case        | Patch (x.y.Z)  | 1.1.0 → 1.1.1 |
+| Modify feature      | Patch (x.y.Z)  | 1.1.1 → 1.1.2 |
+| Update interface    | Minor (x.Y.z)  | 1.1.2 → 1.2.0 |
+| Update traceability | Patch (x.y.Z)  | 1.2.0 → 1.2.1 |
 
 ## Bilingual Output Policy
 
@@ -343,16 +351,20 @@ All document updates MUST be applied to both language versions:
 ### Example Update
 
 English:
+
 ```markdown
 ### SF-015: Notification Feature [NEW]
+
 - **Linked PRD**: FR-015
 - **Description**: Handles email notifications
 - **Added**: 2024-01-15
 ```
 
 Korean:
+
 ```markdown
 ### SF-015: 알림 기능 (Notification Feature) [신규]
+
 - **연결된 PRD**: FR-015
 - **설명**: 이메일 알림 처리
 - **추가일**: 2024-01-15
@@ -370,12 +382,12 @@ Korean:
 
 ## Related Agents
 
-| Agent | Relationship | Data Exchange |
-|-------|--------------|---------------|
-| PRD Updater | Upstream | Receives prd_update_result.yaml |
-| Document Reader | Upstream | Receives current_state.yaml |
-| SDS Updater | Downstream | Triggers SDS updates for SRS changes |
-| Issue Generator | Downstream | May generate issues for new features |
+| Agent           | Relationship | Data Exchange                        |
+| --------------- | ------------ | ------------------------------------ |
+| PRD Updater     | Upstream     | Receives prd_update_result.yaml      |
+| Document Reader | Upstream     | Receives current_state.yaml          |
+| SDS Updater     | Downstream   | Triggers SDS updates for SRS changes |
+| Issue Generator | Downstream   | May generate issues for new features |
 
 ## Notes
 

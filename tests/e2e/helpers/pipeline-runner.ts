@@ -537,29 +537,22 @@ export async function placeMockArtifacts(
         );
         break;
       case 'issue_generation':
-        await fs.mkdir(path.join(projectDir, '.ad-sdlc', 'scratchpad', 'issues'), {
+        await fs.mkdir(path.join(projectDir, '.ad-sdlc', 'scratchpad', 'issues', projectId), {
           recursive: true,
         });
         await fs.writeFile(
-          path.join(projectDir, '.ad-sdlc', 'scratchpad', 'issues', 'issue_list.json'),
+          path.join(projectDir, '.ad-sdlc', 'scratchpad', 'issues', projectId, 'issue_list.json'),
           '{"issues": []}\n',
           'utf-8'
         );
         break;
       // Enhancement mode artifacts
       case 'document_reading':
-        await fs.mkdir(path.join(projectDir, '.ad-sdlc', 'scratchpad', 'analysis', projectId), {
+        await fs.mkdir(path.join(projectDir, '.ad-sdlc', 'scratchpad', 'state', projectId), {
           recursive: true,
         });
         await fs.writeFile(
-          path.join(
-            projectDir,
-            '.ad-sdlc',
-            'scratchpad',
-            'analysis',
-            projectId,
-            'document_state.yaml'
-          ),
+          path.join(projectDir, '.ad-sdlc', 'scratchpad', 'state', projectId, 'current_state.yaml'),
           'state: analyzed\n',
           'utf-8'
         );
@@ -609,14 +602,14 @@ export async function placeMockArtifacts(
             'scratchpad',
             'analysis',
             projectId,
-            'comparison_report.yaml'
+            'comparison_result.yaml'
           ),
           'comparison: done\n',
           'utf-8'
         );
         break;
       case 'impact_analysis':
-        await fs.mkdir(path.join(projectDir, '.ad-sdlc', 'scratchpad', 'analysis', projectId), {
+        await fs.mkdir(path.join(projectDir, '.ad-sdlc', 'scratchpad', 'impact', projectId), {
           recursive: true,
         });
         await fs.writeFile(
@@ -624,7 +617,7 @@ export async function placeMockArtifacts(
             projectDir,
             '.ad-sdlc',
             'scratchpad',
-            'analysis',
+            'impact',
             projectId,
             'impact_report.yaml'
           ),

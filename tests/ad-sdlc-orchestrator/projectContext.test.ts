@@ -54,16 +54,12 @@ function capturingAdapter(calls: SdkQueryOptions[]): SdkExecutionAdapter {
           if (input.options?.agent === 'validation-agent') {
             const directory = join(input.options.cwd!, '.ad-sdlc/scratchpad/vnv/offline');
             await mkdir(directory, { recursive: true });
-            const paths = ['rtm.yaml', 'validation-report.yaml'];
-            for (const name of paths) await writeFile(join(directory, name), 'offline: true');
+            const report = join(directory, 'validation-report.yaml');
+            await writeFile(report, 'offline: true');
             yield sdkResult({
               structured_output: {
                 schemaVersion: 1,
-                artifacts: paths.map((name) => ({
-                  path: join(directory, name),
-                  kind: 'file',
-                  operation: 'written',
-                })),
+                artifacts: [{ path: report, kind: 'file', operation: 'written' }],
               },
             });
           } else yield sdkResult();

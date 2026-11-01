@@ -104,10 +104,10 @@ describe('ArtifactValidator', () => {
     });
 
     it('should validate enhancement mode artifacts', async () => {
-      // Create document_state.yaml for document_reading stage
-      const analysisDir = path.join(tempDir, '.ad-sdlc', 'scratchpad', 'analysis', 'run-001');
-      await fs.mkdir(analysisDir, { recursive: true });
-      await fs.writeFile(path.join(analysisDir, 'document_state.yaml'), 'state: parsed\n');
+      // Create current_state.yaml for document_reading stage
+      const stateDir = path.join(tempDir, '.ad-sdlc', 'scratchpad', 'state', 'run-001');
+      await fs.mkdir(stateDir, { recursive: true });
+      await fs.writeFile(path.join(stateDir, 'current_state.yaml'), 'state: parsed\n');
 
       const result = await validator.validateStageArtifacts('document_reading', 'enhancement');
       expect(result.valid).toBe(true);
@@ -122,15 +122,45 @@ describe('ArtifactValidator', () => {
     });
 
     it('should validate literal path without wildcards', async () => {
-      // issue_generation uses a literal path: .ad-sdlc/scratchpad/issues/issue_list.json
-      const issueDir = path.join(tempDir, '.ad-sdlc', 'scratchpad', 'issues');
-      await fs.mkdir(issueDir, { recursive: true });
-      await fs.writeFile(path.join(issueDir, 'issue_list.json'), '[]');
+      // doc_indexing uses a literal path: docs/.index/manifest.yaml
+      const indexDir = path.join(tempDir, 'docs', '.index');
+      await fs.mkdir(indexDir, { recursive: true });
+      await fs.writeFile(path.join(indexDir, 'manifest.yaml'), '{}');
 
-      const result = await validator.validateStageArtifacts('issue_generation', 'greenfield');
+      const result = await validator.validateStageArtifacts('doc_indexing', 'enhancement');
       expect(result.valid).toBe(true);
       expect(result.found.length).toBe(1);
     });
+
+    it.each(['greenfield', 'enhancement'] as const)(
+      'should find the %s issue list under its project directory',
+      async (mode) => {
+        const scratchpad = path.join(tempDir, '.ad-sdlc', 'scratchpad', 'issues');
+        await fs.mkdir(path.join(scratchpad, 'run-001'), { recursive: true });
+        await fs.writeFile(path.join(scratchpad, 'issue_list.json'), '[]');
+        expect((await validator.validateStageArtifacts('issue_generation', mode)).valid).toBe(
+          false
+        );
+
+        await fs.writeFile(path.join(scratchpad, 'run-001', 'issue_list.json'), '[]');
+        const result = await validator.validateStageArtifacts('issue_generation', mode);
+        expect(result.valid).toBe(true);
+        expect(result.found.length).toBe(1);
+      }
+    );
+
+    it.each(['greenfield', 'enhancement', 'import'] as const)(
+      'should accept the %s validation report without an RTM',
+      async (mode) => {
+        const vnvDir = path.join(tempDir, '.ad-sdlc', 'scratchpad', 'vnv', 'run-001');
+        await fs.mkdir(vnvDir, { recursive: true });
+        await fs.writeFile(path.join(vnvDir, 'validation-report.yaml'), 'validation_report: {}\n');
+
+        const result = await validator.validateStageArtifacts('validation-agent', mode);
+        expect(result.valid).toBe(true);
+        expect(result.missing).toHaveLength(0);
+      }
+    );
   });
 
   describe('validatePreCompletedStages', () => {

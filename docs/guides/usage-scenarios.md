@@ -197,7 +197,7 @@ ad-sdlc run "Add JWT authentication middleware to all protected routes" \
   --mode enhancement
 
 # Step 2: Review the impact report before approving
-cat .ad-sdlc/scratchpad/impact_report.yaml
+cat .ad-sdlc/scratchpad/impact/*/impact_report.yaml
 
 # Step 3: Approve or reject at each approval gate as prompted
 ```

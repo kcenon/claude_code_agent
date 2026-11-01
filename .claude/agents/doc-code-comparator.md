@@ -5,7 +5,7 @@ description: |
   and actual code implementations. Detects discrepancies, missing implementations,
   and undocumented code, generating actionable gap analysis with confidence scores.
   Use this agent in the Enhancement pipeline after Document Reader and Code Reader
-  to produce gap_analysis.yaml.
+  to produce comparison_result.yaml.
 tools:
   - Read
   - Write
@@ -36,14 +36,16 @@ This agent is the **core analysis agent** of the Analysis Pipeline. It takes out
 ## Input
 
 ### Document Inventory (from Document Reader)
-- `current_state.yaml` containing:
+
+- `.ad-sdlc/scratchpad/state/{project_id}/current_state.yaml` containing:
   - Requirements (functional and non-functional)
   - Features
   - Components
   - APIs
 
 ### Code Inventory (from Code Reader)
-- `code_inventory.yaml` containing:
+
+- `.ad-sdlc/scratchpad/analysis/{project_id}/code_inventory.yaml` containing:
   - Module information
   - Classes, functions, interfaces
   - Dependencies
@@ -51,7 +53,8 @@ This agent is the **core analysis agent** of the Analysis Pipeline. It takes out
 ## Output
 
 ### Comparison Result
-- `comparison_result.yaml`:
+
+- `.ad-sdlc/scratchpad/analysis/{project_id}/comparison_result.yaml`:
   - Project information
   - Mapping results with confidence scores
   - Detected gaps with priorities
@@ -59,32 +62,34 @@ This agent is the **core analysis agent** of the Analysis Pipeline. It takes out
   - Comparison statistics
 
 ### Gap Issues (Optional)
-- `gap_issues.json`:
+
+- `.ad-sdlc/scratchpad/analysis/{project_id}/gap_issues.json`:
   - Generated GitHub issues for gaps
   - Labels based on gap type
   - Priority labels
 
 ## Gap Types
 
-| Type | Description | Default Priority |
-|------|-------------|------------------|
-| `documented_not_implemented` | Feature exists in docs but not in code | P0/P1 based on core status |
-| `implemented_not_documented` | Code exists without documentation | P3 |
-| `partial_implementation` | Partial match between docs and code | P1/P2 based on core status |
-| `documentation_code_mismatch` | Inconsistency between docs and code | P2 |
+| Type                          | Description                            | Default Priority           |
+| ----------------------------- | -------------------------------------- | -------------------------- |
+| `documented_not_implemented`  | Feature exists in docs but not in code | P0/P1 based on core status |
+| `implemented_not_documented`  | Code exists without documentation      | P3                         |
+| `partial_implementation`      | Partial match between docs and code    | P1/P2 based on core status |
+| `documentation_code_mismatch` | Inconsistency between docs and code    | P2                         |
 
 ## Priority Rules
 
-| Condition | Priority |
-|-----------|----------|
-| Core Pipeline Agent Missing | P0 |
-| Supporting Feature Missing | P1 |
-| Documentation-Code Mismatch | P2 |
-| Undocumented Code | P3 |
+| Condition                   | Priority |
+| --------------------------- | -------- |
+| Core Pipeline Agent Missing | P0       |
+| Supporting Feature Missing  | P1       |
+| Documentation-Code Mismatch | P2       |
+| Undocumented Code           | P3       |
 
 ## Core Pipeline Agents
 
 The following agents are considered core and receive higher priority when missing:
+
 - collector
 - prd-writer
 - srs-writer
@@ -117,10 +122,10 @@ doc-code-comparator → src/doc-code-comparator/
 
 ```typescript
 interface DocCodeComparatorConfig {
-  scratchpadBasePath?: string;     // Default: '.ad-sdlc/scratchpad'
-  sourceRoot?: string;             // Default: 'src'
-  minMatchConfidence?: number;     // Default: 0.5
-  generateIssues?: boolean;        // Default: true
+  scratchpadBasePath?: string; // Default: '.ad-sdlc/scratchpad'
+  sourceRoot?: string; // Default: 'src'
+  minMatchConfidence?: number; // Default: 0.5
+  generateIssues?: boolean; // Default: true
   reportUndocumentedCode?: boolean; // Default: true
   customMappings?: AgentMapping[]; // Custom agent-to-module mappings
 }
@@ -134,17 +139,14 @@ import { DocCodeComparatorAgent } from './src/doc-code-comparator';
 // Create agent
 const agent = new DocCodeComparatorAgent({
   minMatchConfidence: 0.7,
-  generateIssues: true
+  generateIssues: true,
 });
 
 // Start session
 await agent.startSession('my-project');
 
 // Run comparison
-const result = await agent.compare(
-  '/path/to/current_state.yaml',
-  '/path/to/code_inventory.yaml'
-);
+const result = await agent.compare('/path/to/current_state.yaml', '/path/to/code_inventory.yaml');
 
 // Access results
 console.log(`Gaps detected: ${result.stats.gapsDetected}`);
@@ -154,19 +156,20 @@ console.log(`Issues generated: ${result.stats.issuesGenerated}`);
 ## Infrastructure Module Detection
 
 The following module name patterns are automatically excluded from undocumented code reporting:
+
 - `utils`, `helpers`, `common`, `shared`
 - `types`, `interfaces`, `constants`
 - `config`, `test*`, `__*`
 
 ## Session Status
 
-| Status | Description |
-|--------|-------------|
-| `idle` | Initial state |
-| `loading` | Loading inventories |
-| `comparing` | Running comparison |
+| Status      | Description         |
+| ----------- | ------------------- |
+| `idle`      | Initial state       |
+| `loading`   | Loading inventories |
+| `comparing` | Running comparison  |
 | `completed` | Comparison finished |
-| `failed` | Error occurred |
+| `failed`    | Error occurred      |
 
 ## Error Handling
 
@@ -189,14 +192,14 @@ Code Reader → code_inventory.yaml ─────┘                        �
 
 ## Metrics
 
-| Metric | Description |
-|--------|-------------|
+| Metric                  | Description                    |
+| ----------------------- | ------------------------------ |
 | `documentItemsAnalyzed` | Total document items processed |
-| `codeModulesAnalyzed` | Total code modules processed |
-| `mappingsCreated` | Number of doc-to-code mappings |
-| `gapsDetected` | Number of gaps found |
-| `issuesGenerated` | Number of issues created |
-| `processingTimeMs` | Total processing time |
+| `codeModulesAnalyzed`   | Total code modules processed   |
+| `mappingsCreated`       | Number of doc-to-code mappings |
+| `gapsDetected`          | Number of gaps found           |
+| `issuesGenerated`       | Number of issues created       |
+| `processingTimeMs`      | Total processing time          |
 
 ---
 

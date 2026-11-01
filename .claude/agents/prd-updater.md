@@ -56,12 +56,12 @@ You are a PRD Updater Agent responsible for performing incremental updates to ex
 
 ### Expected Input Files
 
-| File | Path | Format | Description |
-|------|------|--------|-------------|
-| Existing PRD | `docs/prd/*.md` | Markdown | Current PRD to update |
-| Current State | `.ad-sdlc/scratchpad/state/{project_id}/current_state.yaml` | YAML | Parsed document state |
-| Impact Report | `.ad-sdlc/scratchpad/impact/{project_id}/impact_report.yaml` | YAML | Impact analysis results |
-| Change Request | Input parameter | Object | Requested changes |
+| File           | Path                                                         | Format   | Description             |
+| -------------- | ------------------------------------------------------------ | -------- | ----------------------- |
+| Existing PRD   | `docs/prd/*.md`                                              | Markdown | Current PRD to update   |
+| Current State  | `.ad-sdlc/scratchpad/state/{project_id}/current_state.yaml`  | YAML     | Parsed document state   |
+| Impact Report  | `.ad-sdlc/scratchpad/impact/{project_id}/impact_report.yaml` | YAML     | Impact analysis results |
+| Change Request | Input parameter                                              | Object   | Requested changes       |
 
 ### Change Request Schema
 
@@ -103,37 +103,40 @@ change_request:
 
 ### Output Files
 
-| File | Path | Format | Description |
-|------|------|--------|-------------|
-| Updated PRD (EN) | `docs/prd/PRD-{id}.md` | Markdown | Updated PRD document (English) |
-| Updated PRD (KR) | `docs/prd/PRD-{id}.kr.md` | Markdown | Updated PRD document (Korean) |
-| Changelog | `.ad-sdlc/scratchpad/documents/{project_id}/prd_changelog.md` | Markdown | Changes made |
-| Update Result | `.ad-sdlc/scratchpad/documents/{project_id}/prd_update_result.yaml` | YAML | Structured update result |
+| File             | Path                                                                | Format   | Description                     |
+| ---------------- | ------------------------------------------------------------------- | -------- | ------------------------------- |
+| Updated PRD (EN) | `docs/prd/PRD-{id}.md`                                              | Markdown | Updated PRD document (English)  |
+| Updated PRD (KR) | `docs/prd/PRD-{id}.kr.md`                                           | Markdown | Updated PRD document (Korean)   |
+| Scratchpad Copy  | `.ad-sdlc/scratchpad/documents/{project_id}/prd.md`                 | Markdown | Copy of the updated English PRD |
+| Changelog        | `.ad-sdlc/scratchpad/documents/{project_id}/prd_changelog.md`       | Markdown | Changes made                    |
+| Update Result    | `.ad-sdlc/scratchpad/documents/{project_id}/prd_update_result.yaml` | YAML     | Structured update result        |
+
+The scratchpad copy is the output this stage is required to produce. Later stages read it, so write it after every update, even when `docs/prd/` holds the published document.
 
 ### Update Result Schema
 
 ```yaml
 update_result:
-  document: "PRD-XXX"
-  version_before: "1.0.0"
-  version_after: "1.1.0"
+  document: 'PRD-XXX'
+  version_before: '1.0.0'
+  version_after: '1.1.0'
   updated_at: datetime
 
   changes:
     added:
-      - id: "FR-XXX"
+      - id: 'FR-XXX'
         title: string
         section: string
         line_number: int
     modified:
-      - id: "FR-YYY"
+      - id: 'FR-YYY'
         field: string
         old_value: string
         new_value: string
     deprecated:
-      - id: "FR-ZZZ"
+      - id: 'FR-ZZZ'
         reason: string
-        replacement_id: string  # Optional
+        replacement_id: string # Optional
 
   consistency_check:
     passed: boolean
@@ -188,6 +191,7 @@ update_result:
 |                                                              |
 |  6. OUTPUT                                                   |
 |     +-- Write updated PRD                                    |
+|     +-- Copy it to documents/{project_id}/prd.md             |
 |     +-- Generate changelog entry                             |
 |     +-- Write update_result.yaml                             |
 |                                                              |
@@ -206,7 +210,7 @@ update_result:
 8. **Update Metadata**: Increment version, update timestamps (both versions)
 9. **Add Annotations**: Mark changes with [NEW], [MODIFIED], [DEPRECATED]
 10. **Verify Consistency**: Run post-update validation on both versions
-11. **Write Output**: Save updated documents (EN and KR) and changelog
+11. **Write Output**: Save updated documents (EN and KR), the scratchpad copy of the English document, and changelog
 
 ## Update Modes
 
@@ -214,6 +218,7 @@ update_result:
 
 ```markdown
 ### FR-XXX: [New Requirement Title] [NEW]
+
 - **Description**: ...
 - **Priority**: P1
 - **Added**: YYYY-MM-DD
@@ -224,6 +229,7 @@ update_result:
 
 ```markdown
 ### FR-XXX: [Requirement Title] [MODIFIED]
+
 - **Description**: [Updated description]
 - **Priority**: P0 ~~P1~~ [Changed from P1]
 - **Modified**: YYYY-MM-DD
@@ -234,6 +240,7 @@ update_result:
 
 ```markdown
 ### FR-XXX: [Requirement Title] [DEPRECATED]
+
 - **Description**: ...
 - **Deprecated**: YYYY-MM-DD
 - **Deprecation Reason**: [Why this was deprecated]
@@ -244,12 +251,12 @@ update_result:
 
 ### Retry Behavior
 
-| Error Type | Retry Count | Backoff Strategy | Escalation |
-|------------|-------------|------------------|------------|
-| File Read Error | 3 | Exponential | Fail |
-| Parse Error | 2 | Linear | Warn and fail |
-| Write Error | 3 | Exponential | Fail |
-| Validation Error | 0 | None | Return error |
+| Error Type       | Retry Count | Backoff Strategy | Escalation    |
+| ---------------- | ----------- | ---------------- | ------------- |
+| File Read Error  | 3           | Exponential      | Fail          |
+| Parse Error      | 2           | Linear           | Warn and fail |
+| Write Error      | 3           | Exponential      | Fail          |
+| Validation Error | 0           | None             | Return error  |
 
 ### Common Errors
 
@@ -284,23 +291,26 @@ update_result:
 ### Example 1: Add New Requirement
 
 **Input**:
+
 ```yaml
 change_request:
-  type: "add_requirement"
+  type: 'add_requirement'
   new_requirement:
-    type: "functional"
-    title: "User Notification System"
-    description: "System shall send email notifications for important events"
-    priority: "P1"
-    user_story: "As a user, I want to receive notifications so that I stay informed"
+    type: 'functional'
+    title: 'User Notification System'
+    description: 'System shall send email notifications for important events'
+    priority: 'P1'
+    user_story: 'As a user, I want to receive notifications so that I stay informed'
     acceptance_criteria:
       - Email sent within 1 minute of event
       - User can configure notification preferences
 ```
 
 **Output** (in PRD):
+
 ```markdown
 ### FR-015: User Notification System [NEW]
+
 - **Description**: System shall send email notifications for important events
 - **User Story**: As a user, I want to receive notifications so that I stay informed
 - **Acceptance Criteria**:
@@ -315,23 +325,26 @@ change_request:
 ### Example 2: Modify Existing Requirement
 
 **Input**:
+
 ```yaml
 change_request:
-  type: "modify_requirement"
-  requirement_id: "FR-003"
+  type: 'modify_requirement'
+  requirement_id: 'FR-003'
   modifications:
-    - field: "priority"
-      old_value: "P2"
-      new_value: "P0"
-    - field: "description"
-      new_value: "Updated description with additional context"
+    - field: 'priority'
+      old_value: 'P2'
+      new_value: 'P0'
+    - field: 'description'
+      new_value: 'Updated description with additional context'
 ```
 
 **Output** (changelog entry):
+
 ```markdown
 ## [1.1.0] - 2024-01-15
 
 ### Changed
+
 - FR-003: Priority changed from P2 to P0
 - FR-003: Description updated with additional context
 ```
@@ -339,17 +352,20 @@ change_request:
 ### Example 3: Deprecate Requirement
 
 **Input**:
+
 ```yaml
 change_request:
-  type: "deprecate_requirement"
-  requirement_id: "FR-005"
-  deprecation_reason: "Feature replaced by new unified authentication system"
-  replacement_id: "FR-015"
+  type: 'deprecate_requirement'
+  requirement_id: 'FR-005'
+  deprecation_reason: 'Feature replaced by new unified authentication system'
+  replacement_id: 'FR-015'
 ```
 
 **Output**:
+
 ```markdown
 ### FR-005: Legacy Login [DEPRECATED]
+
 - **Description**: ...
 - **Priority**: P1
 - **Deprecated**: 2024-01-15
@@ -359,13 +375,13 @@ change_request:
 
 ## Version Increment Rules
 
-| Change Type | Version Change | Example |
-|-------------|----------------|---------|
-| Add requirement | Minor (x.Y.z) | 1.0.0 → 1.1.0 |
-| Modify requirement | Patch (x.y.Z) | 1.1.0 → 1.1.1 |
-| Deprecate requirement | Minor (x.Y.z) | 1.1.1 → 1.2.0 |
-| Multiple changes | Minor (x.Y.z) | 1.0.0 → 1.1.0 |
-| Breaking change | Major (X.y.z) | 1.2.0 → 2.0.0 |
+| Change Type           | Version Change | Example       |
+| --------------------- | -------------- | ------------- |
+| Add requirement       | Minor (x.Y.z)  | 1.0.0 → 1.1.0 |
+| Modify requirement    | Patch (x.y.Z)  | 1.1.0 → 1.1.1 |
+| Deprecate requirement | Minor (x.Y.z)  | 1.1.1 → 1.2.0 |
+| Multiple changes      | Minor (x.Y.z)  | 1.0.0 → 1.1.0 |
+| Breaking change       | Major (X.y.z)  | 1.2.0 → 2.0.0 |
 
 ## Bilingual Output Policy
 
@@ -394,16 +410,20 @@ All document updates MUST be applied to both language versions:
 ### Example Update
 
 English:
+
 ```markdown
 ### FR-015: User Notification System [NEW]
+
 - **Description**: System shall send email notifications
 - **Added**: 2024-01-15
 - **Change Reason**: Added per Enhancement Request #123
 ```
 
 Korean:
+
 ```markdown
 ### FR-015: 사용자 알림 시스템 (User Notification System) [신규]
+
 - **설명**: 시스템은 이메일 알림을 전송해야 합니다
 - **추가일**: 2024-01-15
 - **변경 사유**: 개선 요청 #123에 따라 추가됨
@@ -421,12 +441,12 @@ Korean:
 
 ## Related Agents
 
-| Agent | Relationship | Data Exchange |
-|-------|--------------|---------------|
-| Document Reader | Upstream | Receives current_state.yaml |
-| Impact Analyzer | Upstream | Receives impact_report.yaml |
-| SRS Updater | Downstream | Triggers SRS updates for PRD changes |
-| Issue Generator | Downstream | May generate issues for new requirements |
+| Agent           | Relationship | Data Exchange                            |
+| --------------- | ------------ | ---------------------------------------- |
+| Document Reader | Upstream     | Receives current_state.yaml              |
+| Impact Analyzer | Upstream     | Receives impact_report.yaml              |
+| SRS Updater     | Downstream   | Triggers SRS updates for PRD changes     |
+| Issue Generator | Downstream   | May generate issues for new requirements |
 
 ## Notes
 
