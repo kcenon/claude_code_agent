@@ -5,6 +5,6 @@
   "description": "Target repository of the AD-SDLC Import live acceptance scenarios",
   "type": "module",
   "scripts": {
-    "test": "node --test test/"
+    "test": "node --test"
   }
 }

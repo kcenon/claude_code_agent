@@ -84,14 +84,18 @@ afterEach(async () => {
   await rm(dir, { recursive: true, force: true });
 });
 
-/** Run the target repository's own tests (`npm test` without npm). */
+/**
+ * Run the target repository's own tests through its real `npm test` script,
+ * the command the seeded issues name and the worker runs.
+ */
 function targetTests(target: string, extra: NodeJS.ProcessEnv = {}): number | null {
-  const tests = readdirSync(join(target, 'test')).map((file) => join('test', file));
-  return spawnSync(process.execPath, ['--test', ...tests], {
+  const windows = process.platform === 'win32';
+  return spawnSync(windows ? 'npm.cmd' : 'npm', ['test'], {
     cwd: target,
     env: { ...offlineEnv(), ...extra },
     encoding: 'utf8',
     timeout: 60_000,
+    shell: windows,
   }).status;
 }
 
