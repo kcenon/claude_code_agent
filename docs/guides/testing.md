@@ -455,6 +455,7 @@ without the settings fails the test instead of skipping it.
 | `AD_SDLC_LIVE_GITHUB_REPO`             | yes       | —                          | `owner/name` of the disposable target repository of the live scenarios (see below)                                             |
 | `AD_SDLC_LIVE_ENHANCEMENT_GITHUB_REPO` | no        | `AD_SDLC_LIVE_GITHUB_REPO` | `owner/name` of a separate disposable target repository of the Enhancement scenarios (see below)                               |
 | `AD_SDLC_LIVE_GITHUB_TOKEN`            | `secrets` | —                          | GitHub token scoped to the target repositories only                                                                            |
+| `CLAUDE_CODE_OAUTH_TOKEN`              | no        | —                          | `local-login` only: a token from `claude setup-token`, used instead of the login file                                          |
 | `AD_SDLC_LIVE_MAX_TURNS`               | no        | `8`                        | Integer 1 to 30: the turn budget, written as `maxTurns` into the stage agent's definition, which the adapter passes to the SDK |
 | `AD_SDLC_LIVE_STAGE_TIMEOUT_MS`        | no        | `240000`                   | Integer 10000 to 1200000: passed as `--stage-timeout-ms`, the total time budget of the stage                                   |
 | `AD_SDLC_LIVE_OUTPUT_DIR`              | no        | `test-output/live`         | Directory for the metadata, summary, Vitest report, run reports, and smoke evidence                                            |
@@ -477,6 +478,18 @@ is visible to the CLI, the runs pass `--allow-stub`, which only skips that
 detection: every stage still runs through the SDK adapter. GitHub calls use the
 account `gh` is logged in to. On Windows, npm runs the package scripts in Git
 for Windows' bash.
+
+On macOS the login is in the Keychain, keyed to the configuration directory, so
+the isolated directory cannot read it and there is no file to copy. Run
+`claude setup-token` yourself, in your own terminal, and set
+`CLAUDE_CODE_OAUTH_TOKEN`: the runs use your subscription through it, and nothing
+is copied. Claude Code prefers `ANTHROPIC_API_KEY` and `ANTHROPIC_AUTH_TOKEN` to
+a login, so `local-login` refuses to start while either is set. A subscription's
+usage limits apply to these runs. This mode is for a maintainer's own acceptance
+runs: unless approved, Anthropic does not allow products built on the Agent SDK
+to offer claude.ai login. So the product does not offer it: `ad-sdlc run` still
+detects only an API key or a Claude Code session, and the lane passes
+`--allow-stub` to skip that detection.
 
 The stage time budget is the hard limit: the orchestrator aborts the SDK query
 when it expires, and the workflow's job timeout bounds the whole run.

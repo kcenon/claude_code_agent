@@ -614,6 +614,48 @@ describe('live lane settings for the Import scenarios', () => {
     expect(liveAuthArguments({ auth: 'secrets' })).toEqual([]);
   });
 
+  it('accepts a subscription token as the login in local-login mode', async () => {
+    const env = {
+      AD_SDLC_LIVE_AUTH: 'local-login',
+      AD_SDLC_LIVE_GITHUB_REPO: 'owner/target',
+      HOME: dir,
+      CLAUDE_CODE_OAUTH_TOKEN: 'placeholder-not-a-token',
+    };
+    expect(resolveLiveSettings(env, dir, () => false)).toMatchObject({
+      ready: true,
+      auth: 'local-login',
+      missing: [],
+    });
+    // No login file exists, and the run neither needs nor copies one.
+    await prepareClaudeConfigDir(join(dir, 'run-token'), { auth: 'local-login' }, env);
+    expect(readdirSync(join(dir, 'run-token'))).toEqual(['settings.json']);
+    // Secrets mode still needs its API key, whatever the token says.
+    expect(
+      resolveLiveSettings({ ...env, AD_SDLC_LIVE_AUTH: 'secrets' }, dir, () => false).missing
+    ).toContain('ANTHROPIC_API_KEY');
+  });
+
+  it.each(['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN'])(
+    'refuses local-login while %s is set, because it would be billed instead',
+    (name) => {
+      const value = 'placeholder-not-a-key';
+      const settings = resolveLiveSettings(
+        {
+          AD_SDLC_LIVE_AUTH: 'local-login',
+          AD_SDLC_LIVE_GITHUB_REPO: 'owner/target',
+          HOME: dir,
+          CLAUDE_CODE_OAUTH_TOKEN: 'placeholder-not-a-token',
+          [name]: value,
+        },
+        dir,
+        () => true
+      );
+      expect(settings.ready).toBe(false);
+      expect(settings.reason).toContain(`invalid ${name} (set,`);
+      expect(settings.reason).not.toContain(value);
+    }
+  );
+
   it('writes only the lane permissions, plus a login that stays valid in local-login mode', async () => {
     const userConfig = join(dir, 'user-claude');
     await mkdir(userConfig);

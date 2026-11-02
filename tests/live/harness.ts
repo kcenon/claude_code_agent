@@ -14,6 +14,7 @@ import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import {
+  CLAUDE_OAUTH_TOKEN_ENV,
   claudeCredentialsPath,
   type LiveBudget,
   type LiveSettings,
@@ -128,7 +129,8 @@ export const LIVE_PERMISSIONS = {
  * `settings.json` holds {@link LIVE_PERMISSIONS} and nothing else, so the
  * user's settings, hooks, and plugins never reach the run. In `local-login`
  * mode it also receives a copy of the machine's Claude Code login
- * credentials; the copy is removed with the run's directory.
+ * credentials, unless a token from `claude setup-token` is in the environment;
+ * the copy is removed with the run's directory.
  * @param dir - Isolated CLAUDE_CONFIG_DIR
  * @param settings - Lane settings
  * @param env - Environment that locates the user's Claude configuration
@@ -147,6 +149,8 @@ export async function prepareClaudeConfigDir(
     `${JSON.stringify({ permissions: LIVE_PERMISSIONS }, null, 2)}\n`
   );
   if (settings.auth !== 'local-login') return;
+  // The SDK child reads the token from the environment, and it does not rotate.
+  if ((env[CLAUDE_OAUTH_TOKEN_ENV] ?? '').trim() !== '') return;
   const source = claudeCredentialsPath(env);
   const credentials = JSON.parse(await readFile(source, 'utf8')) as {
     claudeAiOauth?: { expiresAt?: unknown };
@@ -163,7 +167,7 @@ export async function prepareClaudeConfigDir(
  * Extra `ad-sdlc run` flags of the authentication mode. With a Claude Code
  * login there is no API key or session marker for the CLI to detect, so the
  * run passes `--allow-stub`, which only skips that detection: the stages still
- * run through the SDK adapter, which uses the copied login.
+ * run through the SDK adapter, which uses the copied login or the token.
  * @param settings - Lane settings
  * @returns Flags
  */
