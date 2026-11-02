@@ -111,6 +111,19 @@ export const REQUIRED_LIVE_SETTINGS = [
 const LOCAL_LOGIN_REPLACED: readonly string[] = ['ANTHROPIC_API_KEY', 'AD_SDLC_LIVE_GITHUB_TOKEN'];
 
 /**
+ * Token from `claude setup-token`, an alternative to the login file in `local-login`
+ * mode. On macOS the login is in the Keychain, keyed to the configuration directory,
+ * so the run's isolated directory cannot read it and there is no file to copy.
+ */
+export const CLAUDE_OAUTH_TOKEN_ENV = 'CLAUDE_CODE_OAUTH_TOKEN';
+
+/**
+ * Credentials that Claude Code prefers to a subscription login. With one of them set,
+ * a `local-login` run would bill it instead, so the lane refuses to start.
+ */
+const OUTRANKS_LOCAL_LOGIN: readonly string[] = ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN'];
+
+/**
  * Claude Code login credentials file that `local-login` mode copies into the
  * isolated Claude configuration directory of each run.
  * @param env - Process environment
@@ -272,8 +285,16 @@ export function resolveLiveSettings(
       !(auth === 'local-login' && LOCAL_LOGIN_REPLACED.includes(setting.name)) &&
       !nonEmpty(env[setting.name])
   ).map((setting) => setting.name);
-  if (auth === 'local-login' && !exists(claudeCredentialsPath(env)))
+  if (
+    auth === 'local-login' &&
+    !nonEmpty(env[CLAUDE_OAUTH_TOKEN_ENV]) &&
+    !exists(claudeCredentialsPath(env))
+  )
     missing.unshift('Claude Code login');
+  if (auth === 'local-login')
+    for (const name of OUTRANKS_LOCAL_LOGIN)
+      if (nonEmpty(env[name]))
+        invalid.push(`${name} (set, and it would be used instead of the login; unset it)`);
   const budgetValue = (key: keyof typeof LIVE_BUDGET_SETTINGS): number => {
     const setting = LIVE_BUDGET_SETTINGS[key];
     const raw = env[setting.env];
@@ -499,6 +520,8 @@ const SECRET_SETTINGS = [
   'ANTHROPIC_API_KEY',
   'CLAUDE_API_KEY',
   'AD_SDLC_LIVE_GITHUB_TOKEN',
+  'ANTHROPIC_AUTH_TOKEN',
+  CLAUDE_OAUTH_TOKEN_ENV,
   'GH_TOKEN',
   'GITHUB_TOKEN',
 ] as const;

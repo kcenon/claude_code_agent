@@ -25,6 +25,7 @@ import {
   escapeTableCell,
   resolveLiveSettings,
   runLiveLane,
+  scrubOutputDirectory,
   summarizeVitestReport,
   type LiveLaneMetadata,
 } from '../../scripts/live-lane.js';
@@ -344,6 +345,19 @@ describe('live lane runner', () => {
         '[redacted] [redacted] [redacted]'
       );
       expect(await output(root, 'clean.txt')).toBe('nothing to remove\n');
+    });
+
+    it('removes a subscription token the lane holds', async () => {
+      const output = join(dir, 'subscription-output');
+      await mkdir(output);
+      await writeFile(join(output, 'stage.log'), 'login placeholder-subscription done');
+
+      const scrubbed = scrubOutputDirectory(output, {
+        CLAUDE_CODE_OAUTH_TOKEN: 'placeholder-subscription',
+      });
+
+      expect(scrubbed).toEqual(['stage.log']);
+      expect(await readFile(join(output, 'stage.log'), 'utf8')).toBe('login [redacted] done');
     });
 
     it('reads what the metadata quotes only after removing them', async () => {
